@@ -26,7 +26,9 @@ _PASSWORD = "testpass123!"
 
 def _make_user(email, tier=Tier.PRO, password=_PASSWORD, **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=password, **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -50,7 +52,9 @@ class QualityEconomicsScenarioTest(TestCase):
         """Taguchi loss function — nominal-is-best with correct API."""
         from agents_api.analysis.quality_econ import TaguchiLoss
 
-        loss = TaguchiLoss(loss_type="nib", target=100.0, delta0=5.0, cost_at_limit=250.0)
+        loss = TaguchiLoss(
+            loss_type="nib", target=100.0, delta0=5.0, cost_at_limit=250.0
+        )
         # Verify the object was created with correct attributes
         self.assertEqual(loss.target, 100.0)
         self.assertEqual(loss.delta0, 5.0)
@@ -321,7 +325,10 @@ class BayesDOEScenarioTest(TestCase):
 
     def test_bayesian_linear_posterior(self):
         """Bayesian linear posterior from DOE data."""
-        from agents_api.bayes_doe import bayesian_linear_posterior, build_doe_design_matrix
+        from agents_api.bayes_doe import (
+            bayesian_linear_posterior,
+            build_doe_design_matrix,
+        )
 
         df = pd.DataFrame(
             {

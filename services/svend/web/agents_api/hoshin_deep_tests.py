@@ -29,7 +29,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_enterprise_user(email, **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password="testpass123!", **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123!", **kwargs
+    )
     user.tier = Tier.ENTERPRISE
     user.save(update_fields=["tier"])
     return user
@@ -130,7 +132,9 @@ class KaizenCharterTest(TestCase):
         self.assertEqual(c["event_date"], "2026-03-10")
         self.assertEqual(c["end_date"], "2026-03-14")
         self.assertEqual(c["schedule"], "7:00 AM - 4:00 PM")
-        self.assertEqual(c["problem_statement"], "Changeover takes 90 minutes, target is 10")
+        self.assertEqual(
+            c["problem_statement"], "Changeover takes 90 minutes, target is 10"
+        )
         self.assertEqual(c["primary_metric"], "Changeover Time (min)")
         self.assertEqual(c["primary_baseline"], 90)
         self.assertEqual(c["primary_target"], 10)
@@ -213,10 +217,16 @@ class KaizenCharterTest(TestCase):
             },
         )
 
-        c = self.client.get(f"/api/hoshin/projects/{hp_id}/").json()["project"]["kaizen_charter"]
+        c = self.client.get(f"/api/hoshin/projects/{hp_id}/").json()["project"][
+            "kaizen_charter"
+        ]
         self.assertEqual(c["background"], "Press has 15% unplanned downtime")
-        self.assertEqual(c["current_conditions"], "No PM schedule, reactive maintenance only")
-        self.assertEqual(c["plan_objectives"], "Implement autonomous maintenance (AM Steps 1-3)")
+        self.assertEqual(
+            c["current_conditions"], "No PM schedule, reactive maintenance only"
+        )
+        self.assertEqual(
+            c["plan_objectives"], "Implement autonomous maintenance (AM Steps 1-3)"
+        )
         self.assertIn("Clean-to-inspect", c["countermeasures"])
 
 
@@ -493,7 +503,9 @@ class SavingsAggregationTest(TestCase):
             },
         )
 
-        summary = self.client.get(f"/api/hoshin/projects/{self.hp_id}/").json()["project"]["savings_summary"]
+        summary = self.client.get(f"/api/hoshin/projects/{self.hp_id}/").json()[
+            "project"
+        ]["savings_summary"]
         trend = summary["monthly_trend"]
         self.assertEqual(len(trend), 3)
         # Cumulative: 2000, 2000+3000=5000, 5000+4000=9000
@@ -779,7 +791,9 @@ class AnnualObjectiveTest(TestCase):
                 "status": "on_track",
             },
         )
-        obj = self.client.get("/api/hoshin/annual-objectives/?fiscal_year=2026").json()["annual_objectives"][0]
+        obj = self.client.get("/api/hoshin/annual-objectives/?fiscal_year=2026").json()[
+            "annual_objectives"
+        ][0]
         self.assertEqual(float(obj["actual_value"]), 4.8)
 
     def test_delete_annual_objective(self):
@@ -970,7 +984,13 @@ class HoshinKPITest(TestCase):
                 "actual_value": 3.5,
             },
         )
-        kpi = next(k for k in self.client.get("/api/hoshin/kpis/?fiscal_year=2026").json()["kpis"] if k["id"] == kpi_id)
+        kpi = next(
+            k
+            for k in self.client.get("/api/hoshin/kpis/?fiscal_year=2026").json()[
+                "kpis"
+            ]
+            if k["id"] == kpi_id
+        )
         self.assertEqual(float(kpi["target_value"]), 2.0)
         self.assertEqual(float(kpi["actual_value"]), 3.5)
 
@@ -1003,7 +1023,9 @@ class HoshinKPITest(TestCase):
         )
         self.assertEqual(res.status_code, 201)
         kpi = res.json()["kpi"]
-        self.assertIn(kpi.get("aggregation", "weighted_avg"), ["weighted_avg", "average"])
+        self.assertIn(
+            kpi.get("aggregation", "weighted_avg"), ["weighted_avg", "average"]
+        )
 
 
 # =============================================================================
@@ -1323,7 +1345,11 @@ class XMatrixDataTest(TestCase):
 
         # Correlation should be gone
         data = self.client.get("/api/hoshin/x-matrix/?fiscal_year=2026").json()
-        strat_annual = [c for c in data["correlations"]["strategic_annual"] if c["row_id"] == self.strat_id]
+        strat_annual = [
+            c
+            for c in data["correlations"]["strategic_annual"]
+            if c["row_id"] == self.strat_id
+        ]
         self.assertEqual(len(strat_annual), 0)
 
     # Aliases for compliance hook names
@@ -1530,7 +1556,9 @@ class HoshinCalendarTest(TestCase):
             "annual_savings_target": target,
             **kwargs,
         }
-        return _post(self.client, "/api/hoshin/projects/create/", data).json()["project"]["id"]
+        return _post(self.client, "/api/hoshin/projects/create/", data).json()[
+            "project"
+        ]["id"]
 
     def test_calendar_basic_structure(self):
         """Calendar returns sites with projects and 12 months."""
@@ -1612,7 +1640,9 @@ class HoshinCalendarTest(TestCase):
             },
         )
 
-        proj = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()["sites"][0]["projects"][0]
+        proj = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()[
+            "sites"
+        ][0]["projects"][0]
         march = proj["months"][2]
         # savings=5000, target=10000, pct=50%
         self.assertAlmostEqual(march["pct"], 50.0, places=1)
@@ -1639,7 +1669,9 @@ class HoshinCalendarTest(TestCase):
             },
         )
 
-        site = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()["sites"][0]
+        site = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()[
+            "sites"
+        ][0]
 
         # Site-level month 1: targets = 10000+5000=15000, actuals = 3000+2000=5000
         jan = site["months"][0]
@@ -1668,7 +1700,9 @@ class HoshinCalendarTest(TestCase):
             },
         )
 
-        site = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()["sites"][0]
+        site = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()[
+            "sites"
+        ][0]
         self.assertAlmostEqual(site["target"], 150000.0, places=0)
         # ytd = 3000 + 3000 = 6000
         self.assertAlmostEqual(site["ytd"], 6000.0, places=0)
@@ -1685,7 +1719,9 @@ class HoshinCalendarTest(TestCase):
             },
         )
 
-        site = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()["sites"][0]
+        site = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()[
+            "sites"
+        ][0]
         self.assertEqual(len(site["projects"]), 1)
         self.assertEqual(site["projects"][0]["title"], "Active One")
 
@@ -1729,7 +1765,9 @@ class HoshinCalendarTest(TestCase):
         self.assertEqual(len(data_all["sites"]), 2)
 
         # Filter to site 1
-        data_one = self.client.get(f"/api/hoshin/calendar/?fiscal_year=2026&site_id={self.site_id}").json()
+        data_one = self.client.get(
+            f"/api/hoshin/calendar/?fiscal_year=2026&site_id={self.site_id}"
+        ).json()
         self.assertEqual(len(data_one["sites"]), 1)
         self.assertEqual(data_one["sites"][0]["site_name"], "Calendar Plant")
 
@@ -1743,7 +1781,9 @@ class HoshinCalendarTest(TestCase):
             hoshin_status="active",
         )
 
-        proj = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()["sites"][0]["projects"][0]
+        proj = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()[
+            "sites"
+        ][0]["projects"][0]
         self.assertEqual(proj["status"], "active")
         self.assertEqual(proj["type"], "labor")
         self.assertEqual(proj["class"], "kaizen")
@@ -1771,7 +1811,9 @@ class HoshinCalendarTest(TestCase):
             },
         )
 
-        sites = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()["sites"]
+        sites = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()[
+            "sites"
+        ]
         site_names = {s["site_name"] for s in sites}
         self.assertEqual(site_names, {"Calendar Plant", "Second Plant"})
         plant1 = next(s for s in sites if s["site_name"] == "Calendar Plant")
@@ -1816,24 +1858,58 @@ class MonteCarloSavingsTest(TestCase):
             estimate_savings_monte_carlo,
         )
 
-        current = {"cycle_time": 60, "changeover_time": 30, "uptime": 80, "operators": 4, "batch_size": 100}
-        future = {"cycle_time": 40, "changeover_time": 15, "uptime": 90, "operators": 3, "batch_size": 100}
+        current = {
+            "cycle_time": 60,
+            "changeover_time": 30,
+            "uptime": 80,
+            "operators": 4,
+            "batch_size": 100,
+        }
+        future = {
+            "cycle_time": 40,
+            "changeover_time": 15,
+            "uptime": 90,
+            "operators": 3,
+            "batch_size": 100,
+        }
 
-        det = estimate_savings_from_vsm_delta(current, future, annual_volume=50000, cost_per_unit=25)
-        mc = estimate_savings_monte_carlo(current, future, annual_volume=50000, cost_per_unit=25)
+        det = estimate_savings_from_vsm_delta(
+            current, future, annual_volume=50000, cost_per_unit=25
+        )
+        mc = estimate_savings_monte_carlo(
+            current, future, annual_volume=50000, cost_per_unit=25
+        )
 
-        self.assertAlmostEqual(mc["deterministic"], det["estimated_annual_savings"], places=2)
+        self.assertAlmostEqual(
+            mc["deterministic"], det["estimated_annual_savings"], places=2
+        )
         self.assertEqual(mc["suggested_method"], det["suggested_method"])
-        self.assertAlmostEqual(mc["cycle_time_delta"], det["cycle_time_delta"], places=2)
+        self.assertAlmostEqual(
+            mc["cycle_time_delta"], det["cycle_time_delta"], places=2
+        )
 
     def test_confidence_intervals_bracket_median(self):
         """5th percentile < median < 95th percentile."""
         from agents_api.hoshin_calculations import estimate_savings_monte_carlo
 
-        current = {"cycle_time": 60, "changeover_time": 30, "uptime": 80, "operators": 4, "batch_size": 100}
-        future = {"cycle_time": 40, "changeover_time": 15, "uptime": 90, "operators": 3, "batch_size": 100}
+        current = {
+            "cycle_time": 60,
+            "changeover_time": 30,
+            "uptime": 80,
+            "operators": 4,
+            "batch_size": 100,
+        }
+        future = {
+            "cycle_time": 40,
+            "changeover_time": 15,
+            "uptime": 90,
+            "operators": 3,
+            "batch_size": 100,
+        }
 
-        mc = estimate_savings_monte_carlo(current, future, annual_volume=50000, cost_per_unit=25)
+        mc = estimate_savings_monte_carlo(
+            current, future, annual_volume=50000, cost_per_unit=25
+        )
 
         self.assertLess(mc["lower_5"], mc["median_savings"])
         self.assertGreater(mc["upper_95"], mc["median_savings"])
@@ -1843,8 +1919,20 @@ class MonteCarloSavingsTest(TestCase):
         """Realization risk (Beta(4,2) mean ~0.67) pulls mean below deterministic."""
         from agents_api.hoshin_calculations import estimate_savings_monte_carlo
 
-        current = {"cycle_time": 100, "changeover_time": 0, "uptime": 100, "operators": 1, "batch_size": 1}
-        future = {"cycle_time": 50, "changeover_time": 0, "uptime": 100, "operators": 1, "batch_size": 1}
+        current = {
+            "cycle_time": 100,
+            "changeover_time": 0,
+            "uptime": 100,
+            "operators": 1,
+            "batch_size": 1,
+        }
+        future = {
+            "cycle_time": 50,
+            "changeover_time": 0,
+            "uptime": 100,
+            "operators": 1,
+            "batch_size": 1,
+        }
 
         mc = estimate_savings_monte_carlo(
             current,
@@ -1860,8 +1948,20 @@ class MonteCarloSavingsTest(TestCase):
         """Large improvement should have p_positive near 1.0."""
         from agents_api.hoshin_calculations import estimate_savings_monte_carlo
 
-        current = {"cycle_time": 120, "changeover_time": 60, "uptime": 70, "operators": 6, "batch_size": 50}
-        future = {"cycle_time": 40, "changeover_time": 10, "uptime": 95, "operators": 3, "batch_size": 50}
+        current = {
+            "cycle_time": 120,
+            "changeover_time": 60,
+            "uptime": 70,
+            "operators": 6,
+            "batch_size": 50,
+        }
+        future = {
+            "cycle_time": 40,
+            "changeover_time": 10,
+            "uptime": 95,
+            "operators": 3,
+            "batch_size": 50,
+        }
 
         mc = estimate_savings_monte_carlo(
             current,
@@ -1876,7 +1976,13 @@ class MonteCarloSavingsTest(TestCase):
         """No improvement should have low p_positive."""
         from agents_api.hoshin_calculations import estimate_savings_monte_carlo
 
-        current = {"cycle_time": 60, "changeover_time": 30, "uptime": 80, "operators": 4, "batch_size": 100}
+        current = {
+            "cycle_time": 60,
+            "changeover_time": 30,
+            "uptime": 80,
+            "operators": 4,
+            "batch_size": 100,
+        }
         future = dict(current)  # identical
 
         mc = estimate_savings_monte_carlo(
@@ -1893,10 +1999,24 @@ class MonteCarloSavingsTest(TestCase):
         """When operators decrease but CT doesn't, method switches to headcount."""
         from agents_api.hoshin_calculations import estimate_savings_monte_carlo
 
-        current = {"cycle_time": 60, "changeover_time": 30, "uptime": 80, "operators": 6, "batch_size": 100}
-        future = {"cycle_time": 60, "changeover_time": 30, "uptime": 80, "operators": 3, "batch_size": 100}
+        current = {
+            "cycle_time": 60,
+            "changeover_time": 30,
+            "uptime": 80,
+            "operators": 6,
+            "batch_size": 100,
+        }
+        future = {
+            "cycle_time": 60,
+            "changeover_time": 30,
+            "uptime": 80,
+            "operators": 3,
+            "batch_size": 100,
+        }
 
-        mc = estimate_savings_monte_carlo(current, future, annual_volume=50000, cost_per_unit=35)
+        mc = estimate_savings_monte_carlo(
+            current, future, annual_volume=50000, cost_per_unit=35
+        )
         self.assertEqual(mc["suggested_method"], "headcount")
         self.assertGreater(mc["deterministic"], 0)
 
@@ -1904,10 +2024,24 @@ class MonteCarloSavingsTest(TestCase):
         """Uptime is scaled differently (higher = better) vs CT (lower = better)."""
         from agents_api.hoshin_calculations import estimate_savings_monte_carlo
 
-        current = {"cycle_time": 60, "changeover_time": 0, "uptime": 60, "operators": 1, "batch_size": 1}
-        future = {"cycle_time": 60, "changeover_time": 0, "uptime": 95, "operators": 1, "batch_size": 1}
+        current = {
+            "cycle_time": 60,
+            "changeover_time": 0,
+            "uptime": 60,
+            "operators": 1,
+            "batch_size": 1,
+        }
+        future = {
+            "cycle_time": 60,
+            "changeover_time": 0,
+            "uptime": 95,
+            "operators": 1,
+            "batch_size": 1,
+        }
 
-        mc = estimate_savings_monte_carlo(current, future, annual_volume=10000, cost_per_unit=10)
+        mc = estimate_savings_monte_carlo(
+            current, future, annual_volume=10000, cost_per_unit=10
+        )
         # Uptime improved by 35 points. With realization risk, deltas are partially realized.
         self.assertAlmostEqual(mc["uptime_delta"], 35.0, places=1)
 
@@ -1996,7 +2130,9 @@ class MonteCarloSavingsTest(TestCase):
         self.assertIn("upper_95", prop)
         self.assertIn("p_positive", prop)
         # estimated_annual_savings is set to median by the endpoint
-        self.assertAlmostEqual(prop["estimated_annual_savings"], prop["median_savings"], places=2)
+        self.assertAlmostEqual(
+            prop["estimated_annual_savings"], prop["median_savings"], places=2
+        )
         # With this big improvement, p_positive should be high
         self.assertGreater(prop["p_positive"], 0.8)
         # Confidence interval should be non-trivial
@@ -2009,10 +2145,24 @@ class MonteCarloSavingsTest(TestCase):
         """MC result contains all required statistical fields."""
         from agents_api.hoshin_calculations import estimate_savings_monte_carlo
 
-        current = {"cycle_time": 60, "changeover_time": 30, "uptime": 80, "operators": 4, "batch_size": 100}
-        future = {"cycle_time": 40, "changeover_time": 15, "uptime": 90, "operators": 3, "batch_size": 100}
+        current = {
+            "cycle_time": 60,
+            "changeover_time": 30,
+            "uptime": 80,
+            "operators": 4,
+            "batch_size": 100,
+        }
+        future = {
+            "cycle_time": 40,
+            "changeover_time": 15,
+            "uptime": 90,
+            "operators": 3,
+            "batch_size": 100,
+        }
 
-        mc = estimate_savings_monte_carlo(current, future, annual_volume=50000, cost_per_unit=25)
+        mc = estimate_savings_monte_carlo(
+            current, future, annual_volume=50000, cost_per_unit=25
+        )
         for key in (
             "mean_savings",
             "median_savings",
@@ -2029,8 +2179,20 @@ class MonteCarloSavingsTest(TestCase):
         """Realization risk pulls mean below deterministic for any real improvement."""
         from agents_api.hoshin_calculations import estimate_savings_monte_carlo
 
-        current = {"cycle_time": 100, "changeover_time": 40, "uptime": 75, "operators": 5, "batch_size": 50}
-        future = {"cycle_time": 60, "changeover_time": 15, "uptime": 92, "operators": 3, "batch_size": 50}
+        current = {
+            "cycle_time": 100,
+            "changeover_time": 40,
+            "uptime": 75,
+            "operators": 5,
+            "batch_size": 50,
+        }
+        future = {
+            "cycle_time": 60,
+            "changeover_time": 15,
+            "uptime": 92,
+            "operators": 3,
+            "batch_size": 50,
+        }
 
         mc = estimate_savings_monte_carlo(
             current,
@@ -2097,7 +2259,9 @@ class VSMToCalendarIntegrationTest(TestCase):
             },
         )
 
-        future_id = _post(self.client, f"/api/vsm/{vsm_id}/future-state/", {}).json()["future_state"]["id"]
+        future_id = _post(self.client, f"/api/vsm/{vsm_id}/future-state/", {}).json()[
+            "future_state"
+        ]["id"]
 
         # Improve future
         future_vsm = self.client.get(f"/api/vsm/{future_id}/").json()["vsm"]
@@ -2152,7 +2316,9 @@ class VSMToCalendarIntegrationTest(TestCase):
                         "burst_id": proposals[0]["burst_id"],
                         "title": proposals[0]["suggested_title"],
                         "approved": True,
-                        "annual_savings_target": proposals[0]["estimated_annual_savings"],
+                        "annual_savings_target": proposals[0][
+                            "estimated_annual_savings"
+                        ],
                         "calculation_method": proposals[0]["suggested_method"],
                     },
                 ],
@@ -2399,7 +2565,9 @@ class CalendarSiteAccessTest(TestCase):
         """Member can't bypass access by passing site_id for a non-accessible site."""
         self.client.force_login(self.member)
         # Try to filter to Plant Beta (no access)
-        cal = self.client.get(f"/api/hoshin/calendar/?fiscal_year=2026&site_id={self.site_b}").json()
+        cal = self.client.get(
+            f"/api/hoshin/calendar/?fiscal_year=2026&site_id={self.site_b}"
+        ).json()
         # Should return empty — filter intersects with accessible sites
         self.assertEqual(cal["sites"], [])
 
@@ -2494,7 +2662,9 @@ class CrossTenantIsolationTest(TestCase):
         # Org A user should see no sites
         self.client.force_login(self.user_a)
         cal = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()
-        project_titles = [p["title"] for s in cal.get("sites", []) for p in s.get("projects", [])]
+        project_titles = [
+            p["title"] for s in cal.get("sites", []) for p in s.get("projects", [])
+        ]
         self.assertNotIn("Org B Secret", project_titles)
 
     def test_vsm_from_other_tenant_project_silently_dropped(self):
@@ -2693,7 +2863,9 @@ class VSMHoshinSitePipelineTest(TestCase):
         )
 
         # Future state with improvements
-        future_id = _post(self.client, f"/api/vsm/{vsm_id}/future-state/", {}).json()["future_state"]["id"]
+        future_id = _post(self.client, f"/api/vsm/{vsm_id}/future-state/", {}).json()[
+            "future_state"
+        ]["id"]
 
         future_vsm = self.client.get(f"/api/vsm/{future_id}/").json()["vsm"]
         steps = future_vsm["process_steps"]
@@ -2742,8 +2914,12 @@ class VSMHoshinSitePipelineTest(TestCase):
         self.assertGreaterEqual(len(proposals), 2)
 
         # Create SMED project at Fort Worth, TPM at Chicago
-        smed_prop = next((p for p in proposals if "SMED" in p.get("burst_text", "")), proposals[0])
-        tpm_prop = next((p for p in proposals if "TPM" in p.get("burst_text", "")), proposals[-1])
+        smed_prop = next(
+            (p for p in proposals if "SMED" in p.get("burst_text", "")), proposals[0]
+        )
+        tpm_prop = next(
+            (p for p in proposals if "TPM" in p.get("burst_text", "")), proposals[-1]
+        )
 
         _post(
             self.client,
@@ -2785,8 +2961,12 @@ class VSMHoshinSitePipelineTest(TestCase):
 
         # Record savings at each site
         cal = self.client.get("/api/hoshin/calendar/?fiscal_year=2026").json()
-        ftw_projects = next(s for s in cal["sites"] if s["site_name"] == "Fort Worth")["projects"]
-        chi_projects = next(s for s in cal["sites"] if s["site_name"] == "Chicago")["projects"]
+        ftw_projects = next(s for s in cal["sites"] if s["site_name"] == "Fort Worth")[
+            "projects"
+        ]
+        chi_projects = next(s for s in cal["sites"] if s["site_name"] == "Chicago")[
+            "projects"
+        ]
 
         ftw_hp_id = ftw_projects[0]["id"]
         chi_hp_id = chi_projects[0]["id"]
@@ -2815,8 +2995,12 @@ class VSMHoshinSitePipelineTest(TestCase):
         ftw = next(s for s in cal["sites"] if s["site_name"] == "Fort Worth")
         chi = next(s for s in cal["sites"] if s["site_name"] == "Chicago")
 
-        self.assertAlmostEqual(ftw["projects"][0]["months"][0]["actual"], 5000.0, places=0)
-        self.assertAlmostEqual(chi["projects"][0]["months"][0]["actual"], 2000.0, places=0)
+        self.assertAlmostEqual(
+            ftw["projects"][0]["months"][0]["actual"], 5000.0, places=0
+        )
+        self.assertAlmostEqual(
+            chi["projects"][0]["months"][0]["actual"], 2000.0, places=0
+        )
 
         # Site-level ytd totals
         self.assertAlmostEqual(ftw["ytd"], 5000.0, places=0)

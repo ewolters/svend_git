@@ -34,7 +34,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.TEAM):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123")
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123"
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -43,9 +45,14 @@ def _make_user(email, tier=Tier.TEAM):
 def _make_active_investigation(user):
     """Create an active investigation with a hypothesis for evidence to support."""
     inv = Investigation.objects.create(
-        title="Layer 2 Bridge Test", description="Testing Layer 2 integration", owner=user, status="active"
+        title="Layer 2 Bridge Test",
+        description="Testing Layer 2 integration",
+        owner=user,
+        status="active",
     )
-    tool = MeasurementSystem.objects.create(name="Layer 2 Test Gage", system_type="variable", owner=user)
+    tool = MeasurementSystem.objects.create(
+        name="Layer 2 Test Gage", system_type="variable", owner=user
+    )
     spec = HypothesisSpec(description="Layer 2 test hypothesis", prior=0.5)
     connect_tool(
         investigation_id=str(inv.id),
@@ -118,7 +125,11 @@ class RCABridgeTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(InvestigationToolLink.objects.filter(investigation=self.inv, tool_type="rca").exists())
+        self.assertTrue(
+            InvestigationToolLink.objects.filter(
+                investigation=self.inv, tool_type="rca"
+            ).exists()
+        )
 
     def test_rca_chain_steps_create_hypotheses(self):
         """RCA update with chain steps + investigation_id creates multiple hypotheses."""
@@ -287,7 +298,11 @@ class FMEABridgeTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(InvestigationToolLink.objects.filter(investigation=self.inv, tool_type="fmea").exists())
+        self.assertTrue(
+            InvestigationToolLink.objects.filter(
+                investigation=self.inv, tool_type="fmea"
+            ).exists()
+        )
 
 
 @SECURE_OFF

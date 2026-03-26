@@ -216,7 +216,10 @@ class LinearSCM:
                 if found:
                     break
                 for b in range(a + 1, len(pa)):
-                    if abs(self.B[pa[a], pa[b]]) < 1e-12 and abs(self.B[pa[b], pa[a]]) < 1e-12:
+                    if (
+                        abs(self.B[pa[a], pa[b]]) < 1e-12
+                        and abs(self.B[pa[b], pa[a]]) < 1e-12
+                    ):
                         colliders.append(
                             {
                                 "node": j,
@@ -305,7 +308,16 @@ def _v_marginal(predict_fn, bg, x_full, S_feat, feat_idx):
 
 
 def _compute_ishap(
-    predict_fn, scm, bg_data, x_full, feat_idx, n_bg=30, batch_size=50, max_perm=200, min_perm=50, tol=0.05
+    predict_fn,
+    scm,
+    bg_data,
+    x_full,
+    feat_idx,
+    n_bg=30,
+    batch_size=50,
+    max_perm=200,
+    min_perm=50,
+    tol=0.05,
 ):
     """
     Compute interventional + marginal Shapley values for one instance.
@@ -318,7 +330,9 @@ def _compute_ishap(
     p = len(feat_idx)
     feat_set = set(feat_idx)
 
-    bg_idx = np.random.choice(len(bg_data), min(n_bg, len(bg_data)), replace=n_bg > len(bg_data))
+    bg_idx = np.random.choice(
+        len(bg_data), min(n_bg, len(bg_data)), replace=n_bg > len(bg_data)
+    )
     bg = bg_data[bg_idx]
 
     phi_int = np.zeros(p)
@@ -392,7 +406,9 @@ def run_interventional_shap(df, analysis_id, config, model=None, model_features=
     result = {"plots": [], "summary": "", "guide_observation": ""}
 
     if model is None:
-        result["summary"] = "Error: No ML model provided. Train a model first, then run this analysis."
+        result["summary"] = (
+            "Error: No ML model provided. Train a model first, then run this analysis."
+        )
         return result
 
     features = config.get("features") or model_features or []
@@ -503,8 +519,12 @@ def run_interventional_shap(df, analysis_id, config, model=None, model_features=
     lines.append("<<COLOR:title>>INTERVENTIONAL SHAP (SCM-BASED)<</COLOR>>")
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
 
-    lines.append(f"<<COLOR:highlight>>SCM method:<</COLOR>> {'ICA-LiNGAM' if scm_method == 'lingam' else 'PC + OLS'}")
-    lines.append(f"<<COLOR:highlight>>Variables:<</COLOR>> {p} features + target ({target})")
+    lines.append(
+        f"<<COLOR:highlight>>SCM method:<</COLOR>> {'ICA-LiNGAM' if scm_method == 'lingam' else 'PC + OLS'}"
+    )
+    lines.append(
+        f"<<COLOR:highlight>>Variables:<</COLOR>> {p} features + target ({target})"
+    )
     lines.append(f"<<COLOR:highlight>>Instances explained:<</COLOR>> {n_explain}")
     lines.append(
         f"<<COLOR:highlight>>Convergence:<</COLOR>> "
@@ -520,7 +540,9 @@ def run_interventional_shap(df, analysis_id, config, model=None, model_features=
 
     # Feature-by-feature comparison
     lines.append("\n<<COLOR:accent>>── Feature Attribution (mean |SHAP|) ──<</COLOR>>")
-    lines.append(f"{'Feature':<20} {'Standard':>10} {'Interv.':>10} {'Δ':>8} {'Role':<20}")
+    lines.append(
+        f"{'Feature':<20} {'Standard':>10} {'Interv.':>10} {'Δ':>8} {'Role':<20}"
+    )
     lines.append(f"{'─' * 70}")
 
     for idx_f in rank_int:
@@ -530,7 +552,9 @@ def run_interventional_shap(df, analysis_id, config, model=None, model_features=
         delta = int_val - std_val
         role = roles.get(idx_f, "non_cause")
         rlabel = role_labels.get(role, role)
-        lines.append(f"{fname:<20} {std_val:>10.4f} {int_val:>10.4f} {delta:>+8.4f} {rlabel:<20}")
+        lines.append(
+            f"{fname:<20} {std_val:>10.4f} {int_val:>10.4f} {delta:>+8.4f} {rlabel:<20}"
+        )
 
     # Alerts
     alerts = []
@@ -584,8 +608,12 @@ def run_interventional_shap(df, analysis_id, config, model=None, model_features=
     lines.append("\n<<COLOR:accent>>── Assumptions ──<</COLOR>>")
     lines.append("  Method: Interventional SHAP via learned SCM")
     lines.append("  1. SCM is linear, acyclic, no hidden confounders")
-    lines.append("  2. SCM learned from observational data — interventions may differ from plant reality")
-    lines.append("  3. ML model is fully nonlinear; SCM only governs how features co-move under intervention")
+    lines.append(
+        "  2. SCM learned from observational data — interventions may differ from plant reality"
+    )
+    lines.append(
+        "  3. ML model is fully nonlinear; SCM only governs how features co-move under intervention"
+    )
     lines.append(
         f"  4. Attribution stability: "
         f"{'high' if n_converged >= n_explain * 0.8 else 'medium' if n_converged >= n_explain * 0.5 else 'low'}"
@@ -607,7 +635,10 @@ def run_interventional_shap(df, analysis_id, config, model=None, model_features=
                     "y": [features[i] for i in sorted_idx],
                     "x": [float(mean_abs_mar[i]) for i in sorted_idx],
                     "name": "Standard (marginal)",
-                    "marker": {"color": "rgba(150,150,150,0.5)", "line": {"color": "#999", "width": 1}},
+                    "marker": {
+                        "color": "rgba(150,150,150,0.5)",
+                        "line": {"color": "#999", "width": 1},
+                    },
                 },
                 {
                     "type": "bar",
@@ -615,7 +646,10 @@ def run_interventional_shap(df, analysis_id, config, model=None, model_features=
                     "y": [features[i] for i in sorted_idx],
                     "x": [float(mean_abs_int[i]) for i in sorted_idx],
                     "name": "Interventional (SCM)",
-                    "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+                    "marker": {
+                        "color": "rgba(74,159,110,0.6)",
+                        "line": {"color": "#4a9f6e", "width": 1},
+                    },
                 },
             ],
             "layout": {
@@ -635,7 +669,9 @@ def run_interventional_shap(df, analysis_id, config, model=None, model_features=
         "descendant": "#d4a24a",
         "non_cause": "#888888",
     }
-    bar_colors = [role_color_map.get(roles.get(i, "non_cause"), "#888") for i in sorted_idx]
+    bar_colors = [
+        role_color_map.get(roles.get(i, "non_cause"), "#888") for i in sorted_idx
+    ]
 
     result["plots"].append(
         {
@@ -646,7 +682,10 @@ def run_interventional_shap(df, analysis_id, config, model=None, model_features=
                     "orientation": "h",
                     "y": [features[i] for i in sorted_idx],
                     "x": [float(mean_abs_int[i]) for i in sorted_idx],
-                    "marker": {"color": bar_colors, "line": {"color": "rgba(255,255,255,0.3)", "width": 1}},
+                    "marker": {
+                        "color": bar_colors,
+                        "line": {"color": "rgba(255,255,255,0.3)", "width": 1},
+                    },
                     "text": [role_labels.get(roles.get(i, ""), "") for i in sorted_idx],
                     "textposition": "outside",
                 }
@@ -679,7 +718,9 @@ def run_interventional_shap(df, analysis_id, config, model=None, model_features=
     discrepancy = mean_abs_mar - mean_abs_int
     disc_sorted = np.argsort(np.abs(discrepancy))[::-1]
     top_disc = disc_sorted[: min(10, p)]
-    disc_colors = ["#d94a4a" if discrepancy[i] > 0 else "#4a9f6e" for i in top_disc[::-1]]
+    disc_colors = [
+        "#d94a4a" if discrepancy[i] > 0 else "#4a9f6e" for i in top_disc[::-1]
+    ]
 
     result["plots"].append(
         {
@@ -737,7 +778,9 @@ def run_interventional_shap(df, analysis_id, config, model=None, model_features=
             }
             for i in range(p)
         ],
-        "alerts": [a.replace("<<COLOR:warning>>", "").replace("<</COLOR>>", "") for a in alerts],
+        "alerts": [
+            a.replace("<<COLOR:warning>>", "").replace("<</COLOR>>", "") for a in alerts
+        ],
         "is_identified": scm.is_identified,
     }
 

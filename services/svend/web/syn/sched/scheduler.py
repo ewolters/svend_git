@@ -87,7 +87,9 @@ def schedule_task(
             tenant_id=tenant_id,
             task_name=func,
             payload_template=args,
-            schedule_type=ScheduleType.CRON.value if cron else ScheduleType.INTERVAL.value,
+            schedule_type=(
+                ScheduleType.CRON.value if cron else ScheduleType.INTERVAL.value
+            ),
             interval_seconds=interval_seconds or 0,
             priority=priority,
             queue=queue,
@@ -131,8 +133,12 @@ def get_task_status(task_id: str) -> dict[str, Any] | None:
             "id": str(task.id),
             "name": task.task_name,
             "state": task.state,
-            "created_at": task.created_at.isoformat() if hasattr(task, "created_at") else None,
-            "scheduled_at": task.scheduled_at.isoformat() if task.scheduled_at else None,
+            "created_at": (
+                task.created_at.isoformat() if hasattr(task, "created_at") else None
+            ),
+            "scheduled_at": (
+                task.scheduled_at.isoformat() if task.scheduled_at else None
+            ),
             "attempts": task.attempts,
             "result": task.result,
             "error_message": task.error_message,

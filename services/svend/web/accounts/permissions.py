@@ -287,7 +287,9 @@ def allow_guest(view_func):
                 return JsonResponse({"error": "Invalid guest token"}, status=401)
 
             if not invite.is_active:
-                return JsonResponse({"error": "This invite has been revoked"}, status=403)
+                return JsonResponse(
+                    {"error": "This invite has been revoked"}, status=403
+                )
 
             if invite.is_expired:
                 return JsonResponse({"error": "This invite has expired"}, status=403)
@@ -295,7 +297,9 @@ def allow_guest(view_func):
             request.guest_invite = invite
             request.is_guest = True
 
-            BoardGuestInvite.objects.filter(id=invite.id).update(last_seen=timezone.now())
+            BoardGuestInvite.objects.filter(id=invite.id).update(
+                last_seen=timezone.now()
+            )
 
             return view_func(request, *args, **kwargs)
 
@@ -357,7 +361,11 @@ def require_org_admin(view_func):
 
         from core.models import Membership
 
-        membership = Membership.objects.filter(user=request.user, is_active=True).select_related("tenant").first()
+        membership = (
+            Membership.objects.filter(user=request.user, is_active=True)
+            .select_related("tenant")
+            .first()
+        )
 
         if not membership:
             return JsonResponse(

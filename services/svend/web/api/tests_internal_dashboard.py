@@ -26,7 +26,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 def _make_user(email, password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
     is_staff = kwargs.pop("is_staff", False)
-    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=password, **kwargs
+    )
     if is_staff:
         user.is_staff = True
         user.save(update_fields=["is_staff"])
@@ -284,7 +286,14 @@ class AnalyticsEndpointTest(TestCase):
         res = self.client.get("/api/internal/performance/")
         self.assertEqual(res.status_code, 200)
         data = res.json()
-        for key in ("kpis", "latency_trend", "error_rate_trend", "volume_trend", "slow_endpoints", "sla_status"):
+        for key in (
+            "kpis",
+            "latency_trend",
+            "error_rate_trend",
+            "volume_trend",
+            "slow_endpoints",
+            "sla_status",
+        ):
             self.assertIn(key, data, f"Missing key: {key}")
         kpis = data["kpis"]
         self.assertIn("requests_today", kpis)
@@ -317,7 +326,14 @@ class AnalyticsEndpointTest(TestCase):
         res = self.client.get("/api/internal/activity/")
         self.assertEqual(res.status_code, 200)
         data = res.json()
-        for key in ("page_views", "feature_use", "daily_sessions", "journeys", "daily_features", "totals"):
+        for key in (
+            "page_views",
+            "feature_use",
+            "daily_sessions",
+            "journeys",
+            "daily_features",
+            "totals",
+        ):
             self.assertIn(key, data, f"Missing key: {key}")
         totals = data["totals"]
         self.assertIn("events", totals)
@@ -360,7 +376,13 @@ class ComplianceEndpointTest(TestCase):
         res = self.client.get("/api/internal/compliance/")
         data = res.json()
         stats = data["stats"]
-        for key in ("total_checks_run", "checks_today", "overall_pass_rate", "infra_checks", "infra_passed"):
+        for key in (
+            "total_checks_run",
+            "checks_today",
+            "overall_pass_rate",
+            "infra_checks",
+            "infra_passed",
+        ):
             self.assertIn(key, stats, f"Missing stats key: {key}")
 
     def test_compliance_run_list_mode(self):
@@ -453,7 +475,9 @@ class EmailEndpointTest(TestCase):
         )
         self.assertEqual(res.status_code, 400)
 
-    @patch("api.internal_views.django_send_mail" if False else "django.core.mail.send_mail")
+    @patch(
+        "api.internal_views.django_send_mail" if False else "django.core.mail.send_mail"
+    )
     def test_send_email_test_mode(self, mock_send):
         """Send email in test mode sends to staff user's email only."""
         mock_send.return_value = 1
@@ -565,7 +589,13 @@ class OnboardingEndpointTest(TestCase):
         res = self.client.get("/api/internal/onboarding/")
         self.assertEqual(res.status_code, 200)
         data = res.json()
-        for key in ("funnel", "completion_rate", "distributions", "averages", "challenges"):
+        for key in (
+            "funnel",
+            "completion_rate",
+            "distributions",
+            "averages",
+            "challenges",
+        ):
             self.assertIn(key, data, f"Missing key: {key}")
 
     def test_onboarding_funnel_counts(self):
@@ -652,7 +682,9 @@ class FeedbackEndpointTest(TestCase):
         customer = _make_customer("fb@example.com")
         Feedback.objects.create(user=customer, category="bug", message="Bug 1")
         Feedback.objects.create(user=customer, category="feature", message="Feature 1")
-        Feedback.objects.create(user=customer, category="bug", message="Bug 2", status="reviewed")
+        Feedback.objects.create(
+            user=customer, category="bug", message="Bug 2", status="reviewed"
+        )
         res = self.client.get("/api/internal/feedback/")
         data = res.json()
         summary = data["summary"]
@@ -666,7 +698,9 @@ class FeedbackEndpointTest(TestCase):
         """Feedback GET with ?status= filters results."""
         customer = _make_customer("fb@example.com")
         Feedback.objects.create(user=customer, category="bug", message="New bug")
-        Feedback.objects.create(user=customer, category="bug", message="Reviewed bug", status="reviewed")
+        Feedback.objects.create(
+            user=customer, category="bug", message="Reviewed bug", status="reviewed"
+        )
         res = self.client.get("/api/internal/feedback/?status=reviewed")
         data = res.json()
         self.assertEqual(len(data["feedback"]), 1)

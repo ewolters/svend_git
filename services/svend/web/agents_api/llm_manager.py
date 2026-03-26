@@ -97,7 +97,9 @@ class LLMManager:
                 return cls._anthropic_client
 
             except ImportError:
-                logger.error("anthropic package not installed - run: pip install anthropic")
+                logger.error(
+                    "anthropic package not installed - run: pip install anthropic"
+                )
                 cls._anthropic_loaded = True
                 return None
             except Exception as e:
@@ -115,7 +117,9 @@ class LLMManager:
     def get_model_for_user(cls, user) -> str:
         """Get the Claude model ID for a user based on their subscription."""
         try:
-            tier = user.subscription_tier if hasattr(user, "subscription_tier") else "FREE"
+            tier = (
+                user.subscription_tier if hasattr(user, "subscription_tier") else "FREE"
+            )
             return cls.get_model_for_tier(tier)
         except Exception:
             return CLAUDE_MODELS["haiku"]
@@ -154,7 +158,9 @@ class LLMManager:
 
                 allowed, remaining, limit = check_rate_limit(user)
                 if not allowed:
-                    logger.warning(f"Rate limit exceeded for user {user.id}: {limit} requests/day")
+                    logger.warning(
+                        f"Rate limit exceeded for user {user.id}: {limit} requests/day"
+                    )
                     return {
                         "error": f"Daily limit of {limit} requests reached. Resets at midnight.",
                         "rate_limited": True,
@@ -162,7 +168,10 @@ class LLMManager:
                     }
             except Exception as e:
                 logger.error(f"Rate limit check failed: {e}")
-                return {"error": "Service temporarily unavailable. Please try again.", "rate_limited": True}
+                return {
+                    "error": "Service temporarily unavailable. Please try again.",
+                    "rate_limited": True,
+                }
 
         client = cls.get_anthropic()
         if not client:
@@ -191,7 +200,11 @@ class LLMManager:
                 from .models import LLMUsage, check_rate_limit
 
                 # Map full model name to short name
-                model_short = "haiku" if "haiku" in model else "sonnet" if "sonnet" in model else "opus"
+                model_short = (
+                    "haiku"
+                    if "haiku" in model
+                    else "sonnet" if "sonnet" in model else "opus"
+                )
                 LLMUsage.record_usage(user, model_short, input_tokens, output_tokens)
                 _, remaining, limit = check_rate_limit(user)
             except Exception as e:

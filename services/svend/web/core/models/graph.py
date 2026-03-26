@@ -114,7 +114,9 @@ class Entity(models.Model):
     properties = models.JSONField(default=dict, blank=True)
 
     # For variables: track units and typical range
-    unit = models.CharField(max_length=50, blank=True)  # e.g., "USD", "percent", "count"
+    unit = models.CharField(
+        max_length=50, blank=True
+    )  # e.g., "USD", "percent", "count"
     typical_min = models.FloatField(null=True, blank=True)
     typical_max = models.FloatField(null=True, blank=True)
 

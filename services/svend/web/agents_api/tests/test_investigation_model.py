@@ -162,8 +162,12 @@ class InvestigationReopenTest(TestCase):
     def test_reopen_copies_membership(self):
         """Reopened investigation copies all members."""
         inv = _make_investigation(self.user)
-        InvestigationMembership.objects.create(investigation=inv, user=self.user, role="owner")
-        InvestigationMembership.objects.create(investigation=inv, user=self.other_user, role="contributor")
+        InvestigationMembership.objects.create(
+            investigation=inv, user=self.user, role="owner"
+        )
+        InvestigationMembership.objects.create(
+            investigation=inv, user=self.other_user, role="contributor"
+        )
         inv.transition_to("active", self.user)
         inv.transition_to("concluded", self.user)
 
@@ -172,7 +176,9 @@ class InvestigationReopenTest(TestCase):
 
     def test_reopen_preserves_title_and_description(self):
         """Reopened investigation keeps title and description."""
-        inv = _make_investigation(self.user, title="Thermal issue", description="Press overheating")
+        inv = _make_investigation(
+            self.user, title="Thermal issue", description="Press overheating"
+        )
         inv.transition_to("active", self.user)
         inv.transition_to("concluded", self.user)
 
@@ -190,26 +196,36 @@ class InvestigationMembershipTest(TestCase):
 
     def test_add_member(self):
         """Can add a member with a role."""
-        m = InvestigationMembership.objects.create(investigation=self.inv, user=self.user, role="owner")
+        m = InvestigationMembership.objects.create(
+            investigation=self.inv, user=self.user, role="owner"
+        )
         self.assertEqual(m.role, "owner")
         self.assertIsNotNone(m.joined_at)
 
     def test_default_role_is_contributor(self):
         """Default role is contributor."""
-        m = InvestigationMembership.objects.create(investigation=self.inv, user=self.user)
+        m = InvestigationMembership.objects.create(
+            investigation=self.inv, user=self.user
+        )
         self.assertEqual(m.role, "contributor")
 
     def test_unique_user_per_investigation(self):
         """Same user cannot be added twice to the same investigation."""
-        InvestigationMembership.objects.create(investigation=self.inv, user=self.user, role="owner")
+        InvestigationMembership.objects.create(
+            investigation=self.inv, user=self.user, role="owner"
+        )
         from django.db import IntegrityError
 
         with self.assertRaises(IntegrityError):
-            InvestigationMembership.objects.create(investigation=self.inv, user=self.user, role="viewer")
+            InvestigationMembership.objects.create(
+                investigation=self.inv, user=self.user, role="viewer"
+            )
 
     def test_members_m2m_access(self):
         """Investigation.members M2M provides user access."""
-        InvestigationMembership.objects.create(investigation=self.inv, user=self.user, role="owner")
+        InvestigationMembership.objects.create(
+            investigation=self.inv, user=self.user, role="owner"
+        )
         self.assertIn(self.user, self.inv.members.all())
 
 
@@ -223,7 +239,9 @@ class InvestigationToolLinkTest(TestCase):
     def test_link_tool_output(self):
         """Can link any model via generic FK."""
         # Use MeasurementSystem as a concrete tool output
-        ms = MeasurementSystem.objects.create(name="Test Gage", system_type="variable", owner=self.user)
+        ms = MeasurementSystem.objects.create(
+            name="Test Gage", system_type="variable", owner=self.user
+        )
         ct = ContentType.objects.get_for_model(MeasurementSystem)
 
         link = InvestigationToolLink.objects.create(
@@ -239,7 +257,9 @@ class InvestigationToolLinkTest(TestCase):
 
     def test_unique_tool_per_investigation(self):
         """Same tool output cannot be linked twice to the same investigation."""
-        ms = MeasurementSystem.objects.create(name="Gage A", system_type="variable", owner=self.user)
+        ms = MeasurementSystem.objects.create(
+            name="Gage A", system_type="variable", owner=self.user
+        )
         ct = ContentType.objects.get_for_model(MeasurementSystem)
 
         InvestigationToolLink.objects.create(
@@ -264,7 +284,9 @@ class InvestigationToolLinkTest(TestCase):
 
     def test_tool_links_related_name(self):
         """Investigation.tool_links gives access to all linked tools."""
-        ms = MeasurementSystem.objects.create(name="Gage B", system_type="variable", owner=self.user)
+        ms = MeasurementSystem.objects.create(
+            name="Gage B", system_type="variable", owner=self.user
+        )
         ct = ContentType.objects.get_for_model(MeasurementSystem)
         InvestigationToolLink.objects.create(
             investigation=self.inv,
@@ -279,7 +301,9 @@ class InvestigationToolLinkTest(TestCase):
 
     def test_tool_function_choices(self):
         """tool_function must be one of the valid choices."""
-        ms = MeasurementSystem.objects.create(name="Gage C", system_type="variable", owner=self.user)
+        ms = MeasurementSystem.objects.create(
+            name="Gage C", system_type="variable", owner=self.user
+        )
         ct = ContentType.objects.get_for_model(MeasurementSystem)
         link = InvestigationToolLink(
             investigation=self.inv,

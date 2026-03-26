@@ -18,7 +18,11 @@ def _nig_posterior_update(data, mu0, nu0, alpha0, beta0):
     nu_n = nu0 + n
     mu_n = (nu0 * mu0 + n * x_bar) / nu_n
     alpha_n = alpha0 + n / 2.0
-    beta_n = beta0 + 0.5 * np.sum((data - x_bar) ** 2) + (n * nu0 * (x_bar - mu0) ** 2) / (2.0 * nu_n)
+    beta_n = (
+        beta0
+        + 0.5 * np.sum((data - x_bar) ** 2)
+        + (n * nu0 * (x_bar - mu0) ** 2) / (2.0 * nu_n)
+    )
     return mu_n, nu_n, alpha_n, beta_n
 
 
@@ -27,7 +31,9 @@ def _nig_sample(mu_n, nu_n, alpha_n, beta_n, n_samples=10000):
     from scipy.stats import invgamma
 
     rng = np.random.default_rng(42)
-    sigma2_samples = invgamma.rvs(a=alpha_n, scale=beta_n, size=n_samples, random_state=rng)
+    sigma2_samples = invgamma.rvs(
+        a=alpha_n, scale=beta_n, size=n_samples, random_state=rng
+    )
     mu_samples = rng.normal(loc=mu_n, scale=np.sqrt(sigma2_samples / nu_n))
     sigma_samples = np.sqrt(sigma2_samples)
     return mu_samples, sigma_samples
@@ -60,7 +66,9 @@ def run_bayes_spc_capability(df, config):
     usl = float(usl_raw) if usl_raw not in (None, "", "null") else None
     lsl = float(lsl_raw) if lsl_raw not in (None, "", "null") else None
     if usl is None and lsl is None:
-        result["summary"] = "<<COLOR:error>>At least one spec limit (USL or LSL) is required<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:error>>At least one spec limit (USL or LSL) is required<</COLOR>>"
+        )
         return result
     if usl is not None and lsl is not None and usl <= lsl:
         result["summary"] = "<<COLOR:error>>USL must be greater than LSL<</COLOR>>"
@@ -74,7 +82,11 @@ def run_bayes_spc_capability(df, config):
         target = usl
     else:
         target = lsl
-    spec_label = f"USL={usl}" if lsl is None else (f"LSL={lsl}" if usl is None else f"USL={usl}, LSL={lsl}")
+    spec_label = (
+        f"USL={usl}"
+        if lsl is None
+        else (f"LSL={lsl}" if usl is None else f"USL={usl}, LSL={lsl}")
+    )
     n_mc = int(config.get("n_mc", 10000))
     prior_type = config.get("prior_type", "weakly_informative")
 
@@ -94,7 +106,12 @@ def run_bayes_spc_capability(df, config):
         hist_mean = float(pp.get("hist_mean", x_bar))
         hist_std = float(pp.get("hist_std", s))
         hist_n = int(pp.get("hist_n", 30))
-        mu0, nu0, alpha0, beta0 = hist_mean, float(hist_n), hist_n / 2.0, hist_n / 2.0 * hist_std**2
+        mu0, nu0, alpha0, beta0 = (
+            hist_mean,
+            float(hist_n),
+            hist_n / 2.0,
+            hist_n / 2.0 * hist_std**2,
+        )
     else:  # weakly_informative — α₀=2 for finite σ² mean, β₀ centered on sample variance
         s2 = float(np.var(data, ddof=1)) if n > 1 else 1.0
         mu0, nu0, alpha0, beta0 = x_bar, 1.0, 2.0, max(s2, 1e-10)
@@ -107,7 +124,10 @@ def run_bayes_spc_capability(df, config):
     cpk_samples = _cpk_from_params(mu_samples, sigma_samples, usl, lsl)
 
     cpk_median = float(np.median(cpk_samples))
-    cpk_ci = (float(np.percentile(cpk_samples, 2.5)), float(np.percentile(cpk_samples, 97.5)))
+    cpk_ci = (
+        float(np.percentile(cpk_samples, 2.5)),
+        float(np.percentile(cpk_samples, 97.5)),
+    )
     p_gt_1 = float(np.mean(cpk_samples > 1.0))
     p_gt_133 = float(np.mean(cpk_samples > 1.33))
     p_gt_167 = float(np.mean(cpk_samples > 1.67))
@@ -130,7 +150,10 @@ def run_bayes_spc_capability(df, config):
     if usl is not None and lsl is not None and s > 0:
         cp_samples = (usl - lsl) / (6.0 * sigma_samples)
         cp_median = float(np.median(cp_samples))
-        cp_ci = (float(np.percentile(cp_samples, 2.5)), float(np.percentile(cp_samples, 97.5)))
+        cp_ci = (
+            float(np.percentile(cp_samples, 2.5)),
+            float(np.percentile(cp_samples, 97.5)),
+        )
         cp_freq = float((usl - lsl) / (6 * s))
         pp_median, pp_freq = cp_median, cp_freq  # identical for individual data
 
@@ -143,7 +166,10 @@ def run_bayes_spc_capability(df, config):
         cpm_denom = 6.0 * np.sqrt(sigma_samples**2 + (mu_samples - target) ** 2)
         cpm_samples = (usl - lsl) / cpm_denom
         cpm_median = float(np.median(cpm_samples))
-        cpm_ci = (float(np.percentile(cpm_samples, 2.5)), float(np.percentile(cpm_samples, 97.5)))
+        cpm_ci = (
+            float(np.percentile(cpm_samples, 2.5)),
+            float(np.percentile(cpm_samples, 97.5)),
+        )
         cpm_freq = float((usl - lsl) / (6 * np.sqrt(s**2 + (x_bar - target) ** 2)))
 
     # Centering (k) — 0 = perfectly centered, 1 = mean at spec limit
@@ -183,7 +209,9 @@ def run_bayes_spc_capability(df, config):
 
     # σ posterior sanity check
     sigma_99 = float(np.percentile(sigma_samples, 99))
-    sigma_iqr = float(np.percentile(sigma_samples, 75) - np.percentile(sigma_samples, 25))
+    sigma_iqr = float(
+        np.percentile(sigma_samples, 75) - np.percentile(sigma_samples, 25)
+    )
     sigma_warning = ""
     if sigma_iqr > 0 and sigma_99 > 5 * sigma_iqr + float(np.median(sigma_samples)):
         sigma_warning = "Data may be non-normal, from mixed processes, or contain outliers. Consider transformations or a mixture model."
@@ -192,7 +220,10 @@ def run_bayes_spc_capability(df, config):
     if p_gt_133 >= 0.95:
         verdict_color, verdict = "success", "CAPABLE \u2014 P(Cpk > 1.33) \u2265 95%"
     elif p_gt_133 >= 0.80:
-        verdict_color, verdict = "highlight", "MARGINAL \u2014 P(Cpk > 1.33) between 80\u201395%"
+        verdict_color, verdict = (
+            "highlight",
+            "MARGINAL \u2014 P(Cpk > 1.33) between 80\u201395%",
+        )
     else:
         verdict_color, verdict = "error", "NOT CAPABLE \u2014 P(Cpk > 1.33) < 80%"
 
@@ -210,7 +241,9 @@ def run_bayes_spc_capability(df, config):
     # Capability indices table
     summary += f"<<COLOR:accent>>{'_' * 40}<</COLOR>>\n"
     summary += "<<COLOR:title>>Capability Indices<</COLOR>>\n"
-    summary += f"  {'':18s} {'Bayesian':>10s}   {'95% CI':>18s}   {'Frequentist':>12s}\n"
+    summary += (
+        f"  {'':18s} {'Bayesian':>10s}   {'95% CI':>18s}   {'Frequentist':>12s}\n"
+    )
     summary += (
         f"  {'Cpk:':18s} "
         f"<<COLOR:highlight>>{cpk_median:>10.4f}<</COLOR>>   "
@@ -222,9 +255,7 @@ def run_bayes_spc_capability(df, config):
         summary += f"  {'Cp:':18s} {cp_median:>10.4f}   [{cp_ci[0]:.4f}, {cp_ci[1]:.4f}]   {cp_freq:>12.4f}\n"
         summary += f"  {'Pp:':18s} {pp_median:>10.4f}   [{cp_ci[0]:.4f}, {cp_ci[1]:.4f}]   {pp_freq:>12.4f}\n"
     if cpm_median is not None:
-        summary += (
-            f"  {'Cpm (Taguchi):':18s} {cpm_median:>10.4f}   [{cpm_ci[0]:.4f}, {cpm_ci[1]:.4f}]   {cpm_freq:>12.4f}\n"
-        )
+        summary += f"  {'Cpm (Taguchi):':18s} {cpm_median:>10.4f}   [{cpm_ci[0]:.4f}, {cpm_ci[1]:.4f}]   {cpm_freq:>12.4f}\n"
     summary += "\n  <<COLOR:text>>Cpk = Ppk (individual data \u2014 no subgroup structure).<</COLOR>>\n"
     if k_centering is not None and cp_median is not None and k_centering > 0.05:
         summary += f"  <<COLOR:text>>Cp > Cpk: process is off-center by k = {k_centering:.0%}.<</COLOR>>\n"
@@ -261,7 +292,9 @@ def run_bayes_spc_capability(df, config):
             narr_parts.append(f"Process is well-centered (k = {k_centering:.1%}).")
         else:
             closer_to = "USL" if x_bar > (usl + lsl) / 2.0 else "LSL"
-            narr_parts.append(f"Process runs {k_centering:.0%} off-center toward {closer_to}.")
+            narr_parts.append(
+                f"Process runs {k_centering:.0%} off-center toward {closer_to}."
+            )
             if cp_median is not None and cp_median > cpk_median + 0.1:
                 narr_parts.append(
                     f"Recentering to target would improve Cpk from {cpk_median:.2f} to {cp_median:.2f} (= Cp)."
@@ -308,7 +341,9 @@ def run_bayes_spc_capability(df, config):
             f"({yield_pct:.4f}% yield, {sigma_level:.1f}\u03c3)."
         )
     else:
-        narr_parts.append(f"Zero defects predicted (yield {yield_pct:.4f}%, >{sigma_level:.1f}\u03c3).")
+        narr_parts.append(
+            f"Zero defects predicted (yield {yield_pct:.4f}%, >{sigma_level:.1f}\u03c3)."
+        )
 
     for part in narr_parts:
         summary += f"  {part}\n"
@@ -354,7 +389,12 @@ def run_bayes_spc_capability(df, config):
                     "type": "bar",
                     "x": cpk_hist_centers.tolist(),
                     "y": cpk_hist_vals.tolist(),
-                    "marker": {"color": ["rgba(74,159,110,0.7)" if m else "rgba(74,159,110,0.2)" for m in ci_mask]},
+                    "marker": {
+                        "color": [
+                            "rgba(74,159,110,0.7)" if m else "rgba(74,159,110,0.2)"
+                            for m in ci_mask
+                        ]
+                    },
                     "name": "Posterior",
                     "showlegend": False,
                 },
@@ -387,7 +427,13 @@ def run_bayes_spc_capability(df, config):
                 "height": 320,
                 "xaxis": {"title": "Cpk"},
                 "yaxis": {"title": "Count"},
-                "legend": {"orientation": "h", "yanchor": "top", "y": -0.18, "xanchor": "center", "x": 0.5},
+                "legend": {
+                    "orientation": "h",
+                    "yanchor": "top",
+                    "y": -0.18,
+                    "xanchor": "center",
+                    "x": 0.5,
+                },
                 "annotations": [
                     {
                         "x": cpk_median,
@@ -409,7 +455,9 @@ def run_bayes_spc_capability(df, config):
     pp_pdf = pp_dist.pdf(x_range)
     from scipy.stats import norm
 
-    norm_pdf = norm.pdf(x_range, loc=x_bar, scale=s) if s > 0 else np.zeros_like(x_range)
+    norm_pdf = (
+        norm.pdf(x_range, loc=x_bar, scale=s) if s > 0 else np.zeros_like(x_range)
+    )
     data_hist_vals, data_hist_edges = np.histogram(data, bins=40, density=True)
     data_hist_centers = (data_hist_edges[:-1] + data_hist_edges[1:]) / 2
     peak_y = max(max(pp_pdf), max(norm_pdf)) if len(pp_pdf) > 0 else 1
@@ -461,7 +509,11 @@ def run_bayes_spc_capability(df, config):
                 "name": "USL",
             }
         )
-    ann_x = (usl + lsl) / 2 if (usl is not None and lsl is not None) else (usl if usl is not None else lsl)
+    ann_x = (
+        (usl + lsl) / 2
+        if (usl is not None and lsl is not None)
+        else (usl if usl is not None else lsl)
+    )
     result["plots"].append(
         {
             "title": "Posterior Predictive vs Spec Limits",
@@ -469,7 +521,13 @@ def run_bayes_spc_capability(df, config):
             "layout": {
                 "height": 340,
                 "xaxis": {"title": col},
-                "legend": {"orientation": "h", "yanchor": "top", "y": -0.18, "xanchor": "center", "x": 0.5},
+                "legend": {
+                    "orientation": "h",
+                    "yanchor": "top",
+                    "y": -0.18,
+                    "xanchor": "center",
+                    "x": 0.5,
+                },
                 "annotations": [
                     {
                         "x": ann_x,
@@ -511,7 +569,13 @@ def run_bayes_spc_capability(df, config):
                 "height": 280,
                 "xaxis": {"title": "Threshold"},
                 "yaxis": {"title": "Probability", "range": [0, 1.05]},
-                "legend": {"orientation": "h", "yanchor": "top", "y": -0.18, "xanchor": "center", "x": 0.5},
+                "legend": {
+                    "orientation": "h",
+                    "yanchor": "top",
+                    "y": -0.18,
+                    "xanchor": "center",
+                    "x": 0.5,
+                },
             },
         }
     )
@@ -523,7 +587,10 @@ def run_bayes_spc_capability(df, config):
             "x": data.tolist(),
             "nbinsx": 40,
             "histnorm": "probability density",
-            "marker": {"color": "rgba(74,159,110,0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+            "marker": {
+                "color": "rgba(74,159,110,0.4)",
+                "line": {"color": "#4a9f6e", "width": 1},
+            },
             "name": "Data",
         },
         {
@@ -575,7 +642,13 @@ def run_bayes_spc_capability(df, config):
                 "height": 320,
                 "xaxis": {"title": col},
                 "yaxis": {"title": "Density"},
-                "legend": {"orientation": "h", "yanchor": "top", "y": -0.18, "xanchor": "center", "x": 0.5},
+                "legend": {
+                    "orientation": "h",
+                    "yanchor": "top",
+                    "y": -0.18,
+                    "xanchor": "center",
+                    "x": 0.5,
+                },
             },
         }
     )
@@ -755,8 +828,15 @@ def run_bayes_spc_changepoint(df, config):
                 continue
             # Weakly-informative NIG prior (matches bayes_spc_capability)
             s2_seg = float(np.var(seg_data, ddof=1))
-            mu0_s, nu0_s, alpha0_s, beta0_s = float(np.mean(seg_data)), 1.0, 2.0, max(s2_seg, 1e-10)
-            mu_n, nu_n, alpha_n, beta_n = _nig_posterior_update(seg_data, mu0_s, nu0_s, alpha0_s, beta0_s)
+            mu0_s, nu0_s, alpha0_s, beta0_s = (
+                float(np.mean(seg_data)),
+                1.0,
+                2.0,
+                max(s2_seg, 1e-10),
+            )
+            mu_n, nu_n, alpha_n, beta_n = _nig_posterior_update(
+                seg_data, mu0_s, nu0_s, alpha0_s, beta0_s
+            )
             mu_samp, sigma_samp = _nig_sample(mu_n, nu_n, alpha_n, beta_n, n_mc_regime)
             cpk_samp = _cpk_from_params(mu_samp, sigma_samp, _usl, _lsl)
             regime_cpk_samples[idx] = cpk_samp
@@ -766,7 +846,9 @@ def run_bayes_spc_changepoint(df, config):
             cpk_hi = float(np.percentile(cpk_samp, 97.5))
             p_gt_133 = float(np.mean(cpk_samp > 1.33))
             # P(next obs out of spec)
-            x_pred = np.random.default_rng(42 + idx).normal(loc=mu_samp, scale=sigma_samp)
+            x_pred = np.random.default_rng(42 + idx).normal(
+                loc=mu_samp, scale=sigma_samp
+            )
             oos = np.zeros(len(x_pred), dtype=bool)
             if _usl is not None:
                 oos |= x_pred > _usl
@@ -778,7 +860,9 @@ def run_bayes_spc_changepoint(df, config):
             # Value-of-information: CI width scales as 1/sqrt(n_eff)
             ci_width = cpk_hi - cpk_lo
             ci_width_plus30 = ci_width * np.sqrt(n_eff / (n_eff + 30))
-            narrowing_30 = (1.0 - ci_width_plus30 / ci_width) * 100 if ci_width > 0 else 0
+            narrowing_30 = (
+                (1.0 - ci_width_plus30 / ci_width) * 100 if ci_width > 0 else 0
+            )
 
             seg["cpk_median"] = cpk_med
             seg["cpk_ci"] = [cpk_lo, cpk_hi]
@@ -791,18 +875,14 @@ def run_bayes_spc_changepoint(df, config):
     summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
     summary += "<<COLOR:title>>BAYESIAN CHANGE POINT DETECTION (BOCPD)<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-    summary += (
-        f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    <<COLOR:highlight>>Hazard rate:<</COLOR>> {hazard_rate}\n\n"
-    )
+    summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    <<COLOR:highlight>>Hazard rate:<</COLOR>> {hazard_rate}\n\n"
 
     if changepoints:
         summary += f"<<COLOR:success>>Detected {len(changepoints)} change point(s):<</COLOR>>\n\n"
         for i, cp in enumerate(changepoints):
             seg_before = segments[i]
             seg_after = segments[i + 1]
-            summary += (
-                f"  <<COLOR:highlight>>Change {i + 1}:<</COLOR>> observation {cp}, P(shifted) = {shift_prob[cp]:.3f}\n"
-            )
+            summary += f"  <<COLOR:highlight>>Change {i + 1}:<</COLOR>> observation {cp}, P(shifted) = {shift_prob[cp]:.3f}\n"
             summary += f"    Before: μ = {seg_before['mean']:.4f}, σ = {seg_before['std']:.4f} (n={seg_before['n']})\n"
             summary += f"    After:  μ = {seg_after['mean']:.4f}, σ = {seg_after['std']:.4f} (n={seg_after['n']})\n\n"
     else:
@@ -842,14 +922,20 @@ def run_bayes_spc_changepoint(df, config):
                 summary += f"Collect 30 more to narrow the credible interval by ~{narrowing:.0f}%.<</COLOR>>\n"
             if prev_p133 is not None:
                 if p133 < prev_p133 - 0.15:
-                    summary += "    <<COLOR:error>>Capability degraded by shift.<</COLOR>>\n"
+                    summary += (
+                        "    <<COLOR:error>>Capability degraded by shift.<</COLOR>>\n"
+                    )
                 elif p133 > prev_p133 + 0.15:
                     summary += "    <<COLOR:success>>Capability improved after shift.<</COLOR>>\n"
             prev_p133 = p133
             summary += "\n"
 
     result["summary"] = summary
-    result["statistics"] = {"n_changepoints": len(changepoints), "changepoints": changepoints, "segments": segments}
+    result["statistics"] = {
+        "n_changepoints": len(changepoints),
+        "changepoints": changepoints,
+        "segments": segments,
+    }
 
     # Plot 1: Run-length posterior heatmap
     rl_display = min(max_rl, 100)
@@ -866,7 +952,11 @@ def run_bayes_spc_changepoint(df, config):
                     "colorbar": {"title": "P(r)"},
                 }
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Run Length"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Observation"},
+                "yaxis": {"title": "Run Length"},
+            },
         }
     )
 
@@ -945,7 +1035,11 @@ def run_bayes_spc_changepoint(df, config):
         {
             "title": "Process Data with Change Points",
             "data": proc_data,
-            "layout": {"height": 350, "xaxis": {"title": "Observation"}, "yaxis": {"title": col}},
+            "layout": {
+                "height": 350,
+                "xaxis": {"title": "Observation"},
+                "yaxis": {"title": col},
+            },
         }
     )
 
@@ -1024,7 +1118,9 @@ def run_bayes_spc_changepoint(df, config):
             }
         )
 
-    result["guide_observation"] = f"BOCPD detected {len(changepoints)} change point(s) in {n} observations"
+    result["guide_observation"] = (
+        f"BOCPD detected {len(changepoints)} change point(s) in {n} observations"
+    )
 
     return result
 
@@ -1048,7 +1144,11 @@ def run_bayes_spc_control(df, config):
     else:
         ref_mean = float(ref_mean)
     if ref_std is None or ref_std == "" or ref_std == "null":
-        ref_std = float(np.std(data[:n_ref], ddof=1)) if n_ref > 1 else float(np.std(data, ddof=1))
+        ref_std = (
+            float(np.std(data[:n_ref], ddof=1))
+            if n_ref > 1
+            else float(np.std(data, ddof=1))
+        )
     else:
         ref_std = float(ref_std)
     ref_std = max(ref_std, 1e-10)
@@ -1093,8 +1193,12 @@ def run_bayes_spc_control(df, config):
         # Forward step
         from scipy.special import logsumexp as _lse
 
-        new_log_alpha_ic = _lse([log_alpha_ic + log_t_ic_ic, log_alpha_sh + log_t_sh_ic]) + ll_ic
-        new_log_alpha_sh = _lse([log_alpha_ic + log_t_ic_sh, log_alpha_sh + log_t_sh_sh]) + ll_sh
+        new_log_alpha_ic = (
+            _lse([log_alpha_ic + log_t_ic_ic, log_alpha_sh + log_t_sh_ic]) + ll_ic
+        )
+        new_log_alpha_sh = (
+            _lse([log_alpha_ic + log_t_ic_sh, log_alpha_sh + log_t_sh_sh]) + ll_sh
+        )
 
         # Normalize
         log_evidence = _lse([new_log_alpha_ic, new_log_alpha_sh])
@@ -1106,7 +1210,9 @@ def run_bayes_spc_control(df, config):
 
         # Sequential NIG for mu
         seg_data = data[: t + 1]
-        mu_n_s, nu_n_s, alpha_n_s, beta_n_s = _nig_posterior_update(seg_data, mu0_s, nu0_s, alpha0_s, beta0_s)
+        mu_n_s, nu_n_s, alpha_n_s, beta_n_s = _nig_posterior_update(
+            seg_data, mu0_s, nu0_s, alpha0_s, beta0_s
+        )
         seq_mu[t] = mu_n_s
         if alpha_n_s > 0 and nu_n_s > 0 and beta_n_s > 0:
             scale_s = np.sqrt(beta_n_s / (alpha_n_s * nu_n_s))
@@ -1130,7 +1236,9 @@ def run_bayes_spc_control(df, config):
     if n_alarms > 0:
         first_alarm = int(np.argmax(p_shifted_arr > 0.5))
         summary += f"<<COLOR:error>>ALERT: {n_alarms} observations with P(shifted) > 0.5<</COLOR>>\n"
-        summary += f"<<COLOR:highlight>>First alarm at observation {first_alarm}<</COLOR>>\n\n"
+        summary += (
+            f"<<COLOR:highlight>>First alarm at observation {first_alarm}<</COLOR>>\n\n"
+        )
         summary += f"<<COLOR:highlight>>Final posterior μ:<</COLOR>> {seq_mu[-1]:.4f} [{seq_ci_lo[-1]:.4f}, {seq_ci_hi[-1]:.4f}]\n"
     else:
         summary += "<<COLOR:success>>Process appears in control — no observations with P(shifted) > 0.5<</COLOR>>\n\n"
@@ -1155,7 +1263,11 @@ def run_bayes_spc_control(df, config):
                     "type": "scatter",
                     "y": data.tolist(),
                     "mode": "markers",
-                    "marker": {"color": colors, "size": 6, "line": {"color": "#333", "width": 0.5}},
+                    "marker": {
+                        "color": colors,
+                        "size": 6,
+                        "line": {"color": "#333", "width": 0.5},
+                    },
                     "name": col,
                     "showlegend": False,
                 },
@@ -1175,7 +1287,11 @@ def run_bayes_spc_control(df, config):
                     "name": "Reference μ",
                 },
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": col}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Observation"},
+                "yaxis": {"title": col},
+            },
         }
     )
 
@@ -1220,12 +1336,18 @@ def run_bayes_spc_control(df, config):
                     "name": "Reference",
                 },
             ],
-            "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "μ"}},
+            "layout": {
+                "height": 250,
+                "xaxis": {"title": "Observation"},
+                "yaxis": {"title": "μ"},
+            },
         }
     )
 
     # Plot 3: Alarm timeline
-    alarm_colors = [f"rgba({int(255 * p)},{int(255 * (1 - p))},80,0.8)" for p in p_shifted_arr]
+    alarm_colors = [
+        f"rgba({int(255 * p)},{int(255 * (1 - p))},80,0.8)" for p in p_shifted_arr
+    ]
     result["plots"].append(
         {
             "title": "Shift Probability Timeline",
@@ -1254,7 +1376,9 @@ def run_bayes_spc_control(df, config):
         }
     )
 
-    result["guide_observation"] = f"Bayesian control chart: {n_alarms} alarms in {n} observations (shift={shift_size}σ)"
+    result["guide_observation"] = (
+        f"Bayesian control chart: {n_alarms} alarms in {n} observations (shift={shift_size}σ)"
+    )
 
     return result
 
@@ -1326,14 +1450,26 @@ def run_bayes_spc_acceptance(df, config):
             is_def = False
             usl_a = config.get("usl")
             lsl_a = config.get("lsl")
-            if usl_a is not None and usl_a != "" and usl_a != "null" and val > float(usl_a):
+            if (
+                usl_a is not None
+                and usl_a != ""
+                and usl_a != "null"
+                and val > float(usl_a)
+            ):
                 is_def = True
-            if lsl_a is not None and lsl_a != "" and lsl_a != "null" and val < float(lsl_a):
+            if (
+                lsl_a is not None
+                and lsl_a != ""
+                and lsl_a != "null"
+                and val < float(lsl_a)
+            ):
                 is_def = True
             seq_k += int(is_def)
             seq_k_i = seq_k
 
-        pa_i = float(betadist.cdf(aql, prior_alpha + seq_k_i, prior_beta + (i + 1) - seq_k_i))
+        pa_i = float(
+            betadist.cdf(aql, prior_alpha + seq_k_i, prior_beta + (i + 1) - seq_k_i)
+        )
         seq_p_accept.append(pa_i)
 
         if earliest_accept is None and pa_i >= threshold:
@@ -1373,7 +1509,9 @@ def run_bayes_spc_acceptance(df, config):
     if earliest_accept:
         summary += f"<<COLOR:success>>Earliest acceptance possible at n = {earliest_accept}<</COLOR>>\n"
     if earliest_reject:
-        summary += f"<<COLOR:error>>Earliest rejection at n = {earliest_reject}<</COLOR>>\n"
+        summary += (
+            f"<<COLOR:error>>Earliest rejection at n = {earliest_reject}<</COLOR>>\n"
+        )
 
     result["summary"] = summary
     result["statistics"] = {
@@ -1391,7 +1529,9 @@ def run_bayes_spc_acceptance(df, config):
     x_range = np.linspace(0, min(max(post_ci[1] * 3, aql * 5), 1.0), 300)
     post_pdf = betadist.pdf(x_range, post_alpha, post_beta_param)
     prior_pdf = (
-        betadist.pdf(x_range, prior_alpha, prior_beta) if prior_alpha > 0 and prior_beta > 0 else np.zeros_like(x_range)
+        betadist.pdf(x_range, prior_alpha, prior_beta)
+        if prior_alpha > 0 and prior_beta > 0
+        else np.zeros_like(x_range)
     )
     result["plots"].append(
         {
@@ -1530,7 +1670,11 @@ def run_bayes_spc_acceptance(df, config):
         {
             "title": "Decision Boundaries",
             "data": boundary_plots,
-            "layout": {"height": 300, "xaxis": {"title": "Sample Size (n)"}, "yaxis": {"title": "Defectives (k)"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Sample Size (n)"},
+                "yaxis": {"title": "Defectives (k)"},
+            },
         }
     )
 

@@ -336,7 +336,11 @@ class CognitiveTask(SynaraEntity):
 
         Formula: (confidence * 0.3) + (urgency * 0.4) + ((1 - governance_risk) * 0.3)
         """
-        self.priority_score = self.confidence_score * 0.3 + self.urgency * 0.4 + (1 - self.governance_risk) * 0.3
+        self.priority_score = (
+            self.confidence_score * 0.3
+            + self.urgency * 0.4
+            + (1 - self.governance_risk) * 0.3
+        )
 
     # =========================================================================
     # State Transitions (SCH-001 §task_states)
@@ -355,7 +359,9 @@ class CognitiveTask(SynaraEntity):
         Returns True if transition succeeded.
         """
         if not self.can_transition_to(new_state):
-            logger.warning(f"Invalid state transition: {self.state} -> {new_state.value} for task {self.id}")
+            logger.warning(
+                f"Invalid state transition: {self.state} -> {new_state.value} for task {self.id}"
+            )
             return False
 
         old_state = self.state
@@ -444,7 +450,9 @@ class CognitiveTask(SynaraEntity):
             task_id=str(self.id),
             correlation_id=str(self.correlation_id),
             tenant_id=str(self.tenant_id),
-            root_correlation_id=str(self.root_correlation_id) if self.root_correlation_id else None,
+            root_correlation_id=(
+                str(self.root_correlation_id) if self.root_correlation_id else None
+            ),
             parent_task_id=str(self.parent_task_id) if self.parent_task_id else None,
             cascade_depth=self.cascade_depth,
             reflex_source=self.reflex_source,
@@ -492,7 +500,9 @@ class CognitiveTask(SynaraEntity):
 
         if parent_task:
             cascade_depth = parent_task.cascade_depth + 1
-            root_correlation_id = parent_task.root_correlation_id or parent_task.correlation_id
+            root_correlation_id = (
+                parent_task.root_correlation_id or parent_task.correlation_id
+            )
             parent_task_id = parent_task.id
 
             # Check cascade budget
@@ -653,7 +663,9 @@ class TaskExecution(SynaraEntity):
     ) -> None:
         """Mark execution as complete."""
         self.completed_at = timezone.now()
-        self.duration_ms = int((self.completed_at - self.started_at).total_seconds() * 1000)
+        self.duration_ms = int(
+            (self.completed_at - self.started_at).total_seconds() * 1000
+        )
         self.is_success = success
         self.result = result
         self.error_message = error_message
@@ -1056,9 +1068,15 @@ class DeadLetterEntry(SynaraEntity):
             original_task=task,
             failure_reason=failure_reason,
             failure_count=task.attempts,
-            last_error_message=last_execution.error_message if last_execution else task.error_message,
-            last_error_type=last_execution.error_type if last_execution else task.error_type,
-            last_error_traceback=last_execution.error_traceback if last_execution else None,
+            last_error_message=(
+                last_execution.error_message if last_execution else task.error_message
+            ),
+            last_error_type=(
+                last_execution.error_type if last_execution else task.error_type
+            ),
+            last_error_traceback=(
+                last_execution.error_traceback if last_execution else None
+            ),
         )
         entry.save()
 
@@ -1074,7 +1092,9 @@ class DeadLetterEntry(SynaraEntity):
 
         return entry
 
-    def reprocess(self, modified_payload: dict[str, Any] | None = None) -> CognitiveTask:
+    def reprocess(
+        self, modified_payload: dict[str, Any] | None = None
+    ) -> CognitiveTask:
         """
         Create a new task from this DLQ entry for reprocessing.
 
@@ -1262,7 +1282,9 @@ class CircuitBreakerState(SynaraEntity):
         if self.state == CircuitState.OPEN.value:
             # Check if recovery timeout has passed
             if self.opened_at:
-                recovery_time = self.opened_at + timedelta(seconds=self.recovery_timeout_seconds)
+                recovery_time = self.opened_at + timedelta(
+                    seconds=self.recovery_timeout_seconds
+                )
                 if timezone.now() >= recovery_time:
                     self._half_open_circuit()
                     return True, "Circuit half-open (testing)"

@@ -23,7 +23,12 @@ logger = logging.getLogger(__name__)
 def run_ml_analysis(df, analysis_id, config, user):
     """Run ML analysis."""
     from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-    from sklearn.metrics import accuracy_score, classification_report, mean_squared_error, r2_score
+    from sklearn.metrics import (
+        accuracy_score,
+        classification_report,
+        mean_squared_error,
+        r2_score,
+    )
     from sklearn.model_selection import cross_val_score, train_test_split
 
     result = {"plots": [], "summary": "", "guide_observation": ""}
@@ -65,8 +70,12 @@ def run_ml_analysis(df, analysis_id, config, user):
         X = df[features].dropna()
         y = df[target].loc[X.index]
         # 3-way split for conformal prediction: train 70% / calibration 15% / test 15%
-        X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.30, random_state=42)
-        X_cal, X_test, y_cal, y_test = train_test_split(X_temp, y_temp, test_size=0.50, random_state=42)
+        X_train, X_temp, y_train, y_temp = train_test_split(
+            X, y, test_size=0.30, random_state=42
+        )
+        X_cal, X_test, y_cal, y_test = train_test_split(
+            X_temp, y_temp, test_size=0.50, random_state=42
+        )
 
     if analysis_id == "classification":
         if algorithm == "rf":
@@ -88,7 +97,15 @@ def run_ml_analysis(df, analysis_id, config, user):
         summary += f"<<COLOR:highlight>>Algorithm:<</COLOR>> {algorithm.upper()}\n"
         summary += f"<<COLOR:highlight>>Accuracy:<</COLOR>> {accuracy:.4f}\n\n"
         summary += f"<<COLOR:text>>{report}<</COLOR>>"
-        summary += _ml_interpretation("classification", {"accuracy": accuracy}, y_test, y_pred, features, target, model)
+        summary += _ml_interpretation(
+            "classification",
+            {"accuracy": accuracy},
+            y_test,
+            y_pred,
+            features,
+            target,
+            model,
+        )
         result["summary"] = summary
 
         # Feature importance
@@ -104,7 +121,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "x": importances[sorted_idx].tolist(),
                             "y": [features[i] for i in sorted_idx],
                             "orientation": "h",
-                            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                            "marker": {
+                                "color": "rgba(74, 159, 110, 0.4)",
+                                "line": {"color": "#4a9f6e", "width": 1.5},
+                            },
                         }
                     ],
                     "layout": {"height": max(200, len(features) * 25)},
@@ -214,29 +234,47 @@ def run_ml_analysis(df, analysis_id, config, user):
                 y_test_int = np.asarray(y_test).astype(int)
 
             if hasattr(model, "predict_proba"):
-                cf = compute_conformal(model, X_cal, y_cal_int, task_type="classification")
+                cf = compute_conformal(
+                    model, X_cal, y_cal_int, task_type="classification"
+                )
                 conformal_state = cf.get_state()
 
                 # Empirical coverage on test set
                 proba_test = model.predict_proba(X_test)
                 pred_sets, meta = cf.predict_sets(proba_test, alpha=0.10)
-                covered = sum(1 for i, ps in enumerate(pred_sets) if int(y_test_int[i]) in ps)
+                covered = sum(
+                    1 for i, ps in enumerate(pred_sets) if int(y_test_int[i]) in ps
+                )
                 emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
                 set_sizes = [len(ps) for ps in pred_sets]
                 avg_set_size = float(np.mean(set_sizes))
-                single_class_pct = sum(1 for s in set_sizes if s == 1) / len(set_sizes) if set_sizes else 0
+                single_class_pct = (
+                    sum(1 for s in set_sizes if s == 1) / len(set_sizes)
+                    if set_sizes
+                    else 0
+                )
 
-                result["summary"] += "\n\n<<COLOR:accent>>── Conformal Prediction Sets (90% nominal) ──<</COLOR>>\n"
-                result["summary"] += f"<<COLOR:highlight>>Average set size:<</COLOR>> {avg_set_size:.2f} classes\n"
-                result["summary"] += f"<<COLOR:highlight>>Empirical test coverage:<</COLOR>> {emp_coverage:.1%}\n"
-                result["summary"] += f"<<COLOR:highlight>>Single-class predictions:<</COLOR>> {single_class_pct:.1%}\n"
-                result["summary"] += f"<<COLOR:highlight>>Calibration set:<</COLOR>> {cf.n_cal} observations\n"
-                result["summary"] += (
-                    "<<COLOR:text>>Nominal coverage: 90% (finite-sample marginal guarantee under exchangeability)<</COLOR>>\n"
-                )
-                result["summary"] += (
-                    "<<COLOR:text>>When the model is confident, you get 1 class. When uncertain, you get 2+.<</COLOR>>"
-                )
+                result[
+                    "summary"
+                ] += "\n\n<<COLOR:accent>>── Conformal Prediction Sets (90% nominal) ──<</COLOR>>\n"
+                result[
+                    "summary"
+                ] += f"<<COLOR:highlight>>Average set size:<</COLOR>> {avg_set_size:.2f} classes\n"
+                result[
+                    "summary"
+                ] += f"<<COLOR:highlight>>Empirical test coverage:<</COLOR>> {emp_coverage:.1%}\n"
+                result[
+                    "summary"
+                ] += f"<<COLOR:highlight>>Single-class predictions:<</COLOR>> {single_class_pct:.1%}\n"
+                result[
+                    "summary"
+                ] += f"<<COLOR:highlight>>Calibration set:<</COLOR>> {cf.n_cal} observations\n"
+                result[
+                    "summary"
+                ] += "<<COLOR:text>>Nominal coverage: 90% (finite-sample marginal guarantee under exchangeability)<</COLOR>>\n"
+                result[
+                    "summary"
+                ] += "<<COLOR:text>>When the model is confident, you get 1 class. When uncertain, you get 2+.<</COLOR>>"
 
                 # Prediction set size histogram
                 max_size = max(set_sizes) if set_sizes else 1
@@ -304,7 +342,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>R²:<</COLOR>> {r2:.4f}\n"
         summary += f"<<COLOR:highlight>>RMSE:<</COLOR>> {rmse:.4f}\n"
-        summary += _ml_interpretation("regression", {"r2": r2, "rmse": rmse}, y_test, y_pred, features, target)
+        summary += _ml_interpretation(
+            "regression", {"r2": r2, "rmse": rmse}, y_test, y_pred, features, target
+        )
         result["summary"] = summary
 
         r2_label, _ = _effect_magnitude(r2, "r_squared")
@@ -315,9 +355,11 @@ def run_ml_analysis(df, analysis_id, config, user):
             + (
                 "Strong predictive model."
                 if r2 >= 0.7
-                else "Moderate model — useful for trends."
-                if r2 >= 0.4
-                else "Weak model — features may not predict target well."
+                else (
+                    "Moderate model — useful for trends."
+                    if r2 >= 0.4
+                    else "Weak model — features may not predict target well."
+                )
             )
         )
 
@@ -341,7 +383,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "line": {"color": "#ff7675", "dash": "dash"},
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Actual"}, "yaxis": {"title": "Predicted"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Actual"},
+                    "yaxis": {"title": "Predicted"},
+                },
             }
         )
 
@@ -358,7 +404,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "x": importances[sorted_idx].tolist(),
                             "y": [features[i] for i in sorted_idx],
                             "orientation": "h",
-                            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                            "marker": {
+                                "color": "rgba(74, 159, 110, 0.4)",
+                                "line": {"color": "#4a9f6e", "width": 1.5},
+                            },
                         }
                     ],
                     "layout": {"height": max(200, len(features) * 25)},
@@ -392,7 +441,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "name": "Zero",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Predicted"}, "yaxis": {"title": "Residual"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Predicted"},
+                    "yaxis": {"title": "Residual"},
+                },
             }
         )
 
@@ -411,14 +464,24 @@ def run_ml_analysis(df, analysis_id, config, user):
             covered = np.sum((y_test.values >= y_lo) & (y_test.values <= y_hi))
             emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
 
-            result["summary"] += "\n\n<<COLOR:accent>>── Conformal Prediction Intervals (90% nominal) ──<</COLOR>>\n"
-            result["summary"] += f"<<COLOR:highlight>>Interval half-width:<</COLOR>> ±{qhat_90:.4f}\n"
-            result["summary"] += f"<<COLOR:highlight>>Empirical test coverage:<</COLOR>> {emp_coverage:.1%}\n"
-            result["summary"] += f"<<COLOR:highlight>>Calibration set:<</COLOR>> {cf.n_cal} observations\n"
-            result["summary"] += f"<<COLOR:highlight>>95% interval half-width:<</COLOR>> ±{qhat_95:.4f}\n"
-            result["summary"] += (
-                "<<COLOR:text>>Nominal coverage: 90% (finite-sample marginal guarantee under exchangeability)<</COLOR>>"
-            )
+            result[
+                "summary"
+            ] += "\n\n<<COLOR:accent>>── Conformal Prediction Intervals (90% nominal) ──<</COLOR>>\n"
+            result[
+                "summary"
+            ] += f"<<COLOR:highlight>>Interval half-width:<</COLOR>> ±{qhat_90:.4f}\n"
+            result[
+                "summary"
+            ] += f"<<COLOR:highlight>>Empirical test coverage:<</COLOR>> {emp_coverage:.1%}\n"
+            result[
+                "summary"
+            ] += f"<<COLOR:highlight>>Calibration set:<</COLOR>> {cf.n_cal} observations\n"
+            result[
+                "summary"
+            ] += f"<<COLOR:highlight>>95% interval half-width:<</COLOR>> ±{qhat_95:.4f}\n"
+            result[
+                "summary"
+            ] += "<<COLOR:text>>Nominal coverage: 90% (finite-sample marginal guarantee under exchangeability)<</COLOR>>"
 
             # Conformal interval plot
             sort_idx = np.argsort(y_pred)
@@ -522,7 +585,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         from accounts.constants import can_use_ml
 
         if not can_use_ml(getattr(user, "tier", "free")):
-            result["summary"] = "Error: Model comparison requires a paid tier with ML access."
+            result["summary"] = (
+                "Error: Model comparison requires a paid tier with ML access."
+            )
             return result
 
         cv_folds = int(config.get("cv_folds", 5))
@@ -530,13 +595,17 @@ def run_ml_analysis(df, analysis_id, config, user):
 
         # Auto-detect task type
         if task_type == "auto":
-            if y.nunique() <= 20 and (y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10):
+            if y.nunique() <= 20 and (
+                y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10
+            ):
                 task_type = "classification"
             else:
                 task_type = "regression"
 
         # Encode categorical target for classification
-        if task_type == "classification" and (y.dtype == object or y.dtype.name == "category"):
+        if task_type == "classification" and (
+            y.dtype == object or y.dtype.name == "category"
+        ):
             from sklearn.preprocessing import LabelEncoder
 
             le = LabelEncoder()
@@ -560,10 +629,20 @@ def run_ml_analysis(df, analysis_id, config, user):
             from sklearn.naive_bayes import GaussianNB
 
             models = [
-                ("Random Forest", RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)),
+                (
+                    "Random Forest",
+                    RandomForestClassifier(
+                        n_estimators=100, random_state=42, n_jobs=-1
+                    ),
+                ),
                 (
                     "Logistic Regression",
-                    Pipeline([("scaler", StandardScaler()), ("lr", LogisticRegression(max_iter=1000))]),
+                    Pipeline(
+                        [
+                            ("scaler", StandardScaler()),
+                            ("lr", LogisticRegression(max_iter=1000)),
+                        ]
+                    ),
                 ),
                 ("LDA", LinearDiscriminantAnalysis()),
                 ("Naive Bayes", GaussianNB()),
@@ -585,14 +664,21 @@ def run_ml_analysis(df, analysis_id, config, user):
             )
 
             models = [
-                ("Random Forest", RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)),
+                (
+                    "Random Forest",
+                    RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1),
+                ),
                 ("Linear Regression", LinearRegression()),
                 ("Ridge", Ridge(alpha=1.0)),
                 ("LASSO", Lasso(alpha=0.1)),
                 ("ElasticNet", ElasticNet(alpha=0.1, l1_ratio=0.5)),
                 ("Bayesian Ridge", BayesianRidge()),
             ]
-            scoring = {"r2": "r2", "neg_rmse": "neg_root_mean_squared_error", "neg_mae": "neg_mean_absolute_error"}
+            scoring = {
+                "r2": "r2",
+                "neg_rmse": "neg_root_mean_squared_error",
+                "neg_mae": "neg_mean_absolute_error",
+            }
             primary_metric = "r2"
 
         # Try adding XGBoost / LightGBM if installed
@@ -613,7 +699,14 @@ def run_ml_analysis(df, analysis_id, config, user):
                     )
                 )
             else:
-                models.append(("XGBoost", xgb.XGBRegressor(n_estimators=100, random_state=42, verbosity=0)))
+                models.append(
+                    (
+                        "XGBoost",
+                        xgb.XGBRegressor(
+                            n_estimators=100, random_state=42, verbosity=0
+                        ),
+                    )
+                )
         except ImportError:
             pass
 
@@ -621,9 +714,23 @@ def run_ml_analysis(df, analysis_id, config, user):
             import lightgbm as lgb
 
             if task_type == "classification":
-                models.append(("LightGBM", lgb.LGBMClassifier(n_estimators=100, random_state=42, verbosity=-1)))
+                models.append(
+                    (
+                        "LightGBM",
+                        lgb.LGBMClassifier(
+                            n_estimators=100, random_state=42, verbosity=-1
+                        ),
+                    )
+                )
             else:
-                models.append(("LightGBM", lgb.LGBMRegressor(n_estimators=100, random_state=42, verbosity=-1)))
+                models.append(
+                    (
+                        "LightGBM",
+                        lgb.LGBMRegressor(
+                            n_estimators=100, random_state=42, verbosity=-1
+                        ),
+                    )
+                )
         except ImportError:
             pass
 
@@ -659,11 +766,17 @@ def run_ml_analysis(df, analysis_id, config, user):
                     # Handle negative metrics
                     if "neg_" in scorer_key:
                         mean_val = -mean_val
-                        train_vals = -np.array(train_vals) if len(train_vals) > 0 else train_vals
+                        train_vals = (
+                            -np.array(train_vals) if len(train_vals) > 0 else train_vals
+                        )
 
                     row[metric_name] = round(mean_val, 4)
                     row[f"{metric_name}_std"] = round(std_val, 4)
-                    row[f"{metric_name}_train"] = round(float(np.mean(train_vals)), 4) if len(train_vals) > 0 else None
+                    row[f"{metric_name}_train"] = (
+                        round(float(np.mean(train_vals)), 4)
+                        if len(train_vals) > 0
+                        else None
+                    )
 
                 comparison.append(row)
 
@@ -678,8 +791,12 @@ def run_ml_analysis(df, analysis_id, config, user):
                 comparison.append({"model": name, "error": str(e_model)[:100]})
 
         # Summary text
-        summary_lines = [f"Model Comparison — {task_type.title()} ({cv_folds}-fold CV)\n"]
-        summary_lines.append(f"{'Model':<22} {'Score':>8} {'± Std':>8} {'Train':>8} {'Time':>6}")
+        summary_lines = [
+            f"Model Comparison — {task_type.title()} ({cv_folds}-fold CV)\n"
+        ]
+        summary_lines.append(
+            f"{'Model':<22} {'Score':>8} {'± Std':>8} {'Train':>8} {'Time':>6}"
+        )
         summary_lines.append("-" * 55)
         for row in comparison:
             if "error" in row:
@@ -692,7 +809,9 @@ def run_ml_analysis(df, analysis_id, config, user):
             summary_lines.append(
                 f"{row['model']:<22} {score:>8.4f} {std:>8.4f} {train:>8.4f} {row['fit_time']:>5.1f}s{marker}"
             )
-        summary_lines.append(f"\n* Best: {best_model_name} ({primary_metric} = {best_score:.4f})")
+        summary_lines.append(
+            f"\n* Best: {best_model_name} ({primary_metric} = {best_score:.4f})"
+        )
 
         # --- MODEL ASSESSMENT ---
         assess = f"\n{'─' * 55}\nMODEL ASSESSMENT\n{'─' * 55}\n"
@@ -718,20 +837,22 @@ def run_ml_analysis(df, analysis_id, config, user):
         if overfit_warnings:
             assess += "Overfitting check:\n" + "\n".join(overfit_warnings) + "\n\n"
         else:
-            assess += "Overfitting check: ✓ No significant train-test gaps detected.\n\n"
+            assess += (
+                "Overfitting check: ✓ No significant train-test gaps detected.\n\n"
+            )
 
         # Is the best model meaningfully better than others?
         if len(valid_rows) >= 2:
-            scores_sorted = sorted(valid_rows, key=lambda r: r.get(primary_metric, 0), reverse=True)
+            scores_sorted = sorted(
+                valid_rows, key=lambda r: r.get(primary_metric, 0), reverse=True
+            )
             best_r = scores_sorted[0]
             second_r = scores_sorted[1]
             margin = best_r.get(primary_metric, 0) - second_r.get(primary_metric, 0)
             best_std = best_r.get(f"{primary_metric}_std", 0)
             if margin < best_std:
                 assess += f"Winner margin: {best_r['model']} beats {second_r['model']} by {margin:.4f} — within 1 std ({best_std:.4f}).\n"
-                assess += (
-                    f"  → The difference may be noise. Consider {second_r['model']} if it's simpler or faster.\n\n"
-                )
+                assess += f"  → The difference may be noise. Consider {second_r['model']} if it's simpler or faster.\n\n"
             else:
                 assess += f"Winner margin: {best_r['model']} beats {second_r['model']} by {margin:.4f} (> 1 std). Solid winner.\n\n"
 
@@ -768,7 +889,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         # Comparison bar chart
         model_names = [r["model"] for r in comparison if "error" not in r]
         scores = [r.get(primary_metric, 0) for r in comparison if "error" not in r]
-        stds = [r.get(f"{primary_metric}_std", 0) for r in comparison if "error" not in r]
+        stds = [
+            r.get(f"{primary_metric}_std", 0) for r in comparison if "error" not in r
+        ]
 
         result["plots"].append(
             {
@@ -781,7 +904,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "error_y": {"type": "data", "array": stds, "visible": True},
                         "marker": {
                             "color": [
-                                "rgba(74,159,110,0.85)" if n == best_model_name else "rgba(74,159,110,0.4)"
+                                (
+                                    "rgba(74,159,110,0.85)"
+                                    if n == best_model_name
+                                    else "rgba(74,159,110,0.4)"
+                                )
                                 for n in model_names
                             ],
                             "line": {"color": "#4a9f6e", "width": 1},
@@ -824,7 +951,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "z": heatmap_z,
                             "x": heatmap_names,
                             "y": [m.upper() for m in metric_keys],
-                            "colorscale": [[0, "#0d120d"], [0.5, "#2a6b3a"], [1, "#4a9f6e"]],
+                            "colorscale": [
+                                [0, "#0d120d"],
+                                [0.5, "#2a6b3a"],
+                                [1, "#4a9f6e"],
+                            ],
                             "showscale": True,
                             "text": [[f"{v:.4f}" for v in row] for row in heatmap_z],
                             "texttemplate": "%{text}",
@@ -851,7 +982,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "type": "bar",
                             "x": fit_names,
                             "y": fit_times,
-                            "marker": {"color": "rgba(232,149,71,0.6)", "line": {"color": "#e89547", "width": 1}},
+                            "marker": {
+                                "color": "rgba(232,149,71,0.6)",
+                                "line": {"color": "#e89547", "width": 1},
+                            },
                             "text": [f"{t:.1f}s" for t in fit_times],
                             "textposition": "auto",
                         }
@@ -868,7 +1002,11 @@ def run_ml_analysis(df, analysis_id, config, user):
             roc_traces = []
             for name, mdl in models:
                 try:
-                    mdl_fitted = mdl.__class__(**mdl.get_params()) if not isinstance(mdl, Pipeline) else mdl
+                    mdl_fitted = (
+                        mdl.__class__(**mdl.get_params())
+                        if not isinstance(mdl, Pipeline)
+                        else mdl
+                    )
                     mdl_fitted.fit(X_enc.values, y_enc.values)
                     if hasattr(mdl_fitted, "predict_proba"):
                         y_prob = mdl_fitted.predict_proba(X_enc.values)[:, 1]
@@ -914,19 +1052,29 @@ def run_ml_analysis(df, analysis_id, config, user):
             colors = ["#4a9f6e", "#e89547", "#6a7fff", "#e8c547", "#ff7eb9", "#4a9faf"]
             for i, (name, mdl) in enumerate(models[:4]):
                 try:
-                    mdl_fitted = mdl.__class__(**mdl.get_params()) if not isinstance(mdl, Pipeline) else mdl
+                    mdl_fitted = (
+                        mdl.__class__(**mdl.get_params())
+                        if not isinstance(mdl, Pipeline)
+                        else mdl
+                    )
                     mdl_fitted.fit(
                         X_train.values if hasattr(X_train, "values") else X_train,
                         y_train.values if hasattr(y_train, "values") else y_train,
                     )
-                    y_pred_cmp = mdl_fitted.predict(X_test.values if hasattr(X_test, "values") else X_test)
+                    y_pred_cmp = mdl_fitted.predict(
+                        X_test.values if hasattr(X_test, "values") else X_test
+                    )
                     avp_traces.append(
                         {
                             "type": "scatter",
                             "x": y_test.tolist(),
                             "y": y_pred_cmp.tolist(),
                             "mode": "markers",
-                            "marker": {"color": colors[i % len(colors)], "size": 4, "opacity": 0.6},
+                            "marker": {
+                                "color": colors[i % len(colors)],
+                                "size": 4,
+                                "opacity": 0.6,
+                            },
                             "name": name,
                         }
                     )
@@ -961,9 +1109,15 @@ def run_ml_analysis(df, analysis_id, config, user):
             try:
                 # Split for conformal: train on 70%, calibrate on 15%, evaluate on 15%
                 if task_type == "classification":
-                    Xc_train, Xc_cal, Xc_test, yc_train, yc_cal, yc_test = _stratified_split_3way(
-                        pd.DataFrame(X_enc.values, columns=X_enc.columns),
-                        pd.Series(y_enc.values, name=y_enc.name) if hasattr(y_enc, "name") else pd.Series(y_enc.values),
+                    Xc_train, Xc_cal, Xc_test, yc_train, yc_cal, yc_test = (
+                        _stratified_split_3way(
+                            pd.DataFrame(X_enc.values, columns=X_enc.columns),
+                            (
+                                pd.Series(y_enc.values, name=y_enc.name)
+                                if hasattr(y_enc, "name")
+                                else pd.Series(y_enc.values)
+                            ),
+                        )
                     )
                 else:
                     Xc_train, Xc_temp, yc_train, yc_temp = train_test_split(
@@ -987,7 +1141,9 @@ def run_ml_analysis(df, analysis_id, config, user):
                 try:
                     from ..conformal import compute_conformal
 
-                    cf = compute_conformal(best_clone, Xc_cal, yc_cal, task_type=task_type)
+                    cf = compute_conformal(
+                        best_clone, Xc_cal, yc_cal, task_type=task_type
+                    )
                     conformal_state = cf.get_state()
                 except Exception:
                     pass
@@ -1015,7 +1171,10 @@ def run_ml_analysis(df, analysis_id, config, user):
             for r in valid_rows
             if r.get(f"{primary_metric}_train", 0)
             and r.get(primary_metric, 0)
-            and (r[f"{primary_metric}_train"] - r[primary_metric]) / r[f"{primary_metric}_train"] * 100 > 15
+            and (r[f"{primary_metric}_train"] - r[primary_metric])
+            / r[f"{primary_metric}_train"]
+            * 100
+            > 15
         ]
         obs = f"Compared {len(comparison)} models ({task_type}, {cv_folds}-fold CV). Best: {best_model_name} ({primary_metric}={best_score:.4f})."
         if overfit_models:
@@ -1044,14 +1203,23 @@ def run_ml_analysis(df, analysis_id, config, user):
         if task_type == "auto":
             task_type = (
                 "classification"
-                if (y.nunique() <= 20 and (y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10))
+                if (
+                    y.nunique() <= 20
+                    and (
+                        y.dtype == object
+                        or y.dtype.name == "category"
+                        or y.nunique() <= 10
+                    )
+                )
                 else "regression"
             )
 
         # Encode target
         label_map = None
         y_work = y.copy()
-        if task_type == "classification" and (y_work.dtype == object or y_work.dtype.name == "category"):
+        if task_type == "classification" and (
+            y_work.dtype == object or y_work.dtype.name == "category"
+        ):
             from sklearn.preprocessing import LabelEncoder
 
             le = LabelEncoder()
@@ -1066,10 +1234,16 @@ def run_ml_analysis(df, analysis_id, config, user):
 
         # 3-way split for conformal prediction
         if task_type == "classification":
-            X_train, X_cal, X_test, y_train, y_cal, y_test = _stratified_split_3way(X_enc, y_work)
+            X_train, X_cal, X_test, y_train, y_cal, y_test = _stratified_split_3way(
+                X_enc, y_work
+            )
         else:
-            X_train, X_temp, y_train, y_temp = train_test_split(X_enc, y_work, test_size=0.30, random_state=42)
-            X_cal, X_test, y_cal, y_test = train_test_split(X_temp, y_temp, test_size=0.50, random_state=42)
+            X_train, X_temp, y_train, y_temp = train_test_split(
+                X_enc, y_work, test_size=0.30, random_state=42
+            )
+            X_cal, X_test, y_cal, y_test = train_test_split(
+                X_temp, y_temp, test_size=0.50, random_state=42
+            )
 
         with GPUTrainingContext() as gpu:
             params = {
@@ -1160,19 +1334,21 @@ def run_ml_analysis(df, analysis_id, config, user):
                 y_lo, y_hi = cf.predict_interval(y_pred, alpha=0.10)
                 covered = np.sum((y_test.values >= y_lo) & (y_test.values <= y_hi))
                 emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
-                result["summary"] += (
-                    f"\n\nConformal 90% interval: ±{qhat_90:.4f} (empirical coverage: {emp_coverage:.1%}, n_cal={cf.n_cal})"
-                )
+                result[
+                    "summary"
+                ] += f"\n\nConformal 90% interval: ±{qhat_90:.4f} (empirical coverage: {emp_coverage:.1%}, n_cal={cf.n_cal})"
             else:
                 if hasattr(model, "predict_proba"):
                     proba_test = model.predict_proba(X_test)
                     pred_sets, meta = cf.predict_sets(proba_test, alpha=0.10)
-                    covered = sum(1 for i, ps in enumerate(pred_sets) if int(y_test.iloc[i]) in ps)
+                    covered = sum(
+                        1 for i, ps in enumerate(pred_sets) if int(y_test.iloc[i]) in ps
+                    )
                     emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
                     avg_ss = float(np.mean([len(ps) for ps in pred_sets]))
-                    result["summary"] += (
-                        f"\n\nConformal 90% prediction sets: avg size={avg_ss:.2f}, coverage={emp_coverage:.1%}, n_cal={cf.n_cal}"
-                    )
+                    result[
+                        "summary"
+                    ] += f"\n\nConformal 90% prediction sets: avg size={avg_ss:.2f}, coverage={emp_coverage:.1%}, n_cal={cf.n_cal}"
 
             result["statistics"] = result.get("statistics", {})
             result["statistics"]["conformal"] = conformal_state
@@ -1218,13 +1394,22 @@ def run_ml_analysis(df, analysis_id, config, user):
         if task_type == "auto":
             task_type = (
                 "classification"
-                if (y.nunique() <= 20 and (y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10))
+                if (
+                    y.nunique() <= 20
+                    and (
+                        y.dtype == object
+                        or y.dtype.name == "category"
+                        or y.nunique() <= 10
+                    )
+                )
                 else "regression"
             )
 
         label_map = None
         y_work = y.copy()
-        if task_type == "classification" and (y_work.dtype == object or y_work.dtype.name == "category"):
+        if task_type == "classification" and (
+            y_work.dtype == object or y_work.dtype.name == "category"
+        ):
             from sklearn.preprocessing import LabelEncoder
 
             le = LabelEncoder()
@@ -1238,10 +1423,16 @@ def run_ml_analysis(df, analysis_id, config, user):
 
         # 3-way split for conformal prediction
         if task_type == "classification":
-            X_train, X_cal, X_test, y_train, y_cal, y_test = _stratified_split_3way(X_enc, y_work)
+            X_train, X_cal, X_test, y_train, y_cal, y_test = _stratified_split_3way(
+                X_enc, y_work
+            )
         else:
-            X_train, X_temp, y_train, y_temp = train_test_split(X_enc, y_work, test_size=0.30, random_state=42)
-            X_cal, X_test, y_cal, y_test = train_test_split(X_temp, y_temp, test_size=0.50, random_state=42)
+            X_train, X_temp, y_train, y_temp = train_test_split(
+                X_enc, y_work, test_size=0.30, random_state=42
+            )
+            X_cal, X_test, y_cal, y_test = train_test_split(
+                X_temp, y_temp, test_size=0.50, random_state=42
+            )
 
         with GPUTrainingContext() as gpu:
             params = {
@@ -1319,19 +1510,21 @@ def run_ml_analysis(df, analysis_id, config, user):
                 y_lo, y_hi = cf.predict_interval(y_pred, alpha=0.10)
                 covered = np.sum((y_test.values >= y_lo) & (y_test.values <= y_hi))
                 emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
-                result["summary"] += (
-                    f"\n\nConformal 90% interval: ±{qhat_90:.4f} (empirical coverage: {emp_coverage:.1%}, n_cal={cf.n_cal})"
-                )
+                result[
+                    "summary"
+                ] += f"\n\nConformal 90% interval: ±{qhat_90:.4f} (empirical coverage: {emp_coverage:.1%}, n_cal={cf.n_cal})"
             else:
                 if hasattr(model, "predict_proba"):
                     proba_test = model.predict_proba(X_test)
                     pred_sets, meta = cf.predict_sets(proba_test, alpha=0.10)
-                    covered = sum(1 for i, ps in enumerate(pred_sets) if int(y_test.iloc[i]) in ps)
+                    covered = sum(
+                        1 for i, ps in enumerate(pred_sets) if int(y_test.iloc[i]) in ps
+                    )
                     emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
                     avg_ss = float(np.mean([len(ps) for ps in pred_sets]))
-                    result["summary"] += (
-                        f"\n\nConformal 90% prediction sets: avg size={avg_ss:.2f}, coverage={emp_coverage:.1%}, n_cal={cf.n_cal}"
-                    )
+                    result[
+                        "summary"
+                    ] += f"\n\nConformal 90% prediction sets: avg size={avg_ss:.2f}, coverage={emp_coverage:.1%}, n_cal={cf.n_cal}"
 
             result["statistics"] = result.get("statistics", {})
             result["statistics"]["conformal"] = conformal_state
@@ -1363,18 +1556,24 @@ def run_ml_analysis(df, analysis_id, config, user):
         from accounts.constants import can_use_ml
 
         if not can_use_ml(getattr(user, "tier", "free")):
-            result["summary"] = "Error: SHAP explainability requires a paid tier with ML access."
+            result["summary"] = (
+                "Error: SHAP explainability requires a paid tier with ML access."
+            )
             return result
 
         # Get model from cache
         model_key = config.get("model_key", "")
         if not model_key:
-            result["summary"] = "Error: No model selected. Train a model first, then explain it."
+            result["summary"] = (
+                "Error: No model selected. Train a model first, then explain it."
+            )
             return result
 
         cached = get_cached_model(user.id if user else 0, model_key)
         if not cached:
-            result["summary"] = "Error: Model not found in cache. It may have expired — retrain and try again."
+            result["summary"] = (
+                "Error: Model not found in cache. It may have expired — retrain and try again."
+            )
             return result
 
         model_obj = cached["model"]
@@ -1383,7 +1582,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         sample_idx = int(config.get("sample_index", 0))
 
         # Prepare data
-        X_explain = X[model_features] if all(f in X.columns for f in model_features) else X
+        X_explain = (
+            X[model_features] if all(f in X.columns for f in model_features) else X
+        )
         # Encode categoricals
         for col in X_explain.select_dtypes(include=["object", "category"]).columns:
             X_explain[col] = pd.Categorical(X_explain[col]).codes.astype(int)
@@ -1397,7 +1598,9 @@ def run_ml_analysis(df, analysis_id, config, user):
             bg_data = X_explain
 
         # Choose explainer
-        is_tree = hasattr(model_obj, "feature_importances_") and type(model_obj).__name__ in (
+        is_tree = hasattr(model_obj, "feature_importances_") and type(
+            model_obj
+        ).__name__ in (
             "RandomForestClassifier",
             "RandomForestRegressor",
             "XGBClassifier",
@@ -1426,7 +1629,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         else:
             sv = shap_values
 
-        feature_names_explain = list(X_explain.columns) if hasattr(X_explain, "columns") else model_features
+        feature_names_explain = (
+            list(X_explain.columns) if hasattr(X_explain, "columns") else model_features
+        )
 
         # Global: mean absolute SHAP values (feature importance bar)
         mean_abs = np.abs(sv).mean(axis=0)
@@ -1440,7 +1645,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "orientation": "h",
                         "x": mean_abs[sorted_idx].tolist(),
                         "y": [feature_names_explain[i] for i in sorted_idx],
-                        "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "marker": {
+                            "color": "rgba(74,159,110,0.6)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                     }
                 ],
                 "layout": {
@@ -1455,7 +1663,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         for i in sorted_idx[-10:]:  # Top 10
             feat_name = feature_names_explain[i]
             vals = sv[:, i]
-            feat_vals = bg_data.iloc[:, i].values if hasattr(bg_data, "iloc") else bg_data[:, i]
+            feat_vals = (
+                bg_data.iloc[:, i].values if hasattr(bg_data, "iloc") else bg_data[:, i]
+            )
             # Normalize feature values for color
             fmin, fmax = float(np.min(feat_vals)), float(np.max(feat_vals))
             colors = ((feat_vals - fmin) / (fmax - fmin + 1e-10)).tolist()
@@ -1465,7 +1675,9 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "type": "scatter",
                     "mode": "markers",
                     "x": vals.tolist(),
-                    "y": (jitter + len(sorted_idx) - 1 - np.where(sorted_idx == i)[0][0]).tolist(),
+                    "y": (
+                        jitter + len(sorted_idx) - 1 - np.where(sorted_idx == i)[0][0]
+                    ).tolist(),
                     "marker": {
                         "size": 3,
                         "color": colors,
@@ -1491,7 +1703,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "zeroline": True,
                             "zerolinecolor": "#555",
                         },
-                        "yaxis": {"tickvals": list(range(len(tick_labels))), "ticktext": tick_labels},
+                        "yaxis": {
+                            "tickvals": list(range(len(tick_labels))),
+                            "ticktext": tick_labels,
+                        },
                         "showlegend": False,
                     },
                 }
@@ -1505,7 +1720,9 @@ def run_ml_analysis(df, analysis_id, config, user):
                 float(explainer.expected_value)
                 if not isinstance(explainer.expected_value, (list, np.ndarray))
                 else float(
-                    explainer.expected_value[1] if len(explainer.expected_value) > 1 else explainer.expected_value[0]
+                    explainer.expected_value[1]
+                    if len(explainer.expected_value) > 1
+                    else explainer.expected_value[0]
                 )
             )
 
@@ -1513,7 +1730,10 @@ def run_ml_analysis(df, analysis_id, config, user):
             sorted_single = np.argsort(np.abs(single_sv))[-10:]
             wf_names = [feature_names_explain[i] for i in sorted_single]
             wf_vals = [float(single_sv[i]) for i in sorted_single]
-            wf_colors = ["rgba(74,159,110,0.7)" if v >= 0 else "rgba(208,96,96,0.7)" for v in wf_vals]
+            wf_colors = [
+                "rgba(74,159,110,0.7)" if v >= 0 else "rgba(208,96,96,0.7)"
+                for v in wf_vals
+            ]
 
             result["plots"].append(
                 {
@@ -1547,7 +1767,11 @@ def run_ml_analysis(df, analysis_id, config, user):
 
         # Dependence plot (top feature vs SHAP)
         top_feat_idx = sorted_idx[-1]
-        dep_x = bg_data.iloc[:, top_feat_idx].values if hasattr(bg_data, "iloc") else bg_data[:, top_feat_idx]
+        dep_x = (
+            bg_data.iloc[:, top_feat_idx].values
+            if hasattr(bg_data, "iloc")
+            else bg_data[:, top_feat_idx]
+        )
         dep_y = sv[:, top_feat_idx]
         result["plots"].append(
             {
@@ -1570,16 +1794,22 @@ def run_ml_analysis(df, analysis_id, config, user):
         )
 
         # Summary text
-        top_3 = [(feature_names_explain[i], float(mean_abs[i])) for i in sorted_idx[-3:]][::-1]
+        top_3 = [
+            (feature_names_explain[i], float(mean_abs[i])) for i in sorted_idx[-3:]
+        ][::-1]
         result["summary"] = (
             f"SHAP Explainability Analysis\n\n"
             f"Explainer: {'TreeExplainer' if is_tree else 'KernelExplainer'}\n"
             f"Background samples: {len(bg_data)}\n\n"
             f"Top 3 features by mean |SHAP|:\n"
-            + "\n".join(f"  {i + 1}. {name}: {val:.4f}" for i, (name, val) in enumerate(top_3))
+            + "\n".join(
+                f"  {i + 1}. {name}: {val:.4f}" for i, (name, val) in enumerate(top_3)
+            )
         )
 
-        result["guide_observation"] = f"SHAP: top feature is {top_3[0][0]} (mean |SHAP| = {top_3[0][1]:.4f})."
+        result["guide_observation"] = (
+            f"SHAP: top feature is {top_3[0][0]} (mean |SHAP| = {top_3[0][1]:.4f})."
+        )
 
     elif analysis_id == "hyperparameter_tune":
         import time as _time
@@ -1591,7 +1821,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         optuna.logging.set_verbosity(optuna.logging.WARNING)
 
         if not can_use_ml(getattr(user, "tier", "free")):
-            result["summary"] = "Error: Hyperparameter tuning requires a paid tier with ML access."
+            result["summary"] = (
+                "Error: Hyperparameter tuning requires a paid tier with ML access."
+            )
             return result
 
         model_type = config.get("model_type", "rf")
@@ -1602,13 +1834,22 @@ def run_ml_analysis(df, analysis_id, config, user):
         if task_type == "auto":
             task_type = (
                 "classification"
-                if (y.nunique() <= 20 and (y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10))
+                if (
+                    y.nunique() <= 20
+                    and (
+                        y.dtype == object
+                        or y.dtype.name == "category"
+                        or y.nunique() <= 10
+                    )
+                )
                 else "regression"
             )
 
         # Encode
         y_work = y.copy()
-        if task_type == "classification" and (y_work.dtype == object or y_work.dtype.name == "category"):
+        if task_type == "classification" and (
+            y_work.dtype == object or y_work.dtype.name == "category"
+        ):
             from sklearn.preprocessing import LabelEncoder
 
             le = LabelEncoder()
@@ -1642,14 +1883,20 @@ def run_ml_analysis(df, analysis_id, config, user):
                 params = {
                     "n_estimators": trial.suggest_int("n_estimators", 50, 300),
                     "max_depth": trial.suggest_int("max_depth", 3, 12),
-                    "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+                    "learning_rate": trial.suggest_float(
+                        "learning_rate", 0.01, 0.3, log=True
+                    ),
                     "subsample": trial.suggest_float("subsample", 0.5, 1.0),
-                    "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
+                    "colsample_bytree": trial.suggest_float(
+                        "colsample_bytree", 0.5, 1.0
+                    ),
                     "random_state": 42,
                     "verbosity": 0,
                 }
                 mdl = (
-                    xgb.XGBClassifier(**params, use_label_encoder=False, eval_metric="logloss")
+                    xgb.XGBClassifier(
+                        **params, use_label_encoder=False, eval_metric="logloss"
+                    )
                     if task_type == "classification"
                     else xgb.XGBRegressor(**params)
                 )
@@ -1659,12 +1906,18 @@ def run_ml_analysis(df, analysis_id, config, user):
                 params = {
                     "n_estimators": trial.suggest_int("n_estimators", 50, 300),
                     "num_leaves": trial.suggest_int("num_leaves", 10, 127),
-                    "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+                    "learning_rate": trial.suggest_float(
+                        "learning_rate", 0.01, 0.3, log=True
+                    ),
                     "subsample": trial.suggest_float("subsample", 0.5, 1.0),
                     "random_state": 42,
                     "verbosity": -1,
                 }
-                mdl = lgb.LGBMClassifier(**params) if task_type == "classification" else lgb.LGBMRegressor(**params)
+                mdl = (
+                    lgb.LGBMClassifier(**params)
+                    if task_type == "classification"
+                    else lgb.LGBMRegressor(**params)
+                )
             elif model_type == "ridge":
                 from sklearn.linear_model import LogisticRegression, Ridge
 
@@ -1678,7 +1931,9 @@ def run_ml_analysis(df, analysis_id, config, user):
 
                 alpha = trial.suggest_float("alpha", 0.001, 10.0, log=True)
                 if task_type == "classification":
-                    mdl = LogisticRegression(C=1.0 / alpha, max_iter=1000, penalty="l1", solver="saga")
+                    mdl = LogisticRegression(
+                        C=1.0 / alpha, max_iter=1000, penalty="l1", solver="saga"
+                    )
                 else:
                     mdl = Lasso(alpha=alpha)
             else:
@@ -1696,7 +1951,9 @@ def run_ml_analysis(df, analysis_id, config, user):
                 )
 
             scoring = "accuracy" if task_type == "classification" else "r2"
-            scores = cross_val_score(mdl, X_enc, y_work, cv=cv_folds, scoring=scoring, n_jobs=-1)
+            scores = cross_val_score(
+                mdl, X_enc, y_work, cv=cv_folds, scoring=scoring, n_jobs=-1
+            )
             return float(np.mean(scores))
 
         # Run optimization with timeout
@@ -1718,7 +1975,9 @@ def run_ml_analysis(df, analysis_id, config, user):
             "\nBest Parameters:",
         ]
         for k, v in best_params.items():
-            summary_lines.append(f"  {k}: {v:.4f}" if isinstance(v, float) else f"  {k}: {v}")
+            summary_lines.append(
+                f"  {k}: {v:.4f}" if isinstance(v, float) else f"  {k}: {v}"
+            )
 
         result["summary"] = "\n".join(summary_lines)
 
@@ -1775,7 +2034,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                                 "orientation": "h",
                                 "x": p_vals,
                                 "y": p_names,
-                                "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+                                "marker": {
+                                    "color": "rgba(74,159,110,0.6)",
+                                    "line": {"color": "#4a9f6e", "width": 1},
+                                },
                             }
                         ],
                         "layout": {"height": max(200, len(p_names) * 30)},
@@ -1798,20 +2060,38 @@ def run_ml_analysis(df, analysis_id, config, user):
                 )()
                 # Simpler: just train directly
                 if model_type == "rf":
-                    final_model = (RandomForestClassifier if task_type == "classification" else RandomForestRegressor)(
-                        **{k: v for k, v in best_params.items()}, random_state=42, n_jobs=-1
+                    final_model = (
+                        RandomForestClassifier
+                        if task_type == "classification"
+                        else RandomForestRegressor
+                    )(
+                        **{k: v for k, v in best_params.items()},
+                        random_state=42,
+                        n_jobs=-1,
                     )
                 elif model_type == "xgboost":
                     import xgboost as xgb
 
-                    final_model = (xgb.XGBClassifier if task_type == "classification" else xgb.XGBRegressor)(
-                        **{k: v for k, v in best_params.items()}, random_state=42, verbosity=0
+                    final_model = (
+                        xgb.XGBClassifier
+                        if task_type == "classification"
+                        else xgb.XGBRegressor
+                    )(
+                        **{k: v for k, v in best_params.items()},
+                        random_state=42,
+                        verbosity=0,
                     )
                 elif model_type == "lightgbm":
                     import lightgbm as lgb
 
-                    final_model = (lgb.LGBMClassifier if task_type == "classification" else lgb.LGBMRegressor)(
-                        **{k: v for k, v in best_params.items()}, random_state=42, verbosity=-1
+                    final_model = (
+                        lgb.LGBMClassifier
+                        if task_type == "classification"
+                        else lgb.LGBMRegressor
+                    )(
+                        **{k: v for k, v in best_params.items()},
+                        random_state=42,
+                        verbosity=-1,
                     )
                 elif model_type in ("ridge", "lasso"):
                     from sklearn.linear_model import Lasso, LogisticRegression, Ridge
@@ -1820,12 +2100,22 @@ def run_ml_analysis(df, analysis_id, config, user):
                     if task_type == "classification":
                         penalty = "l1" if model_type == "lasso" else "l2"
                         solver = "saga" if model_type == "lasso" else "lbfgs"
-                        final_model = LogisticRegression(C=1.0 / alpha, max_iter=1000, penalty=penalty, solver=solver)
+                        final_model = LogisticRegression(
+                            C=1.0 / alpha, max_iter=1000, penalty=penalty, solver=solver
+                        )
                     else:
-                        final_model = (Lasso if model_type == "lasso" else Ridge)(alpha=alpha)
+                        final_model = (Lasso if model_type == "lasso" else Ridge)(
+                            alpha=alpha
+                        )
                 else:
-                    final_model = (RandomForestClassifier if task_type == "classification" else RandomForestRegressor)(
-                        **{k: v for k, v in best_params.items()}, random_state=42, n_jobs=-1
+                    final_model = (
+                        RandomForestClassifier
+                        if task_type == "classification"
+                        else RandomForestRegressor
+                    )(
+                        **{k: v for k, v in best_params.items()},
+                        random_state=42,
+                        n_jobs=-1,
                     )
 
                 final_model.fit(X_enc, y_work)
@@ -1866,7 +2156,11 @@ def run_ml_analysis(df, analysis_id, config, user):
         # Silhouette for selected k
         from sklearn.metrics import silhouette_score as _sil_score
 
-        sil = _sil_score(X_scaled, clusters) if n_clusters > 1 and n_clusters < len(X_scaled) else 0.0
+        sil = (
+            _sil_score(X_scaled, clusters)
+            if n_clusters > 1 and n_clusters < len(X_scaled)
+            else 0.0
+        )
 
         # Cluster size distribution
         cluster_sizes = pd.Series(clusters).value_counts().sort_index()
@@ -1919,7 +2213,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "x": X[features[0]].tolist(),
                             "y": X[features[1]].tolist(),
                             "mode": "markers",
-                            "marker": {"color": clusters.tolist(), "colorscale": "Viridis", "size": 6},
+                            "marker": {
+                                "color": clusters.tolist(),
+                                "colorscale": "Viridis",
+                                "size": 6,
+                            },
                             "customdata": _cluster_cd,
                             "hovertemplate": f"{features[0]}: %{{x:.3f}}<br>{features[1]}: %{{y:.3f}}<br>Cluster: %{{customdata[0]}}<br>Obs #%{{customdata[1]}}<extra></extra>",
                         }
@@ -1972,7 +2270,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "x": [best_k],
                             "y": [max(silhouettes)],
                             "mode": "markers",
-                            "marker": {"color": "#d94a4a", "size": 12, "symbol": "star"},
+                            "marker": {
+                                "color": "#d94a4a",
+                                "size": 12,
+                                "symbol": "star",
+                            },
                             "name": f"Best k={best_k}",
                             "yaxis": "y2",
                         },
@@ -1981,13 +2283,19 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "height": 300,
                         "xaxis": {"title": "Number of Clusters (k)"},
                         "yaxis": {"title": "Inertia", "side": "left"},
-                        "yaxis2": {"title": "Silhouette Score", "side": "right", "overlaying": "y"},
+                        "yaxis2": {
+                            "title": "Silhouette Score",
+                            "side": "right",
+                            "overlaying": "y",
+                        },
                         "legend": {"x": 0.5, "y": 1.15, "orientation": "h"},
                     },
                 }
             )
 
-        sil_quality = "strong" if sil >= 0.5 else "weak" if sil >= 0.25 else "no meaningful"
+        sil_quality = (
+            "strong" if sil >= 0.5 else "weak" if sil >= 0.25 else "no meaningful"
+        )
         result["guide_observation"] = (
             f"K-Means: {n_clusters} clusters, silhouette={sil:.3f} ({sil_quality} structure). "
             + (f"Optimal k by silhouette: {best_k}." if max_k >= 2 else "")
@@ -2015,9 +2323,13 @@ def run_ml_analysis(df, analysis_id, config, user):
 
         summary += "<<COLOR:text>>Explained Variance:<</COLOR>>\n"
         cumulative = 0
-        for i, (var, ratio) in enumerate(zip(pca.explained_variance_, pca.explained_variance_ratio_)):
+        for i, (var, ratio) in enumerate(
+            zip(pca.explained_variance_, pca.explained_variance_ratio_)
+        ):
             cumulative += ratio * 100
-            summary += f"  PC{i + 1}: {ratio * 100:.1f}% (cumulative: {cumulative:.1f}%)\n"
+            summary += (
+                f"  PC{i + 1}: {ratio * 100:.1f}% (cumulative: {cumulative:.1f}%)\n"
+            )
 
         summary += "\n<<COLOR:text>>Loadings (feature weights):<</COLOR>>\n"
         for i, component in enumerate(pca.components_[:3]):  # Show first 3 PCs max
@@ -2053,8 +2365,12 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "data": [scatter_data],
                     "layout": {
                         "height": 400,
-                        "xaxis": {"title": f"PC1 ({pca.explained_variance_ratio_[0] * 100:.1f}%)"},
-                        "yaxis": {"title": f"PC2 ({pca.explained_variance_ratio_[1] * 100:.1f}%)"},
+                        "xaxis": {
+                            "title": f"PC1 ({pca.explained_variance_ratio_[0] * 100:.1f}%)"
+                        },
+                        "yaxis": {
+                            "title": f"PC2 ({pca.explained_variance_ratio_[1] * 100:.1f}%)"
+                        },
                     },
                 }
             )
@@ -2066,9 +2382,15 @@ def run_ml_analysis(df, analysis_id, config, user):
                 "data": [
                     {
                         "type": "bar",
-                        "x": [f"PC{i + 1}" for i in range(len(pca.explained_variance_ratio_))],
+                        "x": [
+                            f"PC{i + 1}"
+                            for i in range(len(pca.explained_variance_ratio_))
+                        ],
                         "y": (pca.explained_variance_ratio_ * 100).tolist(),
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1.5},
+                        },
                     }
                 ],
                 "layout": {"height": 250, "yaxis": {"title": "Variance Explained (%)"}},
@@ -2125,7 +2447,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "x": sorted_importances[::-1],
                         "y": sorted_features[::-1],
                         "orientation": "h",
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1.5},
+                        },
                     }
                 ],
                 "layout": {
@@ -2179,7 +2504,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         summary += f"  λ (weight precision) = {model.lambda_:.4f}\n\n"
 
         # Coefficient posteriors with credible intervals
-        summary += "<<COLOR:text>>Coefficient Posteriors (95% Credible Intervals):<</COLOR>>\n"
+        summary += (
+            "<<COLOR:text>>Coefficient Posteriors (95% Credible Intervals):<</COLOR>>\n"
+        )
         summary += "<<COLOR:text>>These intervals feed directly into Synara edge weights<</COLOR>>\n\n"
 
         for i, feat in enumerate(features):
@@ -2233,7 +2560,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                 ],
                 "layout": {
                     "height": max(300, len(features) * 30),
-                    "xaxis": {"title": "Coefficient Value", "zeroline": True, "zerolinecolor": "#e85747"},
+                    "xaxis": {
+                        "title": "Coefficient Value",
+                        "zeroline": True,
+                        "zerolinecolor": "#e85747",
+                    },
                     "margin": {"l": 150},
                     "shapes": [
                         {
@@ -2279,14 +2610,20 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "type": "scatter",
                         "x": list(range(len(y))) + list(range(len(y)))[::-1],
                         "y": (y_pred[sorted_idx] + 1.96 * y_std[sorted_idx]).tolist()
-                        + (y_pred[sorted_idx] - 1.96 * y_std[sorted_idx])[::-1].tolist(),
+                        + (y_pred[sorted_idx] - 1.96 * y_std[sorted_idx])[
+                            ::-1
+                        ].tolist(),
                         "fill": "toself",
                         "fillcolor": "rgba(232, 149, 71, 0.2)",
                         "line": {"color": "transparent"},
                         "name": "95% CI",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Observation (sorted)"}, "yaxis": {"title": target}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Observation (sorted)"},
+                    "yaxis": {"title": target},
+                },
             }
         )
 
@@ -2362,7 +2699,9 @@ def run_ml_analysis(df, analysis_id, config, user):
 
         # Model statistics
         summary += "<<COLOR:text>>Model Statistics:<</COLOR>>\n"
-        summary += f"  Pseudo R² = {gam.statistics_['pseudo_r2']['explained_deviance']:.4f}\n"
+        summary += (
+            f"  Pseudo R² = {gam.statistics_['pseudo_r2']['explained_deviance']:.4f}\n"
+        )
         summary += f"  GCV Score = {gam.statistics_['GCV']:.4f}\n"
         summary += f"  Effective DF = {gam.statistics_['edof']:.1f}\n\n"
 
@@ -2422,7 +2761,9 @@ def run_ml_analysis(df, analysis_id, config, user):
                     }
                 )
             except Exception:
-                logger.warning(f"GAM: partial dependence failed for feature '{feat}', skipping plot")
+                logger.warning(
+                    f"GAM: partial dependence failed for feature '{feat}', skipping plot"
+                )
 
         result["guide_observation"] = (
             "GAM shows smooth effect curves for each feature. Non-linear patterns indicate complex causal relationships."
@@ -2439,7 +2780,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "model_type": "Generalized Additive Model",
                     "features": features,
                     "target": target,
-                    "metrics": {"pseudo_r2": float(gam.statistics_["pseudo_r2"]["explained_deviance"])},
+                    "metrics": {
+                        "pseudo_r2": float(
+                            gam.statistics_["pseudo_r2"]["explained_deviance"]
+                        )
+                    },
                 },
             )
             result["model_key"] = model_key
@@ -2460,7 +2805,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         X_scaled = scaler.fit_transform(X)
 
         # Fit Isolation Forest
-        iso = IsolationForest(contamination=contamination, random_state=42, n_estimators=100)
+        iso = IsolationForest(
+            contamination=contamination, random_state=42, n_estimators=100
+        )
         predictions = iso.fit_predict(X_scaled)
         scores = iso.decision_function(X_scaled)
 
@@ -2474,7 +2821,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         summary += "<<COLOR:title>>ISOLATION FOREST (Anomaly Detection)<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Features:<</COLOR>> {', '.join(features)}\n"
-        summary += f"<<COLOR:highlight>>Contamination:<</COLOR>> {contamination:.1%}\n\n"
+        summary += (
+            f"<<COLOR:highlight>>Contamination:<</COLOR>> {contamination:.1%}\n\n"
+        )
 
         summary += "<<COLOR:text>>Results:<</COLOR>>\n"
         summary += f"  Total observations: {len(predictions)}\n"
@@ -2515,7 +2864,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "type": "histogram",
                         "x": scores.tolist(),
                         "nbinsx": 50,
-                        "marker": {"color": "rgba(74, 159, 110, 0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.6)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                         "name": "Scores",
                     },
                     {
@@ -2563,13 +2915,20 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "marker": {
                                 "color": colors,
                                 "size": sizes,
-                                "line": {"color": "#e85747", "width": [1 if a else 0 for a in anomalies]},
+                                "line": {
+                                    "color": "#e85747",
+                                    "width": [1 if a else 0 for a in anomalies],
+                                },
                             },
                             "text": [f"Score: {s:.3f}" for s in scores],
                             "hoverinfo": "text+x+y",
                         }
                     ],
-                    "layout": {"height": 350, "xaxis": {"title": features[0]}, "yaxis": {"title": features[1]}},
+                    "layout": {
+                        "height": 350,
+                        "xaxis": {"title": features[0]},
+                        "yaxis": {"title": features[1]},
+                    },
                 }
             )
 
@@ -2610,11 +2969,15 @@ def run_ml_analysis(df, analysis_id, config, user):
         X_scaled = scaler.fit_transform(X)
 
         # Define kernel: constant * RBF + noise
-        kernel = ConstantKernel(1.0) * RBF(length_scale=1.0) + WhiteKernel(noise_level=0.1)
+        kernel = ConstantKernel(1.0) * RBF(length_scale=1.0) + WhiteKernel(
+            noise_level=0.1
+        )
 
         # Fit GP — reduce restarts for larger datasets
         n_restarts = 2 if len(X) > 300 else 5
-        gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=n_restarts, random_state=42)
+        gp = GaussianProcessRegressor(
+            kernel=kernel, n_restarts_optimizer=n_restarts, random_state=42
+        )
         gp.fit(X_scaled, y)
 
         # Predictions with uncertainty
@@ -2632,16 +2995,16 @@ def run_ml_analysis(df, analysis_id, config, user):
         summary += f"<<COLOR:highlight>>Target:<</COLOR>> {target}\n"
         summary += f"<<COLOR:highlight>>Features:<</COLOR>> {', '.join(features)}\n"
         if subsampled:
-            summary += (
-                f"<<COLOR:warning>>Note: Subsampled to {MAX_GP_ROWS} rows (from {n_rows}) — GP is O(n³)<</COLOR>>\n"
-            )
+            summary += f"<<COLOR:warning>>Note: Subsampled to {MAX_GP_ROWS} rows (from {n_rows}) — GP is O(n³)<</COLOR>>\n"
         summary += "\n"
 
         summary += "<<COLOR:text>>Kernel:<</COLOR>>\n"
         summary += f"  {gp.kernel_}\n\n"
 
         summary += "<<COLOR:text>>Model Quality:<</COLOR>>\n"
-        summary += f"  Log-Marginal-Likelihood: {gp.log_marginal_likelihood_value_:.4f}\n"
+        summary += (
+            f"  Log-Marginal-Likelihood: {gp.log_marginal_likelihood_value_:.4f}\n"
+        )
 
         # Residual analysis
         residuals = y.values - y_pred
@@ -2685,7 +3048,9 @@ def run_ml_analysis(df, analysis_id, config, user):
                     },
                     {
                         "type": "scatter",
-                        "x": np.concatenate([x_plot[sort_idx], x_plot[sort_idx][::-1]]).tolist(),
+                        "x": np.concatenate(
+                            [x_plot[sort_idx], x_plot[sort_idx][::-1]]
+                        ).tolist(),
                         "y": np.concatenate(
                             [
                                 (y_pred[sort_idx] + 1.96 * y_std[sort_idx]),
@@ -2698,7 +3063,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "name": "95% CI",
                     },
                 ],
-                "layout": {"height": 350, "xaxis": {"title": feature_for_plot}, "yaxis": {"title": target}},
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"title": feature_for_plot},
+                    "yaxis": {"title": target},
+                },
             }
         )
 
@@ -2714,7 +3083,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "mode": "markers",
                         "marker": {
                             "color": y_std.tolist(),
-                            "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#e85747"]],
+                            "colorscale": [
+                                [0, "#4a9f6e"],
+                                [0.5, "#e8c547"],
+                                [1, "#e85747"],
+                            ],
                             "size": 8,
                             "showscale": True,
                             "colorbar": {"title": "Std"},
@@ -2808,7 +3181,11 @@ def run_ml_analysis(df, analysis_id, config, user):
 
         summary += "<<COLOR:text>>Feature Weights (Importance):<</COLOR>>\n"
         # VIP scores (Variable Importance in Projection)
-        vip = np.sqrt(len(features) * np.sum(X_weights**2 * np.sum(Y_scores**2, axis=0), axis=1) / np.sum(Y_scores**2))
+        vip = np.sqrt(
+            len(features)
+            * np.sum(X_weights**2 * np.sum(Y_scores**2, axis=0), axis=1)
+            / np.sum(Y_scores**2)
+        )
         for feat, v in sorted(zip(features, vip), key=lambda x: -x[1]):
             marker = "★" if v > 1.0 else " "
             summary += f"  {marker} {feat}: VIP={v:.3f}\n"
@@ -2834,7 +3211,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "mode": "markers",
                             "marker": {
                                 "color": y.values.tolist(),
-                                "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#e85747"]],
+                                "colorscale": [
+                                    [0, "#4a9f6e"],
+                                    [0.5, "#e8c547"],
+                                    [1, "#e85747"],
+                                ],
                                 "size": 8,
                                 "showscale": True,
                                 "colorbar": {"title": target},
@@ -2860,10 +3241,19 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "type": "bar",
                         "x": features,
                         "y": X_loadings[:, 0].tolist(),
-                        "marker": {"color": ["#4a9f6e" if v > 0 else "#e85747" for v in X_loadings[:, 0]]},
+                        "marker": {
+                            "color": [
+                                "#4a9f6e" if v > 0 else "#e85747"
+                                for v in X_loadings[:, 0]
+                            ]
+                        },
                     }
                 ],
-                "layout": {"height": 250, "xaxis": {"title": "Feature"}, "yaxis": {"title": "Loading on Component 1"}},
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Feature"},
+                    "yaxis": {"title": "Loading on Component 1"},
+                },
             }
         )
 
@@ -2878,7 +3268,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "x": [f[0] for f in vip_sorted],
                         "y": [f[1] for f in vip_sorted],
                         "marker": {
-                            "color": ["#4a9f6e" if v > 1.0 else "rgba(74, 159, 110, 0.4)" for _, v in vip_sorted]
+                            "color": [
+                                "#4a9f6e" if v > 1.0 else "rgba(74, 159, 110, 0.4)"
+                                for _, v in vip_sorted
+                            ]
                         },
                     },
                     {
@@ -3045,10 +3438,16 @@ def run_ml_analysis(df, analysis_id, config, user):
             pval = row.get("p-value", 1)
 
             if op == "~":  # Regression
-                sig = "***" if pval < 0.001 else "**" if pval < 0.01 else "*" if pval < 0.05 else ""
+                sig = (
+                    "***"
+                    if pval < 0.001
+                    else "**" if pval < 0.01 else "*" if pval < 0.05 else ""
+                )
                 summary += f"  {lval} ← {rval}: β = {est:.3f} (SE={se:.3f}) {sig}\n"
             elif op == ":=":  # Defined parameter
-                summary += f"  <<COLOR:accent>>{lval}<</COLOR>>: {est:.3f} (SE={se:.3f})\n"
+                summary += (
+                    f"  <<COLOR:accent>>{lval}<</COLOR>>: {est:.3f} (SE={se:.3f})\n"
+                )
         summary += "\n"
 
         # Interpretation for mediation
@@ -3070,14 +3469,24 @@ def run_ml_analysis(df, analysis_id, config, user):
         # Plot 1: Path diagram (simplified as coefficient bar chart)
         path_data = estimates[estimates["op"] == "~"].copy()
         if not path_data.empty:
-            labels = [f"{row['rval']} → {row['lval']}" for _, row in path_data.iterrows()]
+            labels = [
+                f"{row['rval']} → {row['lval']}" for _, row in path_data.iterrows()
+            ]
             coefs = path_data["Estimate"].tolist()
             colors = ["#4a9f6e" if c > 0 else "#e85747" for c in coefs]
 
             result["plots"].append(
                 {
                     "title": "Path Coefficients",
-                    "data": [{"type": "bar", "x": coefs, "y": labels, "orientation": "h", "marker": {"color": colors}}],
+                    "data": [
+                        {
+                            "type": "bar",
+                            "x": coefs,
+                            "y": labels,
+                            "orientation": "h",
+                            "marker": {"color": colors},
+                        }
+                    ],
                     "layout": {
                         "height": max(200, len(labels) * 40),
                         "xaxis": {"title": "Standardized Coefficient"},
@@ -3104,7 +3513,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                                 "x": y_fitted.tolist(),
                                 "y": residuals.tolist(),
                                 "mode": "markers",
-                                "marker": {"color": "rgba(74, 159, 110, 0.5)", "size": 6},
+                                "marker": {
+                                    "color": "rgba(74, 159, 110, 0.5)",
+                                    "size": 6,
+                                },
                             },
                             {
                                 "type": "scatter",
@@ -3128,9 +3540,7 @@ def run_ml_analysis(df, analysis_id, config, user):
         fit_quality = (
             "good"
             if (cfi and cfi > 0.95 and rmsea and rmsea < 0.05)
-            else "acceptable"
-            if (cfi and cfi > 0.90)
-            else "poor"
+            else "acceptable" if (cfi and cfi > 0.90) else "poor"
         )
         result["guide_observation"] = (
             f"SEM {model_type} model with {fit_quality} fit. Check path coefficients for significant relationships."
@@ -3147,7 +3557,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "model_type": f"SEM ({model_type.title()})",
                     "features": predictors,
                     "target": outcome,
-                    "metrics": {"cfi": float(cfi) if cfi else None, "rmsea": float(rmsea) if rmsea else None},
+                    "metrics": {
+                        "cfi": float(cfi) if cfi else None,
+                        "rmsea": float(rmsea) if rmsea else None,
+                    },
                 },
             )
             result["model_key"] = model_key
@@ -3158,7 +3571,14 @@ def run_ml_analysis(df, analysis_id, config, user):
         Ridge, LASSO, and Elastic Net regression with cross-validated alpha selection.
         Handles multicollinearity (Ridge), feature selection (LASSO), or both (Elastic Net).
         """
-        from sklearn.linear_model import ElasticNet, ElasticNetCV, Lasso, LassoCV, Ridge, RidgeCV
+        from sklearn.linear_model import (
+            ElasticNet,
+            ElasticNetCV,
+            Lasso,
+            LassoCV,
+            Ridge,
+            RidgeCV,
+        )
         from sklearn.metrics import mean_squared_error, r2_score
         from sklearn.model_selection import cross_val_score
         from sklearn.preprocessing import StandardScaler
@@ -3194,10 +3614,14 @@ def run_ml_analysis(df, analysis_id, config, user):
             method_name = "LASSO"
         else:  # elastic_net
             l1_ratio = float(config.get("l1_ratio", 0.5))
-            cv_model = ElasticNetCV(alphas=alphas, l1_ratio=l1_ratio, cv=min(5, n), max_iter=10000)
+            cv_model = ElasticNetCV(
+                alphas=alphas, l1_ratio=l1_ratio, cv=min(5, n), max_iter=10000
+            )
             cv_model.fit(X_scaled, y)
             best_alpha = cv_model.alpha_
-            final_model = ElasticNet(alpha=best_alpha, l1_ratio=l1_ratio, max_iter=10000).fit(X_scaled, y)
+            final_model = ElasticNet(
+                alpha=best_alpha, l1_ratio=l1_ratio, max_iter=10000
+            ).fit(X_scaled, y)
             method_name = f"Elastic Net (L1 ratio={l1_ratio})"
 
         y_pred = final_model.predict(X_scaled)
@@ -3207,7 +3631,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         intercept = final_model.intercept_
 
         # Cross-validation R²
-        cv_scores = cross_val_score(final_model, X_scaled, y, cv=min(5, n), scoring="r2")
+        cv_scores = cross_val_score(
+            final_model, X_scaled, y, cv=min(5, n), scoring="r2"
+        )
 
         # Count non-zero coefficients (for LASSO/elastic net)
         n_nonzero = np.sum(np.abs(coefs) > 1e-10)
@@ -3223,20 +3649,26 @@ def run_ml_analysis(df, analysis_id, config, user):
         summary += "<<COLOR:text>>Model Performance:<</COLOR>>\n"
         summary += f"  R²: {r2:.4f}\n"
         summary += f"  RMSE: {rmse:.4f}\n"
-        summary += f"  CV R² (mean ± std): {cv_scores.mean():.4f} ± {cv_scores.std():.4f}\n"
+        summary += (
+            f"  CV R² (mean ± std): {cv_scores.mean():.4f} ± {cv_scores.std():.4f}\n"
+        )
         if method != "ridge":
             summary += f"  Non-zero coefficients: {n_nonzero}/{p_vars}\n"
         summary += f"  Intercept: {intercept:.4f}\n\n"
 
         summary += "<<COLOR:text>>Standardized Coefficients:<</COLOR>>\n"
-        summary += f"{'Predictor':<25} {'Coefficient':>12} {'|Coef|':>10} {'Status':>10}\n"
+        summary += (
+            f"{'Predictor':<25} {'Coefficient':>12} {'|Coef|':>10} {'Status':>10}\n"
+        )
         summary += f"{'─' * 60}\n"
 
         # Sort by absolute coefficient
         coef_order = np.argsort(-np.abs(coefs))
         for idx in coef_order:
             status = (
-                "<<COLOR:good>>selected<</COLOR>>" if abs(coefs[idx]) > 1e-10 else "<<COLOR:text>>dropped<</COLOR>>"
+                "<<COLOR:good>>selected<</COLOR>>"
+                if abs(coefs[idx]) > 1e-10
+                else "<<COLOR:text>>dropped<</COLOR>>"
             )
             summary += f"{predictors[idx]:<25} {coefs[idx]:>12.6f} {abs(coefs[idx]):>10.6f} {status:>10}\n"
 
@@ -3257,11 +3689,22 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "x": [predictors[i] for i in sorted_idx],
                         "y": [float(coefs[i]) for i in sorted_idx],
                         "marker": {
-                            "color": ["#4a9f6e" if abs(coefs[i]) > 1e-10 else "rgba(90,106,90,0.3)" for i in sorted_idx]
+                            "color": [
+                                (
+                                    "#4a9f6e"
+                                    if abs(coefs[i]) > 1e-10
+                                    else "rgba(90,106,90,0.3)"
+                                )
+                                for i in sorted_idx
+                            ]
                         },
                     }
                 ],
-                "layout": {"height": 300, "xaxis": {"tickangle": -45}, "yaxis": {"title": "Standardized Coefficient"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"tickangle": -45},
+                    "yaxis": {"title": "Standardized Coefficient"},
+                },
             }
         )
 
@@ -3287,7 +3730,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "name": "Perfect Fit",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Actual"}, "yaxis": {"title": "Predicted"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Actual"},
+                    "yaxis": {"title": "Predicted"},
+                },
             }
         )
 
@@ -3348,7 +3795,11 @@ def run_ml_analysis(df, analysis_id, config, user):
             LinearDiscriminantAnalysis,
             QuadraticDiscriminantAnalysis,
         )
-        from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+        from sklearn.metrics import (
+            accuracy_score,
+            classification_report,
+            confusion_matrix,
+        )
         from sklearn.preprocessing import LabelEncoder
 
         response = config.get("response") or config.get("target")
@@ -3359,7 +3810,11 @@ def run_ml_analysis(df, analysis_id, config, user):
             result["summary"] = "Error: Please select a target (group) variable."
             return result
         if not predictors:
-            predictors = [c for c in df.select_dtypes(include=[np.number]).columns if c != response]
+            predictors = [
+                c
+                for c in df.select_dtypes(include=[np.number]).columns
+                if c != response
+            ]
         if not predictors:
             result["summary"] = "Error: No numeric predictor variables available."
             return result
@@ -3376,7 +3831,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         split_val = float(config.get("split", 20))
         test_frac = split_val if split_val < 1 else split_val / 100
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_frac, random_state=42, stratify=y)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_frac, random_state=42, stratify=y
+        )
 
         if method == "qda":
             model = QuadraticDiscriminantAnalysis()
@@ -3421,7 +3878,14 @@ def run_ml_analysis(df, analysis_id, config, user):
             X_proj = model.transform(X)
             if X_proj.shape[1] >= 2:
                 traces = []
-                colors = ["#2c5f2d", "#4a90d9", "#d94a4a", "#d9a04a", "#7d4ad9", "#d94a99"]
+                colors = [
+                    "#2c5f2d",
+                    "#4a90d9",
+                    "#d94a4a",
+                    "#d9a04a",
+                    "#7d4ad9",
+                    "#d94a99",
+                ]
                 for i, cls in enumerate(classes):
                     mask = y == i
                     traces.append(
@@ -3430,7 +3894,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "y": X_proj[mask, 1].tolist(),
                             "mode": "markers",
                             "name": str(cls),
-                            "marker": {"color": colors[i % len(colors)], "size": 6, "opacity": 0.7},
+                            "marker": {
+                                "color": colors[i % len(colors)],
+                                "size": 6,
+                                "opacity": 0.7,
+                            },
                             "type": "scatter",
                         }
                     )
@@ -3474,11 +3942,15 @@ def run_ml_analysis(df, analysis_id, config, user):
         # Coefficient importance (LDA only)
         coef_info = ""
         if method != "qda" and hasattr(model, "coef_"):
-            coef_magnitudes = np.abs(model.coef_[0]) if model.coef_.ndim > 1 else np.abs(model.coef_)
+            coef_magnitudes = (
+                np.abs(model.coef_[0]) if model.coef_.ndim > 1 else np.abs(model.coef_)
+            )
             sorted_idx = np.argsort(coef_magnitudes)[::-1]
             coef_rows = []
             for idx in sorted_idx:
-                coef_val = model.coef_[0][idx] if model.coef_.ndim > 1 else model.coef_[idx]
+                coef_val = (
+                    model.coef_[0][idx] if model.coef_.ndim > 1 else model.coef_[idx]
+                )
                 coef_rows.append(f"| {predictors[idx]} | {coef_val:.4f} |")
             coef_info = (
                 "\n\n**Discriminant Coefficients (LD1):**\n| Predictor | Coefficient |\n|---|---|\n"
@@ -3486,7 +3958,9 @@ def run_ml_analysis(df, analysis_id, config, user):
             )
 
         # Classification report
-        cr = classification_report(y_test, y_pred, target_names=[str(c) for c in classes])
+        cr = classification_report(
+            y_test, y_pred, target_names=[str(c) for c in classes]
+        )
 
         result["summary"] = (
             f"**{model_name}**\n\nClasses: {', '.join(str(c) for c in classes)} ({len(classes)} groups)\nTraining accuracy: {train_acc:.3f}\nTest accuracy: {test_acc:.3f}\nCV accuracy: {cv_scores.mean():.3f} ± {cv_scores.std():.3f}\n\nPrior probabilities: {', '.join(f'{c}: {p:.3f}' for c, p in zip(classes, model.priors_))}{coef_info}\n\n**Classification Report:**\n```\n{cr}\n```"
@@ -3560,7 +4034,9 @@ def run_ml_analysis(df, analysis_id, config, user):
                             den = C - (A**2 - B**2) / p
                             angle = 0.25 * np.arctan2(num, den)
                             cos_a, sin_a = np.cos(angle), np.sin(angle)
-                            rotated[:, [j, k]] = rotated[:, [j, k]] @ np.array([[cos_a, sin_a], [-sin_a, cos_a]])
+                            rotated[:, [j, k]] = rotated[:, [j, k]] @ np.array(
+                                [[cos_a, sin_a], [-sin_a, cos_a]]
+                            )
                     if np.allclose(rotated, old, atol=1e-6):
                         break
                 loadings = rotated
@@ -3575,9 +4051,13 @@ def run_ml_analysis(df, analysis_id, config, user):
             summary_text = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
             summary_text += "<<COLOR:title>>EXPLORATORY FACTOR ANALYSIS<</COLOR>>\n"
             summary_text += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-            summary_text += f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(variables)}\n"
+            summary_text += (
+                f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(variables)}\n"
+            )
             summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n"
-            summary_text += f"<<COLOR:highlight>>Factors extracted:<</COLOR>> {n_factors}\n"
+            summary_text += (
+                f"<<COLOR:highlight>>Factors extracted:<</COLOR>> {n_factors}\n"
+            )
             summary_text += f"<<COLOR:highlight>>Rotation:<</COLOR>> {rotation}\n\n"
 
             # Factor loadings table
@@ -3606,8 +4086,12 @@ def run_ml_analysis(df, analysis_id, config, user):
 
             summary_text += "\n<<COLOR:text>>Variance Explained:<</COLOR>>\n"
             for fi in range(n_factors):
-                summary_text += f"  Factor {fi + 1}: {var_explained[fi]:.3f} ({pct_var[fi]:.1f}%)\n"
-            summary_text += f"  Total: {np.sum(var_explained):.3f} ({np.sum(pct_var):.1f}%)\n"
+                summary_text += (
+                    f"  Factor {fi + 1}: {var_explained[fi]:.3f} ({pct_var[fi]:.1f}%)\n"
+                )
+            summary_text += (
+                f"  Total: {np.sum(var_explained):.3f} ({np.sum(pct_var):.1f}%)\n"
+            )
 
             result["summary"] = summary_text
 
@@ -3632,7 +4116,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "line": {"color": "#d94a4a", "dash": "dash"},
                         },
                     ],
-                    "layout": {"height": 280, "xaxis": {"title": "Factor Number"}, "yaxis": {"title": "Eigenvalue"}},
+                    "layout": {
+                        "height": 280,
+                        "xaxis": {"title": "Factor Number"},
+                        "yaxis": {"title": "Eigenvalue"},
+                    },
                 }
             )
 
@@ -3648,7 +4136,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "y": variables,
                             "colorscale": "RdBu",
                             "zmid": 0,
-                            "text": [[f"{loadings[vi, fi]:.3f}" for fi in range(n_factors)] for vi in range(p)],
+                            "text": [
+                                [f"{loadings[vi, fi]:.3f}" for fi in range(n_factors)]
+                                for vi in range(p)
+                            ],
                             "texttemplate": "%{text}",
                             "showscale": True,
                         }
@@ -3664,7 +4155,9 @@ def run_ml_analysis(df, analysis_id, config, user):
                 "eigenvalues": eigvals.tolist(),
                 "variance_explained": var_explained.tolist(),
                 "pct_variance": pct_var.tolist(),
-                "communalities": {v: float(communalities[i]) for i, v in enumerate(variables)},
+                "communalities": {
+                    v: float(communalities[i]) for i, v in enumerate(variables)
+                },
                 "total_variance_explained": float(np.sum(pct_var)),
             }
             result["guide_observation"] = (
@@ -3691,7 +4184,9 @@ def run_ml_analysis(df, analysis_id, config, user):
         try:
             ct_ca = pd.crosstab(data_ca[row_var_ca], data_ca[col_var_ca])
             if ct_ca.shape[0] < 2 or ct_ca.shape[1] < 2:
-                result["summary"] = "Need at least 2 rows and 2 columns for correspondence analysis."
+                result["summary"] = (
+                    "Need at least 2 rows and 2 columns for correspondence analysis."
+                )
                 return result
 
             # Total, row/col profiles
@@ -3717,7 +4212,9 @@ def run_ml_analysis(df, analysis_id, config, user):
             # Inertia (eigenvalues = sigma^2)
             inertia = sigma_ca**2
             total_inertia = float(np.sum(inertia))
-            pct_inertia = inertia / total_inertia * 100 if total_inertia > 0 else inertia * 0
+            pct_inertia = (
+                inertia / total_inertia * 100 if total_inertia > 0 else inertia * 0
+            )
 
             # Row and column coordinates (principal coordinates)
             row_coords = Dr_inv_sqrt @ U_ca[:, :n_dims] * sigma_ca[:n_dims]
@@ -3745,9 +4242,13 @@ def run_ml_analysis(df, analysis_id, config, user):
                 summary_ca += "  <<COLOR:good>>Significant association<</COLOR>>"
             summary_ca += "\n\n"
 
-            summary_ca += "<<COLOR:text>>Inertia (variance explained by dimensions):<</COLOR>>\n"
+            summary_ca += (
+                "<<COLOR:text>>Inertia (variance explained by dimensions):<</COLOR>>\n"
+            )
             for d in range(min(len(inertia), 5)):
-                summary_ca += f"  Dim {d + 1}: {inertia[d]:.4f} ({pct_inertia[d]:.1f}%)\n"
+                summary_ca += (
+                    f"  Dim {d + 1}: {inertia[d]:.4f} ({pct_inertia[d]:.1f}%)\n"
+                )
             summary_ca += f"  Total: {total_inertia:.4f}\n"
 
             if n_dims >= 2:
@@ -3755,7 +4256,11 @@ def run_ml_analysis(df, analysis_id, config, user):
 
             # Row contributions
             summary_ca += "\n<<COLOR:text>>Row Coordinates:<</COLOR>>\n"
-            summary_ca += f"{'Level':<20}" + "".join([f"{'Dim ' + str(d + 1):>10}" for d in range(n_dims)]) + "\n"
+            summary_ca += (
+                f"{'Level':<20}"
+                + "".join([f"{'Dim ' + str(d + 1):>10}" for d in range(n_dims)])
+                + "\n"
+            )
             summary_ca += f"{'─' * (20 + 10 * n_dims)}\n"
             for ri, rl in enumerate(row_labels_ca):
                 row_str = f"{rl:<20}"
@@ -3764,7 +4269,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                 summary_ca += row_str + "\n"
 
             summary_ca += "\n<<COLOR:text>>Column Coordinates:<</COLOR>>\n"
-            summary_ca += f"{'Level':<20}" + "".join([f"{'Dim ' + str(d + 1):>10}" for d in range(n_dims)]) + "\n"
+            summary_ca += (
+                f"{'Level':<20}"
+                + "".join([f"{'Dim ' + str(d + 1):>10}" for d in range(n_dims)])
+                + "\n"
+            )
             summary_ca += f"{'─' * (20 + 10 * n_dims)}\n"
             for ci, cl in enumerate(col_labels_ca):
                 col_str = f"{cl:<20}"
@@ -3832,7 +4341,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "line": {"color": "#4a9f6e", "width": 2},
                         }
                     ],
-                    "layout": {"height": 280, "xaxis": {"title": "Dimension"}, "yaxis": {"title": "% of Inertia"}},
+                    "layout": {
+                        "height": 280,
+                        "xaxis": {"title": "Dimension"},
+                        "yaxis": {"title": "% of Inertia"},
+                    },
                 }
             )
 
@@ -3846,8 +4359,14 @@ def run_ml_analysis(df, analysis_id, config, user):
                 "n_dims": n_dims,
                 "inertia": inertia[:n_dims].tolist(),
                 "pct_inertia": pct_inertia[:n_dims].tolist(),
-                "row_coords": {rl: row_coords[ri, :n_dims].tolist() for ri, rl in enumerate(row_labels_ca)},
-                "col_coords": {cl: col_coords[ci, :n_dims].tolist() for ci, cl in enumerate(col_labels_ca)},
+                "row_coords": {
+                    rl: row_coords[ri, :n_dims].tolist()
+                    for ri, rl in enumerate(row_labels_ca)
+                },
+                "col_coords": {
+                    cl: col_coords[ci, :n_dims].tolist()
+                    for ci, cl in enumerate(col_labels_ca)
+                },
             }
 
         except Exception as e:
@@ -3881,7 +4400,11 @@ def run_ml_analysis(df, analysis_id, config, user):
             # Cronbach's alpha
             item_vars = np.var(X_ia, axis=0, ddof=1)
             total_var = np.var(X_ia.sum(axis=1), ddof=1)
-            alpha_overall = (k_ia / (k_ia - 1)) * (1 - np.sum(item_vars) / total_var) if total_var > 0 else 0
+            alpha_overall = (
+                (k_ia / (k_ia - 1)) * (1 - np.sum(item_vars) / total_var)
+                if total_var > 0
+                else 0
+            )
 
             # Item statistics
             total_scores = X_ia.sum(axis=1)
@@ -3891,7 +4414,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                 item_std = float(np.std(X_ia[:, i], ddof=1))
                 # Corrected item-total correlation (correlation with total minus this item)
                 rest_total = total_scores - X_ia[:, i]
-                corr_it = float(np.corrcoef(X_ia[:, i], rest_total)[0, 1]) if item_std > 0 else 0
+                corr_it = (
+                    float(np.corrcoef(X_ia[:, i], rest_total)[0, 1])
+                    if item_std > 0
+                    else 0
+                )
 
                 # Alpha if item deleted
                 if k_ia > 2:
@@ -3900,7 +4427,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                     rem_total_var = np.var(remaining.sum(axis=1), ddof=1)
                     k_rem = k_ia - 1
                     alpha_deleted = (
-                        (k_rem / (k_rem - 1)) * (1 - np.sum(rem_item_vars) / rem_total_var) if rem_total_var > 0 else 0
+                        (k_rem / (k_rem - 1))
+                        * (1 - np.sum(rem_item_vars) / rem_total_var)
+                        if rem_total_var > 0
+                        else 0
                     )
                 else:
                     alpha_deleted = 0
@@ -3936,7 +4466,11 @@ def run_ml_analysis(df, analysis_id, config, user):
             summary_ia += f"<<COLOR:highlight>>N (complete cases):<</COLOR>> {n_ia}\n\n"
 
             summary_ia += "<<COLOR:text>>Overall Reliability:<</COLOR>>\n"
-            alpha_color = "good" if alpha_overall >= 0.7 else ("warning" if alpha_overall >= 0.5 else "accent")
+            alpha_color = (
+                "good"
+                if alpha_overall >= 0.7
+                else ("warning" if alpha_overall >= 0.5 else "accent")
+            )
             summary_ia += f"  <<COLOR:{alpha_color}>>Cronbach's α = {alpha_overall:.4f}<</COLOR>>\n"
             summary_ia += f"  Standardized α = {std_alpha:.4f}\n"
             summary_ia += f"  Average inter-item correlation = {avg_inter_item:.4f}\n\n"
@@ -3958,10 +4492,16 @@ def run_ml_analysis(df, analysis_id, config, user):
             summary_ia += f"{'Item':<25} {'Mean':>8} {'SD':>8} {'r(item-total)':>14} {'α if deleted':>12}\n"
             summary_ia += f"{'─' * 72}\n"
             for s in item_stats:
-                flag = " <<COLOR:warning>>↑<</COLOR>>" if s["alpha_if_deleted"] > alpha_overall + 0.01 else ""
+                flag = (
+                    " <<COLOR:warning>>↑<</COLOR>>"
+                    if s["alpha_if_deleted"] > alpha_overall + 0.01
+                    else ""
+                )
                 summary_ia += f"{s['item']:<25} {s['mean']:>8.3f} {s['std']:>8.3f} {s['corrected_item_total']:>14.4f} {s['alpha_if_deleted']:>12.4f}{flag}\n"
 
-            summary_ia += "\n<<COLOR:text>>↑ = removing this item would improve α<</COLOR>>\n"
+            summary_ia += (
+                "\n<<COLOR:text>>↑ = removing this item would improve α<</COLOR>>\n"
+            )
 
             result["summary"] = summary_ia
 
@@ -3976,7 +4516,12 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "y": [s["corrected_item_total"] for s in item_stats],
                             "marker": {
                                 "color": [
-                                    "#4a9f6e" if s["corrected_item_total"] >= 0.3 else "#d94a4a" for s in item_stats
+                                    (
+                                        "#4a9f6e"
+                                        if s["corrected_item_total"] >= 0.3
+                                        else "#d94a4a"
+                                    )
+                                    for s in item_stats
                                 ]
                             },
                         }
@@ -4010,7 +4555,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "y": [s["alpha_if_deleted"] for s in item_stats],
                             "marker": {
                                 "color": [
-                                    "#d94a4a" if s["alpha_if_deleted"] > alpha_overall else "#4a9f6e"
+                                    (
+                                        "#d94a4a"
+                                        if s["alpha_if_deleted"] > alpha_overall
+                                        else "#4a9f6e"
+                                    )
                                     for s in item_stats
                                 ]
                             },
@@ -4024,7 +4573,11 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "line": {"color": "#e89547", "dash": "dash"},
                         },
                     ],
-                    "layout": {"height": 300, "xaxis": {"tickangle": -45}, "yaxis": {"title": "Cronbach's α"}},
+                    "layout": {
+                        "height": 300,
+                        "xaxis": {"tickangle": -45},
+                        "yaxis": {"title": "Cronbach's α"},
+                    },
                 }
             )
 
@@ -4040,7 +4593,10 @@ def run_ml_analysis(df, analysis_id, config, user):
                             "y": items_ia,
                             "colorscale": "RdBu",
                             "zmid": 0,
-                            "text": [[f"{corr_matrix_ia[i, j]:.2f}" for j in range(k_ia)] for i in range(k_ia)],
+                            "text": [
+                                [f"{corr_matrix_ia[i, j]:.2f}" for j in range(k_ia)]
+                                for i in range(k_ia)
+                            ],
                             "texttemplate": "%{text}",
                             "showscale": True,
                         }

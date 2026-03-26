@@ -11,113 +11,371 @@ import agents_api.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0035_add_vsm_metric_snapshots'),
-        ('core', '0008_alter_evidence_confidence_and_more'),
+        ("agents_api", "0035_add_vsm_metric_snapshots"),
+        ("core", "0008_alter_evidence_confidence_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='valuestreammap',
-            name='fiscal_year',
-            field=models.CharField(blank=True, default='', help_text="Fiscal year scope, e.g. '2026'. Empty = unscoped.", max_length=10),
+            model_name="valuestreammap",
+            name="fiscal_year",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="Fiscal year scope, e.g. '2026'. Empty = unscoped.",
+                max_length=10,
+            ),
         ),
         migrations.AddField(
-            model_name='valuestreammap',
-            name='paired_with',
-            field=models.OneToOneField(blank=True, help_text='Current <-> Future state pairing', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='paired_map', to='agents_api.valuestreammap'),
+            model_name="valuestreammap",
+            name="paired_with",
+            field=models.OneToOneField(
+                blank=True,
+                help_text="Current <-> Future state pairing",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="paired_map",
+                to="agents_api.valuestreammap",
+            ),
         ),
         migrations.CreateModel(
-            name='StrategicObjective',
+            name="StrategicObjective",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(max_length=500)),
-                ('description', models.TextField(blank=True)),
-                ('owner_name', models.CharField(blank=True, max_length=255)),
-                ('start_year', models.IntegerField(help_text='First fiscal year of this objective')),
-                ('end_year', models.IntegerField(help_text='Target completion fiscal year')),
-                ('target_metric', models.CharField(blank=True, help_text="What is being measured, e.g. 'Manufacturing cost %'", max_length=255)),
-                ('target_value', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True)),
-                ('target_unit', models.CharField(blank=True, help_text='$, %, units, etc.', max_length=50)),
-                ('status', models.CharField(choices=[('draft', 'Draft'), ('active', 'Active'), ('achieved', 'Achieved'), ('deferred', 'Deferred')], default='draft', max_length=20)),
-                ('sort_order', models.IntegerField(default=0)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='strategic_objectives', to='core.tenant')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("title", models.CharField(max_length=500)),
+                ("description", models.TextField(blank=True)),
+                ("owner_name", models.CharField(blank=True, max_length=255)),
+                (
+                    "start_year",
+                    models.IntegerField(
+                        help_text="First fiscal year of this objective"
+                    ),
+                ),
+                (
+                    "end_year",
+                    models.IntegerField(help_text="Target completion fiscal year"),
+                ),
+                (
+                    "target_metric",
+                    models.CharField(
+                        blank=True,
+                        help_text="What is being measured, e.g. 'Manufacturing cost %'",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "target_value",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=12, null=True
+                    ),
+                ),
+                (
+                    "target_unit",
+                    models.CharField(
+                        blank=True, help_text="$, %, units, etc.", max_length=50
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Draft"),
+                            ("active", "Active"),
+                            ("achieved", "Achieved"),
+                            ("deferred", "Deferred"),
+                        ],
+                        default="draft",
+                        max_length=20,
+                    ),
+                ),
+                ("sort_order", models.IntegerField(default=0)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="strategic_objectives",
+                        to="core.tenant",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'hoshin_strategic_objectives',
-                'ordering': ['sort_order', 'start_year'],
+                "db_table": "hoshin_strategic_objectives",
+                "ordering": ["sort_order", "start_year"],
             },
         ),
         migrations.CreateModel(
-            name='HoshinKPI',
+            name="HoshinKPI",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('fiscal_year', models.IntegerField(default=agents_api.models._current_year)),
-                ('name', models.CharField(max_length=255)),
-                ('description', models.TextField(blank=True)),
-                ('target_value', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True)),
-                ('actual_value', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True)),
-                ('unit', models.CharField(blank=True, help_text='$, %, ppm, etc.', max_length=50)),
-                ('frequency', models.CharField(choices=[('monthly', 'Monthly'), ('quarterly', 'Quarterly'), ('annual', 'Annual')], default='monthly', max_length=20)),
-                ('direction', models.CharField(default='up', help_text="'up' = higher is better, 'down' = lower is better", max_length=10)),
-                ('derived_field', models.CharField(blank=True, default='ytd_savings', help_text='Which project field to pull: ytd_savings, savings_pct', max_length=30)),
-                ('sort_order', models.IntegerField(default=0)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('derived_from', models.ForeignKey(blank=True, help_text="If set, actual_value is computed from this project's savings", null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='derived_kpis', to='agents_api.hoshinproject')),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='hoshin_kpis', to='core.tenant')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "fiscal_year",
+                    models.IntegerField(default=agents_api.models._current_year),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "target_value",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=12, null=True
+                    ),
+                ),
+                (
+                    "actual_value",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=12, null=True
+                    ),
+                ),
+                (
+                    "unit",
+                    models.CharField(
+                        blank=True, help_text="$, %, ppm, etc.", max_length=50
+                    ),
+                ),
+                (
+                    "frequency",
+                    models.CharField(
+                        choices=[
+                            ("monthly", "Monthly"),
+                            ("quarterly", "Quarterly"),
+                            ("annual", "Annual"),
+                        ],
+                        default="monthly",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "direction",
+                    models.CharField(
+                        default="up",
+                        help_text="'up' = higher is better, 'down' = lower is better",
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "derived_field",
+                    models.CharField(
+                        blank=True,
+                        default="ytd_savings",
+                        help_text="Which project field to pull: ytd_savings, savings_pct",
+                        max_length=30,
+                    ),
+                ),
+                ("sort_order", models.IntegerField(default=0)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "derived_from",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="If set, actual_value is computed from this project's savings",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="derived_kpis",
+                        to="agents_api.hoshinproject",
+                    ),
+                ),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="hoshin_kpis",
+                        to="core.tenant",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'hoshin_kpis',
-                'ordering': ['sort_order', 'name'],
-                'indexes': [models.Index(fields=['tenant', 'fiscal_year'], name='hoshin_kpis_tenant__fe9360_idx')],
+                "db_table": "hoshin_kpis",
+                "ordering": ["sort_order", "name"],
+                "indexes": [
+                    models.Index(
+                        fields=["tenant", "fiscal_year"],
+                        name="hoshin_kpis_tenant__fe9360_idx",
+                    )
+                ],
             },
         ),
         migrations.CreateModel(
-            name='AnnualObjective',
+            name="AnnualObjective",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('fiscal_year', models.IntegerField(default=agents_api.models._current_year)),
-                ('title', models.CharField(max_length=500)),
-                ('description', models.TextField(blank=True)),
-                ('owner_name', models.CharField(blank=True, max_length=255)),
-                ('target_value', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True)),
-                ('actual_value', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True)),
-                ('target_unit', models.CharField(blank=True, max_length=50)),
-                ('status', models.CharField(choices=[('on_track', 'On Track'), ('at_risk', 'At Risk'), ('behind', 'Behind'), ('achieved', 'Achieved')], default='on_track', max_length=20)),
-                ('sort_order', models.IntegerField(default=0)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('site', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='annual_objectives', to='agents_api.site')),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='annual_objectives', to='core.tenant')),
-                ('strategic_objective', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='annual_objectives', to='agents_api.strategicobjective')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "fiscal_year",
+                    models.IntegerField(default=agents_api.models._current_year),
+                ),
+                ("title", models.CharField(max_length=500)),
+                ("description", models.TextField(blank=True)),
+                ("owner_name", models.CharField(blank=True, max_length=255)),
+                (
+                    "target_value",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=12, null=True
+                    ),
+                ),
+                (
+                    "actual_value",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=12, null=True
+                    ),
+                ),
+                ("target_unit", models.CharField(blank=True, max_length=50)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("on_track", "On Track"),
+                            ("at_risk", "At Risk"),
+                            ("behind", "Behind"),
+                            ("achieved", "Achieved"),
+                        ],
+                        default="on_track",
+                        max_length=20,
+                    ),
+                ),
+                ("sort_order", models.IntegerField(default=0)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "site",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="annual_objectives",
+                        to="agents_api.site",
+                    ),
+                ),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="annual_objectives",
+                        to="core.tenant",
+                    ),
+                ),
+                (
+                    "strategic_objective",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="annual_objectives",
+                        to="agents_api.strategicobjective",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'hoshin_annual_objectives',
-                'ordering': ['sort_order', 'title'],
-                'indexes': [models.Index(fields=['tenant', 'fiscal_year'], name='hoshin_annu_tenant__689949_idx')],
+                "db_table": "hoshin_annual_objectives",
+                "ordering": ["sort_order", "title"],
+                "indexes": [
+                    models.Index(
+                        fields=["tenant", "fiscal_year"],
+                        name="hoshin_annu_tenant__689949_idx",
+                    )
+                ],
             },
         ),
         migrations.CreateModel(
-            name='XMatrixCorrelation',
+            name="XMatrixCorrelation",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('fiscal_year', models.IntegerField(default=agents_api.models._current_year)),
-                ('pair_type', models.CharField(choices=[('strategic_annual', 'Strategic <-> Annual'), ('annual_project', 'Annual <-> Project'), ('project_kpi', 'Project <-> KPI'), ('kpi_strategic', 'KPI <-> Strategic')], max_length=30)),
-                ('row_id', models.UUIDField(help_text='ID of the row-axis item')),
-                ('col_id', models.UUIDField(help_text='ID of the column-axis item')),
-                ('strength', models.CharField(choices=[('strong', 'Strong'), ('moderate', 'Moderate'), ('weak', 'Weak')], max_length=10)),
-                ('source', models.CharField(choices=[('auto', 'Auto-suggested'), ('manual', 'Manual')], default='manual', max_length=10)),
-                ('confirmed', models.BooleanField(default=False, help_text='Auto-suggested correlations start unconfirmed; clicking confirms')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='xmatrix_correlations', to='core.tenant')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "fiscal_year",
+                    models.IntegerField(default=agents_api.models._current_year),
+                ),
+                (
+                    "pair_type",
+                    models.CharField(
+                        choices=[
+                            ("strategic_annual", "Strategic <-> Annual"),
+                            ("annual_project", "Annual <-> Project"),
+                            ("project_kpi", "Project <-> KPI"),
+                            ("kpi_strategic", "KPI <-> Strategic"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                ("row_id", models.UUIDField(help_text="ID of the row-axis item")),
+                ("col_id", models.UUIDField(help_text="ID of the column-axis item")),
+                (
+                    "strength",
+                    models.CharField(
+                        choices=[
+                            ("strong", "Strong"),
+                            ("moderate", "Moderate"),
+                            ("weak", "Weak"),
+                        ],
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "source",
+                    models.CharField(
+                        choices=[("auto", "Auto-suggested"), ("manual", "Manual")],
+                        default="manual",
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "confirmed",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Auto-suggested correlations start unconfirmed; clicking confirms",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="xmatrix_correlations",
+                        to="core.tenant",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'hoshin_xmatrix_correlations',
-                'indexes': [models.Index(fields=['tenant', 'fiscal_year'], name='hoshin_xmat_tenant__4f3f71_idx')],
-                'unique_together': {('tenant', 'pair_type', 'row_id', 'col_id')},
+                "db_table": "hoshin_xmatrix_correlations",
+                "indexes": [
+                    models.Index(
+                        fields=["tenant", "fiscal_year"],
+                        name="hoshin_xmat_tenant__4f3f71_idx",
+                    )
+                ],
+                "unique_together": {("tenant", "pair_type", "row_id", "col_id")},
             },
         ),
     ]

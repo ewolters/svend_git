@@ -101,7 +101,9 @@ class APICallPatternTest(SimpleTestCase):
 
             if tpl_violations and tpl_name not in known_content_type_gaps:
                 with self.subTest(template=tpl_name):
-                    self.fail(f"{tpl_name} has POST/PUT fetch() without Content-Type at lines: {tpl_violations}")
+                    self.fail(
+                        f"{tpl_name} has POST/PUT fetch() without Content-Type at lines: {tpl_violations}"
+                    )
 
     def test_no_getcookie_usage(self):
         """No template should use getCookie() — FE-001 §6.2 requires getCSRFToken().
@@ -127,7 +129,9 @@ class APICallPatternTest(SimpleTestCase):
             content = _read_template(tpl_name)
             if "getCookie(" in content and tpl_name not in known_getcookie_users:
                 with self.subTest(template=tpl_name):
-                    self.fail(f"{tpl_name} uses getCookie() — should use getCSRFToken() per FE-001 §6.2")
+                    self.fail(
+                        f"{tpl_name} uses getCookie() — should use getCSRFToken() per FE-001 §6.2"
+                    )
 
     def test_fetch_calls_include_credentials(self):
         """Templates with >3 fetch() calls should use credentials: 'include'.

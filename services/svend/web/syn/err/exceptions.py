@@ -153,7 +153,10 @@ class SynaraError(Exception):
                 log_data["context"] = str(self.context)
 
         if self.details:
-            log_data["details"] = [{"field": d.field, "code": d.code, "message": d.message} for d in self.details]
+            log_data["details"] = [
+                {"field": d.field, "code": d.code, "message": d.message}
+                for d in self.details
+            ]
 
         if self.cause:
             log_data["cause_type"] = type(self.cause).__name__

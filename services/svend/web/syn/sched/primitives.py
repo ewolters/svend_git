@@ -401,7 +401,9 @@ def get_queue_depth(
         oldest = queued.order_by("created_at").first()
         oldest_age_ms = 0
         if oldest:
-            oldest_age_ms = int((datetime.utcnow() - oldest.created_at).total_seconds() * 1000)
+            oldest_age_ms = int(
+                (datetime.utcnow() - oldest.created_at).total_seconds() * 1000
+            )
 
         # Calculate processing rate (tasks completed per minute over last 5 minutes)
         processing_rate = 0.0
@@ -466,8 +468,12 @@ def get_circuit_status(
         return {
             "state": circuit.state,
             "failure_count": circuit.failure_count,
-            "last_failure_at": circuit.last_failure_at.isoformat() if circuit.last_failure_at else None,
-            "next_probe_at": circuit.next_probe_at.isoformat() if circuit.next_probe_at else None,
+            "last_failure_at": (
+                circuit.last_failure_at.isoformat() if circuit.last_failure_at else None
+            ),
+            "next_probe_at": (
+                circuit.next_probe_at.isoformat() if circuit.next_probe_at else None
+            ),
         }
 
     except Exception as e:

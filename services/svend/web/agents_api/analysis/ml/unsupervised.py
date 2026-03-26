@@ -39,7 +39,11 @@ def _run_unsupervised(df, analysis_id, config, user):
         # Silhouette for selected k
         from sklearn.metrics import silhouette_score as _sil_score
 
-        sil = _sil_score(X_scaled, clusters) if n_clusters > 1 and n_clusters < len(X_scaled) else 0.0
+        sil = (
+            _sil_score(X_scaled, clusters)
+            if n_clusters > 1 and n_clusters < len(X_scaled)
+            else 0.0
+        )
 
         # Cluster size distribution
         cluster_sizes = pd.Series(clusters).value_counts().sort_index()
@@ -92,7 +96,11 @@ def _run_unsupervised(df, analysis_id, config, user):
                             "x": X[features[0]].tolist(),
                             "y": X[features[1]].tolist(),
                             "mode": "markers",
-                            "marker": {"color": clusters.tolist(), "colorscale": "Viridis", "size": 6},
+                            "marker": {
+                                "color": clusters.tolist(),
+                                "colorscale": "Viridis",
+                                "size": 6,
+                            },
                             "customdata": _cluster_cd,
                             "hovertemplate": f"{features[0]}: %{{x:.3f}}<br>{features[1]}: %{{y:.3f}}<br>Cluster: %{{customdata[0]}}<br>Obs #%{{customdata[1]}}<extra></extra>",
                         }
@@ -145,7 +153,11 @@ def _run_unsupervised(df, analysis_id, config, user):
                             "x": [best_k],
                             "y": [max(silhouettes)],
                             "mode": "markers",
-                            "marker": {"color": "#d94a4a", "size": 12, "symbol": "star"},
+                            "marker": {
+                                "color": "#d94a4a",
+                                "size": 12,
+                                "symbol": "star",
+                            },
                             "name": f"Best k={best_k}",
                             "yaxis": "y2",
                         },
@@ -154,13 +166,19 @@ def _run_unsupervised(df, analysis_id, config, user):
                         "height": 300,
                         "xaxis": {"title": "Number of Clusters (k)"},
                         "yaxis": {"title": "Inertia", "side": "left"},
-                        "yaxis2": {"title": "Silhouette Score", "side": "right", "overlaying": "y"},
+                        "yaxis2": {
+                            "title": "Silhouette Score",
+                            "side": "right",
+                            "overlaying": "y",
+                        },
                         "legend": {"x": 0.5, "y": 1.15, "orientation": "h"},
                     },
                 }
             )
 
-        sil_quality = "strong" if sil >= 0.5 else "weak" if sil >= 0.25 else "no meaningful"
+        sil_quality = (
+            "strong" if sil >= 0.5 else "weak" if sil >= 0.25 else "no meaningful"
+        )
         result["guide_observation"] = (
             f"K-Means: {n_clusters} clusters, silhouette={sil:.3f} ({sil_quality} structure). "
             + (f"Optimal k by silhouette: {best_k}." if max_k >= 2 else "")
@@ -188,9 +206,13 @@ def _run_unsupervised(df, analysis_id, config, user):
 
         summary += "<<COLOR:text>>Explained Variance:<</COLOR>>\n"
         cumulative = 0
-        for i, (var, ratio) in enumerate(zip(pca.explained_variance_, pca.explained_variance_ratio_)):
+        for i, (var, ratio) in enumerate(
+            zip(pca.explained_variance_, pca.explained_variance_ratio_)
+        ):
             cumulative += ratio * 100
-            summary += f"  PC{i + 1}: {ratio * 100:.1f}% (cumulative: {cumulative:.1f}%)\n"
+            summary += (
+                f"  PC{i + 1}: {ratio * 100:.1f}% (cumulative: {cumulative:.1f}%)\n"
+            )
 
         summary += "\n<<COLOR:text>>Loadings (feature weights):<</COLOR>>\n"
         for i, component in enumerate(pca.components_[:3]):  # Show first 3 PCs max
@@ -226,8 +248,12 @@ def _run_unsupervised(df, analysis_id, config, user):
                     "data": [scatter_data],
                     "layout": {
                         "height": 400,
-                        "xaxis": {"title": f"PC1 ({pca.explained_variance_ratio_[0] * 100:.1f}%)"},
-                        "yaxis": {"title": f"PC2 ({pca.explained_variance_ratio_[1] * 100:.1f}%)"},
+                        "xaxis": {
+                            "title": f"PC1 ({pca.explained_variance_ratio_[0] * 100:.1f}%)"
+                        },
+                        "yaxis": {
+                            "title": f"PC2 ({pca.explained_variance_ratio_[1] * 100:.1f}%)"
+                        },
                     },
                 }
             )
@@ -239,9 +265,15 @@ def _run_unsupervised(df, analysis_id, config, user):
                 "data": [
                     {
                         "type": "bar",
-                        "x": [f"PC{i + 1}" for i in range(len(pca.explained_variance_ratio_))],
+                        "x": [
+                            f"PC{i + 1}"
+                            for i in range(len(pca.explained_variance_ratio_))
+                        ],
                         "y": (pca.explained_variance_ratio_ * 100).tolist(),
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1.5},
+                        },
                     }
                 ],
                 "layout": {"height": 250, "yaxis": {"title": "Variance Explained (%)"}},
@@ -298,7 +330,10 @@ def _run_unsupervised(df, analysis_id, config, user):
                         "x": sorted_importances[::-1],
                         "y": sorted_features[::-1],
                         "orientation": "h",
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1.5},
+                        },
                     }
                 ],
                 "layout": {
@@ -324,7 +359,9 @@ def _run_unsupervised(df, analysis_id, config, user):
         X_scaled = scaler.fit_transform(X)
 
         # Fit Isolation Forest
-        iso = IsolationForest(contamination=contamination, random_state=42, n_estimators=100)
+        iso = IsolationForest(
+            contamination=contamination, random_state=42, n_estimators=100
+        )
         predictions = iso.fit_predict(X_scaled)
         scores = iso.decision_function(X_scaled)
 
@@ -338,7 +375,9 @@ def _run_unsupervised(df, analysis_id, config, user):
         summary += "<<COLOR:title>>ISOLATION FOREST (Anomaly Detection)<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Features:<</COLOR>> {', '.join(features)}\n"
-        summary += f"<<COLOR:highlight>>Contamination:<</COLOR>> {contamination:.1%}\n\n"
+        summary += (
+            f"<<COLOR:highlight>>Contamination:<</COLOR>> {contamination:.1%}\n\n"
+        )
 
         summary += "<<COLOR:text>>Results:<</COLOR>>\n"
         summary += f"  Total observations: {len(predictions)}\n"
@@ -379,7 +418,10 @@ def _run_unsupervised(df, analysis_id, config, user):
                         "type": "histogram",
                         "x": scores.tolist(),
                         "nbinsx": 50,
-                        "marker": {"color": "rgba(74, 159, 110, 0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.6)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                         "name": "Scores",
                     },
                     {
@@ -427,13 +469,20 @@ def _run_unsupervised(df, analysis_id, config, user):
                             "marker": {
                                 "color": colors,
                                 "size": sizes,
-                                "line": {"color": "#e85747", "width": [1 if a else 0 for a in anomalies]},
+                                "line": {
+                                    "color": "#e85747",
+                                    "width": [1 if a else 0 for a in anomalies],
+                                },
                             },
                             "text": [f"Score: {s:.3f}" for s in scores],
                             "hoverinfo": "text+x+y",
                         }
                     ],
-                    "layout": {"height": 350, "xaxis": {"title": features[0]}, "yaxis": {"title": features[1]}},
+                    "layout": {
+                        "height": 350,
+                        "xaxis": {"title": features[0]},
+                        "yaxis": {"title": features[1]},
+                    },
                 }
             )
 
@@ -503,7 +552,9 @@ def _run_unsupervised(df, analysis_id, config, user):
                             den = C - (A**2 - B**2) / p
                             angle = 0.25 * np.arctan2(num, den)
                             cos_a, sin_a = np.cos(angle), np.sin(angle)
-                            rotated[:, [j, k]] = rotated[:, [j, k]] @ np.array([[cos_a, sin_a], [-sin_a, cos_a]])
+                            rotated[:, [j, k]] = rotated[:, [j, k]] @ np.array(
+                                [[cos_a, sin_a], [-sin_a, cos_a]]
+                            )
                     if np.allclose(rotated, old, atol=1e-6):
                         break
                 loadings = rotated
@@ -518,9 +569,13 @@ def _run_unsupervised(df, analysis_id, config, user):
             summary_text = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
             summary_text += "<<COLOR:title>>EXPLORATORY FACTOR ANALYSIS<</COLOR>>\n"
             summary_text += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-            summary_text += f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(variables)}\n"
+            summary_text += (
+                f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(variables)}\n"
+            )
             summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n"
-            summary_text += f"<<COLOR:highlight>>Factors extracted:<</COLOR>> {n_factors}\n"
+            summary_text += (
+                f"<<COLOR:highlight>>Factors extracted:<</COLOR>> {n_factors}\n"
+            )
             summary_text += f"<<COLOR:highlight>>Rotation:<</COLOR>> {rotation}\n\n"
 
             # Factor loadings table
@@ -549,8 +604,12 @@ def _run_unsupervised(df, analysis_id, config, user):
 
             summary_text += "\n<<COLOR:text>>Variance Explained:<</COLOR>>\n"
             for fi in range(n_factors):
-                summary_text += f"  Factor {fi + 1}: {var_explained[fi]:.3f} ({pct_var[fi]:.1f}%)\n"
-            summary_text += f"  Total: {np.sum(var_explained):.3f} ({np.sum(pct_var):.1f}%)\n"
+                summary_text += (
+                    f"  Factor {fi + 1}: {var_explained[fi]:.3f} ({pct_var[fi]:.1f}%)\n"
+                )
+            summary_text += (
+                f"  Total: {np.sum(var_explained):.3f} ({np.sum(pct_var):.1f}%)\n"
+            )
 
             result["summary"] = summary_text
 
@@ -575,7 +634,11 @@ def _run_unsupervised(df, analysis_id, config, user):
                             "line": {"color": "#d94a4a", "dash": "dash"},
                         },
                     ],
-                    "layout": {"height": 280, "xaxis": {"title": "Factor Number"}, "yaxis": {"title": "Eigenvalue"}},
+                    "layout": {
+                        "height": 280,
+                        "xaxis": {"title": "Factor Number"},
+                        "yaxis": {"title": "Eigenvalue"},
+                    },
                 }
             )
 
@@ -591,7 +654,10 @@ def _run_unsupervised(df, analysis_id, config, user):
                             "y": variables,
                             "colorscale": "RdBu",
                             "zmid": 0,
-                            "text": [[f"{loadings[vi, fi]:.3f}" for fi in range(n_factors)] for vi in range(p)],
+                            "text": [
+                                [f"{loadings[vi, fi]:.3f}" for fi in range(n_factors)]
+                                for vi in range(p)
+                            ],
                             "texttemplate": "%{text}",
                             "showscale": True,
                         }
@@ -607,7 +673,9 @@ def _run_unsupervised(df, analysis_id, config, user):
                 "eigenvalues": eigvals.tolist(),
                 "variance_explained": var_explained.tolist(),
                 "pct_variance": pct_var.tolist(),
-                "communalities": {v: float(communalities[i]) for i, v in enumerate(variables)},
+                "communalities": {
+                    v: float(communalities[i]) for i, v in enumerate(variables)
+                },
                 "total_variance_explained": float(np.sum(pct_var)),
             }
             result["guide_observation"] = (

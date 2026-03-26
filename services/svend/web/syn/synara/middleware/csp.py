@@ -40,7 +40,9 @@ class ContentSecurityPolicyMiddleware:
         self.get_response = get_response
         self.csp_header = self._build_csp_header()
         if self.csp_header:
-            logger.info(f"[CSP] Middleware initialized with policy: {self.csp_header[:100]}...")
+            logger.info(
+                f"[CSP] Middleware initialized with policy: {self.csp_header[:100]}..."
+            )
 
     def _build_csp_header(self) -> str:
         """Build CSP header from settings."""

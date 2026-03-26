@@ -83,6 +83,7 @@ def hash_token(token: str) -> str:
 # Custom Django model fields
 # ---------------------------------------------------------------------------
 
+
 class EncryptedTextField(models.TextField):
     """TextField that encrypts data at rest using Fernet.
 

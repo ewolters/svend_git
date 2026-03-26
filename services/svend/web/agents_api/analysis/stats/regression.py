@@ -31,7 +31,9 @@ def _run_regression(analysis_id, df, config):
         # Exclude specified observations (for click-to-exclude delta comparison)
         exclude_indices = config.get("exclude_indices", [])
         if exclude_indices:
-            df = df.drop(index=[i for i in exclude_indices if i in df.index]).reset_index(drop=True)
+            df = df.drop(
+                index=[i for i in exclude_indices if i in df.index]
+            ).reset_index(drop=True)
 
         from sklearn.linear_model import LinearRegression
         from sklearn.metrics import mean_squared_error
@@ -48,7 +50,9 @@ def _run_regression(analysis_id, df, config):
             # Use PolynomialFeatures for polynomial and/or interaction terms
             include_interaction = interactions == "all"
             poly = PolynomialFeatures(
-                degree=degree, include_bias=False, interaction_only=(degree == 1 and include_interaction)
+                degree=degree,
+                include_bias=False,
+                interaction_only=(degree == 1 and include_interaction),
             )
             X = poly.fit_transform(X_raw)
 
@@ -64,7 +68,9 @@ def _run_regression(analysis_id, df, config):
                     else:
                         parts.append(f"{predictors[i]}^{power}")
                 if parts:
-                    feature_names.append("·".join(parts) if len(parts) > 1 else parts[0])
+                    feature_names.append(
+                        "·".join(parts) if len(parts) > 1 else parts[0]
+                    )
         else:
             X = X_raw.values
 
@@ -110,48 +116,46 @@ def _run_regression(analysis_id, df, config):
         dw = np.sum(np.diff(residuals) ** 2) / ss_res
 
         # Build colored summary output
-        model_type = "Linear" if degree == 1 else "Quadratic" if degree == 2 else "Cubic"
+        model_type = (
+            "Linear" if degree == 1 else "Quadratic" if degree == 2 else "Cubic"
+        )
         if interactions == "all":
             model_type += " + Interactions"
 
-        summary = (
-            "<<COLOR:accent>>════════════════════════════════════════════════════════════════════════════<</COLOR>>\n"
-        )
+        summary = "<<COLOR:accent>>════════════════════════════════════════════════════════════════════════════<</COLOR>>\n"
         summary += f"<<COLOR:accent>>                          {model_type.upper()} REGRESSION RESULTS<</COLOR>>\n"
-        summary += (
-            "<<COLOR:accent>>════════════════════════════════════════════════════════════════════════════<</COLOR>>\n\n"
-        )
+        summary += "<<COLOR:accent>>════════════════════════════════════════════════════════════════════════════<</COLOR>>\n\n"
 
         summary += f"<<COLOR:dim>>Dep. Variable:<</COLOR>>    <<COLOR:text>>{response}<</COLOR>>\n"
-        summary += f"<<COLOR:dim>>No. Observations:<</COLOR>> <<COLOR:text>>{n}<</COLOR>>\n"
+        summary += (
+            f"<<COLOR:dim>>No. Observations:<</COLOR>> <<COLOR:text>>{n}<</COLOR>>\n"
+        )
         summary += f"<<COLOR:dim>>No. Features:<</COLOR>>     <<COLOR:text>>{p}<</COLOR>> (from {len(predictors)} predictors)\n"
         summary += f"<<COLOR:dim>>Model:<</COLOR>>            <<COLOR:text>>OLS - {model_type}<</COLOR>>\n\n"
 
+        summary += "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
         summary += (
-            "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
+            "<<COLOR:accent>>                               MODEL FIT<</COLOR>>\n"
         )
-        summary += "<<COLOR:accent>>                               MODEL FIT<</COLOR>>\n"
-        summary += (
-            "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
-        )
+        summary += "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
 
         r2_color = "success" if r2 > 0.7 else "warning" if r2 > 0.4 else "danger"
         summary += f"<<COLOR:dim>>Residual std. error:<</COLOR>> <<COLOR:text>>{np.sqrt(mse):.4f}<</COLOR>> on <<COLOR:text>>{n - p - 1}<</COLOR>> degrees of freedom\n"
         summary += f"<<COLOR:dim>>Multiple R-squared:<</COLOR>>  <<COLOR:{r2_color}>>{r2:.4f}<</COLOR>>\n"
         summary += f"<<COLOR:dim>>Adjusted R-squared:<</COLOR>> <<COLOR:{r2_color}>>{adj_r2:.4f}<</COLOR>>\n"
 
-        f_color = "success" if f_pvalue < 0.05 else "warning" if f_pvalue < 0.1 else "danger"
+        f_color = (
+            "success" if f_pvalue < 0.05 else "warning" if f_pvalue < 0.1 else "danger"
+        )
         summary += f"<<COLOR:dim>>F-statistic:<</COLOR>>        <<COLOR:text>>{f_stat:.2f}<</COLOR>> on <<COLOR:text>>{p}<</COLOR>> and <<COLOR:text>>{n - p - 1}<</COLOR>> DF\n"
         summary += f"<<COLOR:dim>>p-value:<</COLOR>>            <<COLOR:{f_color}>>{f_pvalue:.4e}<</COLOR>>\n"
         summary += f"<<COLOR:dim>>Durbin-Watson:<</COLOR>>      <<COLOR:text>>{dw:.3f}<</COLOR>>\n\n"
 
+        summary += "<<COLOR:accent>>════════════════════════════════════════════════════════════════════════════<</COLOR>>\n"
         summary += (
-            "<<COLOR:accent>>════════════════════════════════════════════════════════════════════════════<</COLOR>>\n"
+            "<<COLOR:accent>>                              COEFFICIENTS<</COLOR>>\n"
         )
-        summary += "<<COLOR:accent>>                              COEFFICIENTS<</COLOR>>\n"
-        summary += (
-            "<<COLOR:accent>>════════════════════════════════════════════════════════════════════════════<</COLOR>>\n"
-        )
+        summary += "<<COLOR:accent>>════════════════════════════════════════════════════════════════════════════<</COLOR>>\n"
         _t_crit_reg = stats.t.ppf(0.975, n - p - 1)
         summary += "<<COLOR:dim>>                            Estimate    Std.Err    t value    Pr(>|t|)          [95% CI]<</COLOR>>\n"
 
@@ -159,12 +163,22 @@ def _run_regression(analysis_id, df, config):
         non_sig_predictors = []
         for i, name in enumerate(names):
             pv = p_values[i]
-            sig = "***" if pv < 0.001 else "** " if pv < 0.01 else "*  " if pv < 0.05 else ".  " if pv < 0.1 else "   "
+            sig = (
+                "***"
+                if pv < 0.001
+                else (
+                    "** "
+                    if pv < 0.01
+                    else "*  " if pv < 0.05 else ".  " if pv < 0.1 else "   "
+                )
+            )
             p_color = "success" if pv < 0.05 else "warning" if pv < 0.1 else "dim"
             _ci_lo = coefs[i] - _t_crit_reg * se[i]
             _ci_hi = coefs[i] + _t_crit_reg * se[i]
             summary += f"<<COLOR:text>>{name:<24}<</COLOR>> {coefs[i]:>10.4f}   {se[i]:>9.4f}   {t_stats[i]:>8.3f}    <<COLOR:{p_color}>>{pv:>9.4f}  {sig}<</COLOR>>  [{_ci_lo:.4f}, {_ci_hi:.4f}]\n"
-            if i > 0 and pv >= 0.1:  # Track non-significant predictors (excluding intercept)
+            if (
+                i > 0 and pv >= 0.1
+            ):  # Track non-significant predictors (excluding intercept)
                 non_sig_predictors.append(name)
 
         summary += "<<COLOR:dim>>---<</COLOR>>\n"
@@ -174,13 +188,9 @@ def _run_regression(analysis_id, df, config):
         summary += "\n"
 
         # Diagnostics interpretation
-        summary += (
-            "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
-        )
+        summary += "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
         summary += "<<COLOR:accent>>                            DIAGNOSTICS SUMMARY<</COLOR>>\n"
-        summary += (
-            "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
-        )
+        summary += "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
 
         # Interpret R²
         if r2 > 0.7:
@@ -192,13 +202,17 @@ def _run_regression(analysis_id, df, config):
 
         # Interpret Durbin-Watson
         if 1.5 < dw < 2.5:
-            summary += "<<COLOR:success>>✓ No autocorrelation:<</COLOR>> Durbin-Watson ≈ 2\n"
+            summary += (
+                "<<COLOR:success>>✓ No autocorrelation:<</COLOR>> Durbin-Watson ≈ 2\n"
+            )
         else:
             summary += f"<<COLOR:warning>>◐ Possible autocorrelation:<</COLOR>> Durbin-Watson = {dw:.2f}\n"
 
         # Interpret F-test
         if f_pvalue < 0.05:
-            summary += "<<COLOR:success>>✓ Model significant:<</COLOR>> F-test p < 0.05\n"
+            summary += (
+                "<<COLOR:success>>✓ Model significant:<</COLOR>> F-test p < 0.05\n"
+            )
         else:
             summary += f"<<COLOR:danger>>✗ Model not significant:<</COLOR>> F-test p = {f_pvalue:.3f}\n"
 
@@ -207,14 +221,24 @@ def _run_regression(analysis_id, df, config):
 
         # Leverage (hat values)
         try:
-            H = X_with_const @ np.linalg.inv(X_with_const.T @ X_with_const) @ X_with_const.T
+            H = (
+                X_with_const
+                @ np.linalg.inv(X_with_const.T @ X_with_const)
+                @ X_with_const.T
+            )
             leverage = np.diag(H)
         except np.linalg.LinAlgError:
-            H = X_with_const @ np.linalg.pinv(X_with_const.T @ X_with_const) @ X_with_const.T
+            H = (
+                X_with_const
+                @ np.linalg.pinv(X_with_const.T @ X_with_const)
+                @ X_with_const.T
+            )
             leverage = np.diag(H)
 
         # Cook's distance
-        cooks_d = (std_residuals**2 / (p + 1)) * (leverage / (1 - leverage + 1e-10) ** 2)
+        cooks_d = (std_residuals**2 / (p + 1)) * (
+            leverage / (1 - leverage + 1e-10) ** 2
+        )
 
         # Square root of standardized residuals for scale-location
         sqrt_std_resid = np.sqrt(np.abs(std_residuals))
@@ -225,44 +249,64 @@ def _run_regression(analysis_id, df, config):
         # Low R² suggestions
         if r2 < 0.4:
             suggestions.append("Add more predictors or interaction terms (X1*X2)")
-            suggestions.append("Try polynomial terms (X², X³) for non-linear relationships")
+            suggestions.append(
+                "Try polynomial terms (X², X³) for non-linear relationships"
+            )
             suggestions.append("Check for outliers that may be distorting the fit")
         elif r2 < 0.7:
-            suggestions.append("Consider adding interaction terms or polynomial features")
+            suggestions.append(
+                "Consider adding interaction terms or polynomial features"
+            )
 
         # Non-significant predictors
         if non_sig_predictors:
             if len(non_sig_predictors) <= 3:
-                suggestions.append(f"Consider removing non-significant: {', '.join(non_sig_predictors)}")
+                suggestions.append(
+                    f"Consider removing non-significant: {', '.join(non_sig_predictors)}"
+                )
             else:
-                suggestions.append(f"Consider removing {len(non_sig_predictors)} non-significant predictors")
+                suggestions.append(
+                    f"Consider removing {len(non_sig_predictors)} non-significant predictors"
+                )
 
         # Autocorrelation
         if dw < 1.5:
-            suggestions.append("Positive autocorrelation detected - consider time series methods or lag terms")
+            suggestions.append(
+                "Positive autocorrelation detected - consider time series methods or lag terms"
+            )
         elif dw > 2.5:
-            suggestions.append("Negative autocorrelation detected - check data ordering")
+            suggestions.append(
+                "Negative autocorrelation detected - check data ordering"
+            )
 
         # Model not significant
         if f_pvalue >= 0.05:
-            suggestions.append("Model not significant - try different predictors or check data quality")
+            suggestions.append(
+                "Model not significant - try different predictors or check data quality"
+            )
 
         # High leverage points
         high_leverage = int(np.sum(leverage > 2 * (p + 1) / n)) if n > 0 else 0
         if high_leverage > 0:
-            suggestions.append(f"{high_leverage} high-leverage points detected - check for influential outliers")
+            suggestions.append(
+                f"{high_leverage} high-leverage points detected - check for influential outliers"
+            )
 
         # Large Cook's distance
         high_cooks = int(np.sum(cooks_d > 4 / n)) if n > 0 else 0
         if high_cooks > 0:
-            suggestions.append(f"{high_cooks} influential observations (Cook's D) - consider robust regression")
+            suggestions.append(
+                f"{high_cooks} influential observations (Cook's D) - consider robust regression"
+            )
 
         if suggestions:
             summary += "\n<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
             summary += "<<COLOR:accent>>                          IMPROVEMENT SUGGESTIONS<</COLOR>>\n"
             summary += "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
             for i, sug in enumerate(suggestions[:5], 1):  # Limit to 5 suggestions
-                summary += f"<<COLOR:warning>>{i}.<</COLOR>> <<COLOR:text>>{sug}<</COLOR>>\n"
+                summary += (
+                    f"<<COLOR:warning>>{i}.<</COLOR>> <<COLOR:text>>{sug}<</COLOR>>\n"
+                )
 
         # Practical significance: R² as effect size
         r2_label, r2_meaningful = _effect_magnitude(r2, "r_squared")
@@ -294,12 +338,12 @@ def _run_regression(analysis_id, df, config):
             if _idx > 0:
                 _c = coefs[_idx]
                 _dir = "increases" if _c > 0 else "decreases"
-                _narr_coef_parts.append(f"<strong>{_si}</strong> ({_dir} {response} by {abs(_c):.4f} per unit)")
+                _narr_coef_parts.append(
+                    f"<strong>{_si}</strong> ({_dir} {response} by {abs(_c):.4f} per unit)"
+                )
         _r2_warn = ""
         if r2 > 0.95 and p > 2:
-            _r2_warn = (
-                " R&sup2; > 0.95 with multiple predictors may indicate overfitting &mdash; validate on held-out data."
-            )
+            _r2_warn = " R&sup2; > 0.95 with multiple predictors may indicate overfitting &mdash; validate on held-out data."
         _vif_warn = ""
         if p > 2 and n > p:
             try:
@@ -315,7 +359,9 @@ def _run_regression(analysis_id, df, config):
                     else:
                         _vif_val = 99
                     if _vif_val > 5:
-                        _high_vifs.append(names[_vi + 1] if _vi + 1 < len(names) else f"X{_vi}")
+                        _high_vifs.append(
+                            names[_vi + 1] if _vi + 1 < len(names) else f"X{_vi}"
+                        )
                 if _high_vifs:
                     _vif_warn = f" Possible multicollinearity in: {', '.join(_high_vifs[:3])} (VIF > 5)."
             except Exception:
@@ -324,9 +370,7 @@ def _run_regression(analysis_id, df, config):
         if r2_meaningful and sig_predictors:
             verdict = f"Model explains {r2 * 100:.0f}% of the variation in {response}"
             body = f"Significant predictors: {', '.join(_narr_coef_parts) if _narr_coef_parts else ', '.join(sig_predictors[:3])}. R&sup2; = {r2:.3f}, RMSE = {rmse:.4f}.{_r2_warn}{_vif_warn}"
-            nexts = (
-                "Use the What-If Explorer below to see how changing predictor values affects the predicted response."
-            )
+            nexts = "Use the What-If Explorer below to see how changing predictor values affects the predicted response."
         elif sig_predictors:
             verdict = "Some predictors are significant but the model is weak"
             body = f"The model explains only {r2 * 100:.0f}% of the variation (R&sup2; = {r2:.3f}). Significant predictors: {', '.join(_narr_coef_parts) if _narr_coef_parts else ', '.join(sig_predictors[:3])}. Consider adding more predictors or using a nonlinear model.{_vif_warn}"
@@ -347,7 +391,9 @@ def _run_regression(analysis_id, df, config):
             result["what_if_data"] = {
                 "type": "regression",
                 "intercept": float(model.intercept_),
-                "coefficients": {feat: float(c) for feat, c in zip(predictors, model.coef_)},
+                "coefficients": {
+                    feat: float(c) for feat, c in zip(predictors, model.coef_)
+                },
                 "residual_std": float(np.sqrt(mse)) if mse > 0 else 0.0,
                 "n": int(n),
                 "feature_ranges": {
@@ -381,7 +427,13 @@ def _run_regression(analysis_id, df, config):
                 }
             )
         elif _vif_warn:
-            diagnostics.append({"level": "warning", "title": "Possible multicollinearity", "detail": _vif_warn.strip()})
+            diagnostics.append(
+                {
+                    "level": "warning",
+                    "title": "Possible multicollinearity",
+                    "detail": _vif_warn.strip(),
+                }
+            )
         # Autocorrelation
         if dw < 1.5 or dw > 2.5:
             diagnostics.append(
@@ -459,7 +511,11 @@ def _run_regression(analysis_id, df, config):
                         "name": "Zero line",
                     },
                 ],
-                "layout": {"height": 250, "xaxis": {"title": "Fitted values"}, "yaxis": {"title": "Residuals"}},
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Fitted values"},
+                    "yaxis": {"title": "Residuals"},
+                },
                 "interactive": {"type": "regression_diagnostic"},
             }
         )
@@ -467,7 +523,10 @@ def _run_regression(analysis_id, df, config):
         # 2. Normal Q-Q Plot
         sorted_std_resid = np.sort(std_residuals)
         _qq_order = np.argsort(std_residuals)
-        _qq_cd = [[int(_qq_order[i]), float(cooks_d[_qq_order[i]])] for i in range(len(_qq_order))]
+        _qq_cd = [
+            [int(_qq_order[i]), float(cooks_d[_qq_order[i]])]
+            for i in range(len(_qq_order))
+        ]
         theoretical_q = stats.norm.ppf(np.linspace(0.01, 0.99, len(sorted_std_resid)))
         result["plots"].append(
             {
@@ -546,7 +605,11 @@ def _run_regression(analysis_id, df, config):
                         "mode": "markers",
                         "marker": {
                             "color": cooks_d.tolist(),
-                            "colorscale": [[0, "#4a9f6e"], [0.5, "#e89547"], [1, "#9f4a4a"]],
+                            "colorscale": [
+                                [0, "#4a9f6e"],
+                                [0.5, "#e89547"],
+                                [1, "#9f4a4a"],
+                            ],
                             "size": 6,
                             "colorbar": {"title": "Cook's D", "len": 0.5},
                         },
@@ -563,7 +626,11 @@ def _run_regression(analysis_id, df, config):
                         "showlegend": False,
                     },
                 ],
-                "layout": {"height": 250, "xaxis": {"title": "Leverage"}, "yaxis": {"title": "Std. Residuals"}},
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Leverage"},
+                    "yaxis": {"title": "Std. Residuals"},
+                },
                 "interactive": {"type": "regression_diagnostic"},
             }
         )
@@ -611,7 +678,9 @@ def _run_regression(analysis_id, df, config):
         classes = sorted(y_raw.unique().tolist(), key=str)
 
         if len(classes) < 2:
-            result["summary"] = f"Response '{response}' has only {len(classes)} unique value(s). Need at least 2."
+            result["summary"] = (
+                f"Response '{response}' has only {len(classes)} unique value(s). Need at least 2."
+            )
             return result
         if len(classes) == 2:
             result["summary"] = (
@@ -629,7 +698,9 @@ def _run_regression(analysis_id, df, config):
             if X[col].dtype == "object" or str(X[col].dtype) == "category":
                 X = pd.get_dummies(X, columns=[col], drop_first=True)
 
-        model = LogisticRegression(multi_class="multinomial", solver="lbfgs", max_iter=1000)
+        model = LogisticRegression(
+            multi_class="multinomial", solver="lbfgs", max_iter=1000
+        )
         model.fit(X, y)
         y_pred = model.predict(X)
         accuracy = float((y_pred == y).mean())
@@ -674,16 +745,16 @@ def _run_regression(analysis_id, df, config):
                     _nom_se[_ki] = np.sqrt(np.maximum(np.diag(np.linalg.inv(_info)), 0))
                 except np.linalg.LinAlgError:
                     _info_reg = _info + 1e-6 * np.eye(_info.shape[0])
-                    _nom_se[_ki] = np.sqrt(np.maximum(np.diag(np.linalg.inv(_info_reg)), 0))
+                    _nom_se[_ki] = np.sqrt(
+                        np.maximum(np.diag(np.linalg.inv(_info_reg)), 0)
+                    )
                     _nom_se_warning = True
         except Exception:
             _nom_se_warning = True
 
         summary += "\n<<COLOR:accent>>── Odds Ratios (exp(coef)) ──<</COLOR>>\n"
         if _nom_se_warning:
-            summary += (
-                "<<COLOR:danger>>⚠ Near-singular Fisher information for some classes — SEs are approximate<</COLOR>>\n"
-            )
+            summary += "<<COLOR:danger>>⚠ Near-singular Fisher information for some classes — SEs are approximate<</COLOR>>\n"
         _has_ci = len(_nom_se) > 0
         summary += f"  {'Predictor':<25}"
         for cls in class_names[1:]:
@@ -750,7 +821,10 @@ def _run_regression(analysis_id, df, config):
                 ],
                 "layout": {
                     "title": "Average Predicted Probability by Class",
-                    "yaxis": {"title": "Avg Probability", "range": [0, max(avg_probs) * 1.2 + 0.05]},
+                    "yaxis": {
+                        "title": "Avg Probability",
+                        "range": [0, max(avg_probs) * 1.2 + 0.05],
+                    },
                     "height": 280,
                 },
             }
@@ -762,7 +836,11 @@ def _run_regression(analysis_id, df, config):
             colors = ["#4a90d9", "#e8c547", "#c75a3a", "#7a5fb8", "#5a9fd4"]
             for i in range(1, len(class_names)):
                 coefs_i = [
-                    float(model.coef_[i][j]) if i < len(model.coef_) and j < len(model.coef_[i]) else 0
+                    (
+                        float(model.coef_[i][j])
+                        if i < len(model.coef_) and j < len(model.coef_[i])
+                        else 0
+                    )
                     for j in range(len(pred_names))
                 ]
                 bar_traces.append(
@@ -786,7 +864,9 @@ def _run_regression(analysis_id, df, config):
                 }
             )
 
-        result["guide_observation"] = f"Nominal logistic: {len(classes)} categories, accuracy={accuracy:.1%}."
+        result["guide_observation"] = (
+            f"Nominal logistic: {len(classes)} categories, accuracy={accuracy:.1%}."
+        )
         result["narrative"] = _narrative(
             f"Nominal Logistic: {accuracy:.1%} accuracy across {len(classes)} categories",
             f"Multinomial logistic regression for <strong>{response}</strong> with {len(predictors)} predictor{'s' if len(predictors) > 1 else ''}.",
@@ -829,7 +909,11 @@ def _run_regression(analysis_id, df, config):
 
         # Deming slope
         discriminant = (syy - delta * sxx) ** 2 + 4 * delta * sxy**2
-        b1_deming = float((syy - delta * sxx + np.sqrt(discriminant)) / (2 * sxy)) if sxy != 0 else 1.0
+        b1_deming = (
+            float((syy - delta * sxx + np.sqrt(discriminant)) / (2 * sxy))
+            if sxy != 0
+            else 1.0
+        )
         b0_deming = float(y_bar - b1_deming * x_bar)
 
         # OLS for comparison
@@ -874,7 +958,9 @@ def _run_regression(analysis_id, df, config):
         summary += f"<<COLOR:highlight>>Error ratio (delta):<</COLOR>> {delta}\n"
         summary += f"<<COLOR:highlight>>N:<</COLOR>> {n}\n\n"
         summary += "<<COLOR:accent>>── Deming Regression Results ──<</COLOR>>\n"
-        summary += f"  Slope:     {b1_deming:>10.4f}  ({ci_slope[0]:.4f}, {ci_slope[1]:.4f})\n"
+        summary += (
+            f"  Slope:     {b1_deming:>10.4f}  ({ci_slope[0]:.4f}, {ci_slope[1]:.4f})\n"
+        )
         summary += f"  Intercept: {b0_deming:>10.4f}  ({ci_intercept[0]:.4f}, {ci_intercept[1]:.4f})\n"
         summary += f"  R-squared: {r_squared:>10.4f}\n\n"
         summary += "<<COLOR:accent>>── OLS Comparison ──<</COLOR>>\n"
@@ -886,9 +972,7 @@ def _run_regression(analysis_id, df, config):
         elif abs(b1_deming - 1.0) < 0.1:
             summary += f"  <<COLOR:warning>>Proportional agreement but constant bias (intercept = {b0_deming:.4f}).<</COLOR>>\n"
         else:
-            summary += (
-                "  <<COLOR:warning>>Methods disagree -- both slope and intercept differ from ideal (1, 0).<</COLOR>>\n"
-            )
+            summary += "  <<COLOR:warning>>Methods disagree -- both slope and intercept differ from ideal (1, 0).<</COLOR>>\n"
 
         result["summary"] = summary
 
@@ -1009,7 +1093,10 @@ def _run_regression(analysis_id, df, config):
             "slope_ci": list(ci_slope),
             "intercept_ci": list(ci_intercept),
             "bland_altman_bias": diff_mean,
-            "bland_altman_loa": [diff_mean - 1.96 * diff_std, diff_mean + 1.96 * diff_std],
+            "bland_altman_loa": [
+                diff_mean - 1.96 * diff_std,
+                diff_mean + 1.96 * diff_std,
+            ],
         }
 
     elif analysis_id == "nonlinear_regression":
@@ -1038,14 +1125,26 @@ def _run_regression(analysis_id, df, config):
 
         models = {
             "exponential": (lambda x, a, b: a * np.exp(b * x), ["a", "b"], [1.0, 0.01]),
-            "power": (lambda x, a, b: a * np.power(np.maximum(x, 1e-10), b), ["a", "b"], [1.0, 1.0]),
+            "power": (
+                lambda x, a, b: a * np.power(np.maximum(x, 1e-10), b),
+                ["a", "b"],
+                [1.0, 1.0],
+            ),
             "logistic": (
                 lambda x, L, k, x0: L / (1 + np.exp(-k * (x - x0))),
                 ["L", "k", "x0"],
                 [float(max(y)), 1.0, float(np.median(x))],
             ),
-            "logarithmic": (lambda x, a, b: a * np.log(np.maximum(x, 1e-10)) + b, ["a", "b"], [1.0, 0.0]),
-            "polynomial2": (lambda x, a, b, c: a * x**2 + b * x + c, ["a", "b", "c"], [0.0, 1.0, 0.0]),
+            "logarithmic": (
+                lambda x, a, b: a * np.log(np.maximum(x, 1e-10)) + b,
+                ["a", "b"],
+                [1.0, 0.0],
+            ),
+            "polynomial2": (
+                lambda x, a, b, c: a * x**2 + b * x + c,
+                ["a", "b", "c"],
+                [0.0, 1.0, 0.0],
+            ),
             "polynomial3": (
                 lambda x, a, b, c, d: a * x**3 + b * x**2 + c * x + d,
                 ["a", "b", "c", "d"],
@@ -1069,11 +1168,17 @@ def _run_regression(analysis_id, df, config):
         }
 
         if model_type not in models:
-            result["summary"] = f"Unknown model '{model_type}'. Available: {', '.join(models.keys())}"
+            result["summary"] = (
+                f"Unknown model '{model_type}'. Available: {', '.join(models.keys())}"
+            )
             return result
 
         func, param_names, p0_default = models[model_type]
-        p0 = initial_params if initial_params and len(initial_params) == len(param_names) else p0_default
+        p0 = (
+            initial_params
+            if initial_params and len(initial_params) == len(param_names)
+            else p0_default
+        )
 
         try:
             popt, pcov = curve_fit(func, x, y, p0=p0, maxfev=10000)
@@ -1177,8 +1282,12 @@ def _run_regression(analysis_id, df, config):
             }
         )
 
-        result["guide_observation"] = f"Nonlinear regression ({model_type}): R2={r_squared:.4f}, RMSE={rmse:.4f}."
-        _nl_label = "strong" if r_squared > 0.7 else "moderate" if r_squared > 0.3 else "weak"
+        result["guide_observation"] = (
+            f"Nonlinear regression ({model_type}): R2={r_squared:.4f}, RMSE={rmse:.4f}."
+        )
+        _nl_label = (
+            "strong" if r_squared > 0.7 else "moderate" if r_squared > 0.3 else "weak"
+        )
         result["narrative"] = _narrative(
             f"Nonlinear Regression ({model_type}): R\u00b2 = {r_squared:.4f} ({_nl_label})",
             f"RMSE = {rmse:.4f}. The {model_type} model captures non-linear patterns in the data.",
@@ -1209,7 +1318,9 @@ def _run_regression(analysis_id, df, config):
             predictors_pr = [predictors_pr]
         offset_col_pr = config.get("offset")  # exposure/offset variable (optional)
 
-        data_pr = df[[response_pr] + predictors_pr + ([offset_col_pr] if offset_col_pr else [])].dropna()
+        data_pr = df[
+            [response_pr] + predictors_pr + ([offset_col_pr] if offset_col_pr else [])
+        ].dropna()
         y_pr = data_pr[response_pr].values.astype(float)
 
         # Check for non-negative integers
@@ -1222,7 +1333,9 @@ def _run_regression(analysis_id, df, config):
         feature_names_pr = []
         for pred in predictors_pr:
             if data_pr[pred].dtype == object or data_pr[pred].nunique() < 6:
-                dummies = pd.get_dummies(data_pr[pred], prefix=pred, drop_first=True, dtype=float)
+                dummies = pd.get_dummies(
+                    data_pr[pred], prefix=pred, drop_first=True, dtype=float
+                )
                 X_parts_pr.append(dummies.values)
                 feature_names_pr.extend(dummies.columns.tolist())
             else:
@@ -1233,10 +1346,16 @@ def _run_regression(analysis_id, df, config):
         X_pr = sm.add_constant(X_pr)
         feature_names_pr = ["Intercept"] + feature_names_pr
 
-        offset_vals_pr = np.log(data_pr[offset_col_pr].values.astype(float)) if offset_col_pr else None
+        offset_vals_pr = (
+            np.log(data_pr[offset_col_pr].values.astype(float))
+            if offset_col_pr
+            else None
+        )
 
         try:
-            model_pr = sm.GLM(y_pr, X_pr, family=sm.families.Poisson(), offset=offset_vals_pr).fit()
+            model_pr = sm.GLM(
+                y_pr, X_pr, family=sm.families.Poisson(), offset=offset_vals_pr
+            ).fit()
 
             n_pr = int(model_pr.nobs)
             dev_pr = float(model_pr.deviance)
@@ -1275,8 +1394,12 @@ def _run_regression(analysis_id, df, config):
             summary_pr = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
             summary_pr += "<<COLOR:title>>POISSON REGRESSION<</COLOR>>\n"
             summary_pr += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-            summary_pr += f"<<COLOR:highlight>>Response:<</COLOR>> {response_pr} (count)\n"
-            summary_pr += f"<<COLOR:highlight>>Predictors:<</COLOR>> {', '.join(predictors_pr)}\n"
+            summary_pr += (
+                f"<<COLOR:highlight>>Response:<</COLOR>> {response_pr} (count)\n"
+            )
+            summary_pr += (
+                f"<<COLOR:highlight>>Predictors:<</COLOR>> {', '.join(predictors_pr)}\n"
+            )
             if offset_col_pr:
                 summary_pr += f"<<COLOR:highlight>>Offset (exposure):<</COLOR>> log({offset_col_pr})\n"
             summary_pr += f"<<COLOR:highlight>>N:<</COLOR>> {n_pr}\n\n"
@@ -1294,7 +1417,9 @@ def _run_regression(analysis_id, df, config):
             summary_pr += f"  Dispersion (Dev/df): {dispersion_pr:.3f}"
             if dispersion_pr > 1.5:
                 summary_pr += "  <<COLOR:warning>>⚠ Overdispersion detected — consider negative binomial<</COLOR>>"
-            summary_pr += f"\n  AIC: {aic_pr:.1f}   BIC: {bic_pr:.1f}   Log-lik: {llf_pr:.1f}\n"
+            summary_pr += (
+                f"\n  AIC: {aic_pr:.1f}   BIC: {bic_pr:.1f}   Log-lik: {llf_pr:.1f}\n"
+            )
 
             result["summary"] = summary_pr
 
@@ -1311,14 +1436,21 @@ def _run_regression(analysis_id, df, config):
                                 "x": [c["irr"] for c in non_intercept],
                                 "y": [c["name"] for c in non_intercept],
                                 "marker": {
-                                    "color": ["#4a9f6e" if c["p"] < 0.05 else "#5a6a5a" for c in non_intercept],
+                                    "color": [
+                                        "#4a9f6e" if c["p"] < 0.05 else "#5a6a5a"
+                                        for c in non_intercept
+                                    ],
                                     "size": 10,
                                 },
                                 "error_x": {
                                     "type": "data",
                                     "symmetric": False,
-                                    "array": [c["irr_hi"] - c["irr"] for c in non_intercept],
-                                    "arrayminus": [c["irr"] - c["irr_lo"] for c in non_intercept],
+                                    "array": [
+                                        c["irr_hi"] - c["irr"] for c in non_intercept
+                                    ],
+                                    "arrayminus": [
+                                        c["irr"] - c["irr_lo"] for c in non_intercept
+                                    ],
                                     "color": "#5a6a5a",
                                 },
                                 "showlegend": False,
@@ -1376,11 +1508,17 @@ def _run_regression(analysis_id, df, config):
                 }
             )
 
-            n_sig_pr = sum(1 for c in coefs_pr if c["p"] < 0.05 and c["name"] != "Intercept")
+            n_sig_pr = sum(
+                1 for c in coefs_pr if c["p"] < 0.05 and c["name"] != "Intercept"
+            )
             result["guide_observation"] = (
                 f"Poisson regression: {n_sig_pr}/{len(non_intercept)} predictors significant. Dispersion={dispersion_pr:.2f}."
             )
-            _disp_note = " Overdispersion detected — consider negative binomial." if dispersion_pr > 2 else ""
+            _disp_note = (
+                " Overdispersion detected — consider negative binomial."
+                if dispersion_pr > 2
+                else ""
+            )
             result["narrative"] = _narrative(
                 f"Poisson Regression: {n_sig_pr} significant predictors",
                 f"{n_sig_pr} of {len(non_intercept)} predictors significant. Dispersion = {dispersion_pr:.2f}.{_disp_note}",
@@ -1427,14 +1565,18 @@ def _run_regression(analysis_id, df, config):
         # Encode target if needed
         unique_vals = y.unique()
         if len(unique_vals) != 2:
-            result["summary"] = f"Logistic regression requires binary outcome. Found {len(unique_vals)} unique values."
+            result["summary"] = (
+                f"Logistic regression requires binary outcome. Found {len(unique_vals)} unique values."
+            )
             return result
 
         # Map to 0/1
         if y.dtype == "object" or str(y.dtype) == "category":
             y = (y == unique_vals[1]).astype(int)
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
 
         model = LogisticRegression(max_iter=1000)
         model.fit(X_train, y_train)
@@ -1486,9 +1628,7 @@ def _run_regression(analysis_id, df, config):
             for i, (pred, coef, odds) in enumerate(zip(predictors, coefs, odds_ratios)):
                 _or_lo = np.exp(coef - 1.96 * _se_coefs[i])
                 _or_hi = np.exp(coef + 1.96 * _se_coefs[i])
-                summary += (
-                    f"  {pred:<20} {coef:>10.4f} {_se_coefs[i]:>10.4f} {odds:>10.4f} [{_or_lo:>8.4f}, {_or_hi:>8.4f}]\n"
-                )
+                summary += f"  {pred:<20} {coef:>10.4f} {_se_coefs[i]:>10.4f} {odds:>10.4f} [{_or_lo:>8.4f}, {_or_hi:>8.4f}]\n"
         else:
             summary += f"  {'Predictor':<20} {'Coef':>10} {'Odds Ratio':>12}\n"
             summary += f"  {'-' * 44}\n"
@@ -1540,7 +1680,11 @@ def _run_regression(analysis_id, df, config):
                         "x": odds_ratios.tolist(),
                         "y": predictors,
                         "orientation": "h",
-                        "marker": {"color": ["#4a9f6e" if o > 1 else "#e85747" for o in odds_ratios]},
+                        "marker": {
+                            "color": [
+                                "#4a9f6e" if o > 1 else "#e85747" for o in odds_ratios
+                            ]
+                        },
                     }
                 ],
                 "layout": {
@@ -1564,8 +1708,15 @@ def _run_regression(analysis_id, df, config):
         result["guide_observation"] = (
             f"Logistic regression with AUC = {roc_auc:.3f}. Odds ratios > 1 increase probability of outcome."
         )
-        result["statistics"] = {"AUC": float(roc_auc), "accuracy": float((y_pred == y_test).mean())}
-        _auc_label = "excellent" if roc_auc > 0.9 else "good" if roc_auc > 0.8 else "fair" if roc_auc > 0.7 else "poor"
+        result["statistics"] = {
+            "AUC": float(roc_auc),
+            "accuracy": float((y_pred == y_test).mean()),
+        }
+        _auc_label = (
+            "excellent"
+            if roc_auc > 0.9
+            else "good" if roc_auc > 0.8 else "fair" if roc_auc > 0.7 else "poor"
+        )
         _acc = float((y_pred == y_test).mean())
         verdict = f"Logistic model AUC = {roc_auc:.3f} ({_auc_label} discrimination)"
         body = f"The model classifies {response} using {len(predictors)} predictor{'s' if len(predictors) > 1 else ''} with {_acc * 100:.1f}% accuracy on held-out data. AUC = {roc_auc:.3f}."
@@ -1604,13 +1755,19 @@ def _run_regression(analysis_id, df, config):
         # Multicollinearity check (VIF for multiple predictors)
         if len(predictors) >= 2:
             try:
-                from statsmodels.stats.outliers_influence import variance_inflation_factor
+                from statsmodels.stats.outliers_influence import (
+                    variance_inflation_factor,
+                )
 
                 _X_vif = X_train.values
                 _vif_vals = []
                 for _vi in range(len(predictors)):
                     _vif_vals.append(variance_inflation_factor(_X_vif, _vi))
-                _high_vif = [(predictors[_vi], _vif_vals[_vi]) for _vi in range(len(predictors)) if _vif_vals[_vi] > 5]
+                _high_vif = [
+                    (predictors[_vi], _vif_vals[_vi])
+                    for _vi in range(len(predictors))
+                    if _vif_vals[_vi] > 5
+                ]
                 if _high_vif:
                     _vif_str = ", ".join(f"{n} (VIF={v:.1f})" for n, v in _high_vif)
                     diagnostics.append(
@@ -1668,7 +1825,9 @@ def _run_regression(analysis_id, df, config):
         summary += "<<COLOR:title>>STEPWISE REGRESSION<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Response:<</COLOR>> {response}\n"
-        summary += f"<<COLOR:highlight>>Candidate Predictors:<</COLOR>> {len(predictors)}\n"
+        summary += (
+            f"<<COLOR:highlight>>Candidate Predictors:<</COLOR>> {len(predictors)}\n"
+        )
         summary += f"<<COLOR:highlight>>Method:<</COLOR>> {method}\n"
         summary += f"<<COLOR:highlight>>α to enter:<</COLOR>> {alpha_enter}\n"
         summary += f"<<COLOR:highlight>>α to remove:<</COLOR>> {alpha_remove}\n\n"
@@ -1712,7 +1871,9 @@ def _run_regression(analysis_id, df, config):
                 if best_var and best_pval < alpha_enter:
                     selected.append(best_var)
                     remaining.remove(best_var)
-                    step_history.append(f"Step {step}: ADD {best_var} (p={best_pval:.4f})")
+                    step_history.append(
+                        f"Step {step}: ADD {best_var} (p={best_pval:.4f})"
+                    )
                     changed = True
 
             # Backward step: try removing variables
@@ -1735,7 +1896,9 @@ def _run_regression(analysis_id, df, config):
                 if worst_var and worst_pval > alpha_remove:
                     selected.remove(worst_var)
                     remaining.append(worst_var)
-                    step_history.append(f"Step {step}: REMOVE {worst_var} (p={worst_pval:.4f})")
+                    step_history.append(
+                        f"Step {step}: REMOVE {worst_var} (p={worst_pval:.4f})"
+                    )
                     changed = True
 
             if not changed:
@@ -1756,14 +1919,14 @@ def _run_regression(analysis_id, df, config):
             final_model = sm.OLS(y, X_with_const).fit()
 
             summary += "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
-            summary += "<<COLOR:accent>>                              FINAL MODEL<</COLOR>>\n"
+            summary += (
+                "<<COLOR:accent>>                              FINAL MODEL<</COLOR>>\n"
+            )
             summary += "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
             summary += f"<<COLOR:highlight>>Selected Variables:<</COLOR>> {', '.join(selected)}\n"
             summary += f"<<COLOR:highlight>>R²:<</COLOR>> {final_model.rsquared:.4f}\n"
             summary += f"<<COLOR:highlight>>Adjusted R²:<</COLOR>> {final_model.rsquared_adj:.4f}\n"
-            summary += (
-                f"<<COLOR:highlight>>F-statistic:<</COLOR>> {final_model.fvalue:.4f} (p={final_model.f_pvalue:.4e})\n\n"
-            )
+            summary += f"<<COLOR:highlight>>F-statistic:<</COLOR>> {final_model.fvalue:.4f} (p={final_model.f_pvalue:.4e})\n\n"
 
             summary += "<<COLOR:accent>>── Coefficients ──<</COLOR>>\n"
             summary += f"  {'Variable':<20} {'Coef':>12} {'Std Err':>12} {'t':>10} {'P>|t|':>10}\n"
@@ -1786,7 +1949,10 @@ def _run_regression(analysis_id, df, config):
                         {
                             "type": "bar",
                             "x": selected,
-                            "y": [float(final_model.params.iloc[i + 1]) for i in range(len(selected))],
+                            "y": [
+                                float(final_model.params.iloc[i + 1])
+                                for i in range(len(selected))
+                            ],
                             "marker": {"color": "#4a9f6e"},
                         }
                     ],
@@ -1794,11 +1960,15 @@ def _run_regression(analysis_id, df, config):
                 }
             )
         else:
-            summary += "<<COLOR:warning>>No variables met the selection criteria.<</COLOR>>\n"
+            summary += (
+                "<<COLOR:warning>>No variables met the selection criteria.<</COLOR>>\n"
+            )
             result["statistics"] = {"n_selected": 0, "selected_vars": []}
 
         result["summary"] = summary
-        result["guide_observation"] = f"Stepwise regression selected {len(selected)} of {len(predictors)} predictors."
+        result["guide_observation"] = (
+            f"Stepwise regression selected {len(selected)} of {len(predictors)} predictors."
+        )
         result["narrative"] = _narrative(
             f"Stepwise selected {len(selected)} of {len(predictors)} predictors",
             f"Automatic variable selection retained: <strong>{', '.join(selected[:5]) if selected else 'none'}</strong>."
@@ -1854,7 +2024,16 @@ def _run_regression(analysis_id, df, config):
                 # BIC
                 bic = n * np.log(sse / n) + k * np.log(n)
 
-                results_list.append({"vars": combo, "k": k, "r2": r2, "adj_r2": adj_r2, "cp": cp, "bic": bic})
+                results_list.append(
+                    {
+                        "vars": combo,
+                        "k": k,
+                        "r2": r2,
+                        "adj_r2": adj_r2,
+                        "cp": cp,
+                        "bic": bic,
+                    }
+                )
 
         # Sort by different criteria
         sorted(results_list, key=lambda x: -x["r2"])
@@ -1868,16 +2047,16 @@ def _run_regression(analysis_id, df, config):
         summary += f"  {'Vars':<8} {'R²':>8} {'Adj R²':>8} {'Cp':>10} {'BIC':>10} {'Predictors'}\n"
         summary += f"  {'-' * 70}\n"
         for res in by_adj_r2[:5]:
-            vars_str = ", ".join(res["vars"][:3]) + ("..." if len(res["vars"]) > 3 else "")
+            vars_str = ", ".join(res["vars"][:3]) + (
+                "..." if len(res["vars"]) > 3 else ""
+            )
             summary += f"  {res['k']:<8} {res['r2']:>8.4f} {res['adj_r2']:>8.4f} {res['cp']:>10.2f} {res['bic']:>10.2f} {vars_str}\n"
 
         summary += "\n<<COLOR:accent>>By Mallows' Cp (top 5):<</COLOR>>\n"
         summary += f"  {'Vars':<8} {'R²':>8} {'Adj R²':>8} {'Cp':>10} {'BIC':>10}\n"
         summary += f"  {'-' * 50}\n"
         for res in by_cp[:5]:
-            summary += (
-                f"  {res['k']:<8} {res['r2']:>8.4f} {res['adj_r2']:>8.4f} {res['cp']:>10.2f} {res['bic']:>10.2f}\n"
-            )
+            summary += f"  {res['k']:<8} {res['r2']:>8.4f} {res['adj_r2']:>8.4f} {res['cp']:>10.2f} {res['bic']:>10.2f}\n"
 
         # Best model recommendation
         best = by_adj_r2[0]
@@ -1904,8 +2083,12 @@ def _run_regression(analysis_id, df, config):
 
         # Plot: R² and Adj R² by number of variables
         k_values = sorted(set(r["k"] for r in results_list))
-        best_r2_by_k = [max(r["r2"] for r in results_list if r["k"] == k) for k in k_values]
-        best_adj_r2_by_k = [max(r["adj_r2"] for r in results_list if r["k"] == k) for k in k_values]
+        best_r2_by_k = [
+            max(r["r2"] for r in results_list if r["k"] == k) for k in k_values
+        ]
+        best_adj_r2_by_k = [
+            max(r["adj_r2"] for r in results_list if r["k"] == k) for k in k_values
+        ]
 
         result["plots"].append(
             {
@@ -1928,7 +2111,11 @@ def _run_regression(analysis_id, df, config):
                         "line": {"color": "#47a5e8"},
                     },
                 ],
-                "layout": {"height": 250, "xaxis": {"title": "Number of Predictors"}, "yaxis": {"title": "R²"}},
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Number of Predictors"},
+                    "yaxis": {"title": "R²"},
+                },
             }
         )
 
@@ -1953,19 +2140,25 @@ def _run_regression(analysis_id, df, config):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Response:<</COLOR>> {response}\n"
         summary += f"<<COLOR:highlight>>Predictors:<</COLOR>> {', '.join(predictors)}\n"
-        summary += f"<<COLOR:highlight>>Method:<</COLOR>> {method.title()} M-estimator\n"
+        summary += (
+            f"<<COLOR:highlight>>Method:<</COLOR>> {method.title()} M-estimator\n"
+        )
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}\n\n"
 
         # Select M-estimator
         if method == "huber":
             M_estimator = sm.robust.norms.HuberT()
-            summary += "<<COLOR:dim>>Huber's T: downweights residuals > 1.345σ<</COLOR>>\n"
+            summary += (
+                "<<COLOR:dim>>Huber's T: downweights residuals > 1.345σ<</COLOR>>\n"
+            )
         elif method == "bisquare":
             M_estimator = sm.robust.norms.TukeyBiweight()
             summary += "<<COLOR:dim>>Tukey's Bisquare: zero weight for residuals > 4.685σ<</COLOR>>\n"
         elif method == "andrews":
             M_estimator = sm.robust.norms.AndrewWave()
-            summary += "<<COLOR:dim>>Andrew's Wave: sinusoidal downweighting<</COLOR>>\n"
+            summary += (
+                "<<COLOR:dim>>Andrew's Wave: sinusoidal downweighting<</COLOR>>\n"
+            )
         else:
             M_estimator = sm.robust.norms.HuberT()
 
@@ -1977,13 +2170,9 @@ def _run_regression(analysis_id, df, config):
         # Fit robust model
         robust_model = RLM(y, X_const, M=M_estimator).fit()
 
-        summary += (
-            "\n<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
-        )
+        summary += "\n<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
         summary += "<<COLOR:accent>>                        COMPARISON: OLS vs ROBUST<</COLOR>>\n"
-        summary += (
-            "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
-        )
+        summary += "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
         summary += f"  {'Variable':<20} {'OLS Coef':>12} {'Robust Coef':>12} {'Difference':>12}\n"
         summary += f"  {'-' * 58}\n"
 
@@ -1996,14 +2185,12 @@ def _run_regression(analysis_id, df, config):
             flag = "<<COLOR:warning>>*<</COLOR>>" if abs(diff_pct) > 10 else ""
             summary += f"  {name:<20} {ols_coef:>12.4f} {rob_coef:>12.4f} {diff:>+12.4f} {flag}\n"
 
-        summary += (
-            "\n<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
-        )
+        summary += "\n<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
         summary += "<<COLOR:accent>>                           ROBUST MODEL DETAILS<</COLOR>>\n"
+        summary += "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
         summary += (
-            "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
+            f"  {'Variable':<20} {'Coef':>12} {'Std Err':>12} {'z':>10} {'P>|z|':>10}\n"
         )
-        summary += f"  {'Variable':<20} {'Coef':>12} {'Std Err':>12} {'z':>10} {'P>|z|':>10}\n"
         summary += f"  {'-' * 66}\n"
 
         for i, name in enumerate(var_names):
@@ -2038,7 +2225,10 @@ def _run_regression(analysis_id, df, config):
         result["statistics"] = {
             "n_outliers": len(outliers),
             "method": method,
-            **{f"coef_{name}": float(robust_model.params.iloc[i]) for i, name in enumerate(var_names)},
+            **{
+                f"coef_{name}": float(robust_model.params.iloc[i])
+                for i, name in enumerate(var_names)
+            },
         }
 
         # Plot: OLS residuals vs Robust residuals
@@ -2062,7 +2252,11 @@ def _run_regression(analysis_id, df, config):
                         },
                     }
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "OLS Residuals"}, "yaxis": {"title": "Robust Residuals"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "OLS Residuals"},
+                    "yaxis": {"title": "Robust Residuals"},
+                },
             }
         )
 
@@ -2074,10 +2268,16 @@ def _run_regression(analysis_id, df, config):
                     {
                         "type": "histogram",
                         "x": weights.tolist(),
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                     }
                 ],
-                "layout": {"height": 200, "xaxis": {"title": "Weight", "range": [0, 1.1]}},
+                "layout": {
+                    "height": 200,
+                    "xaxis": {"title": "Weight", "range": [0, 1.1]},
+                },
             }
         )
 
@@ -2098,7 +2298,9 @@ def _run_regression(analysis_id, df, config):
         random_factors = config.get("random_factors", [])
         covariates = config.get("covariates", [])
         include_interactions = config.get("interactions", True)
-        include_factor_cov_interactions = config.get("factor_covariate_interactions", False)
+        include_factor_cov_interactions = config.get(
+            "factor_covariate_interactions", False
+        )
         alpha = 1 - config.get("conf", 95) / 100
 
         # Support single-value fallbacks from generic dialogs
@@ -2136,7 +2338,9 @@ def _run_regression(analysis_id, df, config):
                         for c in covariates:
                             terms.append(f"C({f}):{c}")
 
-            formula = f"{response} ~ " + " + ".join(terms) if terms else f"{response} ~ 1"
+            formula = (
+                f"{response} ~ " + " + ".join(terms) if terms else f"{response} ~ 1"
+            )
 
             # Determine model type label
             has_factors = len(fixed_factors) > 0
@@ -2147,7 +2351,11 @@ def _run_regression(analysis_id, df, config):
             elif has_factors and not has_covariates:
                 model_label = "ANOVA (GLM)" if not has_random else "Mixed-Effects ANOVA"
             elif has_covariates and not has_factors:
-                model_label = "Multiple Regression" if len(covariates) > 1 else "Simple Regression"
+                model_label = (
+                    "Multiple Regression"
+                    if len(covariates) > 1
+                    else "Simple Regression"
+                )
             else:
                 model_label = "Intercept-Only Model"
 
@@ -2161,13 +2369,19 @@ def _run_regression(analysis_id, df, config):
                 model = mixedlm(formula, data, groups=data[group_var])
                 fit = model.fit(reml=True)
 
-                var_random = float(fit.cov_re.iloc[0, 0]) if hasattr(fit.cov_re, "iloc") else float(fit.cov_re)
+                var_random = (
+                    float(fit.cov_re.iloc[0, 0])
+                    if hasattr(fit.cov_re, "iloc")
+                    else float(fit.cov_re)
+                )
                 var_residual = float(fit.scale)
                 var_total = var_random + var_residual
                 icc = var_random / var_total if var_total > 0 else 0
 
                 summary_text = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-                summary_text += f"<<COLOR:title>>GENERAL LINEAR MODEL — {model_label}<</COLOR>>\n"
+                summary_text += (
+                    f"<<COLOR:title>>GENERAL LINEAR MODEL — {model_label}<</COLOR>>\n"
+                )
                 summary_text += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
                 summary_text += f"<<COLOR:highlight>>Response:<</COLOR>> {response}\n"
                 summary_text += f"<<COLOR:highlight>>Fixed:<</COLOR>> {', '.join(fixed_factors + covariates)}\n"
@@ -2183,15 +2397,23 @@ def _run_regression(analysis_id, df, config):
                     se = float(fit.bse[name]) if name in fit.bse.index else None
                     pv = float(fit.pvalues[name]) if name in fit.pvalues.index else None
                     z = coef / se if se and se > 0 else 0
-                    sig = "<<COLOR:good>>*<</COLOR>>" if pv is not None and pv < alpha else ""
+                    sig = (
+                        "<<COLOR:good>>*<</COLOR>>"
+                        if pv is not None and pv < alpha
+                        else ""
+                    )
                     p_str = f"{pv:.4f}" if pv is not None else "N/A"
                     se_str = f"{se:.4f}" if se is not None else "N/A"
-                    _ci_str = f"[{coef - 1.96 * se:.4f}, {coef + 1.96 * se:.4f}]" if se else ""
-                    summary_text += (
-                        f"{str(name):<35} {coef:>10.4f} {se_str:>10} {z:>8.2f} {p_str:>10} {sig:>5} {_ci_str:>22}\n"
+                    _ci_str = (
+                        f"[{coef - 1.96 * se:.4f}, {coef + 1.96 * se:.4f}]"
+                        if se
+                        else ""
                     )
+                    summary_text += f"{str(name):<35} {coef:>10.4f} {se_str:>10} {z:>8.2f} {p_str:>10} {sig:>5} {_ci_str:>22}\n"
 
-                summary_text += "\n<<COLOR:accent>>── Variance Components ──<</COLOR>>\n"
+                summary_text += (
+                    "\n<<COLOR:accent>>── Variance Components ──<</COLOR>>\n"
+                )
                 summary_text += f"  {group_var} (random): {var_random:.4f} ({icc * 100:.1f}% of total)\n"
                 summary_text += f"  Residual: {var_residual:.4f} ({(1 - icc) * 100:.1f}% of total)\n"
                 summary_text += f"  ICC (Intraclass Correlation): {icc:.4f}\n"
@@ -2231,11 +2453,17 @@ def _run_regression(analysis_id, df, config):
                     anova_table = sm.stats.anova_lm(model, typ=2)
 
                 # Compute effect sizes (partial eta-squared)
-                ss_residual = float(anova_table.loc["Residual", "sum_sq"]) if "Residual" in anova_table.index else 0
+                ss_residual = (
+                    float(anova_table.loc["Residual", "sum_sq"])
+                    if "Residual" in anova_table.index
+                    else 0
+                )
                 ss_total = float(anova_table["sum_sq"].sum())
 
                 summary_text = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-                summary_text += f"<<COLOR:title>>GENERAL LINEAR MODEL — {model_label}<</COLOR>>\n"
+                summary_text += (
+                    f"<<COLOR:title>>GENERAL LINEAR MODEL — {model_label}<</COLOR>>\n"
+                )
                 summary_text += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
                 summary_text += f"<<COLOR:highlight>>Response:<</COLOR>> {response}\n"
                 if fixed_factors:
@@ -2248,9 +2476,7 @@ def _run_regression(analysis_id, df, config):
                 # ANOVA table with partial eta-squared
                 summary_text += "<<COLOR:accent>>── Analysis of Variance (Type III SS) ──<</COLOR>>\n"
                 eta_header = " η²p" if has_factors else ""
-                summary_text += (
-                    f"{'Source':<30} {'DF':>5} {'Adj SS':>12} {'Adj MS':>12} {'F':>10} {'p-value':>10}{eta_header:>8}\n"
-                )
+                summary_text += f"{'Source':<30} {'DF':>5} {'Adj SS':>12} {'Adj MS':>12} {'F':>10} {'p-value':>10}{eta_header:>8}\n"
                 summary_text += f"{'─' * (87 + (8 if has_factors else 0))}\n"
 
                 for idx in anova_table.index:
@@ -2258,24 +2484,41 @@ def _run_regression(analysis_id, df, config):
                     df_val = int(row["df"]) if "df" in row else ""
                     ss = float(row["sum_sq"]) if "sum_sq" in row else 0
                     ms = float(row["mean_sq"]) if "mean_sq" in row else 0
-                    f_val = float(row["F"]) if "F" in row and not np.isnan(row["F"]) else None
-                    pv = float(row["PR(>F)"]) if "PR(>F)" in row and not np.isnan(row["PR(>F)"]) else None
-                    sig = "<<COLOR:good>>*<</COLOR>>" if pv is not None and pv < alpha else ""
+                    f_val = (
+                        float(row["F"])
+                        if "F" in row and not np.isnan(row["F"])
+                        else None
+                    )
+                    pv = (
+                        float(row["PR(>F)"])
+                        if "PR(>F)" in row and not np.isnan(row["PR(>F)"])
+                        else None
+                    )
+                    sig = (
+                        "<<COLOR:good>>*<</COLOR>>"
+                        if pv is not None and pv < alpha
+                        else ""
+                    )
                     f_str = f"{f_val:.4f}" if f_val is not None else ""
                     p_str = f"{pv:.4f}" if pv is not None else ""
                     # Partial eta-squared = SS_effect / (SS_effect + SS_error)
-                    if has_factors and idx != "Residual" and idx != "Intercept" and ss_residual > 0:
+                    if (
+                        has_factors
+                        and idx != "Residual"
+                        and idx != "Intercept"
+                        and ss_residual > 0
+                    ):
                         eta_p = ss / (ss + ss_residual)
                         eta_str = f"{eta_p:>7.3f}"
                     else:
                         eta_str = "" if has_factors else ""
-                    summary_text += (
-                        f"{str(idx):<30} {df_val:>5} {ss:>12.4f} {ms:>12.4f} {f_str:>10} {p_str:>10} {sig} {eta_str}\n"
-                    )
+                    summary_text += f"{str(idx):<30} {df_val:>5} {ss:>12.4f} {ms:>12.4f} {f_str:>10} {p_str:>10} {sig} {eta_str}\n"
 
                 summary_text += "\n<<COLOR:accent>>── Model Summary ──<</COLOR>>\n"
                 summary_text += f"  S (root MSE): {np.sqrt(model.mse_resid):.4f}\n"
-                summary_text += f"  R²: {model.rsquared:.4f}  Adj R²: {model.rsquared_adj:.4f}\n"
+                summary_text += (
+                    f"  R²: {model.rsquared:.4f}  Adj R²: {model.rsquared_adj:.4f}\n"
+                )
                 summary_text += f"  AIC: {model.aic:.1f}  BIC: {model.bic:.1f}\n"
 
                 # Coefficients table with CIs
@@ -2334,14 +2577,20 @@ def _run_regression(analysis_id, df, config):
                             summary_text += f"  Raw range: {raw_diff:.4f} → Adjusted range: {diff:.4f}\n"
 
                     # Homogeneity of slopes test (factor*covariate interaction significance)
-                    fxcov_terms = [f"C({f}):{c}" for f in fixed_factors for c in covariates]
+                    fxcov_terms = [
+                        f"C({f}):{c}" for f in fixed_factors for c in covariates
+                    ]
                     sig_interactions = []
                     for term in fxcov_terms:
                         for idx in anova_table.index:
-                            if term.replace("C(", "").replace(")", "") in str(idx) or str(idx) == term:
+                            if (
+                                term.replace("C(", "").replace(")", "") in str(idx)
+                                or str(idx) == term
+                            ):
                                 pv_term = (
                                     float(anova_table.loc[idx, "PR(>F)"])
-                                    if "PR(>F)" in anova_table.columns and not np.isnan(anova_table.loc[idx, "PR(>F)"])
+                                    if "PR(>F)" in anova_table.columns
+                                    and not np.isnan(anova_table.loc[idx, "PR(>F)"])
                                     else None
                                 )
                                 if pv_term is not None and pv_term < alpha:
@@ -2350,9 +2599,7 @@ def _run_regression(analysis_id, df, config):
                     if sig_interactions:
                         summary_text += "\n<<COLOR:bad>>⚠ Homogeneity of Slopes Violated:<</COLOR>>\n"
                         for term, pv in sig_interactions:
-                            summary_text += (
-                                f"  {term}: p = {pv:.4f} — slopes differ across groups. ANCOVA assumption violated.\n"
-                            )
+                            summary_text += f"  {term}: p = {pv:.4f} — slopes differ across groups. ANCOVA assumption violated.\n"
                         summary_text += "  <<COLOR:text>>Consider: separate regressions per group, or remove the covariate.<</COLOR>>\n"
                     elif has_factors and has_covariates:
                         summary_text += "\n<<COLOR:good>>Homogeneity of slopes OK — factor*covariate interactions are not significant.<</COLOR>>\n"
@@ -2414,7 +2661,9 @@ def _run_regression(analysis_id, df, config):
             # 2. Normal Q-Q Plot
             sorted_resid = np.sort(resid_vals.values)
             n_qq = len(sorted_resid)
-            theoretical_q = [float(qstats.norm.ppf((i + 0.5) / n_qq)) for i in range(n_qq)]
+            theoretical_q = [
+                float(qstats.norm.ppf((i + 0.5) / n_qq)) for i in range(n_qq)
+            ]
             result["plots"].append(
                 {
                     "title": "Normal Probability Plot of Residuals",
@@ -2430,8 +2679,10 @@ def _run_regression(analysis_id, df, config):
                         {
                             "x": [theoretical_q[0], theoretical_q[-1]],
                             "y": [
-                                theoretical_q[0] * np.std(sorted_resid) + np.mean(sorted_resid),
-                                theoretical_q[-1] * np.std(sorted_resid) + np.mean(sorted_resid),
+                                theoretical_q[0] * np.std(sorted_resid)
+                                + np.mean(sorted_resid),
+                                theoretical_q[-1] * np.std(sorted_resid)
+                                + np.mean(sorted_resid),
                             ],
                             "mode": "lines",
                             "line": {"color": "#e89547", "dash": "dash"},
@@ -2460,7 +2711,11 @@ def _run_regression(analysis_id, df, config):
                             "marker": {"color": "#4a90d9", "opacity": 0.7},
                         }
                     ],
-                    "layout": {"height": 250, "xaxis": {"title": "Residual"}, "yaxis": {"title": "Frequency"}},
+                    "layout": {
+                        "height": 250,
+                        "xaxis": {"title": "Residual"},
+                        "yaxis": {"title": "Frequency"},
+                    },
                 }
             )
 
@@ -2500,7 +2755,10 @@ def _run_regression(analysis_id, df, config):
             if fixed_factors:
                 for factor in fixed_factors:
                     levels = sorted(data[factor].unique().tolist(), key=str)
-                    means = [float(data[data[factor] == lev][response].mean()) for lev in levels]
+                    means = [
+                        float(data[data[factor] == lev][response].mean())
+                        for lev in levels
+                    ]
                     cis = [
                         1.96
                         * float(data[data[factor] == lev][response].std())
@@ -2515,7 +2773,12 @@ def _run_regression(analysis_id, df, config):
                                 {
                                     "x": [str(lvl) for lvl in levels],
                                     "y": means,
-                                    "error_y": {"type": "data", "array": cis, "visible": True, "color": "#4a90d9"},
+                                    "error_y": {
+                                        "type": "data",
+                                        "array": cis,
+                                        "visible": True,
+                                        "color": "#4a90d9",
+                                    },
                                     "mode": "lines+markers",
                                     "type": "scatter",
                                     "marker": {"color": "#4a90d9", "size": 8},
@@ -2534,7 +2797,11 @@ def _run_regression(analysis_id, df, config):
                                         "x1": len(levels) - 0.5,
                                         "y0": grand_mean,
                                         "y1": grand_mean,
-                                        "line": {"color": "#999", "dash": "dash", "width": 1},
+                                        "line": {
+                                            "color": "#999",
+                                            "dash": "dash",
+                                            "width": 1,
+                                        },
                                     }
                                 ],
                             },
@@ -2547,13 +2814,24 @@ def _run_regression(analysis_id, df, config):
                     for j in range(i + 1, len(fixed_factors)):
                         f1, f2 = fixed_factors[i], fixed_factors[j]
                         traces = []
-                        colors_int = ["#4a90d9", "#d94a4a", "#4a9f6e", "#d9a04a", "#9b59b6", "#e67e22"]
+                        colors_int = [
+                            "#4a90d9",
+                            "#d94a4a",
+                            "#4a9f6e",
+                            "#d9a04a",
+                            "#9b59b6",
+                            "#e67e22",
+                        ]
                         f2_levels = sorted(data[f2].unique().tolist(), key=str)
                         f1_levels = sorted(data[f1].unique().tolist(), key=str)
                         for ci, lev2 in enumerate(f2_levels):
                             sub = data[data[f2] == lev2]
                             means_int = [
-                                float(sub[sub[f1] == lev1][response].mean()) if len(sub[sub[f1] == lev1]) > 0 else None
+                                (
+                                    float(sub[sub[f1] == lev1][response].mean())
+                                    if len(sub[sub[f1] == lev1]) > 0
+                                    else None
+                                )
                                 for lev1 in f1_levels
                             ]
                             traces.append(
@@ -2562,8 +2840,14 @@ def _run_regression(analysis_id, df, config):
                                     "y": means_int,
                                     "mode": "lines+markers",
                                     "name": f"{f2}={lev2}",
-                                    "marker": {"color": colors_int[ci % len(colors_int)], "size": 7},
-                                    "line": {"color": colors_int[ci % len(colors_int)], "width": 2},
+                                    "marker": {
+                                        "color": colors_int[ci % len(colors_int)],
+                                        "size": 7,
+                                    },
+                                    "line": {
+                                        "color": colors_int[ci % len(colors_int)],
+                                        "width": 2,
+                                    },
                                 }
                             )
                         result["plots"].append(
@@ -2583,7 +2867,13 @@ def _run_regression(analysis_id, df, config):
                 for c in covariates:
                     for f in fixed_factors:
                         traces_cov = []
-                        colors_cov = ["#4a90d9", "#d94a4a", "#4a9f6e", "#d9a04a", "#9b59b6"]
+                        colors_cov = [
+                            "#4a90d9",
+                            "#d94a4a",
+                            "#4a9f6e",
+                            "#d9a04a",
+                            "#9b59b6",
+                        ]
                         f_levels = sorted(data[f].unique().tolist(), key=str)
                         for fi, lev in enumerate(f_levels):
                             sub = data[data[f] == lev]
@@ -2593,12 +2883,18 @@ def _run_regression(analysis_id, df, config):
                                     "y": sub[response].tolist(),
                                     "mode": "markers",
                                     "name": f"{f}={lev}",
-                                    "marker": {"color": colors_cov[fi % len(colors_cov)], "size": 5, "opacity": 0.7},
+                                    "marker": {
+                                        "color": colors_cov[fi % len(colors_cov)],
+                                        "size": 5,
+                                        "opacity": 0.7,
+                                    },
                                 }
                             )
                             # Add regression line per group
                             if len(sub) > 2:
-                                slope, intercept, _, _, _ = qstats.linregress(sub[c].values, sub[response].values)
+                                slope, intercept, _, _, _ = qstats.linregress(
+                                    sub[c].values, sub[response].values
+                                )
                                 x_line = [float(sub[c].min()), float(sub[c].max())]
                                 y_line = [intercept + slope * x for x in x_line]
                                 traces_cov.append(
@@ -2619,7 +2915,11 @@ def _run_regression(analysis_id, df, config):
                             {
                                 "title": f"Covariate Plot: {response} vs {c} by {f}",
                                 "data": traces_cov,
-                                "layout": {"height": 300, "xaxis": {"title": c}, "yaxis": {"title": response}},
+                                "layout": {
+                                    "height": 300,
+                                    "xaxis": {"title": c},
+                                    "yaxis": {"title": response},
+                                },
                             }
                         )
 
@@ -2631,9 +2931,15 @@ def _run_regression(analysis_id, df, config):
             try:
                 _r2 = float(model.rsquared)
                 _f_p = float(model.f_pvalue)
-                _sig_terms = [t for t in model.pvalues.index if model.pvalues[t] < 0.05 and t != "Intercept"]
+                _sig_terms = [
+                    t
+                    for t in model.pvalues.index
+                    if model.pvalues[t] < 0.05 and t != "Intercept"
+                ]
                 _r2_pct = _r2 * 100
-                _r2_label = "strong" if _r2 > 0.7 else "moderate" if _r2 > 0.3 else "weak"
+                _r2_label = (
+                    "strong" if _r2 > 0.7 else "moderate" if _r2 > 0.3 else "weak"
+                )
                 verdict = f"{model_label}: R² = {_r2:.3f} ({_r2_label} fit, {_r2_pct:.1f}% variance explained)"
                 body = (
                     f"The model {response} ~ {' + '.join(fixed_factors + covariates + random_factors)} "
@@ -2657,7 +2963,9 @@ def _run_regression(analysis_id, df, config):
             diagnostics = []
             # Normality of residuals
             try:
-                _norm_r = _check_normality(resid_vals.values, label="Model residuals", alpha=0.05)
+                _norm_r = _check_normality(
+                    resid_vals.values, label="Model residuals", alpha=0.05
+                )
                 if _norm_r:
                     _norm_r["detail"] = (
                         "GLM assumes normality of residuals. Non-normality may affect confidence intervals and p-values."
@@ -2688,7 +2996,9 @@ def _run_regression(analysis_id, df, config):
                 if has_random:
                     # Mixed model: use marginal R² approximation
                     _ss_resid_m = float(np.sum(resid_vals.values**2))
-                    _ss_total_m = float(np.sum((data[response].values - data[response].mean()) ** 2))
+                    _ss_total_m = float(
+                        np.sum((data[response].values - data[response].mean()) ** 2)
+                    )
                     _pseudo_r2 = 1 - _ss_resid_m / _ss_total_m if _ss_total_m > 0 else 0
                     if _pseudo_r2 > 0.7:
                         diagnostics.append(
@@ -2758,14 +3068,21 @@ def _run_regression(analysis_id, df, config):
                     for idx in anova_table.index:
                         if idx in ("Residual", "Intercept"):
                             continue
-                        if "PR(>F)" in anova_table.columns and "sum_sq" in anova_table.columns:
+                        if (
+                            "PR(>F)" in anova_table.columns
+                            and "sum_sq" in anova_table.columns
+                        ):
                             _pv = (
                                 float(anova_table.loc[idx, "PR(>F)"])
                                 if not np.isnan(anova_table.loc[idx, "PR(>F)"])
                                 else 1.0
                             )
                             _ss_eff = float(anova_table.loc[idx, "sum_sq"])
-                            _eta_p = _ss_eff / (_ss_eff + ss_residual) if (_ss_eff + ss_residual) > 0 else 0
+                            _eta_p = (
+                                _ss_eff / (_ss_eff + ss_residual)
+                                if (_ss_eff + ss_residual) > 0
+                                else 0
+                            )
                             if _eta_p > 0.14 and _pv < 0.05:
                                 diagnostics.append(
                                     {
@@ -2815,16 +3132,18 @@ def _run_regression(analysis_id, df, config):
             summary_text += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
             summary_text += f"<<COLOR:highlight>>Response:<</COLOR>> {response} ({len(categories)} ordered levels)\n"
             summary_text += f"<<COLOR:highlight>>Levels:<</COLOR>> {' < '.join(str(c) for c in categories)}\n"
-            summary_text += f"<<COLOR:highlight>>Predictors:<</COLOR>> {', '.join(predictors)}\n"
+            summary_text += (
+                f"<<COLOR:highlight>>Predictors:<</COLOR>> {', '.join(predictors)}\n"
+            )
             summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
             summary_text += "<<COLOR:accent>>── Coefficients ──<</COLOR>>\n"
-            summary_text += (
-                f"{'Parameter':<25} {'Coef':>10} {'SE':>10} {'z':>8} {'p-value':>10} {'OR':>10} {'95% CI (OR)':>20}\n"
-            )
+            summary_text += f"{'Parameter':<25} {'Coef':>10} {'SE':>10} {'z':>8} {'p-value':>10} {'OR':>10} {'95% CI (OR)':>20}\n"
             summary_text += f"{'─' * 97}\n"
 
-            param_names = list(predictors) + [f"threshold_{i}" for i in range(len(categories) - 1)]
+            param_names = list(predictors) + [
+                f"threshold_{i}" for i in range(len(categories) - 1)
+            ]
             for i, name in enumerate(param_names):
                 if i < len(fit.params):
                     coef = float(fit.params[i])
@@ -2836,14 +3155,16 @@ def _run_regression(analysis_id, df, config):
                     p_str = f"{pv:.4f}" if pv else "N/A"
                     or_str = f"{odds_ratio:.4f}" if odds_ratio else ""
                     ci_str = (
-                        f"[{np.exp(coef - 1.96 * se):.4f}, {np.exp(coef + 1.96 * se):.4f}]" if odds_ratio and se else ""
+                        f"[{np.exp(coef - 1.96 * se):.4f}, {np.exp(coef + 1.96 * se):.4f}]"
+                        if odds_ratio and se
+                        else ""
                     )
-                    summary_text += (
-                        f"{name:<25} {coef:>10.4f} {se_str:>10} {z:>8.2f} {p_str:>10} {or_str:>10} {ci_str:>20}\n"
-                    )
+                    summary_text += f"{name:<25} {coef:>10.4f} {se_str:>10} {z:>8.2f} {p_str:>10} {or_str:>10} {ci_str:>20}\n"
 
             if hasattr(fit, "llf"):
-                summary_text += f"\n<<COLOR:accent>>── Log-Likelihood ──<</COLOR>> {fit.llf:.2f}\n"
+                summary_text += (
+                    f"\n<<COLOR:accent>>── Log-Likelihood ──<</COLOR>> {fit.llf:.2f}\n"
+                )
             if hasattr(fit, "aic"):
                 summary_text += f"<<COLOR:accent>>── AIC ──<</COLOR>> {fit.aic:.2f}\n"
 
@@ -2851,7 +3172,11 @@ def _run_regression(analysis_id, df, config):
 
             # Predicted probabilities for first predictor
             if len(predictors) >= 1:
-                x_range = np.linspace(float(data[predictors[0]].min()), float(data[predictors[0]].max()), 100)
+                x_range = np.linspace(
+                    float(data[predictors[0]].min()),
+                    float(data[predictors[0]].max()),
+                    100,
+                )
                 X_pred = np.zeros((100, len(predictors)))
                 X_pred[:, 0] = x_range
                 for j in range(1, len(predictors)):
@@ -2861,21 +3186,30 @@ def _run_regression(analysis_id, df, config):
                 traces = []
                 colors_cat = ["#4a90d9", "#d9a04a", "#4a9f6e", "#d94a4a", "#9b59b6"]
                 for ci, cat in enumerate(categories):
-                    col_idx = ci if ci < pred_probs.shape[1] else pred_probs.shape[1] - 1
+                    col_idx = (
+                        ci if ci < pred_probs.shape[1] else pred_probs.shape[1] - 1
+                    )
                     traces.append(
                         {
                             "x": x_range.tolist(),
                             "y": pred_probs[:, col_idx].tolist(),
                             "mode": "lines",
                             "name": str(cat),
-                            "line": {"color": colors_cat[ci % len(colors_cat)], "width": 2},
+                            "line": {
+                                "color": colors_cat[ci % len(colors_cat)],
+                                "width": 2,
+                            },
                         }
                     )
                 result["plots"].append(
                     {
                         "title": f"Predicted Probabilities by {predictors[0]}",
                         "data": traces,
-                        "layout": {"height": 300, "xaxis": {"title": predictors[0]}, "yaxis": {"title": "Probability"}},
+                        "layout": {
+                            "height": 300,
+                            "xaxis": {"title": predictors[0]},
+                            "yaxis": {"title": "Probability"},
+                        },
                     }
                 )
 

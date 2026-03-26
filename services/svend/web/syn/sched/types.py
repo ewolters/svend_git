@@ -400,7 +400,11 @@ class TaskContext:
         Score formula: (confidence * 0.3) + (urgency * 0.4) + ((1 - governance_risk) * 0.3)
         Higher score = higher priority.
         """
-        self.priority_score = self.confidence_score * 0.3 + self.urgency * 0.4 + (1 - self.governance_risk) * 0.3
+        self.priority_score = (
+            self.confidence_score * 0.3
+            + self.urgency * 0.4
+            + (1 - self.governance_risk) * 0.3
+        )
 
     def increment_attempt(self) -> None:
         """Increment attempt counter."""
@@ -434,7 +438,9 @@ class TaskContext:
             "resource_weight": self.resource_weight,
             "priority_score": self.priority_score,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "scheduled_at": self.scheduled_at.isoformat() if self.scheduled_at else None,
+            "scheduled_at": (
+                self.scheduled_at.isoformat() if self.scheduled_at else None
+            ),
             "deadline": self.deadline.isoformat() if self.deadline else None,
             "attempts": self.attempts,
             "max_attempts": self.max_attempts,

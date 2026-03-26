@@ -36,7 +36,15 @@ class TenantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tenant
-        fields = ["id", "name", "slug", "plan", "member_count", "is_active", "created_at"]
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "plan",
+            "member_count",
+            "is_active",
+            "created_at",
+        ]
         read_only_fields = ["id", "created_at"]
 
 
@@ -94,7 +102,14 @@ class KnowledgeGraphSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = KnowledgeGraph
-        fields = ["id", "name", "description", "entity_count", "relationship_count", "created_at"]
+        fields = [
+            "id",
+            "name",
+            "description",
+            "entity_count",
+            "relationship_count",
+            "created_at",
+        ]
         read_only_fields = ["id", "created_at"]
 
 
@@ -150,7 +165,9 @@ class EvidenceSerializer(serializers.ModelSerializer):
 
 class EvidenceLinkSerializer(serializers.ModelSerializer):
     evidence_summary = serializers.CharField(source="evidence.summary", read_only=True)
-    evidence_source = serializers.CharField(source="evidence.source_type", read_only=True)
+    evidence_source = serializers.CharField(
+        source="evidence.source_type", read_only=True
+    )
     strength_description = serializers.CharField(source="strength", read_only=True)
 
     class Meta:
@@ -216,7 +233,14 @@ class HypothesisSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "current_probability", "probability_history", "odds", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "current_probability",
+            "probability_history",
+            "odds",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class HypothesisDetailSerializer(HypothesisSerializer):
@@ -259,7 +283,13 @@ class DatasetSerializer(serializers.ModelSerializer):
             "updated_at",
             "size_display",
         ]
-        read_only_fields = ["id", "file_url", "created_at", "updated_at", "size_display"]
+        read_only_fields = [
+            "id",
+            "file_url",
+            "created_at",
+            "updated_at",
+            "size_display",
+        ]
 
     def get_file_url(self, obj):
         if obj.file:
@@ -311,7 +341,9 @@ class ExperimentDesignSerializer(serializers.ModelSerializer):
 
 class ExperimentDesignDetailSerializer(ExperimentDesignSerializer):
     result_datasets = DatasetSerializer(many=True, read_only=True)
-    hypothesis_statement = serializers.CharField(source="hypothesis.statement", read_only=True)
+    hypothesis_statement = serializers.CharField(
+        source="hypothesis.statement", read_only=True
+    )
 
     class Meta(ExperimentDesignSerializer.Meta):
         fields = ExperimentDesignSerializer.Meta.fields + [
@@ -424,7 +456,13 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "resolved_at",
         ]
-        read_only_fields = ["id", "phase_history", "created_at", "updated_at", "resolved_at"]
+        read_only_fields = [
+            "id",
+            "phase_history",
+            "created_at",
+            "updated_at",
+            "resolved_at",
+        ]
 
     def get_dataset_count(self, obj):
         return obj.datasets.count()
@@ -483,7 +521,9 @@ class CreateEvidenceFromAnalysisSerializer(serializers.Serializer):
 
     # Evidence details
     summary = serializers.CharField(max_length=500)
-    analysis_type = serializers.CharField(max_length=100)  # "regression", "classification", "correlation", etc.
+    analysis_type = serializers.CharField(
+        max_length=100
+    )  # "regression", "classification", "correlation", etc.
 
     # Analysis results
     results = serializers.JSONField()

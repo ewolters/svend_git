@@ -6,18 +6,28 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('audit', '0003_add_change_management_models'),
+        ("audit", "0003_add_change_management_models"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='compliancecheck',
-            name='remediation_change_id',
-            field=models.UUIDField(blank=True, db_index=True, help_text='UUID of the ChangeRequest that remediates this finding (CHG-001 §8.4)', null=True),
+            model_name="compliancecheck",
+            name="remediation_change_id",
+            field=models.UUIDField(
+                blank=True,
+                db_index=True,
+                help_text="UUID of the ChangeRequest that remediates this finding (CHG-001 §8.4)",
+                null=True,
+            ),
         ),
         migrations.AddField(
-            model_name='driftviolation',
-            name='remediation_change_id',
-            field=models.UUIDField(blank=True, db_index=True, help_text='UUID of the ChangeRequest that remediates this violation (CHG-001 §8.4)', null=True),
+            model_name="driftviolation",
+            name="remediation_change_id",
+            field=models.UUIDField(
+                blank=True,
+                db_index=True,
+                help_text="UUID of the ChangeRequest that remediates this violation (CHG-001 §8.4)",
+                null=True,
+            ),
         ),
     ]

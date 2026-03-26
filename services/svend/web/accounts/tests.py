@@ -44,7 +44,9 @@ PAID_TIERS = [Tier.FOUNDER, Tier.PRO, Tier.TEAM, Tier.ENTERPRISE]
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     """Create a test user at the given tier."""
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=password, **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -89,7 +91,9 @@ class TierConstantsTest(TestCase):
     def test_tier_features_has_entry_for_each_tier(self):
         """TIER_FEATURES has an entry for every Tier enum value with feature mappings."""
         for tier in ALL_TIERS:
-            self.assertIn(tier, TIER_FEATURES, f"TIER_FEATURES missing entry for {tier}")
+            self.assertIn(
+                tier, TIER_FEATURES, f"TIER_FEATURES missing entry for {tier}"
+            )
             self.assertIsInstance(TIER_FEATURES[tier], (dict, list, set, tuple))
             self.assertGreater(len(TIER_FEATURES[tier]), 0)
 
@@ -251,7 +255,9 @@ class PermissionDecoratorTest(TestCase):
         # Error may be in envelope format or direct
         err = data.get("error", data)
         if isinstance(err, dict):
-            self.assertIn("rate_limit", err.get("code", "") + err.get("message", "").lower())
+            self.assertIn(
+                "rate_limit", err.get("code", "") + err.get("message", "").lower()
+            )
         else:
             self.assertIn("limit", str(err).lower())
 
@@ -266,7 +272,9 @@ class PermissionDecoratorTest(TestCase):
         data = res.json()
         err = data.get("error", data)
         if isinstance(err, dict):
-            self.assertIn("upgrade", (err.get("message", "") + err.get("code", "")).lower())
+            self.assertIn(
+                "upgrade", (err.get("message", "") + err.get("code", "")).lower()
+            )
         else:
             self.assertIn("upgrade", str(err).lower())
 
@@ -542,7 +550,9 @@ class TierGatingScenarioTest(TestCase):
         # Use all 5 queries (FREE limit)
         for i in range(TIER_LIMITS[Tier.FREE]):
             user.refresh_from_db()
-            self.assertTrue(user.can_query(), f"Should be able to query (attempt {i + 1})")
+            self.assertTrue(
+                user.can_query(), f"Should be able to query (attempt {i + 1})"
+            )
             user.increment_queries()
 
         # Should be blocked now
@@ -691,10 +701,14 @@ class BillingViewTest(TestCase):
 
     @patch("accounts.billing.stripe.checkout.Session.create")
     @patch("accounts.billing.get_or_create_stripe_customer")
-    def test_checkout_creates_session_for_valid_plan(self, mock_get_customer, mock_session_create):
+    def test_checkout_creates_session_for_valid_plan(
+        self, mock_get_customer, mock_session_create
+    ):
         """GET /billing/checkout/?plan=pro creates a Stripe session and redirects to it."""
         mock_get_customer.return_value = "cus_test_123"
-        mock_session_create.return_value = type("Session", (), {"url": "https://checkout.stripe.com/test_session"})()
+        mock_session_create.return_value = type(
+            "Session", (), {"url": "https://checkout.stripe.com/test_session"}
+        )()
 
         self.client.force_login(self.user)
         resp = self.client.get("/billing/checkout/?plan=pro")
@@ -715,10 +729,14 @@ class BillingViewTest(TestCase):
 
     @patch("accounts.billing.stripe.checkout.Session.create")
     @patch("accounts.billing.get_or_create_stripe_customer")
-    def test_checkout_team_plan_includes_trial(self, mock_get_customer, mock_session_create):
+    def test_checkout_team_plan_includes_trial(
+        self, mock_get_customer, mock_session_create
+    ):
         """GET /billing/checkout/?plan=team should include 14-day trial."""
         mock_get_customer.return_value = "cus_test_456"
-        mock_session_create.return_value = type("Session", (), {"url": "https://checkout.stripe.com/test"})()
+        mock_session_create.return_value = type(
+            "Session", (), {"url": "https://checkout.stripe.com/test"}
+        )()
 
         self.client.force_login(self.user)
         resp = self.client.get("/billing/checkout/?plan=team")
@@ -733,7 +751,9 @@ class BillingViewTest(TestCase):
     def test_checkout_pro_plan_no_trial(self, mock_get_customer, mock_session_create):
         """GET /billing/checkout/?plan=pro should NOT include trial period."""
         mock_get_customer.return_value = "cus_test_789"
-        mock_session_create.return_value = type("Session", (), {"url": "https://checkout.stripe.com/test"})()
+        mock_session_create.return_value = type(
+            "Session", (), {"url": "https://checkout.stripe.com/test"}
+        )()
 
         self.client.force_login(self.user)
         self.client.get("/billing/checkout/?plan=pro")
@@ -768,7 +788,9 @@ class BillingViewTest(TestCase):
         self.user.stripe_customer_id = "cus_existing_123"
         self.user.save(update_fields=["stripe_customer_id"])
 
-        mock_portal_create.return_value = type("Session", (), {"url": "https://billing.stripe.com/portal_test"})()
+        mock_portal_create.return_value = type(
+            "Session", (), {"url": "https://billing.stripe.com/portal_test"}
+        )()
 
         self.client.force_login(self.user)
         resp = self.client.get("/billing/portal/")
@@ -809,7 +831,9 @@ class BillingViewTest(TestCase):
 
     @patch("accounts.billing.sync_subscription_from_stripe")
     @patch("accounts.billing.stripe.Webhook.construct_event")
-    def test_webhook_checkout_completed_syncs_subscription(self, mock_construct, mock_sync):
+    def test_webhook_checkout_completed_syncs_subscription(
+        self, mock_construct, mock_sync
+    ):
         """Valid checkout.session.completed webhook triggers subscription sync."""
         mock_construct.return_value = {
             "type": "checkout.session.completed",
@@ -1033,10 +1057,14 @@ class BillingViewTest(TestCase):
 
     @patch("accounts.billing.stripe.checkout.Session.create")
     @patch("accounts.billing.get_or_create_stripe_customer")
-    def test_checkout_with_region_uses_regional_price(self, mock_get_customer, mock_session_create):
+    def test_checkout_with_region_uses_regional_price(
+        self, mock_get_customer, mock_session_create
+    ):
         """GET /billing/checkout/?plan=pro&region=in uses Indian pricing."""
         mock_get_customer.return_value = "cus_regional"
-        mock_session_create.return_value = type("Session", (), {"url": "https://checkout.stripe.com/regional"})()
+        mock_session_create.return_value = type(
+            "Session", (), {"url": "https://checkout.stripe.com/regional"}
+        )()
 
         self.client.force_login(self.user)
         resp = self.client.get("/billing/checkout/?plan=pro&region=in")

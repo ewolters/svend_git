@@ -66,7 +66,9 @@ def generate_embedding(text: str) -> np.ndarray | None:
         return None
 
 
-def generate_rca_embedding(event: str, chain: list, root_cause: str = "") -> np.ndarray | None:
+def generate_rca_embedding(
+    event: str, chain: list, root_cause: str = ""
+) -> np.ndarray | None:
     """Generate embedding for an RCA session.
 
     Combines event description, causal chain claims, and root cause

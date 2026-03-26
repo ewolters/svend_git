@@ -8,25 +8,44 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0010_board_project_link'),
+        ("agents_api", "0010_board_project_link"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='LLMUsage',
+            name="LLMUsage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField(db_index=True)),
-                ('model', models.CharField(max_length=50)),
-                ('request_count', models.IntegerField(default=0)),
-                ('input_tokens', models.IntegerField(default=0)),
-                ('output_tokens', models.IntegerField(default=0)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='llm_usage', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateField(db_index=True)),
+                ("model", models.CharField(max_length=50)),
+                ("request_count", models.IntegerField(default=0)),
+                ("input_tokens", models.IntegerField(default=0)),
+                ("output_tokens", models.IntegerField(default=0)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="llm_usage",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'indexes': [models.Index(fields=['user', 'date'], name='agents_api__user_id_e0d904_idx')],
-                'unique_together': {('user', 'date', 'model')},
+                "indexes": [
+                    models.Index(
+                        fields=["user", "date"], name="agents_api__user_id_e0d904_idx"
+                    )
+                ],
+                "unique_together": {("user", "date", "model")},
             },
         ),
     ]

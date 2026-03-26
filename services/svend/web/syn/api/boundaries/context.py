@@ -154,7 +154,9 @@ class BoundaryContext:
         if hasattr(request, "user") and request.user.is_authenticated:
             user_id = getattr(request.user, "id", None)
             if user_id:
-                user_id = UUID(str(user_id)) if not isinstance(user_id, UUID) else user_id
+                user_id = (
+                    UUID(str(user_id)) if not isinstance(user_id, UUID) else user_id
+                )
 
         # Extract request metadata
         request_ip = cls._get_client_ip(request)
@@ -193,7 +195,9 @@ class BoundaryContext:
             "user_agent": self.user_agent,
             "metadata": self.metadata,
             "timestamp": self.timestamp.isoformat(),
-            "parent_correlation_id": str(self.parent_correlation_id) if self.parent_correlation_id else None,
+            "parent_correlation_id": (
+                str(self.parent_correlation_id) if self.parent_correlation_id else None
+            ),
         }
 
     def to_audit_payload(self) -> dict[str, Any]:

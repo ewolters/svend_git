@@ -88,7 +88,10 @@ def control_chart(request):
         elif chart_type == "X-bar R":
             # X-bar and R (subgroups)
             if not isinstance(data[0], list):
-                return JsonResponse({"error": "X-bar R chart requires subgroup data (array of arrays)"}, status=400)
+                return JsonResponse(
+                    {"error": "X-bar R chart requires subgroup data (array of arrays)"},
+                    status=400,
+                )
             result = spc.xbar_r_chart(data, usl=usl, lsl=lsl)
 
         elif chart_type == "p":
@@ -97,13 +100,19 @@ def control_chart(request):
             if not sample_sizes:
                 return JsonResponse({"error": "p-chart requires sample_sizes"}, status=400)
             if not isinstance(data[0], (int, float)):
-                return JsonResponse({"error": "p-chart requires defective counts as flat array"}, status=400)
+                return JsonResponse(
+                    {"error": "p-chart requires defective counts as flat array"},
+                    status=400,
+                )
             result = spc.p_chart([int(d) for d in data], [int(s) for s in sample_sizes])
 
         elif chart_type == "c":
             # c-chart for defect counts
             if not isinstance(data[0], (int, float)):
-                return JsonResponse({"error": "c-chart requires defect counts as flat array"}, status=400)
+                return JsonResponse(
+                    {"error": "c-chart requires defect counts as flat array"},
+                    status=400,
+                )
             result = spc.c_chart([int(d) for d in data])
 
         elif chart_type == "T-squared":
@@ -370,7 +379,10 @@ def _build_capability_response(data, cap):
             "x": [float(v) for v in data],
             "histnorm": "probability density",
             "name": "Observed",
-            "marker": {"color": "rgba(74, 159, 110, 0.35)", "line": {"color": "#4a9f6e", "width": 1}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.35)",
+                "line": {"color": "#4a9f6e", "width": 1},
+            },
         },
         {
             "type": "scatter",
@@ -487,7 +499,12 @@ def _build_capability_response(data, cap):
                 "shapes": shapes_h,
                 "annotations": annotations_h,
                 "showlegend": True,
-                "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
+                "legend": {
+                    "x": 1,
+                    "xanchor": "right",
+                    "y": 1,
+                    "bgcolor": "rgba(0,0,0,0)",
+                },
                 "margin": {"t": 40, "r": 20},
                 "xaxis": {"title": "Measurement"},
                 "yaxis": {"title": "Density"},
@@ -508,7 +525,10 @@ def _build_capability_response(data, cap):
             "base": [lsl],
             "orientation": "h",
             "name": "Spec Range",
-            "marker": {"color": "rgba(232, 87, 71, 0.15)", "line": {"color": "#e85747", "width": 1.5}},
+            "marker": {
+                "color": "rgba(232, 87, 71, 0.15)",
+                "line": {"color": "#e85747", "width": 1.5},
+            },
             "width": [0.5],
         },
         {
@@ -518,7 +538,10 @@ def _build_capability_response(data, cap):
             "base": [spread_lo],
             "orientation": "h",
             "name": "Process \u00b13\u03c3",
-            "marker": {"color": "rgba(74, 159, 110, 0.25)", "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.25)",
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
             "width": [0.3],
         },
     ]
@@ -612,8 +635,16 @@ def _build_capability_response(data, cap):
                 "shapes": spread_shapes,
                 "annotations": spread_annot,
                 "showlegend": True,
-                "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
-                "xaxis": {"range": [min(lsl, spread_lo) - pad, max(usl, spread_hi) + pad], "title": "Measurement"},
+                "legend": {
+                    "x": 1,
+                    "xanchor": "right",
+                    "y": 1,
+                    "bgcolor": "rgba(0,0,0,0)",
+                },
+                "xaxis": {
+                    "range": [min(lsl, spread_lo) - pad, max(usl, spread_hi) + pad],
+                    "title": "Measurement",
+                },
                 "yaxis": {"visible": False, "range": [-0.5, 0.5]},
                 "margin": {"t": 35, "b": 45, "l": 20, "r": 20},
             },
@@ -768,7 +799,10 @@ def upload_data(request):
     # Validate file type
     ext = filename.lower().split(".")[-1]
     if ext not in ["xlsx", "xls", "csv"]:
-        return JsonResponse({"error": "Unsupported file type. Please upload .xlsx, .xls, or .csv"}, status=400)
+        return JsonResponse(
+            {"error": "Unsupported file type. Please upload .xlsx, .xls, or .csv"},
+            status=400,
+        )
 
     try:
         # Save to temp file for parsing
@@ -810,7 +844,10 @@ def upload_data(request):
 
     except Exception:
         logger.exception("File upload error")
-        return JsonResponse({"error": "File upload failed. Please check file size and format."}, status=500)
+        return JsonResponse(
+            {"error": "File upload failed. Please check file size and format."},
+            status=500,
+        )
 
 
 @require_http_methods(["POST"])
@@ -1025,7 +1062,10 @@ def gage_rr(request):
         cache_key = body.get("cache_key")
         if cache_key:
             if cache_key not in _parsed_data_cache:
-                return JsonResponse({"error": "Data not found. Please upload the file again."}, status=400)
+                return JsonResponse(
+                    {"error": "Data not found. Please upload the file again."},
+                    status=400,
+                )
 
             parsed = _parsed_data_cache[cache_key]
             part_col = body.get("part_column")
@@ -1034,12 +1074,16 @@ def gage_rr(request):
 
             if not all([part_col, op_col, meas_col]):
                 return JsonResponse(
-                    {"error": "part_column, operator_column, and measurement_column are required"}, status=400
+                    {"error": "part_column, operator_column, and measurement_column are required"},
+                    status=400,
                 )
 
             for col in [part_col, op_col, meas_col]:
                 if col not in parsed.data:
-                    return JsonResponse({"error": f"Column '{col}' not found in uploaded data"}, status=400)
+                    return JsonResponse(
+                        {"error": f"Column '{col}' not found in uploaded data"},
+                        status=400,
+                    )
 
             # Build parallel arrays, skipping rows with missing values
             parts_list = []
@@ -1233,7 +1277,14 @@ def _spc_fmea_hook(user, fmea_row_id, ooc_count, total_points):
     row.occurrence = new_occ
     row.save()
 
-    logger.info("SPC FMEA hook: row %s occurrence %d→%d, RPN %d→%d", fmea_row_id, old_occ, new_occ, old_rpn, row.rpn)
+    logger.info(
+        "SPC FMEA hook: row %s occurrence %d→%d, RPN %d→%d",
+        fmea_row_id,
+        old_occ,
+        new_occ,
+        old_rpn,
+        row.rpn,
+    )
 
     return {
         "row_id": str(row.id),
@@ -1246,7 +1297,12 @@ def _spc_fmea_hook(user, fmea_row_id, ooc_count, total_points):
 
 
 def _spc_connect_investigation(
-    request, investigation_id, event_description, tool_type="spc", sample_size=None, measurement_system_id=None
+    request,
+    investigation_id,
+    event_description,
+    tool_type="spc",
+    sample_size=None,
+    measurement_system_id=None,
 ):
     """Connect SPC output to an investigation via the bridge (CANON-002 §12).
 
@@ -1319,7 +1375,81 @@ def _spc_evidence_hook(user, project_id, chart_type, ooc_count, total_points, cl
     )
 
     if evidence:
-        logger.info("SPC evidence hook: created evidence %s for project %s", evidence.id, project_id)
+        logger.info(
+            "SPC evidence hook: created evidence %s for project %s",
+            evidence.id,
+            project_id,
+        )
         return {"evidence_id": str(evidence.id), "summary": summary}
 
     return None
+
+
+# ── Measurement System / Gage Study Persistence ─────────────────────────
+
+
+@require_http_methods(["POST"])
+@require_auth
+def save_gage_study(request):
+    """Save Gage R&R results to a MeasurementSystem + GageStudy.
+
+    Creates or retrieves a MeasurementSystem by name for the user,
+    then creates a GageStudy with the provided results.
+    Auto-quarantine logic in GageStudy.save() handles %GRR > 30%.
+    """
+    from django.utils import timezone
+
+    from core.models.measurement import GageStudy, MeasurementSystem
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    name = (data.get("name") or "").strip()
+    if not name:
+        return JsonResponse({"error": "name is required"}, status=400)
+
+    grr_percent = data.get("grr_percent")
+    ndc = data.get("ndc")
+    study_type_str = data.get("study_type", "GRR_CROSSED")
+
+    # Map study type
+    study_type_map = {
+        "GRR_CROSSED": GageStudy.StudyType.GRR_CROSSED,
+        "GRR_NESTED": GageStudy.StudyType.GRR_NESTED,
+        "GRR_BAYESIAN": GageStudy.StudyType.GRR_CROSSED,  # Bayesian uses crossed model
+        "ATTRIBUTE_AGREEMENT": GageStudy.StudyType.ATTRIBUTE_AGREEMENT,
+    }
+    study_type = study_type_map.get(study_type_str, GageStudy.StudyType.GRR_CROSSED)
+
+    # Get or create the measurement system
+    ms, created = MeasurementSystem.objects.get_or_create(
+        name=name,
+        owner=request.user,
+        defaults={
+            "system_type": MeasurementSystem.SystemType.VARIABLE,
+            "status": MeasurementSystem.Status.ACTIVE,
+        },
+    )
+
+    # Create the gage study
+    study = GageStudy.objects.create(
+        measurement_system=ms,
+        study_type=study_type,
+        completed_at=timezone.now(),
+        grr_percent=float(grr_percent) if grr_percent is not None else None,
+        ndc=int(ndc) if ndc is not None else None,
+    )
+
+    return JsonResponse(
+        {
+            "id": str(study.id),
+            "system_id": str(ms.id),
+            "system_name": ms.name,
+            "system_status": ms.status,
+            "validity": study.measurement_validity,
+            "quarantined": ms.status == MeasurementSystem.Status.QUARANTINED,
+        },
+        status=201,
+    )

@@ -20,9 +20,11 @@ except ImportError:
             func.delay = lambda *a, **kw: None
             func.apply_async = lambda *a, **kw: None
             return func
+
         if args and callable(args[0]):
             return decorator(args[0])
         return decorator
+
 
 from syn.core.secrets import SecretStore, rotate_secret
 
@@ -83,7 +85,11 @@ def rotate_secrets_auto(self):
             failed += 1
             logger.error(
                 f"Failed to rotate secret: {secret.name}",
-                extra={"secret_name": secret.name, "tenant_id": secret.tenant_id, "error": str(e)},
+                extra={
+                    "secret_name": secret.name,
+                    "tenant_id": secret.tenant_id,
+                    "error": str(e),
+                },
                 exc_info=True,
             )
 
@@ -95,7 +101,9 @@ def rotate_secrets_auto(self):
         "timestamp": timezone.now().isoformat(),
     }
 
-    logger.info(f"Secret rotation complete: {rotated} rotated, {failed} failed, {skipped} skipped")
+    logger.info(
+        f"Secret rotation complete: {rotated} rotated, {failed} failed, {skipped} skipped"
+    )
 
     return result
 
@@ -134,20 +142,32 @@ def check_secret_expiration(self):
 
     for secret in secrets:
         if secret.last_rotated_at:
-            next_rotation = secret.last_rotated_at + timedelta(days=secret.rotation_schedule_days)
+            next_rotation = secret.last_rotated_at + timedelta(
+                days=secret.rotation_schedule_days
+            )
         else:
-            next_rotation = secret.created_at + timedelta(days=secret.rotation_schedule_days)
+            next_rotation = secret.created_at + timedelta(
+                days=secret.rotation_schedule_days
+            )
 
         if next_rotation <= warning_threshold:
             days_until = (next_rotation - timezone.now()).days
             expiring_soon.append(
-                {"name": secret.name, "tenant_id": secret.tenant_id, "days_until_rotation": days_until}
+                {
+                    "name": secret.name,
+                    "tenant_id": secret.tenant_id,
+                    "days_until_rotation": days_until,
+                }
             )
 
             if days_until <= 0:
                 logger.warning(
                     f"Secret overdue for rotation: {secret.name}",
-                    extra={"secret_name": secret.name, "tenant_id": secret.tenant_id, "days_overdue": abs(days_until)},
+                    extra={
+                        "secret_name": secret.name,
+                        "tenant_id": secret.tenant_id,
+                        "days_overdue": abs(days_until),
+                    },
                 )
             else:
                 logger.info(
@@ -159,6 +179,10 @@ def check_secret_expiration(self):
                     },
                 )
 
-    result = {"expiring_soon": expiring_soon, "count": len(expiring_soon), "timestamp": timezone.now().isoformat()}
+    result = {
+        "expiring_soon": expiring_soon,
+        "count": len(expiring_soon),
+        "timestamp": timezone.now().isoformat(),
+    }
 
     return result

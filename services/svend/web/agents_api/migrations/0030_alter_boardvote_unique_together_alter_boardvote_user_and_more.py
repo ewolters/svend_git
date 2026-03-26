@@ -10,52 +10,100 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0029_encrypt_existing_data'),
+        ("agents_api", "0029_encrypt_existing_data"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AlterUniqueTogether(
-            name='boardvote',
+            name="boardvote",
             unique_together=set(),
         ),
         migrations.AlterField(
-            model_name='boardvote',
-            name='user',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='board_votes', to=settings.AUTH_USER_MODEL),
+            model_name="boardvote",
+            name="user",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="board_votes",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.CreateModel(
-            name='BoardGuestInvite',
+            name="BoardGuestInvite",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('token', models.CharField(db_index=True, max_length=64, unique=True)),
-                ('display_name', models.CharField(blank=True, max_length=100)),
-                ('permission', models.CharField(choices=[('view', 'View Only'), ('edit', 'Edit'), ('edit_vote', 'Edit + Vote')], default='view', max_length=10)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('expires_at', models.DateTimeField()),
-                ('is_active', models.BooleanField(default=True)),
-                ('color', models.CharField(default='#ff7eb9', max_length=7)),
-                ('last_seen', models.DateTimeField(blank=True, null=True)),
-                ('cursor_x', models.FloatField(blank=True, null=True)),
-                ('cursor_y', models.FloatField(blank=True, null=True)),
-                ('board', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='guest_invites', to='agents_api.board')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("token", models.CharField(db_index=True, max_length=64, unique=True)),
+                ("display_name", models.CharField(blank=True, max_length=100)),
+                (
+                    "permission",
+                    models.CharField(
+                        choices=[
+                            ("view", "View Only"),
+                            ("edit", "Edit"),
+                            ("edit_vote", "Edit + Vote"),
+                        ],
+                        default="view",
+                        max_length=10,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("expires_at", models.DateTimeField()),
+                ("is_active", models.BooleanField(default=True)),
+                ("color", models.CharField(default="#ff7eb9", max_length=7)),
+                ("last_seen", models.DateTimeField(blank=True, null=True)),
+                ("cursor_x", models.FloatField(blank=True, null=True)),
+                ("cursor_y", models.FloatField(blank=True, null=True)),
+                (
+                    "board",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="guest_invites",
+                        to="agents_api.board",
+                    ),
+                ),
             ],
         ),
         migrations.AddField(
-            model_name='boardvote',
-            name='guest_invite',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='votes', to='agents_api.boardguestinvite'),
+            model_name="boardvote",
+            name="guest_invite",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="votes",
+                to="agents_api.boardguestinvite",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='boardvote',
-            constraint=models.UniqueConstraint(condition=models.Q(('user__isnull', False)), fields=('board', 'user', 'element_id'), name='unique_user_vote'),
+            model_name="boardvote",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("user__isnull", False)),
+                fields=("board", "user", "element_id"),
+                name="unique_user_vote",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='boardvote',
-            constraint=models.UniqueConstraint(condition=models.Q(('guest_invite__isnull', False)), fields=('board', 'guest_invite', 'element_id'), name='unique_guest_vote'),
+            model_name="boardvote",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("guest_invite__isnull", False)),
+                fields=("board", "guest_invite", "element_id"),
+                name="unique_guest_vote",
+            ),
         ),
         migrations.AddIndex(
-            model_name='boardguestinvite',
-            index=models.Index(fields=['board', 'is_active'], name='agents_api__board_i_4bf1ad_idx'),
+            model_name="boardguestinvite",
+            index=models.Index(
+                fields=["board", "is_active"], name="agents_api__board_i_4bf1ad_idx"
+            ),
         ),
     ]

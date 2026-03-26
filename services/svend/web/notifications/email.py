@@ -24,6 +24,7 @@ def _notification_action_url(token_value):
 def _notification_type_unsub_url(user, notification_type):
     """Build a signed URL for per-type unsubscribe."""
     from django.core.signing import Signer
+
     signer = Signer(salt="ntf-type-unsub")
     signed = signer.sign(f"{user.id}:{notification_type}")
     return f"https://svend.ai/api/notifications/unsubscribe/?token={signed}"
@@ -53,15 +54,15 @@ def build_notification_email(notification, token):
     # Action button
     body_parts.append(
         f"<p style='margin:24px 0;'>"
-        f"<a href=\"{action_url}\" style=\"display:inline-block;padding:12px 24px;"
+        f'<a href="{action_url}" style="display:inline-block;padding:12px 24px;'
         f"background:#4a9f6e;color:#fff;text-decoration:none;border-radius:6px;"
-        f"font-weight:600;\">Acknowledge</a></p>"
+        f'font-weight:600;">Acknowledge</a></p>'
     )
 
     # Per-type unsubscribe
     body_parts.append(
         f"<p style='margin:16px 0 0;font-size:12px;color:#7a8f7a;'>"
-        f"<a href=\"{type_unsub_url}\" style=\"color:#7a8f7a;\">"
+        f'<a href="{type_unsub_url}" style="color:#7a8f7a;">'
         f"Stop receiving {notification.get_notification_type_display()} emails</a></p>"
     )
 
@@ -101,13 +102,13 @@ def build_digest_email(user, notifications_with_tokens, period):
                 f"<br><span style='color:#555;font-size:13px;'>{notif.message}</span>"
             )
         body_parts.append(
-            f"<br><a href=\"{action_url}\" style=\"color:#4a9f6e;font-size:13px;\">Acknowledge</a>"
+            f'<br><a href="{action_url}" style="color:#4a9f6e;font-size:13px;">Acknowledge</a>'
             f"</div>"
         )
 
     body_parts.append(
         "<p style='margin:16px 0;'>"
-        "<a href=\"https://svend.ai/app/\" style=\"color:#4a9f6e;\">View all in Svend</a></p>"
+        '<a href="https://svend.ai/app/" style="color:#4a9f6e;">View all in Svend</a></p>'
     )
 
     body_html = "\n".join(body_parts)

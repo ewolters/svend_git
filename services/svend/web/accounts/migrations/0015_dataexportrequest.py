@@ -9,30 +9,71 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0014_loginattempt_user_email_verification_token_sent_at'),
+        ("accounts", "0014_loginattempt_user_email_verification_token_sent_at"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='DataExportRequest',
+            name="DataExportRequest",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('processing', 'Processing'), ('completed', 'Completed'), ('failed', 'Failed'), ('expired', 'Expired'), ('cancelled', 'Cancelled')], default='pending', max_length=20)),
-                ('export_format', models.CharField(choices=[('json', 'JSON')], default='json', max_length=10)),
-                ('file_path', models.CharField(blank=True, max_length=500)),
-                ('file_size_bytes', models.BigIntegerField(blank=True, null=True)),
-                ('error_message', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('processing_started_at', models.DateTimeField(blank=True, null=True)),
-                ('completed_at', models.DateTimeField(blank=True, null=True)),
-                ('expires_at', models.DateTimeField(blank=True, null=True)),
-                ('downloaded_at', models.DateTimeField(blank=True, null=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='data_export_requests', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("processing", "Processing"),
+                            ("completed", "Completed"),
+                            ("failed", "Failed"),
+                            ("expired", "Expired"),
+                            ("cancelled", "Cancelled"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "export_format",
+                    models.CharField(
+                        choices=[("json", "JSON")], default="json", max_length=10
+                    ),
+                ),
+                ("file_path", models.CharField(blank=True, max_length=500)),
+                ("file_size_bytes", models.BigIntegerField(blank=True, null=True)),
+                ("error_message", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("processing_started_at", models.DateTimeField(blank=True, null=True)),
+                ("completed_at", models.DateTimeField(blank=True, null=True)),
+                ("expires_at", models.DateTimeField(blank=True, null=True)),
+                ("downloaded_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="data_export_requests",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'data_export_requests',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['user', '-created_at'], name='export_user_created'), models.Index(fields=['status', 'expires_at'], name='export_status_expires')],
+                "db_table": "data_export_requests",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["user", "-created_at"], name="export_user_created"
+                    ),
+                    models.Index(
+                        fields=["status", "expires_at"], name="export_status_expires"
+                    ),
+                ],
             },
         ),
     ]

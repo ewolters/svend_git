@@ -292,7 +292,11 @@ class RCAScenarioTest(TestCase):
         self.user.save(update_fields=["tier"])
 
         mock_response = MagicMock()
-        mock_response.content = [MagicMock(text="[STOPPING TOO EARLY] You found where the failure occurred, not why.")]
+        mock_response.content = [
+            MagicMock(
+                text="[STOPPING TOO EARLY] You found where the failure occurred, not why."
+            )
+        ]
         mock_response.usage = MagicMock(input_tokens=100, output_tokens=50)
         mock_llm.return_value = mock_response
 
@@ -698,7 +702,9 @@ class SynaraBeliefTest(TestCase):
         data = resp.json()
         self.assertTrue(data["success"])
         self.assertIn("hypothesis", data)
-        self.assertEqual(data["hypothesis"]["description"], "Temperature drift causes defects")
+        self.assertEqual(
+            data["hypothesis"]["description"], "Temperature drift causes defects"
+        )
 
     def test_full_belief_workflow(self):
         """Add hypothesis -> add evidence -> check belief state."""
@@ -858,7 +864,13 @@ class WhiteboardTest(TestCase):
         # Update with elements
         elements = [
             {"id": "el1", "type": "cause", "text": "Machine wear", "x": 100, "y": 200},
-            {"id": "el2", "type": "effect", "text": "Scrap increase", "x": 300, "y": 200},
+            {
+                "id": "el2",
+                "type": "effect",
+                "text": "Scrap increase",
+                "x": 300,
+                "y": 200,
+            },
         ]
         connections = [
             {
@@ -1302,7 +1314,9 @@ class QMSSiteAwareTest(TestCase):
         self.site_b = Site.objects.create(tenant=self.tenant, name="Plant B", code="PB")
 
         # Member has access to site A only
-        SiteAccess.objects.create(user=self.member_user, site=self.site_a, role="member")
+        SiteAccess.objects.create(
+            user=self.member_user, site=self.site_a, role="member"
+        )
 
         self.admin_client = _auth_client(self.admin_user)
         self.member_client = _auth_client(self.member_user)
@@ -1340,7 +1354,9 @@ class QMSSiteAwareTest(TestCase):
         from agents_api.permissions import qms_queryset
 
         FMEA.objects.create(owner=self.solo_user, title="Mine", fmea_type="process")
-        FMEA.objects.create(owner=self.admin_user, title="Not mine", fmea_type="process")
+        FMEA.objects.create(
+            owner=self.admin_user, title="Not mine", fmea_type="process"
+        )
         qs, tenant, is_admin = qms_queryset(FMEA, self.solo_user)
         self.assertIsNone(tenant)
         self.assertFalse(is_admin)
@@ -1548,9 +1564,14 @@ class QMSSiteAwareTest(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
 
-        changes = QMSFieldChange.objects.filter(record_type="ncr", record_id=ncr.id, field_name="assigned_to")
+        changes = QMSFieldChange.objects.filter(
+            record_type="ncr", record_id=ncr.id, field_name="assigned_to"
+        )
         self.assertEqual(changes.count(), 1)
-        self.assertEqual(changes.first().new_value, self.admin_user.display_name or self.admin_user.email)
+        self.assertEqual(
+            changes.first().new_value,
+            self.admin_user.display_name or self.admin_user.email,
+        )
 
     def test_rca_create_site_aware(self):
         """RCA sessions created individually get owner=user."""

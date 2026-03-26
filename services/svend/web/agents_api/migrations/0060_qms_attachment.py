@@ -9,28 +9,83 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0059_remove_problem_model'),
-        ('files', '0002_alter_userfile_file'),
+        ("agents_api", "0059_remove_problem_model"),
+        ("files", "0002_alter_userfile_file"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='QMSAttachment',
+            name="QMSAttachment",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('entity_type', models.CharField(choices=[('ncr', 'Nonconformance Record'), ('capa', 'CAPA Report'), ('fmea', 'FMEA'), ('rca', 'RCA Session'), ('a3', 'A3 Report'), ('management_review', 'Management Review'), ('audit', 'Internal Audit'), ('document', 'Controlled Document')], max_length=30)),
-                ('entity_id', models.UUIDField()),
-                ('description', models.CharField(blank=True, max_length=500)),
-                ('attachment_type', models.CharField(choices=[('evidence', 'Evidence'), ('photo', 'Photo'), ('report', 'Report'), ('form', 'Form'), ('external_document', 'External Document')], default='evidence', max_length=30)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('file', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='qms_attachments', to='files.userfile')),
-                ('uploaded_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='qms_attachments', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "entity_type",
+                    models.CharField(
+                        choices=[
+                            ("ncr", "Nonconformance Record"),
+                            ("capa", "CAPA Report"),
+                            ("fmea", "FMEA"),
+                            ("rca", "RCA Session"),
+                            ("a3", "A3 Report"),
+                            ("management_review", "Management Review"),
+                            ("audit", "Internal Audit"),
+                            ("document", "Controlled Document"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                ("entity_id", models.UUIDField()),
+                ("description", models.CharField(blank=True, max_length=500)),
+                (
+                    "attachment_type",
+                    models.CharField(
+                        choices=[
+                            ("evidence", "Evidence"),
+                            ("photo", "Photo"),
+                            ("report", "Report"),
+                            ("form", "Form"),
+                            ("external_document", "External Document"),
+                        ],
+                        default="evidence",
+                        max_length=30,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "file",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="qms_attachments",
+                        to="files.userfile",
+                    ),
+                ),
+                (
+                    "uploaded_by",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="qms_attachments",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'qms_attachments',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['entity_type', 'entity_id'], name='qms_attachm_entity__180d15_idx')],
+                "db_table": "qms_attachments",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["entity_type", "entity_id"],
+                        name="qms_attachm_entity__180d15_idx",
+                    )
+                ],
             },
         ),
     ]

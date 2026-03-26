@@ -33,7 +33,9 @@ STANDARDS_DIR = Path(settings.BASE_DIR).parent.parent.parent / "docs" / "standar
 WEB_ROOT = Path(settings.BASE_DIR)
 
 # Tag regex: <!-- keyword: value -->
-TAG_RE = re.compile(r"^<!--\s*(assert|impl|check|code|control|rule|table|test|sla):\s*(.+?)\s*-->$")
+TAG_RE = re.compile(
+    r"^<!--\s*(assert|impl|check|code|control|rule|table|test|sla):\s*(.+?)\s*-->$"
+)
 # Attribute regex within tag value: | key=value
 ATTR_RE = re.compile(r"\|\s*(\w+)=([^\s|]+)")
 # Section header: ## **N. TITLE** or ### **N.M Title**
@@ -264,7 +266,14 @@ def _slug(text: str) -> str:
 
 SLA_TAG_RE = re.compile(r"^<!--\s*sla:\s*(.+?)\s*-->$")
 
-VALID_METRICS = {"availability", "response_time", "durability", "incident_response", "compliance", "change_velocity"}
+VALID_METRICS = {
+    "availability",
+    "response_time",
+    "durability",
+    "incident_response",
+    "compliance",
+    "change_velocity",
+}
 VALID_WINDOWS = {"monthly", "quarterly", "annually", "per_incident"}
 VALID_SEVERITIES = {"critical", "high", "medium", "low"}
 
@@ -306,11 +315,15 @@ def parse_sla_definitions(filepath: Path) -> list[SLADefinition]:
         severity = attrs.get("severity", "")
 
         if not all([metric, target, window, severity]):
-            logger.warning(f"Incomplete SLA tag in {filepath.name} {current_section}: {description}")
+            logger.warning(
+                f"Incomplete SLA tag in {filepath.name} {current_section}: {description}"
+            )
             continue
 
         if metric not in VALID_METRICS:
-            logger.warning(f"Unknown SLA metric '{metric}' in {filepath.name}: {description}")
+            logger.warning(
+                f"Unknown SLA metric '{metric}' in {filepath.name}: {description}"
+            )
 
         sla_id = attrs.get("check", f"sla-{_slug(description)}")
         soc2 = [attrs["soc2"]] if "soc2" in attrs else []
@@ -410,7 +423,9 @@ def verify_impl_exists(impl_ref: str) -> tuple[bool, str]:
                 # Look for method or nested class inside class
                 method_name = symbol_parts[1]
                 for child in ast.walk(node):
-                    if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    if isinstance(
+                        child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+                    ):
                         if child.name == method_name:
                             return True, f"Found {symbol} in {parts[0]}"
                 return False, f"Method {method_name} not found in {target_name}"
@@ -529,7 +544,9 @@ def verify_code_absent(impl_ref: str, code_block: str) -> tuple[bool, str]:
 
     # Extract the core anti-pattern lines (skip comments and blanks)
     pattern_lines = [
-        line.strip() for line in code_block.splitlines() if line.strip() and not line.strip().startswith("#")
+        line.strip()
+        for line in code_block.splitlines()
+        if line.strip() and not line.strip().startswith("#")
     ]
 
     if not pattern_lines:
@@ -547,7 +564,11 @@ def verify_code_absent(impl_ref: str, code_block: str) -> tuple[bool, str]:
     # Normalize both source and pattern lines, then check if the full
     # sequence of pattern lines appears consecutively in the source.
     source_lines = [re.sub(r"\s+", "", line.strip()) for line in source.splitlines()]
-    norm_patterns = [re.sub(r"\s+", "", line) for line in pattern_lines if len(re.sub(r"\s+", "", line)) > 5]
+    norm_patterns = [
+        re.sub(r"\s+", "", line)
+        for line in pattern_lines
+        if len(re.sub(r"\s+", "", line)) > 5
+    ]
 
     if not norm_patterns:
         return True, "No significant prohibited patterns to check"
@@ -562,7 +583,9 @@ def verify_code_absent(impl_ref: str, code_block: str) -> tuple[bool, str]:
     return True, "No prohibited patterns detected"
 
 
-def _ast_verify_test(file_path: str, class_name: str | None, method_name: str) -> tuple[bool, str]:
+def _ast_verify_test(
+    file_path: str, class_name: str | None, method_name: str
+) -> tuple[bool, str]:
     """AST-based fallback for verifying test existence when import fails."""
     import ast as _ast
 
@@ -576,13 +599,19 @@ def _ast_verify_test(file_path: str, class_name: str | None, method_name: str) -
         for node in _ast.walk(tree):
             if isinstance(node, _ast.ClassDef) and node.name == class_name:
                 for item in node.body:
-                    if isinstance(item, (_ast.FunctionDef, _ast.AsyncFunctionDef)) and item.name == method_name:
+                    if (
+                        isinstance(item, (_ast.FunctionDef, _ast.AsyncFunctionDef))
+                        and item.name == method_name
+                    ):
                         return True, f"Found via AST: {class_name}.{method_name}"
                 return False, f"Method {method_name} not found in {class_name}"
         return False, f"Class {class_name} not found in {file_path}"
     else:
         for node in _ast.iter_child_nodes(tree):
-            if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)) and node.name == method_name:
+            if (
+                isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef))
+                and node.name == method_name
+            ):
                 return True, f"Found via AST: {method_name}"
         return False, f"Function {method_name} not found in {file_path}"
 
@@ -659,7 +688,12 @@ def run_linked_test(test_ref: str) -> dict:
 
     parts = test_ref.rsplit(".", 2)
     if len(parts) != 3:
-        return {"test_ref": test_ref, "passed": False, "status": "error", "message": "Invalid format"}
+        return {
+            "test_ref": test_ref,
+            "passed": False,
+            "status": "error",
+            "message": "Invalid format",
+        }
 
     module_path, class_name, method_name = parts
 
@@ -678,7 +712,12 @@ def run_linked_test(test_ref: str) -> dict:
                     "status": "skip",
                     "message": f"Cannot import (missing dependency): {e}",
                 }
-        return {"test_ref": test_ref, "passed": False, "status": "error", "message": str(e)}
+        return {
+            "test_ref": test_ref,
+            "passed": False,
+            "status": "error",
+            "message": str(e),
+        }
 
     # TestCase/TransactionTestCase need the test DB — switch connection.
     needs_db = _is_testcase_needing_db(cls)
@@ -713,26 +752,51 @@ def run_linked_test(test_ref: str) -> dict:
         if switched_db:
             _restore_db(original_db_name)
         if _is_db_error(err_msg):
-            return {"test_ref": test_ref, "passed": False, "status": "skip", "message": "Requires test database"}
-        return {"test_ref": test_ref, "passed": False, "status": "error", "message": err_msg}
+            return {
+                "test_ref": test_ref,
+                "passed": False,
+                "status": "skip",
+                "message": "Requires test database",
+            }
+        return {
+            "test_ref": test_ref,
+            "passed": False,
+            "status": "error",
+            "message": err_msg,
+        }
 
     if switched_db:
         _restore_db(original_db_name)
 
     if result.wasSuccessful():
-        return {"test_ref": test_ref, "passed": True, "status": "pass", "message": "PASS"}
+        return {
+            "test_ref": test_ref,
+            "passed": True,
+            "status": "pass",
+            "message": "PASS",
+        }
 
     # Check if errors are DB-related
     for _, tb in result.errors:
         if _is_db_error(tb):
-            return {"test_ref": test_ref, "passed": False, "status": "skip", "message": "Requires test database"}
+            return {
+                "test_ref": test_ref,
+                "passed": False,
+                "status": "skip",
+                "message": "Requires test database",
+            }
 
     # Collect failure/error messages
     msgs = []
     for _, tb in result.failures + result.errors:
         last_line = tb.strip().split("\n")[-1]
         msgs.append(last_line[:120])
-    return {"test_ref": test_ref, "passed": False, "status": "fail", "message": "; ".join(msgs) or "FAIL"}
+    return {
+        "test_ref": test_ref,
+        "passed": False,
+        "status": "fail",
+        "message": "; ".join(msgs) or "FAIL",
+    }
 
 
 def _is_db_error(msg: str) -> bool:
@@ -819,7 +883,10 @@ def run_tests_batch(test_refs):
                 if os.path.isfile(file_path):
                     ok, _ = _ast_verify_test(file_path, cls_name, method)
                     if ok:
-                        results[ref] = {"status": "skip", "message": f"Cannot import: {e}"}
+                        results[ref] = {
+                            "status": "skip",
+                            "message": f"Cannot import: {e}",
+                        }
                         continue
                 results[ref] = {"status": "error", "message": str(e)[:120]}
             continue
@@ -830,7 +897,10 @@ def run_tests_batch(test_refs):
             if db_needed:
                 # Skip DB-needing tests — switching DB connection in a web
                 # request breaks other threads (session lookups → 403).
-                results[ref] = {"status": "skip", "message": "Requires test database (Django TestCase)"}
+                results[ref] = {
+                    "status": "skip",
+                    "message": "Requires test database (Django TestCase)",
+                }
                 continue
             try:
                 test = cls(method)
@@ -855,7 +925,10 @@ def run_tests_batch(test_refs):
         handled.add(tid)
         ref = ref_map.get(tid)
         if ref:
-            results[ref] = {"status": "fail", "message": tb.strip().split("\n")[-1][:120]}
+            results[ref] = {
+                "status": "fail",
+                "message": tb.strip().split("\n")[-1][:120],
+            }
 
     for test, tb in run_result.errors:
         if test is None:
@@ -867,7 +940,10 @@ def run_tests_batch(test_refs):
             if _is_db_error(tb):
                 results[ref] = {"status": "skip", "message": "Requires test database"}
             else:
-                results[ref] = {"status": "error", "message": tb.strip().split("\n")[-1][:120]}
+                results[ref] = {
+                    "status": "error",
+                    "message": tb.strip().split("\n")[-1][:120],
+                }
 
     for test, reason in run_result.skipped:
         if test is None:
@@ -925,7 +1001,9 @@ def verify_assertion(assertion: Assertion, run_tests: bool = False) -> dict:
     for code_block in assertion.code_prohibited:
         for impl_ref in assertion.impls:
             ok, msg = verify_code_absent(impl_ref, code_block)
-            results["code_checks"].append({"type": "prohibited", "impl": impl_ref, "ok": ok, "message": msg})
+            results["code_checks"].append(
+                {"type": "prohibited", "impl": impl_ref, "ok": ok, "message": msg}
+            )
             if not ok:
                 results["status"] = "fail"
 

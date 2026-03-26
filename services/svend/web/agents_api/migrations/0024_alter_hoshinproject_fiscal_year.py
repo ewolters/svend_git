@@ -8,13 +8,15 @@ import agents_api.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0023_hoshin_custom_formula'),
+        ("agents_api", "0023_hoshin_custom_formula"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='hoshinproject',
-            name='fiscal_year',
-            field=models.IntegerField(default=agents_api.models._current_year, help_text='Fiscal year'),
+            model_name="hoshinproject",
+            name="fiscal_year",
+            field=models.IntegerField(
+                default=agents_api.models._current_year, help_text="Fiscal year"
+            ),
         ),
     ]

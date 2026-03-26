@@ -153,7 +153,9 @@ def connect_tool(
         result = _handle_information(synara, spec, tool_type, result)
 
     elif tool_function == "inference":
-        result = _handle_inference(synara, spec, tool_type, result, investigation, tool_output)
+        result = _handle_inference(
+            synara, spec, tool_type, result, investigation, tool_output
+        )
 
     elif tool_function == "intent":
         synara, result = _handle_intent(synara, spec, tool_output, result)
@@ -209,7 +211,9 @@ def _handle_information(synara, spec, tool_type, result):
     return result
 
 
-def _handle_inference(synara, spec, tool_type, result, investigation=None, tool_output=None):
+def _handle_inference(
+    synara, spec, tool_type, result, investigation=None, tool_output=None
+):
     """Inference tools compute evidence weight and create evidence."""
     assert isinstance(spec, InferenceSpec)
     weight = compute_evidence_weight(
@@ -228,8 +232,14 @@ def _handle_inference(synara, spec, tool_type, result, investigation=None, tool_
         data=spec.raw_output,
     )
     result["graph_updated"] = True
-    result["posteriors"] = {h_id: round(p, 4) for h_id, p in update_result.posteriors.items()}
-    result["expansion_signal"] = update_result.expansion_signal.to_dict() if update_result.expansion_signal else None
+    result["posteriors"] = {
+        h_id: round(p, 4) for h_id, p in update_result.posteriors.items()
+    }
+    result["expansion_signal"] = (
+        update_result.expansion_signal.to_dict()
+        if update_result.expansion_signal
+        else None
+    )
     result["evidence_weight"] = round(weight, 4)
 
     # Supersession detection (§8.4)
@@ -243,7 +253,9 @@ def _handle_inference(synara, spec, tool_type, result, investigation=None, tool_
 
     # Confirmation thresholds (§10.1)
     if result["posteriors"]:
-        confirmation_events = _apply_confirmation_thresholds(investigation, synara, result["posteriors"])
+        confirmation_events = _apply_confirmation_thresholds(
+            investigation, synara, result["posteriors"]
+        )
         result["confirmation_changes"] = confirmation_events
 
     return result
@@ -289,7 +301,9 @@ def export_investigation(
     """
     investigation = get_investigation(investigation_id, user)
     if investigation.status != Investigation.Status.CONCLUDED:
-        raise ValueError(f"Cannot export investigation in '{investigation.status}' state — must be 'concluded'")
+        raise ValueError(
+            f"Cannot export investigation in '{investigation.status}' state — must be 'concluded'"
+        )
 
     from core.models import Evidence, Project
 
@@ -312,7 +326,9 @@ def export_investigation(
 
     investigation.export_package = package
     investigation.exported_to_project = target
-    investigation.save(update_fields=["export_package", "exported_to_project", "updated_at"])
+    investigation.save(
+        update_fields=["export_package", "exported_to_project", "updated_at"]
+    )
 
     investigation.transition_to(Investigation.Status.EXPORTED, user)
 
@@ -359,7 +375,9 @@ def _build_conclusion_package(investigation, synara, user) -> dict:
     ]
 
     tool_types = list(
-        InvestigationToolLink.objects.filter(investigation=investigation).values_list("tool_type", flat=True).distinct()
+        InvestigationToolLink.objects.filter(investigation=investigation)
+        .values_list("tool_type", flat=True)
+        .distinct()
     )
 
     duration_days = 0
@@ -370,7 +388,11 @@ def _build_conclusion_package(investigation, synara, user) -> dict:
         "investigation_id": str(investigation.id),
         "investigation_version": investigation.version,
         "status": "concluded",
-        "concluded_at": investigation.concluded_at.isoformat() if investigation.concluded_at else None,
+        "concluded_at": (
+            investigation.concluded_at.isoformat()
+            if investigation.concluded_at
+            else None
+        ),
         "concluded_by": str(user.id),
         "top_hypothesis": {
             "id": str(top.id) if top else None,
@@ -460,9 +482,7 @@ def _build_export_details(package: dict) -> str:
     )
     n_signals = len(package.get("unresolved_signals", []))
     if n_signals > 0:
-        details += (
-            f". WARNING: Investigation has {n_signals} unresolved expansion signals — causal surface may be incomplete"
-        )
+        details += f". WARNING: Investigation has {n_signals} unresolved expansion signals — causal surface may be incomplete"
     return details
 
 
@@ -501,7 +521,11 @@ def _detect_and_apply_supersession(
             source_description=f"{source_tool}:{source_id}",
         )
         .exclude(id=new_evidence_id)
-        .exclude(id__in=Evidence.objects.filter(supersedes__isnull=False).values("supersedes_id"))
+        .exclude(
+            id__in=Evidence.objects.filter(supersedes__isnull=False).values(
+                "supersedes_id"
+            )
+        )
         .order_by("-created_at")
         .first()
     )
@@ -517,7 +541,9 @@ def _detect_and_apply_supersession(
                     "new_id": str(new_evidence_id),
                     "superseded_id": str(prior.id),
                     "source_tool": source_tool,
-                    "investigation_id": str(investigation.id) if investigation else None,
+                    "investigation_id": (
+                        str(investigation.id) if investigation else None
+                    ),
                 },
             )
         except Evidence.DoesNotExist:
@@ -582,7 +608,10 @@ def _apply_confirmation_thresholds(
                 }
             )
 
-        elif REJECTED_THRESHOLD < posterior < CONFIRMED_THRESHOLD and prev_status != "uncertain":
+        elif (
+            REJECTED_THRESHOLD < posterior < CONFIRMED_THRESHOLD
+            and prev_status != "uncertain"
+        ):
             # Reversal — re-entered uncertain zone
             h.confirmation_status = "uncertain"
             # Re-enable deactivated links

@@ -116,7 +116,9 @@ LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/app/"
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -142,7 +144,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    },
 }
 
 # Media files (user uploads)
@@ -201,7 +205,9 @@ REST_FRAMEWORK = {
 }
 
 # Tempora (distributed task scheduling)
-TEMPORA_CLUSTER_SECRET = hashlib.sha256((config.secret_key + ":tempora-cluster").encode()).hexdigest()
+TEMPORA_CLUSTER_SECRET = hashlib.sha256(
+    (config.secret_key + ":tempora-cluster").encode()
+).hexdigest()
 TEMPORA_NODE_ID = "svend-1"
 TEMPORA_SETTINGS = {
     "election_timeout_min": 150,
@@ -229,7 +235,12 @@ CONTENT_SECURITY_POLICY = {
         "https://cdn.plot.ly",
         "https://static.cloudflareinsights.com",
     ],
-    "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
+    "style-src": [
+        "'self'",
+        "'unsafe-inline'",
+        "https://cdn.jsdelivr.net",
+        "https://fonts.googleapis.com",
+    ],
     "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
     "img-src": ["'self'", "data:", "blob:", "https:"],
     "connect-src": ["'self'", "https://api.stripe.com", "https://cdn.plot.ly"],

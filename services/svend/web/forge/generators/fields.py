@@ -264,7 +264,15 @@ class TextGenerator(FieldGenerator):
         "lightweight",
         "durable",
     ]
-    USERS = ["professional", "enthusiast", "beginner", "home user", "traveler", "student", "creator"]
+    USERS = [
+        "professional",
+        "enthusiast",
+        "beginner",
+        "home user",
+        "traveler",
+        "student",
+        "creator",
+    ]
 
     def __init__(
         self,
@@ -436,7 +444,9 @@ class ReviewTextGenerator(FieldGenerator):
         elif self.sentiment == "negative":
             starter = random.choice(self.NEGATIVE_STARTERS)
         else:
-            starters = self.POSITIVE_STARTERS + self.NEGATIVE_STARTERS + self.NEUTRAL_STARTERS
+            starters = (
+                self.POSITIVE_STARTERS + self.NEGATIVE_STARTERS + self.NEUTRAL_STARTERS
+            )
             starter = random.choice(starters)
 
         detail = fake.paragraph(nb_sentences=random.randint(1, 3))

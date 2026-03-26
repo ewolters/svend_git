@@ -32,12 +32,16 @@ def run_d_multi(df, config):
 
     variables = config.get("variables") or config.get("columns", [])
     if not variables or len(variables) < 2:
-        result["summary"] = "<<COLOR:danger>>Select at least 2 numeric variables.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Select at least 2 numeric variables.<</COLOR>>"
+        )
         return result
 
     missing = [v for v in variables if v not in df.columns]
     if missing:
-        result["summary"] = f"<<COLOR:danger>>Columns not found: {', '.join(missing)}<</COLOR>>"
+        result["summary"] = (
+            f"<<COLOR:danger>>Columns not found: {', '.join(missing)}<</COLOR>>"
+        )
         return result
 
     tolerance_pct = config.get("tolerance_pct")
@@ -45,7 +49,9 @@ def run_d_multi(df, config):
     work = df[variables].dropna().astype(float)
     n, p = work.shape
     if n < p + 5:
-        result["summary"] = f"<<COLOR:danger>>Need at least {p + 5} observations (have {n}).<</COLOR>>"
+        result["summary"] = (
+            f"<<COLOR:danger>>Need at least {p + 5} observations (have {n}).<</COLOR>>"
+        )
         return result
 
     data_matrix = work.values
@@ -132,7 +138,14 @@ def run_d_multi(df, config):
                     }
                 )
             else:
-                var_cpk.append({"variable": v, "cpk": 999.0, "lsl": round(v_lsl, 4), "usl": round(v_usl, 4)})
+                var_cpk.append(
+                    {
+                        "variable": v,
+                        "cpk": 999.0,
+                        "lsl": round(v_lsl, 4),
+                        "usl": round(v_usl, 4),
+                    }
+                )
 
     # T² capability: proportion within UCL
     t2_capability = float(1.0 - ooc_mask.mean())
@@ -206,7 +219,10 @@ def run_d_multi(df, config):
             "layout": {
                 "height": 380,
                 "xaxis": {"title": f"PC1 ({explained[0] * 100:.1f}%)"},
-                "yaxis": {"title": f"PC2 ({explained[1] * 100:.1f}%)", "scaleanchor": "x"},
+                "yaxis": {
+                    "title": f"PC2 ({explained[1] * 100:.1f}%)",
+                    "scaleanchor": "x",
+                },
                 "showlegend": True,
                 "annotations": arrow_annotations,
             },
@@ -225,7 +241,12 @@ def run_d_multi(df, config):
                     "y": T2.tolist(),
                     "mode": "lines+markers",
                     "name": "T²",
-                    "marker": {"color": [COLOR_BAD if ooc else SVEND_COLORS[0] for ooc in ooc_mask], "size": 4},
+                    "marker": {
+                        "color": [
+                            COLOR_BAD if ooc else SVEND_COLORS[0] for ooc in ooc_mask
+                        ],
+                        "size": 4,
+                    },
                     "line": {"color": SVEND_COLORS[0], "width": 1},
                 },
             ],
@@ -270,7 +291,11 @@ def run_d_multi(df, config):
                     "name": "Cpk",
                     "marker": {
                         "color": [
-                            COLOR_GOOD if c >= 1.33 else (COLOR_WARNING if c >= 1.0 else COLOR_BAD)
+                            (
+                                COLOR_GOOD
+                                if c >= 1.33
+                                else (COLOR_WARNING if c >= 1.0 else COLOR_BAD)
+                            )
                             for c in component_cpk
                         ]
                     },
@@ -359,9 +384,7 @@ def run_d_multi(df, config):
         summary += f"\n<<COLOR:danger>>Multivariate process is NOT capable (MCpk = {mcpk:.3f}).<</COLOR>>"
 
     if n_ooc > 0:
-        summary += (
-            f"\n<<COLOR:warning>>{n_ooc} observations exceed T² UCL — investigate multivariate outliers.<</COLOR>>"
-        )
+        summary += f"\n<<COLOR:warning>>{n_ooc} observations exceed T² UCL — investigate multivariate outliers.<</COLOR>>"
 
     result["summary"] = summary
     result["guide_observation"] = (

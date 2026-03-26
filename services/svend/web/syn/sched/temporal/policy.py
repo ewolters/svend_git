@@ -285,7 +285,9 @@ class TemporalPolicyRule:
 
         # Check cooldown
         if self.last_activated:
-            cooldown_end = self.last_activated + timedelta(minutes=self.cooldown_minutes)
+            cooldown_end = self.last_activated + timedelta(
+                minutes=self.cooldown_minutes
+            )
             if now < cooldown_end:
                 return False
 
@@ -320,7 +322,9 @@ class TemporalPolicyRule:
             "max_activations": self.max_activations,
             "trigger": self.trigger.to_dict(),
             "actions": [a.to_dict() for a in self.actions],
-            "last_activated": self.last_activated.isoformat() if self.last_activated else None,
+            "last_activated": (
+                self.last_activated.isoformat() if self.last_activated else None
+            ),
             "activation_count": self.activation_count,
         }
 

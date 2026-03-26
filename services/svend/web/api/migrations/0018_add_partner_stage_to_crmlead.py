@@ -6,13 +6,30 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0017_add_duration_to_sitevisit'),
+        ("api", "0017_add_duration_to_sitevisit"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='crmlead',
-            name='stage',
-            field=models.CharField(choices=[('prospect', 'Prospect'), ('contacted', 'Contacted'), ('engaged', 'Engaged'), ('demo', 'Demo'), ('trial', 'Trial'), ('customer', 'Customer'), ('partner', 'Partner'), ('churned', 'Churned'), ('lost', 'Lost'), ('bounced', 'Bounced'), ('invalid', 'Invalid')], db_index=True, default='prospect', max_length=20),
+            model_name="crmlead",
+            name="stage",
+            field=models.CharField(
+                choices=[
+                    ("prospect", "Prospect"),
+                    ("contacted", "Contacted"),
+                    ("engaged", "Engaged"),
+                    ("demo", "Demo"),
+                    ("trial", "Trial"),
+                    ("customer", "Customer"),
+                    ("partner", "Partner"),
+                    ("churned", "Churned"),
+                    ("lost", "Lost"),
+                    ("bounced", "Bounced"),
+                    ("invalid", "Invalid"),
+                ],
+                db_index=True,
+                default="prospect",
+                max_length=20,
+            ),
         ),
     ]

@@ -216,7 +216,9 @@ class SystemHealthMonitor:
 
         # Metrics history for trend analysis
         self._metrics_history: list[HealthMetrics] = []
-        self._max_history_size = int(history_window_minutes * 60 / collection_interval_seconds)
+        self._max_history_size = int(
+            history_window_minutes * 60 / collection_interval_seconds
+        )
 
         # Current metrics
         self._current_metrics: HealthMetrics | None = None
@@ -251,7 +253,9 @@ class SystemHealthMonitor:
                     self._current_metrics = metrics
                     self._metrics_history.append(metrics)
                     if len(self._metrics_history) > self._max_history_size:
-                        self._metrics_history = self._metrics_history[-self._max_history_size :]
+                        self._metrics_history = self._metrics_history[
+                            -self._max_history_size :
+                        ]
             except Exception as e:
                 logger.error(f"[HEALTH] Collection error: {e}")
 
@@ -286,18 +290,30 @@ class SystemHealthMonitor:
             from syn.sched.types import TaskState
 
             # Count pending tasks
-            pending_states = [TaskState.PENDING.value, TaskState.SCHEDULED.value, TaskState.RETRYING.value]
-            metrics.queue_depth = CognitiveTask.objects.filter(state__in=pending_states).count()
+            pending_states = [
+                TaskState.PENDING.value,
+                TaskState.SCHEDULED.value,
+                TaskState.RETRYING.value,
+            ]
+            metrics.queue_depth = CognitiveTask.objects.filter(
+                state__in=pending_states
+            ).count()
 
             # Queue utilization
-            metrics.queue_utilization = min(1.0, metrics.queue_depth / max(1, self._queue_depth_threshold))
+            metrics.queue_utilization = min(
+                1.0, metrics.queue_depth / max(1, self._queue_depth_threshold)
+            )
 
             # Growth rate from history
             if len(self._metrics_history) >= 2:
                 old_depth = self._metrics_history[-2].queue_depth
-                time_delta = (metrics.collected_at - self._metrics_history[-2].collected_at).total_seconds() / 60
+                time_delta = (
+                    metrics.collected_at - self._metrics_history[-2].collected_at
+                ).total_seconds() / 60
                 if time_delta > 0:
-                    metrics.queue_growth_rate = (metrics.queue_depth - old_depth) / time_delta
+                    metrics.queue_growth_rate = (
+                        metrics.queue_depth - old_depth
+                    ) / time_delta
 
         except Exception as e:
             logger.debug(f"[HEALTH] Queue metrics error: {e}")
@@ -311,12 +327,16 @@ class SystemHealthMonitor:
             metrics.dlq_size = DeadLetterEntry.objects.count()
 
             # Pending (unresolved) entries
-            metrics.dlq_pending_count = DeadLetterEntry.objects.filter(status="pending").count()
+            metrics.dlq_pending_count = DeadLetterEntry.objects.filter(
+                status="pending"
+            ).count()
 
             # Growth rate from history
             if len(self._metrics_history) >= 2:
                 old_size = self._metrics_history[-2].dlq_size
-                time_delta = (metrics.collected_at - self._metrics_history[-2].collected_at).total_seconds() / 60
+                time_delta = (
+                    metrics.collected_at - self._metrics_history[-2].collected_at
+                ).total_seconds() / 60
                 if time_delta > 0:
                     metrics.dlq_growth_rate = (metrics.dlq_size - old_size) / time_delta
 
@@ -332,18 +352,24 @@ class SystemHealthMonitor:
             one_minute_ago = timezone.now() - timedelta(minutes=1)
 
             # Count decisions
-            recent_decisions = GovernanceJudgement.objects.filter(created_at__gte=one_minute_ago)
+            recent_decisions = GovernanceJudgement.objects.filter(
+                created_at__gte=one_minute_ago
+            )
 
             metrics.governance_decisions_last_minute = recent_decisions.count()
 
             if metrics.governance_decisions_last_minute > 0:
                 # Denial rate
                 denied = recent_decisions.filter(result="BLOCKED").count()
-                metrics.governance_denial_rate = denied / metrics.governance_decisions_last_minute
+                metrics.governance_denial_rate = (
+                    denied / metrics.governance_decisions_last_minute
+                )
 
                 # Escalation rate
                 escalated = recent_decisions.filter(result="ESCALATED").count()
-                metrics.governance_escalation_rate = escalated / metrics.governance_decisions_last_minute
+                metrics.governance_escalation_rate = (
+                    escalated / metrics.governance_decisions_last_minute
+                )
 
         except Exception as e:
             logger.debug(f"[HEALTH] Governance metrics error: {e}")
@@ -373,12 +399,16 @@ class SystemHealthMonitor:
             from syn.sched.types import TaskState
 
             # Tasks currently running
-            metrics.tasks_in_flight = CognitiveTask.objects.filter(state=TaskState.RUNNING.value).count()
+            metrics.tasks_in_flight = CognitiveTask.objects.filter(
+                state=TaskState.RUNNING.value
+            ).count()
 
             # Worker utilization estimate (tasks in flight / expected capacity)
             # Assume default 10 workers with mixed config
             expected_capacity = 10 * 3  # workers * concurrent per worker
-            metrics.worker_utilization = min(1.0, metrics.tasks_in_flight / max(1, expected_capacity))
+            metrics.worker_utilization = min(
+                1.0, metrics.tasks_in_flight / max(1, expected_capacity)
+            )
 
             # Active/idle split (estimate)
             metrics.active_workers = min(10, metrics.tasks_in_flight)
@@ -401,15 +431,21 @@ class SystemHealthMonitor:
 
             if recent_executions.exists():
                 # Average latency
-                avg_result = recent_executions.aggregate(avg_duration=Avg("duration_ms"))
+                avg_result = recent_executions.aggregate(
+                    avg_duration=Avg("duration_ms")
+                )
                 metrics.avg_task_latency_ms = avg_result["avg_duration"] or 0.0
 
                 # P95 approximation (get sorted durations)
-                durations = list(recent_executions.values_list("duration_ms", flat=True))
+                durations = list(
+                    recent_executions.values_list("duration_ms", flat=True)
+                )
                 if durations:
                     durations.sort()
                     p95_index = int(len(durations) * 0.95)
-                    metrics.p95_task_latency_ms = durations[min(p95_index, len(durations) - 1)]
+                    metrics.p95_task_latency_ms = durations[
+                        min(p95_index, len(durations) - 1)
+                    ]
 
         except Exception as e:
             logger.debug(f"[HEALTH] Latency metrics error: {e}")
@@ -474,7 +510,9 @@ class SystemHealthMonitor:
         # Throughput trend
         old_throughput = old_metrics.tasks_completed_last_minute
         if old_throughput > 0:
-            metrics.throughput_trend = (metrics.tasks_completed_last_minute - old_throughput) / old_throughput
+            metrics.throughput_trend = (
+                metrics.tasks_completed_last_minute - old_throughput
+            ) / old_throughput
 
     def _compute_health_status(self, metrics: HealthMetrics) -> HealthStatus:
         """Compute overall health status from metrics."""

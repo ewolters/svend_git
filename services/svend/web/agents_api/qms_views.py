@@ -52,7 +52,11 @@ def qms_dashboard(request):
     # --- RCA ---
     rca_sessions = RCASession.objects.filter(owner=user)
     rca_total = rca_sessions.count()
-    rca_by_status = dict(rca_sessions.values_list("status").annotate(c=Count("id")).values_list("status", "c"))
+    rca_by_status = dict(
+        rca_sessions.values_list("status")
+        .annotate(c=Count("id"))
+        .values_list("status", "c")
+    )
     # Average chain depth
     rca_active = rca_sessions.exclude(status="draft")
     avg_chain_depth = 0
@@ -109,7 +113,9 @@ def qms_dashboard(request):
 
         membership = Membership.objects.filter(user=user).first()
         if membership:
-            hoshin_projects = HoshinProject.objects.filter(site__tenant=membership.tenant)
+            hoshin_projects = HoshinProject.objects.filter(
+                site__tenant=membership.tenant
+            )
             hoshin_data["total_projects"] = hoshin_projects.count()
             active_hp = hoshin_projects.filter(hoshin_status="active")
             delayed = hoshin_projects.filter(hoshin_status="delayed").count()
@@ -118,7 +124,9 @@ def qms_dashboard(request):
                 on_track = active_hp.filter(
                     Q(hoshin_status="active"),
                 ).count()
-                hoshin_data["on_track_pct"] = round(on_track / max(active_hp.count() + delayed, 1) * 100)
+                hoshin_data["on_track_pct"] = round(
+                    on_track / max(active_hp.count() + delayed, 1) * 100
+                )
             # Savings aggregation
             for hp in hoshin_projects:
                 hoshin_data["target_savings"] += float(hp.annual_savings_target or 0)
@@ -132,7 +140,11 @@ def qms_dashboard(request):
     capas = CAPAReport.objects.filter(owner=user)
     capa_total = capas.count()
     capa_open = capas.exclude(status="closed").count()
-    capa_overdue = capas.exclude(status="closed").filter(due_date__lt=__import__("datetime").date.today()).count()
+    capa_overdue = (
+        capas.exclude(status="closed")
+        .filter(due_date__lt=__import__("datetime").date.today())
+        .count()
+    )
     capa_critical = capas.filter(priority="critical").exclude(status="closed").count()
     capa_by_status = {}
     for row in capas.values("status").annotate(c=Count("id")):
@@ -151,7 +163,11 @@ def qms_dashboard(request):
         pce_score = min(avg_pce / 25, 1.0)  # 25% PCE = perfect score
         score_factors.append(pce_score)
 
-    overall = round(sum(score_factors) / max(len(score_factors), 1), 2) if score_factors else 0
+    overall = (
+        round(sum(score_factors) / max(len(score_factors), 1), 2)
+        if score_factors
+        else 0
+    )
 
     if overall >= 0.7:
         health = "good"

@@ -23,7 +23,9 @@ class Command(BaseLoadData):
         force = options.get("force_allow", False)
 
         if _is_production_db(database) and not force:
-            self.stderr.write(self.style.ERROR(blocked_banner("loaddata", _db_name(database))))
+            self.stderr.write(
+                self.style.ERROR(blocked_banner("loaddata", _db_name(database)))
+            )
             sys.exit(1)
 
         super().handle(*args, **options)

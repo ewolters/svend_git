@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0007_add_onboarding_completed_at'),
+        ("accounts", "0007_add_onboarding_completed_at"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='email_opted_out',
+            model_name="user",
+            name="email_opted_out",
             field=models.BooleanField(default=False),
         ),
     ]

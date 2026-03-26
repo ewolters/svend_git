@@ -37,15 +37,18 @@ class MiddlewareOrderTest(SimpleTestCase):
             idx_early = self._middleware_index(earlier)
             idx_late = self._middleware_index(later)
             self.assertGreater(
-                idx_early, -1,
+                idx_early,
+                -1,
                 f"{earlier} not found in MIDDLEWARE",
             )
             self.assertGreater(
-                idx_late, -1,
+                idx_late,
+                -1,
                 f"{later} not found in MIDDLEWARE",
             )
             self.assertLess(
-                idx_early, idx_late,
+                idx_early,
+                idx_late,
                 f"{earlier} (idx={idx_early}) must come before {later} (idx={idx_late})",
             )
 
@@ -192,13 +195,17 @@ class ErrorRedactionTest(SimpleTestCase):
         self.assertNotIn("eyJhbG", self._redact("token=eyJhbGciOiJIUzI1NiJ9"))
 
     def test_redacts_email(self):
-        self.assertNotIn("user@example.com", self._redact("contact user@example.com for help"))
+        self.assertNotIn(
+            "user@example.com", self._redact("contact user@example.com for help")
+        )
 
     def test_redacts_ssn(self):
         self.assertNotIn("123-45-6789", self._redact("SSN is 123-45-6789"))
 
     def test_redacts_bearer_token(self):
-        self.assertNotIn("abc123token", self._redact("Authorization: Bearer abc123token"))
+        self.assertNotIn(
+            "abc123token", self._redact("Authorization: Bearer abc123token")
+        )
 
     def test_redacts_env_vars(self):
         result = self._redact("DATABASE_URL=postgres://user:pass@host/db")

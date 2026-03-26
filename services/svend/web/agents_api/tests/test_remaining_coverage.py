@@ -46,7 +46,13 @@ class QualityEconCoverageTest(TestCase):
     def test_taguchi_loss(self):
         r = self._run(
             "taguchi_loss",
-            {"column": "x", "target": 100, "delta0": 15, "cost_at_limit": 50, "loss_type": "nib"},
+            {
+                "column": "x",
+                "target": 100,
+                "delta0": 15,
+                "cost_at_limit": 50,
+                "loss_type": "nib",
+            },
             {"x": NORMAL_60},
         )
         _check_schema(self, r)
@@ -62,7 +68,13 @@ class QualityEconCoverageTest(TestCase):
     def test_lot_sentencing(self):
         r = self._run(
             "lot_sentencing",
-            {"p_defect": 0.02, "lot_size": 500, "c_external": 50, "c_internal": 5, "c_inspection": 0.5},
+            {
+                "p_defect": 0.02,
+                "lot_size": 500,
+                "c_external": 50,
+                "c_internal": 5,
+                "c_inspection": 0.5,
+            },
             {"x": [1]},
         )
         _check_schema(self, r)
@@ -233,9 +245,24 @@ class SimulationCoverageTest(TestCase):
             "tolerance_stackup",
             {
                 "components": [
-                    {"name": "A", "nominal": 10.0, "tolerance": 0.1, "distribution": "normal"},
-                    {"name": "B", "nominal": 5.0, "tolerance": 0.05, "distribution": "normal"},
-                    {"name": "C", "nominal": 3.0, "tolerance": 0.08, "distribution": "normal"},
+                    {
+                        "name": "A",
+                        "nominal": 10.0,
+                        "tolerance": 0.1,
+                        "distribution": "normal",
+                    },
+                    {
+                        "name": "B",
+                        "nominal": 5.0,
+                        "tolerance": 0.05,
+                        "distribution": "normal",
+                    },
+                    {
+                        "name": "C",
+                        "nominal": 3.0,
+                        "tolerance": 0.08,
+                        "distribution": "normal",
+                    },
                 ],
                 "n_simulations": 5000,
             },
@@ -278,7 +305,13 @@ class AnytimeValidCoverageTest(TestCase):
         groups = ["A"] * 30 + ["B"] * 30
         r = self._run(
             "anytime_ab",
-            {"value_col": "y", "group_col": "g", "group_a": "A", "group_b": "B", "alpha": 0.05},
+            {
+                "value_col": "y",
+                "group_col": "g",
+                "group_a": "A",
+                "group_b": "B",
+                "alpha": 0.05,
+            },
             {"y": vals, "g": groups},
         )
         _check_schema(self, r)
@@ -358,7 +391,9 @@ class InterventionalSHAPCoverageTest(TestCase):
         from agents_api.analysis.ishap import run_interventional_shap
 
         df = pd.DataFrame(data_dict)
-        return run_interventional_shap(df, analysis_id, config, model=model, model_features=model_features)
+        return run_interventional_shap(
+            df, analysis_id, config, model=model, model_features=model_features
+        )
 
     def test_ishap_no_model(self):
         """Without a model, ishap should return an error message gracefully."""
@@ -389,7 +424,13 @@ class InterventionalSHAPCoverageTest(TestCase):
 
         r = self._run(
             "ishap",
-            {"features": ["x1", "x2"], "target": "y", "n_bg": 10, "n_explain": 5, "max_perm": 20},
+            {
+                "features": ["x1", "x2"],
+                "target": "y",
+                "n_bg": 10,
+                "n_explain": 5,
+                "max_perm": 20,
+            },
             {"x1": x1.tolist(), "x2": x2.tolist(), "y": y.tolist()},
             model=model,
             model_features=["x1", "x2"],

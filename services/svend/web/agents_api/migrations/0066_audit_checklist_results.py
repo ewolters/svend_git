@@ -6,13 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0065_qms_phase_c_registers'),
+        ("agents_api", "0065_qms_phase_c_registers"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='internalaudit',
-            name='checklist_results',
-            field=models.JSONField(blank=True, default=dict, help_text='{"<checklist_id>": {"checklist_name": str, "items": [{"question", "result", "notes"}], "completed_at": str}}'),
+            model_name="internalaudit",
+            name="checklist_results",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text='{"<checklist_id>": {"checklist_name": str, "items": [{"question", "result", "notes"}], "completed_at": str}}',
+            ),
         ),
     ]

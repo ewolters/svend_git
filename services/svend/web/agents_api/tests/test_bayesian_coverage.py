@@ -283,7 +283,9 @@ class BayesianReliabilityCoverageTest(TestCase):
 
     def test_bayes_rul(self):
         # Remaining useful life prediction
-        deg = [100 - 0.5 * i + np.random.RandomState(42).normal(0, 1) for i in range(40)]
+        deg = [
+            100 - 0.5 * i + np.random.RandomState(42).normal(0, 1) for i in range(40)
+        ]
         r = _run(
             "bayes_rul",
             {"measurement": "y", "threshold": 50},

@@ -136,8 +136,13 @@ def run_cusum(df, config):
     _n_up = len(signals_pos)
     _n_dn = len(signals_neg)
     _cusum_total = _n_up + _n_dn
-    result["guide_observation"] = f"CUSUM chart: {_cusum_total} shift signal{'s' if _cusum_total != 1 else ''}." + (
-        " Process appears stable." if _cusum_total == 0 else " Investigation recommended."
+    result["guide_observation"] = (
+        f"CUSUM chart: {_cusum_total} shift signal{'s' if _cusum_total != 1 else ''}."
+        + (
+            " Process appears stable."
+            if _cusum_total == 0
+            else " Investigation recommended."
+        )
     )
     result["statistics"] = {
         "target": float(target),
@@ -216,8 +221,12 @@ def run_ewma(df, config):
 
     # Control limits (they vary with time, approaching steady state)
     factor = lambda_param / (2 - lambda_param)
-    ucl = target + L * sigma * np.sqrt(factor * (1 - (1 - lambda_param) ** (2 * np.arange(1, n + 1))))
-    lcl = target - L * sigma * np.sqrt(factor * (1 - (1 - lambda_param) ** (2 * np.arange(1, n + 1))))
+    ucl = target + L * sigma * np.sqrt(
+        factor * (1 - (1 - lambda_param) ** (2 * np.arange(1, n + 1)))
+    )
+    lcl = target - L * sigma * np.sqrt(
+        factor * (1 - (1 - lambda_param) ** (2 * np.arange(1, n + 1)))
+    )
 
     # Steady-state limits
     ucl_ss = target + L * sigma * np.sqrt(factor)
@@ -232,10 +241,20 @@ def run_ewma(df, config):
             "y": ewma.tolist(),
             "mode": "lines+markers",
             "name": "EWMA",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "size": 5,
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
             "line": {"color": "#4a9f6e"},
         },
-        {"type": "scatter", "y": [target] * n, "mode": "lines", "name": "Target", "line": {"color": "#00b894"}},
+        {
+            "type": "scatter",
+            "y": [target] * n,
+            "mode": "lines",
+            "name": "Target",
+            "line": {"color": "#00b894"},
+        },
         {
             "type": "scatter",
             "y": ucl.tolist(),
@@ -273,7 +292,11 @@ def run_ewma(df, config):
     _ewma_n_ooc = len(ewma_ooc)
     result["guide_observation"] = (
         f"EWMA chart: {_ewma_n_ooc} out-of-control point{'s' if _ewma_n_ooc != 1 else ''}."
-        + (" Process appears stable." if _ewma_n_ooc == 0 else " Investigation recommended.")
+        + (
+            " Process appears stable."
+            if _ewma_n_ooc == 0
+            else " Investigation recommended."
+        )
     )
     result["statistics"] = {
         "target": float(target),
@@ -351,9 +374,19 @@ def run_laney_p(df, config):
             "y": p.tolist(),
             "mode": "lines+markers",
             "name": "p",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "size": 5,
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
         },
-        {"type": "scatter", "y": [p_bar] * k, "mode": "lines", "name": "p\u0304", "line": {"color": "#00b894"}},
+        {
+            "type": "scatter",
+            "y": [p_bar] * k,
+            "mode": "lines",
+            "name": "p\u0304",
+            "line": {"color": "#00b894"},
+        },
         {
             "type": "scatter",
             "y": ucl.tolist(),
@@ -384,7 +417,11 @@ def run_laney_p(df, config):
         }
     )
 
-    disp = "Overdispersion" if sigma_z > 1 else "Underdispersion" if sigma_z < 1 else "None"
+    disp = (
+        "Overdispersion"
+        if sigma_z > 1
+        else "Underdispersion" if sigma_z < 1 else "None"
+    )
     result["summary"] = (
         f"Laney P' Chart Analysis\n\np\u0304: {p_bar:.4f} ({p_bar * 100:.2f}%)\n\u03c3z: {sigma_z:.4f} ({disp})\nSamples: {k}\n\nOut-of-control points: {len(ooc_indices)}\n\nNote: \u03c3z > 1 indicates overdispersion \u2014 standard P chart would give too many false alarms."
     )
@@ -446,9 +483,19 @@ def run_laney_u(df, config):
             "y": u.tolist(),
             "mode": "lines+markers",
             "name": "u",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "size": 5,
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
         },
-        {"type": "scatter", "y": [u_bar] * k, "mode": "lines", "name": "\u016b", "line": {"color": "#00b894"}},
+        {
+            "type": "scatter",
+            "y": [u_bar] * k,
+            "mode": "lines",
+            "name": "\u016b",
+            "line": {"color": "#00b894"},
+        },
         {
             "type": "scatter",
             "y": ucl.tolist(),
@@ -479,7 +526,11 @@ def run_laney_u(df, config):
         }
     )
 
-    disp = "Overdispersion" if sigma_z > 1 else "Underdispersion" if sigma_z < 1 else "None"
+    disp = (
+        "Overdispersion"
+        if sigma_z > 1
+        else "Underdispersion" if sigma_z < 1 else "None"
+    )
     result["summary"] = (
         f"Laney U' Chart Analysis\n\n\u016b: {u_bar:.4f}\n\u03c3z: {sigma_z:.4f} ({disp})\nSamples: {k}\n\nOut-of-control points: {len(ooc_indices)}\n\nNote: \u03c3z > 1 indicates overdispersion \u2014 standard U chart would give too many false alarms."
     )
@@ -603,8 +654,13 @@ def run_moving_average(df, config):
     )
 
     _ma_n_ooc = len(ma_ooc)
-    result["guide_observation"] = f"MA chart (span={span}): {_ma_n_ooc} out-of-control points." + (
-        " Process appears stable." if _ma_n_ooc == 0 else " Investigation recommended."
+    result["guide_observation"] = (
+        f"MA chart (span={span}): {_ma_n_ooc} out-of-control points."
+        + (
+            " Process appears stable."
+            if _ma_n_ooc == 0
+            else " Investigation recommended."
+        )
     )
     if _ma_n_ooc == 0:
         result["narrative"] = _narrative(
@@ -801,7 +857,9 @@ def run_zone_chart(df, config):
                     "symbol": "diamond",
                     "line": {"color": "white", "width": 1.5},
                 },
-                "customdata": [[i, "Zone signal: cumulative score \u22658"] for i in signals],
+                "customdata": [
+                    [i, "Zone signal: cumulative score \u22658"] for i in signals
+                ],
                 "hovertemplate": "Obs #%{customdata[0]}<br>Value: %{y:.4f}<br>%{customdata[1]}<extra>Signal</extra>",
             }
         )
@@ -872,7 +930,10 @@ def run_zone_chart(df, config):
                 "height": 240,
                 "showlegend": True,
                 "yaxis": {"title": "Score"},
-                "xaxis": {"title": "Sample", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "xaxis": {
+                    "title": "Sample",
+                    "rangeslider": {"visible": True, "thickness": 0.12},
+                },
             },
         }
     )

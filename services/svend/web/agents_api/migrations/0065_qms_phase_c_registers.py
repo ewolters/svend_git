@@ -10,112 +10,506 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0064_add_ncr_supplier_fk'),
-        ('core', '0023_qms_phase_c_registers'),
+        ("agents_api", "0064_add_ncr_supplier_fk"),
+        ("core", "0023_qms_phase_c_registers"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CustomerComplaint',
+            name="CustomerComplaint",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(max_length=300)),
-                ('description', models.TextField(blank=True)),
-                ('source', models.CharField(choices=[('phone', 'Phone'), ('email', 'Email'), ('web', 'Web Form'), ('field', 'Field Report'), ('social', 'Social Media'), ('return', 'Product Return'), ('other', 'Other')], default='other', max_length=20)),
-                ('severity', models.CharField(choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('critical', 'Critical')], default='medium', max_length=20)),
-                ('status', models.CharField(choices=[('open', 'Open'), ('acknowledged', 'Acknowledged'), ('investigating', 'Investigating'), ('resolved', 'Resolved'), ('closed', 'Closed')], default='open', max_length=20)),
-                ('product_service', models.CharField(blank=True, help_text='Product or service complained about', max_length=300)),
-                ('customer_name', models.CharField(blank=True, max_length=300)),
-                ('customer_contact', models.CharField(blank=True, help_text='Email or phone', max_length=300)),
-                ('date_received', models.DateField(blank=True, null=True)),
-                ('date_acknowledged', models.DateField(blank=True, null=True)),
-                ('root_cause', models.TextField(blank=True)),
-                ('resolution', models.TextField(blank=True)),
-                ('preventive_action', models.TextField(blank=True)),
-                ('satisfaction_followup', models.TextField(blank=True, help_text='Customer satisfaction check after resolution')),
-                ('customer_satisfied', models.BooleanField(blank=True, null=True)),
-                ('iso_clause', models.CharField(blank=True, default='9.1.2', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('assigned_to', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assigned_complaints', to=settings.AUTH_USER_MODEL)),
-                ('capa', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='complaints', to='agents_api.capareport')),
-                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='complaints_created', to=settings.AUTH_USER_MODEL)),
-                ('ncr', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='complaints', to='agents_api.nonconformancerecord')),
-                ('owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='complaints', to=settings.AUTH_USER_MODEL)),
-                ('project', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='complaints', to='core.project')),
-                ('site', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='complaints', to='agents_api.site')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("title", models.CharField(max_length=300)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "source",
+                    models.CharField(
+                        choices=[
+                            ("phone", "Phone"),
+                            ("email", "Email"),
+                            ("web", "Web Form"),
+                            ("field", "Field Report"),
+                            ("social", "Social Media"),
+                            ("return", "Product Return"),
+                            ("other", "Other"),
+                        ],
+                        default="other",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "severity",
+                    models.CharField(
+                        choices=[
+                            ("low", "Low"),
+                            ("medium", "Medium"),
+                            ("high", "High"),
+                            ("critical", "Critical"),
+                        ],
+                        default="medium",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("open", "Open"),
+                            ("acknowledged", "Acknowledged"),
+                            ("investigating", "Investigating"),
+                            ("resolved", "Resolved"),
+                            ("closed", "Closed"),
+                        ],
+                        default="open",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "product_service",
+                    models.CharField(
+                        blank=True,
+                        help_text="Product or service complained about",
+                        max_length=300,
+                    ),
+                ),
+                ("customer_name", models.CharField(blank=True, max_length=300)),
+                (
+                    "customer_contact",
+                    models.CharField(
+                        blank=True, help_text="Email or phone", max_length=300
+                    ),
+                ),
+                ("date_received", models.DateField(blank=True, null=True)),
+                ("date_acknowledged", models.DateField(blank=True, null=True)),
+                ("root_cause", models.TextField(blank=True)),
+                ("resolution", models.TextField(blank=True)),
+                ("preventive_action", models.TextField(blank=True)),
+                (
+                    "satisfaction_followup",
+                    models.TextField(
+                        blank=True,
+                        help_text="Customer satisfaction check after resolution",
+                    ),
+                ),
+                ("customer_satisfied", models.BooleanField(blank=True, null=True)),
+                (
+                    "iso_clause",
+                    models.CharField(blank=True, default="9.1.2", max_length=20),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "assigned_to",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="assigned_complaints",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "capa",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="complaints",
+                        to="agents_api.capareport",
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="complaints_created",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "ncr",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="complaints",
+                        to="agents_api.nonconformancerecord",
+                    ),
+                ),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="complaints",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "project",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="complaints",
+                        to="core.project",
+                    ),
+                ),
+                (
+                    "site",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="complaints",
+                        to="agents_api.site",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'iso_customer_complaints',
-                'ordering': ['-created_at'],
+                "db_table": "iso_customer_complaints",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='MeasurementEquipment',
+            name="MeasurementEquipment",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=300)),
-                ('asset_id', models.CharField(blank=True, help_text='Internal asset tag', max_length=100)),
-                ('serial_number', models.CharField(blank=True, max_length=100)),
-                ('manufacturer', models.CharField(blank=True, max_length=200)),
-                ('model_number', models.CharField(blank=True, max_length=200)),
-                ('equipment_type', models.CharField(choices=[('dimensional', 'Dimensional'), ('force_torque', 'Force/Torque'), ('temperature', 'Temperature'), ('pressure', 'Pressure'), ('electrical', 'Electrical'), ('mass', 'Mass/Weight'), ('optical', 'Optical'), ('chemical', 'Chemical'), ('other', 'Other')], default='other', max_length=20)),
-                ('location', models.CharField(blank=True, max_length=300)),
-                ('status', models.CharField(choices=[('in_service', 'In Service'), ('due', 'Calibration Due'), ('overdue', 'Overdue'), ('out_of_calibration', 'Out of Calibration'), ('out_of_service', 'Out of Service'), ('retired', 'Retired')], default='in_service', max_length=25)),
-                ('calibration_interval_months', models.IntegerField(default=12)),
-                ('last_calibration_date', models.DateField(blank=True, null=True)),
-                ('next_calibration_due', models.DateField(blank=True, null=True)),
-                ('calibration_provider', models.CharField(blank=True, max_length=300)),
-                ('calibration_certificate', models.CharField(blank=True, help_text='Certificate number or reference', max_length=300)),
-                ('measurement_range', models.CharField(blank=True, help_text='e.g. 0-25mm, 0-100°C', max_length=200)),
-                ('resolution', models.CharField(blank=True, help_text='e.g. 0.001mm, 0.1°C', max_length=100)),
-                ('accuracy', models.CharField(blank=True, help_text='e.g. ±0.002mm', max_length=100)),
-                ('gage_studies', models.JSONField(blank=True, default=list, help_text='List of DSWResult IDs from Gage R&R studies')),
-                ('notes', models.TextField(blank=True)),
-                ('iso_clause', models.CharField(blank=True, default='7.1.5', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='equipment_created', to=settings.AUTH_USER_MODEL)),
-                ('owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='equipment', to=settings.AUTH_USER_MODEL)),
-                ('site', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='equipment', to='agents_api.site')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("name", models.CharField(max_length=300)),
+                (
+                    "asset_id",
+                    models.CharField(
+                        blank=True, help_text="Internal asset tag", max_length=100
+                    ),
+                ),
+                ("serial_number", models.CharField(blank=True, max_length=100)),
+                ("manufacturer", models.CharField(blank=True, max_length=200)),
+                ("model_number", models.CharField(blank=True, max_length=200)),
+                (
+                    "equipment_type",
+                    models.CharField(
+                        choices=[
+                            ("dimensional", "Dimensional"),
+                            ("force_torque", "Force/Torque"),
+                            ("temperature", "Temperature"),
+                            ("pressure", "Pressure"),
+                            ("electrical", "Electrical"),
+                            ("mass", "Mass/Weight"),
+                            ("optical", "Optical"),
+                            ("chemical", "Chemical"),
+                            ("other", "Other"),
+                        ],
+                        default="other",
+                        max_length=20,
+                    ),
+                ),
+                ("location", models.CharField(blank=True, max_length=300)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("in_service", "In Service"),
+                            ("due", "Calibration Due"),
+                            ("overdue", "Overdue"),
+                            ("out_of_calibration", "Out of Calibration"),
+                            ("out_of_service", "Out of Service"),
+                            ("retired", "Retired"),
+                        ],
+                        default="in_service",
+                        max_length=25,
+                    ),
+                ),
+                ("calibration_interval_months", models.IntegerField(default=12)),
+                ("last_calibration_date", models.DateField(blank=True, null=True)),
+                ("next_calibration_due", models.DateField(blank=True, null=True)),
+                ("calibration_provider", models.CharField(blank=True, max_length=300)),
+                (
+                    "calibration_certificate",
+                    models.CharField(
+                        blank=True,
+                        help_text="Certificate number or reference",
+                        max_length=300,
+                    ),
+                ),
+                (
+                    "measurement_range",
+                    models.CharField(
+                        blank=True, help_text="e.g. 0-25mm, 0-100°C", max_length=200
+                    ),
+                ),
+                (
+                    "resolution",
+                    models.CharField(
+                        blank=True, help_text="e.g. 0.001mm, 0.1°C", max_length=100
+                    ),
+                ),
+                (
+                    "accuracy",
+                    models.CharField(
+                        blank=True, help_text="e.g. ±0.002mm", max_length=100
+                    ),
+                ),
+                (
+                    "gage_studies",
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        help_text="List of DSWResult IDs from Gage R&R studies",
+                    ),
+                ),
+                ("notes", models.TextField(blank=True)),
+                (
+                    "iso_clause",
+                    models.CharField(blank=True, default="7.1.5", max_length=20),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="equipment_created",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="equipment",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "site",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="equipment",
+                        to="agents_api.site",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'iso_measurement_equipment',
-                'ordering': ['next_calibration_due', 'name'],
+                "db_table": "iso_measurement_equipment",
+                "ordering": ["next_calibration_due", "name"],
             },
         ),
         migrations.CreateModel(
-            name='Risk',
+            name="Risk",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(max_length=300)),
-                ('description', models.TextField(blank=True)),
-                ('risk_type', models.CharField(choices=[('risk', 'Risk'), ('opportunity', 'Opportunity')], default='risk', max_length=20)),
-                ('category', models.CharField(choices=[('operational', 'Operational'), ('quality', 'Quality'), ('compliance', 'Compliance'), ('strategic', 'Strategic'), ('safety', 'Safety'), ('financial', 'Financial'), ('supply_chain', 'Supply Chain')], default='operational', max_length=20)),
-                ('status', models.CharField(choices=[('identified', 'Identified'), ('assessing', 'Assessing'), ('mitigating', 'Mitigating'), ('accepted', 'Accepted'), ('closed', 'Closed')], default='identified', max_length=20)),
-                ('likelihood', models.IntegerField(default=1, help_text='1=Rare, 5=Almost certain', validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(5)])),
-                ('impact', models.IntegerField(default=1, help_text='1=Negligible, 5=Catastrophic', validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(5)])),
-                ('risk_score', models.IntegerField(default=1, help_text='likelihood × impact (computed)')),
-                ('mitigation_actions', models.JSONField(blank=True, default=list, help_text='[{"action": str, "owner": str, "due_date": str, "status": str}]')),
-                ('residual_likelihood', models.IntegerField(blank=True, null=True, validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(5)])),
-                ('residual_impact', models.IntegerField(blank=True, null=True, validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(5)])),
-                ('residual_risk_score', models.IntegerField(blank=True, null=True)),
-                ('review_date', models.DateField(blank=True, help_text='Next scheduled review', null=True)),
-                ('review_frequency_months', models.IntegerField(default=3, help_text='How often to review this risk')),
-                ('iso_clause', models.CharField(blank=True, default='6.1', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='risks_created', to=settings.AUTH_USER_MODEL)),
-                ('fmea', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='risks', to='agents_api.fmea')),
-                ('owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='risks', to=settings.AUTH_USER_MODEL)),
-                ('project', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='risks', to='core.project')),
-                ('risk_owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='owned_risks', to=settings.AUTH_USER_MODEL)),
-                ('site', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='risks', to='agents_api.site')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("title", models.CharField(max_length=300)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "risk_type",
+                    models.CharField(
+                        choices=[("risk", "Risk"), ("opportunity", "Opportunity")],
+                        default="risk",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "category",
+                    models.CharField(
+                        choices=[
+                            ("operational", "Operational"),
+                            ("quality", "Quality"),
+                            ("compliance", "Compliance"),
+                            ("strategic", "Strategic"),
+                            ("safety", "Safety"),
+                            ("financial", "Financial"),
+                            ("supply_chain", "Supply Chain"),
+                        ],
+                        default="operational",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("identified", "Identified"),
+                            ("assessing", "Assessing"),
+                            ("mitigating", "Mitigating"),
+                            ("accepted", "Accepted"),
+                            ("closed", "Closed"),
+                        ],
+                        default="identified",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "likelihood",
+                    models.IntegerField(
+                        default=1,
+                        help_text="1=Rare, 5=Almost certain",
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(5),
+                        ],
+                    ),
+                ),
+                (
+                    "impact",
+                    models.IntegerField(
+                        default=1,
+                        help_text="1=Negligible, 5=Catastrophic",
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(5),
+                        ],
+                    ),
+                ),
+                (
+                    "risk_score",
+                    models.IntegerField(
+                        default=1, help_text="likelihood × impact (computed)"
+                    ),
+                ),
+                (
+                    "mitigation_actions",
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        help_text='[{"action": str, "owner": str, "due_date": str, "status": str}]',
+                    ),
+                ),
+                (
+                    "residual_likelihood",
+                    models.IntegerField(
+                        blank=True,
+                        null=True,
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(5),
+                        ],
+                    ),
+                ),
+                (
+                    "residual_impact",
+                    models.IntegerField(
+                        blank=True,
+                        null=True,
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(5),
+                        ],
+                    ),
+                ),
+                ("residual_risk_score", models.IntegerField(blank=True, null=True)),
+                (
+                    "review_date",
+                    models.DateField(
+                        blank=True, help_text="Next scheduled review", null=True
+                    ),
+                ),
+                (
+                    "review_frequency_months",
+                    models.IntegerField(
+                        default=3, help_text="How often to review this risk"
+                    ),
+                ),
+                (
+                    "iso_clause",
+                    models.CharField(blank=True, default="6.1", max_length=20),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="risks_created",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "fmea",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="risks",
+                        to="agents_api.fmea",
+                    ),
+                ),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="risks",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "project",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="risks",
+                        to="core.project",
+                    ),
+                ),
+                (
+                    "risk_owner",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="owned_risks",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "site",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="risks",
+                        to="agents_api.site",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'iso_risks',
-                'ordering': ['-risk_score', '-created_at'],
+                "db_table": "iso_risks",
+                "ordering": ["-risk_score", "-created_at"],
             },
         ),
     ]

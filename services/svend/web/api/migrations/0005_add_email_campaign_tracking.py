@@ -10,43 +10,82 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0004_blog_view_analytics'),
+        ("api", "0004_blog_view_analytics"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='EmailCampaign',
+            name="EmailCampaign",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('subject', models.CharField(max_length=200)),
-                ('body_md', models.TextField()),
-                ('target', models.CharField(max_length=50)),
-                ('recipient_count', models.IntegerField(default=0)),
-                ('is_test', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('sent_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("subject", models.CharField(max_length=200)),
+                ("body_md", models.TextField()),
+                ("target", models.CharField(max_length=50)),
+                ("recipient_count", models.IntegerField(default=0)),
+                ("is_test", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "sent_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'email_campaigns',
-                'ordering': ['-created_at'],
+                "db_table": "email_campaigns",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='EmailRecipient',
+            name="EmailRecipient",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('email', models.EmailField(max_length=254)),
-                ('sent_at', models.DateTimeField(auto_now_add=True)),
-                ('opened_at', models.DateTimeField(blank=True, null=True)),
-                ('clicked_at', models.DateTimeField(blank=True, null=True)),
-                ('failed', models.BooleanField(default=False)),
-                ('campaign', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='recipients', to='api.emailcampaign')),
-                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("email", models.EmailField(max_length=254)),
+                ("sent_at", models.DateTimeField(auto_now_add=True)),
+                ("opened_at", models.DateTimeField(blank=True, null=True)),
+                ("clicked_at", models.DateTimeField(blank=True, null=True)),
+                ("failed", models.BooleanField(default=False)),
+                (
+                    "campaign",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="recipients",
+                        to="api.emailcampaign",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'email_recipients',
-                'ordering': ['-sent_at'],
+                "db_table": "email_recipients",
+                "ordering": ["-sent_at"],
             },
         ),
     ]

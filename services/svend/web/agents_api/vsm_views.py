@@ -507,21 +507,30 @@ def compare_vsm(request, vsm_id):
             "current": current.total_lead_time,
             "future": future.total_lead_time,
             "improvement": (
-                ((current.total_lead_time or 0) - (future.total_lead_time or 0)) / (current.total_lead_time or 1) * 100
-            )
-            if current.total_lead_time
-            else 0,
+                (
+                    ((current.total_lead_time or 0) - (future.total_lead_time or 0))
+                    / (current.total_lead_time or 1)
+                    * 100
+                )
+                if current.total_lead_time
+                else 0
+            ),
         },
         "process_time": {
             "current": current.total_process_time,
             "future": future.total_process_time,
             "improvement": (
-                ((current.total_process_time or 0) - (future.total_process_time or 0))
-                / (current.total_process_time or 1)
-                * 100
-            )
-            if current.total_process_time
-            else 0,
+                (
+                    (
+                        (current.total_process_time or 0)
+                        - (future.total_process_time or 0)
+                    )
+                    / (current.total_process_time or 1)
+                    * 100
+                )
+                if current.total_process_time
+                else 0
+            ),
         },
         "pce": {
             "current": current.pce,
@@ -835,9 +844,11 @@ def generate_proposals(request, vsm_id):
                 "upper_95": estimate.get("upper_95", 0),
                 "p_positive": estimate.get("p_positive", 0),
                 "suggested_title": f"{burst_text} — {step_name}",
-                "suggested_type": "labor"
-                if estimate["suggested_method"] in ("time_reduction", "headcount")
-                else "material",
+                "suggested_type": (
+                    "labor"
+                    if estimate["suggested_method"] in ("time_reduction", "headcount")
+                    else "material"
+                ),
             }
         )
 
@@ -886,15 +897,23 @@ def approve_proposal(request, vsm_id):
 
     # Duplicate check — prevent approving same burst twice
     if burst_id:
-        existing = HoshinProject.objects.filter(source_vsm=vsm, source_burst_id=burst_id).first()
+        existing = HoshinProject.objects.filter(
+            source_vsm=vsm, source_burst_id=burst_id
+        ).first()
         if existing:
             return JsonResponse(
-                {"error": "This proposal has already been approved", "hoshin_id": str(existing.id)}, status=409
+                {
+                    "error": "This proposal has already been approved",
+                    "hoshin_id": str(existing.id),
+                },
+                status=409,
             )
 
     title = data.get("title", "").strip()
     if not title:
-        burst_text = burst.get("text", "VSM Improvement") if burst else "VSM Improvement"
+        burst_text = (
+            burst.get("text", "VSM Improvement") if burst else "VSM Improvement"
+        )
         title = f"CI — {burst_text}"[:300]
 
     project = Project.objects.create(title=title, user=request.user)
@@ -916,7 +935,10 @@ def approve_proposal(request, vsm_id):
     )
 
     logger.info(
-        "VSM %s: proposal approved → HoshinProject %s (savings=$%s)", vsm.id, hoshin.id, hoshin.annual_savings_target
+        "VSM %s: proposal approved → HoshinProject %s (savings=$%s)",
+        vsm.id,
+        hoshin.id,
+        hoshin.annual_savings_target,
     )
 
     return JsonResponse(

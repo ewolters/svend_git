@@ -6,13 +6,21 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0011_employee_resourcecommitment_actiontoken'),
+        ("core", "0011_employee_resourcecommitment_actiontoken"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='project',
-            name='project_class',
-            field=models.CharField(choices=[('investigation', 'Investigation / Study'), ('strategic', 'Strategic / Hoshin')], default='investigation', help_text='Investigation/study (tactical) or strategic (Hoshin)', max_length=20),
+            model_name="project",
+            name="project_class",
+            field=models.CharField(
+                choices=[
+                    ("investigation", "Investigation / Study"),
+                    ("strategic", "Strategic / Hoshin"),
+                ],
+                default="investigation",
+                help_text="Investigation/study (tactical) or strategic (Hoshin)",
+                max_length=20,
+            ),
         ),
     ]

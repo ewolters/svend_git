@@ -293,7 +293,9 @@ class SchemaDiff:
         }
 
 
-def detect_breaking_changes(old_schema: dict[str, Any], new_schema: dict[str, Any]) -> SchemaDiff:
+def detect_breaking_changes(
+    old_schema: dict[str, Any], new_schema: dict[str, Any]
+) -> SchemaDiff:
     """
     Detect breaking changes between two schema versions.
 
@@ -393,7 +395,10 @@ def detect_breaking_changes(old_schema: dict[str, Any], new_schema: dict[str, An
 
 
 def _check_constraint_changes(
-    old_field: dict[str, Any], new_field: dict[str, Any], field_name: str, diff: SchemaDiff
+    old_field: dict[str, Any],
+    new_field: dict[str, Any],
+    field_name: str,
+    diff: SchemaDiff,
 ) -> None:
     """Check for constraint changes between field definitions."""
     # Minimum constraint tightening
@@ -451,7 +456,10 @@ def _check_constraint_changes(
 
 
 def _check_enum_changes(
-    old_field: dict[str, Any], new_field: dict[str, Any], field_name: str, diff: SchemaDiff
+    old_field: dict[str, Any],
+    new_field: dict[str, Any],
+    field_name: str,
+    diff: SchemaDiff,
 ) -> None:
     """Check for enum value changes."""
     old_enum = set(old_field.get("enum", []))
@@ -535,7 +543,9 @@ class DeprecationInfo:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response."""
         return {
-            "deprecated_at": self.deprecated_at.isoformat() if self.deprecated_at else None,
+            "deprecated_at": (
+                self.deprecated_at.isoformat() if self.deprecated_at else None
+            ),
             "deprecated_by": self.deprecated_by,
             "sunset_date": self.sunset_date.isoformat() if self.sunset_date else None,
             "migration_path": self.migration_path,
@@ -637,7 +647,9 @@ class VersionManager:
             for v in versions
         ]
 
-    def compute_next_version(self, current: SemanticVersion, change_type: VersionChangeType) -> SemanticVersion:
+    def compute_next_version(
+        self, current: SemanticVersion, change_type: VersionChangeType
+    ) -> SemanticVersion:
         """
         Compute next version based on change type.
 
@@ -655,7 +667,9 @@ class VersionManager:
         else:
             return current.bump_patch()
 
-    def validate_rollback(self, current_version: str, target_version: str) -> tuple[bool, list[str]]:
+    def validate_rollback(
+        self, current_version: str, target_version: str
+    ) -> tuple[bool, list[str]]:
         """
         Validate rollback is safe.
 
@@ -708,7 +722,10 @@ class SynaraVersionedMixin(models.Model):
 
     # Semantic version (MAJOR.MINOR.PATCH)
     version = models.CharField(
-        max_length=50, default="1.0.0", db_index=True, help_text="Semantic version (MAJOR.MINOR.PATCH) per SDK-001 §6"
+        max_length=50,
+        default="1.0.0",
+        db_index=True,
+        help_text="Semantic version (MAJOR.MINOR.PATCH) per SDK-001 §6",
     )
 
     # Version lifecycle status
@@ -728,19 +745,28 @@ class SynaraVersionedMixin(models.Model):
 
     # Checksum for integrity
     version_checksum = models.CharField(
-        max_length=64, blank=True, default="", help_text="SHA-256 checksum of definition for integrity"
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="SHA-256 checksum of definition for integrity",
     )
 
     # Deprecation metadata
-    deprecated_at = models.DateTimeField(null=True, blank=True, help_text="When this version was deprecated")
+    deprecated_at = models.DateTimeField(
+        null=True, blank=True, help_text="When this version was deprecated"
+    )
 
-    sunset_date = models.DateTimeField(null=True, blank=True, help_text="When this version reaches end of life")
+    sunset_date = models.DateTimeField(
+        null=True, blank=True, help_text="When this version reaches end of life"
+    )
 
     successor_version = models.CharField(
         max_length=50, blank=True, default="", help_text="Recommended successor version"
     )
 
-    deprecation_reason = models.TextField(blank=True, default="", help_text="Reason for deprecation")
+    deprecation_reason = models.TextField(
+        blank=True, default="", help_text="Reason for deprecation"
+    )
 
     class Meta:
         abstract = True
@@ -767,7 +793,12 @@ class SynaraVersionedMixin(models.Model):
 
         return str(new_version)
 
-    def deprecate(self, reason: str, successor: str | None = None, sunset_date: datetime | None = None) -> None:
+    def deprecate(
+        self,
+        reason: str,
+        successor: str | None = None,
+        sunset_date: datetime | None = None,
+    ) -> None:
         """
         Mark version as deprecated.
 

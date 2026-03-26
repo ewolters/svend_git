@@ -134,7 +134,9 @@ class Command(BaseCommand):
 
         # Golden file count
         golden_dir = base / "agents_api" / "tests" / "golden"
-        golden_count = len(list(golden_dir.glob("*.json"))) if golden_dir.exists() else 0
+        golden_count = (
+            len(list(golden_dir.glob("*.json"))) if golden_dir.exists() else 0
+        )
 
         # Complexity violations (files > 3000 lines)
         complexity_violations = 0
@@ -177,12 +179,20 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"CalibrationReport created: {report.id}"))
         self.stdout.write(f"  Date: {report.date}")
         self.stdout.write(f"  Overall coverage: {overall:.1f}%")
-        self.stdout.write(f"  Tier 1: {t1}%  Tier 2: {t2}%  Tier 3: {t3}%  Tier 4: {t4}%")
+        self.stdout.write(
+            f"  Tier 1: {t1}%  Tier 2: {t2}%  Tier 3: {t3}%  Tier 4: {t4}%"
+        )
         self.stdout.write(f"  Golden files: {golden_count}")
         self.stdout.write(f"  Complexity violations: {complexity_violations}")
-        self.stdout.write(f"  Ratchet baseline: {ratchet_baseline:.1f}% → {new_ratchet:.1f}%")
+        self.stdout.write(
+            f"  Ratchet baseline: {ratchet_baseline:.1f}% → {new_ratchet:.1f}%"
+        )
 
         if ratchet_pass:
             self.stdout.write(self.style.SUCCESS("  Ratchet: PASS"))
         else:
-            self.stdout.write(self.style.ERROR(f"  Ratchet: FAIL ({overall:.1f}% < {ratchet_baseline:.1f}%)"))
+            self.stdout.write(
+                self.style.ERROR(
+                    f"  Ratchet: FAIL ({overall:.1f}% < {ratchet_baseline:.1f}%)"
+                )
+            )

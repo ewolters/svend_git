@@ -229,15 +229,21 @@ class SynaraRegistryDBTest(TestCase):
     def test_get_by_code_tenant_specific_first(self):
         """get_by_code() with tenant_id returns tenant-specific entry first."""
         tenant = uuid.uuid4()
-        ConcreteRegistry.objects.create(code="status", label="Global Status", tenant_id=None)
-        ConcreteRegistry.objects.create(code="status", label="Tenant Status", tenant_id=tenant)
+        ConcreteRegistry.objects.create(
+            code="status", label="Global Status", tenant_id=None
+        )
+        ConcreteRegistry.objects.create(
+            code="status", label="Tenant Status", tenant_id=tenant
+        )
         entry = ConcreteRegistry.get_by_code("status", tenant_id=tenant)
         self.assertEqual(entry.label, "Tenant Status")
 
     def test_get_by_code_falls_back_to_global(self):
         """get_by_code() with tenant_id falls back to global if no tenant match."""
         tenant = uuid.uuid4()
-        ConcreteRegistry.objects.create(code="fallback", label="Global Fallback", tenant_id=None)
+        ConcreteRegistry.objects.create(
+            code="fallback", label="Global Fallback", tenant_id=None
+        )
         entry = ConcreteRegistry.get_by_code("fallback", tenant_id=tenant)
         self.assertEqual(entry.label, "Global Fallback")
 
@@ -263,8 +269,12 @@ class SynaraRegistryDBTest(TestCase):
 
     def test_get_choices_returns_tuples(self):
         """get_choices() returns list of (code, label) tuples."""
-        ConcreteRegistry.objects.create(code="choice_a", label="Choice A", display_order=1)
-        ConcreteRegistry.objects.create(code="choice_b", label="Choice B", display_order=2)
+        ConcreteRegistry.objects.create(
+            code="choice_a", label="Choice A", display_order=1
+        )
+        ConcreteRegistry.objects.create(
+            code="choice_b", label="Choice B", display_order=2
+        )
         choices = ConcreteRegistry.get_choices()
         self.assertIsInstance(choices, list)
         # Verify our entries are in the list
@@ -397,7 +407,9 @@ class SynaraImmutableLogDBTest(TestCase):
         self._make_entry(tenant_id=tenant, event_name="t.second")
 
         # Tamper the first entry's hash via raw update
-        ConcreteImmutableLog.objects.filter(pk=first.pk).update(entry_hash="dead" + "0" * 60)
+        ConcreteImmutableLog.objects.filter(pk=first.pk).update(
+            entry_hash="dead" + "0" * 60
+        )
 
         result = ConcreteImmutableLog.verify_chain(tenant_id=tenant)
         self.assertFalse(result["is_valid"])

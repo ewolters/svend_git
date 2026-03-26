@@ -25,7 +25,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _user(email="qms@test.com", tier=Tier.TEAM):
     username = email.split("@")[0]
-    u = User.objects.create_user(username=username, email=email, password="testpass123!")
+    u = User.objects.create_user(
+        username=username, email=email, password="testpass123!"
+    )
     u.tier = tier
     u.save(update_fields=["tier"])
     return u
@@ -224,7 +226,9 @@ class NCRLifecycleEvidenceTest(TestCase):
         self.assertEqual(resp.status_code, 200)
 
         # investigation → capa (requires root_cause)
-        resp = self._transition_ncr(ncr_id, {"status": "capa", "root_cause": "Operator error"})
+        resp = self._transition_ncr(
+            ncr_id, {"status": "capa", "root_cause": "Operator error"}
+        )
         self.assertEqual(resp.status_code, 200)
 
         # capa → verification
@@ -262,7 +266,9 @@ class NCRLifecycleEvidenceTest(TestCase):
                 "assigned_to": str(self.user.id),
             },
         )
-        self._transition_ncr(ncr_id, {"status": "capa", "root_cause": "Material defect"})
+        self._transition_ncr(
+            ncr_id, {"status": "capa", "root_cause": "Material defect"}
+        )
         self._transition_ncr(ncr_id, {"status": "verification"})
         self._transition_ncr(
             ncr_id,
@@ -277,7 +283,9 @@ class NCRLifecycleEvidenceTest(TestCase):
             project_id=project_id,
             source_description__contains=ncr_id,
         )
-        self.assertTrue(evidence.exists(), "NCR close should create evidence on linked project")
+        self.assertTrue(
+            evidence.exists(), "NCR close should create evidence on linked project"
+        )
 
     def test_invalid_transition_rejected(self):
         ncr_id = self._create_ncr()
@@ -312,7 +320,9 @@ class CAPARCABackflowTest(TestCase):
     def setUp(self):
         self.user = _user("capa_rca@test.com")
         self.c = _api(self.user)
-        self.project = Project.objects.create(user=self.user, title="CAPA-RCA Test", methodology="none")
+        self.project = Project.objects.create(
+            user=self.user, title="CAPA-RCA Test", methodology="none"
+        )
 
     def test_rca_root_cause_backfills_capa(self):
         # Create RCA session
@@ -356,7 +366,11 @@ class CAPARCABackflowTest(TestCase):
         resp = self.c.get(f"/api/capa/{capa_id}/")
         self.assertEqual(resp.status_code, 200)
         capa = resp.json()
-        self.assertIn("80°C", capa.get("root_cause", ""), "RCA root cause should backflow to linked CAPA")
+        self.assertIn(
+            "80°C",
+            capa.get("root_cause", ""),
+            "RCA root cause should backflow to linked CAPA",
+        )
 
 
 # ============================================================================
@@ -371,7 +385,9 @@ class FMEAHypothesisLinkTest(TestCase):
     def setUp(self):
         self.user = _user("fmea_hyp@test.com", tier=Tier.PRO)
         self.c = _api(self.user)
-        self.project = Project.objects.create(user=self.user, title="FMEA Integration", methodology="none")
+        self.project = Project.objects.create(
+            user=self.user, title="FMEA Integration", methodology="none"
+        )
         self.hypothesis = Hypothesis.objects.create(
             project=self.project,
             statement="Material degradation is root cause",
@@ -433,7 +449,9 @@ class FMEAHypothesisLinkTest(TestCase):
         # Posterior should have moved from prior
         self.hypothesis.refresh_from_db()
         self.assertNotEqual(
-            self.hypothesis.current_probability, 0.5, "Bayesian update should change posterior from prior"
+            self.hypothesis.current_probability,
+            0.5,
+            "Bayesian update should change posterior from prior",
         )
 
 
@@ -668,7 +686,9 @@ class LandingPageAccuracyTest(TestCase):
         states = [c[0] for c in NonconformanceRecord.Status.choices]
         self.assertEqual(len(states), 5)
         self.assertNotIn("containment", states)
-        self.assertEqual(states, ["open", "investigation", "capa", "verification", "closed"])
+        self.assertEqual(
+            states, ["open", "investigation", "capa", "verification", "closed"]
+        )
 
     def test_capa_has_six_states_with_containment(self):
         """CAPA model has 6 states including containment."""

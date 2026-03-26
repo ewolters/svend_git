@@ -23,6 +23,8 @@ class Command(BaseCommand):
             self.stdout.write(f"  Published: {post.title}")
 
         if count:
-            self.stdout.write(self.style.SUCCESS(f"Published {count} scheduled post(s)."))
+            self.stdout.write(
+                self.style.SUCCESS(f"Published {count} scheduled post(s).")
+            )
         else:
             self.stdout.write("No posts due for publishing.")

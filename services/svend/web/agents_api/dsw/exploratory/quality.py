@@ -65,7 +65,12 @@ def run_data_profile(df, config):
             for i in range(len(numeric_cols)):
                 for j in range(i + 1, len(numeric_cols)):
                     pairs.append(
-                        (numeric_cols[i], numeric_cols[j], abs(corr_matrix.iloc[i, j]), corr_matrix.iloc[i, j])
+                        (
+                            numeric_cols[i],
+                            numeric_cols[j],
+                            abs(corr_matrix.iloc[i, j]),
+                            corr_matrix.iloc[i, j],
+                        )
                     )
             pairs.sort(key=lambda x: x[2], reverse=True)
             top_pairs = pairs[:10]
@@ -110,7 +115,9 @@ Top Correlations:
                             "colorscale": "RdBu_r",
                             "zmin": -1,
                             "zmax": 1,
-                            "text": [[f"{v:.2f}" for v in row] for row in corr_matrix.values],
+                            "text": [
+                                [f"{v:.2f}" for v in row] for row in corr_matrix.values
+                            ],
                             "texttemplate": "%{text}",
                             "hovertemplate": "%{x} vs %{y}: %{z:.3f}<extra></extra>",
                         }
@@ -180,7 +187,9 @@ Top Correlations:
         if len(numeric_cols) >= 2:
             _corr = df[numeric_cols].corr()
             _tri = _corr.where(np.triu(np.ones(_corr.shape, dtype=bool), k=1))
-            _max_pair = _tri.stack().abs().idxmax() if _tri.stack().abs().max() > 0.5 else None
+            _max_pair = (
+                _tri.stack().abs().idxmax() if _tri.stack().abs().max() > 0.5 else None
+            )
             if _max_pair:
                 _dp_top_corr = f" Strongest correlation: <strong>{_max_pair[0]}</strong> ↔ <strong>{_max_pair[1]}</strong> (r = {_corr.loc[_max_pair[0], _max_pair[1]]:.3f})."
         result["narrative"] = _narrative(
@@ -221,7 +230,9 @@ def run_auto_profile(df, config):
                         f"  <<COLOR:accent>>{col}<</COLOR>>  N={len(vals)}  Mean={vals.mean():.4g}  StDev={vals.std():.4g}  Min={vals.min():.4g}  Max={vals.max():.4g}  Missing={miss_p:.1f}%"
                     )
                 else:
-                    col_lines.append(f"  <<COLOR:warning>>{col}<</COLOR>>  (all missing)")
+                    col_lines.append(
+                        f"  <<COLOR:warning>>{col}<</COLOR>>  (all missing)"
+                    )
             else:
                 uniq = df[col].nunique()
                 top = df[col].mode().iloc[0] if len(df[col].mode()) > 0 else "-"
@@ -254,7 +265,9 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                             "colorscale": "RdBu_r",
                             "zmin": -1,
                             "zmax": 1,
-                            "text": [[f"{v:.2f}" for v in row] for row in corr_matrix.values],
+                            "text": [
+                                [f"{v:.2f}" for v in row] for row in corr_matrix.values
+                            ],
                             "texttemplate": "%{text}",
                             "hovertemplate": "%{x} vs %{y}: %{z:.3f}<extra></extra>",
                         }
@@ -347,7 +360,9 @@ def run_graphical_summary(df, config):
         selected = [c for c in selected if c in numeric_cols]
 
         if not selected:
-            result["summary"] = "No numeric columns selected or available for Graphical Summary."
+            result["summary"] = (
+                "No numeric columns selected or available for Graphical Summary."
+            )
         else:
             all_summaries = []
             for col in selected:
@@ -356,7 +371,9 @@ def run_graphical_summary(df, config):
                 n_star = int(df[col].isnull().sum())
 
                 if n < 3:
-                    all_summaries.append(f"<<COLOR:title>>{col}<</COLOR>>: insufficient data (N={n})")
+                    all_summaries.append(
+                        f"<<COLOR:title>>{col}<</COLOR>>: insufficient data (N={n})"
+                    )
                     continue
 
                 # Descriptive stats
@@ -394,7 +411,9 @@ def run_graphical_summary(df, config):
                 )
 
                 # CI for mean (t-interval)
-                ci_mean = sp_stats.t.interval(conf_level, df=n - 1, loc=mean_val, scale=se)
+                ci_mean = sp_stats.t.interval(
+                    conf_level, df=n - 1, loc=mean_val, scale=se
+                )
 
                 # CI for median (nonparametric sign-test inversion)
                 alpha = 1 - conf_level
@@ -407,7 +426,11 @@ def run_graphical_summary(df, config):
                         break
                 sorted_vals = np.sort(vals)
                 ci_median_lo = float(sorted_vals[j]) if j < n else float(sorted_vals[0])
-                ci_median_hi = float(sorted_vals[n - 1 - j]) if (n - 1 - j) >= 0 else float(sorted_vals[-1])
+                ci_median_hi = (
+                    float(sorted_vals[n - 1 - j])
+                    if (n - 1 - j) >= 0
+                    else float(sorted_vals[-1])
+                )
 
                 # CI for StDev (chi-square)
                 chi2_lo = sp_stats.chi2.ppf((1 + conf_level) / 2, n - 1)
@@ -467,7 +490,10 @@ def run_graphical_summary(df, config):
                     go.Histogram(
                         x=vals.tolist(),
                         nbinsx=nbins,
-                        marker=dict(color="rgba(74,144,217,0.6)", line=dict(color="rgba(74,144,217,1)", width=1)),
+                        marker=dict(
+                            color="rgba(74,144,217,0.6)",
+                            line=dict(color="rgba(74,144,217,1)", width=1),
+                        ),
                         name="Data",
                         showlegend=False,
                     ),
@@ -476,7 +502,9 @@ def run_graphical_summary(df, config):
                 )
 
                 # Normal PDF overlay scaled to histogram
-                x_fit = np.linspace(min_val - 0.5 * std_val, max_val + 0.5 * std_val, 200)
+                x_fit = np.linspace(
+                    min_val - 0.5 * std_val, max_val + 0.5 * std_val, 200
+                )
                 y_fit = sp_stats.norm.pdf(x_fit, mean_val, std_val) * n * bin_width
                 fig.add_trace(
                     go.Scatter(
@@ -514,7 +542,11 @@ def run_graphical_summary(df, config):
                         mode="lines+markers",
                         marker=dict(
                             size=[8, 12, 8],
-                            color=["rgba(232,71,71,0.8)", "rgba(232,71,71,1)", "rgba(232,71,71,0.8)"],
+                            color=[
+                                "rgba(232,71,71,0.8)",
+                                "rgba(232,71,71,1)",
+                                "rgba(232,71,71,0.8)",
+                            ],
                             symbol=["line-ns", "diamond", "line-ns"],
                         ),
                         line=dict(color="rgba(232,71,71,0.8)", width=2),
@@ -532,7 +564,11 @@ def run_graphical_summary(df, config):
                         mode="lines+markers",
                         marker=dict(
                             size=[8, 12, 8],
-                            color=["rgba(74,144,217,0.8)", "rgba(74,144,217,1)", "rgba(74,144,217,0.8)"],
+                            color=[
+                                "rgba(74,144,217,0.8)",
+                                "rgba(74,144,217,1)",
+                                "rgba(74,144,217,0.8)",
+                            ],
                             symbol=["line-ns", "diamond", "line-ns"],
                         ),
                         line=dict(color="rgba(74,144,217,0.8)", width=2),
@@ -548,7 +584,12 @@ def run_graphical_summary(df, config):
 
                 # Convert to JSON-serializable dict
                 fig_dict = fig.to_dict()
-                result["plots"].append({"data": [t for t in fig_dict["data"]], "layout": fig_dict["layout"]})
+                result["plots"].append(
+                    {
+                        "data": [t for t in fig_dict["data"]],
+                        "layout": fig_dict["layout"],
+                    }
+                )
 
                 # HTML table for this variable
                 tbl = f"""<table class='result-table'>
@@ -583,7 +624,9 @@ def run_graphical_summary(df, config):
     except Exception as e:
         import traceback
 
-        result["summary"] = f"Graphical Summary error: {str(e)}\n{traceback.format_exc()}"
+        result["summary"] = (
+            f"Graphical Summary error: {str(e)}\n{traceback.format_exc()}"
+        )
 
     return result
 
@@ -604,7 +647,9 @@ def run_missing_data_analysis(df, config):
 
         # Missing patterns
         miss_indicator = df.isnull().astype(int)
-        pattern_strs = miss_indicator.apply(lambda r: "".join(str(v) for v in r), axis=1)
+        pattern_strs = miss_indicator.apply(
+            lambda r: "".join(str(v) for v in r), axis=1
+        )
         pattern_counts = pattern_strs.value_counts()
         n_patterns = len(pattern_counts)
 
@@ -641,7 +686,11 @@ def run_missing_data_analysis(df, config):
                     chi2_stat = float(np.sum((obs - exp) ** 2 / exp))
                     dof = int(mask.sum() - 1)
                     p_val = float(1 - chi2.cdf(chi2_stat, dof))
-                    conclusion = "Data appears MCAR (p >= 0.05)" if p_val >= 0.05 else "Data may NOT be MCAR (p < 0.05)"
+                    conclusion = (
+                        "Data appears MCAR (p >= 0.05)"
+                        if p_val >= 0.05
+                        else "Data may NOT be MCAR (p < 0.05)"
+                    )
                     mcar_text = f"""
 MCAR Test (Chi-squared approximation):
   Chi-squared: {chi2_stat:.2f}  (df={dof})
@@ -658,18 +707,28 @@ MCAR Test (Chi-squared approximation):
             idx_list = cols_with_missing.index.tolist()
             for i in range(len(idx_list)):
                 for j in range(i + 1, len(idx_list)):
-                    pairs.append((idx_list[i], idx_list[j], miss_corr.loc[idx_list[i], idx_list[j]]))
+                    pairs.append(
+                        (
+                            idx_list[i],
+                            idx_list[j],
+                            miss_corr.loc[idx_list[i], idx_list[j]],
+                        )
+                    )
             pairs.sort(key=lambda x: abs(x[2]), reverse=True)
             if pairs:
                 lines = [f"  {a} <-> {b}: {v:+.3f}" for a, b, v in pairs[:5]]
-                miss_corr_text = "\nMissing Correlation (top pairs):\n" + "\n".join(lines)
+                miss_corr_text = "\nMissing Correlation (top pairs):\n" + "\n".join(
+                    lines
+                )
 
         summary_lines = ["MISSING DATA ANALYSIS", "=" * 50]
         summary_lines.append(f"Dataset: {n_rows} rows x {n_cols} columns")
         summary_lines.append(
             f"Total missing: {int(miss_count.sum())} / {n_rows * n_cols} ({miss_count.sum() / (n_rows * n_cols) * 100:.1f}%)"
         )
-        summary_lines.append(f"Complete rows: {complete_rows} / {n_rows} ({complete_rows / n_rows * 100:.1f}%)")
+        summary_lines.append(
+            f"Complete rows: {complete_rows} / {n_rows} ({complete_rows / n_rows * 100:.1f}%)"
+        )
         summary_lines.append(f"\nColumns with missing data ({len(cols_with_missing)}):")
         for col, cnt in cols_with_missing.items():
             summary_lines.append(f"  {col:<30} {cnt:>6} ({miss_pct[col]:.1f}%)")
@@ -699,7 +758,10 @@ MCAR Test (Chi-squared approximation):
                             "z": z_data,
                             "x": df.columns.tolist(),
                             "y": y_labels,
-                            "colorscale": [[0, "rgba(74,144,217,0.15)"], [1, "rgba(232,71,71,0.7)"]],
+                            "colorscale": [
+                                [0, "rgba(74,144,217,0.15)"],
+                                [1, "rgba(232,71,71,0.7)"],
+                            ],
                             "showscale": False,
                             "hovertemplate": "%{x}: %{z}<extra>0=present, 1=missing</extra>",
                         }
@@ -742,7 +804,11 @@ MCAR Test (Chi-squared approximation):
         _md_pct = _md_total / (n_rows * n_cols) * 100 if n_rows * n_cols > 0 else 0
         _md_worst = cols_with_missing.index[0] if len(cols_with_missing) > 0 else "N/A"
         _md_worst_pct = float(miss_pct[_md_worst]) if len(cols_with_missing) > 0 else 0
-        _md_severity = "minimal" if _md_pct < 5 else ("moderate" if _md_pct < 20 else "substantial")
+        _md_severity = (
+            "minimal"
+            if _md_pct < 5
+            else ("moderate" if _md_pct < 20 else "substantial")
+        )
         result["narrative"] = _narrative(
             f"Missing Data — {_md_severity} ({_md_pct:.1f}% of cells)",
             f"{_md_total:,} missing cells across {len(cols_with_missing)} columns in {n_patterns} unique patterns. "
@@ -774,7 +840,11 @@ def run_outlier_analysis(df, config):
 
         if not columns:
             columns = df.select_dtypes(include=[np.number]).columns.tolist()
-        columns = [c for c in columns if c in df.columns and pd.api.types.is_numeric_dtype(df[c])]
+        columns = [
+            c
+            for c in columns
+            if c in df.columns and pd.api.types.is_numeric_dtype(df[c])
+        ]
 
         if not columns:
             result["summary"] = "No numeric columns found for outlier analysis."
@@ -800,7 +870,11 @@ def run_outlier_analysis(df, config):
                 consensus += mask.astype(int).values
 
             if "zscore" in methods:
-                z = np.abs((df[col] - vals.mean()) / vals.std()) if vals.std() > 0 else pd.Series(0, index=df.index)
+                z = (
+                    np.abs((df[col] - vals.mean()) / vals.std())
+                    if vals.std() > 0
+                    else pd.Series(0, index=df.index)
+                )
                 mask = z > z_thresh
                 col_results["Z-score"] = {
                     "count": int(mask.sum()),
@@ -833,7 +907,9 @@ def run_outlier_analysis(df, config):
                         cov = np.cov(sub.T)
                         cov_inv = np.linalg.inv(cov + np.eye(len(columns)) * 1e-6)
                         mean = sub.mean().values
-                        dists = sub.apply(lambda r: mah_dist(r.values, mean, cov_inv), axis=1)
+                        dists = sub.apply(
+                            lambda r: mah_dist(r.values, mean, cov_inv), axis=1
+                        )
                         from scipy.stats import chi2 as chi2_dist
 
                         threshold = chi2_dist.ppf(0.975, df=len(columns))
@@ -844,7 +920,11 @@ def run_outlier_analysis(df, config):
                             "threshold": f"chi2(p=0.975, df={len(columns)})",
                         }
                 except Exception:
-                    col_results["Mahalanobis"] = {"count": 0, "pct": 0, "error": "Could not compute"}
+                    col_results["Mahalanobis"] = {
+                        "count": 0,
+                        "pct": 0,
+                        "error": "Could not compute",
+                    }
 
             all_results[col] = col_results
 
@@ -857,16 +937,28 @@ def run_outlier_analysis(df, config):
         for col, methods_res in all_results.items():
             summary_lines.append(f"{col}:")
             for method, info in methods_res.items():
-                summary_lines.append(f"  {method:<18} {info['count']:>5} outliers ({info['pct']}%)")
+                summary_lines.append(
+                    f"  {method:<18} {info['count']:>5} outliers ({info['pct']}%)"
+                )
             summary_lines.append("")
 
         # Consensus
-        n_methods_used = len([m for m in methods if m != "mahalanobis" or len(columns) >= 2])
+        n_methods_used = len(
+            [m for m in methods if m != "mahalanobis" or len(columns) >= 2]
+        )
         if n_methods_used >= 2:
-            int((consensus >= n_methods_used * len(columns)).sum()) if n_methods_used > 0 else 0
-            flagged_majority = int((consensus >= max(1, n_methods_used * len(columns) // 2)).sum())
+            (
+                int((consensus >= n_methods_used * len(columns)).sum())
+                if n_methods_used > 0
+                else 0
+            )
+            flagged_majority = int(
+                (consensus >= max(1, n_methods_used * len(columns) // 2)).sum()
+            )
             summary_lines.append("Consensus:")
-            summary_lines.append(f"  Flagged by majority of methods: {flagged_majority} rows")
+            summary_lines.append(
+                f"  Flagged by majority of methods: {flagged_majority} rows"
+            )
 
         result["summary"] = "\n".join(summary_lines)
 
@@ -890,24 +982,44 @@ def run_outlier_analysis(df, config):
                             "y": vals,
                             "name": col,
                             "boxpoints": "outliers",
-                            "marker": {"color": "rgba(74,144,217,0.6)", "outliercolor": "rgba(232,71,71,0.8)"},
+                            "marker": {
+                                "color": "rgba(74,144,217,0.6)",
+                                "outliercolor": "rgba(232,71,71,0.8)",
+                            },
                             "line": {"color": "rgba(74,144,217,0.8)"},
                         }
                     ],
-                    "layout": {"title": f"Outlier Detection: {col}", "height": 300, "yaxis": {"title": col}},
+                    "layout": {
+                        "title": f"Outlier Detection: {col}",
+                        "height": 300,
+                        "yaxis": {"title": col},
+                    },
                 }
             )
 
-        result["guide_observation"] = f"Outlier analysis on {len(columns)} columns with {len(methods)} methods."
+        result["guide_observation"] = (
+            f"Outlier analysis on {len(columns)} columns with {len(methods)} methods."
+        )
 
         # Narrative
-        _oa_total = sum(info["count"] for col_res in all_results.values() for info in col_res.values())
+        _oa_total = sum(
+            info["count"]
+            for col_res in all_results.values()
+            for info in col_res.values()
+        )
         _oa_worst_col = (
-            max(all_results.keys(), key=lambda c: max(info["count"] for info in all_results[c].values()))
+            max(
+                all_results.keys(),
+                key=lambda c: max(info["count"] for info in all_results[c].values()),
+            )
             if all_results
             else ""
         )
-        _oa_worst_n = max(info["count"] for info in all_results[_oa_worst_col].values()) if _oa_worst_col else 0
+        _oa_worst_n = (
+            max(info["count"] for info in all_results[_oa_worst_col].values())
+            if _oa_worst_col
+            else 0
+        )
         result["narrative"] = _narrative(
             f"Outlier Analysis — {len(columns)} columns, {len(methods)} method{'s' if len(methods) > 1 else ''}",
             (
@@ -941,7 +1053,11 @@ def run_duplicate_analysis(df, config):
 
         duplicated_mask = df.duplicated(subset=check_cols, keep=False)
         n_dup_rows = int(duplicated_mask.sum())
-        n_dup_groups = int(df[duplicated_mask].groupby(check_cols).ngroups) if n_dup_rows > 0 else 0
+        n_dup_groups = (
+            int(df[duplicated_mask].groupby(check_cols).ngroups)
+            if n_dup_rows > 0
+            else 0
+        )
         first_dup_mask = df.duplicated(subset=check_cols, keep="first")
         n_extra = int(first_dup_mask.sum())
 
@@ -951,7 +1067,9 @@ def run_duplicate_analysis(df, config):
         )
         summary_lines.append(f"Total rows: {len(df)}")
         summary_lines.append(f"Unique rows: {len(df) - n_extra}")
-        summary_lines.append(f"Duplicate rows: {n_dup_rows} ({n_dup_rows / len(df) * 100:.1f}%)")
+        summary_lines.append(
+            f"Duplicate rows: {n_dup_rows} ({n_dup_rows / len(df) * 100:.1f}%)"
+        )
         summary_lines.append(f"Duplicate groups: {n_dup_groups}")
         summary_lines.append(f"Extra copies (removable): {n_extra}")
 
@@ -989,7 +1107,13 @@ def run_duplicate_analysis(df, config):
             group_sizes_list = dup_df.groupby(check_cols).size().tolist()
             result["plots"].append(
                 {
-                    "data": [{"type": "histogram", "x": group_sizes_list, "marker": {"color": "rgba(232,149,71,0.6)"}}],
+                    "data": [
+                        {
+                            "type": "histogram",
+                            "x": group_sizes_list,
+                            "marker": {"color": "rgba(232,149,71,0.6)"},
+                        }
+                    ],
                     "layout": {
                         "title": "Duplicate Group Sizes",
                         "height": 280,
@@ -1014,10 +1138,16 @@ def run_duplicate_analysis(df, config):
         result["narrative"] = _narrative(
             f"Duplicate Analysis — {_da_verdict}",
             _da_body,
-            next_steps="Verify duplicates are true repeats (not valid repeat measurements) before removing."
-            if n_dup_rows > 0
-            else None,
-            chart_guidance="The histogram shows how many copies exist per duplicate group." if n_dup_rows > 0 else None,
+            next_steps=(
+                "Verify duplicates are true repeats (not valid repeat measurements) before removing."
+                if n_dup_rows > 0
+                else None
+            ),
+            chart_guidance=(
+                "The histogram shows how many copies exist per duplicate group."
+                if n_dup_rows > 0
+                else None
+            ),
         )
 
     except Exception as e:

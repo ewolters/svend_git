@@ -59,7 +59,9 @@ def _err_msg(resp):
 
 def _make_team_user(email, **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password="testpass123!", **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123!", **kwargs
+    )
     user.tier = Tier.TEAM
     user.save(update_fields=["tier"])
     return user
@@ -67,7 +69,9 @@ def _make_team_user(email, **kwargs):
 
 def _make_free_user(email, **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password="testpass123!", **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123!", **kwargs
+    )
     user.tier = Tier.FREE
     user.save(update_fields=["tier"])
     return user
@@ -160,7 +164,9 @@ class NCRCrudTest(TestCase):
 
     def test_list_ncrs_filter_by_severity(self):
         _post(self.client, "/api/iso/ncrs/", {"title": "Minor", "severity": "minor"})
-        _post(self.client, "/api/iso/ncrs/", {"title": "Critical", "severity": "critical"})
+        _post(
+            self.client, "/api/iso/ncrs/", {"title": "Critical", "severity": "critical"}
+        )
         resp = self.client.get("/api/iso/ncrs/?severity=critical")
         items = resp.json()
         self.assertEqual(len(items), 1)
@@ -487,7 +493,9 @@ class NCREvidenceHooksTest(TestCase):
         )
         project_id = self.ncr["project_id"]
         evidence = Evidence.objects.filter(project_id=project_id)
-        rc_evidence = [e for e in evidence if "root_cause" in (e.source_description or "")]
+        rc_evidence = [
+            e for e in evidence if "root_cause" in (e.source_description or "")
+        ]
         self.assertTrue(len(rc_evidence) > 0)
 
     def test_corrective_action_creates_evidence(self):
@@ -501,7 +509,9 @@ class NCREvidenceHooksTest(TestCase):
         )
         project_id = self.ncr["project_id"]
         evidence = Evidence.objects.filter(project_id=project_id)
-        ca_evidence = [e for e in evidence if "corrective_action" in (e.source_description or "")]
+        ca_evidence = [
+            e for e in evidence if "corrective_action" in (e.source_description or "")
+        ]
         self.assertTrue(len(ca_evidence) > 0)
 
     def test_verification_result_creates_evidence(self):
@@ -515,7 +525,9 @@ class NCREvidenceHooksTest(TestCase):
         )
         project_id = self.ncr["project_id"]
         evidence = Evidence.objects.filter(project_id=project_id)
-        vr_evidence = [e for e in evidence if "verification_result" in (e.source_description or "")]
+        vr_evidence = [
+            e for e in evidence if "verification_result" in (e.source_description or "")
+        ]
         self.assertTrue(len(vr_evidence) > 0)
 
     # Compliance-linked aliases (QMS-001 §4.7 test hooks)
@@ -552,7 +564,9 @@ class NCREvidenceHooksTest(TestCase):
         )
         project_id = self.ncr["project_id"]
         evidence = Evidence.objects.filter(project_id=project_id)
-        close_ev = [e for e in evidence if "status_closed" in (e.source_description or "")]
+        close_ev = [
+            e for e in evidence if "status_closed" in (e.source_description or "")
+        ]
         self.assertTrue(len(close_ev) > 0)
 
 
@@ -699,7 +713,9 @@ class AuditCrudTest(TestCase):
         audit = _post(self.client, "/api/iso/audits/", {"title": "Del"}).json()
         resp = self.client.delete(f"/api/iso/audits/{audit['id']}/")
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(self.client.get(f"/api/iso/audits/{audit['id']}/").status_code, 404)
+        self.assertEqual(
+            self.client.get(f"/api/iso/audits/{audit['id']}/").status_code, 404
+        )
 
     def test_get_audit_with_findings(self):
         """GET audit detail includes findings array."""
@@ -827,7 +843,9 @@ class AuditWorkflowTest(TestCase):
                 "status": "closed",
             },
         ).json()
-        _put(self.client, f"/api/iso/audits/{self.audit['id']}/", {"status": "complete"})
+        _put(
+            self.client, f"/api/iso/audits/{self.audit['id']}/", {"status": "complete"}
+        )
         resp = _put(
             self.client,
             f"/api/iso/audits/{self.audit['id']}/",
@@ -840,7 +858,9 @@ class AuditWorkflowTest(TestCase):
 
     # Compliance-linked aliases (QMS-001 §4.7 test hooks)
     test_complete_requires_findings = test_cannot_complete_without_findings
-    test_report_issued_requires_closed_findings = test_cannot_issue_report_with_open_findings
+    test_report_issued_requires_closed_findings = (
+        test_cannot_issue_report_with_open_findings
+    )
     test_valid_workflow = test_report_issued_after_closing_findings
 
     def test_invalid_transition(self):
@@ -1000,8 +1020,14 @@ class AuditChecklistTest(TestCase):
                 "name": "Production Audit Checklist",
                 "iso_clause": "8.5",
                 "check_items": [
-                    {"question": "Are work instructions posted?", "guidance": "Check each station"},
-                    {"question": "Is calibration current?", "guidance": "Review cal stickers"},
+                    {
+                        "question": "Are work instructions posted?",
+                        "guidance": "Check each station",
+                    },
+                    {
+                        "question": "Is calibration current?",
+                        "guidance": "Review cal stickers",
+                    },
                 ],
             },
         )
@@ -1033,7 +1059,9 @@ class AuditChecklistTest(TestCase):
         cl = _post(self.client, "/api/iso/checklists/", {"name": "Del"}).json()
         resp = self.client.delete(f"/api/iso/checklists/{cl['id']}/")
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(self.client.get(f"/api/iso/checklists/{cl['id']}/").status_code, 404)
+        self.assertEqual(
+            self.client.get(f"/api/iso/checklists/{cl['id']}/").status_code, 404
+        )
 
     def test_checklist_items(self):
         """Checklist stores and returns check_items."""
@@ -1422,7 +1450,9 @@ class ManagementReviewTest(TestCase):
             },
         )
         review = _post(self.client, "/api/iso/reviews/", {}).json()
-        self.assertEqual(review["data_snapshot"]["training_summary"]["compliance_rate"], 67)
+        self.assertEqual(
+            review["data_snapshot"]["training_summary"]["compliance_rate"], 67
+        )
 
     def test_review_snapshot_prior_actions(self):
         """Second review captures outputs of the first completed review."""
@@ -1498,7 +1528,9 @@ class ManagementReviewTest(TestCase):
             self.client,
             f"/api/iso/reviews/{rev['id']}/",
             {
-                "outputs": {"actions": ["Hire QA engineer", "Increase audit frequency"]},
+                "outputs": {
+                    "actions": ["Hire QA engineer", "Increase audit frequency"]
+                },
             },
         )
         self.assertEqual(resp.status_code, 200)
@@ -1694,14 +1726,38 @@ class ManagementReviewTemplateTest(TestCase):
             "/api/iso/review-templates/",
             {
                 "title": "Updatable",
-                "sections": [{"key": "a", "title": "A", "data_source": "manual", "auto_query": None, "required": True}],
+                "sections": [
+                    {
+                        "key": "a",
+                        "title": "A",
+                        "data_source": "manual",
+                        "auto_query": None,
+                        "required": True,
+                    }
+                ],
             },
         ).json()
         new_sections = [
-            {"key": "a", "title": "A", "data_source": "manual", "auto_query": None, "required": True},
-            {"key": "b", "title": "B", "data_source": "manual", "auto_query": None, "required": False},
+            {
+                "key": "a",
+                "title": "A",
+                "data_source": "manual",
+                "auto_query": None,
+                "required": True,
+            },
+            {
+                "key": "b",
+                "title": "B",
+                "data_source": "manual",
+                "auto_query": None,
+                "required": False,
+            },
         ]
-        resp = _put(self.client, f"/api/iso/review-templates/{t['id']}/", {"sections": new_sections})
+        resp = _put(
+            self.client,
+            f"/api/iso/review-templates/{t['id']}/",
+            {"sections": new_sections},
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.json()["sections"]), 2)
 
@@ -1752,8 +1808,16 @@ class DocumentControlTest(TestCase):
         self.assertEqual(len(resp.json()), 0)
 
     def test_list_documents_search(self):
-        _post(self.client, "/api/iso/documents/", {"title": "Receiving Inspection", "document_number": "SOP-001"})
-        _post(self.client, "/api/iso/documents/", {"title": "Shipping", "document_number": "SOP-002"})
+        _post(
+            self.client,
+            "/api/iso/documents/",
+            {"title": "Receiving Inspection", "document_number": "SOP-001"},
+        )
+        _post(
+            self.client,
+            "/api/iso/documents/",
+            {"title": "Shipping", "document_number": "SOP-002"},
+        )
         resp = self.client.get("/api/iso/documents/?search=Receiving")
         self.assertEqual(len(resp.json()), 1)
         resp = self.client.get("/api/iso/documents/?search=SOP-002")
@@ -1998,7 +2062,9 @@ class DocumentWorkflowTest(TestCase):
                 "approved_by_user": self.user.id,
             },
         )
-        resp = _put(self.client, f"/api/iso/documents/{doc_id}/", {"status": "obsolete"})
+        resp = _put(
+            self.client, f"/api/iso/documents/{doc_id}/", {"status": "obsolete"}
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["status"], "obsolete")
 
@@ -2159,14 +2225,30 @@ class SupplierManagementTest(TestCase):
         self.assertEqual(len(resp.json()), 2)
 
     def test_list_suppliers_filter(self):
-        _post(self.client, "/api/iso/suppliers/", {"name": "S1", "supplier_type": "raw_material"})
-        _post(self.client, "/api/iso/suppliers/", {"name": "S2", "supplier_type": "service"})
+        _post(
+            self.client,
+            "/api/iso/suppliers/",
+            {"name": "S1", "supplier_type": "raw_material"},
+        )
+        _post(
+            self.client,
+            "/api/iso/suppliers/",
+            {"name": "S2", "supplier_type": "service"},
+        )
         resp = self.client.get("/api/iso/suppliers/?supplier_type=raw_material")
         self.assertEqual(len(resp.json()), 1)
 
     def test_list_suppliers_search(self):
-        _post(self.client, "/api/iso/suppliers/", {"name": "Acme Corp", "contact_name": "Alice"})
-        _post(self.client, "/api/iso/suppliers/", {"name": "Beta Inc", "contact_name": "Bob"})
+        _post(
+            self.client,
+            "/api/iso/suppliers/",
+            {"name": "Acme Corp", "contact_name": "Alice"},
+        )
+        _post(
+            self.client,
+            "/api/iso/suppliers/",
+            {"name": "Beta Inc", "contact_name": "Bob"},
+        )
         resp = self.client.get("/api/iso/suppliers/?search=Acme")
         self.assertEqual(len(resp.json()), 1)
         resp = self.client.get("/api/iso/suppliers/?search=Bob")
@@ -2235,7 +2317,12 @@ class SupplierManagementTest(TestCase):
             self.client,
             f"/api/iso/suppliers/{s['id']}/",
             {
-                "evaluation_scores": {"quality": 5, "delivery": 3, "price": 4, "communication": 4},
+                "evaluation_scores": {
+                    "quality": 5,
+                    "delivery": 3,
+                    "price": 4,
+                    "communication": 4,
+                },
             },
         )
         self.assertEqual(resp.json()["quality_rating"], 4)  # avg=4.0
@@ -2244,7 +2331,12 @@ class SupplierManagementTest(TestCase):
             self.client,
             f"/api/iso/suppliers/{s['id']}/",
             {
-                "evaluation_scores": {"quality": 5, "delivery": 4, "price": 3, "communication": 3},
+                "evaluation_scores": {
+                    "quality": 5,
+                    "delivery": 4,
+                    "price": 3,
+                    "communication": 3,
+                },
             },
         )
         self.assertEqual(resp2.json()["quality_rating"], 4)  # avg=3.75 → rounds to 4
@@ -2435,7 +2527,12 @@ class SupplierWorkflowTest(TestCase):
             self.client,
             f"/api/iso/suppliers/{sid}/",
             {
-                "evaluation_scores": {"quality": 5, "delivery": 3, "price": 4, "communication": 4},
+                "evaluation_scores": {
+                    "quality": 5,
+                    "delivery": 3,
+                    "price": 4,
+                    "communication": 4,
+                },
             },
         )
         self.assertEqual(resp.status_code, 200)
@@ -2579,7 +2676,12 @@ class SupplierWorkflowTest(TestCase):
             self.client,
             f"/api/iso/suppliers/{sid}/",
             {
-                "evaluation_scores": {"quality": 4, "delivery": 3, "price": 4, "communication": 5},
+                "evaluation_scores": {
+                    "quality": 4,
+                    "delivery": 3,
+                    "price": 4,
+                    "communication": 5,
+                },
             },
         )
         s1 = self.client.get(f"/api/iso/suppliers/{sid}/").json()
@@ -2589,7 +2691,12 @@ class SupplierWorkflowTest(TestCase):
             self.client,
             f"/api/iso/suppliers/{sid}/",
             {
-                "evaluation_scores": {"quality": 5, "delivery": 5, "price": 4, "communication": 5},
+                "evaluation_scores": {
+                    "quality": 5,
+                    "delivery": 5,
+                    "price": 4,
+                    "communication": 5,
+                },
             },
         )
         s2 = self.client.get(f"/api/iso/suppliers/{sid}/").json()
@@ -2656,7 +2763,12 @@ class SupplierWorkflowTest(TestCase):
             self.client,
             f"/api/iso/suppliers/{sid}/",
             {
-                "evaluation_scores": {"quality": 1, "delivery": 1, "price": 2, "communication": 1},
+                "evaluation_scores": {
+                    "quality": 1,
+                    "delivery": 1,
+                    "price": 2,
+                    "communication": 1,
+                },
             },
         )
         self.assertEqual(resp.status_code, 200)
@@ -2665,18 +2777,35 @@ class SupplierWorkflowTest(TestCase):
         self.assertIn("Auto-suspended", data["notes"])
         # Status change should be recorded
         self.assertTrue(
-            any(sc["to_status"] == "suspended" and "Auto-suspended" in sc["note"] for sc in data["status_changes"])
+            any(
+                sc["to_status"] == "suspended" and "Auto-suspended" in sc["note"]
+                for sc in data["status_changes"]
+            )
         )
 
     def test_supplier_categories(self):
         """Supplier type categories filter correctly."""
-        _post(self.client, "/api/iso/suppliers/", {"name": "Raw 1", "supplier_type": "raw_material"})
-        _post(self.client, "/api/iso/suppliers/", {"name": "Svc 1", "supplier_type": "service"})
-        _post(self.client, "/api/iso/suppliers/", {"name": "Cal 1", "supplier_type": "calibration"})
+        _post(
+            self.client,
+            "/api/iso/suppliers/",
+            {"name": "Raw 1", "supplier_type": "raw_material"},
+        )
+        _post(
+            self.client,
+            "/api/iso/suppliers/",
+            {"name": "Svc 1", "supplier_type": "service"},
+        )
+        _post(
+            self.client,
+            "/api/iso/suppliers/",
+            {"name": "Cal 1", "supplier_type": "calibration"},
+        )
         # Filter by each category
         for cat, expected in [("raw_material", 1), ("service", 1), ("calibration", 1)]:
             resp = self.client.get(f"/api/iso/suppliers/?supplier_type={cat}")
-            self.assertEqual(len(resp.json()), expected, f"Expected {expected} for {cat}")
+            self.assertEqual(
+                len(resp.json()), expected, f"Expected {expected} for {cat}"
+            )
 
     def test_supplier_dashboard(self):
         """Dashboard supplier section includes status breakdown."""
@@ -2729,7 +2858,9 @@ class StudyRaiseCAPATest(TestCase):
         self.assertIn("capa", data)
         self.assertEqual(data["capa"]["status"], "draft")
         # StudyAction created
-        actions = StudyAction.objects.filter(project=self.project, action_type="raise_capa")
+        actions = StudyAction.objects.filter(
+            project=self.project, action_type="raise_capa"
+        )
         self.assertEqual(actions.count(), 1)
         self.assertEqual(str(actions.first().target_id), data["capa"]["id"])
 
@@ -2813,7 +2944,9 @@ class StudyScheduleAuditTest(TestCase):
         self.assertEqual(data["action"], "schedule_audit")
         self.assertIn("audit", data)
         # StudyAction created
-        actions = StudyAction.objects.filter(project=self.project, action_type="schedule_audit")
+        actions = StudyAction.objects.filter(
+            project=self.project, action_type="schedule_audit"
+        )
         self.assertEqual(actions.count(), 1)
 
     def test_default_scheduled_date(self):
@@ -2877,7 +3010,9 @@ class StudyRequestDocUpdateTest(TestCase):
         self.assertEqual(doc["status"], "draft")
         self.assertEqual(doc["source_study_id"], str(self.project.id))
         # StudyAction created
-        actions = StudyAction.objects.filter(project=self.project, action_type="request_doc_update")
+        actions = StudyAction.objects.filter(
+            project=self.project, action_type="request_doc_update"
+        )
         self.assertEqual(actions.count(), 1)
 
     def test_auto_justification(self):
@@ -2931,7 +3066,9 @@ class StudyFlagTrainingGapTest(TestCase):
         self.assertEqual(req["name"], "GD&T for Inspectors")
         self.assertTrue(req["is_mandatory"])
         # StudyAction created
-        actions = StudyAction.objects.filter(project=self.project, action_type="flag_training_gap")
+        actions = StudyAction.objects.filter(
+            project=self.project, action_type="flag_training_gap"
+        )
         self.assertEqual(actions.count(), 1)
 
     def test_name_required(self):
@@ -2988,7 +3125,9 @@ class StudyFlagFMEAUpdateTest(TestCase):
         self.fmea.refresh_from_db()
         self.assertEqual(self.fmea.status, "review")
         # StudyAction created
-        actions = StudyAction.objects.filter(project=self.project, action_type="flag_fmea_update")
+        actions = StudyAction.objects.filter(
+            project=self.project, action_type="flag_fmea_update"
+        )
         self.assertEqual(actions.count(), 1)
         self.assertEqual(actions.first().notes, "New failure mode discovered")
 
@@ -3402,7 +3541,9 @@ class ISOLoopClosureTest(TestCase):
 
         # 8. Verify evidence chain — root_cause, corrective_action evidence created
         evidence = Evidence.objects.filter(project_id=project_id)
-        self.assertTrue(evidence.count() >= 2)  # At minimum root_cause + corrective_action
+        self.assertTrue(
+            evidence.count() >= 2
+        )  # At minimum root_cause + corrective_action
 
         # 9. Close NCR
         _put(self.client, f"/api/iso/ncrs/{ncr_id}/", {"status": "verification"})
@@ -3698,7 +3839,9 @@ class CAPAEvidenceHooksTest(TestCase):
             },
         )
         evidence = Evidence.objects.filter(project_id=self.capa["project_id"])
-        rc_evidence = [e for e in evidence if "root_cause" in (e.source_description or "")]
+        rc_evidence = [
+            e for e in evidence if "root_cause" in (e.source_description or "")
+        ]
         self.assertTrue(len(rc_evidence) > 0)
 
     def test_corrective_action_evidence(self):
@@ -3711,7 +3854,9 @@ class CAPAEvidenceHooksTest(TestCase):
             },
         )
         evidence = Evidence.objects.filter(project_id=self.capa["project_id"])
-        ca_evidence = [e for e in evidence if "corrective_action" in (e.source_description or "")]
+        ca_evidence = [
+            e for e in evidence if "corrective_action" in (e.source_description or "")
+        ]
         self.assertTrue(len(ca_evidence) > 0)
 
     def test_verification_result_evidence(self):
@@ -3724,7 +3869,9 @@ class CAPAEvidenceHooksTest(TestCase):
             },
         )
         evidence = Evidence.objects.filter(project_id=self.capa["project_id"])
-        vr_evidence = [e for e in evidence if "verification_result" in (e.source_description or "")]
+        vr_evidence = [
+            e for e in evidence if "verification_result" in (e.source_description or "")
+        ]
         self.assertTrue(len(vr_evidence) > 0)
 
     def test_launch_rca_from_capa(self):
@@ -4089,7 +4236,9 @@ class QMSAttachmentTest(TestCase):
                 "file_id": str(self.file.id),
             },
         )
-        resp = self.client.get(f"/api/qms/attachments/?entity_type=capa&entity_id={self.capa_id}")
+        resp = self.client.get(
+            f"/api/qms/attachments/?entity_type=capa&entity_id={self.capa_id}"
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(len(data), 1)
@@ -4110,7 +4259,9 @@ class QMSAttachmentTest(TestCase):
         resp = self.client.delete(f"/api/qms/attachments/{att_id}/")
         self.assertEqual(resp.status_code, 200)
         # Verify gone
-        resp = self.client.get(f"/api/qms/attachments/?entity_type=capa&entity_id={self.capa_id}")
+        resp = self.client.get(
+            f"/api/qms/attachments/?entity_type=capa&entity_id={self.capa_id}"
+        )
         self.assertEqual(len(resp.json()), 0)
 
     def test_invalid_entity_type(self):
@@ -4222,7 +4373,14 @@ class NCRAnalyticsTest(TestCase):
         self.user = _make_team_user("ncranalytics@test.com")
         self.client.login(username="ncranalytics", password="testpass123!")
         # Create several NCRs with varying sources and severities
-        for source in ["supplier", "supplier", "supplier", "process", "process", "internal_audit"]:
+        for source in [
+            "supplier",
+            "supplier",
+            "supplier",
+            "process",
+            "process",
+            "internal_audit",
+        ]:
             _post(
                 self.client,
                 "/api/iso/ncrs/",
@@ -4387,17 +4545,35 @@ class RecurrenceDetectionTest(TestCase):
 
     def _create_and_close_capa(self, title, root_cause, source_type=""):
         """Helper: create a CAPA, set root cause, and close it through workflow."""
-        resp = _post(self.client, "/api/capa/", {"title": title, "source_type": source_type})
+        resp = _post(
+            self.client, "/api/capa/", {"title": title, "source_type": source_type}
+        )
         capa_id = resp.json()["id"]
         # Walk through workflow to closed
-        _put(self.client, f"/api/capa/{capa_id}/", {"status": "containment", "containment_action": "Contained"})
-        _put(self.client, f"/api/capa/{capa_id}/", {"status": "investigation", "root_cause": root_cause})
         _put(
             self.client,
             f"/api/capa/{capa_id}/",
-            {"status": "corrective", "corrective_action": "Fixed", "preventive_action": "Prevented"},
+            {"status": "containment", "containment_action": "Contained"},
         )
-        _put(self.client, f"/api/capa/{capa_id}/", {"status": "verification", "verification_result": "Verified"})
+        _put(
+            self.client,
+            f"/api/capa/{capa_id}/",
+            {"status": "investigation", "root_cause": root_cause},
+        )
+        _put(
+            self.client,
+            f"/api/capa/{capa_id}/",
+            {
+                "status": "corrective",
+                "corrective_action": "Fixed",
+                "preventive_action": "Prevented",
+            },
+        )
+        _put(
+            self.client,
+            f"/api/capa/{capa_id}/",
+            {"status": "verification", "verification_result": "Verified"},
+        )
         _put(self.client, f"/api/capa/{capa_id}/", {"status": "closed"})
         return capa_id
 
@@ -4407,7 +4583,9 @@ class RecurrenceDetectionTest(TestCase):
         self._create_and_close_capa("CAPA A", "Supplier material defect in raw steel")
         self._create_and_close_capa("CAPA B", "Material defect found in supplier batch")
         # Close a third — should detect recurrence
-        capa_id = self._create_and_close_capa("CAPA C", "Material defect from supplier shipment")
+        capa_id = self._create_and_close_capa(
+            "CAPA C", "Material defect from supplier shipment"
+        )
         resp = self.client.get(f"/api/capa/{capa_id}/")
         capa = resp.json()
         self.assertTrue(capa["recurrence_check"])
@@ -4418,7 +4596,9 @@ class RecurrenceDetectionTest(TestCase):
         self._create_and_close_capa("H2", "Calibration drift detected on instrument")
         self._create_and_close_capa("H3", "Instrument calibration drift observed")
         # 4th should trigger escalation
-        capa_id = self._create_and_close_capa("H4", "Calibration drift on instrument again")
+        capa_id = self._create_and_close_capa(
+            "H4", "Calibration drift on instrument again"
+        )
         resp = self.client.get(f"/api/capa/{capa_id}/")
         capa = resp.json()
         self.assertEqual(capa["priority"], "critical")
@@ -4426,7 +4606,9 @@ class RecurrenceDetectionTest(TestCase):
 
     def test_no_recurrence_for_unique_root_cause(self):
         """Unique root cause doesn't flag recurrence."""
-        capa_id = self._create_and_close_capa("Unique", "Completely novel failure mechanism xyz123")
+        capa_id = self._create_and_close_capa(
+            "Unique", "Completely novel failure mechanism xyz123"
+        )
         resp = self.client.get(f"/api/capa/{capa_id}/")
         capa = resp.json()
         self.assertFalse(capa["recurrence_check"])
@@ -4507,7 +4689,11 @@ class CustomerComplaintCrudTest(TestCase):
 
     def test_list_filter_by_severity(self):
         """GET /api/iso/complaints/?severity=critical filters correctly."""
-        _post(self.client, "/api/iso/complaints/", {"title": "Crit", "severity": "critical"})
+        _post(
+            self.client,
+            "/api/iso/complaints/",
+            {"title": "Crit", "severity": "critical"},
+        )
         _post(self.client, "/api/iso/complaints/", {"title": "Low", "severity": "low"})
         resp = self.client.get("/api/iso/complaints/?severity=critical")
         data = resp.json()
@@ -4567,12 +4753,16 @@ class CustomerComplaintWorkflowTest(TestCase):
     def setUp(self):
         self.user = _make_team_user("compwf@test.com")
         self.client.force_login(self.user)
-        resp = _post(self.client, "/api/iso/complaints/", {"title": "Workflow complaint"})
+        resp = _post(
+            self.client, "/api/iso/complaints/", {"title": "Workflow complaint"}
+        )
         self.cid = resp.json()["id"]
 
     def test_open_to_acknowledged_requires_assigned_to(self):
         """Transition to acknowledged without assigned_to fails."""
-        resp = _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "acknowledged"})
+        resp = _put(
+            self.client, f"/api/iso/complaints/{self.cid}/", {"status": "acknowledged"}
+        )
         self.assertEqual(resp.status_code, 400)
         self.assertIn("assigned_to", _err_msg(resp))
 
@@ -4601,7 +4791,9 @@ class CustomerComplaintWorkflowTest(TestCase):
                 "assigned_to": self.user.id,
             },
         )
-        resp = _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"})
+        resp = _put(
+            self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"}
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["status"], "investigating")
 
@@ -4615,8 +4807,12 @@ class CustomerComplaintWorkflowTest(TestCase):
                 "assigned_to": self.user.id,
             },
         )
-        _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"})
-        resp = _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "resolved"})
+        _put(
+            self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"}
+        )
+        resp = _put(
+            self.client, f"/api/iso/complaints/{self.cid}/", {"status": "resolved"}
+        )
         self.assertEqual(resp.status_code, 400)
         self.assertIn("resolution", _err_msg(resp))
 
@@ -4630,7 +4826,9 @@ class CustomerComplaintWorkflowTest(TestCase):
                 "assigned_to": self.user.id,
             },
         )
-        _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"})
+        _put(
+            self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"}
+        )
         resp = _put(
             self.client,
             f"/api/iso/complaints/{self.cid}/",
@@ -4645,7 +4843,9 @@ class CustomerComplaintWorkflowTest(TestCase):
     def test_resolved_to_closed_requires_satisfaction_followup(self):
         """Transition to closed without satisfaction_followup fails."""
         self._advance_to_resolved()
-        resp = _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "closed"})
+        resp = _put(
+            self.client, f"/api/iso/complaints/{self.cid}/", {"status": "closed"}
+        )
         self.assertEqual(resp.status_code, 400)
         self.assertIn("satisfaction_followup", _err_msg(resp))
 
@@ -4679,7 +4879,9 @@ class CustomerComplaintWorkflowTest(TestCase):
     def test_backward_transition(self):
         """Can transition backward: resolved → investigating."""
         self._advance_to_resolved()
-        resp = _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"})
+        resp = _put(
+            self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"}
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["status"], "investigating")
 
@@ -4692,7 +4894,9 @@ class CustomerComplaintWorkflowTest(TestCase):
                 "assigned_to": self.user.id,
             },
         )
-        _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"})
+        _put(
+            self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"}
+        )
         _put(
             self.client,
             f"/api/iso/complaints/{self.cid}/",
@@ -4718,7 +4922,9 @@ class RiskCrudTest(TestCase):
 
     def test_create_risk_with_defaults(self):
         """POST /api/iso/risks/ creates a risk with default likelihood/impact."""
-        resp = _post(self.client, "/api/iso/risks/", {"title": "Supply chain disruption"})
+        resp = _post(
+            self.client, "/api/iso/risks/", {"title": "Supply chain disruption"}
+        )
         self.assertEqual(resp.status_code, 201)
         data = resp.json()
         self.assertEqual(data["title"], "Supply chain disruption")
@@ -4787,8 +4993,16 @@ class RiskCrudTest(TestCase):
 
     def test_list_risks(self):
         """GET /api/iso/risks/ returns risks ordered by score descending."""
-        _post(self.client, "/api/iso/risks/", {"title": "Low", "likelihood": 1, "impact": 1})
-        _post(self.client, "/api/iso/risks/", {"title": "High", "likelihood": 5, "impact": 5})
+        _post(
+            self.client,
+            "/api/iso/risks/",
+            {"title": "Low", "likelihood": 1, "impact": 1},
+        )
+        _post(
+            self.client,
+            "/api/iso/risks/",
+            {"title": "High", "likelihood": 5, "impact": 5},
+        )
         resp = self.client.get("/api/iso/risks/")
         data = resp.json()
         self.assertEqual(len(data), 2)
@@ -4797,7 +5011,9 @@ class RiskCrudTest(TestCase):
     def test_list_filter_by_category(self):
         """Filter risks by category."""
         _post(self.client, "/api/iso/risks/", {"title": "Safety", "category": "safety"})
-        _post(self.client, "/api/iso/risks/", {"title": "Quality", "category": "quality"})
+        _post(
+            self.client, "/api/iso/risks/", {"title": "Quality", "category": "quality"}
+        )
         resp = self.client.get("/api/iso/risks/?category=safety")
         data = resp.json()
         self.assertEqual(len(data), 1)
@@ -4806,7 +5022,9 @@ class RiskCrudTest(TestCase):
     def test_list_filter_by_risk_type(self):
         """Filter by risk_type."""
         _post(self.client, "/api/iso/risks/", {"title": "R", "risk_type": "risk"})
-        _post(self.client, "/api/iso/risks/", {"title": "O", "risk_type": "opportunity"})
+        _post(
+            self.client, "/api/iso/risks/", {"title": "O", "risk_type": "opportunity"}
+        )
         resp = self.client.get("/api/iso/risks/?risk_type=opportunity")
         self.assertEqual(len(resp.json()), 1)
 
@@ -4820,9 +5038,15 @@ class RiskCrudTest(TestCase):
 
     def test_update_risk_recomputes_score(self):
         """PUT updates likelihood/impact and recomputes risk_score."""
-        create = _post(self.client, "/api/iso/risks/", {"title": "Updatable", "likelihood": 2, "impact": 2})
+        create = _post(
+            self.client,
+            "/api/iso/risks/",
+            {"title": "Updatable", "likelihood": 2, "impact": 2},
+        )
         rid = create.json()["id"]
-        resp = _put(self.client, f"/api/iso/risks/{rid}/", {"likelihood": 4, "impact": 5})
+        resp = _put(
+            self.client, f"/api/iso/risks/{rid}/", {"likelihood": 4, "impact": 5}
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["risk_score"], 20)
 
@@ -4854,10 +5078,14 @@ class RiskCrudTest(TestCase):
         create = _post(self.client, "/api/iso/risks/", {"title": "Mitigate me"})
         rid = create.json()["id"]
         actions = [{"action": "Add redundancy", "owner": "Ops", "status": "open"}]
-        resp = _put(self.client, f"/api/iso/risks/{rid}/", {"mitigation_actions": actions})
+        resp = _put(
+            self.client, f"/api/iso/risks/{rid}/", {"mitigation_actions": actions}
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.json()["mitigation_actions"]), 1)
-        self.assertEqual(resp.json()["mitigation_actions"][0]["action"], "Add redundancy")
+        self.assertEqual(
+            resp.json()["mitigation_actions"][0]["action"], "Add redundancy"
+        )
 
     def test_delete_risk(self):
         """DELETE /api/iso/risks/<id>/ removes risk."""
@@ -4922,8 +5150,16 @@ class MeasurementEquipmentCrudTest(TestCase):
 
     def test_list_filter_by_type(self):
         """GET /api/iso/equipment/?type=dimensional filters by equipment_type."""
-        _post(self.client, "/api/iso/equipment/", {"name": "Mic", "equipment_type": "dimensional"})
-        _post(self.client, "/api/iso/equipment/", {"name": "Therm", "equipment_type": "temperature"})
+        _post(
+            self.client,
+            "/api/iso/equipment/",
+            {"name": "Mic", "equipment_type": "dimensional"},
+        )
+        _post(
+            self.client,
+            "/api/iso/equipment/",
+            {"name": "Therm", "equipment_type": "temperature"},
+        )
         resp = self.client.get("/api/iso/equipment/?type=dimensional")
         data = resp.json()
         self.assertEqual(len(data), 1)
@@ -5010,7 +5246,9 @@ class MeasurementEquipmentCrudTest(TestCase):
         create = _post(self.client, "/api/iso/equipment/", {"name": "Gage linked"})
         eid = create.json()["id"]
         studies = ["abc-123", "def-456"]
-        resp = _put(self.client, f"/api/iso/equipment/{eid}/", {"gage_studies": studies})
+        resp = _put(
+            self.client, f"/api/iso/equipment/{eid}/", {"gage_studies": studies}
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["gage_studies"], studies)
 
@@ -5037,7 +5275,11 @@ class ElectronicSignatureTest(TestCase):
         self.user = _make_team_user("esig@test.com")
         self.client.force_login(self.user)
         # Create an NCR to sign
-        resp = _post(self.client, "/api/iso/ncrs/", {"title": "Signable NCR", "severity": "major"})
+        resp = _post(
+            self.client,
+            "/api/iso/ncrs/",
+            {"title": "Signable NCR", "severity": "major"},
+        )
         self.ncr_id = resp.json()["id"]
 
     def test_sign_document(self):
@@ -5235,7 +5477,9 @@ class ElectronicSignatureTest(TestCase):
                 "password": "testpass123!",
             },
         )
-        resp = self.client.get(f"/api/iso/signatures/?document_type=ncr&document_id={self.ncr_id}")
+        resp = self.client.get(
+            f"/api/iso/signatures/?document_type=ncr&document_id={self.ncr_id}"
+        )
         data = resp.json()
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["document_id"], self.ncr_id)
@@ -5373,7 +5617,9 @@ class AuditReadinessTest(TestCase):
     def test_ncr_scoring_improves_with_data(self):
         """Creating NCRs and closing them improves the §8.7 score."""
         # Create and close an NCR
-        ncr = _post(self.client, "/api/iso/ncrs/", {"title": "Test NCR", "severity": "minor"})
+        ncr = _post(
+            self.client, "/api/iso/ncrs/", {"title": "Test NCR", "severity": "minor"}
+        )
         ncr_id = ncr.json()["id"]
         _put(
             self.client,
@@ -5643,7 +5889,9 @@ class StudyRaiseCAPAFromStudyTest(TestCase):
 
     def test_capa_project_id_required(self):
         """Missing project_id returns 400."""
-        resp = _post(self.client, "/api/iso/study-actions/raise-capa/", {"title": "No project"})
+        resp = _post(
+            self.client, "/api/iso/study-actions/raise-capa/", {"title": "No project"}
+        )
         self.assertEqual(resp.status_code, 400)
 
 
@@ -5670,8 +5918,16 @@ class RecurrenceJaccardTest(TestCase):
             },
         ).json()
         capa_id = capa["id"]
-        _put(self.client, f"/api/capa/{capa_id}/", {"status": "containment", "containment_action": "Contained"})
-        _put(self.client, f"/api/capa/{capa_id}/", {"status": "investigation", "root_cause": root_cause})
+        _put(
+            self.client,
+            f"/api/capa/{capa_id}/",
+            {"status": "containment", "containment_action": "Contained"},
+        )
+        _put(
+            self.client,
+            f"/api/capa/{capa_id}/",
+            {"status": "investigation", "root_cause": root_cause},
+        )
         _put(
             self.client,
             f"/api/capa/{capa_id}/",
@@ -5694,16 +5950,24 @@ class RecurrenceJaccardTest(TestCase):
 
     def test_jaccard_detects_similar_root_causes(self):
         """CAPAs with overlapping root cause keywords are detected."""
-        self._create_and_close_capa("A", "Operator training insufficient for machine setup")
+        self._create_and_close_capa(
+            "A", "Operator training insufficient for machine setup"
+        )
         self._create_and_close_capa("B", "Training gap in machine setup procedures")
-        capa_id = self._create_and_close_capa("C", "Insufficient training for setup operations")
+        capa_id = self._create_and_close_capa(
+            "C", "Insufficient training for setup operations"
+        )
         resp = self.client.get(f"/api/capa/{capa_id}/")
         self.assertTrue(resp.json()["recurrence_check"])
 
     def test_dissimilar_root_causes_not_flagged(self):
         """CAPAs with unrelated root causes are NOT flagged."""
-        self._create_and_close_capa("X", "Hydraulic seal degradation from chemical exposure")
-        capa_id = self._create_and_close_capa("Y", "Electrical wiring short circuit in panel")
+        self._create_and_close_capa(
+            "X", "Hydraulic seal degradation from chemical exposure"
+        )
+        capa_id = self._create_and_close_capa(
+            "Y", "Electrical wiring short circuit in panel"
+        )
         resp = self.client.get(f"/api/capa/{capa_id}/")
         self.assertFalse(resp.json()["recurrence_check"])
 
@@ -5720,9 +5984,15 @@ class RecurrenceJaccardTest(TestCase):
 
     def test_recurrence_escalation_to_critical(self):
         """2+ matches escalates priority to critical."""
-        self._create_and_close_capa("M1", "Calibration drift measurement instrument failure")
-        self._create_and_close_capa("M2", "Measurement instrument calibration drift detected")
-        capa_id = self._create_and_close_capa("M3", "Instrument calibration drift causing measurement failure")
+        self._create_and_close_capa(
+            "M1", "Calibration drift measurement instrument failure"
+        )
+        self._create_and_close_capa(
+            "M2", "Measurement instrument calibration drift detected"
+        )
+        capa_id = self._create_and_close_capa(
+            "M3", "Instrument calibration drift causing measurement failure"
+        )
         resp = self.client.get(f"/api/capa/{capa_id}/")
         self.assertEqual(resp.json()["priority"], "critical")
 
@@ -5765,7 +6035,9 @@ class ReviewNarrativeTest(TestCase):
 
         # Mock the Anthropic client
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text="## Overall QMS Health\nThe QMS is performing well.")]
+        mock_message.content = [
+            MagicMock(text="## Overall QMS Health\nThe QMS is performing well.")
+        ]
         mock_message.usage.input_tokens = 500
         mock_message.usage.output_tokens = 200
 
@@ -5904,4 +6176,6 @@ class NewEndpointTierGatingTest(TestCase):
             "/api/iso/audit-readiness/",
         ]:
             resp = self.client.get(url)
-            self.assertIn(resp.status_code, (200,), msg=f"{url} returned {resp.status_code}")
+            self.assertIn(
+                resp.status_code, (200,), msg=f"{url} returned {resp.status_code}"
+            )

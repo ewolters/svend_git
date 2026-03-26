@@ -32,14 +32,28 @@ class Command(BaseCommand):
     help = "Rotate encryption keys for secrets"
 
     def add_arguments(self, parser):
-        parser.add_argument("--old-version", type=int, help="Old KEK version to rotate from")
-        parser.add_argument("--new-version", type=int, help="New KEK version to rotate to")
         parser.add_argument(
-            "--rotate-secrets", action="store_true", help="Rotate secrets that are due for rotation (based on schedule)"
+            "--old-version", type=int, help="Old KEK version to rotate from"
         )
-        parser.add_argument("--tenant", type=str, help="Only rotate secrets for specific tenant")
-        parser.add_argument("--force", action="store_true", help="Force rotation even if not due")
-        parser.add_argument("--dry-run", action="store_true", help="Show what would be rotated without making changes")
+        parser.add_argument(
+            "--new-version", type=int, help="New KEK version to rotate to"
+        )
+        parser.add_argument(
+            "--rotate-secrets",
+            action="store_true",
+            help="Rotate secrets that are due for rotation (based on schedule)",
+        )
+        parser.add_argument(
+            "--tenant", type=str, help="Only rotate secrets for specific tenant"
+        )
+        parser.add_argument(
+            "--force", action="store_true", help="Force rotation even if not due"
+        )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Show what would be rotated without making changes",
+        )
 
     def handle(self, *args, **options):
         """Execute the key rotation command."""
@@ -52,10 +66,14 @@ class Command(BaseCommand):
 
         # Validate arguments
         if not rotate_secrets_flag and (not old_version or not new_version):
-            raise CommandError("Must specify either --rotate-secrets or both --old-version and --new-version")
+            raise CommandError(
+                "Must specify either --rotate-secrets or both --old-version and --new-version"
+            )
 
         if rotate_secrets_flag and (old_version or new_version):
-            raise CommandError("Cannot specify both --rotate-secrets and KEK version arguments")
+            raise CommandError(
+                "Cannot specify both --rotate-secrets and KEK version arguments"
+            )
 
         # Perform KEK rotation
         if old_version and new_version:
@@ -74,20 +92,28 @@ class Command(BaseCommand):
             new_version: New KEK version
             dry_run: If True, don't make changes
         """
-        self.stdout.write(self.style.WARNING(f"Rotating KEK from version {old_version} to {new_version}..."))
+        self.stdout.write(
+            self.style.WARNING(
+                f"Rotating KEK from version {old_version} to {new_version}..."
+            )
+        )
 
         # Count secrets to rotate
         secrets = SecretStore.objects.filter(kek_version=old_version)
         count = secrets.count()
 
         if count == 0:
-            self.stdout.write(self.style.SUCCESS(f"No secrets found with KEK version {old_version}"))
+            self.stdout.write(
+                self.style.SUCCESS(f"No secrets found with KEK version {old_version}")
+            )
             return
 
         self.stdout.write(f"Found {count} secrets to rotate")
 
         if dry_run:
-            self.stdout.write(self.style.WARNING("[DRY RUN] Would rotate the following secrets:"))
+            self.stdout.write(
+                self.style.WARNING("[DRY RUN] Would rotate the following secrets:")
+            )
             for secret in secrets[:10]:  # Show first 10
                 self.stdout.write(f"  - {secret.name} ({secret.tenant_id})")
             if count > 10:
@@ -102,7 +128,9 @@ class Command(BaseCommand):
         # Perform rotation
         try:
             rotated_count = rotate_all_keys(old_version, new_version)
-            self.stdout.write(self.style.SUCCESS(f"Successfully rotated {rotated_count} secrets"))
+            self.stdout.write(
+                self.style.SUCCESS(f"Successfully rotated {rotated_count} secrets")
+            )
         except Exception as e:
             raise CommandError(f"Key rotation failed: {e}")
 
@@ -115,7 +143,9 @@ class Command(BaseCommand):
             force: Force rotation even if not due
             dry_run: If True, don't make changes
         """
-        self.stdout.write(self.style.WARNING("Rotating secrets based on rotation schedule..."))
+        self.stdout.write(
+            self.style.WARNING("Rotating secrets based on rotation schedule...")
+        )
 
         # Build query
         query = SecretStore.objects.all()
@@ -129,16 +159,22 @@ class Command(BaseCommand):
                 secrets_to_rotate.append(secret)
 
         if not secrets_to_rotate:
-            self.stdout.write(self.style.SUCCESS("No secrets need rotation at this time"))
+            self.stdout.write(
+                self.style.SUCCESS("No secrets need rotation at this time")
+            )
             return
 
         count = len(secrets_to_rotate)
         self.stdout.write(f"Found {count} secrets to rotate")
 
         if dry_run:
-            self.stdout.write(self.style.WARNING("[DRY RUN] Would rotate the following secrets:"))
+            self.stdout.write(
+                self.style.WARNING("[DRY RUN] Would rotate the following secrets:")
+            )
             for secret in secrets_to_rotate[:10]:
-                days_since = (timezone.now() - (secret.last_rotated_at or secret.created_at)).days
+                days_since = (
+                    timezone.now() - (secret.last_rotated_at or secret.created_at)
+                ).days
                 self.stdout.write(
                     f"  - {secret.name} ({secret.tenant_id}) - "
                     f"{days_since} days old (schedule: {secret.rotation_schedule_days} days)"
@@ -160,10 +196,16 @@ class Command(BaseCommand):
             try:
                 rotate_secret(secret.name, secret.tenant_id)
                 rotated += 1
-                self.stdout.write(self.style.SUCCESS(f"✓ Rotated: {secret.name} ({secret.tenant_id})"))
+                self.stdout.write(
+                    self.style.SUCCESS(f"✓ Rotated: {secret.name} ({secret.tenant_id})")
+                )
             except Exception as e:
                 failed += 1
-                self.stdout.write(self.style.ERROR(f"✗ Failed: {secret.name} ({secret.tenant_id}) - {e}"))
+                self.stdout.write(
+                    self.style.ERROR(
+                        f"✗ Failed: {secret.name} ({secret.tenant_id}) - {e}"
+                    )
+                )
 
         # Summary
         self.stdout.write("")

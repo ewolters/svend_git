@@ -89,9 +89,13 @@ class FrontierZone(models.Model):
         on_delete=models.CASCADE,
         related_name="frontier_zones",
     )
-    name = models.CharField(max_length=255, help_text="e.g., 'Press mezzanine', 'Loading dock transition'")
+    name = models.CharField(
+        max_length=255, help_text="e.g., 'Press mezzanine', 'Loading dock transition'"
+    )
     description = models.TextField(blank=True, default="")
-    zone_type = models.CharField(max_length=30, choices=ZONE_TYPE_CHOICES, default="general")
+    zone_type = models.CharField(
+        max_length=30, choices=ZONE_TYPE_CHOICES, default="general"
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -211,7 +215,9 @@ class FrontierZone(models.Model):
             "five_s_baseline": self.five_s_baseline,
             "five_s_target": self.five_s_target,
             "audit_frequency": self.audit_frequency,
-            "last_audited": self.last_audited.isoformat() if self.last_audited else None,
+            "last_audited": (
+                self.last_audited.isoformat() if self.last_audited else None
+            ),
             "preferred_auditors": self.preferred_auditors,
             "location_detail": self.location_detail,
             "photo_reference": self.photo_reference,
@@ -513,10 +519,18 @@ class FrontierCard(models.Model):
     )
 
     # ── Data pipeline checklist (from card back) ──
-    pipeline_logged = models.BooleanField(default=False, help_text="Card logged to tracking")
-    pipeline_tallies_entered = models.BooleanField(default=False, help_text="5S tallies entered for Pareto")
-    pipeline_safety_to_fmea = models.BooleanField(default=False, help_text="Safety findings entered to FMEA")
-    pipeline_feedback_given = models.BooleanField(default=False, help_text="Feedback given to operator")
+    pipeline_logged = models.BooleanField(
+        default=False, help_text="Card logged to tracking"
+    )
+    pipeline_tallies_entered = models.BooleanField(
+        default=False, help_text="5S tallies entered for Pareto"
+    )
+    pipeline_safety_to_fmea = models.BooleanField(
+        default=False, help_text="Safety findings entered to FMEA"
+    )
+    pipeline_feedback_given = models.BooleanField(
+        default=False, help_text="Feedback given to operator"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -536,11 +550,17 @@ class FrontierCard(models.Model):
     @property
     def at_risk_count(self):
         """Count observations rated AR (At Risk) or U (Unsatisfactory)."""
-        return sum(1 for o in (self.safety_observations or []) if o.get("rating") in ("AR", "U"))
+        return sum(
+            1
+            for o in (self.safety_observations or [])
+            if o.get("rating") in ("AR", "U")
+        )
 
     @property
     def satisfactory_count(self):
-        return sum(1 for o in (self.safety_observations or []) if o.get("rating") == "S")
+        return sum(
+            1 for o in (self.safety_observations or []) if o.get("rating") == "S"
+        )
 
     @property
     def highest_severity(self):
@@ -561,7 +581,9 @@ class FrontierCard(models.Model):
     @property
     def five_s_avg_score(self):
         """Average 1-5 score from detailed 5S assessment."""
-        scores = [s.get("score", 0) for s in (self.five_s_scores or []) if s.get("score")]
+        scores = [
+            s.get("score", 0) for s in (self.five_s_scores or []) if s.get("score")
+        ]
         return round(sum(scores) / len(scores), 1) if scores else None
 
     @property
@@ -980,7 +1002,9 @@ def aggregate_five_s_pareto(site, min_cards=10):
                 "label": pillar_info.get("label", pillar),
                 "count": count_val,
                 "pct": round(count_val / grand_total * 100, 1) if grand_total else 0,
-                "cumulative_pct": round(cumulative / grand_total * 100, 1) if grand_total else 0,
+                "cumulative_pct": (
+                    round(cumulative / grand_total * 100, 1) if grand_total else 0
+                ),
             }
         )
 

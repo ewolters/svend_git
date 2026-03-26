@@ -71,7 +71,9 @@ class SynaraCursorPagination(CursorPagination):
         """
         if self.page_size_query_param:
             try:
-                size = int(request.query_params.get(self.page_size_query_param, self.page_size))
+                size = int(
+                    request.query_params.get(self.page_size_query_param, self.page_size)
+                )
                 return max(MIN_PAGE_SIZE, min(size, MAX_PAGE_SIZE))
             except (KeyError, ValueError):
                 pass

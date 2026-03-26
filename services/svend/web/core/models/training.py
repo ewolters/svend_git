@@ -47,7 +47,9 @@ class TrainingCenter(models.Model):
     )
 
     is_ilssi_partner = models.BooleanField(default=True)
-    is_ngo = models.BooleanField(default=False, help_text="NGO/non-profit — eligible for NGO pricing")
+    is_ngo = models.BooleanField(
+        default=False, help_text="NGO/non-profit — eligible for NGO pricing"
+    )
     notes = models.TextField(blank=True, default="")
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -88,9 +90,13 @@ class TrainingProgram(models.Model):
         on_delete=models.CASCADE,
         related_name="programs",
     )
-    title = models.CharField(max_length=300, help_text="e.g., 'Lean Six Sigma Green Belt — SA Cohort 1'")
+    title = models.CharField(
+        max_length=300, help_text="e.g., 'Lean Six Sigma Green Belt — SA Cohort 1'"
+    )
     description = models.TextField(blank=True, default="")
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PLANNED
+    )
 
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
@@ -118,7 +124,9 @@ class TrainingProgram(models.Model):
 
     @property
     def graduated_count(self):
-        return self.enrollments.filter(status=StudentEnrollment.Status.GRADUATED).count()
+        return self.enrollments.filter(
+            status=StudentEnrollment.Status.GRADUATED
+        ).count()
 
 
 class StudentEnrollment(models.Model):
@@ -149,7 +157,9 @@ class StudentEnrollment(models.Model):
         on_delete=models.CASCADE,
         related_name="enrollments",
     )
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ENROLLED)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.ENROLLED
+    )
 
     enrolled_at = models.DateTimeField(auto_now_add=True)
     graduated_at = models.DateTimeField(null=True, blank=True)

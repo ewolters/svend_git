@@ -92,7 +92,9 @@ class TabularGenerator:
             if nullable:
                 self.nullable_fields.add(field_name)
 
-            self.generators[field_name] = create_field_generator(field_type, constraints, field_name)
+            self.generators[field_name] = create_field_generator(
+                field_type, constraints, field_name
+            )
 
     def generate_record(self) -> dict:
         """Generate a single record."""

@@ -108,10 +108,14 @@ class TenantIsolationMiddleware(MiddlewareMixin):
         try:
             from core.models import Membership
 
-            membership = Membership.objects.filter(
-                user=user,
-                is_active=True,
-            ).select_related("tenant").first()
+            membership = (
+                Membership.objects.filter(
+                    user=user,
+                    is_active=True,
+                )
+                .select_related("tenant")
+                .first()
+            )
 
             if membership and membership.tenant.is_active:
                 return membership.tenant

@@ -9,13 +9,16 @@ import files.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('files', '0001_initial'),
+        ("files", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='userfile',
-            name='file',
-            field=models.FileField(storage=core.encrypted_storage.EncryptedFileSystemStorage(), upload_to=files.models.user_file_path),
+            model_name="userfile",
+            name="file",
+            field=models.FileField(
+                storage=core.encrypted_storage.EncryptedFileSystemStorage(),
+                upload_to=files.models.user_file_path,
+            ),
         ),
     ]

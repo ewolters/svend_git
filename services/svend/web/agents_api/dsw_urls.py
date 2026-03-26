@@ -23,7 +23,9 @@ urlpatterns = [
     # Phase 4: ML endpoints now served from dsw/endpoints_ml.py
     path("from-intent/", dsw_from_intent, name="dsw_from_intent"),
     path("from-data/", dsw_from_data, name="dsw_from_data"),
-    path("download/<str:result_id>/<str:file_type>/", dsw_download, name="dsw_download"),
+    path(
+        "download/<str:result_id>/<str:file_type>/", dsw_download, name="dsw_download"
+    ),
     # Note: Scrub is exposed via /api/triage/ endpoints (triage_urls.py)
     # Saved models
     path("models/", list_models, name="list_models"),
@@ -35,15 +37,35 @@ urlpatterns = [
     path("models/<uuid:model_id>/optimize/", optimize_model, name="optimize_model"),
     path("models/<uuid:model_id>/versions/", model_versions, name="model_versions"),
     path("models/<uuid:model_id>/report/", model_report, name="model_report"),
-    path("models/<uuid:model_id>/retrain/", views_auto.retrain_model, name="retrain_model"),
+    path(
+        "models/<uuid:model_id>/retrain/",
+        views_auto.retrain_model,
+        name="retrain_model",
+    ),
     # Autopilot pipelines
-    path("autopilot/clean-train/", views_auto.autopilot_clean_train, name="autopilot_clean_train"),
-    path("autopilot/full-pipeline/", views_auto.autopilot_full_pipeline, name="autopilot_full_pipeline"),
-    path("autopilot/augment-train/", views_auto.autopilot_augment_train, name="autopilot_augment_train"),
+    path(
+        "autopilot/clean-train/",
+        views_auto.autopilot_clean_train,
+        name="autopilot_clean_train",
+    ),
+    path(
+        "autopilot/full-pipeline/",
+        views_auto.autopilot_full_pipeline,
+        name="autopilot_full_pipeline",
+    ),
+    path(
+        "autopilot/augment-train/",
+        views_auto.autopilot_augment_train,
+        name="autopilot_augment_train",
+    ),
     # Analysis Workbench
     path("analysis/", views.run_analysis, name="run_analysis"),  # Phase 1 wrapper
     path("explain-selection/", views.explain_selection, name="dsw_explain_selection"),
-    path("hypothesis-timeline/", views.hypothesis_timeline, name="dsw_hypothesis_timeline"),
+    path(
+        "hypothesis-timeline/",
+        views.hypothesis_timeline,
+        name="dsw_hypothesis_timeline",
+    ),
     # Phase 5 reverted — data endpoints back on monolith for testing
     path("execute/", views.execute_code, name="execute_code"),
     path("generate-code/", views.generate_code, name="generate_code"),

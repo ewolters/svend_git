@@ -15,7 +15,10 @@ CAUSAL_THINKING = {
             "Add a collider and observe the warning when you condition on it",
         ],
         "dsw_type": "stats:regression",
-        "dsw_config": {"response": "diameter_mm", "predictors": ["weight_g", "roughness_ra"]},
+        "dsw_config": {
+            "response": "diameter_mm",
+            "predictors": ["weight_g", "roughness_ra"],
+        },
     },
     "content": """
 ## The Framework for Causal Questions
@@ -145,7 +148,10 @@ CONFOUNDING = {
             "Add a collider variable and see the warning if you adjust for it",
         ],
         "dsw_type": "stats:regression",
-        "dsw_config": {"response": "diameter_mm", "predictors": ["weight_g", "roughness_ra"]},
+        "dsw_config": {
+            "response": "diameter_mm",
+            "predictors": ["weight_g", "roughness_ra"],
+        },
     },
     "content": """
 ## The Enemy of Causal Claims

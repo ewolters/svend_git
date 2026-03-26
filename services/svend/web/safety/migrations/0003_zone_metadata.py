@@ -7,78 +7,146 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('safety', '0002_frontiercard_classification_and_more'),
+        ("safety", "0002_frontiercard_classification_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='frontierzone',
-            name='audit_frequency',
-            field=models.CharField(choices=[('weekly', 'Weekly'), ('biweekly', 'Biweekly'), ('monthly', 'Monthly'), ('quarterly', 'Quarterly')], default='weekly', help_text='How often this zone should appear in audit schedules.', max_length=20),
+            model_name="frontierzone",
+            name="audit_frequency",
+            field=models.CharField(
+                choices=[
+                    ("weekly", "Weekly"),
+                    ("biweekly", "Biweekly"),
+                    ("monthly", "Monthly"),
+                    ("quarterly", "Quarterly"),
+                ],
+                default="weekly",
+                help_text="How often this zone should appear in audit schedules.",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='auto_fmea_severity',
-            field=models.IntegerField(blank=True, help_text='Override default FMEA severity (5) for cards from this zone. Critical zones seed at 8-10.', null=True),
+            model_name="frontierzone",
+            name="auto_fmea_severity",
+            field=models.IntegerField(
+                blank=True,
+                help_text="Override default FMEA severity (5) for cards from this zone. Critical zones seed at 8-10.",
+                null=True,
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='five_s_baseline',
-            field=models.JSONField(blank=True, default=dict, help_text='Initial 5S scores: {sort: 1-5, set_in_order: 1-5, shine: 1-5, standardize: 1-5, sustain: 1-5}'),
+            model_name="frontierzone",
+            name="five_s_baseline",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text="Initial 5S scores: {sort: 1-5, set_in_order: 1-5, shine: 1-5, standardize: 1-5, sustain: 1-5}",
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='five_s_target',
-            field=models.JSONField(blank=True, default=dict, help_text='Target 5S scores per pillar. Enables delta tracking and red/green status.'),
+            model_name="frontierzone",
+            name="five_s_target",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text="Target 5S scores per pillar. Enables delta tracking and red/green status.",
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='hazard_types',
-            field=models.JSONField(blank=True, default=list, help_text="e.g. ['electrical', 'fall', 'confined_space']. Auto-surfaces relevant card items."),
+            model_name="frontierzone",
+            name="hazard_types",
+            field=models.JSONField(
+                blank=True,
+                default=list,
+                help_text="e.g. ['electrical', 'fall', 'confined_space']. Auto-surfaces relevant card items.",
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='hierarchy_controls',
-            field=models.JSONField(blank=True, default=dict, help_text="Controls in place per hierarchy level: {elimination: '', substitution: '', engineering: '', administrative: '', ppe: ''}"),
+            model_name="frontierzone",
+            name="hierarchy_controls",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text="Controls in place per hierarchy level: {elimination: '', substitution: '', engineering: '', administrative: '', ppe: ''}",
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='last_audited',
-            field=models.DateField(blank=True, help_text='Denormalized from latest card. Enables overdue-zone queries.', null=True),
+            model_name="frontierzone",
+            name="last_audited",
+            field=models.DateField(
+                blank=True,
+                help_text="Denormalized from latest card. Enables overdue-zone queries.",
+                null=True,
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='location_detail',
-            field=models.CharField(blank=True, default='', help_text="Building/floor/area code. e.g. 'Bldg 3, 2nd floor, east wing'", max_length=255),
+            model_name="frontierzone",
+            name="location_detail",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="Building/floor/area code. e.g. 'Bldg 3, 2nd floor, east wing'",
+                max_length=255,
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='parent_zone',
-            field=models.ForeignKey(blank=True, help_text='Parent zone for hierarchy rollup. e.g. mezzanine → press area.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='sub_zones', to='safety.frontierzone'),
+            model_name="frontierzone",
+            name="parent_zone",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Parent zone for hierarchy rollup. e.g. mezzanine → press area.",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="sub_zones",
+                to="safety.frontierzone",
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='photo_reference',
-            field=models.URLField(blank=True, default='', help_text='Photo URL showing normal/baseline condition of the zone.'),
+            model_name="frontierzone",
+            name="photo_reference",
+            field=models.URLField(
+                blank=True,
+                default="",
+                help_text="Photo URL showing normal/baseline condition of the zone.",
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='preferred_auditors',
-            field=models.JSONField(blank=True, default=list, help_text='Employee UUIDs of auditors who know this zone best.'),
+            model_name="frontierzone",
+            name="preferred_auditors",
+            field=models.JSONField(
+                blank=True,
+                default=list,
+                help_text="Employee UUIDs of auditors who know this zone best.",
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='risk_level',
-            field=models.CharField(choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('critical', 'Critical')], default='medium', help_text='Baseline HIRARC risk. Drives audit frequency and FMEA severity seeding.', max_length=20),
+            model_name="frontierzone",
+            name="risk_level",
+            field=models.CharField(
+                choices=[
+                    ("low", "Low"),
+                    ("medium", "Medium"),
+                    ("high", "High"),
+                    ("critical", "Critical"),
+                ],
+                default="medium",
+                help_text="Baseline HIRARC risk. Drives audit frequency and FMEA severity seeding.",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='tags',
-            field=models.JSONField(blank=True, default=list, help_text="Freeform tags for filtering/grouping. e.g. ['new_process', 'contractor', 'night_shift']"),
+            model_name="frontierzone",
+            name="tags",
+            field=models.JSONField(
+                blank=True,
+                default=list,
+                help_text="Freeform tags for filtering/grouping. e.g. ['new_process', 'contractor', 'night_shift']",
+            ),
         ),
         migrations.AddField(
-            model_name='frontierzone',
-            name='updated_at',
+            model_name="frontierzone",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
     ]

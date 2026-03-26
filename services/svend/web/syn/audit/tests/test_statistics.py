@@ -193,7 +193,8 @@ class BayesianInsuranceTest(SimpleTestCase):
         fn_body = self._extract_fn("_bayesian_shadow")
         for stype in ["ttest", "anova", "correlation", "proportion", "chi2"]:
             self.assertIn(
-                stype, fn_body.lower(),
+                stype,
+                fn_body.lower(),
                 f"_bayesian_shadow missing support for {stype}",
             )
 
@@ -201,8 +202,11 @@ class BayesianInsuranceTest(SimpleTestCase):
         """JZS prior uses r = √2/2 ≈ 0.707."""
         fn_body = self._extract_fn("_bayesian_shadow")
         self.assertTrue(
-            "0.707" in fn_body or "sqrt(2)/2" in fn_body or "2**0.5/2" in fn_body
-            or "np.sqrt(2)/2" in fn_body or "math.sqrt(2)/2" in fn_body,
+            "0.707" in fn_body
+            or "sqrt(2)/2" in fn_body
+            or "2**0.5/2" in fn_body
+            or "np.sqrt(2)/2" in fn_body
+            or "math.sqrt(2)/2" in fn_body,
             "JZS prior scale r=√2/2 not found",
         )
 
@@ -211,7 +215,8 @@ class BayesianInsuranceTest(SimpleTestCase):
         fn_body = self._extract_fn("_bayesian_shadow")
         for category in ["extreme", "strong", "moderate", "weak"]:
             self.assertIn(
-                category.lower(), fn_body.lower(),
+                category.lower(),
+                fn_body.lower(),
                 f"BF interpretation missing '{category}' category",
             )
 
@@ -260,7 +265,9 @@ class AssumptionVerificationTest(SimpleTestCase):
         """_check_normality uses D'Agostino-Pearson for large n."""
         fn_body = self._extract_fn("_check_normality")
         self.assertTrue(
-            "normaltest" in fn_body or "dagostino" in fn_body.lower() or "5000" in fn_body,
+            "normaltest" in fn_body
+            or "dagostino" in fn_body.lower()
+            or "5000" in fn_body,
             "D'Agostino-Pearson fallback not found for large samples",
         )
 
@@ -273,7 +280,9 @@ class AssumptionVerificationTest(SimpleTestCase):
         """_check_outliers uses IQR rule."""
         fn_body = self._extract_fn("_check_outliers")
         self.assertTrue(
-            "iqr" in fn_body.lower() or "1.5" in fn_body or "quartile" in fn_body.lower(),
+            "iqr" in fn_body.lower()
+            or "1.5" in fn_body
+            or "quartile" in fn_body.lower(),
             "IQR-based outlier detection not found",
         )
 
@@ -369,7 +378,8 @@ class EvidenceSynthesisTest(SimpleTestCase):
         fn_body = self._extract_fn("_evidence_grade")
         for grade in ["strong", "moderate", "weak", "inconclusive"]:
             self.assertIn(
-                grade.lower(), fn_body.lower(),
+                grade.lower(),
+                fn_body.lower(),
                 f"Evidence grade missing '{grade}' category",
             )
 
@@ -401,7 +411,8 @@ class NelsonRulesTest(SimpleTestCase):
     def test_nelson_rules_function_exists(self):
         """_spc_nelson_rules function defined."""
         self.assertTrue(
-            "_spc_nelson_rules" in self.spc_src or "nelson_rules" in self.spc_src.lower(),
+            "_spc_nelson_rules" in self.spc_src
+            or "nelson_rules" in self.spc_src.lower(),
             "Nelson rules function not found",
         )
 
@@ -453,7 +464,9 @@ class PowerAnalysisTest(SimpleTestCase):
         """Power analysis supports independent t-test."""
         fn_body = self._extract_fn("_compute_power_curve")
         self.assertTrue(
-            "ttest" in fn_body.lower() or "t_test" in fn_body.lower() or "t-test" in fn_body.lower(),
+            "ttest" in fn_body.lower()
+            or "t_test" in fn_body.lower()
+            or "t-test" in fn_body.lower(),
             "t-test power analysis not found",
         )
 
@@ -493,7 +506,11 @@ class GuideObservationTest(SimpleTestCase):
     def test_guide_observation_set(self):
         """stats.py sets guide_observation in results."""
         count = self.stats_src.count("guide_observation")
-        self.assertGreater(count, 5, f"guide_observation appears only {count} times — expected in many analyses")
+        self.assertGreater(
+            count,
+            5,
+            f"guide_observation appears only {count} times — expected in many analyses",
+        )
 
     def test_guide_observation_not_empty(self):
         """guide_observation is set to non-empty strings."""
@@ -513,14 +530,18 @@ class ConfidenceIntervalTest(SimpleTestCase):
     def test_wilson_ci_used(self):
         """stats.py uses Wilson score interval (not Wald) for proportions."""
         self.assertTrue(
-            "wilson" in self.stats_src.lower() or "z**2" in self.stats_src or "z * z" in self.stats_src,
+            "wilson" in self.stats_src.lower()
+            or "z**2" in self.stats_src
+            or "z * z" in self.stats_src,
             "Wilson score CI not found in stats.py",
         )
 
     def test_fisher_z_for_correlations(self):
         """stats.py uses Fisher z-transform for correlation CIs."""
         self.assertTrue(
-            "arctanh" in self.stats_src or "fisher_z" in self.stats_src.lower() or "np.arctanh" in self.stats_src,
+            "arctanh" in self.stats_src
+            or "fisher_z" in self.stats_src.lower()
+            or "np.arctanh" in self.stats_src,
             "Fisher z-transform not found for correlation CIs",
         )
 

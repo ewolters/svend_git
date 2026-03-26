@@ -73,7 +73,6 @@ API_EVENTS = {
             "total_duration_ms": "int",
         },
     },
-
     # -------------------------------------------------------------------------
     # Authentication Events (API-002 §19, SEC-001)
     # -------------------------------------------------------------------------
@@ -122,7 +121,6 @@ API_EVENTS = {
             "required_permission": "str",
         },
     },
-
     # -------------------------------------------------------------------------
     # Rate Limiting Events (API-002 §19.2)
     # -------------------------------------------------------------------------
@@ -160,7 +158,6 @@ API_EVENTS = {
             "current_burst": "int",
         },
     },
-
     # -------------------------------------------------------------------------
     # Idempotency Events (API-002 §9)
     # -------------------------------------------------------------------------
@@ -196,7 +193,6 @@ API_EVENTS = {
             "original_request_id": "str",
         },
     },
-
     # -------------------------------------------------------------------------
     # Pagination Events (API-002 §7)
     # -------------------------------------------------------------------------
@@ -231,7 +227,6 @@ API_EVENTS = {
             "reason": "str",
         },
     },
-
     # -------------------------------------------------------------------------
     # Error Handling Events (API-002 §10)
     # -------------------------------------------------------------------------
@@ -270,7 +265,6 @@ API_EVENTS = {
             "path": "str",
         },
     },
-
     # -------------------------------------------------------------------------
     # Deprecation Events (API-002 §5.2)
     # -------------------------------------------------------------------------
@@ -297,7 +291,6 @@ API_EVENTS = {
             "active_clients": "int",
         },
     },
-
     # -------------------------------------------------------------------------
     # Runtime Operation Events (API-002 §17)
     # -------------------------------------------------------------------------
@@ -332,7 +325,6 @@ API_EVENTS = {
             "version": "str",
         },
     },
-
     # -------------------------------------------------------------------------
     # Circuit Breaker Events (API-002 §20)
     # -------------------------------------------------------------------------
@@ -367,7 +359,6 @@ API_EVENTS = {
             "test_requests": "int",
         },
     },
-
     # -------------------------------------------------------------------------
     # Governance Events (GOV-001 §5)
     # -------------------------------------------------------------------------
@@ -388,6 +379,7 @@ API_EVENTS = {
 # =============================================================================
 # Event Emission (EVT-001 §6)
 # =============================================================================
+
 
 def emit_api_event(
     event_name: str,
@@ -411,7 +403,9 @@ def emit_api_event(
         ValueError: If event_name not in catalog
     """
     if event_name not in API_EVENTS:
-        raise ValueError(f"Unknown API event: {event_name}. Must be one of: {list(API_EVENTS.keys())}")
+        raise ValueError(
+            f"Unknown API event: {event_name}. Must be one of: {list(API_EVENTS.keys())}"
+        )
 
     # Build full event payload
     event_payload = {
@@ -426,10 +420,12 @@ def emit_api_event(
     # Import Cortex publisher if available
     try:
         from syn.cortex import publish
+
         publish(event_name, event_payload)
     except ImportError:
         # Cortex not available, log locally
         import logging
+
         logger = logging.getLogger("syn.api.events")
         logger.info(f"API event: {event_name}", extra={"payload": event_payload})
 
@@ -437,6 +433,7 @@ def emit_api_event(
 # =============================================================================
 # Payload Builders (EVT-001 §6.2)
 # =============================================================================
+
 
 def build_request_received_payload(
     request_id: str,

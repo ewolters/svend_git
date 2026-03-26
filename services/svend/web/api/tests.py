@@ -18,7 +18,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=password, **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -783,7 +785,9 @@ class InternalAccessTest(TestCase):
         from core.models import Membership, Tenant
 
         user = _make_user("otheradmin@example.com", Tier.TEAM)
-        tenant = Tenant.objects.create(name="Other Corp", slug="other-corp", plan="team")
+        tenant = Tenant.objects.create(
+            name="Other Corp", slug="other-corp", plan="team"
+        )
         Membership.objects.create(
             tenant=tenant,
             user=user,

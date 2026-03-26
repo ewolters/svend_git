@@ -93,7 +93,9 @@ class WhiteboardTestBase(TestCase):
         return self.client.delete(path, HTTP_X_GUEST_TOKEN=token)
 
     def _create_board(self, name="Test Board", user=None):
-        resp = self._auth_post("/api/whiteboard/boards/create/", {"name": name}, user=user)
+        resp = self._auth_post(
+            "/api/whiteboard/boards/create/", {"name": name}, user=user
+        )
         self.assertEqual(resp.status_code, 200)
         return resp.json()
 
@@ -150,7 +152,9 @@ class BoardCreateTest(WhiteboardTestBase):
     def test_creator_becomes_participant(self):
         data = self._create_board()
         board = Board.objects.get(room_code=data["room_code"])
-        self.assertTrue(BoardParticipant.objects.filter(board=board, user=self.owner).exists())
+        self.assertTrue(
+            BoardParticipant.objects.filter(board=board, user=self.owner).exists()
+        )
 
     def test_free_user_blocked(self):
         resp = self._auth_post(
@@ -201,7 +205,9 @@ class BoardGetTest(WhiteboardTestBase):
         data = resp.json()
         self.assertFalse(data["is_owner"])
         board = Board.objects.get(room_code=board_data["room_code"])
-        self.assertTrue(BoardParticipant.objects.filter(board=board, user=self.other).exists())
+        self.assertTrue(
+            BoardParticipant.objects.filter(board=board, user=self.other).exists()
+        )
 
     def test_get_board_includes_vote_counts(self):
         board_data = self._create_board()
@@ -228,7 +234,9 @@ class BoardGetTest(WhiteboardTestBase):
 class BoardUpdateTest(WhiteboardTestBase):
     def test_update_elements(self):
         board_data = self._create_board()
-        elements = [{"id": "el-1", "type": "postit", "x": 100, "y": 200, "text": "Hello"}]
+        elements = [
+            {"id": "el-1", "type": "postit", "x": 100, "y": 200, "text": "Hello"}
+        ]
         resp = self._auth_put(
             f"/api/whiteboard/boards/{board_data['room_code']}/update/",
             {"elements": elements},
@@ -241,7 +249,12 @@ class BoardUpdateTest(WhiteboardTestBase):
     def test_update_connections(self):
         board_data = self._create_board()
         connections = [
-            {"id": "c-1", "from": {"elementId": "el-1"}, "to": {"elementId": "el-2"}, "type": "causal"},
+            {
+                "id": "c-1",
+                "from": {"elementId": "el-1"},
+                "to": {"elementId": "el-2"},
+                "type": "causal",
+            },
         ]
         resp = self._auth_put(
             f"/api/whiteboard/boards/{board_data['room_code']}/update/",
@@ -354,7 +367,9 @@ class BoardDeleteTest(WhiteboardTestBase):
             f"/api/whiteboard/boards/{board_data['room_code']}/delete/",
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertFalse(Board.objects.filter(room_code=board_data["room_code"]).exists())
+        self.assertFalse(
+            Board.objects.filter(room_code=board_data["room_code"]).exists()
+        )
 
     def test_only_owner_can_delete(self):
         board_data = self._create_board()
@@ -515,8 +530,12 @@ class VotingTest(WhiteboardTestBase):
         self.board.is_voting_active = True
         self.board.votes_per_user = 2
         self.board.save()
-        self._auth_post(f"/api/whiteboard/boards/{self.room}/vote/", {"element_id": "el-1"})
-        self._auth_post(f"/api/whiteboard/boards/{self.room}/vote/", {"element_id": "el-2"})
+        self._auth_post(
+            f"/api/whiteboard/boards/{self.room}/vote/", {"element_id": "el-1"}
+        )
+        self._auth_post(
+            f"/api/whiteboard/boards/{self.room}/vote/", {"element_id": "el-2"}
+        )
         resp = self._auth_post(
             f"/api/whiteboard/boards/{self.room}/vote/",
             {"element_id": "el-3"},
@@ -527,7 +546,9 @@ class VotingTest(WhiteboardTestBase):
     def test_duplicate_vote_rejected(self):
         self.board.is_voting_active = True
         self.board.save()
-        self._auth_post(f"/api/whiteboard/boards/{self.room}/vote/", {"element_id": "el-1"})
+        self._auth_post(
+            f"/api/whiteboard/boards/{self.room}/vote/", {"element_id": "el-1"}
+        )
         resp = self._auth_post(
             f"/api/whiteboard/boards/{self.room}/vote/",
             {"element_id": "el-1"},
@@ -538,7 +559,9 @@ class VotingTest(WhiteboardTestBase):
     def test_remove_vote(self):
         self.board.is_voting_active = True
         self.board.save()
-        self._auth_post(f"/api/whiteboard/boards/{self.room}/vote/", {"element_id": "el-1"})
+        self._auth_post(
+            f"/api/whiteboard/boards/{self.room}/vote/", {"element_id": "el-1"}
+        )
         resp = self._auth_delete(
             f"/api/whiteboard/boards/{self.room}/vote/el-1/",
         )
@@ -851,10 +874,23 @@ class SVGExportTest(WhiteboardTestBase):
                 "text": "Test",
                 "color": "yellow",
             },
-            {"id": "el-2", "type": "rectangle", "x": 200, "y": 50, "width": 120, "height": 60, "text": "Rect"},
+            {
+                "id": "el-2",
+                "type": "rectangle",
+                "x": 200,
+                "y": 50,
+                "width": 120,
+                "height": 60,
+                "text": "Rect",
+            },
         ]
         board.connections = [
-            {"id": "c-1", "from": {"elementId": "el-1"}, "to": {"elementId": "el-2"}, "type": "arrow"},
+            {
+                "id": "c-1",
+                "from": {"elementId": "el-1"},
+                "to": {"elementId": "el-2"},
+                "type": "arrow",
+            },
         ]
         board.save()
 
@@ -872,12 +908,53 @@ class SVGExportTest(WhiteboardTestBase):
         board_data = self._create_board()
         board = Board.objects.get(room_code=board_data["room_code"])
         board.elements = [
-            {"id": "e1", "type": "postit", "x": 0, "y": 0, "width": 100, "height": 60, "text": "P", "color": "green"},
-            {"id": "e2", "type": "rectangle", "x": 150, "y": 0, "width": 100, "height": 60, "text": "R"},
-            {"id": "e3", "type": "oval", "x": 300, "y": 0, "width": 100, "height": 50, "text": "O"},
-            {"id": "e4", "type": "diamond", "x": 0, "y": 100, "width": 80, "height": 80, "text": "D"},
+            {
+                "id": "e1",
+                "type": "postit",
+                "x": 0,
+                "y": 0,
+                "width": 100,
+                "height": 60,
+                "text": "P",
+                "color": "green",
+            },
+            {
+                "id": "e2",
+                "type": "rectangle",
+                "x": 150,
+                "y": 0,
+                "width": 100,
+                "height": 60,
+                "text": "R",
+            },
+            {
+                "id": "e3",
+                "type": "oval",
+                "x": 300,
+                "y": 0,
+                "width": 100,
+                "height": 50,
+                "text": "O",
+            },
+            {
+                "id": "e4",
+                "type": "diamond",
+                "x": 0,
+                "y": 100,
+                "width": 80,
+                "height": 80,
+                "text": "D",
+            },
             {"id": "e5", "type": "text", "x": 150, "y": 100, "text": "T"},
-            {"id": "e6", "type": "group", "x": 300, "y": 100, "width": 200, "height": 150, "title": "Grp"},
+            {
+                "id": "e6",
+                "type": "group",
+                "x": 300,
+                "y": 100,
+                "width": 200,
+                "height": 150,
+                "title": "Grp",
+            },
         ]
         board.save()
 
@@ -894,11 +971,32 @@ class SVGExportTest(WhiteboardTestBase):
         board_data = self._create_board()
         board = Board.objects.get(room_code=board_data["room_code"])
         board.elements = [
-            {"id": "a", "type": "postit", "x": 0, "y": 0, "width": 100, "height": 60, "text": "Cause"},
-            {"id": "b", "type": "postit", "x": 200, "y": 0, "width": 100, "height": 60, "text": "Effect"},
+            {
+                "id": "a",
+                "type": "postit",
+                "x": 0,
+                "y": 0,
+                "width": 100,
+                "height": 60,
+                "text": "Cause",
+            },
+            {
+                "id": "b",
+                "type": "postit",
+                "x": 200,
+                "y": 0,
+                "width": 100,
+                "height": 60,
+                "text": "Effect",
+            },
         ]
         board.connections = [
-            {"id": "c1", "from": {"elementId": "a"}, "to": {"elementId": "b"}, "type": "causal"},
+            {
+                "id": "c1",
+                "from": {"elementId": "a"},
+                "to": {"elementId": "b"},
+                "type": "causal",
+            },
         ]
         board.save()
 
@@ -934,9 +1032,21 @@ class SVGExportTest(WhiteboardTestBase):
     def test_guest_can_export_svg(self):
         board_data = self._create_board()
         board = Board.objects.get(room_code=board_data["room_code"])
-        board.elements = [{"id": "e1", "type": "postit", "x": 0, "y": 0, "width": 100, "height": 60, "text": "X"}]
+        board.elements = [
+            {
+                "id": "e1",
+                "type": "postit",
+                "x": 0,
+                "y": 0,
+                "width": 100,
+                "height": 60,
+                "text": "X",
+            }
+        ]
         board.save()
-        invite = self._create_invite(self.room if hasattr(self, "room") else board_data["room_code"], "view")
+        invite = self._create_invite(
+            self.room if hasattr(self, "room") else board_data["room_code"], "view"
+        )
         resp = self._guest_get(
             f"/api/whiteboard/boards/{board_data['room_code']}/svg/",
             invite["token"],

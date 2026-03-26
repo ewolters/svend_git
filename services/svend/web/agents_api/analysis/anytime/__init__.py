@@ -101,7 +101,9 @@ class GaussianMeanEProcess:
 
         # logE_t = -½ log(1 + t·ρ²/σ²) + ρ²·S_t² / (2·σ²·(σ² + t·ρ²))
         V_t = t * rho2 / sigma2  # information ratio
-        self._logE = -0.5 * math.log1p(V_t) + rho2 * self.S_t**2 / (2 * sigma2 * (sigma2 + t * rho2))
+        self._logE = -0.5 * math.log1p(V_t) + rho2 * self.S_t**2 / (
+            2 * sigma2 * (sigma2 + t * rho2)
+        )
 
         self._history.append((t, self._logE, self.sum_x / t))
         return self
@@ -149,7 +151,9 @@ class GaussianMeanEProcess:
             # Degenerate: entire real line
             return (float("-inf"), float("inf"))
 
-        half_width = (self.sigma / t) * math.sqrt(2 * (sigma2 + t * rho2) / rho2 * threshold)
+        half_width = (self.sigma / t) * math.sqrt(
+            2 * (sigma2 + t * rho2) / rho2 * threshold
+        )
 
         return (x_bar - half_width, x_bar + half_width)
 
@@ -248,7 +252,9 @@ class SelfNormalizedMeanEProcess:
         # logE_t using empirical variance
         # Same formula as known-σ but with V̂_t/t replacing σ²
         info_ratio = t * rho2 / V_hat  # = ρ²/σ̂²
-        self._logE = -0.5 * math.log1p(info_ratio) + rho2 * self.S_t**2 / (2 * V_hat * (sigma2_hat + rho2))
+        self._logE = -0.5 * math.log1p(info_ratio) + rho2 * self.S_t**2 / (
+            2 * V_hat * (sigma2_hat + rho2)
+        )
 
         self._history.append((self.t, self._logE, x_bar))
         return self
@@ -285,7 +291,9 @@ class SelfNormalizedMeanEProcess:
         if threshold <= 0:
             return (float("-inf"), float("inf"))
 
-        half_width = math.sqrt(2 * sigma2_hat * (sigma2_hat + rho2) / rho2 * threshold) / math.sqrt(t)
+        half_width = math.sqrt(
+            2 * sigma2_hat * (sigma2_hat + rho2) / rho2 * threshold
+        ) / math.sqrt(t)
 
         return (x_bar - half_width, x_bar + half_width)
 
@@ -296,7 +304,11 @@ class SelfNormalizedMeanEProcess:
     def summary(self) -> dict:
         L, U = self.cs()
         sigma_hat = (
-            math.sqrt(max(self.sum_x2 - self.t * (self.sum_x / self.t) ** 2, 0) / self.t) if self.t >= 2 else None
+            math.sqrt(
+                max(self.sum_x2 - self.t * (self.sum_x / self.t) ** 2, 0) / self.t
+            )
+            if self.t >= 2
+            else None
         )
         return {
             "t": self.t,
@@ -345,7 +357,9 @@ class TwoSampleEProcess:
         self.min_pairs = max(2, int(min_pairs))
 
         # Internal engine on paired differences d_i = x_A - x_B
-        self._engine = SelfNormalizedMeanEProcess(mu0=0.0, rho=rho, min_obs=self.min_pairs)
+        self._engine = SelfNormalizedMeanEProcess(
+            mu0=0.0, rho=rho, min_obs=self.min_pairs
+        )
 
         # FIFO buffers for unpaired observations
         self._buf_a = []
@@ -394,8 +408,12 @@ class TwoSampleEProcess:
         if self.n_a > 0 and self.n_b > 0:
             diff = self.sum_a / self.n_a - self.sum_b / self.n_b
             if self.n_a > 1 and self.n_b > 1:
-                var_a = max(self.sum_a2 / self.n_a - (self.sum_a / self.n_a) ** 2, 1e-10)
-                var_b = max(self.sum_b2 / self.n_b - (self.sum_b / self.n_b) ** 2, 1e-10)
+                var_a = max(
+                    self.sum_a2 / self.n_a - (self.sum_a / self.n_a) ** 2, 1e-10
+                )
+                var_b = max(
+                    self.sum_b2 / self.n_b - (self.sum_b / self.n_b) ** 2, 1e-10
+                )
                 se = math.sqrt(var_a / self.n_a + var_b / self.n_b)
             else:
                 se = float("nan")
@@ -441,7 +459,11 @@ class TwoSampleEProcess:
 
     def summary(self) -> dict:
         L, U = self.cs()
-        diff = (self.sum_a / self.n_a - self.sum_b / self.n_b) if self.n_a > 0 and self.n_b > 0 else None
+        diff = (
+            (self.sum_a / self.n_a - self.sum_b / self.n_b)
+            if self.n_a > 0 and self.n_b > 0
+            else None
+        )
         return {
             "n_a": self.n_a,
             "n_b": self.n_b,
@@ -524,8 +546,12 @@ def _run_ab_test(df, config, result):
     lines.append("<<COLOR:title>>ANYTIME-VALID A/B TEST<</COLOR>>")
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
 
-    lines.append(f"<<COLOR:highlight>>Group A ({group_a}):<</COLOR>> n={ep.n_a}, mean={s['mean_a']:.4f}")
-    lines.append(f"<<COLOR:highlight>>Group B ({group_b}):<</COLOR>> n={ep.n_b}, mean={s['mean_b']:.4f}")
+    lines.append(
+        f"<<COLOR:highlight>>Group A ({group_a}):<</COLOR>> n={ep.n_a}, mean={s['mean_a']:.4f}"
+    )
+    lines.append(
+        f"<<COLOR:highlight>>Group B ({group_b}):<</COLOR>> n={ep.n_b}, mean={s['mean_b']:.4f}"
+    )
     lines.append(f"<<COLOR:highlight>>Paired observations:<</COLOR>> {ep.n_pairs}")
     lines.append(f"<<COLOR:highlight>>Difference (A-B):<</COLOR>> {s['diff']:.4f}")
     lines.append(f"<<COLOR:highlight>>Mixing prior ρ:<</COLOR>> {rho}")
@@ -534,33 +560,61 @@ def _run_ab_test(df, config, result):
     lines.append("<<COLOR:accent>>── E-Process Evidence ──<</COLOR>>")
     lines.append(f"<<COLOR:highlight>>E-value:<</COLOR>> {s['E']:.4f}")
     lines.append(f"<<COLOR:highlight>>log(E):<</COLOR>> {s['logE']:.4f}")
-    lines.append(f"<<COLOR:highlight>>Decision boundary:<</COLOR>> log(1/α) = {math.log(1 / alpha):.4f}")
+    lines.append(
+        f"<<COLOR:highlight>>Decision boundary:<</COLOR>> log(1/α) = {math.log(1 / alpha):.4f}"
+    )
 
     if rejected:
-        lines.append("\n<<COLOR:warning>>REJECT H₀: sufficient evidence that μ_A ≠ μ_B<</COLOR>>")
-        lines.append("<<COLOR:good>>You can stop collecting data. This conclusion is valid<</COLOR>>")
-        lines.append("<<COLOR:good>>regardless of when or why you decided to look.<</COLOR>>")
+        lines.append(
+            "\n<<COLOR:warning>>REJECT H₀: sufficient evidence that μ_A ≠ μ_B<</COLOR>>"
+        )
+        lines.append(
+            "<<COLOR:good>>You can stop collecting data. This conclusion is valid<</COLOR>>"
+        )
+        lines.append(
+            "<<COLOR:good>>regardless of when or why you decided to look.<</COLOR>>"
+        )
     else:
-        lines.append("\n<<COLOR:text>>CONTINUE: insufficient evidence to reject H₀<</COLOR>>")
-        lines.append("<<COLOR:text>>Collect more data and re-run. No penalty for peeking.<</COLOR>>")
+        lines.append(
+            "\n<<COLOR:text>>CONTINUE: insufficient evidence to reject H₀<</COLOR>>"
+        )
+        lines.append(
+            "<<COLOR:text>>Collect more data and re-run. No penalty for peeking.<</COLOR>>"
+        )
 
-    lines.append(f"\n<<COLOR:accent>>── Confidence Sequence (anytime-valid {(1 - alpha) * 100:.0f}% CI) ──<</COLOR>>")
+    lines.append(
+        f"\n<<COLOR:accent>>── Confidence Sequence (anytime-valid {(1 - alpha) * 100:.0f}% CI) ──<</COLOR>>"
+    )
     lines.append(f"<<COLOR:highlight>>μ_A - μ_B ∈ [{L:.4f}, {U:.4f}]<</COLOR>>")
-    lines.append("<<COLOR:text>>This interval is valid at every sample size simultaneously.<</COLOR>>")
-    lines.append("<<COLOR:text>>It is wider than a fixed-sample CI but never lies.<</COLOR>>")
+    lines.append(
+        "<<COLOR:text>>This interval is valid at every sample size simultaneously.<</COLOR>>"
+    )
+    lines.append(
+        "<<COLOR:text>>It is wider than a fixed-sample CI but never lies.<</COLOR>>"
+    )
 
     # Comparison with fixed-sample test
     from scipy.stats import ttest_ind
 
     t_stat, p_val = ttest_ind(vals_a, vals_b)
-    fixed_se = np.sqrt(np.var(vals_a, ddof=1) / len(vals_a) + np.var(vals_b, ddof=1) / len(vals_b))
+    fixed_se = np.sqrt(
+        np.var(vals_a, ddof=1) / len(vals_a) + np.var(vals_b, ddof=1) / len(vals_b)
+    )
     fixed_ci = (s["diff"] - 1.96 * fixed_se, s["diff"] + 1.96 * fixed_se)
 
     lines.append("\n<<COLOR:accent>>── Comparison: Fixed-Sample t-test ──<</COLOR>>")
-    lines.append(f"<<COLOR:text>>t-statistic: {t_stat:.4f}, p-value: {p_val:.4f}<</COLOR>>")
-    lines.append(f"<<COLOR:text>>Fixed 95% CI: [{fixed_ci[0]:.4f}, {fixed_ci[1]:.4f}]<</COLOR>>")
-    lines.append("<<COLOR:text>>Note: the fixed CI is only valid at this exact sample size.<</COLOR>>")
-    lines.append("<<COLOR:text>>If you peeked and decided to stop, the fixed CI may lie.<</COLOR>>")
+    lines.append(
+        f"<<COLOR:text>>t-statistic: {t_stat:.4f}, p-value: {p_val:.4f}<</COLOR>>"
+    )
+    lines.append(
+        f"<<COLOR:text>>Fixed 95% CI: [{fixed_ci[0]:.4f}, {fixed_ci[1]:.4f}]<</COLOR>>"
+    )
+    lines.append(
+        "<<COLOR:text>>Note: the fixed CI is only valid at this exact sample size.<</COLOR>>"
+    )
+    lines.append(
+        "<<COLOR:text>>If you peeked and decided to stop, the fixed CI may lie.<</COLOR>>"
+    )
 
     # Assumptions
     lines.append("\n<<COLOR:accent>>── Assumptions ──<</COLOR>>")
@@ -779,17 +833,23 @@ def _run_one_sample(df, config, result):
     if sigma is not None:
         lines.append(f"<<COLOR:highlight>>σ (known):<</COLOR>> {sigma}")
     else:
-        lines.append(f"<<COLOR:highlight>>σ̂ (estimated):<</COLOR>> {s.get('sigma_hat', 'N/A')}")
+        lines.append(
+            f"<<COLOR:highlight>>σ̂ (estimated):<</COLOR>> {s.get('sigma_hat', 'N/A')}"
+        )
 
     lines.append("\n<<COLOR:accent>>── Evidence ──<</COLOR>>")
     lines.append(f"<<COLOR:highlight>>E-value:<</COLOR>> {s['E']:.4f}")
     lines.append(f"<<COLOR:highlight>>log(E):<</COLOR>> {s['logE']:.4f}")
-    lines.append(f"<<COLOR:highlight>>Boundary:<</COLOR>> log(1/α) = {math.log(1 / alpha):.4f}")
+    lines.append(
+        f"<<COLOR:highlight>>Boundary:<</COLOR>> log(1/α) = {math.log(1 / alpha):.4f}"
+    )
 
     if rejected:
         lines.append(f"\n<<COLOR:warning>>REJECT H₀: evidence that μ ≠ {mu0}<</COLOR>>")
     else:
-        lines.append("\n<<COLOR:text>>CONTINUE: insufficient evidence against H₀<</COLOR>>")
+        lines.append(
+            "\n<<COLOR:text>>CONTINUE: insufficient evidence against H₀<</COLOR>>"
+        )
 
     lines.append("\n<<COLOR:accent>>── Confidence Sequence ──<</COLOR>>")
     lines.append(f"<<COLOR:highlight>>μ ∈ [{L:.4f}, {U:.4f}]<</COLOR>>")

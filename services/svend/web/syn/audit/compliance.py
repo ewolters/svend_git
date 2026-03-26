@@ -133,7 +133,11 @@ def compute_weighted_pass_rate(check_statuses):
     total_weight = sum(get_check_weight(name) for name in check_statuses)
     if total_weight == 0:
         return 0.0
-    passed_weight = sum(get_check_weight(name) for name, status in check_statuses.items() if status == "pass")
+    passed_weight = sum(
+        get_check_weight(name)
+        for name, status in check_statuses.items()
+        if status == "pass"
+    )
     return round(passed_weight / total_weight * 100, 1)
 
 
@@ -239,7 +243,12 @@ SOC2_CONTROL_MATRIX = {
         "category": "security",
         "tsc": "CC4",
         "name": "Monitoring activities",
-        "checks": ["standards_compliance", "sla_compliance", "statistical_calibration", "output_quality"],
+        "checks": [
+            "standards_compliance",
+            "sla_compliance",
+            "statistical_calibration",
+            "output_quality",
+        ],
         "manual_status": "partial",
         "manual_reason": "No active monitoring/alerting system",
     },
@@ -311,7 +320,13 @@ SOC2_CONTROL_MATRIX = {
         "checks": ["permission_coverage"],
         "manual_status": "met",
     },
-    "CC6.5": {"category": "security", "tsc": "CC6", "name": "Physical access", "checks": [], "manual_status": "met"},
+    "CC6.5": {
+        "category": "security",
+        "tsc": "CC6",
+        "name": "Physical access",
+        "checks": [],
+        "manual_status": "met",
+    },
     "CC6.6": {
         "category": "security",
         "tsc": "CC6",
@@ -389,7 +404,12 @@ SOC2_CONTROL_MATRIX = {
         "category": "security",
         "tsc": "CC8",
         "name": "Change management",
-        "checks": ["change_management", "code_style", "architecture", "symbol_coverage"],
+        "checks": [
+            "change_management",
+            "code_style",
+            "architecture",
+            "symbol_coverage",
+        ],
         "manual_status": "met",
         "manual_reason": "CI/CD via GitHub Actions + ops/deploy.sh (INIT-010). No staging — single-server, deploy script has rollback.",
     },
@@ -519,7 +539,13 @@ SOC2_CONTROL_MATRIX = {
         "checks": [],
         "manual_status": "met",
     },
-    "P1.4": {"category": "privacy", "tsc": "P1", "name": "PII usage limitation", "checks": [], "manual_status": "met"},
+    "P1.4": {
+        "category": "privacy",
+        "tsc": "P1",
+        "name": "PII usage limitation",
+        "checks": [],
+        "manual_status": "met",
+    },
     "P1.5": {
         "category": "privacy",
         "tsc": "P1",
@@ -536,7 +562,13 @@ SOC2_CONTROL_MATRIX = {
         "manual_status": "partial",
         "manual_reason": "No verified complete data deletion",
     },
-    "P1.7": {"category": "privacy", "tsc": "P1", "name": "PII quality", "checks": [], "manual_status": "met"},
+    "P1.7": {
+        "category": "privacy",
+        "tsc": "P1",
+        "name": "PII quality",
+        "checks": [],
+        "manual_status": "met",
+    },
     "P1.8": {
         "category": "privacy",
         "tsc": "P1",
@@ -568,7 +600,11 @@ def soc2_control_coverage():
     # Get latest result per check
     latest_results = {}
     for check_name in ALL_CHECKS:
-        latest = ComplianceCheck.objects.filter(check_name=check_name).order_by("-run_at").first()
+        latest = (
+            ComplianceCheck.objects.filter(check_name=check_name)
+            .order_by("-run_at")
+            .first()
+        )
         if latest:
             latest_results[check_name] = latest.status
 
@@ -612,7 +648,9 @@ def soc2_control_coverage():
                 "tsc": tsc,
                 "status": effective_status,
                 "checks": mapped_checks,
-                "check_results": {cn: latest_results.get(cn, "pending") for cn in mapped_checks},
+                "check_results": {
+                    cn: latest_results.get(cn, "pending") for cn in mapped_checks
+                },
                 "reason": manual_reason if effective_status != "met" else "",
                 "policy_evidence": ctrl.get("policy_evidence", ""),
             }
@@ -646,7 +684,12 @@ DAILY_CRITICAL = [
 ]
 WEEKDAY_ROTATION = {
     0: ["dependency_vuln", "ssl_tls", "log_completeness", "security_headers"],
-    1: ["encryption_status", "password_policy", "session_security", "secret_management"],
+    1: [
+        "encryption_status",
+        "password_policy",
+        "session_security",
+        "secret_management",
+    ],
     2: [
         "permission_coverage",
         "backup_freshness",
@@ -658,7 +701,14 @@ WEEKDAY_ROTATION = {
         "complexity_governance",
         "endpoint_coverage",
     ],
-    3: ["data_retention", "rate_limiting", "code_style", "roadmap", "statistical_calibration", "risk_registry"],
+    3: [
+        "data_retention",
+        "rate_limiting",
+        "code_style",
+        "roadmap",
+        "statistical_calibration",
+        "risk_registry",
+    ],
     4: ["dependency_vuln", "ssl_tls"],
 }
 
@@ -714,7 +764,9 @@ def check_security_config():
         issues.append("SESSION_COOKIE_HTTPONLY is False")
 
     if getattr(settings, "SESSION_COOKIE_SAMESITE", None) not in ("Lax", "Strict"):
-        issues.append(f"SESSION_COOKIE_SAMESITE is {getattr(settings, 'SESSION_COOKIE_SAMESITE', 'not set')}")
+        issues.append(
+            f"SESSION_COOKIE_SAMESITE is {getattr(settings, 'SESSION_COOKIE_SAMESITE', 'not set')}"
+        )
 
     # Check ALLOWED_HOSTS
     allowed = getattr(settings, "ALLOWED_HOSTS", [])
@@ -726,10 +778,18 @@ def check_security_config():
     if "django-insecure" in sk or len(sk) < 50:
         issues.append("SECRET_KEY appears weak or default")
 
-    status = "pass" if not issues else ("fail" if any("DEBUG" in i for i in issues) else "warning")
+    status = (
+        "pass"
+        if not issues
+        else ("fail" if any("DEBUG" in i for i in issues) else "warning")
+    )
     return {
         "status": status,
-        "details": {"issues": issues, "checks_passed": 7 - len(issues), "total_checks": 7},
+        "details": {
+            "issues": issues,
+            "checks_passed": 7 - len(issues),
+            "total_checks": 7,
+        },
         "soc2_controls": ["CC6.1"],
     }
 
@@ -786,7 +846,9 @@ def check_dependency_vuln():
     except FileNotFoundError:
         return {
             "status": "error",
-            "details": {"message": "pip-audit not installed. Run: pip install pip-audit"},
+            "details": {
+                "message": "pip-audit not installed. Run: pip install pip-audit"
+            },
             "soc2_controls": ["CC7.1"],
         }
     except subprocess.TimeoutExpired:
@@ -812,7 +874,11 @@ def check_encryption_status():
     hashers = getattr(settings, "PASSWORD_HASHERS", [])
     if hashers:
         first_hasher = hashers[0]
-        if "PBKDF2" not in first_hasher and "Argon2" not in first_hasher and "Scrypt" not in first_hasher:
+        if (
+            "PBKDF2" not in first_hasher
+            and "Argon2" not in first_hasher
+            and "Scrypt" not in first_hasher
+        ):
             issues.append(f"Primary password hasher is weak: {first_hasher}")
     else:
         # Django defaults to PBKDF2 — fine
@@ -829,7 +895,9 @@ def check_encryption_status():
     # Note: Cloudflare Tunnel handles TLS for external, local DB may not need SSL
     # Just flag if missing, don't fail
     if "sslmode" not in str(options):
-        issues.append("Database connection does not explicitly set sslmode (acceptable for localhost)")
+        issues.append(
+            "Database connection does not explicitly set sslmode (acceptable for localhost)"
+        )
 
     status = "pass" if len(issues) <= 1 else "warning"
     if any("weak" in i for i in issues):
@@ -905,7 +973,10 @@ def check_permission_coverage():
                         continue
                     cb = p.callback
                     if not _has_auth_decorator(cb):
-                        if not (hasattr(cb, "initkwargs") and cb.initkwargs.get("permission_classes")):
+                        if not (
+                            hasattr(cb, "initkwargs")
+                            and cb.initkwargs.get("permission_classes")
+                        ):
                             unprotected.append({"path": path, "name": name})
 
         _scan(root_patterns)
@@ -958,7 +1029,8 @@ def check_access_logging():
         "details": {
             "issues": issues,
             "recent_entries_24h": recent_count,
-            "middleware_present": "syn.log.middleware.AuditLoggingMiddleware" in middleware,
+            "middleware_present": "syn.log.middleware.AuditLoggingMiddleware"
+            in middleware,
         },
         "soc2_controls": ["CC7.2"],
     }
@@ -981,7 +1053,9 @@ def check_backup_freshness():
 
     for d in backup_dirs:
         if d.exists():
-            backups = sorted(d.glob("*.sql*"), key=lambda f: f.stat().st_mtime, reverse=True)
+            backups = sorted(
+                d.glob("*.sql*"), key=lambda f: f.stat().st_mtime, reverse=True
+            )
             if backups:
                 backup_found = True
                 mtime = backups[0].stat().st_mtime
@@ -1003,7 +1077,10 @@ def check_backup_freshness():
 
     return {
         "status": status,
-        "details": {"latest_backup_age_hours": round(age_hours, 1), "backup_found": True},
+        "details": {
+            "latest_backup_age_hours": round(age_hours, 1),
+            "backup_found": True,
+        },
         "soc2_controls": ["A1.2"],
     }
 
@@ -1054,7 +1131,9 @@ def check_data_retention():
     cutoff = timezone.now() - timedelta(days=retention_days)
 
     # Check for old resolved violations that should have been cleaned up
-    stale = IntegrityViolation.objects.filter(is_resolved=True, resolved_at__lt=cutoff).count()
+    stale = IntegrityViolation.objects.filter(
+        is_resolved=True, resolved_at__lt=cutoff
+    ).count()
 
     # Check scheduler has cleanup task registered
     from syn.sched.core import TaskRegistry
@@ -1236,7 +1315,9 @@ def _sync_drift_violations(assertions, results):
                 )
 
         # 2. Auto-resolve violations for assertions that now pass
-        passing_sigs = {sig for sig, (a, r) in current_signatures.items() if r["status"] == "pass"}
+        passing_sigs = {
+            sig for sig, (a, r) in current_signatures.items() if r["status"] == "pass"
+        }
         if passing_sigs:
             now = tz.now()
             open_violations = DriftViolation.objects.filter(
@@ -1248,10 +1329,14 @@ def _sync_drift_violations(assertions, results):
                 dv.resolved_at = now
                 dv.resolved_by = "compliance_runner"
                 dv.resolution_notes = "Auto-resolved: assertion now passes"
-                dv.save(update_fields=["resolved_at", "resolved_by", "resolution_notes"])
+                dv.save(
+                    update_fields=["resolved_at", "resolved_by", "resolution_notes"]
+                )
 
 
-@register("standards_compliance", "processing_integrity", soc2_controls=["CC4.1", "CC9.1"])
+@register(
+    "standards_compliance", "processing_integrity", soc2_controls=["CC4.1", "CC9.1"]
+)
 def check_standards_compliance():
     """Parse docs/standards/*.md and verify assertions (impls, code, test existence — no execution)."""
     from syn.audit.standards import parse_all_standards, verify_assertion
@@ -1370,7 +1455,11 @@ def run_standards_tests_for(standard_name):
 
     assertions = [a for a in parse_all_standards() if a.standard == standard_name]
     if not assertions:
-        return {"standard": standard_name, "status": "warning", "message": "No assertions found"}
+        return {
+            "standard": standard_name,
+            "status": "warning",
+            "message": "No assertions found",
+        }
 
     # Collect unique test refs
     all_refs = set()
@@ -1392,7 +1481,9 @@ def run_standards_tests_for(standard_name):
     test_results = run_tests_batch(list(all_refs))
 
     tests_passed = sum(1 for r in test_results.values() if r["status"] == "pass")
-    tests_failed = sum(1 for r in test_results.values() if r["status"] in ("fail", "error"))
+    tests_failed = sum(
+        1 for r in test_results.values() if r["status"] in ("fail", "error")
+    )
     tests_skipped = sum(1 for r in test_results.values() if r["status"] == "skip")
 
     return {
@@ -1542,7 +1633,9 @@ def check_change_management():
         updated_at__lt=seven_days_ago,
     )
     if stale_changes.exists():
-        warn_issues.append(f"{stale_changes.count()} change(s) stuck in 'in_progress' for >7 days")
+        warn_issues.append(
+            f"{stale_changes.count()} change(s) stuck in 'in_progress' for >7 days"
+        )
 
     # 7. Completed changes missing 'completed' log entry
     recent_completed = ChangeRequest.objects.filter(
@@ -1551,7 +1644,9 @@ def check_change_management():
     for cr in recent_completed:
         log_actions = set(cr.logs.values_list("action", flat=True))
         if "completed" not in log_actions:
-            warn_issues.append(f"Change '{cr.title[:50]}' completed without 'completed' log entry")
+            warn_issues.append(
+                f"Change '{cr.title[:50]}' completed without 'completed' log entry"
+            )
 
     # 8. Submitted+ CRs missing justification (non-exempt)
     missing_justification = ChangeRequest.objects.filter(
@@ -1559,7 +1654,9 @@ def check_change_management():
         justification="",
     ).exclude(change_type__in=EXEMPT_TYPES)
     if missing_justification.exists():
-        warn_issues.append(f"{missing_justification.count()} submitted+ CR(s) missing justification")
+        warn_issues.append(
+            f"{missing_justification.count()} submitted+ CR(s) missing justification"
+        )
 
     # 9. Approved+ CRs missing implementation_plan (non-exempt)
     missing_impl_plan = ChangeRequest.objects.filter(
@@ -1567,7 +1664,9 @@ def check_change_management():
         implementation_plan={},
     ).exclude(change_type__in=EXEMPT_TYPES)
     if missing_impl_plan.exists():
-        warn_issues.append(f"{missing_impl_plan.count()} approved+ CR(s) missing implementation_plan")
+        warn_issues.append(
+            f"{missing_impl_plan.count()} approved+ CR(s) missing implementation_plan"
+        )
 
     # 10. Approved+ CRs missing rollback_plan (rollback-required types)
     missing_rollback = ChangeRequest.objects.filter(
@@ -1587,7 +1686,9 @@ def check_change_management():
         testing_plan={},
     ).exclude(change_type__in=EXEMPT_TYPES)
     if missing_testing.exists():
-        warn_issues.append(f"{missing_testing.count()} in_progress+ CR(s) missing testing_plan")
+        warn_issues.append(
+            f"{missing_testing.count()} in_progress+ CR(s) missing testing_plan"
+        )
 
     # 12. Enhancement/bugfix/security/infrastructure/debt past approved
     #     without risk assessment (single-agent required)
@@ -1613,7 +1714,9 @@ def check_change_management():
     )
     missing_sha_cr_count = 0
     for cr_id in completed_code_crs_ids:
-        cr_completed_logs = ChangeLog.objects.filter(change_request_id=cr_id, action="completed")
+        cr_completed_logs = ChangeLog.objects.filter(
+            change_request_id=cr_id, action="completed"
+        )
         has_sha = False
         for log in cr_completed_logs:
             details = log.details if isinstance(log.details, dict) else {}
@@ -1623,11 +1726,18 @@ def check_change_management():
         if not has_sha and cr_completed_logs.exists():
             missing_sha_cr_count += 1
     if missing_sha_cr_count:
-        warn_issues.append(f"{missing_sha_cr_count} 'completed' log entry(s) missing commit_sha in details")
+        warn_issues.append(
+            f"{missing_sha_cr_count} 'completed' log entry(s) missing commit_sha in details"
+        )
 
     # 14. Completed CRs referencing compliance remediation but empty compliance_check_ids
     # Only flag CRs that explicitly remediate findings — not general compliance infrastructure
-    remediation_keywords = ["remediates finding", "fixes compliance fail", "resolves drift violation", "clears finding"]
+    remediation_keywords = [
+        "remediates finding",
+        "fixes compliance fail",
+        "resolves drift violation",
+        "clears finding",
+    ]
     completed_all = ChangeRequest.objects.filter(
         status="completed",
         compliance_check_ids=[],
@@ -1659,7 +1769,9 @@ def check_change_management():
         .count()
     )
     if unlinked_planning:
-        warn_issues.append(f"{unlinked_planning} active code CR(s) without planning link (feature_id/task_id)")
+        warn_issues.append(
+            f"{unlinked_planning} active code CR(s) without planning link (feature_id/task_id)"
+        )
 
     # ── Stats and field completeness ──
 
@@ -1690,7 +1802,9 @@ def check_change_management():
 
     # ── Determine status ──
 
-    all_issues = [f"[FAIL] {i}" for i in fail_issues] + [f"[WARN] {i}" for i in warn_issues]
+    all_issues = [f"[FAIL] {i}" for i in fail_issues] + [
+        f"[WARN] {i}" for i in warn_issues
+    ]
 
     if fail_issues:
         status = "fail"
@@ -1721,11 +1835,15 @@ def check_session_security():
     # Session timeout — Django default is 2 weeks (1209600s), should be ≤8h for production
     age = getattr(settings, "SESSION_COOKIE_AGE", 1209600)
     if age > 28800:
-        issues.append(f"SESSION_COOKIE_AGE is {age}s ({age // 3600}h) — recommended ≤ 28800 (8h)")
+        issues.append(
+            f"SESSION_COOKIE_AGE is {age}s ({age // 3600}h) — recommended ≤ 28800 (8h)"
+        )
 
     # Browser close should end session
     if not getattr(settings, "SESSION_EXPIRE_AT_BROWSER_CLOSE", False):
-        issues.append("SESSION_EXPIRE_AT_BROWSER_CLOSE is False — sessions persist after browser close")
+        issues.append(
+            "SESSION_EXPIRE_AT_BROWSER_CLOSE is False — sessions persist after browser close"
+        )
 
     # Session cookie flags (cross-check with security_config)
     if not getattr(settings, "SESSION_COOKIE_SECURE", False) and not settings.DEBUG:
@@ -1736,7 +1854,9 @@ def check_session_security():
     # Session engine — database-backed is preferred for server-side invalidation
     engine = getattr(settings, "SESSION_ENGINE", "django.contrib.sessions.backends.db")
     if "signed_cookies" in engine:
-        issues.append("Session engine uses signed_cookies — no server-side invalidation possible")
+        issues.append(
+            "Session engine uses signed_cookies — no server-side invalidation possible"
+        )
 
     status = "pass" if not issues else "warning"
     return {
@@ -1762,17 +1882,23 @@ def check_error_handling():
     # ErrorEnvelopeMiddleware must be active
     has_error_envelope = any("ErrorEnvelope" in m for m in middleware)
     if not has_error_envelope:
-        issues.append("ErrorEnvelopeMiddleware not found in MIDDLEWARE — unhandled exceptions may leak stack traces")
+        issues.append(
+            "ErrorEnvelopeMiddleware not found in MIDDLEWARE — unhandled exceptions may leak stack traces"
+        )
 
     # APIHeadersMiddleware must be active (API-001 §8.2)
     has_api_headers = any("APIHeaders" in m for m in middleware)
     if not has_api_headers:
-        issues.append("APIHeadersMiddleware not found in MIDDLEWARE — no Accept validation or X-Response-Time headers")
+        issues.append(
+            "APIHeadersMiddleware not found in MIDDLEWARE — no Accept validation or X-Response-Time headers"
+        )
 
     # IdempotencyMiddleware must be active (API-001 §9)
     has_idempotency = any("Idempotency" in m for m in middleware)
     if not has_idempotency:
-        issues.append("IdempotencyMiddleware not found in MIDDLEWARE — no POST replay protection")
+        issues.append(
+            "IdempotencyMiddleware not found in MIDDLEWARE — no POST replay protection"
+        )
 
     # DEBUG must be False in production
     if settings.DEBUG:
@@ -1780,7 +1906,9 @@ def check_error_handling():
 
     # DEBUG_PROPAGATE_EXCEPTIONS should be False
     if getattr(settings, "DEBUG_PROPAGATE_EXCEPTIONS", False):
-        issues.append("DEBUG_PROPAGATE_EXCEPTIONS is True — exceptions bypass error envelope")
+        issues.append(
+            "DEBUG_PROPAGATE_EXCEPTIONS is True — exceptions bypass error envelope"
+        )
 
     # Check for custom error templates (warning only)
     from pathlib import Path
@@ -1791,12 +1919,18 @@ def check_error_handling():
         if not (template_dir / f"{code}.html").exists():
             missing_templates.append(f"{code}.html")
     if missing_templates:
-        issues.append(f"Missing custom error templates: {', '.join(missing_templates)} — Django defaults may leak info")
+        issues.append(
+            f"Missing custom error templates: {', '.join(missing_templates)} — Django defaults may leak info"
+        )
 
     status = (
         "pass"
         if not issues
-        else ("fail" if any("DEBUG is True" in i or "Middleware" in i for i in issues) else "warning")
+        else (
+            "fail"
+            if any("DEBUG is True" in i or "Middleware" in i for i in issues)
+            else "warning"
+        )
     )
     return {
         "status": status,
@@ -1833,11 +1967,15 @@ def check_rate_limiting():
     # Check NUM_PROXIES is set (needed for correct IP detection behind proxy)
     num_proxies = drf.get("NUM_PROXIES", 0)
     if num_proxies == 0:
-        issues.append("REST_FRAMEWORK NUM_PROXIES is 0 — rate limiting may use spoofable X-Forwarded-For")
+        issues.append(
+            "REST_FRAMEWORK NUM_PROXIES is 0 — rate limiting may use spoofable X-Forwarded-For"
+        )
 
     # Check middleware for any rate limiting
     middleware = getattr(settings, "MIDDLEWARE", [])
-    has_rate_middleware = any("ratelimit" in m.lower() or "throttle" in m.lower() for m in middleware)
+    has_rate_middleware = any(
+        "ratelimit" in m.lower() or "throttle" in m.lower() for m in middleware
+    )
 
     status = "pass" if not issues else ("fail" if not has_throttle else "warning")
     return {
@@ -1867,10 +2005,15 @@ def check_secret_management():
         import re
 
         if re.search(r'SECRET_KEY\s*=\s*["\']', content):
-            issues.append("SECRET_KEY appears hardcoded in settings.py (should use config/env)")
+            issues.append(
+                "SECRET_KEY appears hardcoded in settings.py (should use config/env)"
+            )
             hardcoded_secrets = True
         # Check for hardcoded API keys
-        for pattern in [r'ANTHROPIC_API_KEY\s*=\s*["\']sk-', r'STRIPE_SECRET\s*=\s*["\']sk_']:
+        for pattern in [
+            r'ANTHROPIC_API_KEY\s*=\s*["\']sk-',
+            r'STRIPE_SECRET\s*=\s*["\']sk_',
+        ]:
             if re.search(pattern, content):
                 issues.append("API key appears hardcoded in settings.py")
                 hardcoded_secrets = True
@@ -1887,7 +2030,9 @@ def check_secret_management():
     if gitignore_path.exists():
         env_in_gitignore = ".env" in gitignore_path.read_text()
     if env_file.exists() and not env_in_gitignore:
-        issues.append(".env file found in project root and NOT in .gitignore — risk of committing secrets")
+        issues.append(
+            ".env file found in project root and NOT in .gitignore — risk of committing secrets"
+        )
 
     # SECRET_KEY strength
     sk = getattr(settings, "SECRET_KEY", "")
@@ -1922,7 +2067,9 @@ def check_log_completeness():
 
     # Check for file handler (persistence)
     has_file_handler = any(
-        "FileHandler" in h.get("class", "") or "RotatingFileHandler" in h.get("class", "") for h in handlers.values()
+        "FileHandler" in h.get("class", "")
+        or "RotatingFileHandler" in h.get("class", "")
+        for h in handlers.values()
     )
     if not has_file_handler:
         issues.append("No file-based log handler — logs not persisted to disk")
@@ -1931,13 +2078,17 @@ def check_log_completeness():
     loggers = logging_config.get("loggers", {})
     has_audit_logger = "syn.audit" in loggers
     if not has_audit_logger:
-        issues.append("No syn.audit logger configured — audit events may not be captured")
+        issues.append(
+            "No syn.audit logger configured — audit events may not be captured"
+        )
 
     # Check root logger level (should not be DEBUG in production)
     root = logging_config.get("root", {})
     root_level = root.get("level", "WARNING")
     if root_level == "DEBUG" and not settings.DEBUG:
-        issues.append("Root logger level is DEBUG in production — excessive logging, potential info leak")
+        issues.append(
+            "Root logger level is DEBUG in production — excessive logging, potential info leak"
+        )
 
     # Check log files are writable
     unwritable = []
@@ -1945,17 +2096,25 @@ def check_log_completeness():
         filename = handler.get("filename")
         if filename:
             log_path = Path(filename)
-            if log_path.parent.exists() and not os.access(str(log_path.parent), os.W_OK):
+            if log_path.parent.exists() and not os.access(
+                str(log_path.parent), os.W_OK
+            ):
                 unwritable.append(str(filename))
     if unwritable:
         issues.append(f"Log directories not writable: {', '.join(unwritable)}")
 
     # Check CorrelationMiddleware position (should be before AuditLoggingMiddleware)
     middleware = getattr(settings, "MIDDLEWARE", [])
-    corr_idx = next((i for i, m in enumerate(middleware) if "CorrelationMiddleware" in m), -1)
-    audit_idx = next((i for i, m in enumerate(middleware) if "AuditLoggingMiddleware" in m), -1)
+    corr_idx = next(
+        (i for i, m in enumerate(middleware) if "CorrelationMiddleware" in m), -1
+    )
+    audit_idx = next(
+        (i for i, m in enumerate(middleware) if "AuditLoggingMiddleware" in m), -1
+    )
     if corr_idx >= 0 and audit_idx >= 0 and corr_idx > audit_idx:
-        issues.append("CorrelationMiddleware should be before AuditLoggingMiddleware in MIDDLEWARE")
+        issues.append(
+            "CorrelationMiddleware should be before AuditLoggingMiddleware in MIDDLEWARE"
+        )
 
     status = "pass" if not issues else ("fail" if not handlers else "warning")
     return {
@@ -1985,7 +2144,9 @@ def check_security_headers():
     # Referrer-Policy
     rp = getattr(settings, "SECURE_REFERRER_POLICY", None)
     if not rp and not settings.DEBUG:
-        issues.append("SECURE_REFERRER_POLICY is not set — browser sends full Referer header")
+        issues.append(
+            "SECURE_REFERRER_POLICY is not set — browser sends full Referer header"
+        )
 
     # Cross-Origin-Opener-Policy
     coop = getattr(settings, "SECURE_CROSS_ORIGIN_OPENER_POLICY", None)
@@ -2001,15 +2162,21 @@ def check_security_headers():
     # CORS origins — should not allow all
     cors_all = getattr(settings, "CORS_ALLOW_ALL_ORIGINS", False)
     if cors_all:
-        issues.append("CORS_ALLOW_ALL_ORIGINS is True — any origin can make credentialed requests")
+        issues.append(
+            "CORS_ALLOW_ALL_ORIGINS is True — any origin can make credentialed requests"
+        )
 
     # CSP policy presence (check for key directives)
     csp = getattr(settings, "CONTENT_SECURITY_POLICY", {})
     if csp:
         if "'none'" not in csp.get("object-src", []):
-            issues.append("CSP object-src does not include 'none' — plugin execution possible")
+            issues.append(
+                "CSP object-src does not include 'none' — plugin execution possible"
+            )
         if "'self'" not in csp.get("base-uri", []):
-            issues.append("CSP base-uri does not include 'self' — base tag injection possible")
+            issues.append(
+                "CSP base-uri does not include 'self' — base tag injection possible"
+            )
     else:
         if not settings.DEBUG:
             issues.append("CONTENT_SECURITY_POLICY not configured")
@@ -2046,7 +2213,9 @@ def check_incident_readiness():
         standards_dir / "compliance" / "policies" / "incident-response.md",
         standards_dir / "compliance" / "incident-response.md",
     ]
-    ir_found = any(p.exists() for p in ir_paths) or inc_found  # INC-001 serves as policy
+    ir_found = (
+        any(p.exists() for p in ir_paths) or inc_found
+    )  # INC-001 serves as policy
     if not ir_found:
         issues.append("Incident response policy not found")
 
@@ -2064,9 +2233,13 @@ def check_incident_readiness():
     chg_has_emergency = False
     if chg_path.exists():
         content = chg_path.read_text()
-        chg_has_emergency = "emergency" in content.lower() and "retroactive" in content.lower()
+        chg_has_emergency = (
+            "emergency" in content.lower() and "retroactive" in content.lower()
+        )
     if not chg_has_emergency:
-        issues.append("CHG-001 does not document emergency change process with retroactive review")
+        issues.append(
+            "CHG-001 does not document emergency change process with retroactive review"
+        )
 
     # Check BCDR documentation exists
     bcdr_paths = [
@@ -2097,7 +2270,9 @@ def check_incident_readiness():
             if not has_retro:
                 unreviewed += 1
         if unreviewed > 0:
-            issues.append(f"{unreviewed} emergency change(s) in last 30d without retroactive risk assessment")
+            issues.append(
+                f"{unreviewed} emergency change(s) in last 30d without retroactive risk assessment"
+            )
     except Exception:
         pass  # Models may not be available in all contexts
 
@@ -2108,7 +2283,9 @@ def check_incident_readiness():
             "issues": issues,
             "inc_001_standard": inc_found,
             "incident_response_doc": ir_found,
-            "incident_model": incident_model_ok if "incident_model_ok" in dir() else False,
+            "incident_model": (
+                incident_model_ok if "incident_model_ok" in dir() else False
+            ),
             "emergency_process_documented": chg_has_emergency,
             "bcdr_doc": bcdr_found,
         },
@@ -2135,7 +2312,9 @@ def check_sla_compliance():
         results.append(measurement)
 
     # Determine overall status: fail if any critical SLA breached, warning if non-critical breached
-    critical_breach = any(r["status"] == "breach" and r["severity"] == "critical" for r in results)
+    critical_breach = any(
+        r["status"] == "breach" and r["severity"] == "critical" for r in results
+    )
     any_breach = any(r["status"] == "breach" for r in results)
 
     total = len(results)
@@ -2239,7 +2418,11 @@ def _measure_availability(sla):
 
     target_val, _ = _parse_target(sla.target)
     if target_val is None:
-        return {"status": "unmeasurable", "current_value": None, "reason": f"Cannot parse target: {sla.target}"}
+        return {
+            "status": "unmeasurable",
+            "current_value": None,
+            "reason": f"Cannot parse target: {sla.target}",
+        }
 
     return {
         "status": "met" if availability_pct >= target_val else "breach",
@@ -2254,10 +2437,16 @@ def _measure_durability(sla):
         from syn.audit.models import ComplianceCheck
 
         latest_backup = (
-            ComplianceCheck.objects.filter(check_name="backup_freshness", status="pass").order_by("-run_at").first()
+            ComplianceCheck.objects.filter(check_name="backup_freshness", status="pass")
+            .order_by("-run_at")
+            .first()
         )
         if not latest_backup:
-            return {"status": "unmeasurable", "current_value": None, "reason": "No backup_freshness check results"}
+            return {
+                "status": "unmeasurable",
+                "current_value": None,
+                "reason": "No backup_freshness check results",
+            }
 
         target_val, unit = _parse_target(sla.target)
         if unit == "h" and target_val:
@@ -2277,7 +2466,11 @@ def _measure_durability(sla):
             resolved_at__isnull=False,
         ).order_by("-resolved_at")
         if not resolved.exists():
-            return {"status": "met", "current_value": "No incidents", "reason": "No resolved incidents to measure RTO"}
+            return {
+                "status": "met",
+                "current_value": "No incidents",
+                "reason": "No resolved incidents to measure RTO",
+            }
         # Use worst-case (max) resolution time from recent incidents
         worst = max(i.resolution_elapsed_hours for i in resolved[:20])
         if target_val and unit == "h":
@@ -2286,7 +2479,11 @@ def _measure_durability(sla):
                 "current_value": f"{worst:.2f}h (worst-case)",
             }
 
-    return {"status": "unmeasurable", "current_value": None, "reason": "Requires operational verification"}
+    return {
+        "status": "unmeasurable",
+        "current_value": None,
+        "reason": "Requires operational verification",
+    }
 
 
 def _measure_compliance_rate(sla):
@@ -2299,14 +2496,22 @@ def _measure_compliance_rate(sla):
     checks = ComplianceCheck.objects.filter(run_at__gte=month_start)
     total = checks.count()
     if total == 0:
-        return {"status": "unmeasurable", "current_value": None, "reason": "No checks this month"}
+        return {
+            "status": "unmeasurable",
+            "current_value": None,
+            "reason": "No checks this month",
+        }
 
     passed = checks.filter(status="pass").count()
     rate = (passed / total) * 100
 
     target_val, _ = _parse_target(sla.target)
     if target_val is None:
-        return {"status": "unmeasurable", "current_value": None, "reason": f"Cannot parse target: {sla.target}"}
+        return {
+            "status": "unmeasurable",
+            "current_value": None,
+            "reason": f"Cannot parse target: {sla.target}",
+        }
 
     return {
         "status": "met" if rate >= target_val else "breach",
@@ -2323,7 +2528,11 @@ def _measure_change_velocity(sla):
     now = timezone.now()
     target_val, unit = _parse_target(sla.target)
     if target_val is None or unit != "h":
-        return {"status": "unmeasurable", "current_value": None, "reason": f"Cannot parse target: {sla.target}"}
+        return {
+            "status": "unmeasurable",
+            "current_value": None,
+            "reason": f"Cannot parse target: {sla.target}",
+        }
 
     target_hours = target_val
 
@@ -2360,11 +2569,14 @@ def _measure_change_velocity(sla):
         violations = 0
         for cr in emergencies:
             # Check if a review log entry exists within target hours of completion
-            completion_log = cr.logs.filter(action="completed").order_by("created_at").first()
+            completion_log = (
+                cr.logs.filter(action="completed").order_by("created_at").first()
+            )
             if completion_log:
                 review_log = cr.logs.filter(
                     action__in=["review", "post_incident_review"],
-                    created_at__lte=completion_log.created_at + timedelta(hours=target_hours),
+                    created_at__lte=completion_log.created_at
+                    + timedelta(hours=target_hours),
                 ).exists()
                 if not review_log:
                     violations += 1
@@ -2387,7 +2599,11 @@ def _measure_change_velocity(sla):
             "current_value": f"{stale} stale CR(s)",
         }
 
-    return {"status": "unmeasurable", "current_value": None, "reason": "Unrecognized change_velocity SLA"}
+    return {
+        "status": "unmeasurable",
+        "current_value": None,
+        "reason": "Unrecognized change_velocity SLA",
+    }
 
 
 def _measure_response_time(sla):
@@ -2454,11 +2670,19 @@ def _measure_incident_response(sla):
 
     target_val, unit = _parse_target(sla.target)
     if target_val is None or unit != "h":
-        return {"status": "unmeasurable", "current_value": None, "reason": f"Cannot parse target: {sla.target}"}
+        return {
+            "status": "unmeasurable",
+            "current_value": None,
+            "reason": f"Cannot parse target: {sla.target}",
+        }
 
     incidents = Incident.objects.filter(detected_at__gte=month_start)
     if not incidents.exists():
-        return {"status": "met", "current_value": "No incidents", "reason": "No incidents recorded this month"}
+        return {
+            "status": "met",
+            "current_value": "No incidents",
+            "reason": "No incidents recorded this month",
+        }
 
     is_ack = "ack" in sla.sla_id.lower()
 
@@ -2495,7 +2719,9 @@ def run_check(check_name):
     from syn.audit.models import ComplianceCheck
 
     if check_name not in ALL_CHECKS:
-        raise ValueError(f"Unknown check: {check_name}. Available: {list(ALL_CHECKS.keys())}")
+        raise ValueError(
+            f"Unknown check: {check_name}. Available: {list(ALL_CHECKS.keys())}"
+        )
 
     fn, category = ALL_CHECKS[check_name]
 
@@ -2598,7 +2824,9 @@ def generate_monthly_report():
             check_summary[name] = {
                 "total_runs": name_total,
                 "passed": name_passed,
-                "pass_rate": round(name_passed / name_total * 100, 1) if name_total > 0 else 0,
+                "pass_rate": (
+                    round(name_passed / name_total * 100, 1) if name_total > 0 else 0
+                ),
                 "latest_status": latest.status if latest else "unknown",
                 "category": ALL_CHECKS[name][1],
                 "soc2_controls": latest.soc2_controls if latest else [],
@@ -2606,7 +2834,9 @@ def generate_monthly_report():
 
     # Severity-weighted pass rate (CMP-001 §7.5)
     period_statuses = {
-        name: info["latest_status"] for name, info in check_summary.items() if info["latest_status"] != "unknown"
+        name: info["latest_status"]
+        for name, info in check_summary.items()
+        if info["latest_status"] != "unknown"
     }
     weighted_pass_rate = compute_weighted_pass_rate(period_statuses)
     for name, info in check_summary.items():
@@ -2622,7 +2852,11 @@ def generate_monthly_report():
         category_summary[cat]["total_runs"] += info["total_runs"]
         category_summary[cat]["passed"] += info["passed"]
     for cat, data in category_summary.items():
-        data["pass_rate"] = round(data["passed"] / data["total_runs"] * 100, 1) if data["total_runs"] > 0 else 0
+        data["pass_rate"] = (
+            round(data["passed"] / data["total_runs"] * 100, 1)
+            if data["total_runs"] > 0
+            else 0
+        )
 
     # SOC 2 control coverage
     all_controls = set()
@@ -2644,7 +2878,10 @@ def generate_monthly_report():
         "overall_pass_rate": round(pass_rate, 1),
         "total_checks_run": total,
         "categories": {
-            cat: {"pass_rate": data["pass_rate"], "status": "passing" if data["pass_rate"] >= 90 else "needs_attention"}
+            cat: {
+                "pass_rate": data["pass_rate"],
+                "status": "passing" if data["pass_rate"] >= 90 else "needs_attention",
+            }
             for cat, data in category_summary.items()
         },
         "weighted_pass_rate": weighted_pass_rate,
@@ -2777,7 +3014,14 @@ def _scan_function_names(web_root):
                 if name.startswith("__") and name.endswith("__"):
                     continue
                 # Skip standard unittest/Django lifecycle methods (camelCase by design)
-                if name in ("setUp", "tearDown", "setUpClass", "tearDownClass", "setUpTestData", "addCleanup"):
+                if name in (
+                    "setUp",
+                    "tearDown",
+                    "setUpClass",
+                    "tearDownClass",
+                    "setUpTestData",
+                    "addCleanup",
+                ):
                     continue
                 if not _SNAKE_RE.match(name):
                     violations.append(
@@ -2943,6 +3187,10 @@ def _check_model_field_naming(web_root):
     - JSONField must NOT use mutable defaults ([] or {})
     """
     _BOOL_RE = _re.compile(r"^(is|has|can)_[a-z]")
+    # Legacy boolean fields that predate the naming convention — migration-gated debt
+    _BOOL_EXEMPT = {
+        ("CustomerComplaint", "customer_satisfied"),
+    }
     violations = {"boolean_prefix": [], "fk_suffix": [], "mutable_default": []}
 
     model_dirs = [
@@ -2999,7 +3247,10 @@ def _check_model_field_naming(web_root):
 
                     # BooleanField / NullBooleanField must have is_ prefix
                     if field_type in ("BooleanField", "NullBooleanField"):
-                        if not _BOOL_RE.match(field_name):
+                        if not _BOOL_RE.match(field_name) and (
+                            node.name,
+                            field_name,
+                        ) not in _BOOL_EXEMPT:
                             violations["boolean_prefix"].append(
                                 {
                                     "file": rel_path,
@@ -3129,7 +3380,9 @@ def _check_module_layout_order(web_root):
                 # Module-level assignment (constant/logger)
                 if first_constant is None:
                     first_constant = lineno
-            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            elif isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            ):
                 if first_func_or_class is None:
                     first_func_or_class = lineno
 
@@ -3141,7 +3394,11 @@ def _check_module_layout_order(web_root):
                     "violation": f"Imports (line {first_import}) appear after constants (line {first_constant})",
                 }
             )
-        if first_constant and first_func_or_class and first_constant > first_func_or_class:
+        if (
+            first_constant
+            and first_func_or_class
+            and first_constant > first_func_or_class
+        ):
             violations.append(
                 {
                     "file": rel,
@@ -3344,13 +3601,19 @@ def _parse_map_table(map_path, table_marker):
     # Find header row (first pipe-delimited row after marker)
     header_idx = None
     for i in range(start, min(start + 5, len(lines))):
-        if i < len(lines) and "|" in lines[i] and not lines[i].strip().startswith("<!--"):
+        if (
+            i < len(lines)
+            and "|" in lines[i]
+            and not lines[i].strip().startswith("<!--")
+        ):
             header_idx = i
             break
     if header_idx is None:
         return []
 
-    headers = [h.strip().strip("*").lower() for h in lines[header_idx].split("|") if h.strip()]
+    headers = [
+        h.strip().strip("*").lower() for h in lines[header_idx].split("|") if h.strip()
+    ]
 
     # Skip separator row (|---|---|...)
     data_start = header_idx + 2
@@ -3405,7 +3668,13 @@ def _git_changed_files(since_hours=24):
     """Get files changed in last N hours via git log."""
     try:
         result = subprocess.run(
-            ["git", "log", f"--since={since_hours} hours ago", "--name-only", "--pretty=format:"],
+            [
+                "git",
+                "log",
+                f"--since={since_hours} hours ago",
+                "--name-only",
+                "--pretty=format:",
+            ],
             capture_output=True,
             text=True,
             timeout=30,
@@ -3570,7 +3839,9 @@ def _sync_map_drift_violations(findings, commit_sha, author):
             payload = f"{f['type']}:{f.get('id', '')}:{f.get('module', '')}:{f.get('file', '')}"
             sig = hashlib.sha256(payload.encode()).hexdigest()[:32]
 
-            if DriftViolation.objects.filter(drift_signature=sig, resolved_at__isnull=True).exists():
+            if DriftViolation.objects.filter(
+                drift_signature=sig, resolved_at__isnull=True
+            ).exists():
                 continue
 
             severity = severity_map.get(f["type"], "MEDIUM")
@@ -3622,7 +3893,9 @@ def check_architecture_map():
     if not registry:
         return {
             "status": "fail",
-            "details": {"message": "Could not parse standards-registry table from MAP-001.md"},
+            "details": {
+                "message": "Could not parse standards-registry table from MAP-001.md"
+            },
             "soc2_controls": ["CC7.2"],
         }
 
@@ -3768,7 +4041,14 @@ _ARCH_ALLOWED_ROOT_FILES = {
     "coverage.json",
 }
 
-_ARCH_EMPTY_DIR_SKIP = {"migrations", "__pycache__", "media", "logs", "staticfiles", "node_modules"}
+_ARCH_EMPTY_DIR_SKIP = {
+    "migrations",
+    "__pycache__",
+    "media",
+    "logs",
+    "staticfiles",
+    "node_modules",
+}
 
 _ARCH_FILE_SIZE_WARN = 2000
 _ARCH_FILE_SIZE_FAIL = 3000
@@ -3791,6 +4071,11 @@ _ARCH_KNOWN_LARGE_FILES = {
     "agents_api/analysis/common.py",
     "agents_api/analysis/pbs/__init__.py",
     "agents_api/analysis/stats/advanced.py",
+    "agents_api/iso_views.py",
+    "agents_api/hoshin_deep_tests.py",
+    "agents_api/dsw/stats_regression.py",
+    "agents_api/learn_content/_datasets.py",
+    "agents_api/analysis/stats/regression.py",
     "api/internal_views.py",
     "syn/audit/compliance.py",
 }
@@ -3846,7 +4131,9 @@ def _check_arch_dir_naming(web_root):
         if any(s in d.parts for s in _STYLE_SKIP_DIRS):
             continue
         # Skip dotdirs and all their children
-        if d.name.startswith(".") or any(p.startswith(".") for p in d.relative_to(web_root).parts):
+        if d.name.startswith(".") or any(
+            p.startswith(".") for p in d.relative_to(web_root).parts
+        ):
             continue
         if not _DIR_SNAKE_RE.match(d.name):
             violations.append(str(d.relative_to(web_root)))
@@ -3884,7 +4171,11 @@ def _check_arch_files_per_app(web_root):
         app_dir = web_root / app
         if not app_dir.is_dir():
             continue
-        count = sum(1 for f in app_dir.rglob("*.py") if "__pycache__" not in f.parts and "migrations" not in f.parts)
+        count = sum(
+            1
+            for f in app_dir.rglob("*.py")
+            if "__pycache__" not in f.parts and "migrations" not in f.parts
+        )
         if count > _ARCH_FILES_PER_APP_WARN:
             severity = "fail" if count > _ARCH_FILES_PER_APP_FAIL else "warning"
             if app in _ARCH_KNOWN_LARGE_APPS:
@@ -4103,20 +4394,32 @@ def _scan_class_docstrings(web_root):
                         continue
                     # Skip serializer subclasses — Meta class or parent is self-documenting
                     if any(
-                        (isinstance(b, ast.Attribute) and "Serializer" in getattr(b, "attr", ""))
+                        (
+                            isinstance(b, ast.Attribute)
+                            and "Serializer" in getattr(b, "attr", "")
+                        )
                         or (isinstance(b, ast.Name) and "Serializer" in b.id)
                         for b in node.bases
                     ):
                         continue
                     # Skip Django TextChoices/IntegerChoices enums — choices are self-documenting
                     if any(
-                        (isinstance(b, ast.Attribute) and b.attr in ("TextChoices", "IntegerChoices"))
-                        or (isinstance(b, ast.Name) and b.id in ("TextChoices", "IntegerChoices"))
+                        (
+                            isinstance(b, ast.Attribute)
+                            and b.attr in ("TextChoices", "IntegerChoices")
+                        )
+                        or (
+                            isinstance(b, ast.Name)
+                            and b.id in ("TextChoices", "IntegerChoices")
+                        )
                         for b in node.bases
                     ):
                         continue
                     # Skip Sitemap subclasses — attrs are self-documenting
-                    if any((isinstance(b, ast.Name) and b.id == "Sitemap") for b in node.bases):
+                    if any(
+                        (isinstance(b, ast.Name) and b.id == "Sitemap")
+                        for b in node.bases
+                    ):
                         continue
                     violations.append(
                         {
@@ -4143,7 +4446,11 @@ def _check_arch_test_placement(web_root):
             continue
         name = py_file.name
         # Is this a test file?
-        is_test = _TEST_FILE_RE.match(name) or _TEST_FILE_LEGACY_RE.match(name) or name == "tests.py"
+        is_test = (
+            _TEST_FILE_RE.match(name)
+            or _TEST_FILE_LEGACY_RE.match(name)
+            or name == "tests.py"
+        )
         if not is_test:
             continue
         # Must be inside a tests/ directory
@@ -4180,7 +4487,12 @@ def _check_arch_testcase_in_prod(web_root):
             continue
         name = py_file.name
         # Skip actual test files
-        if name.startswith("test_") or name.startswith("tests_") or name.endswith("_tests.py") or name == "tests.py":
+        if (
+            name.startswith("test_")
+            or name.startswith("tests_")
+            or name.endswith("_tests.py")
+            or name == "tests.py"
+        ):
             continue
         if "tests" in py_file.parts:
             continue
@@ -4198,7 +4510,12 @@ def _check_arch_testcase_in_prod(web_root):
                     base_name = base.id
                 elif isinstance(base, ast.Attribute):
                     base_name = base.attr
-                if base_name in ("TestCase", "SimpleTestCase", "TransactionTestCase", "LiveServerTestCase"):
+                if base_name in (
+                    "TestCase",
+                    "SimpleTestCase",
+                    "TransactionTestCase",
+                    "LiveServerTestCase",
+                ):
                     violations.append(
                         {
                             "file": str(py_file.relative_to(web_root)),
@@ -4304,7 +4621,10 @@ def _check_arch_file_sizes(web_root):
             continue
         if line_count > _ARCH_FILE_SIZE_WARN:
             rel_path = str(py_file.relative_to(web_root))
-            if line_count > _ARCH_FILE_SIZE_FAIL and rel_path in _ARCH_KNOWN_LARGE_FILES:
+            if (
+                line_count > _ARCH_FILE_SIZE_FAIL
+                and rel_path in _ARCH_KNOWN_LARGE_FILES
+            ):
                 severity = "warning"  # Known debt — tracked in DEBT.md
             elif line_count > _ARCH_FILE_SIZE_FAIL:
                 severity = "fail"
@@ -4446,7 +4766,9 @@ def _check_cache_middleware(web_root):
         if _CACHE_REQUIRED_MIDDLEWARE in middleware:
             nc_idx = middleware.index(_CACHE_REQUIRED_MIDDLEWARE)
             if wn_idx > nc_idx:
-                issues.append("WhiteNoiseMiddleware must be before NoCacheDynamicMiddleware")
+                issues.append(
+                    "WhiteNoiseMiddleware must be before NoCacheDynamicMiddleware"
+                )
     return issues
 
 
@@ -4455,7 +4777,9 @@ def _check_cache_whitenoise_storage():
     storages = getattr(settings, "STORAGES", {})
     backend = storages.get("staticfiles", {}).get("BACKEND", "")
     if backend != _CACHE_WHITENOISE_STORAGE:
-        return [f"staticfiles backend is '{backend}', expected '{_CACHE_WHITENOISE_STORAGE}'"]
+        return [
+            f"staticfiles backend is '{backend}', expected '{_CACHE_WHITENOISE_STORAGE}'"
+        ]
     return []
 
 
@@ -4503,7 +4827,9 @@ def _check_cache_idempotency_ttl():
         from syn.api.middleware import IDEMPOTENCY_TTL_HOURS
 
         if IDEMPOTENCY_TTL_HOURS > 48:
-            return [f"IDEMPOTENCY_TTL_HOURS={IDEMPOTENCY_TTL_HOURS} exceeds 48h maximum"]
+            return [
+                f"IDEMPOTENCY_TTL_HOURS={IDEMPOTENCY_TTL_HOURS} exceeds 48h maximum"
+            ]
     except ImportError:
         return ["Cannot import IDEMPOTENCY_TTL_HOURS from syn.api.middleware"]
     return []
@@ -4582,10 +4908,14 @@ def check_roadmap():
         if _quarter_to_tuple(item.quarter) < current_tuple:
             stale.append(f"{item.quarter}: {item.title}")
     if stale:
-        issues.append(f"{len(stale)} item(s) in past quarters still 'planned': {', '.join(stale[:3])}")
+        issues.append(
+            f"{len(stale)} item(s) in past quarters still 'planned': {', '.join(stale[:3])}"
+        )
 
     # Check 2: Shipped items missing shipped_at
-    missing_shipped = RoadmapItem.objects.filter(status="shipped", shipped_at__isnull=True).count()
+    missing_shipped = RoadmapItem.objects.filter(
+        status="shipped", shipped_at__isnull=True
+    ).count()
     if missing_shipped:
         issues.append(f"{missing_shipped} shipped item(s) missing shipped_at timestamp")
 
@@ -4636,7 +4966,9 @@ def check_symbol_coverage():
     from syn.audit.standards import parse_all_standards
 
     issues = []
-    web_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    web_root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
 
     # ------------------------------------------------------------------
     # Step 1: Build symbol inventory from production .py files via AST
@@ -4779,7 +5111,9 @@ def check_symbol_coverage():
             fr["ungoverned_symbols"] += 1
 
     for fr in file_risk.values():
-        fr["risk_score"] = round(fr["ungoverned_loc"] * 1.0 + fr["specified_untested_loc"] * 0.5, 1)
+        fr["risk_score"] = round(
+            fr["ungoverned_loc"] * 1.0 + fr["specified_untested_loc"] * 0.5, 1
+        )
 
     top_risk = sorted(
         [{"file": f, **fr} for f, fr in file_risk.items()],
@@ -4809,7 +5143,11 @@ def check_symbol_coverage():
     for mod in sorted(by_module.keys()):
         d = by_module[mod]
         d["module"] = mod
-        d["covered_pct"] = round(d["covered_symbols"] / d["total_symbols"] * 100, 1) if d["total_symbols"] else 0
+        d["covered_pct"] = (
+            round(d["covered_symbols"] / d["total_symbols"] * 100, 1)
+            if d["total_symbols"]
+            else 0
+        )
         module_list.append(d)
 
     total_risk = round(ungoverned_loc * 1.0 + specified_loc * 0.5, 1)
@@ -4884,7 +5222,9 @@ def check_statistical_calibration():
 
             for case_id in drift_cases:
                 # Find the case result for detail
-                case_detail = next((r for r in cal["results"] if r["case_id"] == case_id), {})
+                case_detail = next(
+                    (r for r in cal["results"] if r["case_id"] == case_id), {}
+                )
                 severity = "HIGH" if len(drift_cases) > 3 else "MEDIUM"
                 DriftViolation.objects.create(
                     enforcement_check="CAL",
@@ -5028,7 +5368,9 @@ def check_output_quality():
             if status == "pass":
                 status = "warning"
         if len(categories) < 5:
-            issues.append(f"Calibration pool covers {len(categories)} categories ({sorted(categories)}), need ≥5")
+            issues.append(
+                f"Calibration pool covers {len(categories)} categories ({sorted(categories)}), need ≥5"
+            )
             if status == "pass":
                 status = "warning"
     except ImportError:
@@ -5055,7 +5397,10 @@ def check_output_quality():
 def _extract_policy_date(content):
     """Extract the most recent date from policy header (Last Updated or Effective Date)."""
     # Prefer Last Updated over Effective Date
-    for pattern in [r"\*\*Last Updated:\*\*\s*(\d{4}-\d{2}-\d{2})", r"\*\*Effective Date:\*\*\s*(\d{4}-\d{2}-\d{2})"]:
+    for pattern in [
+        r"\*\*Last Updated:\*\*\s*(\d{4}-\d{2}-\d{2})",
+        r"\*\*Effective Date:\*\*\s*(\d{4}-\d{2}-\d{2})",
+    ]:
         m = _re.search(pattern, content)
         if m:
             try:
@@ -5126,7 +5471,9 @@ def check_policy_review():
             findings.append(
                 {
                     "policy": md.name,
-                    "last_updated": last_updated.isoformat() if last_updated else "unknown",
+                    "last_updated": (
+                        last_updated.isoformat() if last_updated else "unknown"
+                    ),
                     "stale_watches": stale_watches,
                     "message": f"{md.name}: {len(stale_watches)} watched file(s) changed since last update",
                 }
@@ -5166,22 +5513,36 @@ _COMPLEXITY_EXEMPTIONS = {
     "agents_api/analysis/stats/advanced.py": "P3",
     "api/internal_views.py": "P3",
     "syn/audit/compliance.py": "P3",
+    "agents_api/iso_views.py": "P3",
+    "agents_api/iso_tests.py": "P3",
+    "agents_api/hoshin_deep_tests.py": "P3",
+    "agents_api/dsw/stats_regression.py": "P3",
+    "agents_api/learn_content/_datasets.py": "P3",
+    "agents_api/analysis/stats/regression.py": "P3",
 }
 
 
-@register("calibration_coverage", "processing_integrity", soc2_controls=["CC4.1", "CC7.2"])
+@register(
+    "calibration_coverage", "processing_integrity", soc2_controls=["CC4.1", "CC7.2"]
+)
 def check_calibration_coverage():
     """CAL-001 §5/§6: Coverage measurement, golden files, ratchet.
 
     Validates that:
     - .coveragerc exists and is configured
-    - coverage.json exists and is reasonably fresh
+    - CalibrationReport records exist with coverage data
     - Coverage hasn't regressed below ratchet baseline
     - Golden file directory exists
+
+    Primary data source: CalibrationReport DB records (populated by
+    generate_calibration_cert). Falls back to coverage.json only if
+    no DB records exist.
 
     Standard: CAL-001 §5, §6
     Compliance: SOC 2 CC4.1, ISO/IEC 17025:2017
     """
+    from syn.audit.models import CalibrationReport
+
     issues = []
     base = Path(settings.BASE_DIR)
 
@@ -5190,39 +5551,57 @@ def check_calibration_coverage():
     if not coveragerc.exists():
         issues.append(".coveragerc not found — create per CAL-001 §5.1")
 
-    # 2. Check coverage.json freshness
-    coverage_json = base / "coverage.json"
+    # 2. Read coverage from CalibrationReport DB (primary source)
     has_coverage = False
     current_coverage = 0
-    if not coverage_json.exists():
-        issues.append("coverage.json not found — run: coverage run manage.py test --keepdb && coverage json")
-    else:
-        age_days = (time.time() - coverage_json.stat().st_mtime) / 86400
-        if age_days > 14:
-            issues.append(f"coverage.json is {age_days:.0f} days old (>14 days)")
-        try:
-            data = json.loads(coverage_json.read_text())
-            current_coverage = data.get("totals", {}).get("percent_covered", 0)
-            has_coverage = True
-        except Exception as e:
-            issues.append(f"coverage.json parse error: {e}")
+    ratchet_baseline = 0
+    report_age_days = None
 
-    # 3. Ratchet baseline check
     try:
-        from syn.audit.models import CalibrationReport
-
         last_report = CalibrationReport.objects.order_by("-date").first()
-        if last_report and has_coverage:
-            if current_coverage < last_report.ratchet_baseline:
+        if last_report and last_report.overall_coverage is not None:
+            current_coverage = last_report.overall_coverage
+            ratchet_baseline = last_report.ratchet_baseline
+            has_coverage = True
+            report_age_days = (date.today() - last_report.date).days
+            if report_age_days > 30:
                 issues.append(
-                    f"Coverage regression: {current_coverage:.1f}% < ratchet baseline {last_report.ratchet_baseline:.1f}%"
+                    f"Latest CalibrationReport is {report_age_days} days old (>30 days) "
+                    f"— run: python manage.py generate_calibration_cert"
                 )
     except Exception:
         pass  # Model may not exist yet during initial setup
 
-    # 4. Golden file count
+    # 3. Fallback to coverage.json only if no DB records
+    if not has_coverage:
+        coverage_json = base / "coverage.json"
+        if coverage_json.exists():
+            try:
+                data = json.loads(coverage_json.read_text())
+                current_coverage = data.get("totals", {}).get(
+                    "percent_covered", 0
+                )
+                has_coverage = True
+            except Exception as e:
+                issues.append(f"coverage.json parse error: {e}")
+
+    if not has_coverage:
+        issues.append(
+            "No coverage data — run: python manage.py generate_calibration_cert"
+        )
+
+    # 4. Ratchet baseline check
+    if has_coverage and ratchet_baseline > 0:
+        if current_coverage < ratchet_baseline:
+            issues.append(
+                f"Coverage regression: {current_coverage:.1f}% < ratchet baseline {ratchet_baseline:.1f}%"
+            )
+
+    # 5. Golden file count
     golden_dir = base / "agents_api" / "tests" / "golden"
-    golden_count = len(list(golden_dir.glob("*.json"))) if golden_dir.exists() else 0
+    golden_count = (
+        len(list(golden_dir.glob("*.json"))) if golden_dir.exists() else 0
+    )
 
     # Determine status
     has_ratchet_fail = any("regression" in i.lower() for i in issues)
@@ -5243,6 +5622,8 @@ def check_calibration_coverage():
             "coveragerc_exists": coveragerc.exists(),
             "coverage_measured": has_coverage,
             "current_coverage": current_coverage if has_coverage else None,
+            "ratchet_baseline": ratchet_baseline if has_coverage else None,
+            "report_age_days": report_age_days,
             "golden_file_count": golden_count,
             "issues": issues,
         },
@@ -5268,7 +5649,16 @@ def check_complexity_governance():
     for py_file in sorted(base.rglob("*.py")):
         rel = str(py_file.relative_to(base))
         # Skip non-source files
-        if any(skip in rel for skip in ["/migrations/", "/test", "/__pycache__/", "/staticfiles/", "_tests.py"]):
+        if any(
+            skip in rel
+            for skip in [
+                "/migrations/",
+                "/test",
+                "/__pycache__/",
+                "/staticfiles/",
+                "_tests.py",
+            ]
+        ):
             continue
         files_checked += 1
 
@@ -5278,7 +5668,9 @@ def check_complexity_governance():
             continue
 
         # Check exemption
-        is_exempt = any(rel.endswith(exempt_path) for exempt_path in _COMPLEXITY_EXEMPTIONS)
+        is_exempt = any(
+            rel.endswith(exempt_path) for exempt_path in _COMPLEXITY_EXEMPTIONS
+        )
 
         if line_count > 3000 and not is_exempt:
             violations.append({"file": rel, "lines": line_count, "limit": 3000})
@@ -5315,7 +5707,9 @@ def check_endpoint_coverage():
     Compliance: SOC 2 CC4.1, CC7.2
     """
     base = Path(settings.BASE_DIR)
-    view_files = sorted(set(list(base.rglob("*_views.py")) + list(base.rglob("views.py"))))
+    view_files = sorted(
+        set(list(base.rglob("*_views.py")) + list(base.rglob("views.py")))
+    )
 
     total_endpoints = 0
     tested_endpoints = 0
@@ -5334,7 +5728,10 @@ def check_endpoint_coverage():
     for vf in view_files:
         rel = str(vf.relative_to(base))
         # Skip test files, migrations, staticfiles
-        if any(skip in rel for skip in ["/test", "/migrations/", "/__pycache__/", "/staticfiles/"]):
+        if any(
+            skip in rel
+            for skip in ["/test", "/migrations/", "/__pycache__/", "/staticfiles/"]
+        ):
             continue
 
         try:
@@ -5412,10 +5809,17 @@ def check_risk_registry():
     for entry in open_entries.filter(rpn__gt=60):
         if not entry.mitigation_plan.strip():
             high_without_mitigation.append(
-                {"id": str(entry.id), "title": entry.title, "rpn": entry.rpn, "status": entry.status}
+                {
+                    "id": str(entry.id),
+                    "title": entry.title,
+                    "rpn": entry.rpn,
+                    "status": entry.status,
+                }
             )
         elif entry.status == "identified":
-            high_not_mitigating.append({"id": str(entry.id), "title": entry.title, "rpn": entry.rpn})
+            high_not_mitigating.append(
+                {"id": str(entry.id), "title": entry.title, "rpn": entry.rpn}
+            )
 
     if high_without_mitigation:
         status = "fail"

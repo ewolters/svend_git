@@ -9,28 +9,86 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0021_harada_method_models'),
+        ("core", "0021_harada_method_models"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ArchetypeAssignment',
+            name="ArchetypeAssignment",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('session_id', models.UUIDField(help_text='Which questionnaire session produced this assignment')),
-                ('instrument_version', models.PositiveSmallIntegerField()),
-                ('cluster_id', models.PositiveSmallIntegerField(help_text='Cluster number (0-indexed)')),
-                ('cluster_label', models.CharField(blank=True, default='', help_text='Human-readable archetype label (assigned after cluster analysis)', max_length=100)),
-                ('feature_vector', models.JSONField(default=dict, help_text="{'likert': {dim: score}, 'categorical': {dim: label}}")),
-                ('cluster_distances', models.JSONField(blank=True, default=dict, help_text='Distance to each cluster centroid')),
-                ('silhouette_score', models.FloatField(blank=True, help_text='Individual silhouette score for this assignment', null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='archetype_assignments', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "session_id",
+                    models.UUIDField(
+                        help_text="Which questionnaire session produced this assignment"
+                    ),
+                ),
+                ("instrument_version", models.PositiveSmallIntegerField()),
+                (
+                    "cluster_id",
+                    models.PositiveSmallIntegerField(
+                        help_text="Cluster number (0-indexed)"
+                    ),
+                ),
+                (
+                    "cluster_label",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="Human-readable archetype label (assigned after cluster analysis)",
+                        max_length=100,
+                    ),
+                ),
+                (
+                    "feature_vector",
+                    models.JSONField(
+                        default=dict,
+                        help_text="{'likert': {dim: score}, 'categorical': {dim: label}}",
+                    ),
+                ),
+                (
+                    "cluster_distances",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="Distance to each cluster centroid",
+                    ),
+                ),
+                (
+                    "silhouette_score",
+                    models.FloatField(
+                        blank=True,
+                        help_text="Individual silhouette score for this assignment",
+                        null=True,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="archetype_assignments",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'core_archetype_assignment',
-                'indexes': [models.Index(fields=['user', '-created_at'], name='core_archet_user_id_35c958_idx')],
+                "db_table": "core_archetype_assignment",
+                "indexes": [
+                    models.Index(
+                        fields=["user", "-created_at"],
+                        name="core_archet_user_id_35c958_idx",
+                    )
+                ],
             },
         ),
     ]

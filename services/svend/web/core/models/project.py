@@ -344,7 +344,9 @@ class Project(models.Model):
 
     # Interview/onboarding state
     interview_state = models.JSONField(null=True, blank=True)
-    is_interview_completed = models.BooleanField(default=False, db_column="interview_completed")
+    is_interview_completed = models.BooleanField(
+        default=False, db_column="interview_completed"
+    )
 
     # Append-only changelog — [{ts, action, detail, user}]
     changelog = models.JSONField(default=list, blank=True)
@@ -391,7 +393,11 @@ class Project(models.Model):
     def evidence_count(self) -> int:
         from .hypothesis import Evidence
 
-        return Evidence.objects.filter(hypothesis_links__hypothesis__project=self).distinct().count()
+        return (
+            Evidence.objects.filter(hypothesis_links__hypothesis__project=self)
+            .distinct()
+            .count()
+        )
 
     def generate_problem_statement(self) -> str:
         """Generate a problem statement from 5W2H fields."""
@@ -461,11 +467,14 @@ class Project(models.Model):
             {
                 "ts": timezone.now().isoformat(),
                 "action": "phase_advanced",
-                "detail": f"{old_phase} → {new_phase}" + (f": {notes}" if notes else ""),
+                "detail": f"{old_phase} → {new_phase}"
+                + (f": {notes}" if notes else ""),
                 "user": (user.display_name or user.email) if user else "",
             }
         )
-        self.save(update_fields=["current_phase", "phase_history", "changelog", "updated_at"])
+        self.save(
+            update_fields=["current_phase", "phase_history", "changelog", "updated_at"]
+        )
 
     def resolve(self, summary: str, confidence: float = None):
         """Mark project as resolved."""
@@ -475,7 +484,15 @@ class Project(models.Model):
         self.resolution_summary = summary
         self.resolution_confidence = confidence
         self.resolved_at = timezone.now()
-        self.save(update_fields=["status", "resolution_summary", "resolution_confidence", "resolved_at", "updated_at"])
+        self.save(
+            update_fields=[
+                "status",
+                "resolution_summary",
+                "resolution_confidence",
+                "resolved_at",
+                "updated_at",
+            ]
+        )
 
 
 class Dataset(models.Model):

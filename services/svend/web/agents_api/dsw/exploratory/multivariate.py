@@ -25,7 +25,9 @@ def run_hotelling_t2(df, config):
     groups = sorted(data[group_var].unique().tolist(), key=str)
 
     if len(groups) != 2:
-        result["summary"] = f"Hotelling's T² requires exactly 2 groups. Found {len(groups)}: {groups}"
+        result["summary"] = (
+            f"Hotelling's T² requires exactly 2 groups. Found {len(groups)}: {groups}"
+        )
         return result
 
     g1_data = data[data[group_var] == groups[0]][responses].values
@@ -71,10 +73,10 @@ def run_hotelling_t2(df, config):
     summary += f"  p-value: {p_value:.4f}\n\n"
 
     if p_value < alpha:
-        summary += f"<<COLOR:good>>Mean vectors differ significantly (p < {alpha})<</COLOR>>\n"
         summary += (
-            "<<COLOR:text>>The groups have different multivariate profiles across the response variables.<</COLOR>>"
+            f"<<COLOR:good>>Mean vectors differ significantly (p < {alpha})<</COLOR>>\n"
         )
+        summary += "<<COLOR:text>>The groups have different multivariate profiles across the response variables.<</COLOR>>"
     else:
         summary += f"<<COLOR:text>>No significant difference in mean vectors (p >= {alpha})<</COLOR>>"
 
@@ -134,8 +136,9 @@ def run_hotelling_t2(df, config):
         }
     )
 
-    result["guide_observation"] = f"Hotelling's T² = {T2:.2f}, F = {F_stat:.2f}, p = {p_value:.4f}. " + (
-        "Groups differ." if p_value < alpha else "No difference."
+    result["guide_observation"] = (
+        f"Hotelling's T² = {T2:.2f}, F = {F_stat:.2f}, p = {p_value:.4f}. "
+        + ("Groups differ." if p_value < alpha else "No difference.")
     )
     result["statistics"] = {
         "T2": T2,
@@ -233,7 +236,9 @@ def _manova_detailed(df, config, responses, factor, alpha):
         eigenvalues = np.sort(eigenvalues)[::-1]
         eigenvalues = eigenvalues[eigenvalues > 0]
     except np.linalg.LinAlgError:
-        result["summary"] = "MANOVA: Error matrix is singular. Check for collinear responses or insufficient data."
+        result["summary"] = (
+            "MANOVA: Error matrix is singular. Check for collinear responses or insufficient data."
+        )
         return result
 
     s = min(p, k - 1)
@@ -254,7 +259,11 @@ def _manova_detailed(df, config, responses, factor, alpha):
         df1_w, df2_w = df_h, 2 * (r - 1) if r > 1 else 1
     else:
         # General case: Chi-square approximation
-        t = np.sqrt((p**2 * (k - 1) ** 2 - 4) / (p**2 + (k - 1) ** 2 - 5)) if (p**2 + (k - 1) ** 2 - 5) > 0 else 1
+        t = (
+            np.sqrt((p**2 * (k - 1) ** 2 - 4) / (p**2 + (k - 1) ** 2 - 5))
+            if (p**2 + (k - 1) ** 2 - 5) > 0
+            else 1
+        )
         df1_w = p * (k - 1)
         ms = N - 1 - (p + k) / 2
         df2_w = ms * t - df1_w / 2 + 1
@@ -267,7 +276,11 @@ def _manova_detailed(df, config, responses, factor, alpha):
     pillai = float(np.sum(eigenvalues / (1 + eigenvalues)))
     df1_p = s * max(p, k - 1)
     df2_p = s * (N - k - p + s)
-    F_pillai = (pillai / s) * (df2_p / (max(p, k - 1))) / (1 - pillai / s) if (1 - pillai / s) > 0 else 0
+    F_pillai = (
+        (pillai / s) * (df2_p / (max(p, k - 1))) / (1 - pillai / s)
+        if (1 - pillai / s) > 0
+        else 0
+    )
     p_pillai = float(1 - stats.f.cdf(max(F_pillai, 0), max(df1_p, 1), max(df2_p, 1)))
 
     # 3. Hotelling-Lawley Trace
@@ -295,7 +308,9 @@ def _manova_detailed(df, config, responses, factor, alpha):
     header = f"{'Variable':<20}" + "".join(f"{str(g):>12}" for g in groups)
     summary += header + "\n" + "─" * len(header) + "\n"
     for i, var in enumerate(responses):
-        row = f"{var:<20}" + "".join(f"{group_means[g]['mean'][i]:>12.4f}" for g in groups)
+        row = f"{var:<20}" + "".join(
+            f"{group_means[g]['mean'][i]:>12.4f}" for g in groups
+        )
         summary += row + "\n"
     summary += "\n"
 
@@ -313,23 +328,32 @@ def _manova_detailed(df, config, responses, factor, alpha):
         sig = "<<COLOR:good>>*<</COLOR>>" if p_val < alpha else ""
         summary += f"{name:<25} {val:>10.4f} {f_val:>10.4f} {p_val:>10.4f} {sig:>5}\n"
 
-    summary += (
-        f"\n<<COLOR:accent>>── Eigenvalues of H·E⁻¹ ──<</COLOR>> {', '.join(f'{e:.4f}' for e in eigenvalues)}\n\n"
-    )
+    summary += f"\n<<COLOR:accent>>── Eigenvalues of H·E⁻¹ ──<</COLOR>> {', '.join(f'{e:.4f}' for e in eigenvalues)}\n\n"
 
     # Overall interpretation (use Pillai's — most robust)
     if p_pillai < alpha:
         summary += f"<<COLOR:good>>Significant multivariate effect (Pillai's Trace, p < {alpha})<</COLOR>>\n"
         summary += "<<COLOR:text>>Group means differ across the response variables considered jointly.<</COLOR>>"
     else:
-        summary += f"<<COLOR:text>>No significant multivariate effect (p >= {alpha})<</COLOR>>"
+        summary += (
+            f"<<COLOR:text>>No significant multivariate effect (p >= {alpha})<</COLOR>>"
+        )
 
     result["summary"] = summary
 
     # Group centroid plot (first 2 responses, or first 2 discriminant functions)
     if p >= 2:
         traces = []
-        colors = ["#4a9f6e", "#47a5e8", "#e89547", "#9f4a4a", "#6c5ce7", "#e84393", "#00b894", "#fdcb6e"]
+        colors = [
+            "#4a9f6e",
+            "#47a5e8",
+            "#e89547",
+            "#9f4a4a",
+            "#6c5ce7",
+            "#e84393",
+            "#00b894",
+            "#fdcb6e",
+        ]
         for i, grp in enumerate(groups):
             grp_data = data[data[factor] == grp]
             traces.append(
@@ -339,7 +363,11 @@ def _manova_detailed(df, config, responses, factor, alpha):
                     "y": grp_data[responses[1]].tolist(),
                     "mode": "markers",
                     "name": str(grp),
-                    "marker": {"color": colors[i % len(colors)], "size": 6, "opacity": 0.6},
+                    "marker": {
+                        "color": colors[i % len(colors)],
+                        "size": 6,
+                        "opacity": 0.6,
+                    },
                 }
             )
             # Centroid
@@ -362,13 +390,26 @@ def _manova_detailed(df, config, responses, factor, alpha):
             {
                 "title": f"Group Centroids — {responses[0]} vs {responses[1]}",
                 "data": traces,
-                "layout": {"height": 350, "xaxis": {"title": responses[0]}, "yaxis": {"title": responses[1]}},
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"title": responses[0]},
+                    "yaxis": {"title": responses[1]},
+                },
             }
         )
 
     # Per-response box plots by group
     box_traces_m = []
-    m_colors = ["#4a9f6e", "#47a5e8", "#e89547", "#9f4a4a", "#6c5ce7", "#e84393", "#00b894", "#fdcb6e"]
+    m_colors = [
+        "#4a9f6e",
+        "#47a5e8",
+        "#e89547",
+        "#9f4a4a",
+        "#6c5ce7",
+        "#e84393",
+        "#00b894",
+        "#fdcb6e",
+    ]
     for gi, grp in enumerate(groups):
         grp_d = data[data[factor] == grp]
         for vi, var in enumerate(responses):
@@ -409,7 +450,10 @@ def _manova_detailed(df, config, responses, factor, alpha):
                     "colorscale": [[0, "#d94a4a"], [0.5, "#f0f4f0"], [1, "#2c5f2d"]],
                     "zmin": -1,
                     "zmax": 1,
-                    "text": [[f"{corr_mat[i][j]:.3f}" for j in range(len(responses))] for i in range(len(responses))],
+                    "text": [
+                        [f"{corr_mat[i][j]:.3f}" for j in range(len(responses))]
+                        for i in range(len(responses))
+                    ],
                     "texttemplate": "%{text}",
                     "showscale": True,
                 }
@@ -420,7 +464,11 @@ def _manova_detailed(df, config, responses, factor, alpha):
 
     result["guide_observation"] = (
         f"MANOVA: Wilks' Λ = {wilks:.4f}, p = {p_wilks:.4f}; Pillai's V = {pillai:.4f}, p = {p_pillai:.4f}. "
-        + ("Multivariate effect detected." if p_pillai < alpha else "No multivariate effect.")
+        + (
+            "Multivariate effect detected."
+            if p_pillai < alpha
+            else "No multivariate effect."
+        )
     )
     result["statistics"] = {
         "wilks_lambda": wilks,
@@ -453,9 +501,11 @@ def _manova_detailed(df, config, responses, factor, alpha):
             if _mv_sig
             else f"No evidence of group differences across the response variables jointly (Wilks' Λ = {wilks:.4f}, p = {p_wilks:.4f})."
         ),
-        next_steps="Run univariate ANOVAs per response with Bonferroni correction to identify which variables differ."
-        if _mv_sig
-        else "Check individual ANOVAs — marginal effects may exist that the joint test misses.",
+        next_steps=(
+            "Run univariate ANOVAs per response with Bonferroni correction to identify which variables differ."
+            if _mv_sig
+            else "Check individual ANOVAs — marginal effects may exist that the joint test misses."
+        ),
         chart_guidance="The scatter plot shows group separation in the first two response dimensions. Non-overlapping clusters confirm a multivariate effect.",
     )
 
@@ -495,7 +545,11 @@ def run_nested_anova(df, config):
             fixed_effects[name] = {"coef": float(val), "se": se, "p_value": pval}
 
         # Variance components
-        var_random = float(fit.cov_re.iloc[0, 0]) if hasattr(fit.cov_re, "iloc") else float(fit.cov_re)
+        var_random = (
+            float(fit.cov_re.iloc[0, 0])
+            if hasattr(fit.cov_re, "iloc")
+            else float(fit.cov_re)
+        )
         var_residual = float(fit.scale)
         var_total = var_random + var_residual
         icc = var_random / var_total if var_total > 0 else 0
@@ -509,19 +563,23 @@ def run_nested_anova(df, config):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Response:<</COLOR>> {response}\n"
         summary += f"<<COLOR:highlight>>Fixed factor:<</COLOR>> {fixed_factor} ({len(fixed_levels)} levels)\n"
-        summary += (
-            f"<<COLOR:highlight>>Random factor (nesting):<</COLOR>> {random_factor} ({len(random_levels)} levels)\n"
-        )
+        summary += f"<<COLOR:highlight>>Random factor (nesting):<</COLOR>> {random_factor} ({len(random_levels)} levels)\n"
         summary += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
         summary += "<<COLOR:accent>>── Fixed Effects ──<</COLOR>>\n"
         summary += f"{'Term':<30} {'Coef':>8} {'SE':>8} {'p-value':>8} {'Sig':>5}\n"
         summary += f"{'─' * 62}\n"
         for name, fe in fixed_effects.items():
-            sig = "<<COLOR:good>>*<</COLOR>>" if fe["p_value"] is not None and fe["p_value"] < alpha else ""
+            sig = (
+                "<<COLOR:good>>*<</COLOR>>"
+                if fe["p_value"] is not None and fe["p_value"] < alpha
+                else ""
+            )
             p_str = f"{fe['p_value']:.4f}" if fe["p_value"] is not None else "N/A"
             se_str = f"{fe['se']:.4f}" if fe["se"] is not None else "N/A"
-            summary += f"{name:<30} {fe['coef']:>8.4f} {se_str:>8} {p_str:>8} {sig:>5}\n"
+            summary += (
+                f"{name:<30} {fe['coef']:>8.4f} {se_str:>8} {p_str:>8} {sig:>5}\n"
+            )
 
         summary += "\n<<COLOR:accent>>── Variance Components ──<</COLOR>>\n"
         summary += f"  {random_factor} (random): {var_random:.4f} ({icc * 100:.1f}% of total)\n"
@@ -530,9 +588,7 @@ def run_nested_anova(df, config):
         summary += f"  ICC (Intraclass Correlation): {icc:.4f}\n\n"
 
         if icc > 0.1:
-            summary += (
-                f"<<COLOR:good>>ICC = {icc:.3f} — substantial variation attributed to {random_factor}.<</COLOR>>\n"
-            )
+            summary += f"<<COLOR:good>>ICC = {icc:.3f} — substantial variation attributed to {random_factor}.<</COLOR>>\n"
             summary += f"<<COLOR:text>>The nesting structure accounts for {icc * 100:.1f}% of the variance. Ignoring it would inflate Type I error.<</COLOR>>\n"
         else:
             summary += f"<<COLOR:text>>ICC = {icc:.3f} — low variation from {random_factor}. A standard ANOVA may suffice.<</COLOR>>\n"
@@ -571,7 +627,11 @@ def run_nested_anova(df, config):
             {
                 "title": f"Nested ANOVA: {response} by {fixed_factor} (nested in {random_factor})",
                 "data": traces,
-                "layout": {"height": 300, "yaxis": {"title": response}, "xaxis": {"title": fixed_factor}},
+                "layout": {
+                    "height": 300,
+                    "yaxis": {"title": response},
+                    "xaxis": {"title": fixed_factor},
+                },
             }
         )
 
@@ -629,8 +689,10 @@ def run_nested_anova(df, config):
                     {
                         "x": [theoretical_q[0], theoretical_q[-1]],
                         "y": [
-                            theoretical_q[0] * np.std(sorted_resid) + np.mean(sorted_resid),
-                            theoretical_q[-1] * np.std(sorted_resid) + np.mean(sorted_resid),
+                            theoretical_q[0] * np.std(sorted_resid)
+                            + np.mean(sorted_resid),
+                            theoretical_q[-1] * np.std(sorted_resid)
+                            + np.mean(sorted_resid),
                         ],
                         "mode": "lines",
                         "line": {"color": "#e89547", "dash": "dash"},
@@ -647,7 +709,11 @@ def run_nested_anova(df, config):
 
         result["guide_observation"] = (
             f"Nested ANOVA: ICC = {icc:.3f} ({icc * 100:.1f}% variance from {random_factor}). "
-            + ("Fixed effect significant." if sig_fixed else "Fixed effect not significant.")
+            + (
+                "Fixed effect significant."
+                if sig_fixed
+                else "Fixed effect not significant."
+            )
         )
         if sig_fixed:
             result["narrative"] = _narrative(
@@ -672,7 +738,9 @@ def run_nested_anova(df, config):
         }
 
     except ImportError:
-        result["summary"] = "Nested ANOVA requires statsmodels. Install with: pip install statsmodels"
+        result["summary"] = (
+            "Nested ANOVA requires statsmodels. Install with: pip install statsmodels"
+        )
     except Exception as e:
         result["summary"] = f"Nested ANOVA error: {str(e)}"
 
@@ -770,9 +838,13 @@ def run_manova_v2(df, config):
             p_wilks = None
 
         summary_text = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary_text += "<<COLOR:title>>MULTIVARIATE ANALYSIS OF VARIANCE (MANOVA)<</COLOR>>\n"
+        summary_text += (
+            "<<COLOR:title>>MULTIVARIATE ANALYSIS OF VARIANCE (MANOVA)<</COLOR>>\n"
+        )
         summary_text += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary_text += f"<<COLOR:highlight>>Responses:<</COLOR>> {', '.join(responses)}\n"
+        summary_text += (
+            f"<<COLOR:highlight>>Responses:<</COLOR>> {', '.join(responses)}\n"
+        )
         summary_text += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({k} groups)\n"
         summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
@@ -784,13 +856,19 @@ def run_manova_v2(df, config):
         wilks_f_str = f"{f_wilks:.4f}" if f_wilks is not None else "N/A"
         wilks_p_str = f"{p_wilks:.4f}" if p_wilks is not None else "N/A"
         wilks_label = "Wilks' Lambda"
-        summary_text += f"{wilks_label:<25} {wilks:>10.4f} {wilks_f_str:>10} {wilks_p_str:>10}\n"
-        summary_text += f"{'Hotelling-Lawley':<25} {hotelling:>10.4f} {'':>10} {'':>10}\n"
+        summary_text += (
+            f"{wilks_label:<25} {wilks:>10.4f} {wilks_f_str:>10} {wilks_p_str:>10}\n"
+        )
+        summary_text += (
+            f"{'Hotelling-Lawley':<25} {hotelling:>10.4f} {'':>10} {'':>10}\n"
+        )
         roy_label = "Roy's Greatest Root"
         summary_text += f"{roy_label:<25} {roy:>10.4f} {'':>10} {'':>10}\n\n"
 
         # Univariate ANOVAs
-        summary_text += "<<COLOR:accent>>── Univariate ANOVA per Response ──<</COLOR>>\n"
+        summary_text += (
+            "<<COLOR:accent>>── Univariate ANOVA per Response ──<</COLOR>>\n"
+        )
         summary_text += f"{'Response':<20} {'F':>10} {'p-value':>10} {'Sig':>5}\n"
         summary_text += f"{'─' * 47}\n"
         from scipy import stats as fstats
@@ -824,7 +902,11 @@ def run_manova_v2(df, config):
                             "marker": {"color": "#4a90d9"},
                         }
                     ],
-                    "layout": {"height": 250, "yaxis": {"title": resp}, "xaxis": {"title": factor}},
+                    "layout": {
+                        "height": 250,
+                        "yaxis": {"title": resp},
+                        "xaxis": {"title": factor},
+                    },
                 }
             )
 
@@ -851,15 +933,21 @@ def run_manova_v2(df, config):
             result["narrative"] = _narrative(
                 f"MANOVA — {'Significant' if _mv2_sig else 'No significant'} multivariate effect",
                 f"Testing {', '.join(responses)} jointly by {factor} ({k} groups, N = {N}). "
-                + (f"Wilks' Λ = {wilks:.4f}" + (f" (p = {p_wilks:.4f})" if p_wilks else "") + ". ")
+                + (
+                    f"Wilks' Λ = {wilks:.4f}"
+                    + (f" (p = {p_wilks:.4f})" if p_wilks else "")
+                    + ". "
+                )
                 + (
                     "The factor significantly affects the responses jointly."
                     if _mv2_sig
                     else "No evidence of a joint multivariate effect."
                 ),
-                next_steps="Examine the per-response bar charts to see which variables drive the group separation."
-                if _mv2_sig
-                else None,
+                next_steps=(
+                    "Examine the per-response bar charts to see which variables drive the group separation."
+                    if _mv2_sig
+                    else None
+                ),
                 chart_guidance="Bar charts show group means ± SD for each response. Large non-overlapping error bars suggest meaningful differences.",
             )
         except Exception:

@@ -20,8 +20,19 @@ _SUPERVISED = {"classification", "regression_ml"}
 _BOOSTING = {"xgboost", "lightgbm"}
 _MODEL_TOOLS = {"model_compare", "shap_explain", "hyperparameter_tune"}
 _UNSUPERVISED = {"clustering", "pca", "feature", "isolation_forest", "factor_analysis"}
-_ADVANCED_REG = {"bayesian_regression", "gam", "gaussian_process", "pls", "regularized_regression"}
-_MULTIVARIATE = {"sem", "discriminant_analysis", "correspondence_analysis", "item_analysis"}
+_ADVANCED_REG = {
+    "bayesian_regression",
+    "gam",
+    "gaussian_process",
+    "pls",
+    "regularized_regression",
+}
+_MULTIVARIATE = {
+    "sem",
+    "discriminant_analysis",
+    "correspondence_analysis",
+    "item_analysis",
+}
 
 
 def run_ml_analysis(df, analysis_id, config, user):
@@ -40,4 +51,8 @@ def run_ml_analysis(df, analysis_id, config, user):
         return _run_multivariate(df, analysis_id, config, user)
 
     logger.warning(f"Unknown ML analysis_id: {analysis_id}")
-    return {"plots": [], "summary": f"Unknown ML analysis: {analysis_id}", "guide_observation": ""}
+    return {
+        "plots": [],
+        "summary": f"Unknown ML analysis: {analysis_id}",
+        "guide_observation": "",
+    }

@@ -6,18 +6,30 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0018_rename_boolean_fields_compliance'),
+        ("core", "0018_rename_boolean_fields_compliance"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='notebookpage',
-            name='sequence',
-            field=models.IntegerField(default=0, help_text='Negative = front matter, positive = trial work'),
+            model_name="notebookpage",
+            name="sequence",
+            field=models.IntegerField(
+                default=0, help_text="Negative = front matter, positive = trial work"
+            ),
         ),
         migrations.AlterField(
-            model_name='notebookpage',
-            name='trial_role',
-            field=models.CharField(blank=True, choices=[('before', 'Before'), ('after', 'After'), ('supporting', 'Supporting'), ('front_matter', 'Front Matter')], default='', max_length=20),
+            model_name="notebookpage",
+            name="trial_role",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("before", "Before"),
+                    ("after", "After"),
+                    ("supporting", "Supporting"),
+                    ("front_matter", "Front Matter"),
+                ],
+                default="",
+                max_length=20,
+            ),
         ),
     ]

@@ -136,8 +136,12 @@ class IntegrityViolationModelTest(TestCase):
 
     def test_tenant_filter_isolation(self):
         """2 tenants, filter returns only matching (CC7.2)."""
-        IntegrityViolation.objects.create(tenant_id=_TENANT, violation_type="hash_mismatch")
-        IntegrityViolation.objects.create(tenant_id=_TENANT_B, violation_type="chain_break")
+        IntegrityViolation.objects.create(
+            tenant_id=_TENANT, violation_type="hash_mismatch"
+        )
+        IntegrityViolation.objects.create(
+            tenant_id=_TENANT_B, violation_type="chain_break"
+        )
         qs_a = IntegrityViolation.objects.filter(tenant_id=_TENANT)
         qs_b = IntegrityViolation.objects.filter(tenant_id=_TENANT_B)
         self.assertEqual(qs_a.count(), 1)
@@ -220,7 +224,9 @@ class DriftViolationModelTest(TestCase):
         """remediation_due_at in past → True (CC7.2)."""
         dv = _make_drift()
         # Force remediation_due_at into the past
-        DriftViolation.objects.filter(pk=dv.pk).update(remediation_due_at=timezone.now() - timedelta(hours=1))
+        DriftViolation.objects.filter(pk=dv.pk).update(
+            remediation_due_at=timezone.now() - timedelta(hours=1)
+        )
         dv.refresh_from_db()
         self.assertTrue(dv.is_overdue())
 
@@ -270,12 +276,24 @@ class RiskAssessmentComputeTest(TestCase):
         self._vote(
             "security_analyst",
             "approve",
-            {"security": 2, "availability": 4, "integrity": 3, "confidentiality": 2, "privacy": 1},
+            {
+                "security": 2,
+                "availability": 4,
+                "integrity": 3,
+                "confidentiality": 2,
+                "privacy": 1,
+            },
         )
         self._vote(
             "architect",
             "approve",
-            {"security": 4, "availability": 2, "integrity": 1, "confidentiality": 2, "privacy": 3},
+            {
+                "security": 4,
+                "availability": 2,
+                "integrity": 1,
+                "confidentiality": 2,
+                "privacy": 3,
+            },
         )
         self.ra.compute_aggregate()
         self.ra.refresh_from_db()
@@ -290,7 +308,13 @@ class RiskAssessmentComputeTest(TestCase):
         self._vote(
             "security_analyst",
             "approve",
-            {"security": 5, "availability": 1, "integrity": 1, "confidentiality": 1, "privacy": 1},
+            {
+                "security": 5,
+                "availability": 1,
+                "integrity": 1,
+                "confidentiality": 1,
+                "privacy": 1,
+            },
         )
         self.ra.compute_aggregate()
         self.ra.refresh_from_db()
@@ -301,20 +325,46 @@ class RiskAssessmentComputeTest(TestCase):
         self._vote(
             "security_analyst",
             "reject",
-            {"security": 5, "availability": 1, "integrity": 1, "confidentiality": 1, "privacy": 1},
+            {
+                "security": 5,
+                "availability": 1,
+                "integrity": 1,
+                "confidentiality": 1,
+                "privacy": 1,
+            },
         )
         self._vote(
             "architect",
             "approve",
-            {"security": 1, "availability": 1, "integrity": 1, "confidentiality": 1, "privacy": 1},
+            {
+                "security": 1,
+                "availability": 1,
+                "integrity": 1,
+                "confidentiality": 1,
+                "privacy": 1,
+            },
         )
         self._vote(
             "operations",
             "approve",
-            {"security": 1, "availability": 1, "integrity": 1, "confidentiality": 1, "privacy": 1},
+            {
+                "security": 1,
+                "availability": 1,
+                "integrity": 1,
+                "confidentiality": 1,
+                "privacy": 1,
+            },
         )
         self._vote(
-            "quality", "approve", {"security": 1, "availability": 1, "integrity": 1, "confidentiality": 1, "privacy": 1}
+            "quality",
+            "approve",
+            {
+                "security": 1,
+                "availability": 1,
+                "integrity": 1,
+                "confidentiality": 1,
+                "privacy": 1,
+            },
         )
         self.ra.compute_aggregate()
         self.ra.refresh_from_db()
@@ -325,20 +375,46 @@ class RiskAssessmentComputeTest(TestCase):
         self._vote(
             "architect",
             "reject",
-            {"security": 3, "availability": 3, "integrity": 3, "confidentiality": 3, "privacy": 3},
+            {
+                "security": 3,
+                "availability": 3,
+                "integrity": 3,
+                "confidentiality": 3,
+                "privacy": 3,
+            },
         )
         self._vote(
             "operations",
             "reject",
-            {"security": 3, "availability": 3, "integrity": 3, "confidentiality": 3, "privacy": 3},
+            {
+                "security": 3,
+                "availability": 3,
+                "integrity": 3,
+                "confidentiality": 3,
+                "privacy": 3,
+            },
         )
         self._vote(
-            "quality", "reject", {"security": 3, "availability": 3, "integrity": 3, "confidentiality": 3, "privacy": 3}
+            "quality",
+            "reject",
+            {
+                "security": 3,
+                "availability": 3,
+                "integrity": 3,
+                "confidentiality": 3,
+                "privacy": 3,
+            },
         )
         self._vote(
             "security_analyst",
             "approve",
-            {"security": 1, "availability": 1, "integrity": 1, "confidentiality": 1, "privacy": 1},
+            {
+                "security": 1,
+                "availability": 1,
+                "integrity": 1,
+                "confidentiality": 1,
+                "privacy": 1,
+            },
         )
         self.ra.compute_aggregate()
         self.ra.refresh_from_db()
@@ -349,13 +425,25 @@ class RiskAssessmentComputeTest(TestCase):
         self._vote(
             "security_analyst",
             "approve_with_conditions",
-            {"security": 2, "availability": 1, "integrity": 1, "confidentiality": 1, "privacy": 1},
+            {
+                "security": 2,
+                "availability": 1,
+                "integrity": 1,
+                "confidentiality": 1,
+                "privacy": 1,
+            },
             conditions=["Add WAF rule"],
         )
         self._vote(
             "architect",
             "approve_with_conditions",
-            {"security": 1, "availability": 2, "integrity": 1, "confidentiality": 1, "privacy": 1},
+            {
+                "security": 1,
+                "availability": 2,
+                "integrity": 1,
+                "confidentiality": 1,
+                "privacy": 1,
+            },
             conditions=["Update docs"],
         )
         self.ra.compute_aggregate()
@@ -368,7 +456,15 @@ class RiskAssessmentComputeTest(TestCase):
         """All "approve" → overall = "approve" (CC3.4)."""
         for role in ("security_analyst", "architect", "operations", "quality"):
             self._vote(
-                role, "approve", {"security": 1, "availability": 1, "integrity": 1, "confidentiality": 1, "privacy": 1}
+                role,
+                "approve",
+                {
+                    "security": 1,
+                    "availability": 1,
+                    "integrity": 1,
+                    "confidentiality": 1,
+                    "privacy": 1,
+                },
             )
         self.ra.compute_aggregate()
         self.ra.refresh_from_db()
@@ -439,7 +535,13 @@ class VerifyChainIntegrityTest(TestCase):
     def test_return_schema(self):
         """Result has: is_valid, total_entries, violations, genesis_valid, message (CC7.2)."""
         result = verify_chain_integrity(self.tenant)
-        for key in ("is_valid", "total_entries", "violations", "genesis_valid", "message"):
+        for key in (
+            "is_valid",
+            "total_entries",
+            "violations",
+            "genesis_valid",
+            "message",
+        ):
             self.assertIn(key, result, f"Missing key: {key}")
 
 
@@ -470,7 +572,12 @@ class RecordIntegrityViolationTest(TestCase):
     @patch("syn.audit.events.emit_audit_event", return_value=True)
     def test_violation_type_persisted(self, mock_emit):
         """type matches input (CC7.2)."""
-        for vtype in ("hash_mismatch", "chain_break", "missing_entry", "duplicate_hash"):
+        for vtype in (
+            "hash_mismatch",
+            "chain_break",
+            "missing_entry",
+            "duplicate_hash",
+        ):
             v = record_integrity_violation(_TENANT, vtype)
             self.assertEqual(v.violation_type, vtype)
 

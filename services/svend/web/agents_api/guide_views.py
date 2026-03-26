@@ -120,15 +120,25 @@ def guide_chat(request):
                         context_parts.append(
                             f'  {i}. "{h.get("statement", "")[:500]}" - {prob}% probability ({h.get("status", "investigating")})'
                         )
-                    context_parts.append("\nHelp the user evaluate evidence for/against these hypotheses.")
+                    context_parts.append(
+                        "\nHelp the user evaluate evidence for/against these hypotheses."
+                    )
             # Add session context
             if "summary" in context_data:
-                context_parts.append(f"\nCurrent session summary: {context_data['summary'][:2000]}")
+                context_parts.append(
+                    f"\nCurrent session summary: {context_data['summary'][:2000]}"
+                )
             if context_parts:
-                system += "\n\n<project_context>\n" + "\n".join(context_parts) + "\n</project_context>"
+                system += (
+                    "\n\n<project_context>\n"
+                    + "\n".join(context_parts)
+                    + "\n</project_context>"
+                )
         elif context_type == "whiteboard" and "elements" in context_data:
             elements_summary = summarize_whiteboard_elements(context_data["elements"])
-            system += f"\n\n<whiteboard_content>\n{elements_summary}\n</whiteboard_content>"
+            system += (
+                f"\n\n<whiteboard_content>\n{elements_summary}\n</whiteboard_content>"
+            )
         elif context_type == "project" and "project" in context_data:
             system += f"\n\n<project_context>\nProject: {context_data['project'].get('title', 'Untitled')[:500]}"
             if context_data.get("template"):
@@ -272,7 +282,9 @@ D8: Team Recognition""",
     }
 
     custom_template = body.get("custom_template", "")[:2000]
-    template_instruction = custom_template or template_prompts.get(template, template_prompts["capa"])
+    template_instruction = custom_template or template_prompts.get(
+        template, template_prompts["capa"]
+    )
 
     system = SYSTEM_PROMPTS["project"]
     user_message = f"""Based on the project data below, generate a report.
@@ -364,7 +376,9 @@ def summarize_whiteboard_elements(elements):
         if el_type == "postit":
             texts = [el.get("text", "") for el in items if el.get("text")]
             if texts:
-                summary_parts.append(f"Post-its ({len(texts)}): " + "; ".join(texts[:10]))
+                summary_parts.append(
+                    f"Post-its ({len(texts)}): " + "; ".join(texts[:10])
+                )
         elif el_type in ("rectangle", "oval", "diamond"):
             texts = [el.get("text", "") for el in items if el.get("text")]
             if texts:
@@ -376,8 +390,12 @@ def summarize_whiteboard_elements(elements):
                 causes = []
                 for cat in categories:
                     causes.extend([c.get("text", "") for c in cat.get("causes", [])])
-                summary_parts.append(f"Fishbone - Effect: {effect}, Causes: {', '.join(causes[:10])}")
+                summary_parts.append(
+                    f"Fishbone - Effect: {effect}, Causes: {', '.join(causes[:10])}"
+                )
         elif el_type in ("gate-and", "gate-or"):
-            summary_parts.append(f"Logic gates: {len(items)} {el_type.replace('gate-', '').upper()} gate(s)")
+            summary_parts.append(
+                f"Logic gates: {len(items)} {el_type.replace('gate-', '').upper()} gate(s)"
+            )
 
     return "\n".join(summary_parts) if summary_parts else "Various elements"

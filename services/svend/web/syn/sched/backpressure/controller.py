@@ -123,7 +123,9 @@ class BackpressureMetrics:
     decisions_denied: int = 0
 
     # Level time tracking
-    time_at_level: dict[str, float] = field(default_factory=dict)  # seconds at each level
+    time_at_level: dict[str, float] = field(
+        default_factory=dict
+    )  # seconds at each level
     level_changes: int = 0
     last_level_change: datetime | None = None
 
@@ -145,9 +147,13 @@ class BackpressureMetrics:
             "decisions_denied": self.decisions_denied,
             "time_at_level": self.time_at_level,
             "level_changes": self.level_changes,
-            "last_level_change": self.last_level_change.isoformat() if self.last_level_change else None,
+            "last_level_change": (
+                self.last_level_change.isoformat() if self.last_level_change else None
+            ),
             "emergency_triggers": self.emergency_triggers,
-            "last_emergency": self.last_emergency.isoformat() if self.last_emergency else None,
+            "last_emergency": (
+                self.last_emergency.isoformat() if self.last_emergency else None
+            ),
             "paused_task_count": self.paused_task_count,
         }
 
@@ -288,7 +294,9 @@ class BackpressureController:
                 cached = self._cached_decision
                 # Re-evaluate task-specific restrictions
                 if task_name or priority is not None or is_batch:
-                    return self._apply_task_restrictions(cached, task_name, priority, is_batch)
+                    return self._apply_task_restrictions(
+                        cached, task_name, priority, is_batch
+                    )
                 return cached
 
             # Get health metrics
@@ -319,7 +327,9 @@ class BackpressureController:
 
             # Update cache
             self._cached_decision = decision
-            self._cache_expires_at = timezone.now() + timedelta(seconds=self._config.decision_cache_seconds)
+            self._cache_expires_at = timezone.now() + timedelta(
+                seconds=self._config.decision_cache_seconds
+            )
 
             # Update metrics
             self._update_metrics(decision)
@@ -327,7 +337,9 @@ class BackpressureController:
             # Store in history
             self._decision_history.append(decision)
             if len(self._decision_history) > self._max_history_size:
-                self._decision_history = self._decision_history[-self._max_history_size :]
+                self._decision_history = self._decision_history[
+                    -self._max_history_size :
+                ]
 
             return decision
 
@@ -346,11 +358,15 @@ class BackpressureController:
         # Additional schedule-specific logic
         if decision.pause_schedules:
             decision.allow = False
-            decision.reasons.append(f"Schedule {schedule_name} paused due to backpressure")
+            decision.reasons.append(
+                f"Schedule {schedule_name} paused due to backpressure"
+            )
 
         # Apply schedule delay
         if decision.schedule_delay_seconds > 0:
-            decision.reasons.append(f"Schedule delayed by {decision.schedule_delay_seconds:.1f}s")
+            decision.reasons.append(
+                f"Schedule delayed by {decision.schedule_delay_seconds:.1f}s"
+            )
 
         return decision
 
@@ -364,7 +380,9 @@ class BackpressureController:
         with self._lock:
             # Apply recovery over time
             self._apply_confidence_recovery()
-            return min(self._current_confidence_penalty, self._config.max_confidence_penalty)
+            return min(
+                self._current_confidence_penalty, self._config.max_confidence_penalty
+            )
 
     def adjust_governance_confidence(self, base_confidence: float) -> float:
         """
@@ -387,17 +405,23 @@ class BackpressureController:
             self._current_confidence_penalty + penalty,
         )
         self._penalty_updated_at = timezone.now()
-        logger.debug(f"[BACKPRESSURE] Applied confidence penalty: {penalty}, total: {self._current_confidence_penalty}")
+        logger.debug(
+            f"[BACKPRESSURE] Applied confidence penalty: {penalty}, total: {self._current_confidence_penalty}"
+        )
 
     def _apply_confidence_recovery(self) -> None:
         """Apply gradual recovery to confidence penalty."""
         if self._current_confidence_penalty <= 0:
             return
 
-        elapsed_minutes = (timezone.now() - self._penalty_updated_at).total_seconds() / 60
+        elapsed_minutes = (
+            timezone.now() - self._penalty_updated_at
+        ).total_seconds() / 60
         recovery = elapsed_minutes * self._config.confidence_recovery_rate
 
-        self._current_confidence_penalty = max(0.0, self._current_confidence_penalty - recovery)
+        self._current_confidence_penalty = max(
+            0.0, self._current_confidence_penalty - recovery
+        )
         self._penalty_updated_at = timezone.now()
 
     def _check_emergency_conditions(self, metrics: HealthMetrics) -> None:
@@ -441,7 +465,9 @@ class BackpressureController:
         self._emergency_reason = None
         logger.info("[BACKPRESSURE] Emergency cleared")
 
-    def _handle_level_change(self, old_level: ThrottleLevel, new_level: ThrottleLevel) -> None:
+    def _handle_level_change(
+        self, old_level: ThrottleLevel, new_level: ThrottleLevel
+    ) -> None:
         """Handle throttle level change."""
         # Update time tracking
         self._update_level_time()
@@ -453,7 +479,9 @@ class BackpressureController:
         self._metrics.level_changes += 1
         self._metrics.last_level_change = timezone.now()
 
-        logger.info(f"[BACKPRESSURE] Level changed: {old_level.name} → {new_level.name}")
+        logger.info(
+            f"[BACKPRESSURE] Level changed: {old_level.name} → {new_level.name}"
+        )
 
         if self._config.on_level_change:
             try:
@@ -464,9 +492,13 @@ class BackpressureController:
     def _update_level_time(self) -> None:
         """Update time spent at current level."""
         if self._current_level in self._level_time_tracker:
-            elapsed = (timezone.now() - self._level_time_tracker[self._current_level]).total_seconds()
+            elapsed = (
+                timezone.now() - self._level_time_tracker[self._current_level]
+            ).total_seconds()
             level_name = self._current_level.name
-            self._metrics.time_at_level[level_name] = self._metrics.time_at_level.get(level_name, 0.0) + elapsed
+            self._metrics.time_at_level[level_name] = (
+                self._metrics.time_at_level.get(level_name, 0.0) + elapsed
+            )
 
     def _is_cache_valid(self) -> bool:
         """Check if decision cache is valid."""

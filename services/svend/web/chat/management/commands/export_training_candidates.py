@@ -29,7 +29,14 @@ class Command(BaseCommand):
         parser.add_argument(
             "--type",
             type=str,
-            choices=["low_confidence", "verification_failed", "error", "user_flagged", "random_sample", "all"],
+            choices=[
+                "low_confidence",
+                "verification_failed",
+                "error",
+                "user_flagged",
+                "random_sample",
+                "all",
+            ],
             default="all",
             help="Which candidate type to export (default: all)",
         )
@@ -82,7 +89,9 @@ class Command(BaseCommand):
                 f.write(json.dumps(training_data) + "\n")
                 exported += 1
 
-        self.stdout.write(self.style.SUCCESS(f"Exported {exported} candidates to {output_path}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"Exported {exported} candidates to {output_path}")
+        )
 
         # Mark as exported if requested
         if options["mark_exported"]:

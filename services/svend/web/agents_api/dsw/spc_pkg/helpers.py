@@ -76,7 +76,9 @@ def _spc_nelson_rules(data, cl, ucl, lcl):
             window = data[i - 7 : i + 1]
             if all(v > one_sigma_up or v < one_sigma_dn for v in window):
                 ooc_indices.update(range(i - 7, i + 1))
-                violations.append(f"Rule 8: 8 beyond 1σ (mixture) at {i - 7 + 1}-{i + 1}")
+                violations.append(
+                    f"Rule 8: 8 beyond 1σ (mixture) at {i - 7 + 1}-{i + 1}"
+                )
                 break
 
     return list(sorted(ooc_indices)), violations
@@ -135,7 +137,10 @@ def _spc_build_point_rules(data, cl, ucl, lcl, ooc_indices):
     # Rule 5: 2 of 3 beyond 2σ
     for i in range(2, n):
         w = data[i - 2 : i + 1]
-        if sum(1 for v in w if v > two_sigma_up) >= 2 or sum(1 for v in w if v < two_sigma_dn) >= 2:
+        if (
+            sum(1 for v in w if v > two_sigma_up) >= 2
+            or sum(1 for v in w if v < two_sigma_dn) >= 2
+        ):
             for j in range(i - 2, i + 1):
                 if j in ooc_set and "Rule 5: 2/3 beyond 2\u03c3" not in rules[j]:
                     rules[j].append("Rule 5: 2/3 beyond 2\u03c3")
@@ -143,7 +148,10 @@ def _spc_build_point_rules(data, cl, ucl, lcl, ooc_indices):
     # Rule 6: 4 of 5 beyond 1σ
     for i in range(4, n):
         w = data[i - 4 : i + 1]
-        if sum(1 for v in w if v > one_sigma_up) >= 4 or sum(1 for v in w if v < one_sigma_dn) >= 4:
+        if (
+            sum(1 for v in w if v > one_sigma_up) >= 4
+            or sum(1 for v in w if v < one_sigma_dn) >= 4
+        ):
             for j in range(i - 4, i + 1):
                 if j in ooc_set and "Rule 6: 4/5 beyond 1\u03c3" not in rules[j]:
                     rules[j].append("Rule 6: 4/5 beyond 1\u03c3")
@@ -181,9 +189,19 @@ def _spc_add_ooc_markers(plot_data, data, ooc_indices, point_rules=None):
         main_trace = plot_data[0]
         if "customdata" not in main_trace:
             main_trace["customdata"] = [
-                [i, "; ".join(point_rules.get(i, [])) if point_rules and i in ooc_set else ""] for i in range(n)
+                [
+                    i,
+                    (
+                        "; ".join(point_rules.get(i, []))
+                        if point_rules and i in ooc_set
+                        else ""
+                    ),
+                ]
+                for i in range(n)
             ]
-            main_trace["hovertemplate"] = "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra></extra>"
+            main_trace["hovertemplate"] = (
+                "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra></extra>"
+            )
 
     if not ooc_indices:
         return
@@ -195,14 +213,25 @@ def _spc_add_ooc_markers(plot_data, data, ooc_indices, point_rules=None):
         "y": ooc_y,
         "mode": "markers",
         "name": "Out of Control",
-        "marker": {"color": "#d94a4a", "size": 9, "symbol": "diamond", "line": {"color": "#fff", "width": 1}},
+        "marker": {
+            "color": "#d94a4a",
+            "size": 9,
+            "symbol": "diamond",
+            "line": {"color": "#fff", "width": 1},
+        },
         "showlegend": True,
     }
     # Add customdata for click-to-inspect
     if point_rules is not None:
-        trace["customdata"] = [[i, "; ".join(point_rules.get(i, []))] for i in ooc_indices]
-        trace["hovertemplate"] = "Obs #%{customdata[0]}<br>Value: %{y:.4f}<br>%{customdata[1]}<extra>OOC</extra>"
+        trace["customdata"] = [
+            [i, "; ".join(point_rules.get(i, []))] for i in ooc_indices
+        ]
+        trace["hovertemplate"] = (
+            "Obs #%{customdata[0]}<br>Value: %{y:.4f}<br>%{customdata[1]}<extra>OOC</extra>"
+        )
     else:
         trace["customdata"] = [[i, ""] for i in ooc_indices]
-        trace["hovertemplate"] = "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra>OOC</extra>"
+        trace["hovertemplate"] = (
+            "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra>OOC</extra>"
+        )
     plot_data.append(trace)

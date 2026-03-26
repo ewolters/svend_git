@@ -50,8 +50,12 @@ def _run_supervised(df, analysis_id, config, user):
     X = df[features].dropna()
     y = df[target].loc[X.index]
     # 3-way split for conformal prediction: train 70% / calibration 15% / test 15%
-    X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.30, random_state=42)
-    X_cal, X_test, y_cal, y_test = train_test_split(X_temp, y_temp, test_size=0.50, random_state=42)
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        X, y, test_size=0.30, random_state=42
+    )
+    X_cal, X_test, y_cal, y_test = train_test_split(
+        X_temp, y_temp, test_size=0.50, random_state=42
+    )
 
     if analysis_id == "classification":
         if algorithm == "rf":
@@ -73,7 +77,15 @@ def _run_supervised(df, analysis_id, config, user):
         summary += f"<<COLOR:highlight>>Algorithm:<</COLOR>> {algorithm.upper()}\n"
         summary += f"<<COLOR:highlight>>Accuracy:<</COLOR>> {accuracy:.4f}\n\n"
         summary += f"<<COLOR:text>>{report}<</COLOR>>"
-        summary += _ml_interpretation("classification", {"accuracy": accuracy}, y_test, y_pred, features, target, model)
+        summary += _ml_interpretation(
+            "classification",
+            {"accuracy": accuracy},
+            y_test,
+            y_pred,
+            features,
+            target,
+            model,
+        )
         result["summary"] = summary
 
         # Feature importance
@@ -89,7 +101,10 @@ def _run_supervised(df, analysis_id, config, user):
                             "x": importances[sorted_idx].tolist(),
                             "y": [features[i] for i in sorted_idx],
                             "orientation": "h",
-                            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                            "marker": {
+                                "color": "rgba(74, 159, 110, 0.4)",
+                                "line": {"color": "#4a9f6e", "width": 1.5},
+                            },
                         }
                     ],
                     "layout": {"height": max(200, len(features) * 25)},
@@ -193,29 +208,47 @@ def _run_supervised(df, analysis_id, config, user):
                 y_test_int = np.asarray(y_test).astype(int)
 
             if hasattr(model, "predict_proba"):
-                cf = compute_conformal(model, X_cal, y_cal_int, task_type="classification")
+                cf = compute_conformal(
+                    model, X_cal, y_cal_int, task_type="classification"
+                )
                 conformal_state = cf.get_state()
 
                 # Empirical coverage on test set
                 proba_test = model.predict_proba(X_test)
                 pred_sets, meta = cf.predict_sets(proba_test, alpha=0.10)
-                covered = sum(1 for i, ps in enumerate(pred_sets) if int(y_test_int[i]) in ps)
+                covered = sum(
+                    1 for i, ps in enumerate(pred_sets) if int(y_test_int[i]) in ps
+                )
                 emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
                 set_sizes = [len(ps) for ps in pred_sets]
                 avg_set_size = float(np.mean(set_sizes))
-                single_class_pct = sum(1 for s in set_sizes if s == 1) / len(set_sizes) if set_sizes else 0
+                single_class_pct = (
+                    sum(1 for s in set_sizes if s == 1) / len(set_sizes)
+                    if set_sizes
+                    else 0
+                )
 
-                result["summary"] += "\n\n<<COLOR:accent>>── Conformal Prediction Sets (90% nominal) ──<</COLOR>>\n"
-                result["summary"] += f"<<COLOR:highlight>>Average set size:<</COLOR>> {avg_set_size:.2f} classes\n"
-                result["summary"] += f"<<COLOR:highlight>>Empirical test coverage:<</COLOR>> {emp_coverage:.1%}\n"
-                result["summary"] += f"<<COLOR:highlight>>Single-class predictions:<</COLOR>> {single_class_pct:.1%}\n"
-                result["summary"] += f"<<COLOR:highlight>>Calibration set:<</COLOR>> {cf.n_cal} observations\n"
-                result["summary"] += (
-                    "<<COLOR:text>>Nominal coverage: 90% (finite-sample marginal guarantee under exchangeability)<</COLOR>>\n"
-                )
-                result["summary"] += (
-                    "<<COLOR:text>>When the model is confident, you get 1 class. When uncertain, you get 2+.<</COLOR>>"
-                )
+                result[
+                    "summary"
+                ] += "\n\n<<COLOR:accent>>── Conformal Prediction Sets (90% nominal) ──<</COLOR>>\n"
+                result[
+                    "summary"
+                ] += f"<<COLOR:highlight>>Average set size:<</COLOR>> {avg_set_size:.2f} classes\n"
+                result[
+                    "summary"
+                ] += f"<<COLOR:highlight>>Empirical test coverage:<</COLOR>> {emp_coverage:.1%}\n"
+                result[
+                    "summary"
+                ] += f"<<COLOR:highlight>>Single-class predictions:<</COLOR>> {single_class_pct:.1%}\n"
+                result[
+                    "summary"
+                ] += f"<<COLOR:highlight>>Calibration set:<</COLOR>> {cf.n_cal} observations\n"
+                result[
+                    "summary"
+                ] += "<<COLOR:text>>Nominal coverage: 90% (finite-sample marginal guarantee under exchangeability)<</COLOR>>\n"
+                result[
+                    "summary"
+                ] += "<<COLOR:text>>When the model is confident, you get 1 class. When uncertain, you get 2+.<</COLOR>>"
 
                 # Prediction set size histogram
                 result["plots"].append(
@@ -282,7 +315,9 @@ def _run_supervised(df, analysis_id, config, user):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>R²:<</COLOR>> {r2:.4f}\n"
         summary += f"<<COLOR:highlight>>RMSE:<</COLOR>> {rmse:.4f}\n"
-        summary += _ml_interpretation("regression", {"r2": r2, "rmse": rmse}, y_test, y_pred, features, target)
+        summary += _ml_interpretation(
+            "regression", {"r2": r2, "rmse": rmse}, y_test, y_pred, features, target
+        )
         result["summary"] = summary
 
         r2_label, _ = _effect_magnitude(r2, "r_squared")
@@ -293,9 +328,11 @@ def _run_supervised(df, analysis_id, config, user):
             + (
                 "Strong predictive model."
                 if r2 >= 0.7
-                else "Moderate model — useful for trends."
-                if r2 >= 0.4
-                else "Weak model — features may not predict target well."
+                else (
+                    "Moderate model — useful for trends."
+                    if r2 >= 0.4
+                    else "Weak model — features may not predict target well."
+                )
             )
         )
 
@@ -319,7 +356,11 @@ def _run_supervised(df, analysis_id, config, user):
                         "line": {"color": "#ff7675", "dash": "dash"},
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Actual"}, "yaxis": {"title": "Predicted"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Actual"},
+                    "yaxis": {"title": "Predicted"},
+                },
             }
         )
 
@@ -336,7 +377,10 @@ def _run_supervised(df, analysis_id, config, user):
                             "x": importances[sorted_idx].tolist(),
                             "y": [features[i] for i in sorted_idx],
                             "orientation": "h",
-                            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                            "marker": {
+                                "color": "rgba(74, 159, 110, 0.4)",
+                                "line": {"color": "#4a9f6e", "width": 1.5},
+                            },
                         }
                     ],
                     "layout": {"height": max(200, len(features) * 25)},
@@ -370,7 +414,11 @@ def _run_supervised(df, analysis_id, config, user):
                         "name": "Zero",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Predicted"}, "yaxis": {"title": "Residual"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Predicted"},
+                    "yaxis": {"title": "Residual"},
+                },
             }
         )
 
@@ -389,14 +437,24 @@ def _run_supervised(df, analysis_id, config, user):
             covered = np.sum((y_test.values >= y_lo) & (y_test.values <= y_hi))
             emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
 
-            result["summary"] += "\n\n<<COLOR:accent>>── Conformal Prediction Intervals (90% nominal) ──<</COLOR>>\n"
-            result["summary"] += f"<<COLOR:highlight>>Interval half-width:<</COLOR>> ±{qhat_90:.4f}\n"
-            result["summary"] += f"<<COLOR:highlight>>Empirical test coverage:<</COLOR>> {emp_coverage:.1%}\n"
-            result["summary"] += f"<<COLOR:highlight>>Calibration set:<</COLOR>> {cf.n_cal} observations\n"
-            result["summary"] += f"<<COLOR:highlight>>95% interval half-width:<</COLOR>> ±{qhat_95:.4f}\n"
-            result["summary"] += (
-                "<<COLOR:text>>Nominal coverage: 90% (finite-sample marginal guarantee under exchangeability)<</COLOR>>"
-            )
+            result[
+                "summary"
+            ] += "\n\n<<COLOR:accent>>── Conformal Prediction Intervals (90% nominal) ──<</COLOR>>\n"
+            result[
+                "summary"
+            ] += f"<<COLOR:highlight>>Interval half-width:<</COLOR>> ±{qhat_90:.4f}\n"
+            result[
+                "summary"
+            ] += f"<<COLOR:highlight>>Empirical test coverage:<</COLOR>> {emp_coverage:.1%}\n"
+            result[
+                "summary"
+            ] += f"<<COLOR:highlight>>Calibration set:<</COLOR>> {cf.n_cal} observations\n"
+            result[
+                "summary"
+            ] += f"<<COLOR:highlight>>95% interval half-width:<</COLOR>> ±{qhat_95:.4f}\n"
+            result[
+                "summary"
+            ] += "<<COLOR:text>>Nominal coverage: 90% (finite-sample marginal guarantee under exchangeability)<</COLOR>>"
 
             # Conformal interval plot
             sort_idx = np.argsort(y_pred)

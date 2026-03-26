@@ -154,7 +154,9 @@ def export_workbench(request, workbench_id):
     workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
 
     response = JsonResponse(workbench.to_json())
-    safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', "_", workbench.title) or "workbench"
+    safe_title = (
+        re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', "_", workbench.title) or "workbench"
+    )
     response["Content-Disposition"] = f'attachment; filename="{safe_title}.json"'
     return response
 
@@ -282,7 +284,9 @@ def delete_artifact(request, workbench_id, artifact_id):
 
     # Remove from connections
     workbench.connections = [
-        c for c in workbench.connections if c["from"] != str(artifact.id) and c["to"] != str(artifact.id)
+        c
+        for c in workbench.connections
+        if c["from"] != str(artifact.id) and c["to"] != str(artifact.id)
     ]
     workbench.save(update_fields=["connections"])
 
@@ -333,7 +337,11 @@ def disconnect_artifacts(request, workbench_id):
     from_id = data.get("from")
     to_id = data.get("to")
 
-    workbench.connections = [c for c in workbench.connections if not (c["from"] == from_id and c["to"] == to_id)]
+    workbench.connections = [
+        c
+        for c in workbench.connections
+        if not (c["from"] == from_id and c["to"] == to_id)
+    ]
     workbench.save(update_fields=["connections"])
 
     return JsonResponse({"success": True})

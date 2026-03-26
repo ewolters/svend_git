@@ -9,26 +9,66 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0019_notebook_front_matter'),
+        ("core", "0019_notebook_front_matter"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='FrontPageDigest',
+            name="FrontPageDigest",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('themes', models.JSONField(default=list, help_text='[{"name": str, "items": [int], "summary": str}]')),
-                ('contradictions', models.JSONField(default=list, help_text='[{"items": [int], "note": str}]')),
-                ('digest', models.TextField(blank=True, default='', help_text='One-paragraph summary')),
-                ('source_hash', models.CharField(blank=True, default='', max_length=64)),
-                ('source_items', models.JSONField(default=list, help_text='The learning strings fed to the LLM (for reference linking)')),
-                ('generated_at', models.DateTimeField(blank=True, null=True)),
-                ('generation_time_ms', models.FloatField(blank=True, null=True)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='front_page_digest', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "themes",
+                    models.JSONField(
+                        default=list,
+                        help_text='[{"name": str, "items": [int], "summary": str}]',
+                    ),
+                ),
+                (
+                    "contradictions",
+                    models.JSONField(
+                        default=list, help_text='[{"items": [int], "note": str}]'
+                    ),
+                ),
+                (
+                    "digest",
+                    models.TextField(
+                        blank=True, default="", help_text="One-paragraph summary"
+                    ),
+                ),
+                (
+                    "source_hash",
+                    models.CharField(blank=True, default="", max_length=64),
+                ),
+                (
+                    "source_items",
+                    models.JSONField(
+                        default=list,
+                        help_text="The learning strings fed to the LLM (for reference linking)",
+                    ),
+                ),
+                ("generated_at", models.DateTimeField(blank=True, null=True)),
+                ("generation_time_ms", models.FloatField(blank=True, null=True)),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="front_page_digest",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'core_front_page_digest',
+                "db_table": "core_front_page_digest",
             },
         ),
     ]

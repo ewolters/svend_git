@@ -39,7 +39,9 @@ def _put(client, url, data=None):
 
 def _make_team_user(email):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123!")
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123!"
+    )
     user.tier = Tier.TEAM
     user.save(update_fields=["tier"])
     return user
@@ -47,7 +49,9 @@ def _make_team_user(email):
 
 def _make_enterprise_user(email):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123!")
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123!"
+    )
     user.tier = Tier.ENTERPRISE
     user.save(update_fields=["tier"])
     return user
@@ -169,7 +173,10 @@ class RCAChainTest(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.json()["session"]["chain"]), 2)
-        self.assertEqual(resp.json()["session"]["chain"][1]["claim"], "Operator not trained on new material")
+        self.assertEqual(
+            resp.json()["session"]["chain"][1]["claim"],
+            "Operator not trained on new material",
+        )
 
 
 # =============================================================================
@@ -213,7 +220,9 @@ class RCACritiqueTest(TestCase):
         mock_client = MagicMock()
         mock_anthropic_cls.return_value = mock_client
         mock_response = MagicMock()
-        mock_response.content = [MagicMock(text="This claim fails the counterfactual test.")]
+        mock_response.content = [
+            MagicMock(text="This claim fails the counterfactual test.")
+        ]
         mock_response.usage.input_tokens = 100
         mock_response.usage.output_tokens = 50
         mock_client.messages.create.return_value = mock_response
@@ -261,7 +270,11 @@ class RCASimilarityTest(TestCase):
         session_id = resp.json()["session"]["id"]
 
         # Advance to investigating and set an embedding manually
-        _put(self.client, f"/api/rca/sessions/{session_id}/update/", {"status": "investigating"})
+        _put(
+            self.client,
+            f"/api/rca/sessions/{session_id}/update/",
+            {"status": "investigating"},
+        )
         session = RCASession.objects.get(id=session_id)
         session.embedding = np.array([0.1] * 256, dtype=np.float32).tobytes()
         session.save(update_fields=["embedding"])
@@ -418,7 +431,9 @@ class A3ImportTest(TestCase):
         sid = resp.json()["session"]["id"]
 
         # Walk to root_cause_identified
-        _put(self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"})
+        _put(
+            self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"}
+        )
         _put(
             self.client,
             f"/api/rca/sessions/{sid}/update/",

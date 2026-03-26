@@ -173,7 +173,11 @@ class CheckInvocationTest(TestCase):
             with self.subTest(check=name):
                 fn = entry[0]
                 result = fn()
-                self.assertIsInstance(result, dict, f"{name} returned {type(result).__name__}, expected dict")
+                self.assertIsInstance(
+                    result,
+                    dict,
+                    f"{name} returned {type(result).__name__}, expected dict",
+                )
 
     def test_all_checks_have_status(self):
         """Every check result has a 'status' key."""
@@ -227,9 +231,13 @@ class CheckInvocationTest(TestCase):
                 if name in CHECKS_WITHOUT_SOC2:
                     continue
                 controls = result.get("soc2_controls", [])
-                self.assertIsInstance(controls, list, f"{name} soc2_controls not a list")
+                self.assertIsInstance(
+                    controls, list, f"{name} soc2_controls not a list"
+                )
                 for ctrl in controls:
-                    self.assertIsInstance(ctrl, str, f"{name} control {ctrl} not a string")
+                    self.assertIsInstance(
+                        ctrl, str, f"{name} control {ctrl} not a string"
+                    )
 
 
 # =============================================================================

@@ -111,16 +111,24 @@ def run_analysis(request):
             try:
                 df = pd.DataFrame(inline_data)
                 if len(df) > 10000:
-                    _log_rejection(request, "inline_data_too_large", analysis_type, analysis_id)
-                    return JsonResponse({"error": "Inline data limited to 10,000 rows"}, status=400)
+                    _log_rejection(
+                        request, "inline_data_too_large", analysis_type, analysis_id
+                    )
+                    return JsonResponse(
+                        {"error": "Inline data limited to 10,000 rows"}, status=400
+                    )
             except Exception as e:
-                _log_rejection(request, f"invalid_inline_data: {e}", analysis_type, analysis_id)
+                _log_rejection(
+                    request, f"invalid_inline_data: {e}", analysis_type, analysis_id
+                )
                 return JsonResponse({"error": f"Invalid inline data: {e}"}, status=400)
 
         # Source 1: Uploaded via upload_data endpoint (data_xxx format)
         if df is None and data_id and data_id.startswith("data_"):
             try:
-                data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
+                data_dir = (
+                    Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
+                )
                 data_path = data_dir / f"{data_id}.csv"
                 if data_path.exists():
                     df = _read_csv_safe(data_path)
@@ -148,10 +156,14 @@ def run_analysis(request):
                 pass
 
         if df is None and analysis_type in ("simulation", "bayesian", "siop"):
-            df = pd.DataFrame()  # Simulation can run without data (user-defined distributions)
+            df = (
+                pd.DataFrame()
+            )  # Simulation can run without data (user-defined distributions)
         elif df is None:
             _log_rejection(request, "no_data_loaded", analysis_type, analysis_id)
-            return JsonResponse({"error": "No data loaded. Please load a dataset first."}, status=400)
+            return JsonResponse(
+                {"error": "No data loaded. Please load a dataset first."}, status=400
+            )
 
         result = {"plots": [], "summary": "", "guide_observation": ""}
 
@@ -218,18 +230,29 @@ def run_analysis(request):
             model_key = config.get("model_key", "")
             model_obj, model_feats = None, []
             if model_key:
-                cached = get_cached_model(request.user.id if request.user else 0, model_key)
+                cached = get_cached_model(
+                    request.user.id if request.user else 0, model_key
+                )
                 if cached:
                     model_obj = cached.get("model")
                     model_feats = cached.get("meta", {}).get("features", [])
-            result = run_interventional_shap(df, analysis_id, config, model=model_obj, model_features=model_feats)
+            result = run_interventional_shap(
+                df, analysis_id, config, model=model_obj, model_features=model_feats
+            )
         elif analysis_type == "siop":
             from .siop import run_siop
 
             result = run_siop(df, analysis_id, config)
         else:
-            _log_rejection(request, f"unknown_analysis_type: {analysis_type}", analysis_type, analysis_id)
-            return JsonResponse({"error": f"Unknown analysis type: {analysis_type}"}, status=400)
+            _log_rejection(
+                request,
+                f"unknown_analysis_type: {analysis_type}",
+                analysis_type,
+                analysis_id,
+            )
+            return JsonResponse(
+                {"error": f"Unknown analysis type: {analysis_type}"}, status=400
+            )
 
         latency = int((time.time() - start_time) * 1000)
         log_agent_action(request.user, "analysis", analysis_id, latency_ms=latency)
@@ -267,7 +290,8 @@ def run_analysis(request):
                         }
                     ),
                     project=project,
-                    title=result_title or f"{analysis_id.replace('_', ' ').title()} Analysis",
+                    title=result_title
+                    or f"{analysis_id.replace('_', ' ').title()} Analysis",
                 )
                 result["result_id"] = result_id
             except Exception as e:
@@ -295,11 +319,15 @@ def run_analysis(request):
 
     except Exception as e:
         logger.exception(f"Analysis error: {e}")
-        log_agent_action(request.user, "analysis", analysis_id, success=False, error_message=str(e))
+        log_agent_action(
+            request.user, "analysis", analysis_id, success=False, error_message=str(e)
+        )
         return JsonResponse({"error": str(e)}, status=500)
 
 
-def _dsw_connect_investigation(request, investigation_id, result, analysis_type, analysis_id, config):
+def _dsw_connect_investigation(
+    request, investigation_id, result, analysis_type, analysis_id, config
+):
     """Connect DSW analysis output to an investigation via the bridge (CANON-002 §12).
 
     Extracts statistical metrics from the standardized result, builds an

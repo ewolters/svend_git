@@ -83,7 +83,9 @@ class CaseResult:
     category: str
     description: str
     passed: bool
-    checks: list = field(default_factory=list)  # list of {key, expected, actual, tolerance, comparison, passed}
+    checks: list = field(
+        default_factory=list
+    )  # list of {key, expected, actual, tolerance, comparison, passed}
     error: str = ""
     duration_ms: float = 0.0
 
@@ -160,10 +162,14 @@ def _check_expectation(result, expectation):
 
     if exp.comparison == "greater_than":
         check["passed"] = actual_f > expected_f
-        check["detail"] = f"{actual_f:.6f} {'>' if check['passed'] else '<='} {expected_f}"
+        check["detail"] = (
+            f"{actual_f:.6f} {'>' if check['passed'] else '<='} {expected_f}"
+        )
     elif exp.comparison == "less_than":
         check["passed"] = actual_f < expected_f
-        check["detail"] = f"{actual_f:.6f} {'<' if check['passed'] else '>='} {expected_f}"
+        check["detail"] = (
+            f"{actual_f:.6f} {'<' if check['passed'] else '>='} {expected_f}"
+        )
     elif exp.comparison == "abs_within":
         deviation = abs(actual_f - expected_f)
         check["passed"] = deviation <= exp.tolerance
@@ -172,7 +178,9 @@ def _check_expectation(result, expectation):
         )
     elif exp.comparison == "contains":
         check["passed"] = str(exp.expected) in str(actual)
-        check["detail"] = f"'{exp.expected}' {'found' if check['passed'] else 'not found'} in '{actual}'"
+        check["detail"] = (
+            f"'{exp.expected}' {'found' if check['passed'] else 'not found'} in '{actual}'"
+        )
     else:
         check["detail"] = f"Unknown comparison: {exp.comparison}"
 
@@ -421,7 +429,9 @@ def _build_reference_pool():
             config={"measurement": "x"},
             data={"x": shift_data},
             expectations=[
-                Expectation("guide_observation_contains", "out-of-control", 0, "contains"),
+                Expectation(
+                    "guide_observation_contains", "out-of-control", 0, "contains"
+                ),
             ],
             description="I-MR with mean shift 50→65 → out-of-control detected",
         )
@@ -519,7 +529,11 @@ def _build_reference_pool():
             analysis_id="monte_carlo",
             config={
                 "variables": [
-                    {"name": "x", "distribution": "normal", "params": {"mean": 100, "std": 10}},
+                    {
+                        "name": "x",
+                        "distribution": "normal",
+                        "params": {"mean": 100, "std": 10},
+                    },
                 ],
                 "transfer_function": "x",
                 "n_iterations": 10000,
@@ -576,7 +590,9 @@ def _build_reference_pool():
 
     # CAL-INF-010: Paired t-test, clear effect (before + 5 unit shift)
     paired_before = rng2.normal(50, 8, 100).tolist()
-    paired_after = [x + 5 + n for x, n in zip(paired_before, rng2.normal(0, 1, 100).tolist())]
+    paired_after = [
+        x + 5 + n for x, n in zip(paired_before, rng2.normal(0, 1, 100).tolist())
+    ]
     pool.append(
         CalibrationCase(
             case_id="CAL-INF-010",
@@ -766,7 +782,9 @@ def _build_reference_pool():
             config={"var1": "before", "var2": "after"},
             data={"before": wil_a, "after": wil_b},
             expectations=[
-                Expectation("guide_observation_contains", "no paired difference", 0, "contains"),
+                Expectation(
+                    "guide_observation_contains", "no paired difference", 0, "contains"
+                ),
             ],
             description="Wilcoxon: paired data + negligible noise → no difference",
         )
@@ -883,7 +901,9 @@ def _build_reference_pool():
             config={"var": "x"},
             data={"x": norm_data},
             expectations=[
-                Expectation("guide_observation_contains", "appears normal", 0, "contains"),
+                Expectation(
+                    "guide_observation_contains", "appears normal", 0, "contains"
+                ),
             ],
             description="Normality: data from N(50,10) → appears normal",
         )
@@ -1294,7 +1314,9 @@ def _build_reference_pool():
             config={"defectives": "defects", "sample_size": "n"},
             data={"defects": p_def_stable + p_def_shift, "n": p_sizes2},
             expectations=[
-                Expectation("guide_observation_contains", "out-of-control", 0, "contains"),
+                Expectation(
+                    "guide_observation_contains", "out-of-control", 0, "contains"
+                ),
             ],
             description="P-chart: defect rate 5%→25% → out-of-control",
         )
@@ -1362,7 +1384,9 @@ def _build_reference_pool():
             config={"measurement": "x"},
             data={"x": ewma_shift},
             expectations=[
-                Expectation("guide_observation_contains", "out-of-control", 0, "contains"),
+                Expectation(
+                    "guide_observation_contains", "out-of-control", 0, "contains"
+                ),
             ],
             description="EWMA: mean shift 50→56 → out-of-control",
         )
@@ -1498,7 +1522,9 @@ def _build_reference_pool():
     )
 
     # CAL-BAY-007: Bayesian A/B, clear winner (70% vs 30%)
-    bay_ab_success = rng2.binomial(1, 0.7, 200).tolist() + rng2.binomial(1, 0.3, 200).tolist()
+    bay_ab_success = (
+        rng2.binomial(1, 0.7, 200).tolist() + rng2.binomial(1, 0.3, 200).tolist()
+    )
     bay_ab_group = (["A"] * 200) + (["B"] * 200)
     pool.append(
         CalibrationCase(

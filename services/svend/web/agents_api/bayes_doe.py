@@ -30,7 +30,9 @@ from .bayes_core import (
 # ---------------------------------------------------------------------------
 
 
-def build_doe_design_matrix(df, factor_cols, response_col, include_2fi=True, include_quad=False):
+def build_doe_design_matrix(
+    df, factor_cols, response_col, include_2fi=True, include_quad=False
+):
     """
     Build a coded design matrix from a DataFrame of DOE data.
 
@@ -335,7 +337,9 @@ def _run_doe_effects(df, config):
         }
 
     # Build design matrix
-    X, y, term_names, coding_records = build_doe_design_matrix(df, factor_cols, response_col, include_2fi=include_2fi)
+    X, y, term_names, coding_records = build_doe_design_matrix(
+        df, factor_cols, response_col, include_2fi=include_2fi
+    )
     n, p = X.shape
 
     if n < p:
@@ -364,7 +368,9 @@ def _run_doe_effects(df, config):
 
         # P(|βj| > threshold)
         p_above = (
-            1.0 - t_dist.cdf(threshold, df_t, loc=loc, scale=scale) + t_dist.cdf(-threshold, df_t, loc=loc, scale=scale)
+            1.0
+            - t_dist.cdf(threshold, df_t, loc=loc, scale=scale)
+            + t_dist.cdf(-threshold, df_t, loc=loc, scale=scale)
         )
 
         # 95% credible interval
@@ -381,7 +387,10 @@ def _run_doe_effects(df, config):
 
         # For main effects of coded factors, decode
         for rec in coding_records:
-            if rec["column"] == term_name and rec["coding_type"] in ("binary", "numeric_scaled"):
+            if rec["column"] == term_name and rec["coding_type"] in (
+                "binary",
+                "numeric_scaled",
+            ):
                 # Full swing from -1 to +1 is 2*coefficient in coded units
                 # In natural units: 2*loc*scale_factor (going from low to high)
                 natural_effect = 2.0 * loc * rec["scale"]
@@ -456,7 +465,9 @@ def _run_doe_effects(df, config):
                     break
             else:
                 # Interaction or other
-                summary_lines.append(f"- **{e['term']}**: coded coefficient = {e['coded_coeff']:.4f}")
+                summary_lines.append(
+                    f"- **{e['term']}**: coded coefficient = {e['coded_coeff']:.4f}"
+                )
 
     summary_lines.append(
         "\n*Bayesian screening eliminates p-value thresholds. "
@@ -589,7 +600,9 @@ def _run_doe_effects(df, config):
                         "type": "data",
                         "symmetric": False,
                         "array": [h - c for h, c in zip(pareto_ci_high, pareto_coeff)],
-                        "arrayminus": [c - lo for c, lo in zip(pareto_coeff, pareto_ci_low)],
+                        "arrayminus": [
+                            c - lo for c, lo in zip(pareto_coeff, pareto_ci_low)
+                        ],
                     },
                     "name": "Effect ± 95% CI",
                 }
@@ -677,12 +690,16 @@ def _run_doe_model(df, config):
         models.append(("Main Effects", X1, terms1))
 
     # M2: Main + 2FI
-    X2, _, terms2, _ = build_doe_design_matrix(df, factor_cols, response_col, include_2fi=True, include_quad=False)
+    X2, _, terms2, _ = build_doe_design_matrix(
+        df, factor_cols, response_col, include_2fi=True, include_quad=False
+    )
     if n_obs >= X2.shape[1]:
         models.append(("Main + Interactions", X2, terms2))
 
     # M3: Main + 2FI + Quadratic
-    X3, _, terms3, _ = build_doe_design_matrix(df, factor_cols, response_col, include_2fi=True, include_quad=True)
+    X3, _, terms3, _ = build_doe_design_matrix(
+        df, factor_cols, response_col, include_2fi=True, include_quad=True
+    )
     if n_obs >= X3.shape[1] and X3.shape[1] > X2.shape[1]:
         models.append(("Full Quadratic", X3, terms3))
 
@@ -713,7 +730,9 @@ def _run_doe_model(df, config):
         s2 = np.var(y, ddof=1) if n_k > 1 else 1.0
         beta0 = max(alpha0 * s2, 1e-10)
 
-        log_ml = marginal_log_likelihood(Lambda0, Lambda_n, L_0, L_n, alpha0, alpha_n, beta0, beta_n, n_k)
+        log_ml = marginal_log_likelihood(
+            Lambda0, Lambda_n, L_0, L_n, alpha0, alpha_n, beta0, beta_n, n_k
+        )
 
         # Fitted values
         y_hat = X_k @ mu_n
@@ -774,12 +793,18 @@ def _run_doe_model(df, config):
         prob_str = f"{m['probability']:.1%}"
         if m["name"] == best["name"]:
             prob_str = f"<<COLOR:green>>{prob_str}<</COLOR>>"
-        summary_lines.append(f"| {m['name']} | {m['n_params']} | {prob_str} | {m['residual_sigma']:.4f} |")
+        summary_lines.append(
+            f"| {m['name']} | {m['n_params']} | {prob_str} | {m['residual_sigma']:.4f} |"
+        )
 
-    summary_lines.append(f"\n**Best model:** {best['name']} (P = {best['probability']:.1%})")
+    summary_lines.append(
+        f"\n**Best model:** {best['name']} (P = {best['probability']:.1%})"
+    )
 
     summary_lines.append("\n### Factor Importance")
-    summary_lines.append("*Probability that at least one model containing this factor is correct:*\n")
+    summary_lines.append(
+        "*Probability that at least one model containing this factor is correct:*\n"
+    )
     for col in factor_cols:
         imp = factor_importance[col]
         if imp >= 0.90:
@@ -809,7 +834,11 @@ def _run_doe_model(df, config):
                     "y": [m["probability"] for m in model_results],
                     "marker": {
                         "color": [
-                            "rgba(46, 204, 113, 0.8)" if m["name"] == best["name"] else "rgba(149, 165, 166, 0.6)"
+                            (
+                                "rgba(46, 204, 113, 0.8)"
+                                if m["name"] == best["name"]
+                                else "rgba(149, 165, 166, 0.6)"
+                            )
                             for m in model_results
                         ]
                     },
@@ -828,7 +857,11 @@ def _run_doe_model(df, config):
     fi_cols = list(factor_importance.keys())
     fi_vals = [factor_importance[c] for c in fi_cols]
     fi_colors = [
-        "rgba(46, 204, 113, 0.8)" if v >= 0.90 else "rgba(241, 196, 15, 0.8)" if v >= 0.50 else "rgba(231, 76, 60, 0.8)"
+        (
+            "rgba(46, 204, 113, 0.8)"
+            if v >= 0.90
+            else "rgba(241, 196, 15, 0.8)" if v >= 0.50 else "rgba(231, 76, 60, 0.8)"
+        )
         for v in fi_vals
     ]
     plots.append(
@@ -1007,7 +1040,9 @@ def _run_doe_samplesize(df, config):
             # Contrast for first factor
             e1 = np.zeros(p)
             e1[1] = 1.0
-            loc, scale, df_t = contrast_posterior(e1, mu_n, Lambda_n, L_n, alpha_n, beta_n)
+            loc, scale, df_t = contrast_posterior(
+                e1, mu_n, Lambda_n, L_n, alpha_n, beta_n
+            )
 
             # P(|β1| > threshold)
             p_detect = (
@@ -1050,7 +1085,11 @@ def _run_doe_samplesize(df, config):
     ]
     for r in results:
         marker = " ← recommended" if r["n"] == recommended_n else ""
-        color = "green" if r["mean_detect"] >= 0.90 else "amber" if r["mean_detect"] >= 0.70 else "red"
+        color = (
+            "green"
+            if r["mean_detect"] >= 0.90
+            else "amber" if r["mean_detect"] >= 0.70 else "red"
+        )
         detect_str = f"<<COLOR:{color}>>{r['mean_detect']:.1%}<</COLOR>>"
         summary_lines.append(
             f"| {r['n']} | {detect_str} | "
@@ -1168,8 +1207,13 @@ def _run_doe_samplesize(df, config):
         }
     )
 
-    guide_obs = f"DOE sample size: {n_factors} factors, effect={expected_effect}, σ={expected_sigma}. " + (
-        f"Recommended {recommended_n} runs." if recommended_n else "No size achieved 90% detection."
+    guide_obs = (
+        f"DOE sample size: {n_factors} factors, effect={expected_effect}, σ={expected_sigma}. "
+        + (
+            f"Recommended {recommended_n} runs."
+            if recommended_n
+            else "No size achieved 90% detection."
+        )
     )
 
     return {
@@ -1213,7 +1257,9 @@ def _run_doe_optimize(df, config):
             "statistics": {},
         }
 
-    X, y, term_names, coding_records = build_doe_design_matrix(df, factor_cols, response_col, include_2fi=include_2fi)
+    X, y, term_names, coding_records = build_doe_design_matrix(
+        df, factor_cols, response_col, include_2fi=include_2fi
+    )
     n, p = X.shape
 
     if n < p:
@@ -1285,7 +1331,9 @@ def _run_doe_optimize(df, config):
 
     for i in range(n_grid):
         x_i = X_pred[i]
-        loc, scale, df_t = predictive_posterior(x_i, mu_n, Lambda_n, L_n, alpha_n, beta_n)
+        loc, scale, df_t = predictive_posterior(
+            x_i, mu_n, Lambda_n, L_n, alpha_n, beta_n
+        )
         pred_means[i] = loc
 
         # MC draws from Student-t
@@ -1311,7 +1359,9 @@ def _run_doe_optimize(df, config):
     # Decode optimal point
     optimal_coded = coded_full[best_idx]
     optimal_natural = _decode_coded_to_natural(
-        {factor_cols[j]: optimal_coded[j] for j in range(k)}, coding_records, factor_cols
+        {factor_cols[j]: optimal_coded[j] for j in range(k)},
+        coding_records,
+        factor_cols,
     )
     optimal_pred = pred_means[best_idx]
     optimal_ci = (pred_lows[best_idx], pred_highs[best_idx])
@@ -1420,7 +1470,9 @@ def _run_doe_optimize(df, config):
         lows_j = np.zeros(n_grid_pts)
         highs_j = np.zeros(n_grid_pts)
         for i in range(n_grid_pts):
-            loc, scale, df_t = predictive_posterior(X_sweep[i], mu_n, Lambda_n, L_n, alpha_n, beta_n)
+            loc, scale, df_t = predictive_posterior(
+                X_sweep[i], mu_n, Lambda_n, L_n, alpha_n, beta_n
+            )
             means_j[i] = loc
             ci_half = t_dist.ppf(0.975, df_t) * scale
             lows_j[i] = loc - ci_half
@@ -1517,8 +1569,13 @@ def _run_doe_optimize(df, config):
         "statistics": {
             "goal": goal,
             "target_value": target_value,
-            "optimal_coded": {factor_cols[j]: round(float(optimal_coded[j]), 4) for j in range(k)},
-            "optimal_natural": {k_: round(v, 4) if isinstance(v, float) else v for k_, v in optimal_natural.items()},
+            "optimal_coded": {
+                factor_cols[j]: round(float(optimal_coded[j]), 4) for j in range(k)
+            },
+            "optimal_natural": {
+                k_: round(v, 4) if isinstance(v, float) else v
+                for k_, v in optimal_natural.items()
+            },
             "predicted_response": round(optimal_pred, 4),
             "prediction_ci": [round(optimal_ci[0], 4), round(optimal_ci[1], 4)],
         },
@@ -1550,7 +1607,9 @@ def _run_doe_next(df, config):
             "statistics": {},
         }
 
-    X, y, term_names, coding_records = build_doe_design_matrix(df, factor_cols, response_col, include_2fi=include_2fi)
+    X, y, term_names, coding_records = build_doe_design_matrix(
+        df, factor_cols, response_col, include_2fi=include_2fi
+    )
     n, p_dim = X.shape
 
     if n < p_dim:
@@ -1579,7 +1638,9 @@ def _run_doe_next(df, config):
         X_pred_pts = np.column_stack([X_pred_pts, pred_points_coded[:, j]])
     if include_2fi and k >= 2:
         for i, j in combinations(range(k), 2):
-            X_pred_pts = np.column_stack([X_pred_pts, pred_points_coded[:, i] * pred_points_coded[:, j]])
+            X_pred_pts = np.column_stack(
+                [X_pred_pts, pred_points_coded[:, i] * pred_points_coded[:, j]]
+            )
 
     # Current average predictive variance
     scale_factor = beta_n / alpha_n
@@ -1600,7 +1661,9 @@ def _run_doe_next(df, config):
     candidates_coded = np.zeros((n_candidates, k))
     for j in range(k):
         perm = rng.permutation(n_candidates)
-        candidates_coded[:, j] = (perm + rng.random(n_candidates)) / n_candidates * 2 - 1
+        candidates_coded[:, j] = (
+            perm + rng.random(n_candidates)
+        ) / n_candidates * 2 - 1
 
     # Build candidate design vectors
     X_cand = np.ones((n_candidates, 1))
@@ -1608,7 +1671,9 @@ def _run_doe_next(df, config):
         X_cand = np.column_stack([X_cand, candidates_coded[:, j]])
     if include_2fi and k >= 2:
         for i, j in combinations(range(k), 2):
-            X_cand = np.column_stack([X_cand, candidates_coded[:, i] * candidates_coded[:, j]])
+            X_cand = np.column_stack(
+                [X_cand, candidates_coded[:, i] * candidates_coded[:, j]]
+            )
 
     # Evaluate information gain for each candidate
     gains = np.zeros(n_candidates)
@@ -1631,14 +1696,23 @@ def _run_doe_next(df, config):
     for rank, idx in enumerate(top_indices):
         coded_vals = candidates_coded[idx]
         natural_vals = _decode_coded_to_natural(
-            {factor_cols[j]: coded_vals[j] for j in range(k)}, coding_records, factor_cols
+            {factor_cols[j]: coded_vals[j] for j in range(k)},
+            coding_records,
+            factor_cols,
         )
-        reduction_pct = float(gains[idx] / current_apv * 100) if current_apv > 0 else 0.0
+        reduction_pct = (
+            float(gains[idx] / current_apv * 100) if current_apv > 0 else 0.0
+        )
         suggestions.append(
             {
                 "rank": rank + 1,
-                "coded": {factor_cols[j]: round(float(coded_vals[j]), 3) for j in range(k)},
-                "natural": {kk: round(v, 4) if isinstance(v, float) else v for kk, v in natural_vals.items()},
+                "coded": {
+                    factor_cols[j]: round(float(coded_vals[j]), 3) for j in range(k)
+                },
+                "natural": {
+                    kk: round(v, 4) if isinstance(v, float) else v
+                    for kk, v in natural_vals.items()
+                },
                 "info_gain": round(float(gains[idx]), 6),
                 "reduction_pct": round(reduction_pct, 1),
             }
@@ -1732,7 +1806,11 @@ def _run_doe_next(df, config):
                         "x": X[:, 1].tolist(),
                         "y": X[:, 2].tolist(),
                         "mode": "markers",
-                        "marker": {"size": 6, "color": "white", "line": {"width": 1, "color": "black"}},
+                        "marker": {
+                            "size": 6,
+                            "color": "white",
+                            "line": {"width": 1, "color": "black"},
+                        },
                         "name": "Existing runs",
                     },
                 ],
@@ -1788,9 +1866,7 @@ def _run_doe_next(df, config):
         }
     )
 
-    guide_obs = (
-        f"Sequential DOE: {n_suggest} experiments suggested. Total expected variance reduction: {total_reduction:.1f}%."
-    )
+    guide_obs = f"Sequential DOE: {n_suggest} experiments suggested. Total expected variance reduction: {total_reduction:.1f}%."
 
     return {
         "summary": "\n".join(summary_lines),

@@ -32,9 +32,13 @@ class MeasurementSystem(SynaraEntity):
         INACTIVE = "inactive", "Inactive"
         QUARANTINED = "quarantined", "Quarantined"
 
-    name = models.CharField(max_length=200, help_text='Instrument identifier, e.g. "Keyence IM-8000 #3"')
+    name = models.CharField(
+        max_length=200, help_text='Instrument identifier, e.g. "Keyence IM-8000 #3"'
+    )
     system_type = models.CharField(
-        max_length=20, choices=SystemType.choices, help_text="Variable (continuous) or attribute (pass/fail)"
+        max_length=20,
+        choices=SystemType.choices,
+        help_text="Variable (continuous) or attribute (pass/fail)",
     )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -48,7 +52,9 @@ class MeasurementSystem(SynaraEntity):
         on_delete=models.CASCADE,
         related_name="measurement_systems",
     )
-    calibration_due = models.DateField(null=True, blank=True, help_text="Next calibration due date")
+    calibration_due = models.DateField(
+        null=True, blank=True, help_text="Next calibration due date"
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -70,7 +76,11 @@ class MeasurementSystem(SynaraEntity):
         or 0.55 (unvalidated default) if no study exists.
         CANON-002 §4.3.
         """
-        study = self.gage_studies.filter(completed_at__isnull=False).order_by("-completed_at").first()
+        study = (
+            self.gage_studies.filter(completed_at__isnull=False)
+            .order_by("-completed_at")
+            .first()
+        )
         if not study:
             return 0.55
         return study.measurement_validity
@@ -95,15 +105,25 @@ class GageStudy(SynaraEntity):
         related_name="gage_studies",
     )
     study_type = models.CharField(max_length=30, choices=StudyType.choices)
-    completed_at = models.DateTimeField(null=True, blank=True, help_text="When study was completed")
+    completed_at = models.DateTimeField(
+        null=True, blank=True, help_text="When study was completed"
+    )
 
     # Variable study results
-    grr_percent = models.FloatField(null=True, blank=True, help_text="%GRR for variable studies")
-    ndc = models.IntegerField(null=True, blank=True, help_text="Number of distinct categories")
+    grr_percent = models.FloatField(
+        null=True, blank=True, help_text="%GRR for variable studies"
+    )
+    ndc = models.IntegerField(
+        null=True, blank=True, help_text="Number of distinct categories"
+    )
 
     # Attribute study results
-    kappa = models.FloatField(null=True, blank=True, help_text="Kappa for attribute studies")
-    percent_agreement = models.FloatField(null=True, blank=True, help_text="%Agreement for attribute studies")
+    kappa = models.FloatField(
+        null=True, blank=True, help_text="Kappa for attribute studies"
+    )
+    percent_agreement = models.FloatField(
+        null=True, blank=True, help_text="%Agreement for attribute studies"
+    )
 
     class Meta:
         db_table = "core_gage_study"

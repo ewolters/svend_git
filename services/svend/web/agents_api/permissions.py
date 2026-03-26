@@ -15,7 +15,11 @@ from .models import Site, SiteAccess
 
 def get_tenant(user):
     """Get the user's enterprise tenant, or None."""
-    membership = Membership.objects.filter(user=user, is_active=True).select_related("tenant").first()
+    membership = (
+        Membership.objects.filter(user=user, is_active=True)
+        .select_related("tenant")
+        .first()
+    )
     return membership.tenant if membership else None
 
 
@@ -129,7 +133,9 @@ def qms_queryset(model, user):
         # Owner-only model (e.g. SupplierRecord) — no site scoping possible
         accessible_sites, is_admin = get_accessible_sites(user, tenant)
         if is_admin:
-            tenant_user_ids = Membership.objects.filter(tenant=tenant, is_active=True).values_list("user_id", flat=True)
+            tenant_user_ids = Membership.objects.filter(
+                tenant=tenant, is_active=True
+            ).values_list("user_id", flat=True)
             return model.objects.filter(owner__in=tenant_user_ids), tenant, True
         else:
             return model.objects.filter(owner=user), tenant, False
@@ -139,7 +145,9 @@ def qms_queryset(model, user):
     if is_admin:
         # Org admin: all site-scoped records in tenant + unscoped records by tenant members
         # Include owner__in fallback for legacy records where created_by is NULL
-        tenant_user_ids = Membership.objects.filter(tenant=tenant, is_active=True).values_list("user_id", flat=True)
+        tenant_user_ids = Membership.objects.filter(
+            tenant=tenant, is_active=True
+        ).values_list("user_id", flat=True)
         qs = model.objects.filter(
             Q(site__tenant=tenant)
             | Q(created_by__in=tenant_user_ids, site__isnull=True)
@@ -162,7 +170,9 @@ def qms_can_edit(user, record, tenant):
     if not tenant:
         return record.owner_id == user.id
 
-    membership = Membership.objects.filter(user=user, tenant=tenant, is_active=True).first()
+    membership = Membership.objects.filter(
+        user=user, tenant=tenant, is_active=True
+    ).first()
     if not membership:
         return False
     if membership.can_admin:

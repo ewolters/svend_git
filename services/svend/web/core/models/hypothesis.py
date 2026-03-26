@@ -217,7 +217,11 @@ class Hypothesis(models.Model):
         ]
 
     def __str__(self):
-        preview = self.statement[:50] if self.statement else self.if_clause[:50] if self.if_clause else "Untitled"
+        preview = (
+            self.statement[:50]
+            if self.statement
+            else self.if_clause[:50] if self.if_clause else "Untitled"
+        )
         return f"{preview}... ({self.current_probability:.0%})"
 
     def save(self, *args, **kwargs):
@@ -307,7 +311,10 @@ class Hypothesis(models.Model):
 
         updater = get_updater()
 
-        evidence_items = [(link.likelihood_ratio, link.evidence.confidence) for link in self.evidence_links.all()]
+        evidence_items = [
+            (link.likelihood_ratio, link.evidence.confidence)
+            for link in self.evidence_links.all()
+        ]
 
         result = updater.update_multiple(
             prior=self.prior_probability,

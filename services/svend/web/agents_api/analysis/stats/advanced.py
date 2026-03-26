@@ -54,7 +54,13 @@ def _run_advanced(analysis_id, df, config):
         result["plots"].append(
             {
                 "data": [
-                    {"x": ns, "y": powers, "mode": "lines", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
+                    {
+                        "x": ns,
+                        "y": powers,
+                        "mode": "lines",
+                        "name": "Power",
+                        "line": {"color": "#4a90d9", "width": 2},
+                    },
                     {
                         "x": [n_req],
                         "y": [target_power],
@@ -77,7 +83,9 @@ def _run_advanced(analysis_id, df, config):
             f"<<COLOR:text>>α = {alpha}, desired power = {target_power}, alternative = {alt}<</COLOR>>\n\n"
             f"<<COLOR:green>>Required sample size: n = {n_req}<</COLOR>>\n"
         )
-        result["guide_observation"] = f"1-sample Z power: need n={n_req} for d={d:.3f} at power={target_power}."
+        result["guide_observation"] = (
+            f"1-sample Z power: need n={n_req} for d={d:.3f} at power={target_power}."
+        )
         result["statistics"] = {
             "required_n": n_req,
             "effect_size_d": d,
@@ -115,7 +123,13 @@ def _run_advanced(analysis_id, df, config):
 
         # Fleiss formula
         n_req = (
-            math.ceil(((z_a * math.sqrt(p0 * (1 - p0)) + z_b * math.sqrt(pa * (1 - pa))) / (pa - p0)) ** 2)
+            math.ceil(
+                (
+                    (z_a * math.sqrt(p0 * (1 - p0)) + z_b * math.sqrt(pa * (1 - pa)))
+                    / (pa - p0)
+                )
+                ** 2
+            )
             if pa != p0
             else 9999
         )
@@ -130,7 +144,11 @@ def _run_advanced(analysis_id, df, config):
             sea = math.sqrt(pa * (1 - pa) / nn)
             if alt == "two-sided":
                 z_crit = z_a * se0
-                pw = 1 - norm.cdf((p0 + z_crit - pa) / sea) + norm.cdf((p0 - z_crit - pa) / sea)
+                pw = (
+                    1
+                    - norm.cdf((p0 + z_crit - pa) / sea)
+                    + norm.cdf((p0 - z_crit - pa) / sea)
+                )
             elif alt == "greater":
                 z_crit = z_a * se0
                 pw = 1 - norm.cdf((p0 + z_crit - pa) / sea)
@@ -142,7 +160,13 @@ def _run_advanced(analysis_id, df, config):
         result["plots"].append(
             {
                 "data": [
-                    {"x": ns, "y": powers, "mode": "lines", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
+                    {
+                        "x": ns,
+                        "y": powers,
+                        "mode": "lines",
+                        "name": "Power",
+                        "line": {"color": "#4a90d9", "width": 2},
+                    },
                     {
                         "x": [n_req],
                         "y": [target_power],
@@ -205,9 +229,9 @@ def _run_advanced(analysis_id, df, config):
         p_bar = (p1 + ratio * p2) / (1 + ratio)
         h = abs(2 * (math.asin(math.sqrt(p1)) - math.asin(math.sqrt(p2))))
 
-        numer = z_a * math.sqrt((1 + 1 / ratio) * p_bar * (1 - p_bar)) + z_b * math.sqrt(
-            p1 * (1 - p1) + p2 * (1 - p2) / ratio
-        )
+        numer = z_a * math.sqrt(
+            (1 + 1 / ratio) * p_bar * (1 - p_bar)
+        ) + z_b * math.sqrt(p1 * (1 - p1) + p2 * (1 - p2) / ratio)
         n1 = math.ceil((numer / (p1 - p2)) ** 2) if p1 != p2 else 9999
         n2 = math.ceil(n1 * ratio)
 
@@ -229,7 +253,13 @@ def _run_advanced(analysis_id, df, config):
         result["plots"].append(
             {
                 "data": [
-                    {"x": ns, "y": powers, "mode": "lines", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
+                    {
+                        "x": ns,
+                        "y": powers,
+                        "mode": "lines",
+                        "name": "Power",
+                        "line": {"color": "#4a90d9", "width": 2},
+                    },
                     {
                         "x": [n1],
                         "y": [target_power],
@@ -294,7 +324,11 @@ def _run_advanced(analysis_id, df, config):
             if alt == "two-sided":
                 lo = chi2_dist.ppf(alpha / 2, df_val)
                 hi = chi2_dist.ppf(1 - alpha / 2, df_val)
-                pw = chi2_dist.cdf(lo / ratio_sq, df_val) + 1 - chi2_dist.cdf(hi / ratio_sq, df_val)
+                pw = (
+                    chi2_dist.cdf(lo / ratio_sq, df_val)
+                    + 1
+                    - chi2_dist.cdf(hi / ratio_sq, df_val)
+                )
             elif alt == "greater":
                 hi = chi2_dist.ppf(1 - alpha, df_val)
                 pw = 1 - chi2_dist.cdf(hi / ratio_sq, df_val)
@@ -314,7 +348,11 @@ def _run_advanced(analysis_id, df, config):
             if alt == "two-sided":
                 lo = chi2_dist.ppf(alpha / 2, df_val)
                 hi = chi2_dist.ppf(1 - alpha / 2, df_val)
-                pw = chi2_dist.cdf(lo / ratio_sq, df_val) + 1 - chi2_dist.cdf(hi / ratio_sq, df_val)
+                pw = (
+                    chi2_dist.cdf(lo / ratio_sq, df_val)
+                    + 1
+                    - chi2_dist.cdf(hi / ratio_sq, df_val)
+                )
             elif alt == "greater":
                 hi = chi2_dist.ppf(1 - alpha, df_val)
                 pw = 1 - chi2_dist.cdf(hi / ratio_sq, df_val)
@@ -326,7 +364,13 @@ def _run_advanced(analysis_id, df, config):
         result["plots"].append(
             {
                 "data": [
-                    {"x": ns, "y": powers, "mode": "lines", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
+                    {
+                        "x": ns,
+                        "y": powers,
+                        "mode": "lines",
+                        "name": "Power",
+                        "line": {"color": "#4a90d9", "width": 2},
+                    },
                     {
                         "x": [n_req],
                         "y": [target_power],
@@ -388,7 +432,11 @@ def _run_advanced(analysis_id, df, config):
             if alt == "two-sided":
                 f_lo = f_dist.ppf(alpha / 2, df1, df2)
                 f_hi = f_dist.ppf(1 - alpha / 2, df1, df2)
-                pw = f_dist.cdf(f_lo / var_ratio, df1, df2) + 1 - f_dist.cdf(f_hi / var_ratio, df1, df2)
+                pw = (
+                    f_dist.cdf(f_lo / var_ratio, df1, df2)
+                    + 1
+                    - f_dist.cdf(f_hi / var_ratio, df1, df2)
+                )
             else:
                 f_hi = f_dist.ppf(1 - alpha, df1, df2)
                 pw = 1 - f_dist.cdf(f_hi / var_ratio, df1, df2)
@@ -408,7 +456,11 @@ def _run_advanced(analysis_id, df, config):
             if alt == "two-sided":
                 f_lo = f_dist.ppf(alpha / 2, df1, df2)
                 f_hi = f_dist.ppf(1 - alpha / 2, df1, df2)
-                pw = f_dist.cdf(f_lo / var_ratio, df1, df2) + 1 - f_dist.cdf(f_hi / var_ratio, df1, df2)
+                pw = (
+                    f_dist.cdf(f_lo / var_ratio, df1, df2)
+                    + 1
+                    - f_dist.cdf(f_hi / var_ratio, df1, df2)
+                )
             else:
                 f_hi = f_dist.ppf(1 - alpha, df1, df2)
                 pw = 1 - f_dist.cdf(f_hi / var_ratio, df1, df2)
@@ -417,7 +469,13 @@ def _run_advanced(analysis_id, df, config):
         result["plots"].append(
             {
                 "data": [
-                    {"x": ns, "y": powers, "mode": "lines", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
+                    {
+                        "x": ns,
+                        "y": powers,
+                        "mode": "lines",
+                        "name": "Power",
+                        "line": {"color": "#4a90d9", "width": 2},
+                    },
                     {
                         "x": [n_req],
                         "y": [target_power],
@@ -495,7 +553,13 @@ def _run_advanced(analysis_id, df, config):
         result["plots"].append(
             {
                 "data": [
-                    {"x": ns, "y": powers, "mode": "lines", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
+                    {
+                        "x": ns,
+                        "y": powers,
+                        "mode": "lines",
+                        "name": "Power",
+                        "line": {"color": "#4a90d9", "width": 2},
+                    },
                     {
                         "x": [n_req],
                         "y": [target_power],
@@ -567,7 +631,11 @@ def _run_advanced(analysis_id, df, config):
                 continue
             t_crit = t_dist.ppf(1 - alpha / 2, df_error)
             ncp = abs(delta) / se
-            pw = 1 - t_dist.cdf(t_crit - ncp, df_error) + t_dist.cdf(-t_crit - ncp, df_error)
+            pw = (
+                1
+                - t_dist.cdf(t_crit - ncp, df_error)
+                + t_dist.cdf(-t_crit - ncp, df_error)
+            )
             if pw >= target_power:
                 req_reps = reps
                 break
@@ -586,7 +654,11 @@ def _run_advanced(analysis_id, df, config):
             se = sigma * math.sqrt(4.0 / n_total)
             t_crit = t_dist.ppf(1 - alpha / 2, df_error)
             ncp = abs(delta) / se
-            pw = 1 - t_dist.cdf(t_crit - ncp, df_error) + t_dist.cdf(-t_crit - ncp, df_error)
+            pw = (
+                1
+                - t_dist.cdf(t_crit - ncp, df_error)
+                + t_dist.cdf(-t_crit - ncp, df_error)
+            )
             powers.append(max(0, min(1, pw)))
 
         result["plots"].append(
@@ -650,9 +722,13 @@ def _run_advanced(analysis_id, df, config):
         """
         est_type = config.get("type", "mean")  # mean or proportion
         conf_level = (
-            float(config.get("conf", 95)) / 100 if float(config.get("conf", 95)) > 1 else float(config.get("conf", 95))
+            float(config.get("conf", 95)) / 100
+            if float(config.get("conf", 95)) > 1
+            else float(config.get("conf", 95))
         )
-        target_width = float(config.get("half_width", 1.0))  # desired CI half-width (margin of error)
+        target_width = float(
+            config.get("half_width", 1.0)
+        )  # desired CI half-width (margin of error)
 
         from scipy.stats import norm
 
@@ -748,7 +824,9 @@ def _run_advanced(analysis_id, df, config):
             f"{extra_text}\n"
             f"<<COLOR:green>>Required sample size: n = {n_req}<</COLOR>>\n"
         )
-        result["guide_observation"] = f"Sample size for {conf_level:.0%} CI with half-width={target_width}: n={n_req}."
+        result["guide_observation"] = (
+            f"Sample size for {conf_level:.0%} CI with half-width={target_width}: n={n_req}."
+        )
         result["narrative"] = _narrative(
             f"Sample Size for {conf_level:.0%} CI — n = {n_req}",
             f"To achieve a {conf_level:.0%} confidence interval with half-width \u2264 {target_width}: <strong>n = {n_req}</strong>. "
@@ -776,7 +854,11 @@ def _run_advanced(analysis_id, df, config):
         from scipy.stats import chi2 as chi2_dist
         from scipy.stats import norm
 
-        z_p = norm.ppf((1 + coverage) / 2) if interval_type == "two-sided" else norm.ppf(coverage)
+        z_p = (
+            norm.ppf((1 + coverage) / 2)
+            if interval_type == "two-sided"
+            else norm.ppf(coverage)
+        )
 
         # Iterative: find n so that k*sigma covers coverage proportion at given confidence
         # Using the non-central chi-square approach
@@ -785,7 +867,11 @@ def _run_advanced(analysis_id, df, config):
             df = n_try - 1
             # k factor: k = z_p * sqrt(n * (df) / chi2_lower)
             chi2_lo = chi2_dist.ppf(1 - confidence, df)
-            k = z_p * math.sqrt(n_try * df / chi2_lo) / math.sqrt(df) if chi2_lo > 0 else 999
+            k = (
+                z_p * math.sqrt(n_try * df / chi2_lo) / math.sqrt(df)
+                if chi2_lo > 0
+                else 999
+            )
             # The sample k factor shrinks as n grows; we need k computable
             # Simplified: n must satisfy z_p * sqrt(1 + 1/n) * sqrt(df/chi2_lo) ≤ achievable
             # Actually for tolerance intervals: n needed so k-factor is finite
@@ -835,9 +921,14 @@ def _run_advanced(analysis_id, df, config):
                     {
                         "x": [n_req],
                         "y": [
-                            z_p * math.sqrt(n_req / chi2_dist.ppf(1 - confidence, n_req - 1))
-                            if chi2_dist.ppf(1 - confidence, n_req - 1) > 0
-                            else z_p
+                            (
+                                z_p
+                                * math.sqrt(
+                                    n_req / chi2_dist.ppf(1 - confidence, n_req - 1)
+                                )
+                                if chi2_dist.ppf(1 - confidence, n_req - 1) > 0
+                                else z_p
+                            )
                         ],
                         "mode": "markers",
                         "name": f"n={n_req}",
@@ -860,7 +951,9 @@ def _run_advanced(analysis_id, df, config):
             f"<<COLOR:green>>Required sample size: n = {n_req}<</COLOR>>\n"
             f"<<COLOR:text>>At this n, the tolerance k-factor ≈ {z_p * math.sqrt(n_req / chi2_dist.ppf(1 - confidence, n_req - 1)):.3f} (asymptote = {z_p:.3f})<</COLOR>>\n"
         )
-        result["guide_observation"] = f"Tolerance interval ({coverage:.0%}/{confidence:.0%}): need n={n_req}."
+        result["guide_observation"] = (
+            f"Tolerance interval ({coverage:.0%}/{confidence:.0%}): need n={n_req}."
+        )
         result["narrative"] = _narrative(
             f"Sample Size for Tolerance Interval — n = {n_req}",
             f"To bound {coverage:.0%} of the population with {confidence:.0%} confidence ({interval_type}): <strong>n = {n_req}</strong>. "
@@ -913,11 +1006,15 @@ def _run_advanced(analysis_id, df, config):
 
             old_stdout = sys.stdout
             sys.stdout = io.StringIO()
-            gc_results = grangercausalitytests(data_matrix, maxlag=max_lag, verbose=False)
+            gc_results = grangercausalitytests(
+                data_matrix, maxlag=max_lag, verbose=False
+            )
             sys.stdout = old_stdout
 
             summary += "<<COLOR:accent>>── Results by Lag ──<</COLOR>>\n"
-            summary += f"{'Lag':<6} {'F-stat':<12} {'p-value':<12} {'Significant':<12}\n"
+            summary += (
+                f"{'Lag':<6} {'F-stat':<12} {'p-value':<12} {'Significant':<12}\n"
+            )
             summary += f"{'-' * 42}\n"
 
             significant_lags = []
@@ -929,7 +1026,11 @@ def _run_advanced(analysis_id, df, config):
                     test_result = gc_results[lag][0]["ssr_ftest"]
                     f_stat = test_result[0]
                     p_val = test_result[1]
-                    sig = "***" if p_val < 0.01 else "**" if p_val < 0.05 else "*" if p_val < 0.10 else ""
+                    sig = (
+                        "***"
+                        if p_val < 0.01
+                        else "**" if p_val < 0.05 else "*" if p_val < 0.10 else ""
+                    )
 
                     f_stats.append(f_stat)
                     p_values.append(p_val)
@@ -939,10 +1040,14 @@ def _run_advanced(analysis_id, df, config):
 
                     summary += f"{lag:<6} {f_stat:<12.4f} {p_val:<12.4f} {sig}\n"
 
-            summary += "\n<<COLOR:accent>>────────────────────────────────────────<</COLOR>>\n"
+            summary += (
+                "\n<<COLOR:accent>>────────────────────────────────────────<</COLOR>>\n"
+            )
             if significant_lags:
                 summary += f"<<COLOR:good>>CONCLUSION: {var_x} Granger-causes {var_y}<</COLOR>>\n"
-                summary += f"<<COLOR:text>>Significant at lags: {significant_lags}<</COLOR>>\n"
+                summary += (
+                    f"<<COLOR:text>>Significant at lags: {significant_lags}<</COLOR>>\n"
+                )
                 summary += f"<<COLOR:text>>This suggests {var_x} has predictive power for {var_y}.<</COLOR>>\n"
             else:
                 summary += "<<COLOR:warning>>CONCLUSION: No Granger causality detected<</COLOR>>\n"
@@ -960,7 +1065,10 @@ def _run_advanced(analysis_id, df, config):
                             "x": [f"Lag {i + 1}" for i in range(len(p_values))],
                             "y": p_values,
                             "marker": {
-                                "color": ["#e85747" if p < 0.05 else "rgba(74, 159, 110, 0.4)" for p in p_values],
+                                "color": [
+                                    "#e85747" if p < 0.05 else "rgba(74, 159, 110, 0.4)"
+                                    for p in p_values
+                                ],
                                 "line": {"color": "#4a9f6e", "width": 1.5},
                             },
                         },
@@ -975,7 +1083,10 @@ def _run_advanced(analysis_id, df, config):
                     ],
                     "layout": {
                         "height": 300,
-                        "yaxis": {"title": "p-value", "range": [0, max(0.2, max(p_values) * 1.1)]},
+                        "yaxis": {
+                            "title": "p-value",
+                            "range": [0, max(0.2, max(p_values) * 1.1)],
+                        },
                         "xaxis": {"title": "Lag"},
                     },
                 }
@@ -1012,7 +1123,9 @@ def _run_advanced(analysis_id, df, config):
             )
 
             result["guide_observation"] = f"Granger causality: {var_x} → {var_y} " + (
-                f"significant at lags {significant_lags}." if significant_lags else "not significant."
+                f"significant at lags {significant_lags}."
+                if significant_lags
+                else "not significant."
             )
             if significant_lags:
                 result["narrative"] = _narrative(
@@ -1070,7 +1183,11 @@ def _run_advanced(analysis_id, df, config):
             elif penalty == "aic":
                 pen = 2 * np.var(data)
             else:
-                pen = float(penalty) if penalty.replace(".", "").isdigit() else np.log(n) * np.var(data)
+                pen = (
+                    float(penalty)
+                    if penalty.replace(".", "").isdigit()
+                    else np.log(n) * np.var(data)
+                )
 
             change_points = model.predict(pen=pen)
 
@@ -1094,13 +1211,17 @@ def _run_advanced(analysis_id, df, config):
 
                 # Final segment
                 final_mean = np.mean(data[change_points[-1] :])
-                summary += f"\n<<COLOR:text>>Final segment mean: {final_mean:.4f}<</COLOR>>\n"
+                summary += (
+                    f"\n<<COLOR:text>>Final segment mean: {final_mean:.4f}<</COLOR>>\n"
+                )
 
                 summary += "\n<<COLOR:success>>INTERPRETATION:<</COLOR>>\n"
                 summary += "  These points mark where the process behavior shifted.\n"
                 summary += "  Investigate what changed at these times.\n"
             else:
-                summary += "<<COLOR:text>>No significant change points detected.<</COLOR>>\n"
+                summary += (
+                    "<<COLOR:text>>No significant change points detected.<</COLOR>>\n"
+                )
                 summary += "<<COLOR:text>>The process appears stable over this period.<</COLOR>>\n"
 
             result["summary"] = summary
@@ -1160,8 +1281,13 @@ def _run_advanced(analysis_id, df, config):
                 }
             )
 
-            result["guide_observation"] = f"Detected {len(change_points)} change point(s) in {var}." + (
-                " Investigate what caused these shifts." if change_points else " Process appears stable."
+            result["guide_observation"] = (
+                f"Detected {len(change_points)} change point(s) in {var}."
+                + (
+                    " Investigate what caused these shifts."
+                    if change_points
+                    else " Process appears stable."
+                )
             )
             if change_points:
                 result["narrative"] = _narrative(
@@ -1268,14 +1394,19 @@ def _run_advanced(analysis_id, df, config):
                         {
                             "type": "scatter",
                             "x": x_fc + x_fc[::-1],
-                            "y": fc_ci.iloc[:, 1].tolist() + fc_ci.iloc[::-1, 0].tolist(),
+                            "y": fc_ci.iloc[:, 1].tolist()
+                            + fc_ci.iloc[::-1, 0].tolist(),
                             "fill": "toself",
                             "fillcolor": "rgba(232,149,71,0.2)",
                             "line": {"color": "transparent"},
                             "name": "95% CI",
                         },
                     ],
-                    "layout": {"height": 300, "xaxis": {"title": "Time"}, "yaxis": {"title": var}},
+                    "layout": {
+                        "height": 300,
+                        "xaxis": {"title": "Time"},
+                        "yaxis": {"title": var},
+                    },
                 }
             )
 
@@ -1286,13 +1417,26 @@ def _run_advanced(analysis_id, df, config):
                 {
                     "title": "Residuals",
                     "data": [
-                        {"type": "scatter", "y": residuals.tolist(), "mode": "lines", "line": {"color": "#4a9f6e"}}
+                        {
+                            "type": "scatter",
+                            "y": residuals.tolist(),
+                            "mode": "lines",
+                            "line": {"color": "#4a9f6e"},
+                        }
                     ],
-                    "layout": {"height": 200, "xaxis": {"title": "Time"}, "yaxis": {"title": "Residual"}},
+                    "layout": {
+                        "height": 200,
+                        "xaxis": {"title": "Time"},
+                        "yaxis": {"title": "Residual"},
+                    },
                 }
             )
 
-            result["statistics"] = {"AIC": float(fitted.aic), "BIC": float(fitted.bic), "ADF_pvalue": float(adf_pval)}
+            result["statistics"] = {
+                "AIC": float(fitted.aic),
+                "BIC": float(fitted.bic),
+                "ADF_pvalue": float(adf_pval),
+            }
 
         except Exception as e:
             summary += f"<<COLOR:warning>>Model fitting failed: {str(e)}<</COLOR>>\n"
@@ -1303,7 +1447,9 @@ def _run_advanced(analysis_id, df, config):
             f"ARIMA({p},{d},{q}) model. {'Stationary data.' if adf_pval < 0.05 else 'Consider differencing.'}"
         )
         _arima_stationarity = (
-            "Data is stationary (ADF p < 0.05)." if adf_pval < 0.05 else "Data may need differencing (ADF p >= 0.05)."
+            "Data is stationary (ADF p < 0.05)."
+            if adf_pval < 0.05
+            else "Data may need differencing (ADF p >= 0.05)."
         )
         result["narrative"] = _narrative(
             f"ARIMA({p},{d},{q}) Time Series Model",
@@ -1371,17 +1517,27 @@ def _run_advanced(analysis_id, df, config):
                 if hasattr(fitted, "param_names")
                 else [f"param_{i}" for i in range(len(fitted.params))]
             )
-            params = fitted.params if hasattr(fitted.params, "__len__") else [fitted.params]
+            params = (
+                fitted.params if hasattr(fitted.params, "__len__") else [fitted.params]
+            )
             bse = fitted.bse if hasattr(fitted, "bse") else [None] * len(params)
-            pvals = fitted.pvalues if hasattr(fitted, "pvalues") else [None] * len(params)
+            pvals = (
+                fitted.pvalues if hasattr(fitted, "pvalues") else [None] * len(params)
+            )
             for i, name in enumerate(param_names):
                 val = float(params[i])
                 se = float(bse[i]) if bse is not None and i < len(bse) else None
                 pval = float(pvals[i]) if pvals is not None and i < len(pvals) else None
-                sig = "<<COLOR:good>>*<</COLOR>>" if pval is not None and pval < 0.05 else ""
+                sig = (
+                    "<<COLOR:good>>*<</COLOR>>"
+                    if pval is not None and pval < 0.05
+                    else ""
+                )
                 se_str = f"{se:.4f}" if se is not None else "N/A"
                 p_str = f"{pval:.4f}" if pval is not None else "N/A"
-                summary += f"  {name:<20} {val:>10.4f}  (SE={se_str}, p={p_str}) {sig}\n"
+                summary += (
+                    f"  {name:<20} {val:>10.4f}  (SE={se_str}, p={p_str}) {sig}\n"
+                )
 
             # Forecast
             forecast = fitted.get_forecast(steps=forecast_periods)
@@ -1389,7 +1545,9 @@ def _run_advanced(analysis_id, df, config):
             fc_ci = forecast.conf_int()
 
             # Convert to lists for uniform handling
-            fc_mean_list = fc_mean.tolist() if hasattr(fc_mean, "tolist") else list(fc_mean)
+            fc_mean_list = (
+                fc_mean.tolist() if hasattr(fc_mean, "tolist") else list(fc_mean)
+            )
             if hasattr(fc_ci, "iloc"):
                 fc_lower = fc_ci.iloc[:, 0].tolist()
                 fc_upper = fc_ci.iloc[:, 1].tolist()
@@ -1406,7 +1564,9 @@ def _run_advanced(analysis_id, df, config):
             # Ljung-Box test on residuals
             from statsmodels.stats.diagnostic import acorr_ljungbox
 
-            lb = acorr_ljungbox(fitted.resid, lags=[min(10, len(ts_data) // 5)], return_df=True)
+            lb = acorr_ljungbox(
+                fitted.resid, lags=[min(10, len(ts_data) // 5)], return_df=True
+            )
             lb_p = float(lb["lb_pvalue"].iloc[0])
             summary += "\n<<COLOR:accent>>── Ljung-Box Test (residual autocorrelation) ──<</COLOR>>\n"
             summary += f"  p-value: {lb_p:.4f}\n"
@@ -1449,7 +1609,11 @@ def _run_advanced(analysis_id, df, config):
                             "name": "95% CI",
                         },
                     ],
-                    "layout": {"height": 300, "xaxis": {"title": "Time"}, "yaxis": {"title": var}},
+                    "layout": {
+                        "height": 300,
+                        "xaxis": {"title": "Time"},
+                        "yaxis": {"title": var},
+                    },
                 }
             )
 
@@ -1459,16 +1623,29 @@ def _run_advanced(analysis_id, df, config):
                 {
                     "title": "Residuals",
                     "data": [
-                        {"type": "scatter", "y": residuals.tolist(), "mode": "lines", "line": {"color": "#4a9f6e"}}
+                        {
+                            "type": "scatter",
+                            "y": residuals.tolist(),
+                            "mode": "lines",
+                            "line": {"color": "#4a9f6e"},
+                        }
                     ],
-                    "layout": {"height": 200, "xaxis": {"title": "Time"}, "yaxis": {"title": "Residual"}},
+                    "layout": {
+                        "height": 200,
+                        "xaxis": {"title": "Time"},
+                        "yaxis": {"title": "Residual"},
+                    },
                 }
             )
 
             # ACF of residuals
             from statsmodels.tsa.stattools import acf
 
-            resid_clean = residuals[~np.isnan(residuals)] if isinstance(residuals, np.ndarray) else residuals.dropna()
+            resid_clean = (
+                residuals[~np.isnan(residuals)]
+                if isinstance(residuals, np.ndarray)
+                else residuals.dropna()
+            )
             n_lags = min(30, len(resid_clean) // 3)
             acf_vals = acf(resid_clean, nlags=n_lags, fft=True)
             ci_bound = 1.96 / np.sqrt(len(residuals))
@@ -1482,7 +1659,11 @@ def _run_advanced(analysis_id, df, config):
                             "y": acf_vals.tolist(),
                             "marker": {
                                 "color": [
-                                    "#d94a4a" if abs(v) > ci_bound and i > 0 else "#4a9f6e"
+                                    (
+                                        "#d94a4a"
+                                        if abs(v) > ci_bound and i > 0
+                                        else "#4a9f6e"
+                                    )
                                     for i, v in enumerate(acf_vals)
                                 ]
                             },
@@ -1522,8 +1703,9 @@ def _run_advanced(analysis_id, df, config):
                 "order": [p, d, q],
                 "seasonal_order": [P, D, Q, m],
             }
-            result["guide_observation"] = f"SARIMA({p},{d},{q})({P},{D},{Q})[{m}]: AIC={fitted.aic:.1f}. " + (
-                "Good residuals." if lb_p > 0.05 else "Check residuals."
+            result["guide_observation"] = (
+                f"SARIMA({p},{d},{q})({P},{D},{Q})[{m}]: AIC={fitted.aic:.1f}. "
+                + ("Good residuals." if lb_p > 0.05 else "Check residuals.")
             )
             _sarima_resid = (
                 "Residuals pass Ljung-Box (no remaining autocorrelation)."
@@ -1555,7 +1737,9 @@ def _run_advanced(analysis_id, df, config):
         data = df[var].dropna()
 
         if len(data) < 2 * period:
-            result["summary"] = f"Need at least {2 * period} observations for period={period}. Have {len(data)}."
+            result["summary"] = (
+                f"Need at least {2 * period} observations for period={period}. Have {len(data)}."
+            )
             return result
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
@@ -1578,7 +1762,11 @@ def _run_advanced(analysis_id, df, config):
         # Seasonal strength
         seasonal_var = decomp.seasonal.var()
         resid_var = decomp.resid.dropna().var()
-        seasonal_strength = 1 - (resid_var / (seasonal_var + resid_var)) if (seasonal_var + resid_var) > 0 else 0
+        seasonal_strength = (
+            1 - (resid_var / (seasonal_var + resid_var))
+            if (seasonal_var + resid_var) > 0
+            else 0
+        )
 
         summary += f"<<COLOR:accent>>── Seasonal Strength ──<</COLOR>> {seasonal_strength:.2%}\n"
         if seasonal_strength > 0.6:
@@ -1595,7 +1783,13 @@ def _run_advanced(analysis_id, df, config):
             {
                 "title": "Original Series",
                 "data": [
-                    {"type": "scatter", "x": x_vals, "y": data.tolist(), "mode": "lines", "line": {"color": "#4a9f6e"}}
+                    {
+                        "type": "scatter",
+                        "x": x_vals,
+                        "y": data.tolist(),
+                        "mode": "lines",
+                        "line": {"color": "#4a9f6e"},
+                    }
                 ],
                 "layout": {"height": 150},
             }
@@ -1653,7 +1847,9 @@ def _run_advanced(analysis_id, df, config):
         )
 
         result["summary"] = summary
-        result["guide_observation"] = f"Decomposition with {seasonal_strength:.0%} seasonal strength."
+        result["guide_observation"] = (
+            f"Decomposition with {seasonal_strength:.0%} seasonal strength."
+        )
         result["statistics"] = {
             "seasonal_strength": float(seasonal_strength),
             "trend_change": float(trend_clean.iloc[-1] - trend_clean.iloc[0]),
@@ -1661,9 +1857,7 @@ def _run_advanced(analysis_id, df, config):
         _trend_dir = (
             "upward"
             if trend_clean.iloc[-1] > trend_clean.iloc[0]
-            else "downward"
-            if trend_clean.iloc[-1] < trend_clean.iloc[0]
-            else "flat"
+            else "downward" if trend_clean.iloc[-1] < trend_clean.iloc[0] else "flat"
         )
         result["narrative"] = _narrative(
             f"Time Series Decomposition: {seasonal_strength:.0%} seasonal strength",
@@ -1707,7 +1901,9 @@ def _run_advanced(analysis_id, df, config):
         # ARIMA order suggestions
         summary += "<<COLOR:success>>ARIMA ORDER SUGGESTIONS:<</COLOR>>\n"
         if len(sig_pacf) > 0 and (len(sig_acf) == 0 or sig_acf[0] > sig_pacf[-1]):
-            summary += f"  PACF cuts off at lag {max(sig_pacf)}: Try AR({max(sig_pacf)})\n"
+            summary += (
+                f"  PACF cuts off at lag {max(sig_pacf)}: Try AR({max(sig_pacf)})\n"
+            )
         if len(sig_acf) > 0 and (len(sig_pacf) == 0 or sig_pacf[0] > sig_acf[-1]):
             summary += f"  ACF cuts off at lag {max(sig_acf)}: Try MA({max(sig_acf)})\n"
         if len(sig_acf) > 0 and len(sig_pacf) > 0:
@@ -1720,7 +1916,12 @@ def _run_advanced(analysis_id, df, config):
             {
                 "title": "Autocorrelation Function (ACF)",
                 "data": [
-                    {"type": "bar", "x": lags, "y": acf_vals.tolist(), "marker": {"color": "#4a9f6e"}},
+                    {
+                        "type": "bar",
+                        "x": lags,
+                        "y": acf_vals.tolist(),
+                        "marker": {"color": "#4a9f6e"},
+                    },
                     {
                         "type": "scatter",
                         "x": lags,
@@ -1738,7 +1939,11 @@ def _run_advanced(analysis_id, df, config):
                         "showlegend": False,
                     },
                 ],
-                "layout": {"height": 250, "xaxis": {"title": "Lag"}, "yaxis": {"title": "ACF", "range": [-1, 1]}},
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Lag"},
+                    "yaxis": {"title": "ACF", "range": [-1, 1]},
+                },
             }
         )
 
@@ -1747,7 +1952,12 @@ def _run_advanced(analysis_id, df, config):
             {
                 "title": "Partial Autocorrelation Function (PACF)",
                 "data": [
-                    {"type": "bar", "x": lags, "y": pacf_vals.tolist(), "marker": {"color": "#47a5e8"}},
+                    {
+                        "type": "bar",
+                        "x": lags,
+                        "y": pacf_vals.tolist(),
+                        "marker": {"color": "#47a5e8"},
+                    },
                     {
                         "type": "scatter",
                         "x": lags,
@@ -1765,12 +1975,18 @@ def _run_advanced(analysis_id, df, config):
                         "showlegend": False,
                     },
                 ],
-                "layout": {"height": 250, "xaxis": {"title": "Lag"}, "yaxis": {"title": "PACF", "range": [-1, 1]}},
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Lag"},
+                    "yaxis": {"title": "PACF", "range": [-1, 1]},
+                },
             }
         )
 
         result["summary"] = summary
-        result["guide_observation"] = "ACF/PACF analysis. Significant lags help identify ARIMA orders."
+        result["guide_observation"] = (
+            "ACF/PACF analysis. Significant lags help identify ARIMA orders."
+        )
         result["narrative"] = _narrative(
             "ACF/PACF — Autocorrelation Analysis",
             "ACF shows overall correlation at each lag. PACF shows direct (partial) correlation after removing intermediate lags.",
@@ -1870,7 +2086,11 @@ def _run_advanced(analysis_id, df, config):
                         "line": {"color": "#e89547"},
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "ln(Time)"}, "yaxis": {"title": "ln(-ln(1-F))"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "ln(Time)"},
+                    "yaxis": {"title": "ln(-ln(1-F))"},
+                },
             }
         )
 
@@ -1905,7 +2125,11 @@ def _run_advanced(analysis_id, df, config):
                     "height": 300,
                     "xaxis": {"title": "Time"},
                     "yaxis": {"title": "Reliability", "range": [0, 1]},
-                    "yaxis2": {"title": "Hazard (scaled)", "overlaying": "y", "side": "right"},
+                    "yaxis2": {
+                        "title": "Hazard (scaled)",
+                        "overlaying": "y",
+                        "side": "right",
+                    },
                 },
             }
         )
@@ -1923,9 +2147,11 @@ def _run_advanced(analysis_id, df, config):
         _fail_mode = (
             "wear-out (increasing hazard)"
             if shape > 1
-            else "early failure (decreasing hazard)"
-            if shape < 1
-            else "random failure (constant hazard)"
+            else (
+                "early failure (decreasing hazard)"
+                if shape < 1
+                else "random failure (constant hazard)"
+            )
         )
         result["narrative"] = _narrative(
             f"Weibull: \u03b2 = {shape:.2f} — {_fail_mode}",
@@ -1953,7 +2179,9 @@ def _run_advanced(analysis_id, df, config):
             return result
 
         try:
-            cols_needed = [c for c in [time_col, event_col, group_col] if c and c in df.columns]
+            cols_needed = [
+                c for c in [time_col, event_col, group_col] if c and c in df.columns
+            ]
             data = df[cols_needed].dropna()
             times = data[time_col].values.astype(float)
             events = (
@@ -1990,7 +2218,12 @@ def _run_advanced(analysis_id, df, config):
 
                 return unique_times, survival, n_risk, n_event, ci_lower, ci_upper
 
-            if group_col and group_col in data.columns and group_col != "" and group_col != "None":
+            if (
+                group_col
+                and group_col in data.columns
+                and group_col != ""
+                and group_col != "None"
+            ):
                 groups = sorted(data[group_col].unique())
                 colors = ["#2c5f2d", "#4a90d9", "#d94a4a", "#d9a04a", "#7d4ad9"]
 
@@ -2042,7 +2275,10 @@ def _run_advanced(analysis_id, df, config):
                         "layout": {
                             "title": "Kaplan-Meier Survival Curves by Group",
                             "xaxis": {"title": f"Time ({time_col})"},
-                            "yaxis": {"title": "Survival Probability", "range": [0, 1.05]},
+                            "yaxis": {
+                                "title": "Survival Probability",
+                                "range": [0, 1.05],
+                            },
                         },
                     }
                 )
@@ -2061,7 +2297,11 @@ def _run_advanced(analysis_id, df, config):
                             "y": [0.0] + cum_haz,
                             "mode": "lines",
                             "name": f"{grp}",
-                            "line": {"shape": "hv", "color": colors[i % len(colors)], "width": 2},
+                            "line": {
+                                "shape": "hv",
+                                "color": colors[i % len(colors)],
+                                "width": 2,
+                            },
                         }
                     )
                 result["plots"].append(
@@ -2135,7 +2375,12 @@ def _run_advanced(analysis_id, df, config):
                                 "y": [1.0] + ci_hi,
                                 "mode": "lines",
                                 "name": "Upper CI",
-                                "line": {"shape": "hv", "dash": "dash", "color": "#2c5f2d", "width": 1},
+                                "line": {
+                                    "shape": "hv",
+                                    "dash": "dash",
+                                    "color": "#2c5f2d",
+                                    "width": 1,
+                                },
                                 "showlegend": False,
                             },
                             {
@@ -2143,7 +2388,12 @@ def _run_advanced(analysis_id, df, config):
                                 "y": [1.0] + ci_lo,
                                 "mode": "lines",
                                 "name": "Lower CI",
-                                "line": {"shape": "hv", "dash": "dash", "color": "#2c5f2d", "width": 1},
+                                "line": {
+                                    "shape": "hv",
+                                    "dash": "dash",
+                                    "color": "#2c5f2d",
+                                    "width": 1,
+                                },
                                 "fill": "tonexty",
                                 "fillcolor": "rgba(44,95,45,0.15)",
                                 "showlegend": False,
@@ -2152,7 +2402,10 @@ def _run_advanced(analysis_id, df, config):
                         "layout": {
                             "title": "Kaplan-Meier Survival Curve",
                             "xaxis": {"title": f"Time ({time_col})"},
-                            "yaxis": {"title": "Survival Probability", "range": [0, 1.05]},
+                            "yaxis": {
+                                "title": "Survival Probability",
+                                "range": [0, 1.05],
+                            },
                         },
                     }
                 )
@@ -2212,9 +2465,7 @@ def _run_advanced(analysis_id, df, config):
                         else "Median survival was <strong>not reached</strong> — more than 50% survived beyond the observation period."
                     )
                 )
-                nxt = (
-                    "Compare groups with log-rank test. For covariate-adjusted analysis, use Cox Proportional Hazards."
-                )
+                nxt = "Compare groups with log-rank test. For covariate-adjusted analysis, use Cox Proportional Hazards."
                 result["narrative"] = _narrative(
                     verdict,
                     body,
@@ -2239,7 +2490,9 @@ def _run_advanced(analysis_id, df, config):
         alpha = 1 - float(config.get("conf", 95)) / 100
 
         if not time_col or not event_col:
-            result["summary"] = "Error: Please select a time variable and an event/censor variable."
+            result["summary"] = (
+                "Error: Please select a time variable and an event/censor variable."
+            )
             return result
         if not covariates:
             result["summary"] = "Error: Please select at least one covariate."
@@ -2308,7 +2561,11 @@ def _run_advanced(analysis_id, df, config):
                             concordant += 1
                         elif lp[j] < lp[i]:
                             discordant += 1
-            c_index = concordant / (concordant + discordant) if (concordant + discordant) > 0 else 0.5
+            c_index = (
+                concordant / (concordant + discordant)
+                if (concordant + discordant) > 0
+                else 0.5
+            )
 
             # Forest plot of hazard ratios
             result["plots"].append(
@@ -2396,7 +2653,10 @@ def _run_advanced(analysis_id, df, config):
                             "mode": "markers",
                             "type": "scatter",
                             "marker": {
-                                "color": ["#d94a4a" if e == 1 else "#4a90d9" for e in events_arr],
+                                "color": [
+                                    "#d94a4a" if e == 1 else "#4a90d9"
+                                    for e in events_arr
+                                ],
                                 "size": 5,
                                 "opacity": 0.6,
                             },
@@ -2430,7 +2690,8 @@ def _run_advanced(analysis_id, df, config):
             result["guide_observation"] = (
                 f"Cox PH: n={len(data)}, {n_events} events, C-index={c_index:.3f}. "
                 + ", ".join(
-                    f"{covariate_names[i]}: HR={hr[i]:.2f} (p={p_vals[i]:.4f})" for i in range(len(covariate_names))
+                    f"{covariate_names[i]}: HR={hr[i]:.2f} (p={p_vals[i]:.4f})"
+                    for i in range(len(covariate_names))
                 )
             )
 
@@ -2441,7 +2702,11 @@ def _run_advanced(analysis_id, df, config):
                 if p_vals[i] < 0.05
             ]
             _c_label = (
-                "excellent" if c_index > 0.8 else "good" if c_index > 0.7 else "moderate" if c_index > 0.6 else "weak"
+                "excellent"
+                if c_index > 0.8
+                else (
+                    "good" if c_index > 0.7 else "moderate" if c_index > 0.6 else "weak"
+                )
             )
             verdict = f"Cox PH: C-index = {c_index:.3f} ({_c_label} discrimination)"
             body = f"Model fit on {len(data)} subjects ({n_events} events). "
@@ -2482,7 +2747,9 @@ def _run_advanced(analysis_id, df, config):
             }
 
         except ImportError:
-            result["summary"] = "Cox PH requires statsmodels. Install with: pip install statsmodels"
+            result["summary"] = (
+                "Cox PH requires statsmodels. Install with: pip install statsmodels"
+            )
         except Exception as e:
             result["summary"] = f"Cox PH error: {str(e)}"
 
@@ -2532,22 +2799,38 @@ def _run_advanced(analysis_id, df, config):
         repeatability_var = data.groupby([part, operator])[measurement].var().mean()
 
         # Reproducibility (between operators)
-        reproducibility_var = max(0, op_var - repeatability_var / (n_parts * n_replicates))
+        reproducibility_var = max(
+            0, op_var - repeatability_var / (n_parts * n_replicates)
+        )
 
         # Gage R&R
         gage_rr_var = repeatability_var + reproducibility_var
         total_variation = gage_rr_var + part_var
 
         # Percentages
-        pct_repeatability = 100 * np.sqrt(repeatability_var / total_variation) if total_variation > 0 else 0
-        pct_reproducibility = 100 * np.sqrt(reproducibility_var / total_variation) if total_variation > 0 else 0
-        pct_gage_rr = 100 * np.sqrt(gage_rr_var / total_variation) if total_variation > 0 else 0
-        pct_part = 100 * np.sqrt(part_var / total_variation) if total_variation > 0 else 0
+        pct_repeatability = (
+            100 * np.sqrt(repeatability_var / total_variation)
+            if total_variation > 0
+            else 0
+        )
+        pct_reproducibility = (
+            100 * np.sqrt(reproducibility_var / total_variation)
+            if total_variation > 0
+            else 0
+        )
+        pct_gage_rr = (
+            100 * np.sqrt(gage_rr_var / total_variation) if total_variation > 0 else 0
+        )
+        pct_part = (
+            100 * np.sqrt(part_var / total_variation) if total_variation > 0 else 0
+        )
 
         summary += "<<COLOR:accent>>── Variance Components ──<</COLOR>>\n"
         summary += f"  {'Source':<20} {'Variance':>12} {'%Contribution':>14}\n"
         summary += f"  {'-' * 48}\n"
-        summary += f"  {'Total Gage R&R':<20} {gage_rr_var:>12.4f} {pct_gage_rr:>13.1f}%\n"
+        summary += (
+            f"  {'Total Gage R&R':<20} {gage_rr_var:>12.4f} {pct_gage_rr:>13.1f}%\n"
+        )
         summary += f"    {'Repeatability':<18} {repeatability_var:>12.4f} {pct_repeatability:>13.1f}%\n"
         summary += f"    {'Reproducibility':<18} {reproducibility_var:>12.4f} {pct_reproducibility:>13.1f}%\n"
         summary += f"  {'Part-to-Part':<20} {part_var:>12.4f} {pct_part:>13.1f}%\n\n"
@@ -2566,7 +2849,9 @@ def _run_advanced(analysis_id, df, config):
 
         # Number of distinct categories
         ndc = int(1.41 * np.sqrt(part_var / gage_rr_var)) if gage_rr_var > 0 else 0
-        summary += f"\n<<COLOR:highlight>>Number of Distinct Categories:<</COLOR>> {ndc}\n"
+        summary += (
+            f"\n<<COLOR:highlight>>Number of Distinct Categories:<</COLOR>> {ndc}\n"
+        )
         summary += "  (Should be >= 5 for adequate discrimination)\n"
 
         # Plots
@@ -2609,9 +2894,21 @@ def _run_advanced(analysis_id, df, config):
                 "data": [
                     {
                         "type": "bar",
-                        "x": ["Gage R&R", "Repeatability", "Reproducibility", "Part-to-Part"],
-                        "y": [pct_gage_rr, pct_repeatability, pct_reproducibility, pct_part],
-                        "marker": {"color": ["#e89547", "#4a9f6e", "#47a5e8", "#9aaa9a"]},
+                        "x": [
+                            "Gage R&R",
+                            "Repeatability",
+                            "Reproducibility",
+                            "Part-to-Part",
+                        ],
+                        "y": [
+                            pct_gage_rr,
+                            pct_repeatability,
+                            pct_reproducibility,
+                            pct_part,
+                        ],
+                        "marker": {
+                            "color": ["#e89547", "#4a9f6e", "#47a5e8", "#9aaa9a"]
+                        },
                     }
                 ],
                 "layout": {"height": 250, "yaxis": {"title": "% of Total Variation"}},
@@ -2650,12 +2947,14 @@ def _run_advanced(analysis_id, df, config):
             f"The dominant component is {dominant}. "
             f"Part-to-part variation accounts for {pct_part:.1f}%. "
             f"Number of distinct categories (ndc) = {ndc}"
-            + (" — adequate discrimination." if ndc >= 5 else " — insufficient discrimination (need \u2265 5).")
+            + (
+                " — adequate discrimination."
+                if ndc >= 5
+                else " — insufficient discrimination (need \u2265 5)."
+            )
         )
         if assessment == "unacceptable":
-            nxt = (
-                f"Fix the measurement system before using this data for process analysis. Focus on reducing {dominant}."
-            )
+            nxt = f"Fix the measurement system before using this data for process analysis. Focus on reducing {dominant}."
         elif assessment == "marginal":
             nxt = f"Acceptable for some applications. To improve, focus on reducing {dominant}."
         else:
@@ -2686,7 +2985,9 @@ def _run_advanced(analysis_id, df, config):
         summary += "<<COLOR:title>>NESTED GAGE R&R (DESTRUCTIVE)<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Measurement:<</COLOR>> {measurement}\n"
-        summary += f"<<COLOR:highlight>>Part:<</COLOR>> {part} (nested within {operator})\n"
+        summary += (
+            f"<<COLOR:highlight>>Part:<</COLOR>> {part} (nested within {operator})\n"
+        )
         summary += f"<<COLOR:highlight>>Operator:<</COLOR>> {operator}\n\n"
 
         grand_mean = data[measurement].mean()
@@ -2696,11 +2997,16 @@ def _run_advanced(analysis_id, df, config):
         op_means = data.groupby(operator)[measurement].mean()
         parts_per_op = data.groupby(operator)[part].nunique().mean()
         reps_per_part = (
-            len(data) / (data.groupby([operator, part]).ngroups) if data.groupby([operator, part]).ngroups > 0 else 1
+            len(data) / (data.groupby([operator, part]).ngroups)
+            if data.groupby([operator, part]).ngroups > 0
+            else 1
         )
 
         # Between-operator variance
-        ss_operator = sum(len(data[data[operator] == o]) * (op_means[o] - grand_mean) ** 2 for o in operators)
+        ss_operator = sum(
+            len(data[data[operator] == o]) * (op_means[o] - grand_mean) ** 2
+            for o in operators
+        )
         df_operator = n_operators - 1
         ms_operator = ss_operator / df_operator if df_operator > 0 else 0
 
@@ -2712,13 +3018,21 @@ def _run_advanced(analysis_id, df, config):
             op_mean = op_data[measurement].mean()
             for p in op_data[part].unique():
                 part_data = op_data[op_data[part] == p]
-                ss_part += len(part_data) * (part_data[measurement].mean() - op_mean) ** 2
+                ss_part += (
+                    len(part_data) * (part_data[measurement].mean() - op_mean) ** 2
+                )
                 df_part += 1
         df_part -= n_operators  # df for part(operator)
         ms_part = ss_part / df_part if df_part > 0 else 0
 
         # Repeatability (within)
-        ss_error = sum((data[measurement] - data.groupby([operator, part])[measurement].transform("mean")) ** 2)
+        ss_error = sum(
+            (
+                data[measurement]
+                - data.groupby([operator, part])[measurement].transform("mean")
+            )
+            ** 2
+        )
         df_error = len(data) - data.groupby([operator, part]).ngroups
         ms_error = float(ss_error / df_error) if df_error > 0 else 0
 
@@ -2731,17 +3045,33 @@ def _run_advanced(analysis_id, df, config):
         gage_rr_var = repeat_var + reprod_var
         total_variation = gage_rr_var + part_var
 
-        pct_gage_rr = 100 * np.sqrt(gage_rr_var / total_variation) if total_variation > 0 else 0
-        pct_repeat = 100 * np.sqrt(repeat_var / total_variation) if total_variation > 0 else 0
-        pct_reprod = 100 * np.sqrt(reprod_var / total_variation) if total_variation > 0 else 0
-        pct_part = 100 * np.sqrt(part_var / total_variation) if total_variation > 0 else 0
+        pct_gage_rr = (
+            100 * np.sqrt(gage_rr_var / total_variation) if total_variation > 0 else 0
+        )
+        pct_repeat = (
+            100 * np.sqrt(repeat_var / total_variation) if total_variation > 0 else 0
+        )
+        pct_reprod = (
+            100 * np.sqrt(reprod_var / total_variation) if total_variation > 0 else 0
+        )
+        pct_part = (
+            100 * np.sqrt(part_var / total_variation) if total_variation > 0 else 0
+        )
 
-        summary += "<<COLOR:accent>>── Variance Components (Nested ANOVA) ──<</COLOR>>\n"
+        summary += (
+            "<<COLOR:accent>>── Variance Components (Nested ANOVA) ──<</COLOR>>\n"
+        )
         summary += f"  {'Source':<25} {'Variance':>12} {'%Study Var':>12}\n"
         summary += f"  {'-' * 52}\n"
-        summary += f"  {'Total Gage R&R':<25} {gage_rr_var:>12.4f} {pct_gage_rr:>11.1f}%\n"
-        summary += f"    {'Repeatability':<23} {repeat_var:>12.4f} {pct_repeat:>11.1f}%\n"
-        summary += f"    {'Reproducibility':<23} {reprod_var:>12.4f} {pct_reprod:>11.1f}%\n"
+        summary += (
+            f"  {'Total Gage R&R':<25} {gage_rr_var:>12.4f} {pct_gage_rr:>11.1f}%\n"
+        )
+        summary += (
+            f"    {'Repeatability':<23} {repeat_var:>12.4f} {pct_repeat:>11.1f}%\n"
+        )
+        summary += (
+            f"    {'Reproducibility':<23} {reprod_var:>12.4f} {pct_reprod:>11.1f}%\n"
+        )
         summary += f"  {'Part-to-Part':<25} {part_var:>12.4f} {pct_part:>11.1f}%\n\n"
 
         if pct_gage_rr < 10:
@@ -2752,7 +3082,9 @@ def _run_advanced(analysis_id, df, config):
             summary += "  <<COLOR:bad>>UNACCEPTABLE — Gage R&R > 30%<</COLOR>>\n"
 
         ndc = int(1.41 * np.sqrt(part_var / gage_rr_var)) if gage_rr_var > 0 else 0
-        summary += f"\n<<COLOR:highlight>>Number of Distinct Categories:<</COLOR>> {ndc}\n"
+        summary += (
+            f"\n<<COLOR:highlight>>Number of Distinct Categories:<</COLOR>> {ndc}\n"
+        )
 
         # Plots
         result["plots"].append(
@@ -2765,7 +3097,10 @@ def _run_advanced(analysis_id, df, config):
                         "marker": {"color": "#4a9f6e"},
                     }
                 ],
-                "layout": {"title": f"{measurement} by {operator}", "xaxis": {"title": operator}},
+                "layout": {
+                    "title": f"{measurement} by {operator}",
+                    "xaxis": {"title": operator},
+                },
             }
         )
         result["plots"].append(
@@ -2773,18 +3108,29 @@ def _run_advanced(analysis_id, df, config):
                 "data": [
                     {
                         "type": "bar",
-                        "x": ["Gage R&R", "Repeatability", "Reproducibility", "Part-to-Part"],
+                        "x": [
+                            "Gage R&R",
+                            "Repeatability",
+                            "Reproducibility",
+                            "Part-to-Part",
+                        ],
                         "y": [pct_gage_rr, pct_repeat, pct_reprod, pct_part],
-                        "marker": {"color": ["#e89547", "#4a9f6e", "#47a5e8", "#9aaa9a"]},
+                        "marker": {
+                            "color": ["#e89547", "#4a9f6e", "#47a5e8", "#9aaa9a"]
+                        },
                     }
                 ],
-                "layout": {"title": "Components of Variation", "yaxis": {"title": "% Study Var"}},
+                "layout": {
+                    "title": "Components of Variation",
+                    "yaxis": {"title": "% Study Var"},
+                },
             }
         )
 
         result["summary"] = summary
-        result["guide_observation"] = f"Nested Gage R&R = {pct_gage_rr:.1f}%, NDC={ndc}. " + (
-            "Acceptable." if pct_gage_rr < 30 else "Needs improvement."
+        result["guide_observation"] = (
+            f"Nested Gage R&R = {pct_gage_rr:.1f}%, NDC={ndc}. "
+            + ("Acceptable." if pct_gage_rr < 30 else "Needs improvement.")
         )
         result["statistics"] = {
             "gage_rr_pct": float(pct_gage_rr),
@@ -2793,13 +3139,19 @@ def _run_advanced(analysis_id, df, config):
             "part_pct": float(pct_part),
             "ndc": ndc,
         }
-        _grr_label = "acceptable" if pct_gage_rr < 10 else "marginal" if pct_gage_rr < 30 else "unacceptable"
+        _grr_label = (
+            "acceptable"
+            if pct_gage_rr < 10
+            else "marginal" if pct_gage_rr < 30 else "unacceptable"
+        )
         result["narrative"] = _narrative(
             f"Nested Gage R&R = {pct_gage_rr:.1f}% ({_grr_label})",
             f"Designed for destructive testing where operators measure different parts. NDC = {ndc}. Repeatability = {pct_repeat:.1f}%, Reproducibility = {pct_reprod:.1f}%.",
-            next_steps="For destructive testing, nested designs are required. NDC \u2265 5 means adequate discrimination."
-            if ndc >= 5
-            else "NDC < 5 — measurement system cannot adequately distinguish parts. Improve the measurement process.",
+            next_steps=(
+                "For destructive testing, nested designs are required. NDC \u2265 5 means adequate discrimination."
+                if ndc >= 5
+                else "NDC < 5 — measurement system cannot adequately distinguish parts. Improve the measurement process."
+            ),
         )
 
     elif analysis_id == "gage_rr_expanded":
@@ -2818,7 +3170,9 @@ def _run_advanced(analysis_id, df, config):
         all_factors = [part]
         if operator:
             all_factors.append(operator)
-        all_factors.extend([f for f in factors_list if f and f not in all_factors and f != part])
+        all_factors.extend(
+            [f for f in factors_list if f and f not in all_factors and f != part]
+        )
 
         cols_needed = [measurement] + [f for f in all_factors if f]
         cols_needed = [c for c in cols_needed if c in df.columns]
@@ -2868,22 +3222,30 @@ def _run_advanced(analysis_id, df, config):
         if len(all_factors) > 1:
             cell_vars = data_grr.groupby(all_factors)[measurement].var()
             data_grr.groupby(all_factors)[measurement].count()
-            repeatability_var = float(cell_vars.mean()) if not cell_vars.isna().all() else 0
+            repeatability_var = (
+                float(cell_vars.mean()) if not cell_vars.isna().all() else 0
+            )
         else:
             within_var = data_grr.groupby(part)[measurement].var()
-            repeatability_var = float(within_var.mean()) if not within_var.isna().all() else 0
+            repeatability_var = (
+                float(within_var.mean()) if not within_var.isna().all() else 0
+            )
 
         # Estimate variance component for each factor
         for f_name, comp in var_components.items():
             n_per = len(data_grr) / comp["n_levels"]
-            est_var = max(0, (comp["ms"] - repeatability_var) / n_per) if n_per > 0 else 0
+            est_var = (
+                max(0, (comp["ms"] - repeatability_var) / n_per) if n_per > 0 else 0
+            )
             comp["var_est"] = est_var
 
         # Part variation
         part_var = var_components.get(part, {}).get("var_est", 0)
 
         # Reproducibility: sum of all non-part factor variances
-        reproducibility_var = sum(comp["var_est"] for f_name, comp in var_components.items() if f_name != part)
+        reproducibility_var = sum(
+            comp["var_est"] for f_name, comp in var_components.items() if f_name != part
+        )
 
         # Gage R&R
         gage_rr_var = repeatability_var + reproducibility_var
@@ -2892,10 +3254,22 @@ def _run_advanced(analysis_id, df, config):
             total_variation = total_var
 
         # Study var percentages (using std dev ratios)
-        pct_rr = 100 * np.sqrt(gage_rr_var / total_variation) if total_variation > 0 else 0
-        pct_repeat = 100 * np.sqrt(repeatability_var / total_variation) if total_variation > 0 else 0
-        pct_reprod = 100 * np.sqrt(reproducibility_var / total_variation) if total_variation > 0 else 0
-        pct_part = 100 * np.sqrt(part_var / total_variation) if total_variation > 0 else 0
+        pct_rr = (
+            100 * np.sqrt(gage_rr_var / total_variation) if total_variation > 0 else 0
+        )
+        pct_repeat = (
+            100 * np.sqrt(repeatability_var / total_variation)
+            if total_variation > 0
+            else 0
+        )
+        pct_reprod = (
+            100 * np.sqrt(reproducibility_var / total_variation)
+            if total_variation > 0
+            else 0
+        )
+        pct_part = (
+            100 * np.sqrt(part_var / total_variation) if total_variation > 0 else 0
+        )
 
         summary += "<<COLOR:accent>>── Variance Components ──<</COLOR>>\n"
         summary += f"  {'Source':<20} {'VarComp':>12} {'%StudyVar':>12}\n"
@@ -2906,8 +3280,14 @@ def _run_advanced(analysis_id, df, config):
 
         for f_name, comp in var_components.items():
             if f_name != part:
-                pct_f = 100 * np.sqrt(comp["var_est"] / total_variation) if total_variation > 0 else 0
-                summary += f"      {f_name:<16} {comp['var_est']:>12.4f} {pct_f:>11.1f}%\n"
+                pct_f = (
+                    100 * np.sqrt(comp["var_est"] / total_variation)
+                    if total_variation > 0
+                    else 0
+                )
+                summary += (
+                    f"      {f_name:<16} {comp['var_est']:>12.4f} {pct_f:>11.1f}%\n"
+                )
 
         summary += f"  {'Part-to-Part':<20} {part_var:>12.4f} {pct_part:>11.1f}%\n\n"
 
@@ -2933,9 +3313,7 @@ def _run_advanced(analysis_id, df, config):
                 summary += f"\n<<COLOR:accent>>── Largest reproducibility source ──<</COLOR>> {worst_factor[0]}\n"
                 summary += f"  Consider standardizing {worst_factor[0]} to reduce measurement variation.\n"
         elif repeatability_var > reproducibility_var * 1.5:
-            summary += (
-                "\n<<COLOR:text>>Repeatability dominates — improve gage precision or measurement procedure.<</COLOR>>\n"
-            )
+            summary += "\n<<COLOR:text>>Repeatability dominates — improve gage precision or measurement procedure.<</COLOR>>\n"
 
         result["summary"] = summary
 
@@ -2945,7 +3323,11 @@ def _run_advanced(analysis_id, df, config):
         bar_colors = ["#e89547", "#4a9f6e", "#47a5e8"]
         for f_name, comp in var_components.items():
             if f_name != part:
-                pct_f = 100 * np.sqrt(comp["var_est"] / total_variation) if total_variation > 0 else 0
+                pct_f = (
+                    100 * np.sqrt(comp["var_est"] / total_variation)
+                    if total_variation > 0
+                    else 0
+                )
                 bar_labels.append(f_name)
                 bar_vals.append(pct_f)
                 bar_colors.append("#9aaa9a")
@@ -2955,8 +3337,19 @@ def _run_advanced(analysis_id, df, config):
 
         result["plots"].append(
             {
-                "data": [{"type": "bar", "x": bar_labels, "y": bar_vals, "marker": {"color": bar_colors}}],
-                "layout": {"title": "Components of Variation", "yaxis": {"title": "% Study Variation"}, "height": 300},
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": bar_labels,
+                        "y": bar_vals,
+                        "marker": {"color": bar_colors},
+                    }
+                ],
+                "layout": {
+                    "title": "Components of Variation",
+                    "yaxis": {"title": "% Study Variation"},
+                    "height": 300,
+                },
             }
         )
 
@@ -2988,14 +3381,21 @@ def _run_advanced(analysis_id, df, config):
                                 "marker": {"color": "#47a5e8"},
                             }
                         ],
-                        "layout": {"title": f"{measurement} by {f_name}", "height": 250},
+                        "layout": {
+                            "title": f"{measurement} by {f_name}",
+                            "height": 250,
+                        },
                     }
                 )
 
         result["guide_observation"] = (
             f"Expanded Gage R&R = {pct_rr:.1f}%, NDC={ndc}. {len(all_factors)} factors analyzed."
         )
-        _grr_label = "acceptable" if pct_rr < 10 else "marginal" if pct_rr < 30 else "unacceptable"
+        _grr_label = (
+            "acceptable"
+            if pct_rr < 10
+            else "marginal" if pct_rr < 30 else "unacceptable"
+        )
         result["narrative"] = _narrative(
             f"Expanded Gage R&R = {pct_rr:.1f}% ({_grr_label})",
             f"Analyzed {len(all_factors)} factors. NDC = {ndc}. Expanded study includes additional sources of variation beyond standard operator/part.",
@@ -3008,7 +3408,9 @@ def _run_advanced(analysis_id, df, config):
             "part_pct": float(pct_part),
             "ndc": ndc,
             "n_factors": len(all_factors),
-            "factor_variances": {f: float(c["var_est"]) for f, c in var_components.items()},
+            "factor_variances": {
+                f: float(c["var_est"]) for f, c in var_components.items()
+            },
         }
 
     elif analysis_id == "gage_linearity_bias":
@@ -3031,7 +3433,11 @@ def _run_advanced(analysis_id, df, config):
 
         data[reference].mean()
         overall_bias = bias.mean()
-        bias_pct = 100 * abs(overall_bias) / data[reference].std() if data[reference].std() > 0 else 0
+        bias_pct = (
+            100 * abs(overall_bias) / data[reference].std()
+            if data[reference].std() > 0
+            else 0
+        )
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>GAGE LINEARITY & BIAS STUDY<</COLOR>>\n"
@@ -3089,8 +3495,12 @@ def _run_advanced(analysis_id, df, config):
         )
 
         # Bias by reference level (grouped)
-        ref_groups = pd.qcut(data[reference], min(5, data[reference].nunique()), duplicates="drop")
-        grouped_bias = data_with_bias.groupby(ref_groups, observed=False)["bias"].agg(["mean", "std", "count"])
+        ref_groups = pd.qcut(
+            data[reference], min(5, data[reference].nunique()), duplicates="drop"
+        )
+        grouped_bias = data_with_bias.groupby(ref_groups, observed=False)["bias"].agg(
+            ["mean", "std", "count"]
+        )
 
         result["plots"].append(
             {
@@ -3101,7 +3511,9 @@ def _run_advanced(analysis_id, df, config):
                         "y": grouped_bias["mean"].tolist(),
                         "error_y": {
                             "type": "data",
-                            "array": (grouped_bias["std"] / np.sqrt(grouped_bias["count"])).tolist(),
+                            "array": (
+                                grouped_bias["std"] / np.sqrt(grouped_bias["count"])
+                            ).tolist(),
                             "visible": True,
                         },
                         "marker": {"color": "#e89547"},
@@ -3244,13 +3656,18 @@ def _run_advanced(analysis_id, df, config):
                         "line": {"color": "#4a9f6e", "width": 1},
                     },
                 ],
-                "layout": {"title": "Run Chart", "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}},
+                "layout": {
+                    "title": "Run Chart",
+                    "xaxis": {"title": "Observation"},
+                    "yaxis": {"title": measurement},
+                },
             }
         )
 
         result["summary"] = summary
-        result["guide_observation"] = f"Type 1 Gage: Cg={cg:.3f}, Cgk={cgk:.3f}, bias={bias:.4f} (p={p_val:.4f}). " + (
-            "Acceptable." if cg >= 1.33 and cgk >= 1.33 else "Not acceptable."
+        result["guide_observation"] = (
+            f"Type 1 Gage: Cg={cg:.3f}, Cgk={cgk:.3f}, bias={bias:.4f} (p={p_val:.4f}). "
+            + ("Acceptable." if cg >= 1.33 and cgk >= 1.33 else "Not acceptable.")
         )
         result["statistics"] = {
             "mean": float(mean_val),
@@ -3264,9 +3681,11 @@ def _run_advanced(analysis_id, df, config):
         result["narrative"] = _narrative(
             f"Type 1 Gage Study: {'Acceptable' if _t1_ok else 'Not acceptable'} (Cg = {cg:.3f}, Cgk = {cgk:.3f})",
             f"Repeatability study against a reference standard. Bias = {bias:.4f} (p = {p_val:.4f}). Cg measures precision, Cgk measures precision + bias.",
-            next_steps="Both Cg and Cgk should be \u2265 1.33. If Cg is OK but Cgk is low, recalibrate to reduce bias."
-            if not _t1_ok
-            else "Gage is acceptable for this measurement. Recheck periodically.",
+            next_steps=(
+                "Both Cg and Cgk should be \u2265 1.33. If Cg is OK but Cgk is low, recalibrate to reduce bias."
+                if not _t1_ok
+                else "Gage is acceptable for this measurement. Recheck periodically."
+            ),
         )
 
     elif analysis_id == "attribute_gage":
@@ -3275,7 +3694,9 @@ def _run_advanced(analysis_id, df, config):
         Each appraiser classifies parts as pass/fail. Compare to known reference.
         Reports % agreement, % effectiveness (detection rate), false alarm rate.
         """
-        result_col = config.get("result") or config.get("measurement")  # appraiser's call
+        result_col = config.get("result") or config.get(
+            "measurement"
+        )  # appraiser's call
         reference_col = config.get("reference")  # known good/bad
         appraiser_col = config.get("appraiser") or config.get("operator")
 
@@ -3288,7 +3709,9 @@ def _run_advanced(analysis_id, df, config):
         # Ensure binary
         result_vals = data[result_col].astype(str)
         ref_vals = data[reference_col].astype(str)
-        unique_vals = sorted(set(result_vals.unique()) | set(ref_vals.unique()), key=str)
+        unique_vals = sorted(
+            set(result_vals.unique()) | set(ref_vals.unique()), key=str
+        )
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>ATTRIBUTE GAGE STUDY<</COLOR>>\n"
@@ -3305,7 +3728,9 @@ def _run_advanced(analysis_id, df, config):
 
         # If binary (2 categories): compute sensitivity/specificity
         if len(unique_vals) == 2:
-            pos_label = unique_vals[1]  # assume second value is "positive/fail/defective"
+            pos_label = unique_vals[
+                1
+            ]  # assume second value is "positive/fail/defective"
             tp = ((result_vals == pos_label) & (ref_vals == pos_label)).sum()
             tn = ((result_vals != pos_label) & (ref_vals != pos_label)).sum()
             fp = ((result_vals == pos_label) & (ref_vals != pos_label)).sum()
@@ -3373,7 +3798,10 @@ def _run_advanced(analysis_id, df, config):
             app_agree = []
             for app in appraisers:
                 mask = data[appraiser_col] == app
-                a = (data.loc[mask, result_col].astype(str) == data.loc[mask, reference_col].astype(str)).mean() * 100
+                a = (
+                    data.loc[mask, result_col].astype(str)
+                    == data.loc[mask, reference_col].astype(str)
+                ).mean() * 100
                 app_agree.append(a)
             result["plots"].append(
                 {
@@ -3382,7 +3810,12 @@ def _run_advanced(analysis_id, df, config):
                             "type": "bar",
                             "x": [str(a) for a in appraisers],
                             "y": app_agree,
-                            "marker": {"color": ["#4a9f6e" if a >= 90 else "#d94a4a" for a in app_agree]},
+                            "marker": {
+                                "color": [
+                                    "#4a9f6e" if a >= 90 else "#d94a4a"
+                                    for a in app_agree
+                                ]
+                            },
                         }
                     ],
                     "layout": {
@@ -3394,15 +3827,18 @@ def _run_advanced(analysis_id, df, config):
             )
 
         result["summary"] = summary
-        result["guide_observation"] = f"Attribute gage: {pct_agree:.1f}% overall agreement. " + (
-            "Acceptable." if pct_agree >= 90 else "Needs improvement."
+        result["guide_observation"] = (
+            f"Attribute gage: {pct_agree:.1f}% overall agreement. "
+            + ("Acceptable." if pct_agree >= 90 else "Needs improvement.")
         )
         result["narrative"] = _narrative(
             f"Attribute Gage: {pct_agree:.1f}% agreement",
             f"{'Acceptable' if pct_agree >= 90 else 'Needs improvement'} — target is \u2265 90% agreement.",
-            next_steps="If low, provide clearer standards, better training, or improved measurement tools."
-            if pct_agree < 90
-            else "Agreement is adequate. Monitor periodically.",
+            next_steps=(
+                "If low, provide clearer standards, better training, or improved measurement tools."
+                if pct_agree < 90
+                else "Agreement is adequate. Monitor periodically."
+            ),
         )
 
     elif analysis_id == "attribute_agreement":
@@ -3426,14 +3862,14 @@ def _run_advanced(analysis_id, df, config):
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>ATTRIBUTE AGREEMENT ANALYSIS<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary += (
-            f"<<COLOR:highlight>>Appraisers:<</COLOR>> {n_appraisers} ({', '.join(str(a) for a in appraisers)})\n"
-        )
+        summary += f"<<COLOR:highlight>>Appraisers:<</COLOR>> {n_appraisers} ({', '.join(str(a) for a in appraisers)})\n"
         summary += f"<<COLOR:highlight>>Parts:<</COLOR>> {n_parts}\n"
         summary += f"<<COLOR:highlight>>Categories:<</COLOR>> {categories}\n\n"
 
         # Build rating matrix: rows = parts, columns = appraisers
-        pivot = data.pivot_table(index=part_col, columns=appraiser_col, values=rating_col, aggfunc="first")
+        pivot = data.pivot_table(
+            index=part_col, columns=appraiser_col, values=rating_col, aggfunc="first"
+        )
 
         # Within-appraiser agreement (if repeated trials)
         trial_counts = data.groupby([appraiser_col, part_col]).size()
@@ -3493,12 +3929,22 @@ def _run_advanced(analysis_id, df, config):
                     if mask.sum() > 0:
                         r1m, r2m = r1[mask], r2[mask]
                         po_pair = (r1m == r2m).mean()
-                        pe_pair = sum((r1m == c).mean() * (r2m == c).mean() for c in categories)
-                        k_pair = (po_pair - pe_pair) / (1 - pe_pair) if pe_pair < 1 else 1.0
-                        pairwise_kappas.append((f"{appraisers[i]} vs {appraisers[j]}", k_pair))
+                        pe_pair = sum(
+                            (r1m == c).mean() * (r2m == c).mean() for c in categories
+                        )
+                        k_pair = (
+                            (po_pair - pe_pair) / (1 - pe_pair) if pe_pair < 1 else 1.0
+                        )
+                        pairwise_kappas.append(
+                            (f"{appraisers[i]} vs {appraisers[j]}", k_pair)
+                        )
 
         # Interpret kappa
-        kappa_val = kappa if "kappa" in dir() else (pairwise_kappas[0][1] if pairwise_kappas else 0)
+        kappa_val = (
+            kappa
+            if "kappa" in dir()
+            else (pairwise_kappas[0][1] if pairwise_kappas else 0)
+        )
         if kappa_val >= 0.81:
             interp = "Almost perfect"
         elif kappa_val >= 0.61:
@@ -3518,7 +3964,10 @@ def _run_advanced(analysis_id, df, config):
             if has_repeats:
                 # Within-appraiser: across trials for same part
                 within_agree = (
-                    app_data.groupby(part_col)[rating_col].apply(lambda g: g.astype(str).nunique() == 1).mean() * 100
+                    app_data.groupby(part_col)[rating_col]
+                    .apply(lambda g: g.astype(str).nunique() == 1)
+                    .mean()
+                    * 100
                 )
             else:
                 within_agree = 100.0  # single trial = always agrees with self
@@ -3552,7 +4001,11 @@ def _run_advanced(analysis_id, df, config):
                             "y": [p[1] for p in pairwise_kappas],
                             "marker": {
                                 "color": [
-                                    "#4a9f6e" if p[1] >= 0.6 else "#e89547" if p[1] >= 0.4 else "#d94a4a"
+                                    (
+                                        "#4a9f6e"
+                                        if p[1] >= 0.6
+                                        else "#e89547" if p[1] >= 0.4 else "#d94a4a"
+                                    )
                                     for p in pairwise_kappas
                                 ]
                             },
@@ -3567,8 +4020,13 @@ def _run_advanced(analysis_id, df, config):
             )
 
         result["summary"] = summary
-        result["guide_observation"] = f"Attribute agreement: κ={kappa_val:.3f} ({interp}). " + (
-            "Good agreement." if kappa_val >= 0.6 else "Agreement needs improvement."
+        result["guide_observation"] = (
+            f"Attribute agreement: κ={kappa_val:.3f} ({interp}). "
+            + (
+                "Good agreement."
+                if kappa_val >= 0.6
+                else "Agreement needs improvement."
+            )
         )
         result["statistics"] = {
             "kappa": float(kappa_val),
@@ -3579,9 +4037,11 @@ def _run_advanced(analysis_id, df, config):
         result["narrative"] = _narrative(
             f"Attribute Agreement: \u03ba = {kappa_val:.3f} ({interp})",
             f"Fleiss' kappa measures inter-rater agreement beyond chance. {n_appraisers} appraisers assessed {n_parts} parts.",
-            next_steps="\u03ba > 0.8 = excellent, 0.6\u20130.8 = good, 0.4\u20130.6 = moderate, < 0.4 = poor. Improve with clearer standards and training."
-            if kappa_val < 0.8
-            else "Agreement is strong. Standards and training are effective.",
+            next_steps=(
+                "\u03ba > 0.8 = excellent, 0.6\u20130.8 = good, 0.4\u20130.6 = moderate, < 0.4 = poor. Improve with clearer standards and training."
+                if kappa_val < 0.8
+                else "Agreement is strong. Standards and training are effective."
+            ),
         )
 
         # Diagnostics for attribute_agreement
@@ -3617,10 +4077,16 @@ def _run_advanced(analysis_id, df, config):
         Intraclass Correlation Coefficient (ICC) — reliability and agreement for continuous measurements.
         Supports ICC(1,1), ICC(2,1), ICC(3,1), ICC(1,k), ICC(2,k), ICC(3,k).
         """
-        rater_col = config.get("rater") or config.get("appraiser") or config.get("operator")
+        rater_col = (
+            config.get("rater") or config.get("appraiser") or config.get("operator")
+        )
         subject_col = config.get("subject") or config.get("part") or config.get("item")
-        value_col = config.get("value") or config.get("measurement") or config.get("var")
-        icc_type = config.get("icc_type", "ICC(2,1)")  # default to two-way random, single
+        value_col = (
+            config.get("value") or config.get("measurement") or config.get("var")
+        )
+        icc_type = config.get(
+            "icc_type", "ICC(2,1)"
+        )  # default to two-way random, single
 
         data = df[[rater_col, subject_col, value_col]].dropna()
         subjects = data[subject_col].unique()
@@ -3629,11 +4095,15 @@ def _run_advanced(analysis_id, df, config):
         k = len(raters)
 
         if n < 3 or k < 2:
-            result["summary"] = f"Error: ICC requires at least 3 subjects and 2 raters. Found {n} subjects, {k} raters."
+            result["summary"] = (
+                f"Error: ICC requires at least 3 subjects and 2 raters. Found {n} subjects, {k} raters."
+            )
             return result
 
         # Pivot to subjects × raters matrix
-        pivot = data.pivot_table(index=subject_col, columns=rater_col, values=value_col, aggfunc="mean")
+        pivot = data.pivot_table(
+            index=subject_col, columns=rater_col, values=value_col, aggfunc="mean"
+        )
         pivot = pivot.dropna()
         Y = pivot.values
         n, k = Y.shape
@@ -3659,17 +4129,22 @@ def _run_advanced(analysis_id, df, config):
         icc_values = {}
         # ICC(1,1): One-way random, single measures
         icc_values["ICC(1,1)"] = (
-            (MS_rows - MS_within) / (MS_rows + (k - 1) * MS_within) if (MS_rows + (k - 1) * MS_within) > 0 else 0
+            (MS_rows - MS_within) / (MS_rows + (k - 1) * MS_within)
+            if (MS_rows + (k - 1) * MS_within) > 0
+            else 0
         )
         # ICC(2,1): Two-way random, single measures
         icc_values["ICC(2,1)"] = (
-            (MS_rows - MS_error) / (MS_rows + (k - 1) * MS_error + k * (MS_cols - MS_error) / n)
+            (MS_rows - MS_error)
+            / (MS_rows + (k - 1) * MS_error + k * (MS_cols - MS_error) / n)
             if (MS_rows + (k - 1) * MS_error + k * (MS_cols - MS_error) / n) > 0
             else 0
         )
         # ICC(3,1): Two-way mixed, single measures
         icc_values["ICC(3,1)"] = (
-            (MS_rows - MS_error) / (MS_rows + (k - 1) * MS_error) if (MS_rows + (k - 1) * MS_error) > 0 else 0
+            (MS_rows - MS_error) / (MS_rows + (k - 1) * MS_error)
+            if (MS_rows + (k - 1) * MS_error) > 0
+            else 0
         )
         # ICC(1,k): One-way random, average measures
         icc_values["ICC(1,k)"] = (MS_rows - MS_within) / MS_rows if MS_rows > 0 else 0
@@ -3690,8 +4165,16 @@ def _run_advanced(analysis_id, df, config):
         try:
             F_val = MS_rows / MS_error if MS_error > 0 else 1
             df1, df2 = n - 1, (n - 1) * (k - 1)
-            F_lo = F_val / stats.f.ppf(0.975, df1, df2) if stats.f.ppf(0.975, df1, df2) > 0 else F_val
-            F_hi = F_val / stats.f.ppf(0.025, df1, df2) if stats.f.ppf(0.025, df1, df2) > 0 else F_val
+            F_lo = (
+                F_val / stats.f.ppf(0.975, df1, df2)
+                if stats.f.ppf(0.975, df1, df2) > 0
+                else F_val
+            )
+            F_hi = (
+                F_val / stats.f.ppf(0.025, df1, df2)
+                if stats.f.ppf(0.025, df1, df2) > 0
+                else F_val
+            )
             ci_lo = max(-1, (F_lo - 1) / (F_lo + k - 1))
             ci_hi = min(1, (F_hi - 1) / (F_hi + k - 1))
         except Exception:
@@ -3737,8 +4220,12 @@ def _run_advanced(analysis_id, df, config):
         summary += "<<COLOR:highlight>>ANOVA Table:<</COLOR>>\n"
         summary += f"  {'Source':<20} {'SS':>12} {'df':>6} {'MS':>12}\n"
         summary += f"  {_dash}\n"
-        summary += f"  {'Between Subjects':<20} {SS_rows:>12.4f} {n - 1:>6} {MS_rows:>12.4f}\n"
-        summary += f"  {'Between Raters':<20} {SS_cols:>12.4f} {k - 1:>6} {MS_cols:>12.4f}\n"
+        summary += (
+            f"  {'Between Subjects':<20} {SS_rows:>12.4f} {n - 1:>6} {MS_rows:>12.4f}\n"
+        )
+        summary += (
+            f"  {'Between Raters':<20} {SS_cols:>12.4f} {k - 1:>6} {MS_cols:>12.4f}\n"
+        )
         summary += f"  {'Residual':<20} {SS_error:>12.4f} {(n - 1) * (k - 1):>6} {MS_error:>12.4f}\n"
         summary += f"  {'Total':<20} {SS_total:>12.4f} {n * k - 1:>6}\n"
 
@@ -3754,13 +4241,17 @@ def _run_advanced(analysis_id, df, config):
             + (
                 " Measurement system is reliable."
                 if icc_val >= 0.75
-                else " Measurement system needs improvement."
-                if icc_val >= 0.5
-                else " Measurement system is unreliable \u2014 reduce rater variability before using this measurement for decisions."
+                else (
+                    " Measurement system needs improvement."
+                    if icc_val >= 0.5
+                    else " Measurement system is unreliable \u2014 reduce rater variability before using this measurement for decisions."
+                )
             ),
-            next_steps="ICC > 0.9 = excellent, 0.75\u20130.9 = good, 0.5\u20130.75 = moderate, < 0.5 = poor. For MSA, target ICC > 0.9."
-            if icc_val < 0.9
-            else "Excellent reliability. System is suitable for critical measurements.",
+            next_steps=(
+                "ICC > 0.9 = excellent, 0.75\u20130.9 = good, 0.5\u20130.75 = moderate, < 0.5 = poor. For MSA, target ICC > 0.9."
+                if icc_val < 0.9
+                else "Excellent reliability. System is suitable for critical measurements."
+            ),
             chart_guidance="The rater comparison plot shows each subject measured by each rater. Tight clustering = good agreement.",
         )
 
@@ -3832,7 +4323,11 @@ def _run_advanced(analysis_id, df, config):
             {
                 "title": f"Rater Comparison ({icc_type} = {icc_val:.3f})",
                 "data": plot_data,
-                "layout": {"height": 300, "xaxis": {"title": "Subject"}, "yaxis": {"title": value_col}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Subject"},
+                    "yaxis": {"title": value_col},
+                },
             }
         )
 
@@ -3847,7 +4342,11 @@ def _run_advanced(analysis_id, df, config):
                         "y": [float(v) for v in icc_values.values()],
                         "marker": {
                             "color": [
-                                "#4a9f6e" if v >= 0.75 else "#e8953f" if v >= 0.5 else "#dc5050"
+                                (
+                                    "#4a9f6e"
+                                    if v >= 0.75
+                                    else "#e8953f" if v >= 0.5 else "#dc5050"
+                                )
                                 for v in icc_values.values()
                             ]
                         },
@@ -3874,9 +4373,13 @@ def _run_advanced(analysis_id, df, config):
         """
         Krippendorff's Alpha — universal agreement metric for any data level, any number of raters, missing data OK.
         """
-        rater_col = config.get("rater") or config.get("appraiser") or config.get("operator")
+        rater_col = (
+            config.get("rater") or config.get("appraiser") or config.get("operator")
+        )
         subject_col = config.get("subject") or config.get("part") or config.get("item")
-        value_col = config.get("value") or config.get("measurement") or config.get("var")
+        value_col = (
+            config.get("value") or config.get("measurement") or config.get("var")
+        )
         level = config.get("level", "interval")  # nominal, ordinal, interval, ratio
 
         data = df[[rater_col, subject_col, value_col]].dropna()
@@ -3892,7 +4395,9 @@ def _run_advanced(analysis_id, df, config):
             return result
 
         # Build reliability data matrix (raters × subjects)
-        pivot = data.pivot_table(index=rater_col, columns=subject_col, values=value_col, aggfunc="first")
+        pivot = data.pivot_table(
+            index=rater_col, columns=subject_col, values=value_col, aggfunc="first"
+        )
         R = pivot.values  # raters × subjects, may have NaN
 
         # Compute Krippendorff's alpha
@@ -3994,13 +4499,17 @@ def _run_advanced(analysis_id, df, config):
             + (
                 "Data is reliable for analysis."
                 if alpha >= 0.8
-                else "Data is tentatively usable but agreement should be improved."
-                if alpha >= 0.667
-                else "Agreement is too low \u2014 conclusions from this data are unreliable."
+                else (
+                    "Data is tentatively usable but agreement should be improved."
+                    if alpha >= 0.667
+                    else "Agreement is too low \u2014 conclusions from this data are unreliable."
+                )
             ),
-            next_steps="Improve rater training and standardize measurement procedures."
-            if alpha < 0.8
-            else "Agreement is sufficient. Proceed with analysis.",
+            next_steps=(
+                "Improve rater training and standardize measurement procedures."
+                if alpha < 0.8
+                else "Agreement is sufficient. Proceed with analysis."
+            ),
             chart_guidance="The heatmap shows each rater's measurements by subject. Consistent colors across raters = good agreement.",
         )
 
@@ -4016,7 +4525,11 @@ def _run_advanced(analysis_id, df, config):
                         "label": "Run ICC for details",
                         "type": "stats",
                         "analysis": "icc",
-                        "config": {"rater": rater_col, "subject": subject_col, "value": value_col},
+                        "config": {
+                            "rater": rater_col,
+                            "subject": subject_col,
+                            "value": value_col,
+                        },
                     },
                 }
             )
@@ -4059,7 +4572,10 @@ def _run_advanced(analysis_id, df, config):
                         "x": [str(s) for s in subjects[:50]],
                         "y": [str(r) for r in raters],
                         "colorscale": "Viridis",
-                        "text": [[f"{v:.2f}" if not np.isnan(v) else "" for v in row] for row in R],
+                        "text": [
+                            [f"{v:.2f}" if not np.isnan(v) else "" for v in row]
+                            for row in R
+                        ],
                         "texttemplate": "%{text}",
                         "textfont": {"size": 10},
                     }
@@ -4086,7 +4602,9 @@ def _run_advanced(analysis_id, df, config):
         n = len(m1)
 
         if n < 5:
-            result["summary"] = f"Error: Need at least 5 paired measurements. Found {n}."
+            result["summary"] = (
+                f"Error: Need at least 5 paired measurements. Found {n}."
+            )
             return result
 
         diffs = m1 - m2
@@ -4131,7 +4649,11 @@ def _run_advanced(analysis_id, df, config):
             f"Bland-Altman: bias = {bias:.4f}, LOA = [{loa_lower:.4f}, {loa_upper:.4f}]. {within_loa:.0f}% within LOA."
         )
 
-        bias_meaningful = abs(bias) > 0.1 * np.mean(np.abs(means)) if np.mean(np.abs(means)) > 0 else abs(bias) > 0
+        bias_meaningful = (
+            abs(bias) > 0.1 * np.mean(np.abs(means))
+            if np.mean(np.abs(means)) > 0
+            else abs(bias) > 0
+        )
         result["narrative"] = _narrative(
             f"Bias: {bias:.4f} | LOA width: {loa_upper - loa_lower:.4f}",
             f"The mean difference between <strong>{method1}</strong> and <strong>{method2}</strong> is {bias:.4f} "
@@ -4143,9 +4665,11 @@ def _run_advanced(analysis_id, df, config):
                 if p_prop < 0.05
                 else ""
             ),
-            next_steps="Judge whether the LOA width is clinically/practically acceptable. If bias is consistent, one method can be calibrated to the other."
-            if bias_meaningful
-            else "Bias is negligible. Focus on whether the LOA width is acceptable for your application.",
+            next_steps=(
+                "Judge whether the LOA width is clinically/practically acceptable. If bias is consistent, one method can be calibrated to the other."
+                if bias_meaningful
+                else "Bias is negligible. Focus on whether the LOA width is acceptable for your application."
+            ),
             chart_guidance="Points should scatter randomly around the bias line (dashed). Funnel shapes indicate proportional bias. Points outside LOA are outlier disagreements.",
         )
 
@@ -4337,7 +4861,9 @@ def _run_advanced(analysis_id, df, config):
             sig_bound = 2.0 / np.sqrt(n)
 
             # Find significant lags
-            sig_lags = [(lag, cc) for lag, cc in zip(lags, ccf_vals) if abs(cc) > sig_bound]
+            sig_lags = [
+                (lag, cc) for lag, cc in zip(lags, ccf_vals) if abs(cc) > sig_bound
+            ]
 
             summary = f"""<<COLOR:title>>CROSS-CORRELATION FUNCTION<</COLOR>>
 {"=" * 50}
@@ -4351,14 +4877,19 @@ def _run_advanced(analysis_id, df, config):
 
             if sig_lags:
                 summary += "\n\n<<COLOR:accent>>Significant lags:<</COLOR>>"
-                for lag, cc in sorted(sig_lags, key=lambda x: abs(x[1]), reverse=True)[:10]:
+                for lag, cc in sorted(sig_lags, key=lambda x: abs(x[1]), reverse=True)[
+                    :10
+                ]:
                     summary += f"\n  Lag {lag:>3d}: r = {cc:+.4f}"
 
             result["summary"] = summary
             result["guide_observation"] = (
                 f"CCF({var1}, {var2}): lag-0 r={ccf_vals[max_lag]:.3f}, {len(sig_lags)} significant lags."
             )
-            result["statistics"] = {"lag_0_correlation": ccf_vals[max_lag], "significant_lags": len(sig_lags)}
+            result["statistics"] = {
+                "lag_0_correlation": ccf_vals[max_lag],
+                "significant_lags": len(sig_lags),
+            }
             result["narrative"] = _narrative(
                 f"Cross-Correlation: lag-0 r = {ccf_vals[max_lag]:.3f}, {len(sig_lags)} significant lags",
                 f"CCF shows how <strong>{var1}</strong> and <strong>{var2}</strong> relate at different time lags. Positive lags = {var1} leads {var2}.",
@@ -4374,7 +4905,12 @@ def _run_advanced(analysis_id, df, config):
                             "type": "bar",
                             "x": lags,
                             "y": ccf_vals,
-                            "marker": {"color": ["#d94a4a" if abs(c) > sig_bound else "#4a9f6e" for c in ccf_vals]},
+                            "marker": {
+                                "color": [
+                                    "#d94a4a" if abs(c) > sig_bound else "#4a9f6e"
+                                    for c in ccf_vals
+                                ]
+                            },
                             "name": "CCF",
                         },
                         {

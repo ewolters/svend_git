@@ -28,7 +28,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.PRO, **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password="testpass123!", **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123!", **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -102,7 +104,9 @@ class VSMCRUDTest(TestCase):
         self.assertEqual(names, {"VSM A", "VSM B"})
 
     def test_get_vsm(self):
-        vsm_id = _post(self.client, "/api/vsm/create/", {"name": "Detail Test"}).json()["id"]
+        vsm_id = _post(self.client, "/api/vsm/create/", {"name": "Detail Test"}).json()[
+            "id"
+        ]
         res = self.client.get(f"/api/vsm/{vsm_id}/")
         self.assertEqual(res.status_code, 200)
         data = res.json()
@@ -145,9 +149,13 @@ class VSMCRUDTest(TestCase):
         _post(self.client, "/api/vsm/create/", {"name": "Current"})
         # Create a future-state by cloning
         _post(self.client, "/api/vsm/create/", {"name": "Base"}).json()["id"]
-        _post(self.client, "/api/vsm/create/future-state/")  # won't work, need to use actual endpoint
+        _post(
+            self.client, "/api/vsm/create/future-state/"
+        )  # won't work, need to use actual endpoint
         # Instead, create and update status directly
-        future_id = _post(self.client, "/api/vsm/create/", {"name": "Future"}).json()["id"]
+        future_id = _post(self.client, "/api/vsm/create/", {"name": "Future"}).json()[
+            "id"
+        ]
         _put(self.client, f"/api/vsm/{future_id}/update/", {"status": "future"})
 
         res = self.client.get("/api/vsm/?status=current")
@@ -492,7 +500,9 @@ class VSMBottleneckTest(TestCase):
         steps = {s["name"]: s for s in vsm["process_steps"]}
         self.assertFalse(steps["Under Takt"]["flags"]["exceeds_takt"])
         self.assertTrue(steps["Over Takt"]["flags"]["exceeds_takt"])
-        self.assertAlmostEqual(steps["Over Takt"]["flags"]["takt_ratio"], 1.25, places=2)
+        self.assertAlmostEqual(
+            steps["Over Takt"]["flags"]["takt_ratio"], 1.25, places=2
+        )
 
     def test_takt_time_validation(self):
         """Takt time must be positive."""
@@ -512,9 +522,29 @@ class VSMBottleneckTest(TestCase):
             f"/api/vsm/{self.vsm_id}/update/",
             {
                 "process_steps": [
-                    {"id": "m1", "name": "Machine 1", "cycle_time": 60, "x": 100, "y": 300, "work_center_id": "wc1"},
-                    {"id": "m2", "name": "Machine 2", "cycle_time": 60, "x": 200, "y": 300, "work_center_id": "wc1"},
-                    {"id": "finish", "name": "Finishing", "cycle_time": 45, "x": 300, "y": 300},
+                    {
+                        "id": "m1",
+                        "name": "Machine 1",
+                        "cycle_time": 60,
+                        "x": 100,
+                        "y": 300,
+                        "work_center_id": "wc1",
+                    },
+                    {
+                        "id": "m2",
+                        "name": "Machine 2",
+                        "cycle_time": 60,
+                        "x": 200,
+                        "y": 300,
+                        "work_center_id": "wc1",
+                    },
+                    {
+                        "id": "finish",
+                        "name": "Finishing",
+                        "cycle_time": 45,
+                        "x": 300,
+                        "y": 300,
+                    },
                 ],
                 "work_centers": [{"id": "wc1", "name": "Machining Center"}],
             },
@@ -655,7 +685,10 @@ class VSMFutureStateTest(TestCase):
         # Lead time should improve (less inventory + faster cycle)
         self.assertGreater(comp["lead_time"]["improvement"], 0)
         # Inventory reduced
-        self.assertGreater(comp["inventory_reduction"]["current_count"], comp["inventory_reduction"]["future_count"])
+        self.assertGreater(
+            comp["inventory_reduction"]["current_count"],
+            comp["inventory_reduction"]["future_count"],
+        )
 
     def test_compare_no_future_returns_null(self):
         """Comparison with no future state returns null comparison."""
@@ -738,7 +771,9 @@ class VSMProjectIntegrationTest(TestCase):
 
     def test_update_project_link(self):
         """Can link and unlink VSM from project via update."""
-        vsm_id = _post(self.client, "/api/vsm/create/", {"name": "Floater"}).json()["id"]
+        vsm_id = _post(self.client, "/api/vsm/create/", {"name": "Floater"}).json()[
+            "id"
+        ]
         # Link
         _put(
             self.client,
@@ -785,7 +820,9 @@ class VSMIsolationTest(TestCase):
     def test_user_cannot_see_others_vsm(self):
         """User B cannot list or access User A's VSMs."""
         self.client.force_login(self.user_a)
-        vsm_id = _post(self.client, "/api/vsm/create/", {"name": "Alice's VSM"}).json()["id"]
+        vsm_id = _post(self.client, "/api/vsm/create/", {"name": "Alice's VSM"}).json()[
+            "id"
+        ]
 
         self.client.force_login(self.user_b)
         # List should be empty for Bob
@@ -796,7 +833,9 @@ class VSMIsolationTest(TestCase):
 
     def test_user_cannot_update_others_vsm(self):
         self.client.force_login(self.user_a)
-        vsm_id = _post(self.client, "/api/vsm/create/", {"name": "Alice's VSM"}).json()["id"]
+        vsm_id = _post(self.client, "/api/vsm/create/", {"name": "Alice's VSM"}).json()[
+            "id"
+        ]
 
         self.client.force_login(self.user_b)
         res = _put(self.client, f"/api/vsm/{vsm_id}/update/", {"name": "Hacked"})
@@ -804,7 +843,9 @@ class VSMIsolationTest(TestCase):
 
     def test_user_cannot_delete_others_vsm(self):
         self.client.force_login(self.user_a)
-        vsm_id = _post(self.client, "/api/vsm/create/", {"name": "Alice's VSM"}).json()["id"]
+        vsm_id = _post(self.client, "/api/vsm/create/", {"name": "Alice's VSM"}).json()[
+            "id"
+        ]
 
         self.client.force_login(self.user_b)
         res = self.client.delete(f"/api/vsm/{vsm_id}/delete/")
@@ -854,10 +895,18 @@ class VSMMetricSnapshotTest(TestCase):
                 "cycle_time": 30,
             },
         )
-        snap_count_1 = len(self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]["metric_snapshots"])
+        snap_count_1 = len(
+            self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"][
+                "metric_snapshots"
+            ]
+        )
         # Update only name — no metric change
         _put(self.client, f"/api/vsm/{self.vsm_id}/update/", {"name": "Renamed"})
-        snap_count_2 = len(self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]["metric_snapshots"])
+        snap_count_2 = len(
+            self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"][
+                "metric_snapshots"
+            ]
+        )
         self.assertEqual(snap_count_1, snap_count_2)
 
     def test_snapshot_added_on_metric_change(self):
@@ -870,7 +919,11 @@ class VSMMetricSnapshotTest(TestCase):
                 "cycle_time": 30,
             },
         )
-        snap_count_1 = len(self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]["metric_snapshots"])
+        snap_count_1 = len(
+            self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"][
+                "metric_snapshots"
+            ]
+        )
         _post(
             self.client,
             f"/api/vsm/{self.vsm_id}/inventory/",
@@ -880,7 +933,11 @@ class VSMMetricSnapshotTest(TestCase):
                 "days_of_supply": 5.0,
             },
         )
-        snap_count_2 = len(self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]["metric_snapshots"])
+        snap_count_2 = len(
+            self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"][
+                "metric_snapshots"
+            ]
+        )
         self.assertGreater(snap_count_2, snap_count_1)
 
 
@@ -985,7 +1042,9 @@ class VSMGenerateProposalsTest(TestCase):
 
     def _create_future_with_improvements(self):
         """Create future state and improve it."""
-        future = _post(self.client, f"/api/vsm/{self.vsm_id}/future-state/").json()["future_state"]
+        future = _post(self.client, f"/api/vsm/{self.vsm_id}/future-state/").json()[
+            "future_state"
+        ]
         future_id = future["id"]
 
         # Improve: reduce Assembly CT from 60→40, operators 3→2, add kaizen
@@ -1016,8 +1075,20 @@ class VSMGenerateProposalsTest(TestCase):
                     },
                 ],
                 "kaizen_bursts": [
-                    {"id": "k1", "text": "SMED changeover reduction", "priority": "high", "x": 200, "y": 250},
-                    {"id": "k2", "text": "Automate inspection", "priority": "medium", "x": 400, "y": 250},
+                    {
+                        "id": "k1",
+                        "text": "SMED changeover reduction",
+                        "priority": "high",
+                        "x": 200,
+                        "y": 250,
+                    },
+                    {
+                        "id": "k2",
+                        "text": "Automate inspection",
+                        "priority": "medium",
+                        "x": 400,
+                        "y": 250,
+                    },
                 ],
             },
         )
@@ -1040,7 +1111,9 @@ class VSMGenerateProposalsTest(TestCase):
         self.assertGreater(data["count"], 0)
         proposals = data["proposals"]
         # At least one proposal should match Assembly improvement
-        assembly_prop = next((p for p in proposals if p["process_step"] == "Assembly"), None)
+        assembly_prop = next(
+            (p for p in proposals if p["process_step"] == "Assembly"), None
+        )
         self.assertIsNotNone(assembly_prop)
         self.assertTrue(assembly_prop["has_current_match"])
         self.assertGreater(assembly_prop["estimated_annual_savings"], 0)
@@ -1075,7 +1148,9 @@ class VSMGenerateProposalsTest(TestCase):
 
     def test_no_kaizen_bursts_returns_400(self):
         """Future state with no bursts returns 400."""
-        future = _post(self.client, f"/api/vsm/{self.vsm_id}/future-state/").json()["future_state"]
+        future = _post(self.client, f"/api/vsm/{self.vsm_id}/future-state/").json()[
+            "future_state"
+        ]
         # Clear kaizen bursts from future
         _put(self.client, f"/api/vsm/{future['id']}/update/", {"kaizen_bursts": []})
         res = _post(self.client, f"/api/vsm/{self.vsm_id}/generate-proposals/")
@@ -1196,10 +1271,14 @@ class VSMFullLifecycleTest(TestCase):
         # 5. Verify current state metrics
         current = self.client.get(f"/api/vsm/{vsm_id}/").json()["vsm"]
         self.assertAlmostEqual(current["total_process_time"], 102.0, places=0)
-        self.assertGreater(current["total_lead_time"], 8.0)  # 5+3 days inventory + process
+        self.assertGreater(
+            current["total_lead_time"], 8.0
+        )  # 5+3 days inventory + process
 
         # 6. Create future state
-        future_id = _post(self.client, f"/api/vsm/{vsm_id}/future-state/").json()["future_state"]["id"]
+        future_id = _post(self.client, f"/api/vsm/{vsm_id}/future-state/").json()[
+            "future_state"
+        ]["id"]
 
         # 7. Improve future: reduce changeover, cut inventory, add kaizen
         _put(
@@ -1242,9 +1321,27 @@ class VSMFullLifecycleTest(TestCase):
                     {"id": "i1", "quantity": 920, "days_of_supply": 1.0},
                 ],
                 "kaizen_bursts": [
-                    {"id": "k1", "text": "SMED on stamping press", "priority": "high", "x": 100, "y": 250},
-                    {"id": "k2", "text": "Reduce WIP with kanban", "priority": "high", "x": 200, "y": 250},
-                    {"id": "k3", "text": "Cross-train assembly operators", "priority": "medium", "x": 500, "y": 250},
+                    {
+                        "id": "k1",
+                        "text": "SMED on stamping press",
+                        "priority": "high",
+                        "x": 100,
+                        "y": 250,
+                    },
+                    {
+                        "id": "k2",
+                        "text": "Reduce WIP with kanban",
+                        "priority": "high",
+                        "x": 200,
+                        "y": 250,
+                    },
+                    {
+                        "id": "k3",
+                        "text": "Cross-train assembly operators",
+                        "priority": "medium",
+                        "x": 500,
+                        "y": 250,
+                    },
                 ],
             },
         )

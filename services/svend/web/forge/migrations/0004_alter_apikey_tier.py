@@ -6,13 +6,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('forge', '0003_job_user_alter_job_api_key'),
+        ("forge", "0003_job_user_alter_job_api_key"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='apikey',
-            name='tier',
-            field=models.CharField(choices=[('free', 'Free'), ('founder', 'Founder ($19/month)'), ('pro', 'Pro ($29/month)'), ('team', 'Team ($79/month)'), ('enterprise', 'Enterprise ($199/month)')], default='free', max_length=20),
+            model_name="apikey",
+            name="tier",
+            field=models.CharField(
+                choices=[
+                    ("free", "Free"),
+                    ("founder", "Founder ($19/month)"),
+                    ("pro", "Pro ($29/month)"),
+                    ("team", "Team ($79/month)"),
+                    ("enterprise", "Enterprise ($199/month)"),
+                ],
+                default="free",
+                max_length=20,
+            ),
         ),
     ]

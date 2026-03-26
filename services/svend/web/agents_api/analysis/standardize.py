@@ -104,7 +104,9 @@ def standardize_output(result, analysis_type, analysis_id):
             else:
                 logger.debug("DSW output: could not auto-generate shadow for %s", key)
         except Exception:
-            logger.debug("DSW output: shadow generation failed for %s", key, exc_info=True)
+            logger.debug(
+                "DSW output: shadow generation failed for %s", key, exc_info=True
+            )
 
     # ── 7. Auto-generate evidence_grade for p-value analyses ─────────
     p_val = _extract_p_value(result)
@@ -121,7 +123,11 @@ def standardize_output(result, analysis_type, analysis_id):
                 result["evidence_grade"] = grade.get("grade")
                 result.setdefault("evidence_rationale", grade.get("rationale", ""))
         except Exception:
-            logger.debug("DSW output: evidence grade generation failed for %s", key, exc_info=True)
+            logger.debug(
+                "DSW output: evidence grade generation failed for %s",
+                key,
+                exc_info=True,
+            )
 
     # ── 8. Normalize what-if patterns to unified schema ────────────────
     if not result.get("what_if"):
@@ -152,7 +158,16 @@ _BOUNDED_METRICS = [
 # Metrics that must be positive: (key_names,)
 _POSITIVE_METRICS = ("bf10",)
 # Metrics that must be finite: (key_names,)
-_FINITE_METRICS = ("cp", "cpk", "pp", "ppk", "cohens_d", "cohens_f", "odds_ratio", "relative_risk")
+_FINITE_METRICS = (
+    "cp",
+    "cpk",
+    "pp",
+    "ppk",
+    "cohens_d",
+    "cohens_f",
+    "odds_ratio",
+    "relative_risk",
+)
 
 
 def _validate_statistics_bounds(result):
@@ -184,7 +199,14 @@ def _validate_statistics_bounds(result):
                     d[key] = None
                 elif fval < lo or fval > hi:
                     clamped = max(lo, min(hi, fval))
-                    logger.warning("QUAL-001: %s=%s out of [%s,%s], clamping to %s", key, fval, lo, hi, clamped)
+                    logger.warning(
+                        "QUAL-001: %s=%s out of [%s,%s], clamping to %s",
+                        key,
+                        fval,
+                        lo,
+                        hi,
+                        clamped,
+                    )
                     d[key] = clamped
 
         # Positive metrics
@@ -197,7 +219,11 @@ def _validate_statistics_bounds(result):
             except (TypeError, ValueError):
                 continue
             if not math.isfinite(fval) or fval <= 0:
-                logger.warning("QUAL-001: %s=%s invalid (must be positive finite), setting to None", key, val)
+                logger.warning(
+                    "QUAL-001: %s=%s invalid (must be positive finite), setting to None",
+                    key,
+                    val,
+                )
                 d[key] = None
 
         # Finite metrics
@@ -210,7 +236,9 @@ def _validate_statistics_bounds(result):
             except (TypeError, ValueError):
                 continue
             if not math.isfinite(fval):
-                logger.warning("QUAL-001: %s=%s is not finite, setting to None", key, val)
+                logger.warning(
+                    "QUAL-001: %s=%s is not finite, setting to None", key, val
+                )
                 d[key] = None
 
 
@@ -301,7 +329,11 @@ def _classify_effect(result):
         return "negligible"
 
     # Eta squared / partial eta squared
-    eta = _safe_float(stats.get("eta_squared") or stats.get("partial_eta_squared") or stats.get("epsilon_squared"))
+    eta = _safe_float(
+        stats.get("eta_squared")
+        or stats.get("partial_eta_squared")
+        or stats.get("epsilon_squared")
+    )
     if eta is not None:
         eta = abs(eta)
         if eta >= 0.14:
@@ -313,7 +345,9 @@ def _classify_effect(result):
         return "negligible"
 
     # Effect r
-    r = _safe_float(stats.get("effect_size_r") or stats.get("effect_r") or stats.get("spearman_rho"))
+    r = _safe_float(
+        stats.get("effect_size_r") or stats.get("effect_r") or stats.get("spearman_rho")
+    )
     if r is not None:
         r = abs(r)
         if r >= 0.5:
@@ -382,9 +416,15 @@ def _auto_shadow(result, shadow_type):
         elif shadow_type == "regression":
             r2 = stats.get("r_squared") or stats.get("R2")
             n = stats.get("n") or stats.get("n_obs") or stats.get("n_total")
-            k = stats.get("k_predictors") or stats.get("n_features") or stats.get("df_model")
+            k = (
+                stats.get("k_predictors")
+                or stats.get("n_features")
+                or stats.get("df_model")
+            )
             if r2 is not None and n is not None and k is not None:
-                return _bayesian_shadow("regression", r_squared=r2, n_obs=n, k_predictors=k)
+                return _bayesian_shadow(
+                    "regression", r_squared=r2, n_obs=n, k_predictors=k
+                )
 
         elif shadow_type == "variance":
             f_stat = stats.get("F_statistic") or stats.get("f_value")
@@ -392,11 +432,22 @@ def _auto_shadow(result, shadow_type):
             df2 = stats.get("df2") or stats.get("df_within")
             if f_stat is not None and df1 is not None and df2 is not None:
                 n_obs = stats.get("n") or (df1 + df2 + 2)
-                return _bayesian_shadow("variance", f_stat=f_stat, df1=df1, df2=df2, n_obs=n_obs)
+                return _bayesian_shadow(
+                    "variance", f_stat=f_stat, df1=df1, df2=df2, n_obs=n_obs
+                )
 
         elif shadow_type == "nonparametric":
-            effect_r = stats.get("effect_size_r") or stats.get("effect_r") or stats.get("spearman_rho")
-            n = stats.get("n") or stats.get("n_obs") or stats.get("n_total") or stats.get("n_pairs")
+            effect_r = (
+                stats.get("effect_size_r")
+                or stats.get("effect_r")
+                or stats.get("spearman_rho")
+            )
+            n = (
+                stats.get("n")
+                or stats.get("n_obs")
+                or stats.get("n_total")
+                or stats.get("n_pairs")
+            )
             if effect_r is not None and n is not None:
                 return _bayesian_shadow("nonparametric", effect_r=effect_r, n_obs=n)
 
@@ -430,9 +481,25 @@ def _normalize_what_if(result, entry):
                 "value": round(obs_d, 2),
             }
         )
-        params.append({"name": "sample_size", "label": "Sample Size", "min": 5, "max": 500, "step": 5, "value": obs_n})
         params.append(
-            {"name": "alpha", "label": "Significance Level", "min": 0.01, "max": 0.10, "step": 0.01, "value": alpha}
+            {
+                "name": "sample_size",
+                "label": "Sample Size",
+                "min": 5,
+                "max": 500,
+                "step": 5,
+                "value": obs_n,
+            }
+        )
+        params.append(
+            {
+                "name": "alpha",
+                "label": "Significance Level",
+                "min": 0.01,
+                "max": 0.10,
+                "step": 0.01,
+                "value": alpha,
+            }
         )
 
         return {
@@ -454,7 +521,9 @@ def _normalize_what_if(result, entry):
                     "label": feat,
                     "min": round(ranges.get("min", 0), 4),
                     "max": round(ranges.get("max", 1), 4),
-                    "step": round((ranges.get("max", 1) - ranges.get("min", 0)) / 20, 4),
+                    "step": round(
+                        (ranges.get("max", 1) - ranges.get("min", 0)) / 20, 4
+                    ),
                     "value": round(ranges.get("mean", 0), 4),
                 }
             )

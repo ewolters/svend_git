@@ -317,7 +317,9 @@ class ScheduleModelTest(TestCase):
 
     def test_cron_expression_property(self):
         """cron_expression assembles fields into standard format."""
-        cron = CronSchedule(minute="0", hour="12", day_of_month="1", month="*", day_of_week="*")
+        cron = CronSchedule(
+            minute="0", hour="12", day_of_month="1", month="*", day_of_week="*"
+        )
         sched = Schedule.create_cron_schedule(
             tenant_id=self.tenant_id,
             schedule_id="cron-expr",
@@ -343,7 +345,9 @@ class DeadLetterEntryTest(TestCase):
         )
         task.transition_to(TaskState.SCHEDULED)
         task.transition_to(TaskState.RUNNING)
-        task.transition_to(TaskState.FAILURE, error_message="boom", error_type="transient")
+        task.transition_to(
+            TaskState.FAILURE, error_message="boom", error_type="transient"
+        )
         return task
 
     def test_create_dead_letter_entry(self):

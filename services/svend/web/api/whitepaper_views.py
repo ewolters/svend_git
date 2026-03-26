@@ -22,9 +22,8 @@ def _record_download(request, paper):
     """Record a whitepaper view/download for analytics."""
     ua = request.META.get("HTTP_USER_AGENT", "")
     referrer = request.META.get("HTTP_REFERER", "")
-    ip = (
-        request.META.get("HTTP_CF_CONNECTING_IP", "")
-        or request.META.get("REMOTE_ADDR", "")
+    ip = request.META.get("HTTP_CF_CONNECTING_IP", "") or request.META.get(
+        "REMOTE_ADDR", ""
     )
     ip_hash = hashlib.sha256(ip.encode()).hexdigest() if ip else ""
 
@@ -48,17 +47,15 @@ def _record_download(request, paper):
 
 def whitepaper_list(request):
     """Published whitepapers, newest first."""
-    papers = WhitePaper.objects.filter(
-        status=WhitePaper.Status.PUBLISHED
-    ).order_by("-published_at")
+    papers = WhitePaper.objects.filter(status=WhitePaper.Status.PUBLISHED).order_by(
+        "-published_at"
+    )
     return render(request, "whitepapers.html", {"papers": papers})
 
 
 def whitepaper_detail(request, slug):
     """Single whitepaper — web-readable view with SEO metadata."""
-    paper = get_object_or_404(
-        WhitePaper, slug=slug, status=WhitePaper.Status.PUBLISHED
-    )
+    paper = get_object_or_404(WhitePaper, slug=slug, status=WhitePaper.Status.PUBLISHED)
     try:
         _record_download(request, paper)
     except Exception:
@@ -68,9 +65,7 @@ def whitepaper_detail(request, slug):
 
 def whitepaper_pdf(request, slug):
     """Generate and serve whitepaper as PDF via WeasyPrint."""
-    paper = get_object_or_404(
-        WhitePaper, slug=slug, status=WhitePaper.Status.PUBLISHED
-    )
+    paper = get_object_or_404(WhitePaper, slug=slug, status=WhitePaper.Status.PUBLISHED)
     try:
         _record_download(request, paper)
     except Exception:
@@ -87,6 +82,6 @@ def whitepaper_pdf(request, slug):
     pdf_file.seek(0)
 
     response = HttpResponse(pdf_file.read(), content_type="application/pdf")
-    safe_slug = re.sub(r'[^\w\-.]', '_', paper.slug) or 'whitepaper'
+    safe_slug = re.sub(r"[^\w\-.]", "_", paper.slug) or "whitepaper"
     response["Content-Disposition"] = f'inline; filename="{safe_slug}.pdf"'
     return response

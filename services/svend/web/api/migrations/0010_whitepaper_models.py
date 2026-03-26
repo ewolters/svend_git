@@ -10,49 +10,120 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0009_automation_compound_triggers'),
+        ("api", "0009_automation_compound_triggers"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='WhitePaper',
+            name="WhitePaper",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(max_length=200)),
-                ('slug', models.SlugField(blank=True, max_length=200, unique=True)),
-                ('description', models.TextField(blank=True, help_text='Short marketing copy / abstract')),
-                ('body', models.TextField(blank=True, help_text='Full markdown content')),
-                ('meta_description', models.CharField(blank=True, max_length=160)),
-                ('topic', models.CharField(blank=True, db_index=True, max_length=100)),
-                ('status', models.CharField(choices=[('draft', 'Draft'), ('published', 'Published')], db_index=True, default='draft', max_length=10)),
-                ('gated', models.BooleanField(default=True, help_text='Require email to download')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('published_at', models.DateTimeField(blank=True, db_index=True, null=True)),
-                ('author', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='white_papers', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("title", models.CharField(max_length=200)),
+                ("slug", models.SlugField(blank=True, max_length=200, unique=True)),
+                (
+                    "description",
+                    models.TextField(
+                        blank=True, help_text="Short marketing copy / abstract"
+                    ),
+                ),
+                (
+                    "body",
+                    models.TextField(blank=True, help_text="Full markdown content"),
+                ),
+                ("meta_description", models.CharField(blank=True, max_length=160)),
+                ("topic", models.CharField(blank=True, db_index=True, max_length=100)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("draft", "Draft"), ("published", "Published")],
+                        db_index=True,
+                        default="draft",
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "gated",
+                    models.BooleanField(
+                        default=True, help_text="Require email to download"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "published_at",
+                    models.DateTimeField(blank=True, db_index=True, null=True),
+                ),
+                (
+                    "author",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="white_papers",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'white_papers',
-                'ordering': ['-published_at', '-created_at'],
+                "db_table": "white_papers",
+                "ordering": ["-published_at", "-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='WhitePaperDownload',
+            name="WhitePaperDownload",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('downloaded_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('referrer_domain', models.CharField(blank=True, db_index=True, max_length=200)),
-                ('ip_hash', models.CharField(blank=True, max_length=64)),
-                ('user_agent', models.CharField(blank=True, max_length=500)),
-                ('email', models.EmailField(blank=True, max_length=254)),
-                ('is_bot', models.BooleanField(default=False)),
-                ('paper', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='downloads', to='api.whitepaper')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "downloaded_at",
+                    models.DateTimeField(auto_now_add=True, db_index=True),
+                ),
+                (
+                    "referrer_domain",
+                    models.CharField(blank=True, db_index=True, max_length=200),
+                ),
+                ("ip_hash", models.CharField(blank=True, max_length=64)),
+                ("user_agent", models.CharField(blank=True, max_length=500)),
+                ("email", models.EmailField(blank=True, max_length=254)),
+                ("is_bot", models.BooleanField(default=False)),
+                (
+                    "paper",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="downloads",
+                        to="api.whitepaper",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'whitepaper_downloads',
-                'ordering': ['-downloaded_at'],
-                'indexes': [models.Index(fields=['paper', 'downloaded_at'], name='whitepaper__paper_i_5adbd2_idx'), models.Index(fields=['referrer_domain', 'downloaded_at'], name='whitepaper__referre_8d7d05_idx')],
+                "db_table": "whitepaper_downloads",
+                "ordering": ["-downloaded_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["paper", "downloaded_at"],
+                        name="whitepaper__paper_i_5adbd2_idx",
+                    ),
+                    models.Index(
+                        fields=["referrer_domain", "downloaded_at"],
+                        name="whitepaper__referre_8d7d05_idx",
+                    ),
+                ],
             },
         ),
     ]

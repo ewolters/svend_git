@@ -30,7 +30,11 @@ def _make_user(email="test@example.com"):
 
 
 def _make_investigation(user, **kwargs):
-    defaults = {"title": "Threshold test", "description": "Testing thresholds", "owner": user}
+    defaults = {
+        "title": "Threshold test",
+        "description": "Testing thresholds",
+        "owner": user,
+    }
     defaults.update(kwargs)
     return Investigation.objects.create(**defaults)
 
@@ -202,7 +206,9 @@ class ReversalTest(TestCase):
         h2 = synara.create_hypothesis(description="Will reject", prior=0.5)
         h3 = synara.create_hypothesis(description="Will stay uncertain", prior=0.5)
 
-        events = _apply_confirmation_thresholds(self.inv, synara, {h1.id: 0.90, h2.id: 0.10, h3.id: 0.50})
+        events = _apply_confirmation_thresholds(
+            self.inv, synara, {h1.id: 0.90, h2.id: 0.10, h3.id: 0.50}
+        )
         self.assertEqual(len(events), 2)
         transitions = {e["hypothesis_id"]: e["transition"] for e in events}
         self.assertIn("confirmed", transitions[h1.id])

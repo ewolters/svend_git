@@ -38,33 +38,56 @@ class SysLogEntry(SynaraImmutableLog):
 
     id = models.BigAutoField(primary_key=True, help_text="Sequential ID for ordering")
 
-    timestamp = models.DateTimeField(default=timezone.now, db_index=True, help_text="When this log entry was created")
-
-    actor = models.CharField(
-        max_length=255, db_index=True, default="system", help_text="User or system component that performed the action"
+    timestamp = models.DateTimeField(
+        default=timezone.now, db_index=True, help_text="When this log entry was created"
     )
 
-    event_name = models.CharField(max_length=255, db_index=True, help_text="Name of the event being logged")
+    actor = models.CharField(
+        max_length=255,
+        db_index=True,
+        default="system",
+        help_text="User or system component that performed the action",
+    )
+
+    event_name = models.CharField(
+        max_length=255, db_index=True, help_text="Name of the event being logged"
+    )
 
     payload = models.JSONField(default=dict, help_text="Event data and context")
 
-    payload_hash = models.CharField(max_length=64, help_text="SHA-256 hash of the payload")
+    payload_hash = models.CharField(
+        max_length=64, help_text="SHA-256 hash of the payload"
+    )
 
     correlation_id = models.UUIDField(
-        db_index=True, null=True, blank=True, help_text="Correlation ID for distributed tracing"
+        db_index=True,
+        null=True,
+        blank=True,
+        help_text="Correlation ID for distributed tracing",
     )
 
     tenant_id = models.UUIDField(
-        db_index=True, null=True, blank=True, help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)"
+        db_index=True,
+        null=True,
+        blank=True,
+        help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)",
     )
 
     previous_hash = models.CharField(
-        max_length=64, default="0" * 64, help_text="Hash of the previous log entry in chain"
+        max_length=64,
+        default="0" * 64,
+        help_text="Hash of the previous log entry in chain",
     )
 
-    current_hash = models.CharField(max_length=64, unique=True, help_text="Hash of this entry (includes previous_hash)")
+    current_hash = models.CharField(
+        max_length=64,
+        unique=True,
+        help_text="Hash of this entry (includes previous_hash)",
+    )
 
-    is_genesis = models.BooleanField(default=False, help_text="True if this is the first entry in the chain")
+    is_genesis = models.BooleanField(
+        default=False, help_text="True if this is the first entry in the chain"
+    )
 
     class Meta(SynaraImmutableLog.Meta):
         db_table = "audit_syslog_entry"
@@ -105,7 +128,9 @@ class SysLogEntry(SynaraImmutableLog):
         """
         # Enforce immutability: prevent updates
         if self.pk is not None:
-            raise ValidationError("Audit log entries are immutable and cannot be modified. Create a new entry instead.")
+            raise ValidationError(
+                "Audit log entries are immutable and cannot be modified. Create a new entry instead."
+            )
 
         # CTG-001 §5: Validate correlation_id is provided
         # Log warning if missing (field allows null for legacy compatibility)
@@ -135,7 +160,11 @@ class SysLogEntry(SynaraImmutableLog):
             with connection.cursor() as cursor:
                 cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_id])
 
-            previous_entry = SysLogEntry.objects.filter(tenant_id=self.tenant_id).order_by("-id").first()
+            previous_entry = (
+                SysLogEntry.objects.filter(tenant_id=self.tenant_id)
+                .order_by("-id")
+                .first()
+            )
 
             if previous_entry is None:
                 # First entry in chain (genesis)
@@ -224,7 +253,11 @@ class SysLogEntry(SynaraImmutableLog):
             return self.previous_hash == "0" * 64
 
         # Get previous entry
-        previous_entry = SysLogEntry.objects.filter(tenant_id=self.tenant_id, id__lt=self.id).order_by("-id").first()
+        previous_entry = (
+            SysLogEntry.objects.filter(tenant_id=self.tenant_id, id__lt=self.id)
+            .order_by("-id")
+            .first()
+        )
 
         if previous_entry is None:
             # No previous entry but not genesis - chain broken
@@ -269,7 +302,11 @@ class SysLogEntry(SynaraImmutableLog):
         Returns:
             First SysLogEntry or None
         """
-        return cls.objects.filter(tenant_id=tenant_id, is_genesis=True).order_by("id").first()
+        return (
+            cls.objects.filter(tenant_id=tenant_id, is_genesis=True)
+            .order_by("id")
+            .first()
+        )
 
 
 class IntegrityViolation(SynaraImmutableLog):
@@ -284,10 +321,15 @@ class IntegrityViolation(SynaraImmutableLog):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    detected_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="When the violation was detected")
+    detected_at = models.DateTimeField(
+        auto_now_add=True, db_index=True, help_text="When the violation was detected"
+    )
 
     tenant_id = models.UUIDField(
-        db_index=True, null=True, blank=True, help_text="Tenant affected by the violation (SEC-001 §5.2)"
+        db_index=True,
+        null=True,
+        blank=True,
+        help_text="Tenant affected by the violation (SEC-001 §5.2)",
     )
 
     violation_type = models.CharField(
@@ -301,23 +343,34 @@ class IntegrityViolation(SynaraImmutableLog):
         help_text="Type of integrity violation",
     )
 
-    entry_id = models.BigIntegerField(null=True, blank=True, help_text="ID of the log entry with violation")
-
-    details = models.JSONField(default=dict, help_text="Detailed information about the violation")
-
-    is_resolved = models.BooleanField(
-        default=False, help_text="Whether this violation has been investigated and resolved"
+    entry_id = models.BigIntegerField(
+        null=True, blank=True, help_text="ID of the log entry with violation"
     )
 
-    resolved_at = models.DateTimeField(null=True, blank=True, help_text="When the violation was resolved")
+    details = models.JSONField(
+        default=dict, help_text="Detailed information about the violation"
+    )
 
-    resolution_notes = models.TextField(blank=True, help_text="Notes about how the violation was resolved")
+    is_resolved = models.BooleanField(
+        default=False,
+        help_text="Whether this violation has been investigated and resolved",
+    )
+
+    resolved_at = models.DateTimeField(
+        null=True, blank=True, help_text="When the violation was resolved"
+    )
+
+    resolution_notes = models.TextField(
+        blank=True, help_text="Notes about how the violation was resolved"
+    )
 
     class Meta(SynaraImmutableLog.Meta):
         db_table = "audit_integrity_violation"
         ordering = ["-detected_at"]
         indexes = [
-            models.Index(fields=["tenant_id", "detected_at"], name="violation_tenant_time"),
+            models.Index(
+                fields=["tenant_id", "detected_at"], name="violation_tenant_time"
+            ),
             models.Index(fields=["is_resolved"], name="violation_resolved"),
         ]
         verbose_name = "Integrity Violation"
@@ -370,7 +423,10 @@ class DriftViolation(SynaraImmutableLog):
     # ========== Identity ==========
 
     id = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False, help_text="Unique identifier for this drift violation"
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text="Unique identifier for this drift violation",
     )
 
     drift_signature = models.CharField(
@@ -383,7 +439,10 @@ class DriftViolation(SynaraImmutableLog):
     # ========== Classification ==========
 
     severity = models.CharField(
-        max_length=10, choices=SEVERITY_CHOICES, db_index=True, help_text="Severity level of the drift violation"
+        max_length=10,
+        choices=SEVERITY_CHOICES,
+        db_index=True,
+        help_text="Severity level of the drift violation",
     )
 
     enforcement_check = models.CharField(
@@ -395,9 +454,15 @@ class DriftViolation(SynaraImmutableLog):
 
     # ========== Location ==========
 
-    file_path = models.CharField(max_length=512, db_index=True, help_text="File path where the violation was detected")
+    file_path = models.CharField(
+        max_length=512,
+        db_index=True,
+        help_text="File path where the violation was detected",
+    )
 
-    line_number = models.IntegerField(null=True, blank=True, help_text="Line number where the violation was detected")
+    line_number = models.IntegerField(
+        null=True, blank=True, help_text="Line number where the violation was detected"
+    )
 
     function_name = models.CharField(
         max_length=255,
@@ -410,29 +475,46 @@ class DriftViolation(SynaraImmutableLog):
     # ========== Detection Metadata ==========
 
     detected_at = models.DateTimeField(
-        default=timezone.now, db_index=True, help_text="When this violation was detected"
+        default=timezone.now,
+        db_index=True,
+        help_text="When this violation was detected",
     )
 
-    detected_by = models.CharField(max_length=255, help_text="System or user that detected the violation")
+    detected_by = models.CharField(
+        max_length=255, help_text="System or user that detected the violation"
+    )
 
     # ========== Git Context ==========
 
     git_commit_sha = models.CharField(
-        max_length=40, null=True, blank=True, db_index=True, help_text="Git commit SHA where the violation was detected"
+        max_length=40,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Git commit SHA where the violation was detected",
     )
 
     git_author = models.CharField(
-        max_length=255, null=True, blank=True, help_text="Git commit author (for accountability)"
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Git commit author (for accountability)",
     )
 
     # ========== Violation Details ==========
 
-    violation_message = models.TextField(help_text="Human-readable description of the violation")
+    violation_message = models.TextField(
+        help_text="Human-readable description of the violation"
+    )
 
-    code_snippet = models.TextField(null=True, blank=True, help_text="Code snippet showing the violation")
+    code_snippet = models.TextField(
+        null=True, blank=True, help_text="Code snippet showing the violation"
+    )
 
     canonical_pattern = models.TextField(
-        null=True, blank=True, help_text="Description or example of the canonical pattern"
+        null=True,
+        blank=True,
+        help_text="Description or example of the canonical pattern",
     )
 
     # ========== Remediation ==========
@@ -442,11 +524,15 @@ class DriftViolation(SynaraImmutableLog):
     )
 
     is_auto_fix_safe = models.BooleanField(
-        default=False, help_text="Whether automated fix can be safely applied without review"
+        default=False,
+        help_text="Whether automated fix can be safely applied without review",
     )
 
     remediation_script = models.CharField(
-        max_length=512, null=True, blank=True, help_text="Path to remediation script or tool"
+        max_length=512,
+        null=True,
+        blank=True,
+        help_text="Path to remediation script or tool",
     )
 
     remediation_sla_hours = models.IntegerField(
@@ -454,54 +540,83 @@ class DriftViolation(SynaraImmutableLog):
     )
 
     remediation_due_at = models.DateTimeField(
-        null=True, blank=True, db_index=True, help_text="When remediation is due (detected_at + SLA)"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="When remediation is due (detected_at + SLA)",
     )
 
     is_sla_breached = models.BooleanField(
-        default=False, db_index=True, help_text="Whether the remediation SLA has been breached"
+        default=False,
+        db_index=True,
+        help_text="Whether the remediation SLA has been breached",
     )
 
     # ========== Governance Integration ==========
 
     is_governance_escalated = models.BooleanField(
-        default=False, db_index=True, help_text="Whether this violation has been escalated to governance"
+        default=False,
+        db_index=True,
+        help_text="Whether this violation has been escalated to governance",
     )
 
     governance_rule_id = models.UUIDField(
-        null=True, blank=True, db_index=True, help_text="Governance rule UUID (FK removed for Svend integration)"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Governance rule UUID (FK removed for Svend integration)",
     )
 
     governance_judgment_id = models.UUIDField(
-        null=True, blank=True, db_index=True, help_text="Governance judgment UUID (FK removed for Svend integration)"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Governance judgment UUID (FK removed for Svend integration)",
     )
 
     # ========== Causal Trace Graph Integration ==========
 
     correlation_id = models.UUIDField(
-        db_index=True, default=uuid.uuid4, help_text="Correlation ID for causal trace graph"
+        db_index=True,
+        default=uuid.uuid4,
+        help_text="Correlation ID for causal trace graph",
     )
 
     ctg_node_id = models.UUIDField(
-        null=True, blank=True, db_index=True, help_text="CTG node UUID (FK removed for Svend integration)"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="CTG node UUID (FK removed for Svend integration)",
     )
 
     # ========== Multi-Tenancy ==========
 
     tenant_id = models.UUIDField(
-        db_index=True, null=True, blank=True, help_text="Tenant identifier for multi-tenant deployments"
+        db_index=True,
+        null=True,
+        blank=True,
+        help_text="Tenant identifier for multi-tenant deployments",
     )
 
     # ========== Resolution ==========
 
     resolved_at = models.DateTimeField(
-        null=True, blank=True, db_index=True, help_text="When this violation was resolved"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="When this violation was resolved",
     )
 
     resolved_by = models.CharField(
-        max_length=255, null=True, blank=True, help_text="User or system that resolved the violation"
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="User or system that resolved the violation",
     )
 
-    resolution_notes = models.TextField(blank=True, help_text="Notes about how the violation was resolved")
+    resolution_notes = models.TextField(
+        blank=True, help_text="Notes about how the violation was resolved"
+    )
 
     # UUID chain backlink — which ChangeRequest remediates this violation
     remediation_change_id = models.UUIDField(
@@ -516,8 +631,12 @@ class DriftViolation(SynaraImmutableLog):
         ordering = ["-detected_at"]
         indexes = [
             # Detection and tracking
-            models.Index(fields=["tenant_id", "detected_at"], name="drift_tenant_detected"),
-            models.Index(fields=["enforcement_check", "severity"], name="drift_check_severity"),
+            models.Index(
+                fields=["tenant_id", "detected_at"], name="drift_tenant_detected"
+            ),
+            models.Index(
+                fields=["enforcement_check", "severity"], name="drift_check_severity"
+            ),
             models.Index(fields=["file_path"], name="drift_file_path"),
             models.Index(fields=["git_commit_sha"], name="drift_git_commit"),
             # Remediation tracking
@@ -525,7 +644,9 @@ class DriftViolation(SynaraImmutableLog):
             models.Index(fields=["remediation_due_at"], name="drift_remediation_due"),
             models.Index(fields=["resolved_at"], name="drift_resolved"),
             # Governance integration
-            models.Index(fields=["is_governance_escalated"], name="drift_gov_escalated"),
+            models.Index(
+                fields=["is_governance_escalated"], name="drift_gov_escalated"
+            ),
             models.Index(fields=["correlation_id"], name="drift_correlation"),
         ]
         verbose_name = "Drift Violation"
@@ -569,7 +690,9 @@ class DriftViolation(SynaraImmutableLog):
         if self.pk and self.__class__.objects.filter(pk=self.pk).exists():
             # Existing record — only allow mutable field updates
             update_fields = kwargs.get("update_fields")
-            if not update_fields or not set(update_fields).issubset(self.MUTABLE_FIELDS):
+            if not update_fields or not set(update_fields).issubset(
+                self.MUTABLE_FIELDS
+            ):
                 raise ValueError(
                     f"DriftViolation records are immutable except for resolution fields: "
                     f"{sorted(self.MUTABLE_FIELDS)}. Got: {update_fields}"
@@ -582,7 +705,9 @@ class DriftViolation(SynaraImmutableLog):
         if self.remediation_sla_hours and not self.remediation_due_at:
             from datetime import timedelta
 
-            self.remediation_due_at = self.detected_at + timedelta(hours=self.remediation_sla_hours)
+            self.remediation_due_at = self.detected_at + timedelta(
+                hours=self.remediation_sla_hours
+            )
 
         if self.remediation_due_at and not self.resolved_at:
             self.is_sla_breached = timezone.now() > self.remediation_due_at
@@ -642,7 +767,9 @@ class ComplianceCheck(models.Model):
         db_table = "syn_audit_compliance_check"
         ordering = ["-run_at"]
         indexes = [
-            models.Index(fields=["check_name", "-run_at"], name="compliance_check_name_time"),
+            models.Index(
+                fields=["check_name", "-run_at"], name="compliance_check_name_time"
+            ),
             models.Index(fields=["status", "-run_at"], name="compliance_status_time"),
         ]
 
@@ -662,10 +789,18 @@ class HealthPing(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     timestamp = models.DateTimeField(default=timezone.now, db_index=True)
-    is_healthy = models.BooleanField(help_text="True if /api/health/ returned 200 with expected JSON")
-    status_code = models.IntegerField(null=True, blank=True, help_text="HTTP status code (null if connection failed)")
-    response_time_ms = models.FloatField(null=True, blank=True, help_text="Response time in milliseconds")
-    error = models.CharField(max_length=500, blank=True, default="", help_text="Error message if ping failed")
+    is_healthy = models.BooleanField(
+        help_text="True if /api/health/ returned 200 with expected JSON"
+    )
+    status_code = models.IntegerField(
+        null=True, blank=True, help_text="HTTP status code (null if connection failed)"
+    )
+    response_time_ms = models.FloatField(
+        null=True, blank=True, help_text="Response time in milliseconds"
+    )
+    error = models.CharField(
+        max_length=500, blank=True, default="", help_text="Error message if ping failed"
+    )
 
     class Meta:
         db_table = "audit_health_ping"
@@ -730,14 +865,21 @@ class Incident(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    title = models.CharField(max_length=255, help_text="Short description of the incident")
+    title = models.CharField(
+        max_length=255, help_text="Short description of the incident"
+    )
 
-    description = models.TextField(help_text="Detailed description of the incident and its impact")
+    description = models.TextField(
+        help_text="Detailed description of the incident and its impact"
+    )
 
     # ========== Classification ==========
 
     severity = models.CharField(
-        max_length=10, choices=SEVERITY_CHOICES, db_index=True, help_text="Incident severity (INC-001 §3.1)"
+        max_length=10,
+        choices=SEVERITY_CHOICES,
+        db_index=True,
+        help_text="Incident severity (INC-001 §3.1)",
     )
 
     status = models.CharField(
@@ -749,31 +891,51 @@ class Incident(models.Model):
     )
 
     category = models.CharField(
-        max_length=15, choices=CATEGORY_CHOICES, default="other", help_text="Incident category (INC-001 §3.2)"
+        max_length=15,
+        choices=CATEGORY_CHOICES,
+        default="other",
+        help_text="Incident category (INC-001 §3.2)",
     )
 
     # ========== Lifecycle Timestamps (INC-001 §5.3) ==========
 
-    detected_at = models.DateTimeField(default=timezone.now, help_text="When the incident was detected")
+    detected_at = models.DateTimeField(
+        default=timezone.now, help_text="When the incident was detected"
+    )
 
-    acknowledged_at = models.DateTimeField(null=True, blank=True, help_text="When staff acknowledged the incident")
+    acknowledged_at = models.DateTimeField(
+        null=True, blank=True, help_text="When staff acknowledged the incident"
+    )
 
-    investigating_at = models.DateTimeField(null=True, blank=True, help_text="When investigation began")
+    investigating_at = models.DateTimeField(
+        null=True, blank=True, help_text="When investigation began"
+    )
 
-    mitigating_at = models.DateTimeField(null=True, blank=True, help_text="When mitigation/fix began")
+    mitigating_at = models.DateTimeField(
+        null=True, blank=True, help_text="When mitigation/fix began"
+    )
 
-    resolved_at = models.DateTimeField(null=True, blank=True, help_text="When the incident was resolved")
+    resolved_at = models.DateTimeField(
+        null=True, blank=True, help_text="When the incident was resolved"
+    )
 
     closed_at = models.DateTimeField(
-        null=True, blank=True, help_text="When post-mortem was completed and incident closed"
+        null=True,
+        blank=True,
+        help_text="When post-mortem was completed and incident closed",
     )
 
     # ========== Actors ==========
 
-    reported_by = models.CharField(max_length=255, default="system", help_text="Who or what reported the incident")
+    reported_by = models.CharField(
+        max_length=255, default="system", help_text="Who or what reported the incident"
+    )
 
     assigned_to = models.CharField(
-        max_length=255, blank=True, default="", help_text="Staff member assigned to the incident"
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Staff member assigned to the incident",
     )
 
     # ========== Linking ==========
@@ -788,17 +950,26 @@ class Incident(models.Model):
     )
 
     correlation_id = models.UUIDField(
-        null=True, blank=True, db_index=True, help_text="Correlation ID for audit trail linkage"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Correlation ID for audit trail linkage",
     )
 
     # ========== Resolution ==========
 
-    root_cause = models.TextField(blank=True, default="", help_text="Root cause analysis (INC-001 §8.2)")
+    root_cause = models.TextField(
+        blank=True, default="", help_text="Root cause analysis (INC-001 §8.2)"
+    )
 
-    resolution_summary = models.TextField(blank=True, default="", help_text="How the incident was resolved")
+    resolution_summary = models.TextField(
+        blank=True, default="", help_text="How the incident was resolved"
+    )
 
     post_mortem_notes = models.TextField(
-        blank=True, default="", help_text="Post-mortem analysis, lessons learned, prevention measures"
+        blank=True,
+        default="",
+        help_text="Post-mortem analysis, lessons learned, prevention measures",
     )
 
     class Meta:
@@ -871,24 +1042,42 @@ class IncidentLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     incident = models.ForeignKey(
-        Incident, on_delete=models.CASCADE, related_name="logs", help_text="The incident this log entry belongs to"
+        Incident,
+        on_delete=models.CASCADE,
+        related_name="logs",
+        help_text="The incident this log entry belongs to",
     )
 
-    timestamp = models.DateTimeField(auto_now_add=True, db_index=True, help_text="When this log entry was created")
+    timestamp = models.DateTimeField(
+        auto_now_add=True, db_index=True, help_text="When this log entry was created"
+    )
 
-    actor = models.CharField(max_length=255, help_text="Who or what created this log entry")
+    actor = models.CharField(
+        max_length=255, help_text="Who or what created this log entry"
+    )
 
     action = models.CharField(
-        max_length=20, choices=ACTION_CHOICES, db_index=True, help_text="Type of action being logged"
+        max_length=20,
+        choices=ACTION_CHOICES,
+        db_index=True,
+        help_text="Type of action being logged",
     )
 
-    from_state = models.CharField(max_length=20, blank=True, help_text="Previous state of the incident")
+    from_state = models.CharField(
+        max_length=20, blank=True, help_text="Previous state of the incident"
+    )
 
-    to_state = models.CharField(max_length=20, blank=True, help_text="New state of the incident")
+    to_state = models.CharField(
+        max_length=20, blank=True, help_text="New state of the incident"
+    )
 
-    details = models.JSONField(default=dict, help_text="Structured details: severity change, CR link, etc.")
+    details = models.JSONField(
+        default=dict, help_text="Structured details: severity change, CR link, etc."
+    )
 
-    message = models.TextField(blank=True, help_text="Human-readable description of what happened")
+    message = models.TextField(
+        blank=True, help_text="Human-readable description of what happened"
+    )
 
     class Meta:
         db_table = "syn_audit_incident_log"
@@ -1021,14 +1210,21 @@ class ChangeRequest(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    title = models.CharField(max_length=255, help_text="Short description of the change")
+    title = models.CharField(
+        max_length=255, help_text="Short description of the change"
+    )
 
-    description = models.TextField(help_text="Detailed description of what is being changed and why")
+    description = models.TextField(
+        help_text="Detailed description of what is being changed and why"
+    )
 
     # ========== Classification ==========
 
     change_type = models.CharField(
-        max_length=20, choices=CHANGE_TYPE_CHOICES, db_index=True, help_text="Category of change (CHG-001 §4.1)"
+        max_length=20,
+        choices=CHANGE_TYPE_CHOICES,
+        db_index=True,
+        help_text="Category of change (CHG-001 §4.1)",
     )
 
     risk_level = models.CharField(
@@ -1040,7 +1236,10 @@ class ChangeRequest(models.Model):
     )
 
     priority = models.CharField(
-        max_length=10, choices=PRIORITY_CHOICES, default="medium", help_text="Priority level per DEBT-001.md"
+        max_length=10,
+        choices=PRIORITY_CHOICES,
+        default="medium",
+        help_text="Priority level per DEBT-001.md",
     )
 
     status = models.CharField(
@@ -1052,61 +1251,100 @@ class ChangeRequest(models.Model):
     )
 
     is_emergency = models.BooleanField(
-        default=False, db_index=True, help_text="Emergency change flag — bypasses normal approval (CHG-001 §9)"
+        default=False,
+        db_index=True,
+        help_text="Emergency change flag — bypasses normal approval (CHG-001 §9)",
     )
 
     # ========== Planning ==========
 
-    justification = models.TextField(blank=True, help_text="Business justification for the change")
+    justification = models.TextField(
+        blank=True, help_text="Business justification for the change"
+    )
 
-    affected_files = models.JSONField(default=list, blank=True, help_text="List of files to be modified")
+    affected_files = models.JSONField(
+        default=list, blank=True, help_text="List of files to be modified"
+    )
 
-    implementation_plan = models.JSONField(default=dict, blank=True, help_text="Steps for implementing the change")
+    implementation_plan = models.JSONField(
+        default=dict, blank=True, help_text="Steps for implementing the change"
+    )
 
-    rollback_plan = models.JSONField(default=dict, blank=True, help_text="Steps for reverting the change if it fails")
+    rollback_plan = models.JSONField(
+        default=dict, blank=True, help_text="Steps for reverting the change if it fails"
+    )
 
     testing_plan = models.JSONField(
-        default=dict, blank=True, help_text="Steps for verifying the change after implementation"
+        default=dict,
+        blank=True,
+        help_text="Steps for verifying the change after implementation",
     )
 
     # ========== Planning Linkage (CHG-001 §5.6.1) ==========
 
     feature_id = models.UUIDField(
-        null=True, blank=True, db_index=True, help_text="Feature UUID from planning system (FEAT-xxx)"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Feature UUID from planning system (FEAT-xxx)",
     )
 
     task_id = models.UUIDField(
-        null=True, blank=True, db_index=True, help_text="PlanTask UUID from planning system (TASK-xxx)"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="PlanTask UUID from planning system (TASK-xxx)",
     )
 
     # ========== Linking ==========
 
-    issue_url = models.URLField(blank=True, help_text="Link to source issue (GitHub, internal tracker)")
-
-    parent_change_id = models.UUIDField(
-        null=True, blank=True, db_index=True, help_text="Parent change request (for sub-tasks)"
+    issue_url = models.URLField(
+        blank=True, help_text="Link to source issue (GitHub, internal tracker)"
     )
 
-    related_change_ids = models.JSONField(default=list, blank=True, help_text="List of related change request UUIDs")
+    parent_change_id = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Parent change request (for sub-tasks)",
+    )
 
-    debt_item = models.CharField(max_length=255, blank=True, help_text="Reference to DEBT.md item being closed")
+    related_change_ids = models.JSONField(
+        default=list, blank=True, help_text="List of related change request UUIDs"
+    )
 
-    commit_shas = models.JSONField(default=list, blank=True, help_text="Git commit SHAs associated with this change")
+    debt_item = models.CharField(
+        max_length=255, blank=True, help_text="Reference to DEBT.md item being closed"
+    )
 
-    log_md_ref = models.CharField(max_length=255, blank=True, help_text="Reference to log.md section")
+    commit_shas = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Git commit SHAs associated with this change",
+    )
+
+    log_md_ref = models.CharField(
+        max_length=255, blank=True, help_text="Reference to log.md section"
+    )
 
     # ========== UUID Linking (Synara Convention) ==========
 
     compliance_check_ids = models.JSONField(
-        default=list, blank=True, help_text="UUIDs of ComplianceCheck records that triggered or relate to this change"
+        default=list,
+        blank=True,
+        help_text="UUIDs of ComplianceCheck records that triggered or relate to this change",
     )
 
     drift_violation_ids = models.JSONField(
-        default=list, blank=True, help_text="UUIDs of DriftViolation records this change remediates"
+        default=list,
+        blank=True,
+        help_text="UUIDs of DriftViolation records this change remediates",
     )
 
     audit_entry_ids = models.JSONField(
-        default=list, blank=True, help_text="IDs of SysLogEntry records related to this change"
+        default=list,
+        blank=True,
+        help_text="IDs of SysLogEntry records related to this change",
     )
 
     # ========== Lifecycle Timestamps ==========
@@ -1121,25 +1359,36 @@ class ChangeRequest(models.Model):
 
     # ========== Actors ==========
 
-    author = models.CharField(max_length=255, help_text="Who created the change request")
+    author = models.CharField(
+        max_length=255, help_text="Who created the change request"
+    )
 
-    approver = models.CharField(max_length=255, blank=True, help_text="Who approved the change")
+    approver = models.CharField(
+        max_length=255, blank=True, help_text="Who approved the change"
+    )
 
     # ========== Correlation ==========
 
     correlation_id = models.UUIDField(
-        default=uuid.uuid4, db_index=True, help_text="Correlation ID for audit trail linkage"
+        default=uuid.uuid4,
+        db_index=True,
+        help_text="Correlation ID for audit trail linkage",
     )
 
     tenant_id = models.UUIDField(
-        null=True, blank=True, db_index=True, help_text="Tenant identifier for multi-tenant isolation"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Tenant identifier for multi-tenant isolation",
     )
 
     class Meta:
         db_table = "syn_audit_change_request"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["change_type", "-created_at"], name="chg_type_created"),
+            models.Index(
+                fields=["change_type", "-created_at"], name="chg_type_created"
+            ),
             models.Index(fields=["status", "-created_at"], name="chg_status_created"),
             models.Index(fields=["risk_level", "-created_at"], name="chg_risk_created"),
             models.Index(fields=["is_emergency"], name="chg_emergency"),
@@ -1179,7 +1428,11 @@ class ChangeRequest(models.Model):
 
             # Detect status change by reading current DB value
             try:
-                old = ChangeRequest.objects.filter(pk=self.pk).values_list("status", flat=True).first()
+                old = (
+                    ChangeRequest.objects.filter(pk=self.pk)
+                    .values_list("status", flat=True)
+                    .first()
+                )
             except Exception:
                 old = None
 
@@ -1207,13 +1460,19 @@ class ChangeRequest(models.Model):
         errors = self.validate_for_transition(new_status)
         if errors:
             raise ValidationError(
-                f"CHG-001 violation: cannot transition to '{new_status}' — " + "; ".join(errors) + f". CR: {self.title}"
+                f"CHG-001 violation: cannot transition to '{new_status}' — "
+                + "; ".join(errors)
+                + f". CR: {self.title}"
             )
 
         # 3. ChangeLog chain check — key transitions must have preceding log entries
         from syn.audit.models import ChangeLog
 
-        log_actions = set(ChangeLog.objects.filter(change_request=self).values_list("action", flat=True))
+        log_actions = set(
+            ChangeLog.objects.filter(change_request=self).values_list(
+                "action", flat=True
+            )
+        )
 
         if new_status == "in_progress" and "approved" not in log_actions:
             raise ValidationError(
@@ -1311,7 +1570,9 @@ class ChangeRequest(models.Model):
                     errors.append("rollback_plan is required for this change type")
             if self.change_type in self.RISK_ASSESSMENT_TYPES:
                 if not self.risk_assessments.exists():
-                    errors.append(f"RiskAssessment required for {self.change_type} before approval")
+                    errors.append(
+                        f"RiskAssessment required for {self.change_type} before approval"
+                    )
             # IVR-001: Mechanical veto — security_analyst rejection blocks transition
             if self.change_type in self.MULTI_AGENT_TYPES:
                 for ra in self.risk_assessments.all():
@@ -1319,7 +1580,9 @@ class ChangeRequest(models.Model):
                         agent_role="security_analyst",
                         recommendation="reject",
                     ).exists():
-                        errors.append("Security analyst veto — change blocked (IVR-001)")
+                        errors.append(
+                            "Security analyst veto — change blocked (IVR-001)"
+                        )
                         break
 
         # completed requirements
@@ -1353,10 +1616,14 @@ class ChangeRequest(models.Model):
             from api.models import Feature, PlanTask
 
             if task_id:
-                PlanTask.objects.filter(id=task_id, change_request_id__isnull=True).update(change_request_id=self.id)
+                PlanTask.objects.filter(
+                    id=task_id, change_request_id__isnull=True
+                ).update(change_request_id=self.id)
             if feature_id:
                 feat = Feature.objects.filter(id=feature_id).first()
-                if feat and str(self.id) not in [str(x) for x in feat.change_request_ids]:
+                if feat and str(self.id) not in [
+                    str(x) for x in feat.change_request_ids
+                ]:
                     feat.change_request_ids = feat.change_request_ids + [str(self.id)]
                     feat.save(update_fields=["change_request_ids", "updated_at"])
         except Exception:
@@ -1570,29 +1837,45 @@ class ChangeLog(models.Model):
         help_text="The change request this log entry belongs to",
     )
 
-    timestamp = models.DateTimeField(auto_now_add=True, db_index=True, help_text="When this log entry was created")
+    timestamp = models.DateTimeField(
+        auto_now_add=True, db_index=True, help_text="When this log entry was created"
+    )
 
-    actor = models.CharField(max_length=255, help_text="Who or what created this log entry")
+    actor = models.CharField(
+        max_length=255, help_text="Who or what created this log entry"
+    )
 
     action = models.CharField(
-        max_length=30, choices=ACTION_CHOICES, db_index=True, help_text="Type of action being logged"
+        max_length=30,
+        choices=ACTION_CHOICES,
+        db_index=True,
+        help_text="Type of action being logged",
     )
 
-    from_state = models.CharField(max_length=30, blank=True, help_text="Previous state of the change request")
+    from_state = models.CharField(
+        max_length=30, blank=True, help_text="Previous state of the change request"
+    )
 
-    to_state = models.CharField(max_length=30, blank=True, help_text="New state of the change request")
+    to_state = models.CharField(
+        max_length=30, blank=True, help_text="New state of the change request"
+    )
 
     details = models.JSONField(
-        default=dict, help_text="Structured details: commit_sha, log_md_ref, issue_url, test_results, etc."
+        default=dict,
+        help_text="Structured details: commit_sha, log_md_ref, issue_url, test_results, etc.",
     )
 
-    message = models.TextField(blank=True, help_text="Human-readable description of what happened")
+    message = models.TextField(
+        blank=True, help_text="Human-readable description of what happened"
+    )
 
     class Meta:
         db_table = "syn_audit_change_log"
         ordering = ["timestamp"]
         indexes = [
-            models.Index(fields=["change_request", "timestamp"], name="chglog_request_time"),
+            models.Index(
+                fields=["change_request", "timestamp"], name="chglog_request_time"
+            ),
             models.Index(fields=["action", "-timestamp"], name="chglog_action_time"),
         ]
         verbose_name = "Change Log"
@@ -1657,16 +1940,26 @@ class RiskAssessment(models.Model):
     )
 
     assessment_type = models.CharField(
-        max_length=20, choices=ASSESSMENT_TYPE_CHOICES, help_text="Type of risk assessment performed"
+        max_length=20,
+        choices=ASSESSMENT_TYPE_CHOICES,
+        help_text="Type of risk assessment performed",
     )
 
     # Aggregate risk scores (1-5 per dimension)
     security_score = models.FloatField(default=0, help_text="Security risk score (1-5)")
-    availability_score = models.FloatField(default=0, help_text="Availability risk score (1-5)")
-    integrity_score = models.FloatField(default=0, help_text="Processing integrity risk score (1-5)")
-    confidentiality_score = models.FloatField(default=0, help_text="Confidentiality risk score (1-5)")
+    availability_score = models.FloatField(
+        default=0, help_text="Availability risk score (1-5)"
+    )
+    integrity_score = models.FloatField(
+        default=0, help_text="Processing integrity risk score (1-5)"
+    )
+    confidentiality_score = models.FloatField(
+        default=0, help_text="Confidentiality risk score (1-5)"
+    )
     privacy_score = models.FloatField(default=0, help_text="Privacy risk score (1-5)")
-    overall_score = models.FloatField(default=0, help_text="Overall risk score (max of dimensions)")
+    overall_score = models.FloatField(
+        default=0, help_text="Overall risk score (max of dimensions)"
+    )
 
     overall_recommendation = models.CharField(
         max_length=30,
@@ -1675,23 +1968,35 @@ class RiskAssessment(models.Model):
         help_text="Aggregate recommendation from all votes",
     )
 
-    conditions = models.JSONField(default=list, help_text="Required conditions/mitigations if approve_with_conditions")
+    conditions = models.JSONField(
+        default=list,
+        help_text="Required conditions/mitigations if approve_with_conditions",
+    )
 
-    summary = models.TextField(blank=True, help_text="Human-readable summary of the risk assessment")
+    summary = models.TextField(
+        blank=True, help_text="Human-readable summary of the risk assessment"
+    )
 
     is_retroactive = models.BooleanField(
-        default=False, help_text="True if this is a retroactive assessment for an emergency change"
+        default=False,
+        help_text="True if this is a retroactive assessment for an emergency change",
     )
 
     assessed_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    assessed_by = models.CharField(max_length=255, default="system", help_text="Who or what performed the assessment")
+    assessed_by = models.CharField(
+        max_length=255,
+        default="system",
+        help_text="Who or what performed the assessment",
+    )
 
     class Meta:
         db_table = "syn_audit_risk_assessment"
         ordering = ["-assessed_at"]
         indexes = [
-            models.Index(fields=["change_request", "-assessed_at"], name="risk_change_time"),
+            models.Index(
+                fields=["change_request", "-assessed_at"], name="risk_change_time"
+            ),
             models.Index(fields=["overall_recommendation"], name="risk_recommendation"),
         ]
         verbose_name = "Risk Assessment"
@@ -1706,7 +2011,13 @@ class RiskAssessment(models.Model):
         if not votes:
             return
 
-        scores = {"security": [], "availability": [], "integrity": [], "confidentiality": [], "privacy": []}
+        scores = {
+            "security": [],
+            "availability": [],
+            "integrity": [],
+            "confidentiality": [],
+            "privacy": [],
+        }
         recommendations = []
 
         for vote in votes:
@@ -1717,15 +2028,29 @@ class RiskAssessment(models.Model):
             recommendations.append(vote.recommendation)
 
         # Per-dimension: average
-        self.security_score = sum(scores["security"]) / len(scores["security"]) if scores["security"] else 0
+        self.security_score = (
+            sum(scores["security"]) / len(scores["security"])
+            if scores["security"]
+            else 0
+        )
         self.availability_score = (
-            sum(scores["availability"]) / len(scores["availability"]) if scores["availability"] else 0
+            sum(scores["availability"]) / len(scores["availability"])
+            if scores["availability"]
+            else 0
         )
-        self.integrity_score = sum(scores["integrity"]) / len(scores["integrity"]) if scores["integrity"] else 0
+        self.integrity_score = (
+            sum(scores["integrity"]) / len(scores["integrity"])
+            if scores["integrity"]
+            else 0
+        )
         self.confidentiality_score = (
-            sum(scores["confidentiality"]) / len(scores["confidentiality"]) if scores["confidentiality"] else 0
+            sum(scores["confidentiality"]) / len(scores["confidentiality"])
+            if scores["confidentiality"]
+            else 0
         )
-        self.privacy_score = sum(scores["privacy"]) / len(scores["privacy"]) if scores["privacy"] else 0
+        self.privacy_score = (
+            sum(scores["privacy"]) / len(scores["privacy"]) if scores["privacy"] else 0
+        )
 
         # Overall: max of dimensions
         self.overall_score = max(
@@ -1737,7 +2062,10 @@ class RiskAssessment(models.Model):
         )
 
         # Recommendation: majority vote, security_analyst has veto on reject
-        if any(v.recommendation == "reject" and v.agent_role == "security_analyst" for v in votes):
+        if any(
+            v.recommendation == "reject" and v.agent_role == "security_analyst"
+            for v in votes
+        ):
             self.overall_recommendation = "reject"
         elif recommendations.count("reject") > len(recommendations) / 2:
             self.overall_recommendation = "reject"
@@ -1789,18 +2117,29 @@ class AgentVote(models.Model):
     )
 
     agent_role = models.CharField(
-        max_length=30, choices=AGENT_ROLE_CHOICES, help_text="Role perspective of the voting agent"
+        max_length=30,
+        choices=AGENT_ROLE_CHOICES,
+        help_text="Role perspective of the voting agent",
     )
 
-    recommendation = models.CharField(max_length=30, choices=RECOMMENDATION_CHOICES, help_text="Agent's recommendation")
+    recommendation = models.CharField(
+        max_length=30,
+        choices=RECOMMENDATION_CHOICES,
+        help_text="Agent's recommendation",
+    )
 
     risk_scores = models.JSONField(
-        default=dict, help_text="Risk scores per dimension: {security: 1-5, availability: 1-5, ...}"
+        default=dict,
+        help_text="Risk scores per dimension: {security: 1-5, availability: 1-5, ...}",
     )
 
-    rationale = models.TextField(help_text="Structured justification for the recommendation")
+    rationale = models.TextField(
+        help_text="Structured justification for the recommendation"
+    )
 
-    conditions = models.JSONField(default=list, help_text="Required mitigations if approve_with_conditions")
+    conditions = models.JSONField(
+        default=list, help_text="Required mitigations if approve_with_conditions"
+    )
 
     voted_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
@@ -1808,7 +2147,9 @@ class AgentVote(models.Model):
         db_table = "syn_audit_agent_vote"
         ordering = ["voted_at"]
         indexes = [
-            models.Index(fields=["risk_assessment", "agent_role"], name="vote_assessment_role"),
+            models.Index(
+                fields=["risk_assessment", "agent_role"], name="vote_assessment_role"
+            ),
         ]
         verbose_name = "Agent Vote"
         verbose_name_plural = "Agent Votes"
@@ -1858,9 +2199,15 @@ class RiskEntry(models.Model):
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
     likelihood = models.IntegerField(help_text="1-5: probability of occurrence")
     severity = models.IntegerField(help_text="1-5: impact if it occurs")
-    detectability = models.IntegerField(help_text="1-5: difficulty of detection (5=hardest)")
-    rpn = models.IntegerField(default=0, help_text="Risk Priority Number (L×S×D, max 125)")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="identified")
+    detectability = models.IntegerField(
+        help_text="1-5: difficulty of detection (5=hardest)"
+    )
+    rpn = models.IntegerField(
+        default=0, help_text="Risk Priority Number (L×S×D, max 125)"
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="identified"
+    )
     mitigation_plan = models.TextField(blank=True, default="")
     owner = models.CharField(max_length=100, help_text="Person or role responsible")
     source_cr = models.ForeignKey(
@@ -1871,7 +2218,9 @@ class RiskEntry(models.Model):
         related_name="risk_entries",
         help_text="Originating ChangeRequest",
     )
-    related_crs = models.JSONField(default=list, blank=True, help_text="UUIDs of related ChangeRequests")
+    related_crs = models.JSONField(
+        default=list, blank=True, help_text="UUIDs of related ChangeRequests"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1921,22 +2270,48 @@ class CalibrationReport(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     date = models.DateField(db_index=True)
-    overall_coverage = models.FloatField(null=True, blank=True, help_text="Overall line coverage %")
-    tier1_coverage = models.FloatField(null=True, blank=True, help_text="Tier 1 (Customer Trust) coverage %")
-    tier2_coverage = models.FloatField(null=True, blank=True, help_text="Tier 2 (Revenue Path) coverage %")
-    tier3_coverage = models.FloatField(null=True, blank=True, help_text="Tier 3 (Feature Surface) coverage %")
-    tier4_coverage = models.FloatField(null=True, blank=True, help_text="Tier 4 (Infrastructure) coverage %")
-    calibration_pass_rate = models.FloatField(null=True, blank=True, help_text="Calibration case pass rate %")
-    calibration_cases_run = models.IntegerField(default=0, help_text="Number of calibration cases executed")
-    calibration_cases_passed = models.IntegerField(default=0, help_text="Number of calibration cases that passed")
-    endpoint_coverage = models.FloatField(null=True, blank=True, help_text="Endpoint smoke test coverage %")
-    golden_file_count = models.IntegerField(default=0, help_text="Number of golden files in agents_api/tests/golden/")
+    overall_coverage = models.FloatField(
+        null=True, blank=True, help_text="Overall line coverage %"
+    )
+    tier1_coverage = models.FloatField(
+        null=True, blank=True, help_text="Tier 1 (Customer Trust) coverage %"
+    )
+    tier2_coverage = models.FloatField(
+        null=True, blank=True, help_text="Tier 2 (Revenue Path) coverage %"
+    )
+    tier3_coverage = models.FloatField(
+        null=True, blank=True, help_text="Tier 3 (Feature Surface) coverage %"
+    )
+    tier4_coverage = models.FloatField(
+        null=True, blank=True, help_text="Tier 4 (Infrastructure) coverage %"
+    )
+    calibration_pass_rate = models.FloatField(
+        null=True, blank=True, help_text="Calibration case pass rate %"
+    )
+    calibration_cases_run = models.IntegerField(
+        default=0, help_text="Number of calibration cases executed"
+    )
+    calibration_cases_passed = models.IntegerField(
+        default=0, help_text="Number of calibration cases that passed"
+    )
+    endpoint_coverage = models.FloatField(
+        null=True, blank=True, help_text="Endpoint smoke test coverage %"
+    )
+    golden_file_count = models.IntegerField(
+        default=0, help_text="Number of golden files in agents_api/tests/golden/"
+    )
     complexity_violations = models.IntegerField(
         default=0, help_text="Files exceeding 3000-line limit without exemption"
     )
-    ratchet_baseline = models.FloatField(default=0.0, help_text="Coverage floor — next report must meet or exceed this")
-    is_certificate = models.BooleanField(default=False, help_text="True for monthly calibration certificates")
-    details = models.JSONField(default=dict, help_text="Per-module breakdown and additional metrics")
+    ratchet_baseline = models.FloatField(
+        default=0.0, help_text="Coverage floor — next report must meet or exceed this"
+    )
+    is_certificate = models.BooleanField(
+        default=False, help_text="True for monthly calibration certificates"
+    )
+    details = models.JSONField(
+        default=dict, help_text="Per-module breakdown and additional metrics"
+    )
 
     class Meta:
         db_table = "syn_audit_calibration_report"
@@ -1950,5 +2325,9 @@ class CalibrationReport(models.Model):
 
     def __str__(self):
         cert = " [CERTIFICATE]" if self.is_certificate else ""
-        cov = f"{self.overall_coverage:.1f}%" if self.overall_coverage is not None else "unmeasured"
+        cov = (
+            f"{self.overall_coverage:.1f}%"
+            if self.overall_coverage is not None
+            else "unmeasured"
+        )
         return f"Calibration {self.date} — {cov}{cert}"

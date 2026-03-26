@@ -9,51 +9,151 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0057_managementreviewtemplate_managementreview_template'),
-        ('core', '0012_add_project_class'),
+        ("agents_api", "0057_managementreviewtemplate_managementreview_template"),
+        ("core", "0012_add_project_class"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CEMatrix',
+            name="CEMatrix",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(blank=True, max_length=255)),
-                ('outputs', models.JSONField(default=list, help_text='Process outputs (Y\'s): [{"name": "...", "weight": 1-10}]')),
-                ('inputs', models.JSONField(default=list, help_text='Process inputs (X\'s): [{"name": "..."}]')),
-                ('scores', models.JSONField(default=dict, help_text='Scoring grid: str(input_idx) → str(output_idx) → 0|1|3|9')),
-                ('status', models.CharField(choices=[('draft', 'Draft'), ('scoring', 'Scoring'), ('complete', 'Complete')], default='draft', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ce_matrices', to=settings.AUTH_USER_MODEL)),
-                ('project', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='ce_matrices', to='core.project')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("title", models.CharField(blank=True, max_length=255)),
+                (
+                    "outputs",
+                    models.JSONField(
+                        default=list,
+                        help_text='Process outputs (Y\'s): [{"name": "...", "weight": 1-10}]',
+                    ),
+                ),
+                (
+                    "inputs",
+                    models.JSONField(
+                        default=list,
+                        help_text='Process inputs (X\'s): [{"name": "..."}]',
+                    ),
+                ),
+                (
+                    "scores",
+                    models.JSONField(
+                        default=dict,
+                        help_text="Scoring grid: str(input_idx) → str(output_idx) → 0|1|3|9",
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Draft"),
+                            ("scoring", "Scoring"),
+                            ("complete", "Complete"),
+                        ],
+                        default="draft",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="ce_matrices",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "project",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="ce_matrices",
+                        to="core.project",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'C&E Matrix',
-                'verbose_name_plural': 'C&E Matrices',
-                'db_table': 'ce_matrices',
-                'ordering': ['-updated_at'],
+                "verbose_name": "C&E Matrix",
+                "verbose_name_plural": "C&E Matrices",
+                "db_table": "ce_matrices",
+                "ordering": ["-updated_at"],
             },
         ),
         migrations.CreateModel(
-            name='IshikawaDiagram',
+            name="IshikawaDiagram",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(blank=True, max_length=255)),
-                ('effect', models.TextField(blank=True, help_text='The process-level effect being analyzed (the fish head)')),
-                ('branches', models.JSONField(default=list, help_text='6M category branches with recursive causes')),
-                ('status', models.CharField(choices=[('draft', 'Draft'), ('analyzing', 'Analyzing'), ('complete', 'Complete')], default='draft', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ishikawa_diagrams', to=settings.AUTH_USER_MODEL)),
-                ('project', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='ishikawa_diagrams', to='core.project')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("title", models.CharField(blank=True, max_length=255)),
+                (
+                    "effect",
+                    models.TextField(
+                        blank=True,
+                        help_text="The process-level effect being analyzed (the fish head)",
+                    ),
+                ),
+                (
+                    "branches",
+                    models.JSONField(
+                        default=list,
+                        help_text="6M category branches with recursive causes",
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Draft"),
+                            ("analyzing", "Analyzing"),
+                            ("complete", "Complete"),
+                        ],
+                        default="draft",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="ishikawa_diagrams",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "project",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="ishikawa_diagrams",
+                        to="core.project",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Ishikawa Diagram',
-                'verbose_name_plural': 'Ishikawa Diagrams',
-                'db_table': 'ishikawa_diagrams',
-                'ordering': ['-updated_at'],
+                "verbose_name": "Ishikawa Diagram",
+                "verbose_name_plural": "Ishikawa Diagrams",
+                "db_table": "ishikawa_diagrams",
+                "ordering": ["-updated_at"],
             },
         ),
     ]

@@ -31,7 +31,12 @@ CALCULATION_METHODS = {
         "category": "labor",
         "description": "Savings from reducing cycle time or changeover",
         "formula": "(BaselineTime - ActualTime) / 3600 × Volume × LaborRate",
-        "variables": ["baseline_seconds", "actual_seconds", "volume", "labor_rate_per_hour"],
+        "variables": [
+            "baseline_seconds",
+            "actual_seconds",
+            "volume",
+            "labor_rate_per_hour",
+        ],
     },
     "headcount": {
         "name": "Headcount Reduction",
@@ -85,7 +90,9 @@ CALCULATION_METHODS = {
 }
 
 
-def calculate_savings(method, baseline, actual, volume=1.0, cost_per_unit=1.0, **kwargs):
+def calculate_savings(
+    method, baseline, actual, volume=1.0, cost_per_unit=1.0, **kwargs
+):
     """Calculate savings using the specified method.
 
     Args:
@@ -354,7 +361,9 @@ def evaluate_custom_formula(formula, variables):
         elif isinstance(node, ast.UnaryOp):
             op_fn = _SAFE_OPS.get(type(node.op))
             if op_fn is None:
-                raise ValueError(f"Unsupported unary operator: {type(node.op).__name__}")
+                raise ValueError(
+                    f"Unsupported unary operator: {type(node.op).__name__}"
+                )
             return op_fn(_eval(node.operand, depth + 1))
         elif isinstance(node, ast.Call):
             if not isinstance(node.func, ast.Name):
@@ -384,7 +393,9 @@ def calculate_ttm_baseline(baseline_data):
     Returns:
         dict with ttm_metric, ttm_volume, month_count
     """
-    values = [b["metric_value"] for b in baseline_data if b.get("metric_value") is not None]
+    values = [
+        b["metric_value"] for b in baseline_data if b.get("metric_value") is not None
+    ]
     volumes = [b["volume"] for b in baseline_data if b.get("volume") is not None]
 
     return {
@@ -424,7 +435,9 @@ def aggregate_monthly_savings(monthly_actuals):
     return {
         "ytd_savings": round(ytd, 2),
         "monthly_trend": trend,
-        "months_reported": len([m for m in monthly_actuals if m.get("savings") is not None]),
+        "months_reported": len(
+            [m for m in monthly_actuals if m.get("savings") is not None]
+        ),
     }
 
 
@@ -482,13 +495,27 @@ def estimate_savings_from_vsm_delta(
     # time_reduction and headcount use labor_rate; material methods use cost_per_unit
     if suggested == "headcount":
         annual_cost_per_employee = labor_rate * 2080  # 40hr/wk × 52wk
-        result = calculate_savings("headcount", ops_current, ops_future, 1, annual_cost_per_employee)
+        result = calculate_savings(
+            "headcount", ops_current, ops_future, 1, annual_cost_per_employee
+        )
     elif suggested == "time_reduction":
-        total_time_current = ct_current + (co_current / max(1, float(current_step.get("batch_size") or 1)))
-        total_time_future = ct_future + (co_future / max(1, float(future_step.get("batch_size") or 1)))
-        result = calculate_savings("time_reduction", total_time_current, total_time_future, annual_volume, labor_rate)
+        total_time_current = ct_current + (
+            co_current / max(1, float(current_step.get("batch_size") or 1))
+        )
+        total_time_future = ct_future + (
+            co_future / max(1, float(future_step.get("batch_size") or 1))
+        )
+        result = calculate_savings(
+            "time_reduction",
+            total_time_current,
+            total_time_future,
+            annual_volume,
+            labor_rate,
+        )
     else:
-        result = calculate_savings(method, ct_current, ct_future, annual_volume, cost_per_unit)
+        result = calculate_savings(
+            method, ct_current, ct_future, annual_volume, cost_per_unit
+        )
 
     return {
         "cycle_time_delta": round(ct_delta, 2),
@@ -521,7 +548,9 @@ def estimate_savings_monte_carlo(
     Returns percentile-based confidence intervals alongside the point estimate.
     """
     # Get deterministic baseline
-    det = estimate_savings_from_vsm_delta(current_step, future_step, method, annual_volume, cost_per_unit, labor_rate)
+    det = estimate_savings_from_vsm_delta(
+        current_step, future_step, method, annual_volume, cost_per_unit, labor_rate
+    )
 
     savings = np.empty(n_simulations)
     for i in range(n_simulations):
@@ -546,7 +575,9 @@ def estimate_savings_monte_carlo(
         perturbed_future["uptime"] = ut_cur + (ut_fut - ut_cur) * realization
         perturbed_future["batch_size"] = future_step.get("batch_size", 1)
 
-        sim = estimate_savings_from_vsm_delta(current_step, perturbed_future, method, vol, cpu, lr)
+        sim = estimate_savings_from_vsm_delta(
+            current_step, perturbed_future, method, vol, cpu, lr
+        )
         savings[i] = sim["estimated_annual_savings"]
 
     return {

@@ -88,7 +88,11 @@ class NormalGammaPosterior:
         kappa_new = min(self.kappa + n, self._KAPPA_MAX)
         mu_new = (self.kappa * self.mu + n * x_bar) / kappa_new
         alpha_new = self.alpha + n / 2.0
-        beta_new = self.beta + n * s2 / 2.0 + self.kappa * n * (x_bar - self.mu) ** 2 / (2.0 * kappa_new)
+        beta_new = (
+            self.beta
+            + n * s2 / 2.0
+            + self.kappa * n * (x_bar - self.mu) ** 2 / (2.0 * kappa_new)
+        )
         beta_new = np.clip(beta_new, self._BETA_MIN, self._BETA_MAX)
 
         self.mu = mu_new
@@ -144,7 +148,9 @@ class NormalGammaPosterior:
         return float(sp_stats.t.logpdf(x, df=nu, loc=loc, scale=scale))
 
     def copy(self) -> NormalGammaPosterior:
-        return NormalGammaPosterior(mu=self.mu, kappa=self.kappa, alpha=self.alpha, beta=self.beta)
+        return NormalGammaPosterior(
+            mu=self.mu, kappa=self.kappa, alpha=self.alpha, beta=self.beta
+        )
 
     def discount(self, factor: float) -> NormalGammaPosterior:
         """Discount certainty by factor ∈ (0,1] for prior inheritance."""
@@ -193,7 +199,9 @@ class TaguchiLossResult:
     target: float  # target value used
 
 
-def compute_taguchi_loss(posterior: NormalGammaPosterior, target: float, k: float = 1.0) -> TaguchiLossResult:
+def compute_taguchi_loss(
+    posterior: NormalGammaPosterior, target: float, k: float = 1.0
+) -> TaguchiLossResult:
     """Compute expected Taguchi loss from a Normal-Gamma posterior.
 
     Analytical: no sampling needed. Same posterior used for Cpk.
@@ -299,7 +307,9 @@ class BeliefChartPoint:
     current_regime_std: float
     reference_mean: float
     alert_level: str  # 'nominal' | 'watch' | 'alert' | 'alarm'
-    observation_weight: float = 1.0  # DPD weight (1.0 = standard, <1 = downweighted outlier)
+    observation_weight: float = (
+        1.0  # DPD weight (1.0 = standard, <1 = downweighted outlier)
+    )
 
 
 class BeliefChart:
@@ -333,7 +343,9 @@ class BeliefChart:
 
         # Sufficient statistics per run length
         # Each entry: (mu, kappa, alpha, beta)
-        self._suff = [(self.prior.mu, self.prior.kappa, self.prior.alpha, self.prior.beta)]
+        self._suff = [
+            (self.prior.mu, self.prior.kappa, self.prior.alpha, self.prior.beta)
+        ]
 
         self._reference_mean = self.prior.mu
         self._t = 0
@@ -387,7 +399,9 @@ class BeliefChart:
         # 6. Update sufficient statistics
         new_suff = []
         # r=0: reset to prior
-        new_suff.append((self.prior.mu, self.prior.kappa, self.prior.alpha, self.prior.beta))
+        new_suff.append(
+            (self.prior.mu, self.prior.kappa, self.prior.alpha, self.prior.beta)
+        )
         # r>0: update each run's sufficient statistics
         # When beta_robustness > 0, use weighted updates (Dm-BOCD §8)
         for i in range(n_r):
@@ -405,7 +419,9 @@ class BeliefChart:
                 kappa_new = float(self.max_neff)
                 alpha_new *= decay
                 beta_new *= decay
-            new_suff.append((mu_new, min(kappa_new, 1e8), alpha_new, max(beta_new, 1e-15)))
+            new_suff.append(
+                (mu_new, min(kappa_new, 1e8), alpha_new, max(beta_new, 1e-15))
+            )
 
         # 7. Truncate to top K run lengths
         if len(new_log_R) > self.K:
@@ -524,11 +540,17 @@ class EDetector:
         x_c = max(self.a, min(self.b, x))
 
         # Upper detector: testing for upward shift (lambda > 0)
-        log_e_upper = self._lambda_upper * (x_c - self.mu_0) - self._lambda_upper**2 * self.range_sq
+        log_e_upper = (
+            self._lambda_upper * (x_c - self.mu_0)
+            - self._lambda_upper**2 * self.range_sq
+        )
         self._log_N_upper = max(0.0, self._log_N_upper) + log_e_upper
 
         # Lower detector: testing for downward shift (lambda < 0)
-        log_e_lower = self._lambda_lower * (x_c - self.mu_0) - self._lambda_lower**2 * self.range_sq
+        log_e_lower = (
+            self._lambda_lower * (x_c - self.mu_0)
+            - self._lambda_lower**2 * self.range_sq
+        )
         self._log_N_lower = max(0.0, self._log_N_lower) + log_e_lower
 
         # Combined statistic
@@ -612,7 +634,9 @@ class UncertaintyFusion:
         self.gage_alpha += k / 2.0
         self.gage_beta += ss / 2.0
 
-    def fuse_point(self, x_obs: float, process_mu: float, process_var: float) -> UncertaintyFusedPoint:
+    def fuse_point(
+        self, x_obs: float, process_mu: float, process_var: float
+    ) -> UncertaintyFusedPoint:
         """Compute fused estimate of true value given observation."""
         gage_var = self.gage_variance
         gage_std = math.sqrt(gage_var)
@@ -691,7 +715,11 @@ class EvidenceAccumulation:
         # Gaussian mixture e-value (Grünwald 2024)
         # e_t = sqrt(σ²/(σ²+σ²_mix)) · exp(σ²_mix·(x−μ₀)² / (2σ²(σ²+σ²_mix)))
         ratio = self.sigma2 / (self.sigma2 + self.sigma2_mix)
-        exponent = self.sigma2_mix * (x - self.mu_0) ** 2 / (2.0 * self.sigma2 * (self.sigma2 + self.sigma2_mix))
+        exponent = (
+            self.sigma2_mix
+            * (x - self.mu_0) ** 2
+            / (2.0 * self.sigma2 * (self.sigma2 + self.sigma2_mix))
+        )
         log_e_i = 0.5 * math.log(max(ratio, 1e-300)) + exponent
 
         # Accumulate in log space (§4.4)
@@ -763,7 +791,11 @@ class PredictiveChart:
         self.window = window
 
     def compute(
-        self, observations: np.ndarray, USL: float | None = None, LSL: float | None = None, horizon: int = 25
+        self,
+        observations: np.ndarray,
+        USL: float | None = None,
+        LSL: float | None = None,
+        horizon: int = 25,
     ) -> PredictiveChartOutput:
         data = np.asarray(observations, dtype=float)
         w = min(len(data), self.window)
@@ -794,7 +826,9 @@ class PredictiveChart:
         # b ~ Student-t(nu, m_n[1], (beta_n/alpha_n) * Lambda_n_inv[1,1])
         Lambda_n_inv = np.linalg.inv(Lambda_n)  # OK here, 2x2 is fine
         slope_scale = math.sqrt(beta_n / alpha_n * Lambda_n_inv[1, 1])
-        p_slope_pos = float(1.0 - sp_stats.t.cdf(0, df=nu, loc=m_n[1], scale=slope_scale))
+        p_slope_pos = float(
+            1.0 - sp_stats.t.cdf(0, df=nu, loc=m_n[1], scale=slope_scale)
+        )
         p_slope_neg = float(sp_stats.t.cdf(0, df=nu, loc=m_n[1], scale=slope_scale))
         slope_ci = (
             float(sp_stats.t.ppf(0.05, df=nu, loc=m_n[1], scale=slope_scale)),
@@ -806,17 +840,27 @@ class PredictiveChart:
         for h in range(1, horizon + 1):
             x_star = np.array([1.0, t_current + h])
             pred_mean = float(x_star @ m_n)
-            pred_scale_sq = (beta_n / alpha_n) * (1.0 + x_star @ np.linalg.solve(Lambda_n, x_star))
+            pred_scale_sq = (beta_n / alpha_n) * (
+                1.0 + x_star @ np.linalg.solve(Lambda_n, x_star)
+            )
             pred_scale = math.sqrt(max(pred_scale_sq, 1e-15))
 
             fan.append(
                 PredictionPoint(
                     horizon=h,
                     mean=pred_mean,
-                    ci90_lower=float(sp_stats.t.ppf(0.05, df=nu, loc=pred_mean, scale=pred_scale)),
-                    ci90_upper=float(sp_stats.t.ppf(0.95, df=nu, loc=pred_mean, scale=pred_scale)),
-                    ci50_lower=float(sp_stats.t.ppf(0.25, df=nu, loc=pred_mean, scale=pred_scale)),
-                    ci50_upper=float(sp_stats.t.ppf(0.75, df=nu, loc=pred_mean, scale=pred_scale)),
+                    ci90_lower=float(
+                        sp_stats.t.ppf(0.05, df=nu, loc=pred_mean, scale=pred_scale)
+                    ),
+                    ci90_upper=float(
+                        sp_stats.t.ppf(0.95, df=nu, loc=pred_mean, scale=pred_scale)
+                    ),
+                    ci50_lower=float(
+                        sp_stats.t.ppf(0.25, df=nu, loc=pred_mean, scale=pred_scale)
+                    ),
+                    ci50_upper=float(
+                        sp_stats.t.ppf(0.75, df=nu, loc=pred_mean, scale=pred_scale)
+                    ),
                 )
             )
 
@@ -826,13 +870,19 @@ class PredictiveChart:
         est_exceedance = None
 
         if USL is not None or LSL is not None:
-            p_exceed_10 = self._prob_exceed(fan[:10], USL, LSL, nu, alpha_n, beta_n, Lambda_n, m_n, t_current)
-            p_exceed_25 = self._prob_exceed(fan, USL, LSL, nu, alpha_n, beta_n, Lambda_n, m_n, t_current)
+            p_exceed_10 = self._prob_exceed(
+                fan[:10], USL, LSL, nu, alpha_n, beta_n, Lambda_n, m_n, t_current
+            )
+            p_exceed_25 = self._prob_exceed(
+                fan, USL, LSL, nu, alpha_n, beta_n, Lambda_n, m_n, t_current
+            )
             # Estimate first horizon where P(exceed) > 50%
             p_all_ok = 1.0
             for h_idx, pt in enumerate(fan):
                 x_s = np.array([1.0, t_current + pt.horizon])
-                ps_sq = (beta_n / alpha_n) * (1.0 + x_s @ np.linalg.solve(Lambda_n, x_s))
+                ps_sq = (beta_n / alpha_n) * (
+                    1.0 + x_s @ np.linalg.solve(Lambda_n, x_s)
+                )
                 ps = math.sqrt(max(ps_sq, 1e-15))
                 p_ok = 1.0
                 if USL is not None:
@@ -856,11 +906,15 @@ class PredictiveChart:
         )
 
     @staticmethod
-    def _prob_exceed(fan, USL, LSL, nu, alpha_n, beta_n, Lambda_n, m_n, t_current) -> float:
+    def _prob_exceed(
+        fan, USL, LSL, nu, alpha_n, beta_n, Lambda_n, m_n, t_current
+    ) -> float:
         p_all_ok = 1.0
         for pt in fan:
             x_star = np.array([1.0, t_current + pt.horizon])
-            ps_sq = (beta_n / alpha_n) * (1.0 + x_star @ np.linalg.solve(Lambda_n, x_star))
+            ps_sq = (beta_n / alpha_n) * (
+                1.0 + x_star @ np.linalg.solve(Lambda_n, x_star)
+            )
             ps = math.sqrt(max(ps_sq, 1e-15))
             p_ok = 1.0
             if USL is not None:
@@ -893,7 +947,9 @@ class AdaptiveControlLimits:
         """gamma: coverage probability (0.9973 ≈ ±3σ equivalent)."""
         self.gamma = gamma
 
-    def compute_limits(self, posterior: NormalGammaPosterior, t: int, x: float) -> AdaptiveLimitsPoint:
+    def compute_limits(
+        self, posterior: NormalGammaPosterior, t: int, x: float
+    ) -> AdaptiveLimitsPoint:
         nu, loc, scale = posterior.predictive()
 
         lcl = float(sp_stats.t.ppf((1 - self.gamma) / 2, df=nu, loc=loc, scale=scale))
@@ -944,19 +1000,27 @@ class BayesianCpkResult:
 class BayesianCpk:
     """Posterior distribution of Cpk via ancestral sampling from Normal-Gamma."""
 
-    def __init__(self, USL: float, LSL: float, sigma_shift: float = 1.5, n_samples: int = 10000):
+    def __init__(
+        self, USL: float, LSL: float, sigma_shift: float = 1.5, n_samples: int = 10000
+    ):
         self.USL = USL
         self.LSL = LSL
         self.sigma_shift = sigma_shift
         self.n_samples = n_samples
 
     def compute(
-        self, posterior: NormalGammaPosterior, n_obs: int, prior_source: str = "uninformative", seed: int = 42
+        self,
+        posterior: NormalGammaPosterior,
+        n_obs: int,
+        prior_source: str = "uninformative",
+        seed: int = 42,
     ) -> BayesianCpkResult:
         rng = np.random.RandomState(seed)
 
         # Ancestral sampling: τ ~ Gamma(α, 1/β), μ|τ ~ N(μ_n, 1/(κ_n·τ))
-        tau_samples = rng.gamma(posterior.alpha, 1.0 / posterior.beta, size=self.n_samples)
+        tau_samples = rng.gamma(
+            posterior.alpha, 1.0 / posterior.beta, size=self.n_samples
+        )
         sigma_mu = 1.0 / np.sqrt(posterior.kappa * tau_samples)
         mu_samples = rng.normal(posterior.mu, sigma_mu)
         sigma_samples = 1.0 / np.sqrt(tau_samples)
@@ -975,16 +1039,24 @@ class BayesianCpk:
         # Classical Cpk (point estimate)
         sigma_est = posterior.std_estimate
         mu_est = posterior.mu
-        classical = min((self.USL - mu_est) / (3 * sigma_est), (mu_est - self.LSL) / (3 * sigma_est))
+        classical = min(
+            (self.USL - mu_est) / (3 * sigma_est), (mu_est - self.LSL) / (3 * sigma_est)
+        )
 
         return BayesianCpkResult(
             cpk_point_estimate=float(np.median(cpk_samples)),
-            cpk_credible_interval=(float(np.percentile(cpk_samples, 5)), float(np.percentile(cpk_samples, 95))),
+            cpk_credible_interval=(
+                float(np.percentile(cpk_samples, 5)),
+                float(np.percentile(cpk_samples, 95)),
+            ),
             cpk_probability_above_1=float(np.mean(cpk_samples > 1.0)),
             cpk_probability_above_133=float(np.mean(cpk_samples > 1.33)),
             cpk_probability_above_167=float(np.mean(cpk_samples > 1.67)),
             shift_estimate=float(np.median(shift_samples)),
-            shift_credible_interval=(float(np.percentile(shift_samples, 5)), float(np.percentile(shift_samples, 95))),
+            shift_credible_interval=(
+                float(np.percentile(shift_samples, 5)),
+                float(np.percentile(shift_samples, 95)),
+            ),
             classical_cpk=float(classical),
             n_observations=n_obs,
             prior_source=prior_source,
@@ -1019,14 +1091,20 @@ class CpkTrajectoryOutput:
 class CpkTrajectory:
     """Rolling Bayesian Cpk with trend projection."""
 
-    def __init__(self, USL: float, LSL: float, window: int | None = None, threshold: float = 1.33):
+    def __init__(
+        self, USL: float, LSL: float, window: int | None = None, threshold: float = 1.33
+    ):
         self.USL = USL
         self.LSL = LSL
         self.window = window
         self.threshold = threshold
 
     def compute(
-        self, observations: np.ndarray, prior: NormalGammaPosterior, n_cpk_samples: int = 5000, seed: int = 42
+        self,
+        observations: np.ndarray,
+        prior: NormalGammaPosterior,
+        n_cpk_samples: int = 5000,
+        seed: int = 42,
     ) -> CpkTrajectoryOutput:
         data = np.asarray(observations, dtype=float)
         n_total = len(data)
@@ -1082,7 +1160,9 @@ class CpkTrajectory:
             nu_t = 2 * an
             Ln_inv = np.linalg.inv(Ln)
             slope_scale = math.sqrt(bn / an * Ln_inv[1, 1])
-            prob_declining = float(sp_stats.t.cdf(0, df=nu_t, loc=mn[1], scale=slope_scale))
+            prob_declining = float(
+                sp_stats.t.cdf(0, df=nu_t, loc=mn[1], scale=slope_scale)
+            )
             slope_ci = (
                 float(sp_stats.t.ppf(0.05, df=nu_t, loc=mn[1], scale=slope_scale)),
                 float(sp_stats.t.ppf(0.95, df=nu_t, loc=mn[1], scale=slope_scale)),
@@ -1140,7 +1220,11 @@ class MultiStreamHealth:
     def __init__(self, weights: dict[str, float] | None = None):
         self.weights = weights or dict(DEFAULT_HEALTH_WEIGHTS)
 
-    def fuse(self, streams: dict[str, float], previous_streams: dict[str, float] | None = None) -> HealthDecomposition:
+    def fuse(
+        self,
+        streams: dict[str, float],
+        previous_streams: dict[str, float] | None = None,
+    ) -> HealthDecomposition:
         """Fuse health probabilities via log-linear pooling (§9.3)."""
         # Filter to available streams, redistribute weights
         available = {k: v for k, v in streams.items() if k in self.weights}
@@ -1158,7 +1242,9 @@ class MultiStreamHealth:
 
         assert abs(sum(norm_weights.values()) - 1.0) < 1e-6
 
-        log_health = sum(norm_weights[k] * math.log(max(available[k], 0.01)) for k in available)
+        log_health = sum(
+            norm_weights[k] * math.log(max(available[k], 0.01)) for k in available
+        )
         overall = math.exp(log_health)
 
         # Find primary driver (§9.5)
@@ -1170,7 +1256,9 @@ class MultiStreamHealth:
                 if key in previous_streams:
                     cf = dict(available)
                     cf[key] = previous_streams[key]
-                    cf_log = sum(norm_weights[k] * math.log(max(cf[k], 0.01)) for k in available)
+                    cf_log = sum(
+                        norm_weights[k] * math.log(max(cf[k], 0.01)) for k in available
+                    )
                     impacts[key] = math.exp(cf_log) - overall
             if impacts:
                 driver = max(impacts, key=impacts.get)
@@ -1232,11 +1320,11 @@ class ProcessNarrative:
                 elif cp_ev.robustness >= cp_ev.robustness_total - 1:
                     return f" (robust — {cp_ev.robustness}/{cp_ev.robustness_total} \u03bb values)"
                 elif cp_ev.robustness <= 2:
-                    return (
-                        f" (uncertain — {cp_ev.robustness}/{cp_ev.robustness_total} \u03bb values, sensitive to prior)"
-                    )
+                    return f" (uncertain — {cp_ev.robustness}/{cp_ev.robustness_total} \u03bb values, sensitive to prior)"
                 else:
-                    return f" ({cp_ev.robustness}/{cp_ev.robustness_total} \u03bb values)"
+                    return (
+                        f" ({cp_ev.robustness}/{cp_ev.robustness_total} \u03bb values)"
+                    )
 
             if len(cps) == 1:
                 cp = cps[0]
@@ -1249,7 +1337,9 @@ class ProcessNarrative:
                         f"{rob_lbl}."
                     )
                 else:
-                    segments.append(f"Process shifted at observation {cp.obs} (P = {cp.shift_prob:.0%}){rob_lbl}.")
+                    segments.append(
+                        f"Process shifted at observation {cp.obs} (P = {cp.shift_prob:.0%}){rob_lbl}."
+                    )
             else:
                 cp_descs = []
                 for c in cps:
@@ -1257,7 +1347,9 @@ class ProcessNarrative:
                     confirm_str = ""
                     if c.confirmation_obs >= 0 and c.confirmation_obs > c.obs:
                         confirm_str = f", confirmed obs ~{c.confirmation_obs}"
-                    cp_descs.append(f"obs {c.obs} (P={c.shift_prob:.0%}{confirm_str}){rob_lbl}")
+                    cp_descs.append(
+                        f"obs {c.obs} (P={c.shift_prob:.0%}{confirm_str}){rob_lbl}"
+                    )
                 segments.append(
                     f"Process shifted at {', '.join(cp_descs[:-1])} "
                     f"and {cp_descs[-1]}. "
@@ -1328,7 +1420,9 @@ class ProcessNarrative:
         elif timeline and timeline.lot_capabilities:
             # No BOCPD changepoints but lot transitions present
             n_lots = len(timeline.lot_capabilities)
-            segments.append(f"{n_lots} material lots detected. No unexpected within-lot shifts found by BOCPD.")
+            segments.append(
+                f"{n_lots} material lots detected. No unexpected within-lot shifts found by BOCPD."
+            )
             # Per-lot capability summary
             for lc in timeline.lot_capabilities:
                 cpk_r = lc.cpk
@@ -1349,7 +1443,12 @@ class ProcessNarrative:
                         )
                     segments.append(lot_desc + ".")
                     # Within-lot shift: show pre/post loss if Taguchi is active
-                    if lc.within_lot_cps and lc.taguchi and taguchi_k > 0 and taguchi_target is not None:
+                    if (
+                        lc.within_lot_cps
+                        and lc.taguchi
+                        and taguchi_k > 0
+                        and taguchi_target is not None
+                    ):
                         for wcp in lc.within_lot_cps:
                             pre_data = y[lc.start : wcp]
                             post_data = y[wcp : lc.end]
@@ -1358,8 +1457,12 @@ class ProcessNarrative:
                                 pre_post.update(pre_data)
                                 post_post = prior.copy()
                                 post_post.update(post_data)
-                                pre_loss = compute_taguchi_loss(pre_post, taguchi_target, taguchi_k)
-                                post_loss = compute_taguchi_loss(post_post, taguchi_target, taguchi_k)
+                                pre_loss = compute_taguchi_loss(
+                                    pre_post, taguchi_target, taguchi_k
+                                )
+                                post_loss = compute_taguchi_loss(
+                                    post_post, taguchi_target, taguchi_k
+                                )
                                 segments.append(
                                     f"  \u26a0 Within-lot shift at obs {wcp}"
                                     f" \u2014 pre-shift ${pre_loss.expected_loss:.3f},"
@@ -1372,7 +1475,9 @@ class ProcessNarrative:
             if sp < 0.20:
                 segments.append(f"Process is stable. Shift probability: {sp:.0%}.")
             elif sp < 0.50:
-                segments.append(f"Process shows early signs of change. Shift probability: {sp:.0%}.")
+                segments.append(
+                    f"Process shows early signs of change. Shift probability: {sp:.0%}."
+                )
             elif sp < 0.80:
                 segments.append(
                     f"Process is likely shifting. "
@@ -1433,12 +1538,16 @@ class ProcessNarrative:
 
         # 6. Health
         if health:
-            segments.append(f"Overall health: {health.overall_health:.0%}. Primary factor: {health.primary_driver}.")
+            segments.append(
+                f"Overall health: {health.overall_health:.0%}. Primary factor: {health.primary_driver}."
+            )
 
         # 7. Robustness report (§9.2)
         if beta_robustness > 0:
             w_3sigma = math.exp(-beta_robustness * 9.0 / 2.0)
-            segments.append(f"Robustness: beta = {beta_robustness:.2f} (outlier weight at 3 sigma: {w_3sigma:.1%}).")
+            segments.append(
+                f"Robustness: beta = {beta_robustness:.2f} (outlier weight at 3 sigma: {w_3sigma:.1%})."
+            )
             if belief_points:
                 dw = [p for p in belief_points if p.observation_weight < 0.5]
                 if dw:
@@ -1470,7 +1579,12 @@ class AlarmDecision:
 class ProbabilisticAlarms:
     """Decision-theoretic alarm framework (§11)."""
 
-    def __init__(self, c_miss: float = 10.0, c_false_alarm: float = 1.0, c_investigate: float = 2.0):
+    def __init__(
+        self,
+        c_miss: float = 10.0,
+        c_false_alarm: float = 1.0,
+        c_investigate: float = 2.0,
+    ):
         self.c_miss = c_miss
         self.c_fa = c_false_alarm
         self.c_inv = c_investigate
@@ -1512,12 +1626,16 @@ class ChartGenealogy:
     """Prior inheritance from parent processes."""
 
     @staticmethod
-    def inherit_prior(parent: NormalGammaPosterior, transfer_factor: float) -> NormalGammaPosterior:
+    def inherit_prior(
+        parent: NormalGammaPosterior, transfer_factor: float
+    ) -> NormalGammaPosterior:
         """Discount parent posterior for child's prior (§12.3)."""
         return parent.discount(transfer_factor)
 
     @staticmethod
-    def multi_parent_prior(parents: list[tuple[NormalGammaPosterior, float, float]]) -> NormalGammaPosterior:
+    def multi_parent_prior(
+        parents: list[tuple[NormalGammaPosterior, float, float]],
+    ) -> NormalGammaPosterior:
         """Combine multiple parent posteriors (§12.4).
         parents: [(posterior, transfer_factor, relevance_weight), ...]
         """
@@ -1628,10 +1746,23 @@ def run_pbs(df, analysis_id, config):
 
     # Informative prior: kappa=1 (1 pseudo-obs for mean), alpha=2,
     # beta matched to calibration variance.  Predictive scale ≈ sigma_cal.
-    prior = NormalGammaPosterior(mu=mu_0, kappa=1.0, alpha=2.0, beta=max(sigma_cal**2 * 2.0, 1e-10))
+    prior = NormalGammaPosterior(
+        mu=mu_0, kappa=1.0, alpha=2.0, beta=max(sigma_cal**2 * 2.0, 1e-10)
+    )
 
     if analysis_id == "pbs_full":
-        return _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_cal, beta_robustness, metadata)
+        return _run_full_pbs(
+            y,
+            prior,
+            USL,
+            LSL,
+            target,
+            hazard_lambda,
+            config,
+            sigma_cal,
+            beta_robustness,
+            metadata,
+        )
     elif analysis_id == "pbs_belief":
         return _run_belief_only(y, prior, hazard_lambda, config, beta_robustness)
     elif analysis_id == "pbs_edetector":
@@ -1647,13 +1778,26 @@ def run_pbs(df, analysis_id, config):
     elif analysis_id == "pbs_cpk_traj":
         return _run_cpk_traj_only(y, prior, USL, LSL, config)
     elif analysis_id == "pbs_health":
-        return _run_health_only(y, prior, USL, LSL, mu_0, hazard_lambda, config, beta_robustness)
+        return _run_health_only(
+            y, prior, USL, LSL, mu_0, hazard_lambda, config, beta_robustness
+        )
     else:
         result["summary"] = f"Error: Unknown PBS analysis: {analysis_id}"
         return result
 
 
-def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, beta_robustness=0.0, metadata=None):
+def _run_full_pbs(
+    y,
+    prior,
+    USL,
+    LSL,
+    target,
+    hazard_lambda,
+    config,
+    sigma_ref,
+    beta_robustness=0.0,
+    metadata=None,
+):
     """Full PBS analysis — all charts."""
     result = {"plots": [], "summary": "", "guide_observation": ""}
     n = len(y)
@@ -1664,7 +1808,9 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
     lambda_grid = [20, 50, 100, 200, 500]
     bc_runs = {}
     for lam in lambda_grid:
-        bc_i = BeliefChart(hazard_lambda=lam, prior=prior.copy(), beta_robustness=beta_robustness)
+        bc_i = BeliefChart(
+            hazard_lambda=lam, prior=prior.copy(), beta_robustness=beta_robustness
+        )
         for x in y:
             bc_i.process(x)
         bc_runs[lam] = bc_i
@@ -1723,11 +1869,16 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
             n_l, n_r = len(left), len(right)
             var_l = float(np.var(left, ddof=1))
             var_r = float(np.var(right, ddof=1))
-            pooled_std = math.sqrt((var_l * (n_l - 1) + var_r * (n_r - 1)) / (n_l + n_r - 2))
+            pooled_std = math.sqrt(
+                (var_l * (n_l - 1) + var_r * (n_r - 1)) / (n_l + n_r - 2)
+            )
             if pooled_std <= 0:
                 keep.append(cp)
                 continue
-            if abs(float(np.mean(left)) - float(np.mean(right))) >= merge_threshold * pooled_std:
+            if (
+                abs(float(np.mean(left)) - float(np.mean(right)))
+                >= merge_threshold * pooled_std
+            ):
                 keep.append(cp)
             # else: means too similar — drop this CP (merge regimes)
         return keep
@@ -1752,7 +1903,9 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
     map_cps = list(all_cps_by_lambda[best_lam])
     # Protect CPs that are near known lot transitions from being merged
     protected_obs = [kt.obs for kt in lot_transitions]
-    map_cps = _merge_similar_regimes(map_cps, y, merge_threshold=1.0, protected=protected_obs)
+    map_cps = _merge_similar_regimes(
+        map_cps, y, merge_threshold=1.0, protected=protected_obs
+    )
 
     # 2. Cumulative posterior
     post = prior.copy()
@@ -1768,7 +1921,10 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
     if USL is not None and LSL is not None:
         ed_bounds = (float(LSL), float(USL))
     else:
-        ed_bounds = (mu_0 - 4.0 * max(sigma_ref, 1e-6), mu_0 + 4.0 * max(sigma_ref, 1e-6))
+        ed_bounds = (
+            mu_0 - 4.0 * max(sigma_ref, 1e-6),
+            mu_0 + 4.0 * max(sigma_ref, 1e-6),
+        )
     ed_alpha = float(config.get("edetector_alpha", 0.05))
     ed = EDetector(mu_0=mu_0, bounds=ed_bounds, alpha=ed_alpha)
     for x in y:
@@ -1821,7 +1977,9 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
     cp_indices = map_cps  # post-merge BOCPD changepoints
 
     # E-Detector peak (does NOT auto-reset)
-    ed_peak_idx = max(range(n), key=lambda i: ed.points[i].log_N_combined) if n > 0 else 0
+    ed_peak_idx = (
+        max(range(n), key=lambda i: ed.points[i].log_N_combined) if n > 0 else 0
+    )
     ed_peak_val = ed.points[ed_peak_idx].log_N_combined if ed.points else 0.0
     ed_first_alarm = next((p.t - 1 for p in ed.points if p.alarm), -1)
 
@@ -1927,7 +2085,9 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
                 seg_post = prior.copy()
                 seg_post.update(seg_data)
                 if USL is not None and LSL is not None:
-                    seg_cpk = BayesianCpk(USL, LSL).compute(seg_post, seg_n, seed=200 + i)
+                    seg_cpk = BayesianCpk(USL, LSL).compute(
+                        seg_post, seg_n, seed=200 + i
+                    )
             ci_narrow = 0.0
             if seg_n >= 2:
                 seg_kappa = prior.kappa + seg_n
@@ -1939,7 +2099,8 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
             within_cps = [
                 cp
                 for cp in cp_indices
-                if seg_start < cp < seg_end and not any(abs(cp - kt.obs) <= 3 for kt in lot_transitions)
+                if seg_start < cp < seg_end
+                and not any(abs(cp - kt.obs) <= 3 for kt in lot_transitions)
             ]
             lot_capabilities.append(
                 LotCapability(
@@ -1982,14 +2143,21 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
         # Predictive: anchor from post-shift data only
         if len(current_regime_data) >= 10:
             pc_r = PredictiveChart(window=min(20, len(current_regime_data)))
-            pred = pc_r.compute(current_regime_data, USL=USL, LSL=LSL, horizon=min(25, len(current_regime_data)))
+            pred = pc_r.compute(
+                current_regime_data,
+                USL=USL,
+                LSL=LSL,
+                horizon=min(25, len(current_regime_data)),
+            )
         else:
             pred = None
         # Cpk: posterior from current regime only
         if USL is not None and LSL is not None and len(current_regime_data) >= 2:
             post_current = prior.copy()
             post_current.update(current_regime_data)
-            cpk_result = BayesianCpk(USL, LSL).compute(post_current, len(current_regime_data))
+            cpk_result = BayesianCpk(USL, LSL).compute(
+                post_current, len(current_regime_data)
+            )
             # Update health Cpk component — discount by posterior maturity
             h_cpk_raw = cpk_result.cpk_probability_above_133
             cpk_n_eff = len(current_regime_data)
@@ -2004,7 +2172,9 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
         c_false_alarm=float(config.get("c_fa", 1)),
         c_investigate=float(config.get("c_inv", 2)),
     )
-    alarm_dec = alarm_engine.decide(bc.points[-1].shift_probability if bc.points else 0.0)
+    alarm_dec = alarm_engine.decide(
+        bc.points[-1].shift_probability if bc.points else 0.0
+    )
 
     # 9. Narrative
     narrative = ProcessNarrative.generate(
@@ -2430,9 +2600,7 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
             anchor_n = n - last_anchor
             # Identify current lot if available
             if lot_capabilities:
-                cpk_title = (
-                    f"Bayesian Cpk Posterior — {lot_capabilities[-1].lot_id} (obs {last_anchor + 1}–{n}, n={anchor_n})"
-                )
+                cpk_title = f"Bayesian Cpk Posterior — {lot_capabilities[-1].lot_id} (obs {last_anchor + 1}–{n}, n={anchor_n})"
             elif timeline.regimes:
                 cr = timeline.regimes[-1]
                 cpk_title = f"Bayesian Cpk Posterior — {cr.label} (obs {cr.start + 1}–{cr.end}, n={cr.n})"
@@ -2445,7 +2613,10 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
                         "type": "bar",
                         "x": bin_c.tolist(),
                         "y": hist_v.tolist(),
-                        "marker": {"color": "rgba(74,159,110,0.5)", "line": {"color": "#4a9f6e", "width": 0.5}},
+                        "marker": {
+                            "color": "rgba(74,159,110,0.5)",
+                            "line": {"color": "#4a9f6e", "width": 0.5},
+                        },
                         "name": "Posterior",
                     },
                     {
@@ -2478,13 +2649,16 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
     # Plot 5b: Taguchi Loss per Regime (stacked bar — bias vs variance)
     regimes_with_taguchi = [r for r in timeline.regimes if r.taguchi]
     if regimes_with_taguchi:
-        labels = [f"{r.label}\n(obs {r.start + 1}–{r.end})" for r in regimes_with_taguchi]
+        labels = [
+            f"{r.label}\n(obs {r.start + 1}–{r.end})" for r in regimes_with_taguchi
+        ]
         bias_vals = [r.taguchi.bias_loss for r in regimes_with_taguchi]
         var_vals = [r.taguchi.variance_loss for r in regimes_with_taguchi]
         unc_vals = [r.taguchi.uncertainty_loss for r in regimes_with_taguchi]
         # Hover text with decomposition
         hover_bias = [
-            f"Bias: ${b:.4f}/unit ({r.taguchi.bias_fraction:.0%})" for b, r in zip(bias_vals, regimes_with_taguchi)
+            f"Bias: ${b:.4f}/unit ({r.taguchi.bias_fraction:.0%})"
+            for b, r in zip(bias_vals, regimes_with_taguchi)
         ]
         hover_var = [
             f"Variance: ${v:.4f}/unit ({r.taguchi.variance_fraction:.0%})"
@@ -2572,32 +2746,50 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
         f"<<COLOR:highlight>>Hazard λ:<</COLOR>> {hazard_lambda:.0f} "
         f"(MAP from empirical Bayes grid)"
     )
-    lines.append(f"<<COLOR:highlight>>Prior:<</COLOR>> Weakly informative (μ₀={prior.mu:.2f})")
+    lines.append(
+        f"<<COLOR:highlight>>Prior:<</COLOR>> Weakly informative (μ₀={prior.mu:.2f})"
+    )
     if USL is not None and LSL is not None:
         lines.append(f"<<COLOR:highlight>>Spec:<</COLOR>> [{LSL}, {USL}]")
 
     # λ grid evidence comparison
     if timeline.lambda_log_evidences:
-        lines.append("\n<<COLOR:accent>>── \u03bb Selection (Empirical Bayes) ──<</COLOR>>")
-        sorted_lams = sorted(timeline.lambda_log_evidences.items(), key=lambda x: x[1], reverse=True)
+        lines.append(
+            "\n<<COLOR:accent>>── \u03bb Selection (Empirical Bayes) ──<</COLOR>>"
+        )
+        sorted_lams = sorted(
+            timeline.lambda_log_evidences.items(), key=lambda x: x[1], reverse=True
+        )
         best_ll = sorted_lams[0][1]
         for lam, ll in sorted_lams:
             delta = ll - best_ll
-            marker = " <<COLOR:success>>◀ MAP<</COLOR>>" if lam == timeline.best_lambda else ""
-            lines.append(f"  λ = {lam:<5.0f}  log p(y|λ) = {ll:>10.1f}  Δ = {delta:>7.1f}{marker}")
+            marker = (
+                " <<COLOR:success>>◀ MAP<</COLOR>>"
+                if lam == timeline.best_lambda
+                else ""
+            )
+            lines.append(
+                f"  λ = {lam:<5.0f}  log p(y|λ) = {ll:>10.1f}  Δ = {delta:>7.1f}{marker}"
+            )
 
     lines.append("\n<<COLOR:accent>>── Narrative ──<</COLOR>>")
     lines.append(narrative)
 
     # Known Transitions (metadata-driven)
     if timeline.known_transitions:
-        lot_kts = [kt for kt in timeline.known_transitions if kt.column == "material_lot"]
+        lot_kts = [
+            kt for kt in timeline.known_transitions if kt.column == "material_lot"
+        ]
         if lot_kts:
             lines.append("\n<<COLOR:accent>>── Known Transitions ──<</COLOR>>")
             for kt in lot_kts:
-                lines.append(f"  <<COLOR:highlight>>Obs {kt.obs}:<</COLOR>> Lot {kt.from_value} \u2192 {kt.to_value}")
+                lines.append(
+                    f"  <<COLOR:highlight>>Obs {kt.obs}:<</COLOR>> Lot {kt.from_value} \u2192 {kt.to_value}"
+                )
         # Operator/machine transitions (if any)
-        other_kts = [kt for kt in timeline.known_transitions if kt.column != "material_lot"]
+        other_kts = [
+            kt for kt in timeline.known_transitions if kt.column != "material_lot"
+        ]
         for kt in other_kts:
             lines.append(
                 f"  <<COLOR:highlight>>Obs {kt.obs}:<</COLOR>> {kt.column}: {kt.from_value} \u2192 {kt.to_value}"
@@ -2657,19 +2849,43 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
                 else:
                     rob_tag = f" [{cpe.robustness}/{cpe.robustness_total}]"
             at_boundary = " (at lot boundary)" if cpe.near_known_transition else ""
-            events.append((cpe.obs, "bocpd", f"BOCPD shift detected (P = {cpe.shift_prob:.0%}){rob_tag}{at_boundary}"))
+            events.append(
+                (
+                    cpe.obs,
+                    "bocpd",
+                    f"BOCPD shift detected (P = {cpe.shift_prob:.0%}){rob_tag}{at_boundary}",
+                )
+            )
             if cpe.confirmation_obs >= 0 and cpe.confirmation_obs > cpe.obs:
-                events.append((cpe.confirmation_obs, "confirm", "Shift confirmed (P \u2265 95%)"))
+                events.append(
+                    (cpe.confirmation_obs, "confirm", "Shift confirmed (P \u2265 95%)")
+                )
             if cpe.e_value > 5:
-                events.append((cpe.obs, "evidence", f'E-value reached "{cpe.evidence_level}" ({cpe.e_value:.0f}:1)'))
+                events.append(
+                    (
+                        cpe.obs,
+                        "evidence",
+                        f'E-value reached "{cpe.evidence_level}" ({cpe.e_value:.0f}:1)',
+                    )
+                )
         if timeline.known_transitions:
             for kt in timeline.known_transitions:
                 if kt.column == "material_lot":
-                    events.append((kt.obs, "known", f"Lot transition {kt.from_value} \u2192 {kt.to_value} [known]"))
+                    events.append(
+                        (
+                            kt.obs,
+                            "known",
+                            f"Lot transition {kt.from_value} \u2192 {kt.to_value} [known]",
+                        )
+                    )
         if timeline.ed_peak_obs >= 0 and timeline.ed_peak_log_N > 0:
             if timeline.ed_peak_log_N >= timeline.ed_threshold:
                 events.append(
-                    (timeline.ed_peak_obs, "edetector", f"E-Detector alarm (log(N) = {timeline.ed_peak_log_N:.1f})")
+                    (
+                        timeline.ed_peak_obs,
+                        "edetector",
+                        f"E-Detector alarm (log(N) = {timeline.ed_peak_log_N:.1f})",
+                    )
                 )
             else:
                 events.append(
@@ -2729,7 +2945,9 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
     lines.append("\n<<COLOR:accent>>── Belief Chart ──<</COLOR>>")
     last_bc = bc.points[-1] if bc.points else None
     if last_bc:
-        lines.append(f"  P(shifted): {last_bc.shift_probability:.1%}  [{last_bc.alert_level.upper()}]")
+        lines.append(
+            f"  P(shifted): {last_bc.shift_probability:.1%}  [{last_bc.alert_level.upper()}]"
+        )
         lines.append(f"  Current regime mean: {last_bc.current_regime_mean:.4f}")
         lines.append(f"  Run length: {last_bc.most_likely_run_length}")
 
@@ -2744,12 +2962,16 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
     lines.append("\n<<COLOR:accent>>── Evidence ──<</COLOR>>")
     last_ev = ea.points[-1] if ea.points else None
     if last_ev:
-        lines.append(f"  E-value: {last_ev.e_value_accumulated:.1f}:1  [{last_ev.evidence_level.upper()}]")
+        lines.append(
+            f"  E-value: {last_ev.e_value_accumulated:.1f}:1  [{last_ev.evidence_level.upper()}]"
+        )
 
     lines.append("\n<<COLOR:accent>>── Adaptive Limits ──<</COLOR>>")
     last_acl = acl_points[-1] if acl_points else None
     if last_acl:
-        lines.append(f"  CL = {last_acl.cl:.4f}  LCL = {last_acl.lcl:.4f}  UCL = {last_acl.ucl:.4f}")
+        lines.append(
+            f"  CL = {last_acl.cl:.4f}  LCL = {last_acl.lcl:.4f}  UCL = {last_acl.ucl:.4f}"
+        )
 
     if pred:
         lines.append("\n<<COLOR:accent>>── Predictive ──<</COLOR>>")
@@ -2774,7 +2996,9 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
         lines.append(f"  P(Cpk > 1.0): {cpk_result.cpk_probability_above_1:.0%}")
         lines.append(f"  P(Cpk > 1.33): {cpk_result.cpk_probability_above_133:.0%}")
         lines.append(f"  Classical Cpk: {cpk_result.classical_cpk:.2f}")
-        lines.append(f"  n_eff: {cpk_n_eff}  Posterior precision: \u00b1{ci_w / 2:.2f} (95% CI width = {ci_w:.2f})")
+        lines.append(
+            f"  n_eff: {cpk_n_eff}  Posterior precision: \u00b1{ci_w / 2:.2f} (95% CI width = {ci_w:.2f})"
+        )
         if cpk_maturity < 1.0:
             lines.append(
                 f"  \u26a0 Health discount: maturity = {cpk_maturity:.0%} "
@@ -2794,15 +3018,24 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
     for k, v in health.stream_contributions.items():
         suffix = ""
         if k == "cpk" and cpk_maturity < 1.0 and cpk_result:
-            ci_w = cpk_result.cpk_credible_interval[1] - cpk_result.cpk_credible_interval[0]
+            ci_w = (
+                cpk_result.cpk_credible_interval[1]
+                - cpk_result.cpk_credible_interval[0]
+            )
             suffix = f" \u26a0 discounted from {h_cpk_raw:.0%} \u2014 n={cpk_n_eff}, CI width {ci_w:.2f}"
-        lines.append(f"    {k}: {v:.0%} (weight {health.stream_weights.get(k, 0):.0%}){suffix}")
+        lines.append(
+            f"    {k}: {v:.0%} (weight {health.stream_weights.get(k, 0):.0%}){suffix}"
+        )
 
     if beta_robustness > 0:
         w_3sigma = math.exp(-beta_robustness * 9.0 / 2.0)
         lines.append("\n<<COLOR:accent>>── Robustness ──<</COLOR>>")
-        lines.append(f"  beta = {beta_robustness:.2f}  (outlier weight at 3 sigma: {w_3sigma:.1%})")
-        downweighted = [(p.t, p.observation_weight) for p in bc.points if p.observation_weight < 0.5]
+        lines.append(
+            f"  beta = {beta_robustness:.2f}  (outlier weight at 3 sigma: {w_3sigma:.1%})"
+        )
+        downweighted = [
+            (p.t, p.observation_weight) for p in bc.points if p.observation_weight < 0.5
+        ]
         if downweighted:
             lines.append(f"  {len(downweighted)} obs downweighted (<50%):")
             for t, w in downweighted[:10]:
@@ -2849,7 +3082,9 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
         "test": "pbs_full",
         "n": n,
         "hazard_lambda": hazard_lambda,
-        "lambda_grid": {lam: bc_runs[lam].log_marginal_likelihood for lam in lambda_grid},
+        "lambda_grid": {
+            lam: bc_runs[lam].log_marginal_likelihood for lam in lambda_grid
+        },
         "shift_probability": last_bc.shift_probability if last_bc else 0,
         "n_changepoints": len(timeline.changepoints),
         "e_value": last_ev.e_value_accumulated if last_ev else 1,
@@ -2914,7 +3149,9 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config, sigma_ref, 
 
 def _run_belief_only(y, prior, hazard_lambda, config, beta_robustness=0.0):
     result = {"plots": [], "summary": "", "guide_observation": ""}
-    bc = BeliefChart(hazard_lambda=hazard_lambda, prior=prior.copy(), beta_robustness=beta_robustness)
+    bc = BeliefChart(
+        hazard_lambda=hazard_lambda, prior=prior.copy(), beta_robustness=beta_robustness
+    )
     for x in y:
         bc.process(x)
 
@@ -3422,8 +3659,15 @@ def _run_adaptive_only(y, prior, config):
         }
     )
     last = points[-1]
-    result["summary"] = f"CL = {last.cl:.4f}, LCL = {last.lcl:.4f}, UCL = {last.ucl:.4f} (n = {last.n_obs})."
-    result["statistics"] = {"test": "pbs_adaptive", "cl": last.cl, "ucl": last.ucl, "lcl": last.lcl}
+    result["summary"] = (
+        f"CL = {last.cl:.4f}, LCL = {last.lcl:.4f}, UCL = {last.ucl:.4f} (n = {last.n_obs})."
+    )
+    result["statistics"] = {
+        "test": "pbs_adaptive",
+        "cl": last.cl,
+        "ucl": last.ucl,
+        "lcl": last.lcl,
+    }
     _width = last.ucl - last.lcl
     result["narrative"] = _narrative(
         f"Adaptive limits: CL = {last.cl:.4f}",
@@ -3633,7 +3877,9 @@ def _run_cpk_traj_only(y, prior, USL, LSL, config):
         f"P(declining): {out.prob_cpk_declining:.0%}."
     )
     if out.estimated_obs_to_threshold is not None:
-        result["summary"] += f" Est. {out.estimated_obs_to_threshold} obs to Cpk < {out.threshold}."
+        result[
+            "summary"
+        ] += f" Est. {out.estimated_obs_to_threshold} obs to Cpk < {out.threshold}."
     result["statistics"] = {
         "test": "pbs_cpk_traj",
         "trend_slope": out.trend_slope,
@@ -3684,11 +3930,15 @@ def _run_cpk_traj_only(y, prior, USL, LSL, config):
     return result
 
 
-def _run_health_only(y, prior, USL, LSL, mu_0, hazard_lambda, config, beta_robustness=0.0):
+def _run_health_only(
+    y, prior, USL, LSL, mu_0, hazard_lambda, config, beta_robustness=0.0
+):
     result = {"plots": [], "summary": "", "guide_observation": ""}
 
     # Compute all streams
-    bc = BeliefChart(hazard_lambda=hazard_lambda, prior=prior.copy(), beta_robustness=beta_robustness)
+    bc = BeliefChart(
+        hazard_lambda=hazard_lambda, prior=prior.copy(), beta_robustness=beta_robustness
+    )
     for x in y:
         bc.process(x)
     h_spc = 1 - bc.points[-1].shift_probability
@@ -3712,15 +3962,27 @@ def _run_health_only(y, prior, USL, LSL, mu_0, hazard_lambda, config, beta_robus
     # Bar chart of stream contributions
     labels = list(health.stream_contributions.keys())
     vals = [health.stream_contributions[k] for k in labels]
-    colors = ["#4a9f6e" if v > 0.7 else "#d4a24a" if v > 0.4 else "#d94a4a" for v in vals]
+    colors = [
+        "#4a9f6e" if v > 0.7 else "#d4a24a" if v > 0.4 else "#d94a4a" for v in vals
+    ]
 
     result["plots"].append(
         {
             "title": f"Process Health: {health.overall_health:.0%}",
             "data": [
-                {"type": "bar", "x": labels, "y": vals, "marker": {"color": colors}, "name": "Stream health"},
+                {
+                    "type": "bar",
+                    "x": labels,
+                    "y": vals,
+                    "marker": {"color": colors},
+                    "name": "Stream health",
+                },
             ],
-            "layout": {"template": "plotly_dark", "height": 250, "yaxis": {"title": "Health", "range": [0, 1.05]}},
+            "layout": {
+                "template": "plotly_dark",
+                "height": 250,
+                "yaxis": {"title": "Health", "range": [0, 1.05]},
+            },
         }
     )
 
@@ -3739,7 +4001,9 @@ def _run_health_only(y, prior, USL, LSL, mu_0, hazard_lambda, config, beta_robus
     # --- narrative ---
     oh = health.overall_health
     driver = health.primary_driver
-    stream_str = ", ".join(f"{k} {v:.0%}" for k, v in health.stream_contributions.items())
+    stream_str = ", ".join(
+        f"{k} {v:.0%}" for k, v in health.stream_contributions.items()
+    )
     if oh >= 0.75:
         verdict_word = "Healthy"
         body = (
@@ -3768,9 +4032,11 @@ def _run_health_only(y, prior, USL, LSL, mu_0, hazard_lambda, config, beta_robus
         next_steps=(
             "Monitor — process is healthy."
             if oh >= 0.75
-            else f"Investigate the <em>{driver}</em> stream."
-            if oh >= 0.50
-            else f"Prioritise root-cause analysis on <em>{driver}</em>; consider running individual PBS analyses for detail."
+            else (
+                f"Investigate the <em>{driver}</em> stream."
+                if oh >= 0.50
+                else f"Prioritise root-cause analysis on <em>{driver}</em>; consider running individual PBS analyses for detail."
+            )
         ),
     )
 

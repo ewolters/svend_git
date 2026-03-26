@@ -10,7 +10,11 @@ def _nig_posterior_update(data, mu0, nu0, alpha0, beta0):
     nu_n = nu0 + n
     mu_n = (nu0 * mu0 + n * x_bar) / nu_n
     alpha_n = alpha0 + n / 2.0
-    beta_n = beta0 + 0.5 * np.sum((data - x_bar) ** 2) + (n * nu0 * (x_bar - mu0) ** 2) / (2.0 * nu_n)
+    beta_n = (
+        beta0
+        + 0.5 * np.sum((data - x_bar) ** 2)
+        + (n * nu0 * (x_bar - mu0) ** 2) / (2.0 * nu_n)
+    )
     return mu_n, nu_n, alpha_n, beta_n
 
 
@@ -19,7 +23,9 @@ def _nig_sample(mu_n, nu_n, alpha_n, beta_n, n_samples=10000):
     from scipy.stats import invgamma
 
     rng = np.random.default_rng(42)
-    sigma2_samples = invgamma.rvs(a=alpha_n, scale=beta_n, size=n_samples, random_state=rng)
+    sigma2_samples = invgamma.rvs(
+        a=alpha_n, scale=beta_n, size=n_samples, random_state=rng
+    )
     mu_samples = rng.normal(loc=mu_n, scale=np.sqrt(sigma2_samples / nu_n))
     sigma_samples = np.sqrt(sigma2_samples)
     return mu_samples, sigma_samples
@@ -87,7 +93,10 @@ def run_visualization(df, analysis_id, config):
                             "type": "histogram",
                             "x": df[var].dropna().tolist(),
                             "nbinsx": bins,
-                            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                            "marker": {
+                                "color": "rgba(74, 159, 110, 0.4)",
+                                "line": {"color": "#4a9f6e", "width": 1.5},
+                            },
                         }
                     ],
                     "layout": {"height": 300},
@@ -126,7 +135,10 @@ def run_visualization(df, analysis_id, config):
                         {
                             "type": "box",
                             "y": df[var].dropna().tolist(),
-                            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                            "marker": {
+                                "color": "rgba(74, 159, 110, 0.4)",
+                                "line": {"color": "#4a9f6e", "width": 1.5},
+                            },
                             "line": {"color": "#4a9f6e"},
                         }
                     ],
@@ -157,7 +169,11 @@ def run_visualization(df, analysis_id, config):
                         "x": df.loc[mask, x_var].tolist(),
                         "y": df.loc[mask, y_var].tolist(),
                         "mode": "markers",
-                        "marker": {"color": fill_color, "size": 8, "line": {"color": border_color, "width": 1.5}},
+                        "marker": {
+                            "color": fill_color,
+                            "size": 8,
+                            "line": {"color": border_color, "width": 1.5},
+                        },
                         "name": str(group),
                     }
                 )
@@ -257,7 +273,10 @@ def run_visualization(df, analysis_id, config):
                         "x": [str(x) for x in counts.index.tolist()],
                         "y": counts.values.tolist(),
                         "name": "Count",
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1.5},
+                        },
                     },
                     {
                         "type": "scatter",
@@ -270,13 +289,22 @@ def run_visualization(df, analysis_id, config):
                 ],
                 "layout": {
                     "height": 350,
-                    "yaxis2": {"overlaying": "y", "side": "right", "range": [0, 100], "title": "Cumulative %"},
+                    "yaxis2": {
+                        "overlaying": "y",
+                        "side": "right",
+                        "range": [0, 100],
+                        "title": "Cumulative %",
+                    },
                 },
             }
         )
 
         # Find 80% cutoff
-        cutoff_idx = (cumulative >= 80).idxmax() if (cumulative >= 80).any() else counts.index[-1]
+        cutoff_idx = (
+            (cumulative >= 80).idxmax()
+            if (cumulative >= 80).any()
+            else counts.index[-1]
+        )
         vital_few = counts.loc[:cutoff_idx]
         result["summary"] = (
             f"Pareto Analysis\n\nTotal categories: {len(counts)}\nVital few (80%): {len(vital_few)} categories\n\nTop contributors:\n"
@@ -308,7 +336,10 @@ def run_visualization(df, analysis_id, config):
                         {
                             "type": "histogram",
                             "x": df[x_var].dropna().tolist(),
-                            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                            "marker": {
+                                "color": "rgba(74, 159, 110, 0.4)",
+                                "line": {"color": "#4a9f6e", "width": 1.5},
+                            },
                             "xaxis": f"x{col if col > 1 else ''}",
                             "yaxis": f"y{row if row > 1 else ''}",
                             "showlegend": False,
@@ -353,7 +384,9 @@ def run_visualization(df, analysis_id, config):
                 "showticklabels": col == 1,
             }
 
-        result["plots"].append({"title": "Matrix Plot", "data": fig_data, "layout": layout})
+        result["plots"].append(
+            {"title": "Matrix Plot", "data": fig_data, "layout": layout}
+        )
 
     elif analysis_id == "timeseries":
         x_col = config.get("x")
@@ -514,7 +547,9 @@ def run_visualization(df, analysis_id, config):
                 if show_ci and len(vals) > 1:
                     mean_val = float(np.mean(vals))
                     se = float(np.std(vals, ddof=1) / np.sqrt(len(vals)))
-                    ci = stats.t.interval(conf, df=len(vals) - 1, loc=mean_val, scale=se)
+                    ci = stats.t.interval(
+                        conf, df=len(vals) - 1, loc=mean_val, scale=se
+                    )
                     traces.append(
                         {
                             "type": "scatter",
@@ -572,7 +607,11 @@ def run_visualization(df, analysis_id, config):
                 {
                     "title": f"Individual Value Plot: {var}",
                     "data": traces,
-                    "layout": {"height": 350, "xaxis": {"showticklabels": False}, "yaxis": {"title": var}},
+                    "layout": {
+                        "height": 350,
+                        "xaxis": {"showticklabels": False},
+                        "yaxis": {"title": var},
+                    },
                 }
             )
 
@@ -638,7 +677,12 @@ def run_visualization(df, analysis_id, config):
                 {
                     "title": f"Interval Plot: {var} by {groupby} ({conf * 100:.0f}% CI)",
                     "data": traces,
-                    "layout": {"height": 350, "xaxis": {"title": groupby}, "yaxis": {"title": var}, "showlegend": True},
+                    "layout": {
+                        "height": 350,
+                        "xaxis": {"title": groupby},
+                        "yaxis": {"title": var},
+                        "showlegend": True,
+                    },
                 }
             )
 
@@ -658,7 +702,11 @@ def run_visualization(df, analysis_id, config):
                 if len(vals) == 0:
                     continue
                 rng = float(np.ptp(vals)) if np.ptp(vals) > 0 else 1.0
-                bin_width = rng / max(min(int(np.sqrt(len(vals))), 30), 5) if len(vals) > 1 else rng
+                bin_width = (
+                    rng / max(min(int(np.sqrt(len(vals))), 30), 5)
+                    if len(vals) > 1
+                    else rng
+                )
                 if bin_width == 0:
                     bin_width = 1.0
                 binned = np.round(vals / bin_width) * bin_width
@@ -699,7 +747,11 @@ def run_visualization(df, analysis_id, config):
             vals = np.sort(df[var].dropna().values)
             if len(vals) > 0:
                 rng = float(np.ptp(vals)) if np.ptp(vals) > 0 else 1.0
-                bin_width = rng / max(min(int(np.sqrt(len(vals))), 30), 5) if len(vals) > 1 else rng
+                bin_width = (
+                    rng / max(min(int(np.sqrt(len(vals))), 30), 5)
+                    if len(vals) > 1
+                    else rng
+                )
                 if bin_width == 0:
                     bin_width = 1.0
                 binned = np.round(vals / bin_width) * bin_width
@@ -724,7 +776,11 @@ def run_visualization(df, analysis_id, config):
                                 "name": var,
                             }
                         ],
-                        "layout": {"height": 300, "xaxis": {"title": var}, "yaxis": {"title": "Count"}},
+                        "layout": {
+                            "height": 300,
+                            "xaxis": {"title": var},
+                            "yaxis": {"title": "Count"},
+                        },
                     }
                 )
 
@@ -745,7 +801,10 @@ def run_visualization(df, analysis_id, config):
         if color_var and color_var not in ("", "None"):
             for i, group in enumerate(df[color_var].dropna().unique()):
                 sub = df.loc[df[color_var] == group]
-                sizes = ((sub[size_var].fillna(s_min).astype(float) - s_min) / s_range * 35 + 5).tolist()
+                sizes = (
+                    (sub[size_var].fillna(s_min).astype(float) - s_min) / s_range * 35
+                    + 5
+                ).tolist()
                 data.append(
                     {
                         "type": "scatter",
@@ -762,7 +821,9 @@ def run_visualization(df, analysis_id, config):
                     }
                 )
         else:
-            sizes = ((df[size_var].fillna(s_min).astype(float) - s_min) / s_range * 35 + 5).tolist()
+            sizes = (
+                (df[size_var].fillna(s_min).astype(float) - s_min) / s_range * 35 + 5
+            ).tolist()
             data.append(
                 {
                     "type": "scatter",
@@ -793,7 +854,11 @@ def run_visualization(df, analysis_id, config):
         )
         result["summary"] = (
             f"Bubble Chart\n\nX: {x_var}, Y: {y_var}, Size: {size_var}"
-            + (f", Color: {color_var}" if color_var and color_var not in ("", "None") else "")
+            + (
+                f", Color: {color_var}"
+                if color_var and color_var not in ("", "None")
+                else ""
+            )
             + f"\nObservations: {len(df)}"
         )
 
@@ -875,7 +940,9 @@ def run_visualization(df, analysis_id, config):
 
         common = df[[x_col, y_col, z_col]].dropna()
         if len(common) < 4:
-            result["summary"] = "Need at least 4 non-missing data points for contour interpolation."
+            result["summary"] = (
+                "Need at least 4 non-missing data points for contour interpolation."
+            )
             return result
 
         x, y, z = (
@@ -904,8 +971,15 @@ def run_visualization(df, analysis_id, config):
                         "x": xi.tolist(),
                         "y": yi.tolist(),
                         "z": np.where(np.isnan(zi_grid), None, zi_grid).tolist(),
-                        "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#d94a4a"]],
-                        "contours": {"showlabels": True, "labelfont": {"size": 10, "color": "#fff"}},
+                        "colorscale": [
+                            [0, "#4a9f6e"],
+                            [0.5, "#e8c547"],
+                            [1, "#d94a4a"],
+                        ],
+                        "contours": {
+                            "showlabels": True,
+                            "labelfont": {"size": 10, "color": "#fff"},
+                        },
                         "colorbar": {"title": z_col},
                     },
                     {
@@ -917,7 +991,11 @@ def run_visualization(df, analysis_id, config):
                         "showlegend": False,
                     },
                 ],
-                "layout": {"height": 450, "xaxis": {"title": x_col}, "yaxis": {"title": y_col}},
+                "layout": {
+                    "height": 450,
+                    "xaxis": {"title": x_col},
+                    "yaxis": {"title": y_col},
+                },
             }
         )
         result["summary"] = (
@@ -938,7 +1016,9 @@ def run_visualization(df, analysis_id, config):
 
         common = df[[x_col, y_col, z_col]].dropna()
         if len(common) < 4:
-            result["summary"] = "Need at least 4 non-missing data points for surface interpolation."
+            result["summary"] = (
+                "Need at least 4 non-missing data points for surface interpolation."
+            )
             return result
 
         x, y, z = (
@@ -966,13 +1046,21 @@ def run_visualization(df, analysis_id, config):
                         "x": xi.tolist(),
                         "y": yi.tolist(),
                         "z": np.where(np.isnan(zi_grid), None, zi_grid).tolist(),
-                        "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#d94a4a"]],
+                        "colorscale": [
+                            [0, "#4a9f6e"],
+                            [0.5, "#e8c547"],
+                            [1, "#d94a4a"],
+                        ],
                         "colorbar": {"title": z_col},
                     }
                 ],
                 "layout": {
                     "height": 500,
-                    "scene": {"xaxis": {"title": x_col}, "yaxis": {"title": y_col}, "zaxis": {"title": z_col}},
+                    "scene": {
+                        "xaxis": {"title": x_col},
+                        "yaxis": {"title": y_col},
+                        "zaxis": {"title": z_col},
+                    },
                 },
             }
         )
@@ -1001,7 +1089,9 @@ def run_visualization(df, analysis_id, config):
             z_cols_co = [z_cols_co]
 
         if len(z_cols_co) < 2:
-            result["summary"] = "Need at least 2 response variables for contour overlay."
+            result["summary"] = (
+                "Need at least 2 response variables for contour overlay."
+            )
             return result
 
         all_cols_co = [x_col_co, y_col_co] + z_cols_co
@@ -1024,10 +1114,14 @@ def run_visualization(df, analysis_id, config):
         summary_lines = []
         for zi, z_col_name in enumerate(z_cols_co):
             z_vals = common_co[z_col_name].values.astype(float)
-            zi_grid = scipy_griddata((x_co, y_co), z_vals, (xi_grid_co, yi_grid_co), method="cubic")
+            zi_grid = scipy_griddata(
+                (x_co, y_co), z_vals, (xi_grid_co, yi_grid_co), method="cubic"
+            )
             nan_mask = np.isnan(zi_grid)
             if nan_mask.any():
-                zi_linear = scipy_griddata((x_co, y_co), z_vals, (xi_grid_co, yi_grid_co), method="linear")
+                zi_linear = scipy_griddata(
+                    (x_co, y_co), z_vals, (xi_grid_co, yi_grid_co), method="linear"
+                )
                 zi_grid[nan_mask] = zi_linear[nan_mask]
 
             color_idx = zi % len(line_colors)
@@ -1047,7 +1141,9 @@ def run_visualization(df, analysis_id, config):
                     "showscale": False,
                 }
             )
-            summary_lines.append(f"  {z_col_name}: range [{np.nanmin(z_vals):.3f}, {np.nanmax(z_vals):.3f}]")
+            summary_lines.append(
+                f"  {z_col_name}: range [{np.nanmin(z_vals):.3f}, {np.nanmax(z_vals):.3f}]"
+            )
 
         # Add data points
         overlay_traces.append(
@@ -1056,7 +1152,12 @@ def run_visualization(df, analysis_id, config):
                 "mode": "markers",
                 "x": x_co.tolist(),
                 "y": y_co.tolist(),
-                "marker": {"color": "#fff", "size": 4, "opacity": 0.6, "line": {"color": "#333", "width": 1}},
+                "marker": {
+                    "color": "#fff",
+                    "size": 4,
+                    "opacity": 0.6,
+                    "line": {"color": "#333", "width": 1},
+                },
                 "name": "Data points",
                 "showlegend": True,
             }
@@ -1066,14 +1167,20 @@ def run_visualization(df, analysis_id, config):
             {
                 "title": f"Contour Overlay: {', '.join(z_cols_co)}",
                 "data": overlay_traces,
-                "layout": {"height": 500, "xaxis": {"title": x_col_co}, "yaxis": {"title": y_col_co}},
+                "layout": {
+                    "height": 500,
+                    "xaxis": {"title": x_col_co},
+                    "yaxis": {"title": y_col_co},
+                },
             }
         )
 
         result["summary"] = (
             f"Contour Plot Overlay\n\n"
             f"X: {x_col_co}, Y: {y_col_co}\n"
-            f"Responses overlaid ({len(z_cols_co)}):\n" + "\n".join(summary_lines) + f"\n\nData points: {len(x_co)}\n"
+            f"Responses overlaid ({len(z_cols_co)}):\n"
+            + "\n".join(summary_lines)
+            + f"\n\nData points: {len(x_co)}\n"
             f"Each response shown with distinct contour line color.\n"
             f"Use this to identify regions satisfying multiple targets."
         )
@@ -1169,8 +1276,16 @@ def run_visualization(df, analysis_id, config):
                     "height": 400,
                     "shapes": shapes,
                     "annotations": annotations,
-                    "xaxis": {"range": [0, 1], "title": row_var, "showticklabels": False},
-                    "yaxis": {"range": [-0.08, 1], "title": col_var, "showticklabels": False},
+                    "xaxis": {
+                        "range": [0, 1],
+                        "title": row_var,
+                        "showticklabels": False,
+                    },
+                    "yaxis": {
+                        "range": [-0.08, 1],
+                        "title": col_var,
+                        "showticklabels": False,
+                    },
                     "showlegend": True,
                 },
             }
@@ -1195,7 +1310,9 @@ def run_visualization(df, analysis_id, config):
         usl = float(usl_raw) if usl_raw not in (None, "", "null") else None
         lsl = float(lsl_raw) if lsl_raw not in (None, "", "null") else None
         if usl is None and lsl is None:
-            result["summary"] = "<<COLOR:error>>At least one spec limit (USL or LSL) is required<</COLOR>>"
+            result["summary"] = (
+                "<<COLOR:error>>At least one spec limit (USL or LSL) is required<</COLOR>>"
+            )
             return result
         if usl is not None and lsl is not None and usl <= lsl:
             result["summary"] = "<<COLOR:error>>USL must be greater than LSL<</COLOR>>"
@@ -1209,7 +1326,11 @@ def run_visualization(df, analysis_id, config):
             target = usl
         else:
             target = lsl
-        spec_label = f"USL={usl}" if lsl is None else (f"LSL={lsl}" if usl is None else f"USL={usl}, LSL={lsl}")
+        spec_label = (
+            f"USL={usl}"
+            if lsl is None
+            else (f"LSL={lsl}" if usl is None else f"USL={usl}, LSL={lsl}")
+        )
         n_mc = int(config.get("n_mc", 10000))
         prior_type = config.get("prior_type", "weakly_informative")
 
@@ -1229,20 +1350,30 @@ def run_visualization(df, analysis_id, config):
             hist_mean = float(pp.get("hist_mean", x_bar))
             hist_std = float(pp.get("hist_std", s))
             hist_n = int(pp.get("hist_n", 30))
-            mu0, nu0, alpha0, beta0 = hist_mean, float(hist_n), hist_n / 2.0, hist_n / 2.0 * hist_std**2
+            mu0, nu0, alpha0, beta0 = (
+                hist_mean,
+                float(hist_n),
+                hist_n / 2.0,
+                hist_n / 2.0 * hist_std**2,
+            )
         else:  # weakly_informative — α₀=2 for finite σ² mean, β₀ centered on sample variance
             s2 = float(np.var(data, ddof=1)) if n > 1 else 1.0
             mu0, nu0, alpha0, beta0 = x_bar, 1.0, 2.0, max(s2, 1e-10)
 
         # Posterior update
-        mu_n, nu_n, alpha_n, beta_n = _nig_posterior_update(data, mu0, nu0, alpha0, beta0)
+        mu_n, nu_n, alpha_n, beta_n = _nig_posterior_update(
+            data, mu0, nu0, alpha0, beta0
+        )
 
         # Monte Carlo sampling
         mu_samples, sigma_samples = _nig_sample(mu_n, nu_n, alpha_n, beta_n, n_mc)
         cpk_samples = _cpk_from_params(mu_samples, sigma_samples, usl, lsl)
 
         cpk_median = float(np.median(cpk_samples))
-        cpk_ci = (float(np.percentile(cpk_samples, 2.5)), float(np.percentile(cpk_samples, 97.5)))
+        cpk_ci = (
+            float(np.percentile(cpk_samples, 2.5)),
+            float(np.percentile(cpk_samples, 97.5)),
+        )
         p_gt_1 = float(np.mean(cpk_samples > 1.0))
         p_gt_133 = float(np.mean(cpk_samples > 1.33))
         p_gt_167 = float(np.mean(cpk_samples > 1.67))
@@ -1265,7 +1396,10 @@ def run_visualization(df, analysis_id, config):
         if usl is not None and lsl is not None and s > 0:
             cp_samples = (usl - lsl) / (6.0 * sigma_samples)
             cp_median = float(np.median(cp_samples))
-            cp_ci = (float(np.percentile(cp_samples, 2.5)), float(np.percentile(cp_samples, 97.5)))
+            cp_ci = (
+                float(np.percentile(cp_samples, 2.5)),
+                float(np.percentile(cp_samples, 97.5)),
+            )
             cp_freq = float((usl - lsl) / (6 * s))
             pp_median, pp_freq = cp_median, cp_freq  # identical for individual data
 
@@ -1278,7 +1412,10 @@ def run_visualization(df, analysis_id, config):
             cpm_denom = 6.0 * np.sqrt(sigma_samples**2 + (mu_samples - target) ** 2)
             cpm_samples = (usl - lsl) / cpm_denom
             cpm_median = float(np.median(cpm_samples))
-            cpm_ci = (float(np.percentile(cpm_samples, 2.5)), float(np.percentile(cpm_samples, 97.5)))
+            cpm_ci = (
+                float(np.percentile(cpm_samples, 2.5)),
+                float(np.percentile(cpm_samples, 97.5)),
+            )
             cpm_freq = float((usl - lsl) / (6 * np.sqrt(s**2 + (x_bar - target) ** 2)))
 
         # Centering (k) — 0 = perfectly centered, 1 = mean at spec limit
@@ -1318,16 +1455,24 @@ def run_visualization(df, analysis_id, config):
 
         # σ posterior sanity check
         sigma_99 = float(np.percentile(sigma_samples, 99))
-        sigma_iqr = float(np.percentile(sigma_samples, 75) - np.percentile(sigma_samples, 25))
+        sigma_iqr = float(
+            np.percentile(sigma_samples, 75) - np.percentile(sigma_samples, 25)
+        )
         sigma_warning = ""
         if sigma_iqr > 0 and sigma_99 > 5 * sigma_iqr + float(np.median(sigma_samples)):
             sigma_warning = "Data may be non-normal, from mixed processes, or contain outliers. Consider transformations or a mixture model."
 
         # Verdict (probability-driven, not point-estimate)
         if p_gt_133 >= 0.95:
-            verdict_color, verdict = "success", "CAPABLE \u2014 P(Cpk > 1.33) \u2265 95%"
+            verdict_color, verdict = (
+                "success",
+                "CAPABLE \u2014 P(Cpk > 1.33) \u2265 95%",
+            )
         elif p_gt_133 >= 0.80:
-            verdict_color, verdict = "highlight", "MARGINAL \u2014 P(Cpk > 1.33) between 80\u201395%"
+            verdict_color, verdict = (
+                "highlight",
+                "MARGINAL \u2014 P(Cpk > 1.33) between 80\u201395%",
+            )
         else:
             verdict_color, verdict = "error", "NOT CAPABLE \u2014 P(Cpk > 1.33) < 80%"
 
@@ -1345,7 +1490,9 @@ def run_visualization(df, analysis_id, config):
         # Capability indices table
         summary += f"<<COLOR:accent>>{'_' * 40}<</COLOR>>\n"
         summary += "<<COLOR:title>>Capability Indices<</COLOR>>\n"
-        summary += f"  {'':18s} {'Bayesian':>10s}   {'95% CI':>18s}   {'Frequentist':>12s}\n"
+        summary += (
+            f"  {'':18s} {'Bayesian':>10s}   {'95% CI':>18s}   {'Frequentist':>12s}\n"
+        )
         summary += (
             f"  {'Cpk:':18s} "
             f"<<COLOR:highlight>>{cpk_median:>10.4f}<</COLOR>>   "
@@ -1380,7 +1527,9 @@ def run_visualization(df, analysis_id, config):
         summary += "<<COLOR:title>>Expected Performance<</COLOR>>\n"
         summary += f"  P(out of spec): {p_oos:.6f}    DPMO: <<COLOR:highlight>>{dpmo:.0f}<</COLOR>>\n"
         summary += f"  Yield: <<COLOR:highlight>>{yield_pct:.4f}%<</COLOR>>    Sigma level: {sigma_level:.1f}\u03c3\n"
-        summary += "  (No 1.5\u03c3 shift assumption \u2014 uncertainty is first-class)\n"
+        summary += (
+            "  (No 1.5\u03c3 shift assumption \u2014 uncertainty is first-class)\n"
+        )
 
         # Verdict
         summary += f"\n<<COLOR:{verdict_color}>>{verdict}<</COLOR>>\n"
@@ -1399,7 +1548,9 @@ def run_visualization(df, analysis_id, config):
                 narr_parts.append(f"Process is well-centered (k = {k_centering:.1%}).")
             else:
                 closer_to = "USL" if x_bar > (usl + lsl) / 2.0 else "LSL"
-                narr_parts.append(f"Process runs {k_centering:.0%} off-center toward {closer_to}.")
+                narr_parts.append(
+                    f"Process runs {k_centering:.0%} off-center toward {closer_to}."
+                )
                 if cp_median is not None and cp_median > cpk_median + 0.1:
                     narr_parts.append(
                         f"Recentering to target would improve Cpk from {cpk_median:.2f} to {cp_median:.2f} (= Cp)."
@@ -1415,7 +1566,9 @@ def run_visualization(df, analysis_id, config):
 
         # Posterior maturity
         if ci_w < 0.3:
-            narr_parts.append(f"Posterior is well-converged (95% CI width = {ci_w:.2f}).")
+            narr_parts.append(
+                f"Posterior is well-converged (95% CI width = {ci_w:.2f})."
+            )
         elif ci_w < 0.8:
             narr_parts.append(
                 f"Moderate posterior uncertainty (95% CI width = {ci_w:.2f}). More data would tighten the estimate."
@@ -1446,7 +1599,9 @@ def run_visualization(df, analysis_id, config):
                 f"({yield_pct:.4f}% yield, {sigma_level:.1f}\u03c3)."
             )
         else:
-            narr_parts.append(f"Zero defects predicted (yield {yield_pct:.4f}%, >{sigma_level:.1f}\u03c3).")
+            narr_parts.append(
+                f"Zero defects predicted (yield {yield_pct:.4f}%, >{sigma_level:.1f}\u03c3)."
+            )
 
         for part in narr_parts:
             summary += f"  {part}\n"
@@ -1492,7 +1647,12 @@ def run_visualization(df, analysis_id, config):
                         "type": "bar",
                         "x": cpk_hist_centers.tolist(),
                         "y": cpk_hist_vals.tolist(),
-                        "marker": {"color": ["rgba(74,159,110,0.7)" if m else "rgba(74,159,110,0.2)" for m in ci_mask]},
+                        "marker": {
+                            "color": [
+                                "rgba(74,159,110,0.7)" if m else "rgba(74,159,110,0.2)"
+                                for m in ci_mask
+                            ]
+                        },
                         "name": "Posterior",
                         "showlegend": False,
                     },
@@ -1525,7 +1685,13 @@ def run_visualization(df, analysis_id, config):
                     "height": 320,
                     "xaxis": {"title": "Cpk"},
                     "yaxis": {"title": "Count"},
-                    "legend": {"orientation": "h", "yanchor": "top", "y": -0.18, "xanchor": "center", "x": 0.5},
+                    "legend": {
+                        "orientation": "h",
+                        "yanchor": "top",
+                        "y": -0.18,
+                        "xanchor": "center",
+                        "x": 0.5,
+                    },
                     "annotations": [
                         {
                             "x": cpk_median,
@@ -1547,7 +1713,9 @@ def run_visualization(df, analysis_id, config):
         pp_pdf = pp_dist.pdf(x_range)
         from scipy.stats import norm
 
-        norm_pdf = norm.pdf(x_range, loc=x_bar, scale=s) if s > 0 else np.zeros_like(x_range)
+        norm_pdf = (
+            norm.pdf(x_range, loc=x_bar, scale=s) if s > 0 else np.zeros_like(x_range)
+        )
         data_hist_vals, data_hist_edges = np.histogram(data, bins=40, density=True)
         data_hist_centers = (data_hist_edges[:-1] + data_hist_edges[1:]) / 2
         peak_y = max(max(pp_pdf), max(norm_pdf)) if len(pp_pdf) > 0 else 1
@@ -1599,7 +1767,11 @@ def run_visualization(df, analysis_id, config):
                     "name": "USL",
                 }
             )
-        ann_x = (usl + lsl) / 2 if (usl is not None and lsl is not None) else (usl if usl is not None else lsl)
+        ann_x = (
+            (usl + lsl) / 2
+            if (usl is not None and lsl is not None)
+            else (usl if usl is not None else lsl)
+        )
         result["plots"].append(
             {
                 "title": "Posterior Predictive vs Spec Limits",
@@ -1607,7 +1779,13 @@ def run_visualization(df, analysis_id, config):
                 "layout": {
                     "height": 340,
                     "xaxis": {"title": col},
-                    "legend": {"orientation": "h", "yanchor": "top", "y": -0.18, "xanchor": "center", "x": 0.5},
+                    "legend": {
+                        "orientation": "h",
+                        "yanchor": "top",
+                        "y": -0.18,
+                        "xanchor": "center",
+                        "x": 0.5,
+                    },
                     "annotations": [
                         {
                             "x": ann_x,
@@ -1649,7 +1827,13 @@ def run_visualization(df, analysis_id, config):
                     "height": 280,
                     "xaxis": {"title": "Threshold"},
                     "yaxis": {"title": "Probability", "range": [0, 1.05]},
-                    "legend": {"orientation": "h", "yanchor": "top", "y": -0.18, "xanchor": "center", "x": 0.5},
+                    "legend": {
+                        "orientation": "h",
+                        "yanchor": "top",
+                        "y": -0.18,
+                        "xanchor": "center",
+                        "x": 0.5,
+                    },
                 },
             }
         )
@@ -1661,7 +1845,10 @@ def run_visualization(df, analysis_id, config):
                 "x": data.tolist(),
                 "nbinsx": 40,
                 "histnorm": "probability density",
-                "marker": {"color": "rgba(74,159,110,0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                "marker": {
+                    "color": "rgba(74,159,110,0.4)",
+                    "line": {"color": "#4a9f6e", "width": 1},
+                },
                 "name": "Data",
             },
             {
@@ -1713,7 +1900,13 @@ def run_visualization(df, analysis_id, config):
                     "height": 320,
                     "xaxis": {"title": col},
                     "yaxis": {"title": "Density"},
-                    "legend": {"orientation": "h", "yanchor": "top", "y": -0.18, "xanchor": "center", "x": 0.5},
+                    "legend": {
+                        "orientation": "h",
+                        "yanchor": "top",
+                        "y": -0.18,
+                        "xanchor": "center",
+                        "x": 0.5,
+                    },
                 },
             }
         )
@@ -1749,7 +1942,9 @@ def run_visualization(df, analysis_id, config):
         mu0_cp = float(np.mean(cal_data))
         nu0_cp = 1.0  # kappa: 1 pseudo-observation for mean
         alpha0_cp = 2.0  # shape: mildly informative
-        beta0_cp = max(s2_cal * alpha0_cp, 1e-10)  # rate matched to calibration variance
+        beta0_cp = max(
+            s2_cal * alpha0_cp, 1e-10
+        )  # rate matched to calibration variance
 
         # Forward pass
         # run_length_probs[t] = log P(r_t = r | x_{1:t})
@@ -1831,7 +2026,9 @@ def run_visualization(df, analysis_id, config):
 
             # Shift probability: 1 - P(original run continues from t=0)
             if t + 1 <= max_rl:
-                shift_prob[t] = float(np.clip(1.0 - np.exp(log_R[t + 1, t + 1]), 0.0, 1.0))
+                shift_prob[t] = float(
+                    np.clip(1.0 - np.exp(log_R[t + 1, t + 1]), 0.0, 1.0)
+                )
             else:
                 shift_prob[t] = 1.0
 
@@ -1888,9 +2085,18 @@ def run_visualization(df, analysis_id, config):
                     continue
                 # Weakly-informative NIG prior (matches bayes_spc_capability)
                 s2_seg = float(np.var(seg_data, ddof=1))
-                mu0_s, nu0_s, alpha0_s, beta0_s = float(np.mean(seg_data)), 1.0, 2.0, max(s2_seg, 1e-10)
-                mu_n, nu_n, alpha_n, beta_n = _nig_posterior_update(seg_data, mu0_s, nu0_s, alpha0_s, beta0_s)
-                mu_samp, sigma_samp = _nig_sample(mu_n, nu_n, alpha_n, beta_n, n_mc_regime)
+                mu0_s, nu0_s, alpha0_s, beta0_s = (
+                    float(np.mean(seg_data)),
+                    1.0,
+                    2.0,
+                    max(s2_seg, 1e-10),
+                )
+                mu_n, nu_n, alpha_n, beta_n = _nig_posterior_update(
+                    seg_data, mu0_s, nu0_s, alpha0_s, beta0_s
+                )
+                mu_samp, sigma_samp = _nig_sample(
+                    mu_n, nu_n, alpha_n, beta_n, n_mc_regime
+                )
                 cpk_samp = _cpk_from_params(mu_samp, sigma_samp, _usl, _lsl)
                 regime_cpk_samples[idx] = cpk_samp
 
@@ -1899,7 +2105,9 @@ def run_visualization(df, analysis_id, config):
                 cpk_hi = float(np.percentile(cpk_samp, 97.5))
                 p_gt_133 = float(np.mean(cpk_samp > 1.33))
                 # P(next obs out of spec)
-                x_pred = np.random.default_rng(42 + idx).normal(loc=mu_samp, scale=sigma_samp)
+                x_pred = np.random.default_rng(42 + idx).normal(
+                    loc=mu_samp, scale=sigma_samp
+                )
                 oos = np.zeros(len(x_pred), dtype=bool)
                 if _usl is not None:
                     oos |= x_pred > _usl
@@ -1911,7 +2119,9 @@ def run_visualization(df, analysis_id, config):
                 # Value-of-information: CI width scales as 1/sqrt(n_eff)
                 ci_width = cpk_hi - cpk_lo
                 ci_width_plus30 = ci_width * np.sqrt(n_eff / (n_eff + 30))
-                narrowing_30 = (1.0 - ci_width_plus30 / ci_width) * 100 if ci_width > 0 else 0
+                narrowing_30 = (
+                    (1.0 - ci_width_plus30 / ci_width) * 100 if ci_width > 0 else 0
+                )
 
                 seg["cpk_median"] = cpk_med
                 seg["cpk_ci"] = [cpk_lo, cpk_hi]
@@ -1932,12 +2142,8 @@ def run_visualization(df, analysis_id, config):
                 seg_before = segments[i]
                 seg_after = segments[i + 1]
                 summary += f"  <<COLOR:highlight>>Change {i + 1}:<</COLOR>> observation {cp}, P(shifted) = {shift_prob[cp]:.3f}\n"
-                summary += (
-                    f"    Before: μ = {seg_before['mean']:.4f}, σ = {seg_before['std']:.4f} (n={seg_before['n']})\n"
-                )
-                summary += (
-                    f"    After:  μ = {seg_after['mean']:.4f}, σ = {seg_after['std']:.4f} (n={seg_after['n']})\n\n"
-                )
+                summary += f"    Before: μ = {seg_before['mean']:.4f}, σ = {seg_before['std']:.4f} (n={seg_before['n']})\n"
+                summary += f"    After:  μ = {seg_after['mean']:.4f}, σ = {seg_after['std']:.4f} (n={seg_after['n']})\n\n"
         else:
             summary += "<<COLOR:text>>No significant change points detected (threshold: P > 0.5)<</COLOR>>\n"
 
@@ -1982,7 +2188,11 @@ def run_visualization(df, analysis_id, config):
                 summary += "\n"
 
         result["summary"] = summary
-        result["statistics"] = {"n_changepoints": len(changepoints), "changepoints": changepoints, "segments": segments}
+        result["statistics"] = {
+            "n_changepoints": len(changepoints),
+            "changepoints": changepoints,
+            "segments": segments,
+        }
 
         # Plot 1: Run-length posterior heatmap
         rl_display = min(max_rl, 100)
@@ -1999,12 +2209,18 @@ def run_visualization(df, analysis_id, config):
                         "colorbar": {"title": "P(r)"},
                     }
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Run Length"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Observation"},
+                    "yaxis": {"title": "Run Length"},
+                },
             }
         )
 
         # Plot 2: Shift probability (1 - P(original run continues))
-        colors = [f"rgba({int(255 * p)},{int(255 * (1 - p))},80,0.8)" for p in shift_prob]
+        colors = [
+            f"rgba({int(255 * p)},{int(255 * (1 - p))},80,0.8)" for p in shift_prob
+        ]
         result["plots"].append(
             {
                 "title": "Shift Probability — P(process has changed)",
@@ -2079,7 +2295,11 @@ def run_visualization(df, analysis_id, config):
             {
                 "title": "Process Data with Change Points",
                 "data": proc_data,
-                "layout": {"height": 350, "xaxis": {"title": "Observation"}, "yaxis": {"title": col}},
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"title": "Observation"},
+                    "yaxis": {"title": col},
+                },
             }
         )
 
@@ -2158,7 +2378,9 @@ def run_visualization(df, analysis_id, config):
                 }
             )
 
-        result["guide_observation"] = f"BOCPD detected {len(changepoints)} change point(s) in {n} observations"
+        result["guide_observation"] = (
+            f"BOCPD detected {len(changepoints)} change point(s) in {n} observations"
+        )
 
     elif analysis_id == "bayes_spc_control":
         # Bayesian Control Chart — two-state HMM forward filter
@@ -2177,7 +2399,11 @@ def run_visualization(df, analysis_id, config):
         else:
             ref_mean = float(ref_mean)
         if ref_std is None or ref_std == "" or ref_std == "null":
-            ref_std = float(np.std(data[:n_ref], ddof=1)) if n_ref > 1 else float(np.std(data, ddof=1))
+            ref_std = (
+                float(np.std(data[:n_ref], ddof=1))
+                if n_ref > 1
+                else float(np.std(data, ddof=1))
+            )
         else:
             ref_std = float(ref_std)
         ref_std = max(ref_std, 1e-10)
@@ -2222,8 +2448,12 @@ def run_visualization(df, analysis_id, config):
             # Forward step
             from scipy.special import logsumexp as _lse
 
-            new_log_alpha_ic = _lse([log_alpha_ic + log_t_ic_ic, log_alpha_sh + log_t_sh_ic]) + ll_ic
-            new_log_alpha_sh = _lse([log_alpha_ic + log_t_ic_sh, log_alpha_sh + log_t_sh_sh]) + ll_sh
+            new_log_alpha_ic = (
+                _lse([log_alpha_ic + log_t_ic_ic, log_alpha_sh + log_t_sh_ic]) + ll_ic
+            )
+            new_log_alpha_sh = (
+                _lse([log_alpha_ic + log_t_ic_sh, log_alpha_sh + log_t_sh_sh]) + ll_sh
+            )
 
             # Normalize
             log_evidence = _lse([new_log_alpha_ic, new_log_alpha_sh])
@@ -2235,7 +2465,9 @@ def run_visualization(df, analysis_id, config):
 
             # Sequential NIG for mu
             seg_data = data[: t + 1]
-            mu_n_s, nu_n_s, alpha_n_s, beta_n_s = _nig_posterior_update(seg_data, mu0_s, nu0_s, alpha0_s, beta0_s)
+            mu_n_s, nu_n_s, alpha_n_s, beta_n_s = _nig_posterior_update(
+                seg_data, mu0_s, nu0_s, alpha0_s, beta0_s
+            )
             seq_mu[t] = mu_n_s
             if alpha_n_s > 0 and nu_n_s > 0 and beta_n_s > 0:
                 scale_s = np.sqrt(beta_n_s / (alpha_n_s * nu_n_s))
@@ -2262,9 +2494,7 @@ def run_visualization(df, analysis_id, config):
             summary += f"<<COLOR:highlight>>First alarm at observation {first_alarm}<</COLOR>>\n\n"
             summary += f"<<COLOR:highlight>>Final posterior μ:<</COLOR>> {seq_mu[-1]:.4f} [{seq_ci_lo[-1]:.4f}, {seq_ci_hi[-1]:.4f}]\n"
         else:
-            summary += (
-                "<<COLOR:success>>Process appears in control — no observations with P(shifted) > 0.5<</COLOR>>\n\n"
-            )
+            summary += "<<COLOR:success>>Process appears in control — no observations with P(shifted) > 0.5<</COLOR>>\n\n"
             summary += f"<<COLOR:highlight>>Final posterior μ:<</COLOR>> {seq_mu[-1]:.4f} [{seq_ci_lo[-1]:.4f}, {seq_ci_hi[-1]:.4f}]\n"
 
         result["summary"] = summary
@@ -2286,7 +2516,11 @@ def run_visualization(df, analysis_id, config):
                         "type": "scatter",
                         "y": data.tolist(),
                         "mode": "markers",
-                        "marker": {"color": colors, "size": 6, "line": {"color": "#333", "width": 0.5}},
+                        "marker": {
+                            "color": colors,
+                            "size": 6,
+                            "line": {"color": "#333", "width": 0.5},
+                        },
                         "name": col,
                         "showlegend": False,
                     },
@@ -2306,7 +2540,11 @@ def run_visualization(df, analysis_id, config):
                         "name": "Reference μ",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": col}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Observation"},
+                    "yaxis": {"title": col},
+                },
             }
         )
 
@@ -2351,12 +2589,18 @@ def run_visualization(df, analysis_id, config):
                         "name": "Reference",
                     },
                 ],
-                "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "μ"}},
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Observation"},
+                    "yaxis": {"title": "μ"},
+                },
             }
         )
 
         # Plot 3: Alarm timeline
-        alarm_colors = [f"rgba({int(255 * p)},{int(255 * (1 - p))},80,0.8)" for p in p_shifted_arr]
+        alarm_colors = [
+            f"rgba({int(255 * p)},{int(255 * (1 - p))},80,0.8)" for p in p_shifted_arr
+        ]
         result["plots"].append(
             {
                 "title": "Shift Probability Timeline",
@@ -2454,14 +2698,26 @@ def run_visualization(df, analysis_id, config):
                 is_def = False
                 usl_a = config.get("usl")
                 lsl_a = config.get("lsl")
-                if usl_a is not None and usl_a != "" and usl_a != "null" and val > float(usl_a):
+                if (
+                    usl_a is not None
+                    and usl_a != ""
+                    and usl_a != "null"
+                    and val > float(usl_a)
+                ):
                     is_def = True
-                if lsl_a is not None and lsl_a != "" and lsl_a != "null" and val < float(lsl_a):
+                if (
+                    lsl_a is not None
+                    and lsl_a != ""
+                    and lsl_a != "null"
+                    and val < float(lsl_a)
+                ):
                     is_def = True
                 seq_k += int(is_def)
                 seq_k_i = seq_k
 
-            pa_i = float(betadist.cdf(aql, prior_alpha + seq_k_i, prior_beta + (i + 1) - seq_k_i))
+            pa_i = float(
+                betadist.cdf(aql, prior_alpha + seq_k_i, prior_beta + (i + 1) - seq_k_i)
+            )
             seq_p_accept.append(pa_i)
 
             if earliest_accept is None and pa_i >= threshold:
@@ -2494,12 +2750,8 @@ def run_visualization(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Prior:<</COLOR>> Beta({prior_alpha}, {prior_beta})    <<COLOR:highlight>>Threshold:<</COLOR>> {threshold}\n\n"
         summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
         summary += "<<COLOR:title>>Posterior for Defect Rate<</COLOR>>\n"
-        summary += (
-            f"  Mean: <<COLOR:highlight>>{post_mean:.6f}<</COLOR>>    95% CI: [{post_ci[0]:.6f}, {post_ci[1]:.6f}]\n"
-        )
-        summary += (
-            f"  P(p < AQL) = <<COLOR:{'success' if p_accept > threshold else 'error'}>>{p_accept:.4f}<</COLOR>>\n\n"
-        )
+        summary += f"  Mean: <<COLOR:highlight>>{post_mean:.6f}<</COLOR>>    95% CI: [{post_ci[0]:.6f}, {post_ci[1]:.6f}]\n"
+        summary += f"  P(p < AQL) = <<COLOR:{'success' if p_accept > threshold else 'error'}>>{p_accept:.4f}<</COLOR>>\n\n"
         summary += f"<<COLOR:{decision_color}>>Decision: {decision}<</COLOR>>\n\n"
 
         if earliest_accept:
@@ -2664,7 +2916,11 @@ def run_visualization(df, analysis_id, config):
             {
                 "title": "Decision Boundaries",
                 "data": boundary_plots,
-                "layout": {"height": 300, "xaxis": {"title": "Sample Size (n)"}, "yaxis": {"title": "Defectives (k)"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Sample Size (n)"},
+                    "yaxis": {"title": "Defectives (k)"},
+                },
             }
         )
 

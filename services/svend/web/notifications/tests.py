@@ -271,7 +271,9 @@ class MarkReadTests(TestCase):
         resp = _post(self.client, "/api/notifications/read-all/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["updated"], 3)
-        self.assertEqual(Notification.objects.filter(recipient=self.user, is_read=False).count(), 0)
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.user, is_read=False).count(), 0
+        )
 
 
 @SECURE_OFF
@@ -515,7 +517,9 @@ class EmailSchedulingTests(TestCase):
 
     @patch("syn.sched.scheduler.schedule_task")
     def test_notify_schedules_email_when_enabled(self, mock_schedule):
-        self.user.preferences = {"notifications": {"email_enabled": True, "email_mode": "immediate"}}
+        self.user.preferences = {
+            "notifications": {"email_enabled": True, "email_mode": "immediate"}
+        }
         self.user.save(update_fields=["preferences"])
         n = notify(self.user, "system", "Email test")
         self.assertIsNotNone(n)
@@ -532,7 +536,9 @@ class EmailSchedulingTests(TestCase):
 
     @patch("syn.sched.scheduler.schedule_task")
     def test_notify_skips_email_for_digest_mode(self, mock_schedule):
-        self.user.preferences = {"notifications": {"email_enabled": True, "email_mode": "daily"}}
+        self.user.preferences = {
+            "notifications": {"email_enabled": True, "email_mode": "daily"}
+        }
         self.user.save(update_fields=["preferences"])
         n = notify(self.user, "system", "Digest mode")
         self.assertIsNotNone(n)
@@ -540,7 +546,9 @@ class EmailSchedulingTests(TestCase):
 
     @patch("syn.sched.scheduler.schedule_task", side_effect=Exception("Scheduler down"))
     def test_email_failure_does_not_block_notification(self, mock_schedule):
-        self.user.preferences = {"notifications": {"email_enabled": True, "email_mode": "immediate"}}
+        self.user.preferences = {
+            "notifications": {"email_enabled": True, "email_mode": "immediate"}
+        }
         self.user.save(update_fields=["preferences"])
         n = notify(self.user, "system", "Should still create")
         self.assertIsNotNone(n)
@@ -548,7 +556,9 @@ class EmailSchedulingTests(TestCase):
 
     @patch("syn.sched.scheduler.schedule_task")
     def test_notify_skips_email_when_globally_opted_out(self, mock_schedule):
-        self.user.preferences = {"notifications": {"email_enabled": True, "email_mode": "immediate"}}
+        self.user.preferences = {
+            "notifications": {"email_enabled": True, "email_mode": "immediate"}
+        }
         self.user.is_email_opted_out = True
         self.user.save(update_fields=["preferences", "is_email_opted_out"])
         n = notify(self.user, "system", "Opted out")
@@ -619,7 +629,9 @@ class TypeUnsubscribeTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.user.refresh_from_db()
         # Should not duplicate
-        self.assertEqual(self.user.preferences["notifications"]["muted_types"].count("system"), 1)
+        self.assertEqual(
+            self.user.preferences["notifications"]["muted_types"].count("system"), 1
+        )
 
 
 # ── Task Handler Tests (FEAT-002) ──────────────────────────────────────

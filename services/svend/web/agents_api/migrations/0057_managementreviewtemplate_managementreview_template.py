@@ -9,31 +9,58 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0056_supplier_preferred_status'),
+        ("agents_api", "0056_supplier_preferred_status"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ManagementReviewTemplate',
+            name="ManagementReviewTemplate",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(max_length=200)),
-                ('description', models.TextField(blank=True)),
-                ('sections', models.JSONField(default=list, help_text='[{"key": str, "title": str, "data_source": "auto"|"manual", "auto_query": str|null, "required": bool}]')),
-                ('is_default', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='review_templates', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("title", models.CharField(max_length=200)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "sections",
+                    models.JSONField(
+                        default=list,
+                        help_text='[{"key": str, "title": str, "data_source": "auto"|"manual", "auto_query": str|null, "required": bool}]',
+                    ),
+                ),
+                ("is_default", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="review_templates",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'iso_review_templates',
-                'ordering': ['-created_at'],
+                "db_table": "iso_review_templates",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.AddField(
-            model_name='managementreview',
-            name='template',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='reviews', to='agents_api.managementreviewtemplate'),
+            model_name="managementreview",
+            name="template",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="reviews",
+                to="agents_api.managementreviewtemplate",
+            ),
         ),
     ]

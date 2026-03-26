@@ -77,7 +77,9 @@ def run_bayes_spares(df, config, ci_level, z):
     summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:highlight>>Historical demand:<</COLOR>> {total_demand:.0f} over {n_periods:.0f} periods\n"
     summary += f"<<COLOR:highlight>>Planning horizon:<</COLOR>> {planning_horizon:.0f} periods\n"
-    summary += f"<<COLOR:highlight>>Service level target:<</COLOR>> {service_level:.1%}\n\n"
+    summary += (
+        f"<<COLOR:highlight>>Service level target:<</COLOR>> {service_level:.1%}\n\n"
+    )
     summary += f"<<COLOR:highlight>>Posterior demand rate:<</COLOR>> {rate_mean:.2f}/period ({int(ci_level * 100)}% CI: {rate_ci[0]:.2f}\u2013{rate_ci[1]:.2f})\n"
     summary += f"<<COLOR:highlight>>Expected demand (horizon):<</COLOR>> {expected_demand:.1f}\n"
     summary += f"<<COLOR:highlight>>Optimal stock level:<</COLOR>> <<COLOR:good>>{optimal_stock}<</COLOR>>\n"
@@ -133,7 +135,11 @@ def run_bayes_spares(df, config, ci_level, z):
                     "name": "Posterior",
                 },
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Demand Rate (\u03bb)"}, "yaxis": {"title": "Density"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Demand Rate (\u03bb)"},
+                "yaxis": {"title": "Density"},
+            },
         }
     )
 
@@ -304,7 +310,9 @@ def run_bayes_system(df, config, ci_level, z):
         draws = rng.beta(a_post, b_post, size=n_mc)
         comp_names.append(name)
         comp_means.append(float(np.mean(draws)))
-        comp_cis.append((float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5))))
+        comp_cis.append(
+            (float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5)))
+        )
         comp_draws.append(draws)
         comp_post_params.append((float(a_post), float(b_post)))
 
@@ -335,7 +343,9 @@ def run_bayes_system(df, config, ci_level, z):
         float(np.percentile(sys_draws, (1 + ci_level) / 2 * 100)),
     )
 
-    importance = [float(np.corrcoef(draws_matrix[:, j], sys_draws)[0, 1]) for j in range(n_comp)]
+    importance = [
+        float(np.corrcoef(draws_matrix[:, j], sys_draws)[0, 1]) for j in range(n_comp)
+    ]
     weakest = comp_names[int(np.argmin(comp_means))]
 
     topology_label = topology.replace("_", "-")
@@ -361,9 +371,14 @@ def run_bayes_system(df, config, ci_level, z):
         "system_ci": list(sys_ci),
         "topology": topology_label,
         "weakest": weakest,
-        "components": {n: {"mean": m, "ci": list(c)} for n, m, c in zip(comp_names, comp_means, comp_cis)},
+        "components": {
+            n: {"mean": m, "ci": list(c)}
+            for n, m, c in zip(comp_names, comp_means, comp_cis)
+        },
     }
-    result["guide_observation"] = f"Bayes system ({topology_label}): R_sys={sys_mean:.4f}, weakest={weakest}"
+    result["guide_observation"] = (
+        f"Bayes system ({topology_label}): R_sys={sys_mean:.4f}, weakest={weakest}"
+    )
     result["narrative"] = _narrative(
         verdict,
         f"{topology_label} system with {n_comp} components: R_sys = {sys_mean:.4f} "
@@ -394,7 +409,11 @@ def run_bayes_system(df, config, ci_level, z):
         {
             "title": "Component Reliability Posteriors",
             "data": comp_traces,
-            "layout": {"height": 350, "xaxis": {"title": "Reliability"}, "yaxis": {"title": "Density"}},
+            "layout": {
+                "height": 350,
+                "xaxis": {"title": "Reliability"},
+                "yaxis": {"title": "Density"},
+            },
         }
     )
 
@@ -441,10 +460,18 @@ def run_bayes_system(df, config, ci_level, z):
                     "type": "bar",
                     "x": comp_names,
                     "y": importance,
-                    "marker": {"color": [SVEND_COLORS[j % len(SVEND_COLORS)] for j in range(n_comp)]},
+                    "marker": {
+                        "color": [
+                            SVEND_COLORS[j % len(SVEND_COLORS)] for j in range(n_comp)
+                        ]
+                    },
                 }
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Component"}, "yaxis": {"title": "Birnbaum Importance"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Component"},
+                "yaxis": {"title": "Birnbaum Importance"},
+            },
         }
     )
 
@@ -597,7 +624,11 @@ def run_bayes_warranty(df, config, ci_level, z):
                     "name": "Posterior",
                 },
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Failure Rate (\u03bb)"}, "yaxis": {"title": "Density"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Failure Rate (\u03bb)"},
+                "yaxis": {"title": "Density"},
+            },
         }
     )
 
@@ -632,7 +663,11 @@ def run_bayes_warranty(df, config, ci_level, z):
                     "name": "Expected",
                 },
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Period"}, "yaxis": {"title": "Cumulative Claims"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Period"},
+                "yaxis": {"title": "Cumulative Claims"},
+            },
         }
     )
 
@@ -655,7 +690,11 @@ def run_bayes_warranty(df, config, ci_level, z):
                     "name": "Claims",
                 }
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Period"}, "yaxis": {"title": "Claims"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Period"},
+                "yaxis": {"title": "Claims"},
+            },
         }
     )
 

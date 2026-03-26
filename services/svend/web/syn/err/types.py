@@ -271,7 +271,9 @@ class RetryConfig:
     base_delay_ms: int = 1000
     max_delay_ms: int = 30000
     jitter_factor: float = 0.1
-    retryable_categories: frozenset = field(default_factory=lambda: frozenset(RETRYABLE_CATEGORIES))
+    retryable_categories: frozenset = field(
+        default_factory=lambda: frozenset(RETRYABLE_CATEGORIES)
+    )
 
 
 # =============================================================================

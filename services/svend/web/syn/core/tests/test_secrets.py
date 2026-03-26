@@ -64,7 +64,10 @@ class SecretStoreTestCase(TestCase):
         """Test storing and retrieving a secret."""
         # Store secret
         secret = set_secret(
-            name=self.secret_name, value=self.secret_value, tenant_id=self.tenant_id, created_by="test_user"
+            name=self.secret_name,
+            value=self.secret_value,
+            tenant_id=self.tenant_id,
+            created_by="test_user",
         )
 
         # Verify secret was created
@@ -100,13 +103,17 @@ class SecretStoreTestCase(TestCase):
         self.assertEqual(retrieved, "new_value")
 
         # Verify only one secret exists (updated, not duplicated)
-        count = SecretStore.objects.filter(name=self.secret_name, tenant_id=self.tenant_id).count()
+        count = SecretStore.objects.filter(
+            name=self.secret_name, tenant_id=self.tenant_id
+        ).count()
         self.assertEqual(count, 1)
 
     def test_delete_secret(self):
         """Test deleting a secret."""
         # Create secret
-        set_secret(name=self.secret_name, value=self.secret_value, tenant_id=self.tenant_id)
+        set_secret(
+            name=self.secret_name, value=self.secret_value, tenant_id=self.tenant_id
+        )
 
         # Delete secret
         delete_secret(self.secret_name, self.tenant_id)
@@ -134,13 +141,20 @@ class SecretStoreTestCase(TestCase):
         """Test storing and retrieving secret metadata."""
         metadata = {"description": "API key for Stripe", "environment": "production"}
 
-        secret = set_secret(name=self.secret_name, value=self.secret_value, tenant_id=self.tenant_id, metadata=metadata)
+        secret = set_secret(
+            name=self.secret_name,
+            value=self.secret_value,
+            tenant_id=self.tenant_id,
+            metadata=metadata,
+        )
 
         # Verify metadata stored
         self.assertEqual(secret.metadata, metadata)
 
         # Retrieve and verify
-        retrieved = SecretStore.objects.get(name=self.secret_name, tenant_id=self.tenant_id)
+        retrieved = SecretStore.objects.get(
+            name=self.secret_name, tenant_id=self.tenant_id
+        )
         self.assertEqual(retrieved.metadata, metadata)
 
 
@@ -300,7 +314,11 @@ class KeyRotationTestCase(TestCase):
 
     def tearDown(self):
         """Clean up environment."""
-        for key in ["SECRET_ENCRYPTION_KEY", "SECRET_ENCRYPTION_KEY_V1", "SECRET_ENCRYPTION_KEY_V2"]:
+        for key in [
+            "SECRET_ENCRYPTION_KEY",
+            "SECRET_ENCRYPTION_KEY_V1",
+            "SECRET_ENCRYPTION_KEY_V2",
+        ]:
             if key in os.environ:
                 del os.environ[key]
         _encryption_manager._kek_cache.clear()
@@ -529,7 +547,9 @@ class ComplianceTestCase(TestCase):
             set_secret("test_secret", "value", TEST_TENANT_1, created_by="admin")
 
             # Verify audit log entry created
-            audit_entry = SysLogEntry.objects.filter(tenant_id=TEST_TENANT_1, event_name="secret.created").last()
+            audit_entry = SysLogEntry.objects.filter(
+                tenant_id=TEST_TENANT_1, event_name="secret.created"
+            ).last()
 
             self.assertIsNotNone(audit_entry)
             self.assertEqual(audit_entry.actor, "admin")

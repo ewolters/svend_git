@@ -72,7 +72,11 @@ class Command(BaseCommand):
 
         # Check for existing tenant
         if Tenant.objects.filter(slug=NLP_TENANT_SLUG).exists():
-            self.stdout.write(self.style.WARNING("NLP tenant already exists. Use --clean to recreate."))
+            self.stdout.write(
+                self.style.WARNING(
+                    "NLP tenant already exists. Use --clean to recreate."
+                )
+            )
             return
 
         # Ensure enterprise tier
@@ -352,10 +356,26 @@ class Command(BaseCommand):
             leader_name="Sarah Martinez",
             leader_title="CI Leader / Black Belt",
             team_members=[
-                {"name": "David Park", "role": "Quality Engineer", "department": "Quality"},
-                {"name": "Maria Gonzalez", "role": "Line A Supervisor", "department": "Production"},
-                {"name": "James Wu", "role": "Maintenance Tech Lead", "department": "Maintenance"},
-                {"name": "Lisa Chen", "role": "Process Engineer", "department": "Engineering"},
+                {
+                    "name": "David Park",
+                    "role": "Quality Engineer",
+                    "department": "Quality",
+                },
+                {
+                    "name": "Maria Gonzalez",
+                    "role": "Line A Supervisor",
+                    "department": "Production",
+                },
+                {
+                    "name": "James Wu",
+                    "role": "Maintenance Tech Lead",
+                    "department": "Maintenance",
+                },
+                {
+                    "name": "Lisa Chen",
+                    "role": "Process Engineer",
+                    "department": "Engineering",
+                },
             ],
             target_completion=date.today() + timedelta(days=60),
             milestones=[
@@ -515,7 +535,10 @@ class Command(BaseCommand):
             then_clause="standardizing the changeover SOP will eliminate the startup quality gap",
             because_clause="operators are using different heat bar warm-up sequences and tension presets, leading to variable initial conditions",
             independent_variable="Changeover Procedure Compliance",
-            independent_var_values=["Current: ~60% compliance", "Target: 95%+ compliance"],
+            independent_var_values=[
+                "Current: ~60% compliance",
+                "Target: 95%+ compliance",
+            ],
             dependent_variable="First-Hour Scrap Rate",
             dependent_var_unit="%",
             predicted_direction=Hypothesis.Direction.DECREASE,
@@ -705,7 +728,11 @@ class Command(BaseCommand):
             source_type="hoshin",
             source_id=hp_a.id,
         )
-        self.stdout.write(self.style.SUCCESS("Created Project A with 3 hypotheses, 5 evidence, 4 action items"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Created Project A with 3 hypotheses, 5 evidence, 4 action items"
+            )
+        )
 
         # =====================================================================
         # 7. Project B: OEE Improvement (DMAIC, MEASURE)
@@ -732,8 +759,12 @@ class Command(BaseCommand):
                 "Line A OEE at 62% against 75% target",
                 "Major losses: changeover (28% of downtime), minor stops (15%), speed losses (12%)",
             ],
-            problem_wheres=["Line A — all stations, particularly slitter and laminator"],
-            problem_whens=["Persistent issue — worsened after product mix change in Q3 2025"],
+            problem_wheres=[
+                "Line A — all stations, particularly slitter and laminator"
+            ],
+            problem_whens=[
+                "Persistent issue — worsened after product mix change in Q3 2025"
+            ],
             problem_magnitude="13 percentage points below target. Estimated lost capacity: $120K/year equivalent.",
             problem_trend=Project.Trend.DECREASING,
             problem_since="2025-07 (product mix change)",
@@ -750,8 +781,16 @@ class Command(BaseCommand):
             leader_name="Sarah Martinez",
             leader_title="CI Leader",
             team_members=[
-                {"name": "Maria Gonzalez", "role": "Line Supervisor", "department": "Production"},
-                {"name": "James Wu", "role": "Maintenance Tech Lead", "department": "Maintenance"},
+                {
+                    "name": "Maria Gonzalez",
+                    "role": "Line Supervisor",
+                    "department": "Production",
+                },
+                {
+                    "name": "James Wu",
+                    "role": "Maintenance Tech Lead",
+                    "department": "Maintenance",
+                },
             ],
             domain="manufacturing",
             can_experiment=True,
@@ -902,7 +941,9 @@ class Command(BaseCommand):
         hb1.refresh_from_db()
         hb2.refresh_from_db()
         self.stdout.write(
-            self.style.SUCCESS(f"Project B: Hb1={hb1.current_probability:.0%}, Hb2={hb2.current_probability:.0%}")
+            self.style.SUCCESS(
+                f"Project B: Hb1={hb1.current_probability:.0%}, Hb2={hb2.current_probability:.0%}"
+            )
         )
 
         # =====================================================================
@@ -951,8 +992,16 @@ class Command(BaseCommand):
             champion_name="Robert Chen",
             leader_name="James Wu",
             team_members=[
-                {"name": "Maria Gonzalez", "role": "Line Supervisor", "department": "Production"},
-                {"name": "Tom Bradley", "role": "Slitter Operator", "department": "Production"},
+                {
+                    "name": "Maria Gonzalez",
+                    "role": "Line Supervisor",
+                    "department": "Production",
+                },
+                {
+                    "name": "Tom Bradley",
+                    "role": "Slitter Operator",
+                    "department": "Production",
+                },
                 {"name": "Sarah Martinez", "role": "CI Leader", "department": "CI"},
             ],
             resolution_summary="Changeover reduced from 45 to 18 minutes (60% reduction). Key actions: externalized blade prep, standardized settings card, quick-release fixtures. Sustained for 30 days.",
@@ -1000,7 +1049,9 @@ class Command(BaseCommand):
             source_type="hoshin",
             source_id=hp_c.id,
         )
-        self.stdout.write(self.style.SUCCESS("Created Project C (SMED kaizen — completed)"))
+        self.stdout.write(
+            self.style.SUCCESS("Created Project C (SMED kaizen — completed)")
+        )
 
         # =====================================================================
         # 9. Value Stream Maps
@@ -1141,10 +1192,30 @@ class Command(BaseCommand):
                 },
             ],
             material_flow=[
-                {"id": str(uuid.uuid4()), "from_step_id": step_ids[0], "to_step_id": step_ids[1], "type": "push"},
-                {"id": str(uuid.uuid4()), "from_step_id": step_ids[1], "to_step_id": step_ids[2], "type": "push"},
-                {"id": str(uuid.uuid4()), "from_step_id": step_ids[2], "to_step_id": step_ids[3], "type": "push"},
-                {"id": str(uuid.uuid4()), "from_step_id": step_ids[3], "to_step_id": step_ids[4], "type": "push"},
+                {
+                    "id": str(uuid.uuid4()),
+                    "from_step_id": step_ids[0],
+                    "to_step_id": step_ids[1],
+                    "type": "push",
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "from_step_id": step_ids[1],
+                    "to_step_id": step_ids[2],
+                    "type": "push",
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "from_step_id": step_ids[2],
+                    "to_step_id": step_ids[3],
+                    "type": "push",
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "from_step_id": step_ids[3],
+                    "to_step_id": step_ids[4],
+                    "type": "push",
+                },
             ],
             kaizen_bursts=[
                 {
@@ -1161,7 +1232,13 @@ class Command(BaseCommand):
                     "text": "Reduce print WIP to 1 day supply",
                     "priority": "medium",
                 },
-                {"id": burst_ids[2], "x": 960, "y": 200, "text": "Implement SPC on seal strength", "priority": "high"},
+                {
+                    "id": burst_ids[2],
+                    "x": 960,
+                    "y": 200,
+                    "text": "Implement SPC on seal strength",
+                    "priority": "high",
+                },
             ],
             total_lead_time=12.4,
             total_process_time=847,
@@ -1272,10 +1349,30 @@ class Command(BaseCommand):
                 },
             ],
             material_flow=[
-                {"id": str(uuid.uuid4()), "from_step_id": "receiving", "to_step_id": "slitting", "type": "pull"},
-                {"id": str(uuid.uuid4()), "from_step_id": "slitting", "to_step_id": "printing", "type": "fifo"},
-                {"id": str(uuid.uuid4()), "from_step_id": "printing", "to_step_id": "laminating", "type": "fifo"},
-                {"id": str(uuid.uuid4()), "from_step_id": "laminating", "to_step_id": "packaging", "type": "pull"},
+                {
+                    "id": str(uuid.uuid4()),
+                    "from_step_id": "receiving",
+                    "to_step_id": "slitting",
+                    "type": "pull",
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "from_step_id": "slitting",
+                    "to_step_id": "printing",
+                    "type": "fifo",
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "from_step_id": "printing",
+                    "to_step_id": "laminating",
+                    "type": "fifo",
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "from_step_id": "laminating",
+                    "to_step_id": "packaging",
+                    "type": "pull",
+                },
             ],
             total_lead_time=4.2,
             total_process_time=770,
@@ -1378,8 +1475,18 @@ class Command(BaseCommand):
                         "analysis": "Two-Sample t-Test",
                         "summary": "Statistically significant improvement in seal strength after tension calibration (p=0.003, d=0.82).",
                         "test_type": "Welch's t-test (unequal variances)",
-                        "group_1": {"label": "Before Calibration", "n": 50, "mean": 10.8, "std": 1.2},
-                        "group_2": {"label": "After Calibration", "n": 50, "mean": 11.9, "std": 0.9},
+                        "group_1": {
+                            "label": "Before Calibration",
+                            "n": 50,
+                            "mean": 10.8,
+                            "std": 1.2,
+                        },
+                        "group_2": {
+                            "label": "After Calibration",
+                            "n": 50,
+                            "mean": 11.9,
+                            "std": 0.9,
+                        },
                         "t_statistic": 3.07,
                         "p_value": 0.003,
                         "effect_size": 0.82,
@@ -1405,19 +1512,59 @@ class Command(BaseCommand):
                         "analysis": "Full Factorial DOE (2³ + center points)",
                         "summary": "Temperature and pressure are significant factors for seal strength. Interaction effect significant. Optimal: 185°C, 45 PSI, 0.8s.",
                         "factors": [
-                            {"name": "Temperature", "low": 175, "high": 195, "unit": "°C"},
+                            {
+                                "name": "Temperature",
+                                "low": 175,
+                                "high": 195,
+                                "unit": "°C",
+                            },
                             {"name": "Pressure", "low": 35, "high": 55, "unit": "PSI"},
-                            {"name": "Dwell Time", "low": 0.6, "high": 1.0, "unit": "s"},
+                            {
+                                "name": "Dwell Time",
+                                "low": 0.6,
+                                "high": 1.0,
+                                "unit": "s",
+                            },
                         ],
                         "response": "Seal Strength (N)",
                         "runs": 36,
                         "center_points": 4,
                         "anova": [
-                            {"source": "Temperature", "df": 1, "f_value": 12.8, "p_value": 0.002, "significant": True},
-                            {"source": "Pressure", "df": 1, "f_value": 7.2, "p_value": 0.015, "significant": True},
-                            {"source": "Dwell Time", "df": 1, "f_value": 0.95, "p_value": 0.34, "significant": False},
-                            {"source": "Temp×Pressure", "df": 1, "f_value": 8.6, "p_value": 0.008, "significant": True},
-                            {"source": "Temp×Dwell", "df": 1, "f_value": 0.31, "p_value": 0.58, "significant": False},
+                            {
+                                "source": "Temperature",
+                                "df": 1,
+                                "f_value": 12.8,
+                                "p_value": 0.002,
+                                "significant": True,
+                            },
+                            {
+                                "source": "Pressure",
+                                "df": 1,
+                                "f_value": 7.2,
+                                "p_value": 0.015,
+                                "significant": True,
+                            },
+                            {
+                                "source": "Dwell Time",
+                                "df": 1,
+                                "f_value": 0.95,
+                                "p_value": 0.34,
+                                "significant": False,
+                            },
+                            {
+                                "source": "Temp×Pressure",
+                                "df": 1,
+                                "f_value": 8.6,
+                                "p_value": 0.008,
+                                "significant": True,
+                            },
+                            {
+                                "source": "Temp×Dwell",
+                                "df": 1,
+                                "f_value": 0.31,
+                                "p_value": 0.58,
+                                "significant": False,
+                            },
                             {
                                 "source": "Pressure×Dwell",
                                 "df": 1,
@@ -1428,7 +1575,11 @@ class Command(BaseCommand):
                         ],
                         "r_squared": 0.87,
                         "adj_r_squared": 0.83,
-                        "optimal": {"Temperature": 185, "Pressure": 45, "Dwell Time": 0.8},
+                        "optimal": {
+                            "Temperature": 185,
+                            "Pressure": 45,
+                            "Dwell Time": 0.8,
+                        },
                         "predicted_optimal_response": 12.8,
                         "confirmation": {"n": 50, "mean": 12.6, "failures": 0},
                         "findings": [
@@ -1443,7 +1594,11 @@ class Command(BaseCommand):
             )
             self.stdout.write(self.style.SUCCESS("Created 4 DSW results"))
         except Exception as exc:
-            self.stdout.write(self.style.WARNING(f"Skipped DSW results (encryption key may not be set): {exc}"))
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Skipped DSW results (encryption key may not be set): {exc}"
+                )
+            )
 
         # =====================================================================
         # 11. Quality Tools: A3, FMEA, RCA
@@ -1676,7 +1831,9 @@ class Command(BaseCommand):
             source_type="rca",
             source_id=rca.id,
         )
-        self.stdout.write(self.style.SUCCESS("Created A3 report, RCA session, action items"))
+        self.stdout.write(
+            self.style.SUCCESS("Created A3 report, RCA session, action items")
+        )
 
         # =====================================================================
         # 12. X-Matrix Correlations
@@ -1700,7 +1857,12 @@ class Command(BaseCommand):
             (hp_b.id, kpi4.id, "project_kpi", "moderate"),  # OEE project → savings
             (hp_c.id, kpi2.id, "project_kpi", "moderate"),  # SMED → OEE
             # KPI ↔ Strategic
-            (kpi1.id, so1.id, "kpi_strategic", "strong"),  # Scrap rate → waste reduction
+            (
+                kpi1.id,
+                so1.id,
+                "kpi_strategic",
+                "strong",
+            ),  # Scrap rate → waste reduction
             (kpi2.id, so2.id, "kpi_strategic", "strong"),  # OEE → world-class OEE
             (kpi3.id, so3.id, "kpi_strategic", "strong"),  # FPY → zero escapes
             (kpi4.id, so1.id, "kpi_strategic", "moderate"),  # Savings → waste reduction
@@ -1716,7 +1878,9 @@ class Command(BaseCommand):
                 source=XMatrixCorrelation.Source.MANUAL,
                 is_confirmed=True,
             )
-        self.stdout.write(self.style.SUCCESS(f"Created {len(correlations)} X-Matrix correlations"))
+        self.stdout.write(
+            self.style.SUCCESS(f"Created {len(correlations)} X-Matrix correlations")
+        )
 
         # =====================================================================
         # Summary
@@ -1749,7 +1913,9 @@ class Command(BaseCommand):
         # HoshinKPI, XMatrixCorrelation, Membership
         deleted, details = Tenant.objects.filter(slug=NLP_TENANT_SLUG).delete()
         if deleted:
-            self.stdout.write(self.style.WARNING(f"Deleted tenant + {deleted} related objects"))
+            self.stdout.write(
+                self.style.WARNING(f"Deleted tenant + {deleted} related objects")
+            )
 
         # Projects (owned by tenant, tagged nlp-demo) cascade to:
         # Hypothesis, Evidence, EvidenceLink, HoshinProject, ActionItem, A3, FMEA, RCA, VSM
@@ -1760,11 +1926,15 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"Deleted {count} NLP demo projects"))
 
         # DSW results
-        dsw_deleted = DSWResult.objects.filter(user=user, id__startswith="nlp-").delete()[0]
+        dsw_deleted = DSWResult.objects.filter(
+            user=user, id__startswith="nlp-"
+        ).delete()[0]
         if dsw_deleted:
             self.stdout.write(self.style.WARNING(f"Deleted {dsw_deleted} DSW results"))
 
         # VSMs not linked to projects (shouldn't happen, but safety)
-        ValueStreamMap.objects.filter(owner=user, name__icontains="Packaging Line A").delete()
+        ValueStreamMap.objects.filter(
+            owner=user, name__icontains="Packaging Line A"
+        ).delete()
 
         self.stdout.write(self.style.SUCCESS("Clean complete"))

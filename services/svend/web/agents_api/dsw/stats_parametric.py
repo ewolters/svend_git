@@ -160,7 +160,12 @@ def _run_parametric(analysis_id, df, config):
         try:
             _wsr_stat, _wsr_p = stats.wilcoxon(x - mu)
             _cv_result = _cross_validate(
-                pval, _wsr_p, "t-test", "Wilcoxon signed-rank", alpha=alpha, normality_failed=bool(_norm)
+                pval,
+                _wsr_p,
+                "t-test",
+                "Wilcoxon signed-rank",
+                alpha=alpha,
+                normality_failed=bool(_norm),
             )
             _cv_agrees = _cv_result.get("level") == "info"
             diagnostics.append(_cv_result)
@@ -191,7 +196,10 @@ def _run_parametric(analysis_id, df, config):
             if _shadow:
                 result["bayesian_shadow"] = _shadow
             _grade = _evidence_grade(
-                pval, bf10=_shadow.get("bf10") if _shadow else None, effect_magnitude=label, cross_val_agrees=_cv_agrees
+                pval,
+                bf10=_shadow.get("bf10") if _shadow else None,
+                effect_magnitude=label,
+                cross_val_agrees=_cv_agrees,
             )
             if _grade:
                 result["evidence_grade"] = _grade
@@ -206,7 +214,10 @@ def _run_parametric(analysis_id, df, config):
                     {
                         "type": "histogram",
                         "x": x.tolist(),
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                         "name": var1,
                     },
                     {
@@ -227,7 +238,13 @@ def _run_parametric(analysis_id, df, config):
                     },
                     {
                         "type": "scatter",
-                        "x": [float(ci[0]), float(ci[1]), float(ci[1]), float(ci[0]), float(ci[0])],
+                        "x": [
+                            float(ci[0]),
+                            float(ci[1]),
+                            float(ci[1]),
+                            float(ci[0]),
+                            float(ci[0]),
+                        ],
                         "y": [0, 0, n / 5, n / 5, 0],
                         "fill": "toself",
                         "fillcolor": "rgba(74, 144, 217, 0.15)",
@@ -235,7 +252,12 @@ def _run_parametric(analysis_id, df, config):
                         "name": f"{conf}% CI",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": var1}, "yaxis": {"title": "Count"}, "barmode": "overlay"},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": var1},
+                    "yaxis": {"title": "Count"},
+                    "barmode": "overlay",
+                },
             }
         )
 
@@ -252,11 +274,16 @@ def _run_parametric(analysis_id, df, config):
             factor_col = config.get("group_var") or config.get("factor") or var2
             levels = df[factor_col].dropna().unique()
             if len(levels) != 2:
-                result["summary"] = f"Two-sample t-test requires exactly 2 groups. Found {len(levels)}: {list(levels)}"
+                result["summary"] = (
+                    f"Two-sample t-test requires exactly 2 groups. Found {len(levels)}: {list(levels)}"
+                )
                 return result
             x = df[df[factor_col] == levels[0]][response_col].dropna()
             y = df[df[factor_col] == levels[1]][response_col].dropna()
-            var1, var2 = f"{response_col} [{levels[0]}]", f"{response_col} [{levels[1]}]"
+            var1, var2 = (
+                f"{response_col} [{levels[0]}]",
+                f"{response_col} [{levels[1]}]",
+            )
         else:
             x = df[var1].dropna()
             y = df[var2].dropna()
@@ -265,12 +292,8 @@ def _run_parametric(analysis_id, df, config):
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>TWO-SAMPLE T-TEST<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary += (
-            f"<<COLOR:text>>Sample 1:<</COLOR>> {var1} (n = {len(x)}, mean = {x.mean():.4f}, std = {x.std():.4f})\n"
-        )
-        summary += (
-            f"<<COLOR:text>>Sample 2:<</COLOR>> {var2} (n = {len(y)}, mean = {y.mean():.4f}, std = {y.std():.4f})\n\n"
-        )
+        summary += f"<<COLOR:text>>Sample 1:<</COLOR>> {var1} (n = {len(x)}, mean = {x.mean():.4f}, std = {x.std():.4f})\n"
+        summary += f"<<COLOR:text>>Sample 2:<</COLOR>> {var2} (n = {len(y)}, mean = {y.mean():.4f}, std = {y.std():.4f})\n\n"
         summary += "<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  Difference of means: {x.mean() - y.mean():.4f}\n"
         summary += f"  t-statistic: {stat:.4f}\n"
@@ -292,12 +315,16 @@ def _run_parametric(analysis_id, df, config):
         if pval < alpha:
             summary += f"<<COLOR:good>>Means are significantly different (p < {alpha})<</COLOR>>"
         else:
-            summary += f"<<COLOR:text>>No significant difference (p >= {alpha})<</COLOR>>"
+            summary += (
+                f"<<COLOR:text>>No significant difference (p >= {alpha})<</COLOR>>"
+            )
 
         # Effect size: Cohen's d (pooled)
         nx, ny = len(x), len(y)
         pooled_std = (
-            np.sqrt(((nx - 1) * x.std() ** 2 + (ny - 1) * y.std() ** 2) / (nx + ny - 2)) if (nx + ny > 2) else 1.0
+            np.sqrt(((nx - 1) * x.std() ** 2 + (ny - 1) * y.std() ** 2) / (nx + ny - 2))
+            if (nx + ny > 2)
+            else 1.0
         )
         d = (x.mean() - y.mean()) / pooled_std if pooled_std > 0 else 0.0
         diff_val = x.mean() - y.mean()
@@ -312,7 +339,9 @@ def _run_parametric(analysis_id, df, config):
         )
 
         result["summary"] = summary
-        obs_parts = [f"Two-sample t-test: diff={diff_val:.4f}, p={pval:.4f}, Cohen's d={abs(d):.3f} ({label})"]
+        obs_parts = [
+            f"Two-sample t-test: diff={diff_val:.4f}, p={pval:.4f}, Cohen's d={abs(d):.3f} ({label})"
+        ]
         if pval < alpha and meaningful:
             obs_parts.append("Practically significant difference.")
         elif pval < alpha:
@@ -376,7 +405,9 @@ def _run_parametric(analysis_id, df, config):
             diagnostics.append(_norm1)
         if _norm2:
             diagnostics.append(_norm2)
-        _eq_var = _check_equal_variance(x.values, y.values, labels=[var1, var2], alpha=alpha)
+        _eq_var = _check_equal_variance(
+            x.values, y.values, labels=[var1, var2], alpha=alpha
+        )
         if _eq_var:
             _eq_var["detail"] += " Welch's t-test (default) handles this correctly."
             diagnostics.append(_eq_var)
@@ -390,7 +421,14 @@ def _run_parametric(analysis_id, df, config):
         _cv_agrees = None
         try:
             _mw_u, _mw_p = stats.mannwhitneyu(x, y, alternative="two-sided")
-            _cv = _cross_validate(pval, _mw_p, "t-test", "Mann-Whitney U", alpha=alpha, normality_failed=_any_nonnormal)
+            _cv = _cross_validate(
+                pval,
+                _mw_p,
+                "t-test",
+                "Mann-Whitney U",
+                alpha=alpha,
+                normality_failed=_any_nonnormal,
+            )
             _cv_agrees = _cv.get("level") == "info"
             # Enrich with effect size
             if abs(d) >= 0.5:
@@ -401,7 +439,9 @@ def _run_parametric(analysis_id, df, config):
                 "analysis": "mann_whitney",
                 "config": {
                     "var": config.get("response") or config.get("var1", ""),
-                    "group_var": config.get("group_var") or config.get("factor") or config.get("var2", ""),
+                    "group_var": config.get("group_var")
+                    or config.get("factor")
+                    or config.get("var2", ""),
                 },
             }
             diagnostics.append(_cv)
@@ -434,7 +474,11 @@ def _run_parametric(analysis_id, df, config):
                         "label": "Power Analysis",
                         "type": "stats",
                         "analysis": "power_sample_size",
-                        "config": {"test_type": "ttest2", "effect_size": float(abs(d)), "alpha": float(alpha)},
+                        "config": {
+                            "test_type": "ttest2",
+                            "effect_size": float(abs(d)),
+                            "alpha": float(alpha),
+                        },
                     },
                 }
             )
@@ -446,7 +490,10 @@ def _run_parametric(analysis_id, df, config):
             if _shadow:
                 result["bayesian_shadow"] = _shadow
             _grade = _evidence_grade(
-                pval, bf10=_shadow.get("bf10") if _shadow else None, effect_magnitude=label, cross_val_agrees=_cv_agrees
+                pval,
+                bf10=_shadow.get("bf10") if _shadow else None,
+                effect_magnitude=label,
+                cross_val_agrees=_cv_agrees,
             )
             if _grade:
                 result["evidence_grade"] = _grade
@@ -490,11 +537,24 @@ def _run_parametric(analysis_id, df, config):
             factor_col = config.get("group_var") or config.get("factor") or var2
             levels = df[factor_col].dropna().unique()
             if len(levels) != 2:
-                result["summary"] = f"Paired t-test requires exactly 2 groups. Found {len(levels)}: {list(levels)}"
+                result["summary"] = (
+                    f"Paired t-test requires exactly 2 groups. Found {len(levels)}: {list(levels)}"
+                )
                 return result
-            x = df[df[factor_col] == levels[0]][response_col].dropna().reset_index(drop=True)
-            y = df[df[factor_col] == levels[1]][response_col].dropna().reset_index(drop=True)
-            var1, var2 = f"{response_col} [{levels[0]}]", f"{response_col} [{levels[1]}]"
+            x = (
+                df[df[factor_col] == levels[0]][response_col]
+                .dropna()
+                .reset_index(drop=True)
+            )
+            y = (
+                df[df[factor_col] == levels[1]][response_col]
+                .dropna()
+                .reset_index(drop=True)
+            )
+            var1, var2 = (
+                f"{response_col} [{levels[0]}]",
+                f"{response_col} [{levels[1]}]",
+            )
             # Align by row order (pairs must match by position)
             min_len = min(len(x), len(y))
             x = x.iloc[:min_len]
@@ -531,7 +591,9 @@ def _run_parametric(analysis_id, df, config):
         if pval < alpha:
             summary += f"<<COLOR:good>>Significant difference between paired observations (p < {alpha})<</COLOR>>"
         else:
-            summary += f"<<COLOR:text>>No significant difference (p >= {alpha})<</COLOR>>"
+            summary += (
+                f"<<COLOR:text>>No significant difference (p >= {alpha})<</COLOR>>"
+            )
 
         # Effect size: Cohen's d for paired data
         d = diff.mean() / diff.std() if diff.std() > 0 else 0.0
@@ -547,9 +609,13 @@ def _run_parametric(analysis_id, df, config):
         )
 
         result["summary"] = summary
-        obs_parts = [f"Paired t-test: mean diff={diff.mean():.4f}, p={pval:.4f}, Cohen's d={abs(d):.3f} ({label})"]
+        obs_parts = [
+            f"Paired t-test: mean diff={diff.mean():.4f}, p={pval:.4f}, Cohen's d={abs(d):.3f} ({label})"
+        ]
         if pval < alpha and meaningful:
-            obs_parts.append(f"Practically significant — values {direction} meaningfully.")
+            obs_parts.append(
+                f"Practically significant — values {direction} meaningfully."
+            )
         elif pval < alpha:
             obs_parts.append("Statistically significant but small effect.")
         else:
@@ -564,7 +630,9 @@ def _run_parametric(analysis_id, df, config):
         elif pval < alpha:
             verdict = "Small but statistically significant change"
             body = f"Paired values {direction} by {abs(diff.mean()):.4f} units on average (p = {pval:.4f}), but the effect is {label} (d = {abs(d):.2f})."
-            nexts = "The change is real but may not justify the cost of the intervention."
+            nexts = (
+                "The change is real but may not justify the cost of the intervention."
+            )
         else:
             verdict = "No significant change between paired observations"
             body = f"The mean difference ({diff.mean():.4f}) is not statistically significant (p = {pval:.4f}). The effect size is {label}."
@@ -609,7 +677,10 @@ def _run_parametric(analysis_id, df, config):
                 "label": "Run Wilcoxon Signed-Rank",
                 "type": "stats",
                 "analysis": "wilcoxon_signed",
-                "config": {"var1": config.get("var1", ""), "var2": config.get("var2", "")},
+                "config": {
+                    "var1": config.get("var1", ""),
+                    "var2": config.get("var2", ""),
+                },
             }
             diagnostics.append(_norm_d)
         _out_d = _check_outliers(diff.values, label="Differences")
@@ -620,7 +691,12 @@ def _run_parametric(analysis_id, df, config):
         try:
             _wsr_stat, _wsr_p = stats.wilcoxon(diff)
             _cv = _cross_validate(
-                pval, _wsr_p, "Paired t-test", "Wilcoxon signed-rank", alpha=alpha, normality_failed=bool(_norm_d)
+                pval,
+                _wsr_p,
+                "Paired t-test",
+                "Wilcoxon signed-rank",
+                alpha=alpha,
+                normality_failed=bool(_norm_d),
             )
             _cv_agrees = _cv.get("level") == "info"
             if abs(d) >= 0.5:
@@ -652,7 +728,10 @@ def _run_parametric(analysis_id, df, config):
             if _shadow:
                 result["bayesian_shadow"] = _shadow
             _grade = _evidence_grade(
-                pval, bf10=_shadow.get("bf10") if _shadow else None, effect_magnitude=label, cross_val_agrees=_cv_agrees
+                pval,
+                bf10=_shadow.get("bf10") if _shadow else None,
+                effect_magnitude=label,
+                cross_val_agrees=_cv_agrees,
             )
             if _grade:
                 result["evidence_grade"] = _grade
@@ -667,7 +746,10 @@ def _run_parametric(analysis_id, df, config):
                     {
                         "type": "histogram",
                         "x": diff.tolist(),
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                         "name": "Differences",
                     },
                     {
@@ -687,7 +769,11 @@ def _run_parametric(analysis_id, df, config):
                         "name": "Zero (no diff)",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Difference"}, "yaxis": {"title": "Count"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Difference"},
+                    "yaxis": {"title": "Count"},
+                },
             }
         )
 
@@ -702,7 +788,10 @@ def _run_parametric(analysis_id, df, config):
         if len(factors) >= 1:
             # One-way ANOVA
             factor_col = factors[0]
-            groups = [df[df[factor_col] == level][response].dropna() for level in df[factor_col].unique()]
+            groups = [
+                df[df[factor_col] == level][response].dropna()
+                for level in df[factor_col].unique()
+            ]
             groups = [g for g in groups if len(g) > 0]  # Remove empty groups
 
             stat, pval = stats.f_oneway(*groups)
@@ -718,7 +807,12 @@ def _run_parametric(analysis_id, df, config):
             for level in df[factor_col].unique():
                 grp = df[df[factor_col] == level][response].dropna()
                 _ci = (
-                    stats.t.interval(0.95, len(grp) - 1, loc=grp.mean(), scale=grp.std() / np.sqrt(len(grp)))
+                    stats.t.interval(
+                        0.95,
+                        len(grp) - 1,
+                        loc=grp.mean(),
+                        scale=grp.std() / np.sqrt(len(grp)),
+                    )
                     if len(grp) > 1
                     else (grp.mean(), grp.mean())
                 )
@@ -749,7 +843,9 @@ def _run_parametric(analysis_id, df, config):
                 summary += "<<COLOR:good>>Significant difference between groups (p < 0.05)<</COLOR>>\n"
                 summary += "<<COLOR:text>>Run post-hoc tests (Tukey HSD, Games-Howell, or Dunnett) to identify which groups differ.<</COLOR>>"
             else:
-                summary += "<<COLOR:text>>No significant difference (p >= 0.05)<</COLOR>>"
+                summary += (
+                    "<<COLOR:text>>No significant difference (p >= 0.05)<</COLOR>>"
+                )
 
             summary += _practical_block(
                 "Eta-squared (η²)",
@@ -760,9 +856,13 @@ def _run_parametric(analysis_id, df, config):
             )
 
             result["summary"] = summary
-            obs_parts = [f"One-way ANOVA: F={stat:.4f}, p={pval:.4f}, η²={eta_sq:.3f} ({eta_label})"]
+            obs_parts = [
+                f"One-way ANOVA: F={stat:.4f}, p={pval:.4f}, η²={eta_sq:.3f} ({eta_label})"
+            ]
             if pval < 0.05 and eta_meaningful:
-                obs_parts.append(f"'{factor_col}' has a {eta_label}, practically significant effect on '{response}'.")
+                obs_parts.append(
+                    f"'{factor_col}' has a {eta_label}, practically significant effect on '{response}'."
+                )
             elif pval < 0.05:
                 obs_parts.append(f"Significant but {eta_label} effect.")
             else:
@@ -775,7 +875,9 @@ def _run_parametric(analysis_id, df, config):
                 body = f"The factor explains <strong>{eta_sq * 100:.1f}%</strong> of the variation in {response} &mdash; a <strong>{eta_label}</strong> effect ({k} groups, F = {stat:.2f}, p = {pval:.4f})."
                 nexts = "Run <strong>Tukey HSD</strong> or <strong>Games-Howell</strong> post-hoc tests to identify which specific groups differ."
             elif pval < 0.05:
-                verdict = f"Statistically significant but {eta_label} effect of {factor_col}"
+                verdict = (
+                    f"Statistically significant but {eta_label} effect of {factor_col}"
+                )
                 body = f"At least one group mean differs (p = {pval:.4f}), but {factor_col} explains only {eta_sq * 100:.1f}% of the variation ({eta_label} effect). Other factors likely dominate."
                 nexts = "Consider whether the small effect justifies further investigation. Look for other sources of variation."
             else:
@@ -822,15 +924,17 @@ def _run_parametric(analysis_id, df, config):
             _any_nonnormal = False
             for level in df[factor_col].unique():
                 grp = df[df[factor_col] == level][response].dropna()
-                _norm_g = _check_normality(grp.values, label=f"{response} [{level}]", alpha=0.05)
+                _norm_g = _check_normality(
+                    grp.values, label=f"{response} [{level}]", alpha=0.05
+                )
                 if _norm_g:
                     _any_nonnormal = True
                     diagnostics.append(_norm_g)
                     break  # Report once, not per-group
             if _any_nonnormal:
-                diagnostics[-1]["detail"] = (
-                    "ANOVA assumes normality within groups. Consider Kruskal-Wallis for non-normal data."
-                )
+                diagnostics[-1][
+                    "detail"
+                ] = "ANOVA assumes normality within groups. Consider Kruskal-Wallis for non-normal data."
                 diagnostics[-1]["action"] = {
                     "label": "Run Kruskal-Wallis",
                     "type": "stats",
@@ -839,7 +943,9 @@ def _run_parametric(analysis_id, df, config):
                 }
             # Equal variance
             _eq_var = _check_equal_variance(
-                *[g.values for g in groups], labels=[str(lbl) for lbl in df[factor_col].unique()], alpha=0.05
+                *[g.values for g in groups],
+                labels=[str(lbl) for lbl in df[factor_col].unique()],
+                alpha=0.05,
             )
             if _eq_var:
                 _eq_var["detail"] += " Consider Welch's ANOVA or Games-Howell post-hoc."
@@ -849,11 +955,18 @@ def _run_parametric(analysis_id, df, config):
             try:
                 _kw_stat, _kw_p = stats.kruskal(*groups)
                 _cv = _cross_validate(
-                    pval, _kw_p, "ANOVA", "Kruskal-Wallis", alpha=0.05, normality_failed=_any_nonnormal
+                    pval,
+                    _kw_p,
+                    "ANOVA",
+                    "Kruskal-Wallis",
+                    alpha=0.05,
+                    normality_failed=_any_nonnormal,
                 )
                 _cv_agrees = _cv.get("level") == "info"
                 if eta_sq >= 0.06:
-                    _cv["detail"] += f" Effect size is {eta_label} (\u03b7\u00b2 = {eta_sq:.3f})."
+                    _cv[
+                        "detail"
+                    ] += f" Effect size is {eta_label} (\u03b7\u00b2 = {eta_sq:.3f})."
                 diagnostics.append(_cv)
             except Exception:
                 pass
@@ -935,7 +1048,10 @@ def _run_parametric(analysis_id, df, config):
                             "type": "box",
                             "y": df[response].tolist(),
                             "x": df[factor_col].astype(str).tolist(),
-                            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                            "marker": {
+                                "color": "rgba(74, 159, 110, 0.4)",
+                                "line": {"color": "#4a9f6e", "width": 1.5},
+                            },
                         }
                     ],
                     "layout": {"height": 300},
@@ -970,16 +1086,26 @@ def _run_parametric(analysis_id, df, config):
             summary += anova_table.to_string() + "\n\n"
 
             # Compute partial eta-squared and interpret each factor
-            ss_resid = anova_table.loc["Residual", "sum_sq"] if "Residual" in anova_table.index else 0
+            ss_resid = (
+                anova_table.loc["Residual", "sum_sq"]
+                if "Residual" in anova_table.index
+                else 0
+            )
             effect_stats = {}
             for idx in anova_table.index:
                 if idx == "Residual":
                     continue
                 if "PR(>F)" in anova_table.columns:
                     p = anova_table.loc[idx, "PR(>F)"]
-                    ss = anova_table.loc[idx, "sum_sq"] if "sum_sq" in anova_table.columns else 0
+                    ss = (
+                        anova_table.loc[idx, "sum_sq"]
+                        if "sum_sq" in anova_table.columns
+                        else 0
+                    )
                     partial_eta = ss / (ss + ss_resid) if (ss + ss_resid) > 0 else 0.0
-                    eta_label, eta_meaningful = _effect_magnitude(partial_eta, "eta_squared")
+                    eta_label, eta_meaningful = _effect_magnitude(
+                        partial_eta, "eta_squared"
+                    )
                     if not np.isnan(p):
                         sig = "<<COLOR:good>>*<</COLOR>>" if p < 0.05 else ""
                         summary += f"{idx}: p = {p:.4f} {sig}  |  partial η² = {partial_eta:.3f} ({eta_label})\n"
@@ -991,7 +1117,9 @@ def _run_parametric(analysis_id, df, config):
 
             # Practical significance block for strongest effect
             if effect_stats:
-                strongest = max(effect_stats.items(), key=lambda x: x[1]["partial_eta_squared"])
+                strongest = max(
+                    effect_stats.items(), key=lambda x: x[1]["partial_eta_squared"]
+                )
                 s_name, s_vals = strongest
                 summary += _practical_block(
                     f"Partial η² ({s_name})",
@@ -1010,8 +1138,12 @@ def _run_parametric(analysis_id, df, config):
 
             # Narrative
             if effect_stats:
-                _sig_effects = {k: v for k, v in effect_stats.items() if v["p_value"] < 0.05}
-                strongest = max(effect_stats.items(), key=lambda x: x[1]["partial_eta_squared"])
+                _sig_effects = {
+                    k: v for k, v in effect_stats.items() if v["p_value"] < 0.05
+                }
+                strongest = max(
+                    effect_stats.items(), key=lambda x: x[1]["partial_eta_squared"]
+                )
                 s_name, s_vals = strongest
                 if _sig_effects:
                     _ix_key = f"C({factor_a}):C({factor_b})"
@@ -1019,14 +1151,14 @@ def _run_parametric(analysis_id, df, config):
                     verdict = f"{'Interaction' if _has_ix else s_name} is significant (η² = {s_vals['partial_eta_squared']:.3f})"
                     body = f"Significant effects: <strong>{', '.join(_sig_effects.keys())}</strong>."
                     if _has_ix:
-                        body += (
-                            f" The interaction means the effect of {factor_a} depends on {factor_b} — optimize jointly."
-                        )
+                        body += f" The interaction means the effect of {factor_a} depends on {factor_b} — optimize jointly."
                     nxt = "Run post-hoc tests (Tukey HSD) on significant main effects to identify which levels differ."
                 else:
                     verdict = "No significant effects detected"
                     body = f"Neither {factor_a}, {factor_b}, nor their interaction significantly affects {response}."
-                    nxt = "Check sample sizes and effect sizes. The study may lack power."
+                    nxt = (
+                        "Check sample sizes and effect sizes. The study may lack power."
+                    )
                 result["narrative"] = _narrative(
                     verdict,
                     body,
@@ -1049,10 +1181,14 @@ def _run_parametric(analysis_id, df, config):
                 # Fallback: check response within each factor combination
                 for _a_lev in df[factor_a].unique():
                     for _b_lev in df[factor_b].unique():
-                        _cell = df[(df[factor_a] == _a_lev) & (df[factor_b] == _b_lev)][response].dropna()
+                        _cell = df[(df[factor_a] == _a_lev) & (df[factor_b] == _b_lev)][
+                            response
+                        ].dropna()
                         if len(_cell) >= 8:
                             _norm_c = _check_normality(
-                                _cell.values, label=f"{response} [{_a_lev}×{_b_lev}]", alpha=0.05
+                                _cell.values,
+                                label=f"{response} [{_a_lev}×{_b_lev}]",
+                                alpha=0.05,
                             )
                             if _norm_c:
                                 _norm_c["detail"] = (
@@ -1068,16 +1204,20 @@ def _run_parametric(analysis_id, df, config):
             _cell_labels = []
             for _a_lev in df[factor_a].unique():
                 for _b_lev in df[factor_b].unique():
-                    _cell = df[(df[factor_a] == _a_lev) & (df[factor_b] == _b_lev)][response].dropna()
+                    _cell = df[(df[factor_a] == _a_lev) & (df[factor_b] == _b_lev)][
+                        response
+                    ].dropna()
                     if len(_cell) >= 2:
                         _cell_groups.append(_cell.values)
                         _cell_labels.append(f"{_a_lev}×{_b_lev}")
             if len(_cell_groups) >= 2:
-                _eq_var = _check_equal_variance(*_cell_groups, labels=_cell_labels, alpha=0.05)
+                _eq_var = _check_equal_variance(
+                    *_cell_groups, labels=_cell_labels, alpha=0.05
+                )
                 if _eq_var:
-                    _eq_var["detail"] += (
-                        " Unequal variances across cells may inflate Type I error. Consider data transformation."
-                    )
+                    _eq_var[
+                        "detail"
+                    ] += " Unequal variances across cells may inflate Type I error. Consider data transformation."
                     diagnostics.append(_eq_var)
             # Effect size emphasis: partial eta-squared per effect
             _ix_key = f"C({factor_a}):C({factor_b})"
@@ -1128,11 +1268,17 @@ def _run_parametric(analysis_id, df, config):
                 )
 
             result["plots"].append(
-                {"title": "Interaction Plot", "data": traces, "layout": {"height": 300, "xaxis": {"title": factor_a}}}
+                {
+                    "title": "Interaction Plot",
+                    "data": traces,
+                    "layout": {"height": 300, "xaxis": {"title": factor_a}},
+                }
             )
 
         except ImportError:
-            result["summary"] = "Two-way ANOVA requires statsmodels. Install with: pip install statsmodels"
+            result["summary"] = (
+                "Two-way ANOVA requires statsmodels. Install with: pip install statsmodels"
+            )
         except Exception as e:
             result["summary"] = f"Two-way ANOVA error: {str(e)}"
 
@@ -1151,7 +1297,9 @@ def _run_parametric(analysis_id, df, config):
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>CORRELATION ANALYSIS ({method.upper()})<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(numeric_cols)}\n\n"
+        summary += (
+            f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(numeric_cols)}\n\n"
+        )
         summary += "<<COLOR:accent>>── Correlation Matrix ──<</COLOR>>\n"
         summary += corr_matrix.to_string() + "\n"
 
@@ -1167,11 +1315,17 @@ def _run_parametric(analysis_id, df, config):
                     pair_data = df[[col1, col2]].dropna()
                     if len(pair_data) > 2:
                         if method == "spearman":
-                            r_val, p_val = stats.spearmanr(pair_data[col1], pair_data[col2])
+                            r_val, p_val = stats.spearmanr(
+                                pair_data[col1], pair_data[col2]
+                            )
                         elif method == "kendall":
-                            r_val, p_val = stats.kendalltau(pair_data[col1], pair_data[col2])
+                            r_val, p_val = stats.kendalltau(
+                                pair_data[col1], pair_data[col2]
+                            )
                         else:
-                            r_val, p_val = stats.pearsonr(pair_data[col1], pair_data[col2])
+                            r_val, p_val = stats.pearsonr(
+                                pair_data[col1], pair_data[col2]
+                            )
                     else:
                         r_val, p_val = float(r), 1.0
                     r2_val = r_val**2
@@ -1179,7 +1333,16 @@ def _run_parametric(analysis_id, df, config):
                     stat_dict[f"r({col1},{col2})"] = float(r_val)
                     stat_dict[f"p({col1},{col2})"] = float(p_val)
                     if abs(r_val) >= 0.3:
-                        strong_pairs.append((col1, col2, float(r_val), float(p_val), label, len(pair_data)))
+                        strong_pairs.append(
+                            (
+                                col1,
+                                col2,
+                                float(r_val),
+                                float(p_val),
+                                label,
+                                len(pair_data),
+                            )
+                        )
 
         if strong_pairs:
             strong_pairs.sort(key=lambda x: abs(x[2]), reverse=True)
@@ -1200,10 +1363,13 @@ def _run_parametric(analysis_id, df, config):
             summary += "\n<<COLOR:text>>No strong correlations found (all |r| < 0.3).<</COLOR>>"
 
         result["summary"] = summary
-        result["guide_observation"] = f"Correlation ({method}): {len(strong_pairs)} pairs with |r| ≥ 0.3." + (
-            f" Strongest: {strong_pairs[0][0]} ↔ {strong_pairs[0][1]} (r={strong_pairs[0][2]:.3f})."
-            if strong_pairs
-            else " No strong relationships found."
+        result["guide_observation"] = (
+            f"Correlation ({method}): {len(strong_pairs)} pairs with |r| ≥ 0.3."
+            + (
+                f" Strongest: {strong_pairs[0][0]} ↔ {strong_pairs[0][1]} (r={strong_pairs[0][2]:.3f})."
+                if strong_pairs
+                else " No strong relationships found."
+            )
         )
 
         # Narrative (enhanced — spurious warning, sample size context)
@@ -1265,14 +1431,22 @@ def _run_parametric(analysis_id, df, config):
                     _sp_corr = df[numeric_cols].corr(method="spearman")
                     if strong_pairs:
                         _sp_r = _sp_corr.loc[strong_pairs[0][0], strong_pairs[0][1]]
-                        _cv = _cross_validate(strong_pairs[0][3], strong_pairs[0][3], "Pearson", "Spearman", alpha=0.05)
+                        _cv = _cross_validate(
+                            strong_pairs[0][3],
+                            strong_pairs[0][3],
+                            "Pearson",
+                            "Spearman",
+                            alpha=0.05,
+                        )
                         _cv["detail"] = (
                             f"Pearson r = {strong_pairs[0][2]:.3f}, Spearman \u03c1 = {_sp_r:.3f} for {strong_pairs[0][0]} \u2194 {strong_pairs[0][1]}."
                         )
                         if abs(strong_pairs[0][2] - _sp_r) > 0.15:
                             _cv["level"] = "warning"
                             _cv["title"] = "Pearson and Spearman differ notably"
-                            _cv["detail"] += " This suggests outliers or non-linearity are affecting Pearson's r."
+                            _cv[
+                                "detail"
+                            ] += " This suggests outliers or non-linearity are affecting Pearson's r."
                         diagnostics.append(_cv)
                 except Exception:
                     pass
@@ -1302,12 +1476,16 @@ def _run_parametric(analysis_id, df, config):
             if strong_pairs:
                 _sp = strong_pairs[0]
                 _sp_data = df[[_sp[0], _sp[1]]].dropna()
-                _shadow = _bayesian_shadow("correlation", x=_sp_data[_sp[0]].values, y=_sp_data[_sp[1]].values)
+                _shadow = _bayesian_shadow(
+                    "correlation", x=_sp_data[_sp[0]].values, y=_sp_data[_sp[1]].values
+                )
                 if _shadow:
                     result["bayesian_shadow"] = _shadow
                 _r2_label, _ = _effect_magnitude(_sp[2] ** 2, "r_squared")
                 _grade = _evidence_grade(
-                    _sp[3], bf10=_shadow.get("bf10") if _shadow else None, effect_magnitude=_r2_label
+                    _sp[3],
+                    bf10=_shadow.get("bf10") if _shadow else None,
+                    effect_magnitude=_r2_label,
                 )
                 if _grade:
                     result["evidence_grade"] = _grade
@@ -1322,7 +1500,9 @@ def _run_parametric(analysis_id, df, config):
                 if r_col == c_col:
                     row.append("\u2014")
                 else:
-                    pv = stat_dict.get(f"p({r_col},{c_col})") or stat_dict.get(f"p({c_col},{r_col})")
+                    pv = stat_dict.get(f"p({r_col},{c_col})") or stat_dict.get(
+                        f"p({c_col},{r_col})"
+                    )
                     row.append(f"p = {pv:.4f}" if pv is not None else "\u2014")
             p_matrix.append(row)
 
@@ -1338,7 +1518,9 @@ def _run_parametric(analysis_id, df, config):
                         "y": numeric_cols,
                         "colorscale": "RdBu",
                         "zmid": 0,
-                        "text": [[f"{v:.3f}" for v in row] for row in corr_matrix.values],
+                        "text": [
+                            [f"{v:.3f}" for v in row] for row in corr_matrix.values
+                        ],
                         "texttemplate": "%{text}",
                         "textfont": {"size": 10},
                         "customdata": p_matrix,
@@ -1367,8 +1549,14 @@ def _run_parametric(analysis_id, df, config):
             summary += "<<COLOR:text>>Anderson-Darling Test<</COLOR>>\n"
             summary += f"  Statistic: {stat_result.statistic:.4f}\n"
             summary += "  Critical Values:\n"
-            for cv, sl in zip(stat_result.critical_values, stat_result.significance_level):
-                marker = "<<COLOR:good>>✓<</COLOR>>" if stat_result.statistic < cv else "<<COLOR:bad>>✗<</COLOR>>"
+            for cv, sl in zip(
+                stat_result.critical_values, stat_result.significance_level
+            ):
+                marker = (
+                    "<<COLOR:good>>✓<</COLOR>>"
+                    if stat_result.statistic < cv
+                    else "<<COLOR:bad>>✗<</COLOR>>"
+                )
                 summary += f"    {marker} {sl}%: {cv:.4f}\n"
         elif test_type == "shapiro":
             stat, pval = stats.shapiro(x)
@@ -1414,7 +1602,10 @@ def _run_parametric(analysis_id, df, config):
                     },
                     {
                         "type": "scatter",
-                        "x": [float(theoretical_quantiles.min()), float(theoretical_quantiles.max())],
+                        "x": [
+                            float(theoretical_quantiles.min()),
+                            float(theoretical_quantiles.max()),
+                        ],
                         "y": [float(sorted_data.min()), float(sorted_data.max())],
                         "mode": "lines",
                         "line": {"color": "#ff7675", "dash": "dash"},
@@ -1442,7 +1633,10 @@ def _run_parametric(analysis_id, df, config):
                     {
                         "type": "histogram",
                         "x": x.tolist(),
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                         "name": "Data",
                     },
                     {
@@ -1454,31 +1648,46 @@ def _run_parametric(analysis_id, df, config):
                         "name": "Normal fit",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": var}, "yaxis": {"title": "Count"}, "barmode": "overlay"},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": var},
+                    "yaxis": {"title": "Count"},
+                    "barmode": "overlay",
+                },
             }
         )
 
         # Shape descriptors
         _skew = float(x.skew()) if hasattr(x, "skew") else float(pd.Series(x).skew())
-        _kurt = float(x.kurtosis()) if hasattr(x, "kurtosis") else float(pd.Series(x).kurtosis())
+        _kurt = (
+            float(x.kurtosis())
+            if hasattr(x, "kurtosis")
+            else float(pd.Series(x).kurtosis())
+        )
         _shape_parts = []
         if abs(_skew) > 1:
-            _shape_parts.append(f"{'right' if _skew > 0 else 'left'}-skewed (skewness = {_skew:.2f})")
+            _shape_parts.append(
+                f"{'right' if _skew > 0 else 'left'}-skewed (skewness = {_skew:.2f})"
+            )
         elif abs(_skew) > 0.5:
-            _shape_parts.append(f"moderately {'right' if _skew > 0 else 'left'}-skewed (skewness = {_skew:.2f})")
+            _shape_parts.append(
+                f"moderately {'right' if _skew > 0 else 'left'}-skewed (skewness = {_skew:.2f})"
+            )
         if _kurt > 1:
             _shape_parts.append(f"heavy-tailed (excess kurtosis = {_kurt:.2f})")
         elif _kurt < -1:
             _shape_parts.append(f"light-tailed (excess kurtosis = {_kurt:.2f})")
-        _shape_desc = ", ".join(_shape_parts) if _shape_parts else "approximately symmetric with normal tail weight"
+        _shape_desc = (
+            ", ".join(_shape_parts)
+            if _shape_parts
+            else "approximately symmetric with normal tail weight"
+        )
 
         # Significance and test label depend on test type
         if test_type == "anderson":
             _is_sig = stat_result.statistic > stat_result.critical_values[2]  # 5% level
             _test_label = "Anderson-Darling"
-            _stat_str = (
-                f"A\u00b2 = {stat_result.statistic:.4f}, 5% critical value = {stat_result.critical_values[2]:.4f}"
-            )
+            _stat_str = f"A\u00b2 = {stat_result.statistic:.4f}, 5% critical value = {stat_result.critical_values[2]:.4f}"
         elif test_type == "shapiro":
             _is_sig = pval < 0.05
             _test_label = "Shapiro-Wilk"
@@ -1511,7 +1720,9 @@ def _run_parametric(analysis_id, df, config):
         diagnostics = []
         _out = _check_outliers(x.values, label=var)
         if _out:
-            _out["detail"] += " Outliers inflate test statistics and can cause false rejection of normality."
+            _out[
+                "detail"
+            ] += " Outliers inflate test statistics and can cause false rejection of normality."
             diagnostics.append(_out)
 
         # Effect size: deviation from normality via skewness/kurtosis
@@ -1551,7 +1762,12 @@ def _run_parametric(analysis_id, df, config):
                             "analysis": "distribution_fit",
                             "config": {"var": var},
                         },
-                        {"label": "Box-Cox Transform", "type": "stats", "analysis": "box_cox", "config": {"var": var}},
+                        {
+                            "label": "Box-Cox Transform",
+                            "type": "stats",
+                            "analysis": "box_cox",
+                            "config": {"var": var},
+                        },
                     ],
                 }
             )
@@ -1597,7 +1813,9 @@ def _run_parametric(analysis_id, df, config):
             sub_plot_factors_sp = [sub_plot_factors_sp]
 
         all_factors_sp = whole_plot_factors_sp + sub_plot_factors_sp
-        needed_cols = [response_sp] + all_factors_sp + ([block_col_sp] if block_col_sp else [])
+        needed_cols = (
+            [response_sp] + all_factors_sp + ([block_col_sp] if block_col_sp else [])
+        )
         data_sp = df[needed_cols].dropna()
 
         # Ensure factors are categorical
@@ -1641,7 +1859,9 @@ def _run_parametric(analysis_id, df, config):
                 else anova_table.iloc[-1]["mean_sq"]
             )
             df_resid_sp = (
-                anova_table.loc["Residual", "df"] if "Residual" in anova_table.index else anova_table.iloc[-1]["df"]
+                anova_table.loc["Residual", "df"]
+                if "Residual" in anova_table.index
+                else anova_table.iloc[-1]["df"]
             )
 
             # If we have blocks, compute whole-plot error from block SS
@@ -1659,7 +1879,9 @@ def _run_parametric(analysis_id, df, config):
                 ms = float(anova_table.loc[idx_row, "mean_sq"])
 
                 # Determine error term
-                clean_name = idx_row.replace("C(", "").replace(")", "").replace(":", " × ")
+                clean_name = (
+                    idx_row.replace("C(", "").replace(")", "").replace(":", " × ")
+                )
                 is_wp = any(f in idx_row for f in whole_plot_factors_sp) and not any(
                     f in idx_row for f in sub_plot_factors_sp
                 )
@@ -1674,7 +1896,9 @@ def _run_parametric(analysis_id, df, config):
                     error_term = "Residual"
 
                 f_val = ms / error_ms if error_ms > 0 else 0
-                p_val = 1 - sp_stats.f.cdf(f_val, df_val, error_df) if f_val > 0 else 1.0
+                p_val = (
+                    1 - sp_stats.f.cdf(f_val, df_val, error_df) if f_val > 0 else 1.0
+                )
                 pct_contrib = ss / ss_total * 100
 
                 anova_rows.append(
@@ -1730,9 +1954,7 @@ def _run_parametric(analysis_id, df, config):
             summary_sp += f"<<COLOR:highlight>>N:<</COLOR>> {len(data_sp)}\n\n"
 
             summary_sp += "<<COLOR:accent>>── ANOVA Table ──<</COLOR>>\n"
-            summary_sp += (
-                f"{'Source':<30} {'SS':>10} {'df':>4} {'MS':>10} {'F':>8} {'p':>8} {'%Contrib':>8} {'Error Term':<12}\n"
-            )
+            summary_sp += f"{'Source':<30} {'SS':>10} {'df':>4} {'MS':>10} {'F':>8} {'p':>8} {'%Contrib':>8} {'Error Term':<12}\n"
             summary_sp += f"{'─' * 95}\n"
             for r in anova_rows:
                 f_str = f"{r['f']:>8.3f}" if r["f"] is not None else f"{'':>8}"
@@ -1805,7 +2027,11 @@ def _run_parametric(analysis_id, df, config):
             result["guide_observation"] = (
                 f"Split-plot ANOVA: {n_sig_sp} significant terms. WP factors tested against WP error, SP factors against residual."
             )
-            result["statistics"] = {"anova_table": anova_rows, "r_squared": float(model_sp.rsquared), "n": len(data_sp)}
+            result["statistics"] = {
+                "anova_table": anova_rows,
+                "r_squared": float(model_sp.rsquared),
+                "n": len(data_sp),
+            }
             result["narrative"] = _narrative(
                 f"Split-Plot ANOVA: {n_sig_sp} significant term{'s' if n_sig_sp != 1 else ''}",
                 f"R\u00b2 = {model_sp.rsquared:.3f}. Whole-plot factors are tested against the whole-plot error, subplot factors against the residual error.",
@@ -1843,17 +2069,26 @@ def _run_parametric(analysis_id, df, config):
             len(subjects)  # n_subj computed for validation
 
             if k_rm < 2:
-                result["summary"] = "Need at least 2 levels of the within-subject factor."
+                result["summary"] = (
+                    "Need at least 2 levels of the within-subject factor."
+                )
                 return result
 
             # Build subject × condition matrix
-            pivot_rm = data_rm.pivot_table(index=subject_col, columns=within_factor, values=response_rm, aggfunc="mean")
+            pivot_rm = data_rm.pivot_table(
+                index=subject_col,
+                columns=within_factor,
+                values=response_rm,
+                aggfunc="mean",
+            )
             # Drop subjects with missing conditions
             pivot_rm = pivot_rm.dropna()
             n_complete = len(pivot_rm)
 
             if n_complete < 3:
-                result["summary"] = "Need at least 3 complete subjects (all conditions measured)."
+                result["summary"] = (
+                    "Need at least 3 complete subjects (all conditions measured)."
+                )
                 return result
 
             Y_rm = pivot_rm.values  # n_subj × k
@@ -1878,7 +2113,11 @@ def _run_parametric(analysis_id, df, config):
             f_val_rm = ms_condition / ms_error_rm if ms_error_rm > 0 else 0
             from scipy import stats as rm_stats
 
-            p_val_rm = 1 - rm_stats.f.cdf(f_val_rm, df_condition, df_error_rm) if f_val_rm > 0 else 1.0
+            p_val_rm = (
+                1 - rm_stats.f.cdf(f_val_rm, df_condition, df_error_rm)
+                if f_val_rm > 0
+                else 1.0
+            )
 
             # Mauchly's test of sphericity
             # Compute covariance matrix of differences
@@ -1895,28 +2134,42 @@ def _run_parametric(analysis_id, df, config):
                 p_rm = k_rm - 1
 
                 # Mauchly's W
-                W_mauchly = det_cov / ((trace_cov / p_rm) ** p_rm) if trace_cov > 0 else 0
+                W_mauchly = (
+                    det_cov / ((trace_cov / p_rm) ** p_rm) if trace_cov > 0 else 0
+                )
                 # Chi-square approximation
                 f_coeff = (2 * p_rm**2 + p_rm + 2) / (6 * p_rm * df_subjects)
                 chi2_mauchly = -(df_subjects - f_coeff) * np.log(max(W_mauchly, 1e-15))
                 df_mauchly = p_rm * (p_rm + 1) / 2 - 1
-                p_mauchly = 1 - rm_stats.chi2.cdf(chi2_mauchly, df_mauchly) if df_mauchly > 0 else 1.0
+                p_mauchly = (
+                    1 - rm_stats.chi2.cdf(chi2_mauchly, df_mauchly)
+                    if df_mauchly > 0
+                    else 1.0
+                )
 
                 # Greenhouse-Geisser epsilon
                 eigenvals_cov = np.linalg.eigvalsh(cov_diff)
                 eigenvals_cov = eigenvals_cov[eigenvals_cov > 0]
                 gg_epsilon = (
-                    (np.sum(eigenvals_cov) ** 2) / (p_rm * np.sum(eigenvals_cov**2)) if len(eigenvals_cov) > 0 else 1.0
+                    (np.sum(eigenvals_cov) ** 2) / (p_rm * np.sum(eigenvals_cov**2))
+                    if len(eigenvals_cov) > 0
+                    else 1.0
                 )
                 gg_epsilon = min(1.0, max(1.0 / p_rm, gg_epsilon))
 
                 # Huynh-Feldt epsilon
-                hf_epsilon = (n_complete * p_rm * gg_epsilon - 2) / (p_rm * (df_subjects - p_rm * gg_epsilon))
+                hf_epsilon = (n_complete * p_rm * gg_epsilon - 2) / (
+                    p_rm * (df_subjects - p_rm * gg_epsilon)
+                )
                 hf_epsilon = min(1.0, max(gg_epsilon, hf_epsilon))
 
                 # Corrected p-values
-                p_gg = 1 - rm_stats.f.cdf(f_val_rm, df_condition * gg_epsilon, df_error_rm * gg_epsilon)
-                p_hf = 1 - rm_stats.f.cdf(f_val_rm, df_condition * hf_epsilon, df_error_rm * hf_epsilon)
+                p_gg = 1 - rm_stats.f.cdf(
+                    f_val_rm, df_condition * gg_epsilon, df_error_rm * gg_epsilon
+                )
+                p_hf = 1 - rm_stats.f.cdf(
+                    f_val_rm, df_condition * hf_epsilon, df_error_rm * hf_epsilon
+                )
             else:
                 W_mauchly = 1.0
                 p_mauchly = 1.0
@@ -1934,22 +2187,30 @@ def _run_parametric(analysis_id, df, config):
             summary_rm += f"<<COLOR:highlight>>Subjects:<</COLOR>> {n_complete}\n\n"
 
             summary_rm += "<<COLOR:accent>>── Within-Subjects ANOVA ──<</COLOR>>\n"
-            summary_rm += f"{'Source':<25} {'SS':>10} {'df':>4} {'MS':>10} {'F':>8} {'p':>8}\n"
+            summary_rm += (
+                f"{'Source':<25} {'SS':>10} {'df':>4} {'MS':>10} {'F':>8} {'p':>8}\n"
+            )
             summary_rm += f"{'─' * 70}\n"
             sig_mark = " <<COLOR:good>>*<</COLOR>>" if p_val_rm < 0.05 else ""
             summary_rm += f"{'Condition':<25} {ss_condition:>10.2f} {df_condition:>4} {ms_condition:>10.3f} {f_val_rm:>8.3f} {p_val_rm:>8.4f}{sig_mark}\n"
             summary_rm += f"{'Error':<25} {ss_error_rm:>10.2f} {df_error_rm:>4} {ms_error_rm:>10.3f}\n"
 
             if k_rm > 2:
-                summary_rm += "\n<<COLOR:accent>>── Mauchly's Test of Sphericity ──<</COLOR>>\n"
+                summary_rm += (
+                    "\n<<COLOR:accent>>── Mauchly's Test of Sphericity ──<</COLOR>>\n"
+                )
                 summary_rm += f"  W = {W_mauchly:.4f},  χ² = {chi2_mauchly:.3f},  p = {p_mauchly:.4f}\n"
                 if p_mauchly < 0.05:
                     summary_rm += "  <<COLOR:warning>>Sphericity violated — use corrected tests below<</COLOR>>\n"
                 else:
-                    summary_rm += "  <<COLOR:good>>Sphericity assumption met<</COLOR>>\n"
+                    summary_rm += (
+                        "  <<COLOR:good>>Sphericity assumption met<</COLOR>>\n"
+                    )
 
                 summary_rm += "\n<<COLOR:accent>>── Epsilon Corrections ──<</COLOR>>\n"
-                summary_rm += f"  Greenhouse-Geisser ε = {gg_epsilon:.4f}  →  p = {p_gg:.4f}\n"
+                summary_rm += (
+                    f"  Greenhouse-Geisser ε = {gg_epsilon:.4f}  →  p = {p_gg:.4f}\n"
+                )
                 summary_rm += f"  Huynh-Feldt ε = {hf_epsilon:.4f}  →  p = {p_hf:.4f}\n"
 
             # Condition means
@@ -1958,7 +2219,11 @@ def _run_parametric(analysis_id, df, config):
                 summary_rm += f"  {cond}: {cond_means[ci]:.4f} (SD = {np.std(Y_rm[:, ci], ddof=1):.4f})\n"
 
             # Partial eta-squared
-            eta_sq = ss_condition / (ss_condition + ss_error_rm) if (ss_condition + ss_error_rm) > 0 else 0
+            eta_sq = (
+                ss_condition / (ss_condition + ss_error_rm)
+                if (ss_condition + ss_error_rm) > 0
+                else 0
+            )
             summary_rm += f"\n<<COLOR:accent>>── Effect Size ──<</COLOR>> partial η² = {eta_sq:.4f}\n"
 
             result["summary"] = summary_rm
@@ -1994,7 +2259,9 @@ def _run_parametric(analysis_id, df, config):
 
             # Individual subject trajectories (spaghetti plot)
             spaghetti_traces = []
-            for si, subj in enumerate(pivot_rm.index[:30]):  # limit to 30 subjects for readability
+            for si, subj in enumerate(
+                pivot_rm.index[:30]
+            ):  # limit to 30 subjects for readability
                 spaghetti_traces.append(
                     {
                         "x": [str(c) for c in pivot_rm.columns],
@@ -2020,7 +2287,11 @@ def _run_parametric(analysis_id, df, config):
                 {
                     "title": "Subject Trajectories (spaghetti plot)",
                     "data": spaghetti_traces,
-                    "layout": {"height": 300, "xaxis": {"title": within_factor}, "yaxis": {"title": response_rm}},
+                    "layout": {
+                        "height": 300,
+                        "xaxis": {"title": within_factor},
+                        "yaxis": {"title": response_rm},
+                    },
                 }
             )
 
@@ -2028,7 +2299,9 @@ def _run_parametric(analysis_id, df, config):
             result["guide_observation"] = (
                 f"Repeated measures ANOVA: F({df_condition},{df_error_rm})={f_val_rm:.3f}, p={best_p:.4f}, η²={eta_sq:.4f}."
             )
-            _eta_label = "large" if eta_sq > 0.14 else "medium" if eta_sq > 0.06 else "small"
+            _eta_label = (
+                "large" if eta_sq > 0.14 else "medium" if eta_sq > 0.06 else "small"
+            )
             if best_p < 0.05:
                 result["narrative"] = _narrative(
                     f"Conditions differ significantly (F = {f_val_rm:.3f}, p = {best_p:.4f})",
@@ -2057,7 +2330,9 @@ def _run_parametric(analysis_id, df, config):
                 "hf_epsilon": float(hf_epsilon),
                 "p_gg": float(p_gg),
                 "p_hf": float(p_hf),
-                "condition_means": {str(c): float(m) for c, m in zip(pivot_rm.columns, cond_means)},
+                "condition_means": {
+                    str(c): float(m) for c, m in zip(pivot_rm.columns, cond_means)
+                },
             }
 
         except Exception as e:
@@ -2074,7 +2349,9 @@ def _run_parametric(analysis_id, df, config):
 
         groups = df[group_var].dropna().unique()
         if len(groups) != 2:
-            result["summary"] = f"F-test requires exactly 2 groups. Found {len(groups)}."
+            result["summary"] = (
+                f"F-test requires exactly 2 groups. Found {len(groups)}."
+            )
             return result
 
         g1 = df[df[group_var] == groups[0]][var].dropna()
@@ -2099,10 +2376,16 @@ def _run_parametric(analysis_id, df, config):
         summary += "<<COLOR:title>>F-TEST FOR EQUALITY OF VARIANCES<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
-        summary += f"<<COLOR:highlight>>Groups:<</COLOR>> {groups[0]} vs {groups[1]}\n\n"
+        summary += (
+            f"<<COLOR:highlight>>Groups:<</COLOR>> {groups[0]} vs {groups[1]}\n\n"
+        )
         summary += "<<COLOR:accent>>── Group Statistics ──<</COLOR>>\n"
-        summary += f"  {groups[0]}: n={n1}, variance={var1:.4f}, StDev={np.sqrt(var1):.4f}\n"
-        summary += f"  {groups[1]}: n={n2}, variance={var2:.4f}, StDev={np.sqrt(var2):.4f}\n\n"
+        summary += (
+            f"  {groups[0]}: n={n1}, variance={var1:.4f}, StDev={np.sqrt(var1):.4f}\n"
+        )
+        summary += (
+            f"  {groups[1]}: n={n2}, variance={var2:.4f}, StDev={np.sqrt(var2):.4f}\n\n"
+        )
         summary += f"<<COLOR:highlight>>F statistic:<</COLOR>> {F:.4f}\n"
         summary += f"<<COLOR:highlight>>p-value:<</COLOR>> {p_value:.4f}\n"
         _f_ci_lo = F / stats.f.ppf(0.975, df1, df2)
@@ -2116,11 +2399,15 @@ def _run_parametric(analysis_id, df, config):
             summary += "<<COLOR:text>>Consider using Welch's t-test or non-parametric alternatives.<</COLOR>>\n"
         else:
             summary += "<<COLOR:good>>No significant difference in variances (p >= 0.05)<</COLOR>>\n"
-            summary += "<<COLOR:text>>Equal variance assumption is reasonable.<</COLOR>>\n"
+            summary += (
+                "<<COLOR:text>>Equal variance assumption is reasonable.<</COLOR>>\n"
+            )
 
         result["summary"] = summary
         result["guide_observation"] = f"F = {F:.2f}, p = {p_value:.4f}. " + (
-            "Variances differ significantly." if p_value < 0.05 else "Variances are similar."
+            "Variances differ significantly."
+            if p_value < 0.05
+            else "Variances are similar."
         )
         result["statistics"] = {
             "F_statistic": float(F),
@@ -2133,9 +2420,7 @@ def _run_parametric(analysis_id, df, config):
             body = f"Variance ratio = {_vr:.2f}. Use Welch's t-test (not pooled) or non-parametric tests for group comparisons."
         else:
             verdict = f"Variances are similar (F = {F:.2f}, p = {p_value:.4f})"
-            body = (
-                f"Variance ratio = {_vr:.2f}. The equal-variance assumption is reasonable for pooled t-tests and ANOVA."
-            )
+            body = f"Variance ratio = {_vr:.2f}. The equal-variance assumption is reasonable for pooled t-tests and ANOVA."
         result["narrative"] = _narrative(
             verdict,
             body,
@@ -2155,7 +2440,11 @@ def _run_parametric(analysis_id, df, config):
                         "name": "Variance",
                     },
                 ],
-                "layout": {"height": 250, "yaxis": {"title": "Variance"}, "xaxis": {"title": group_var}},
+                "layout": {
+                    "height": 250,
+                    "yaxis": {"title": "Variance"},
+                    "xaxis": {"title": group_var},
+                },
             }
         )
         result["plots"].append(
@@ -2192,7 +2481,9 @@ def _run_parametric(analysis_id, df, config):
 
         groups = df[group_var].dropna().unique()
         if len(groups) != 2:
-            result["summary"] = f"Equivalence test requires exactly 2 groups. Found {len(groups)}."
+            result["summary"] = (
+                f"Equivalence test requires exactly 2 groups. Found {len(groups)}."
+            )
             return result
 
         g1 = df[df[group_var] == groups[0]][var].dropna()
@@ -2235,7 +2526,9 @@ def _run_parametric(analysis_id, df, config):
         summary += f"<<COLOR:highlight>>95% CI for difference:<</COLOR>> [{_ci95_lo:.4f}, {_ci95_hi:.4f}]\n\n"
 
         if p_tost < 0.05:
-            summary += f"<<COLOR:good>>EQUIVALENT within ±{margin} (p < 0.05)<</COLOR>>\n"
+            summary += (
+                f"<<COLOR:good>>EQUIVALENT within ±{margin} (p < 0.05)<</COLOR>>\n"
+            )
             summary += "<<COLOR:text>>The difference is small enough to be considered equivalent.<</COLOR>>\n"
         else:
             summary += "<<COLOR:warning>>NOT EQUIVALENT (p >= 0.05)<</COLOR>>\n"
@@ -2251,8 +2544,15 @@ def _run_parametric(analysis_id, df, config):
                         "x": [diff],
                         "y": [0.5],
                         "mode": "markers",
-                        "marker": {"size": 15, "color": "#4a9f6e" if p_tost < 0.05 else "#e85747"},
-                        "error_x": {"type": "constant", "value": 1.96 * se, "color": "#4a9f6e"},
+                        "marker": {
+                            "size": 15,
+                            "color": "#4a9f6e" if p_tost < 0.05 else "#e85747",
+                        },
+                        "error_x": {
+                            "type": "constant",
+                            "value": 1.96 * se,
+                            "color": "#4a9f6e",
+                        },
                         "name": "Mean Difference",
                     }
                 ],
@@ -2293,9 +2593,15 @@ def _run_parametric(analysis_id, df, config):
 
         result["summary"] = summary
         result["guide_observation"] = f"TOST p = {p_tost:.4f}. " + (
-            f"Groups equivalent within ±{margin}." if p_tost < 0.05 else "Cannot confirm equivalence."
+            f"Groups equivalent within ±{margin}."
+            if p_tost < 0.05
+            else "Cannot confirm equivalence."
         )
-        result["statistics"] = {"TOST_p_value": float(p_tost), "mean_difference": float(diff), "margin": float(margin)}
+        result["statistics"] = {
+            "TOST_p_value": float(p_tost),
+            "mean_difference": float(diff),
+            "margin": float(margin),
+        }
 
         # Narrative
         if p_tost < 0.05:
@@ -2336,7 +2642,11 @@ def _run_parametric(analysis_id, df, config):
             diagnostics.append(_out2)
 
         # Cohen's d alongside TOST
-        _pooled_std = np.sqrt(((n1 - 1) * std1**2 + (n2 - 1) * std2**2) / (n1 + n2 - 2)) if (n1 + n2 > 2) else 1.0
+        _pooled_std = (
+            np.sqrt(((n1 - 1) * std1**2 + (n2 - 1) * std2**2) / (n1 + n2 - 2))
+            if (n1 + n2 > 2)
+            else 1.0
+        )
         _d = abs(diff) / _pooled_std if _pooled_std > 0 else 0.0
         _d_label, _d_meaningful = _effect_magnitude(_d, "cohens_d")
 
@@ -2397,7 +2707,9 @@ def _run_parametric(analysis_id, df, config):
         n_total = len(data)
         ci_idx = max(0, int(stats.binom.ppf(0.025, n_total, 0.5)) - 1)
         ci_lower = sorted_data[ci_idx] if ci_idx < n_total else sorted_data[0]
-        ci_upper = sorted_data[n_total - 1 - ci_idx] if ci_idx < n_total else sorted_data[-1]
+        ci_upper = (
+            sorted_data[n_total - 1 - ci_idx] if ci_idx < n_total else sorted_data[-1]
+        )
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>SIGN TEST FOR MEDIAN<</COLOR>>\n"
@@ -2412,7 +2724,9 @@ def _run_parametric(analysis_id, df, config):
         summary += f"  Above H₀: {above}\n"
         summary += f"  Below H₀: {below}\n"
         summary += f"  Ties (excluded): {ties}\n\n"
-        summary += f"<<COLOR:highlight>>p-value (two-sided):<</COLOR>> {p_value:.4f}\n\n"
+        summary += (
+            f"<<COLOR:highlight>>p-value (two-sided):<</COLOR>> {p_value:.4f}\n\n"
+        )
 
         if p_value < 0.05:
             summary += f"<<COLOR:warning>>REJECT H₀ — Median differs from {h0_median}<</COLOR>>\n"
@@ -2431,7 +2745,12 @@ def _run_parametric(analysis_id, df, config):
                         "name": "Data",
                         "marker": {
                             "color": [
-                                "#4a9f6e" if v > h0_median else "#d94a4a" if v < h0_median else "#e89547" for v in data
+                                (
+                                    "#4a9f6e"
+                                    if v > h0_median
+                                    else "#d94a4a" if v < h0_median else "#e89547"
+                                )
+                                for v in data
                             ],
                             "size": 6,
                         },
@@ -2462,7 +2781,9 @@ def _run_parametric(analysis_id, df, config):
 
         result["summary"] = summary
         result["guide_observation"] = f"Sign test p = {p_value:.4f}. " + (
-            f"Median differs from {h0_median}." if p_value < 0.05 else f"No evidence median differs from {h0_median}."
+            f"Median differs from {h0_median}."
+            if p_value < 0.05
+            else f"No evidence median differs from {h0_median}."
         )
         result["statistics"] = {
             "sample_median": float(sample_median),

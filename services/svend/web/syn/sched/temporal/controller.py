@@ -148,7 +148,9 @@ class TemporalMetrics:
     def to_dict(self) -> dict[str, Any]:
         return {
             "evaluation_cycles": self.evaluation_cycles,
-            "last_evaluation": self.last_evaluation.isoformat() if self.last_evaluation else None,
+            "last_evaluation": (
+                self.last_evaluation.isoformat() if self.last_evaluation else None
+            ),
             "rules_evaluated": self.rules_evaluated,
             "rules_activated": self.rules_activated,
             "rules_by_trigger": self.rules_by_trigger,
@@ -324,7 +326,9 @@ class TemporalController:
         """Set callback to get scheduler context."""
         self._scheduler_provider = provider
 
-    def set_custom_context_provider(self, provider: Callable[[], dict[str, Any]]) -> None:
+    def set_custom_context_provider(
+        self, provider: Callable[[], dict[str, Any]]
+    ) -> None:
         """Set callback to provide additional context."""
         self._custom_context_provider = provider
 
@@ -386,7 +390,10 @@ class TemporalController:
                                 compensating_count += 1
                                 task_type = comp_task.task_name
                                 self._metrics.compensating_tasks_by_type[task_type] = (
-                                    self._metrics.compensating_tasks_by_type.get(task_type, 0) + 1
+                                    self._metrics.compensating_tasks_by_type.get(
+                                        task_type, 0
+                                    )
+                                    + 1
                                 )
 
                             # Callback
@@ -394,17 +401,24 @@ class TemporalController:
                                 try:
                                     self._config.on_outcome_completed(outcome)
                                 except Exception as e:
-                                    logger.error(f"[TEMPORAL CONTROLLER] Outcome callback failed: {e}")
+                                    logger.error(
+                                        f"[TEMPORAL CONTROLLER] Outcome callback failed: {e}"
+                                    )
 
                         # Rule callback
                         if self._config.on_rule_activated:
                             try:
                                 self._config.on_rule_activated(rule, context)
                             except Exception as e:
-                                logger.error(f"[TEMPORAL CONTROLLER] Rule callback failed: {e}")
+                                logger.error(
+                                    f"[TEMPORAL CONTROLLER] Rule callback failed: {e}"
+                                )
 
                         # Check compensating task limit
-                        if compensating_count >= self._config.max_compensating_tasks_per_cycle:
+                        if (
+                            compensating_count
+                            >= self._config.max_compensating_tasks_per_cycle
+                        ):
                             break
 
                     self._metrics.compensating_tasks_scheduled += compensating_count
@@ -415,7 +429,9 @@ class TemporalController:
                 self._update_state_metrics()
 
             except Exception as e:
-                logger.error(f"[TEMPORAL CONTROLLER] Evaluation error: {e}", exc_info=True)
+                logger.error(
+                    f"[TEMPORAL CONTROLLER] Evaluation error: {e}", exc_info=True
+                )
                 if self._config.on_error:
                     try:
                         self._config.on_error(e)
@@ -441,7 +457,9 @@ class TemporalController:
             except Exception as e:
                 logger.error(f"[TEMPORAL CONTROLLER] Expiration processing error: {e}")
 
-            self._shutdown_event.wait(timeout=self._config.expiration_check_interval_seconds)
+            self._shutdown_event.wait(
+                timeout=self._config.expiration_check_interval_seconds
+            )
 
     # =========================================================================
     # Context Collection
@@ -484,7 +502,9 @@ class TemporalController:
                     }
                 )
             except Exception as e:
-                logger.warning(f"[TEMPORAL CONTROLLER] Failed to collect backpressure context: {e}")
+                logger.warning(
+                    f"[TEMPORAL CONTROLLER] Failed to collect backpressure context: {e}"
+                )
 
         # Governance context
         if self._config.enable_governance_context and self._governance_provider:
@@ -494,14 +514,20 @@ class TemporalController:
                     {
                         "governance_risk": gov_context.get("risk_score", 0.0),
                         "governance_blocked_rate": gov_context.get("blocked_rate", 0.0),
-                        "governance_escalation_rate": gov_context.get("escalation_rate", 0.0),
+                        "governance_escalation_rate": gov_context.get(
+                            "escalation_rate", 0.0
+                        ),
                         "confidence_score": gov_context.get("confidence_score", 1.0),
-                        "incident_active": 1 if gov_context.get("incident_active", False) else 0,
+                        "incident_active": (
+                            1 if gov_context.get("incident_active", False) else 0
+                        ),
                         "incident_severity": gov_context.get("incident_severity", 0),
                     }
                 )
             except Exception as e:
-                logger.warning(f"[TEMPORAL CONTROLLER] Failed to collect governance context: {e}")
+                logger.warning(
+                    f"[TEMPORAL CONTROLLER] Failed to collect governance context: {e}"
+                )
 
         # Scheduler context
         if self._config.enable_scheduler_context and self._scheduler_provider:
@@ -511,13 +537,19 @@ class TemporalController:
                     {
                         "available_schedules": sched_context.get("schedules", []),
                         "pending_tasks": sched_context.get("pending_tasks", 0),
-                        "running_tasks": sched_context.get("running_tasks", context.get("running_tasks", 0)),
+                        "running_tasks": sched_context.get(
+                            "running_tasks", context.get("running_tasks", 0)
+                        ),
                         "cascade_depth": sched_context.get("max_cascade_depth", 0),
-                        "cascade_budget_remaining": sched_context.get("cascade_budget_remaining", 1.0),
+                        "cascade_budget_remaining": sched_context.get(
+                            "cascade_budget_remaining", 1.0
+                        ),
                     }
                 )
             except Exception as e:
-                logger.warning(f"[TEMPORAL CONTROLLER] Failed to collect scheduler context: {e}")
+                logger.warning(
+                    f"[TEMPORAL CONTROLLER] Failed to collect scheduler context: {e}"
+                )
 
         # Custom context
         if self._custom_context_provider:
@@ -525,7 +557,9 @@ class TemporalController:
                 custom = self._custom_context_provider()
                 context.update(custom)
             except Exception as e:
-                logger.warning(f"[TEMPORAL CONTROLLER] Failed to collect custom context: {e}")
+                logger.warning(
+                    f"[TEMPORAL CONTROLLER] Failed to collect custom context: {e}"
+                )
 
         # Config context provider
         if self._config.context_provider:
@@ -533,7 +567,9 @@ class TemporalController:
                 config_context = self._config.context_provider()
                 context.update(config_context)
             except Exception as e:
-                logger.warning(f"[TEMPORAL CONTROLLER] Failed to collect config context: {e}")
+                logger.warning(
+                    f"[TEMPORAL CONTROLLER] Failed to collect config context: {e}"
+                )
 
         return context
 
@@ -569,7 +605,9 @@ class TemporalController:
     # Manual Evaluation (for testing/debugging)
     # =========================================================================
 
-    def evaluate_now(self, context: dict[str, Any] | None = None) -> list[ReflexOutcome]:
+    def evaluate_now(
+        self, context: dict[str, Any] | None = None
+    ) -> list[ReflexOutcome]:
         """
         Force immediate policy evaluation.
 
@@ -614,16 +652,24 @@ class TemporalController:
         self._metrics.evaluation_cycles += 1
         self._metrics.last_evaluation = timezone.now()
         self._metrics.total_evaluation_ms += elapsed_ms
-        self._metrics.max_evaluation_ms = max(self._metrics.max_evaluation_ms, elapsed_ms)
-        self._metrics.avg_evaluation_ms = self._metrics.total_evaluation_ms / self._metrics.evaluation_cycles
+        self._metrics.max_evaluation_ms = max(
+            self._metrics.max_evaluation_ms, elapsed_ms
+        )
+        self._metrics.avg_evaluation_ms = (
+            self._metrics.total_evaluation_ms / self._metrics.evaluation_cycles
+        )
 
     def _update_state_metrics(self) -> None:
         """Update state metrics."""
         state = self._reflex.get_state()
         self._metrics.active_outcomes = len(state.active_outcomes)
         self._metrics.paused_schedules = len(state.paused_schedules)
-        self._metrics.priority_adjustments = len(state.priority_degradations) + len(state.priority_boosts)
-        self._metrics.ttl_adjustments = len(state.ttl_extensions) + len(state.ttl_reductions)
+        self._metrics.priority_adjustments = len(state.priority_degradations) + len(
+            state.priority_boosts
+        )
+        self._metrics.ttl_adjustments = len(state.ttl_extensions) + len(
+            state.ttl_reductions
+        )
         self._metrics.rules_evaluated = len(self._policy.get_rules())
 
     def get_metrics(self) -> TemporalMetrics:

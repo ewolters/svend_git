@@ -138,7 +138,11 @@ def cache_model(user_id, model_key, model, metadata):
 
         # Clean expired entries
         now = time.time()
-        expired = [k for k, v in _model_cache[user_id].items() if now - v["timestamp"] > MODEL_CACHE_EXPIRY]
+        expired = [
+            k
+            for k, v in _model_cache[user_id].items()
+            if now - v["timestamp"] > MODEL_CACHE_EXPIRY
+        ]
         for k in expired:
             del _model_cache[user_id][k]
 
@@ -146,7 +150,11 @@ def cache_model(user_id, model_key, model, metadata):
         while len(_model_cache[user_id]) >= MODEL_CACHE_MAX_SIZE:
             _model_cache[user_id].popitem(last=False)
 
-        _model_cache[user_id][model_key] = {"model": model, "metadata": metadata, "timestamp": now}
+        _model_cache[user_id][model_key] = {
+            "model": model,
+            "metadata": metadata,
+            "timestamp": now,
+        }
 
 
 def get_cached_model(user_id, model_key):
@@ -161,7 +169,9 @@ def get_cached_model(user_id, model_key):
     return None
 
 
-def log_agent_action(user, agent, action, latency_ms=None, success=True, error_message="", metadata=None):
+def log_agent_action(
+    user, agent, action, latency_ms=None, success=True, error_message="", metadata=None
+):
     """Log an agent action to the database."""
     try:
         AgentLog.objects.create(
@@ -297,7 +307,9 @@ def save_model_to_disk(
 # Auto-creates core.Evidence when ML models are trained with a project link.
 
 
-def _create_ml_evidence(user, project_id, model_type, metrics, importances, task, target):
+def _create_ml_evidence(
+    user, project_id, model_type, metrics, importances, task, target
+):
     """Create core.Evidence from ML model results, linked to a project.
 
     Called automatically when a model is trained with a project_id.
@@ -313,7 +325,11 @@ def _create_ml_evidence(user, project_id, model_type, metrics, importances, task
         primary_metric = metrics.get("accuracy") or metrics.get("r2")
         metric_name = "Accuracy" if task == "classification" else "R²"
 
-        metric_str = f"{primary_metric:.4f}" if isinstance(primary_metric, (int, float)) else str(primary_metric)
+        metric_str = (
+            f"{primary_metric:.4f}"
+            if isinstance(primary_metric, (int, float))
+            else str(primary_metric)
+        )
         features_str = ", ".join(top_features) if top_features else "N/A"
 
         summary = (
@@ -356,7 +372,9 @@ def _create_ml_evidence(user, project_id, model_type, metrics, importances, task
 # Generates a comprehensive suite of Plotly charts for any trained model.
 
 
-def _build_ml_diagnostics(model, X_test, y_test, y_pred, features, task, label_map=None, model_name="Model"):
+def _build_ml_diagnostics(
+    model, X_test, y_test, y_pred, features, task, label_map=None, model_name="Model"
+):
     """Build comprehensive diagnostic plots for a trained ML model.
 
     Returns list of Plotly plot dicts (same format as DSW analysis plots).
@@ -371,14 +389,22 @@ def _build_ml_diagnostics(model, X_test, y_test, y_pred, features, task, label_m
     plots = []
 
     if task == "classification":
-        plots.extend(_diag_classification(model, X_test, y_test, y_pred, features, label_map, model_name))
+        plots.extend(
+            _diag_classification(
+                model, X_test, y_test, y_pred, features, label_map, model_name
+            )
+        )
     else:
-        plots.extend(_diag_regression(model, X_test, y_test, y_pred, features, model_name))
+        plots.extend(
+            _diag_regression(model, X_test, y_test, y_pred, features, model_name)
+        )
 
     return plots
 
 
-def _diag_classification(model, X_test, y_test, y_pred, features, label_map, model_name):
+def _diag_classification(
+    model, X_test, y_test, y_pred, features, label_map, model_name
+):
     """Classification diagnostic suite."""
     import numpy as np
     from sklearn.metrics import (
@@ -405,7 +431,10 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                     "y": str_labels[i],
                     "text": f"{cm[i][j]}<br>({cm_pct[i][j]:.1f}%)",
                     "showarrow": False,
-                    "font": {"color": "#fff" if cm[i][j] > cm.max() * 0.5 else "#aaa", "size": 12},
+                    "font": {
+                        "color": "#fff" if cm[i][j] > cm.max() * 0.5 else "#aaa",
+                        "size": 12,
+                    },
                 }
             )
     plots.append(
@@ -438,7 +467,9 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
             y_prob = model.predict_proba(X_test)
             if len(classes) == 2:
                 # Binary ROC
-                fpr, tpr, thresholds = roc_curve(y_test, y_prob[:, 1], pos_label=classes[1])
+                fpr, tpr, thresholds = roc_curve(
+                    y_test, y_prob[:, 1], pos_label=classes[1]
+                )
                 roc_auc = auc(fpr, tpr)
                 # Find optimal threshold (Youden's J)
                 j_scores = tpr - fpr
@@ -471,7 +502,11 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                                 "x": [float(fpr[opt_idx])],
                                 "y": [float(tpr[opt_idx])],
                                 "mode": "markers",
-                                "marker": {"color": "#e89547", "size": 10, "symbol": "star"},
+                                "marker": {
+                                    "color": "#e89547",
+                                    "size": 10,
+                                    "symbol": "star",
+                                },
                                 "name": f"Optimal (J={j_scores[opt_idx]:.2f})",
                                 "showlegend": True,
                             },
@@ -479,7 +514,10 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                         "layout": {
                             "height": 320,
                             "xaxis": {"title": "False Positive Rate", "range": [0, 1]},
-                            "yaxis": {"title": "True Positive Rate", "range": [0, 1.05]},
+                            "yaxis": {
+                                "title": "True Positive Rate",
+                                "range": [0, 1.05],
+                            },
                         },
                     }
                 )
@@ -489,7 +527,16 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
 
                 y_bin = label_binarize(y_test, classes=classes)
                 roc_traces = []
-                colors = ["#4a9f6e", "#e89547", "#6a7fff", "#e8c547", "#ff7eb9", "#4a9faf", "#d06060", "#8a7fbf"]
+                colors = [
+                    "#4a9f6e",
+                    "#e89547",
+                    "#6a7fff",
+                    "#e8c547",
+                    "#ff7eb9",
+                    "#4a9faf",
+                    "#d06060",
+                    "#8a7fbf",
+                ]
                 for i, cls in enumerate(classes):
                     if y_bin.shape[1] > i:
                         fpr_i, tpr_i, _ = roc_curve(y_bin[:, i], y_prob[:, i])
@@ -519,7 +566,11 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                     {
                         "title": "ROC Curves (One-vs-Rest)",
                         "data": roc_traces,
-                        "layout": {"height": 350, "xaxis": {"title": "FPR"}, "yaxis": {"title": "TPR"}},
+                        "layout": {
+                            "height": 350,
+                            "xaxis": {"title": "FPR"},
+                            "yaxis": {"title": "TPR"},
+                        },
                     }
                 )
         except Exception:
@@ -530,7 +581,9 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
         try:
             y_prob = model.predict_proba(X_test)
             if len(classes) == 2:
-                precision, recall, _ = precision_recall_curve(y_test, y_prob[:, 1], pos_label=classes[1])
+                precision, recall, _ = precision_recall_curve(
+                    y_test, y_prob[:, 1], pos_label=classes[1]
+                )
                 ap = average_precision_score(y_test, y_prob[:, 1], pos_label=classes[1])
                 plots.append(
                     {
@@ -560,7 +613,14 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
 
                 y_bin = label_binarize(y_test, classes=classes)
                 pr_traces = []
-                colors = ["#4a9faf", "#e89547", "#6a7fff", "#e8c547", "#ff7eb9", "#4a9f6e"]
+                colors = [
+                    "#4a9faf",
+                    "#e89547",
+                    "#6a7fff",
+                    "#e8c547",
+                    "#ff7eb9",
+                    "#4a9f6e",
+                ]
                 for i, cls in enumerate(classes):
                     if y_bin.shape[1] > i:
                         p_i, r_i, _ = precision_recall_curve(y_bin[:, i], y_prob[:, i])
@@ -580,7 +640,11 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                     {
                         "title": "Precision-Recall Curves (Per Class)",
                         "data": pr_traces,
-                        "layout": {"height": 350, "xaxis": {"title": "Recall"}, "yaxis": {"title": "Precision"}},
+                        "layout": {
+                            "height": 350,
+                            "xaxis": {"title": "Recall"},
+                            "yaxis": {"title": "Precision"},
+                        },
                     }
                 )
         except Exception:
@@ -598,8 +662,14 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                         "type": "bar",
                         "orientation": "h",
                         "x": importances[sorted_idx].tolist(),
-                        "y": [features[i] if i < len(features) else f"feat_{i}" for i in sorted_idx],
-                        "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "y": [
+                            features[i] if i < len(features) else f"feat_{i}"
+                            for i in sorted_idx
+                        ],
+                        "marker": {
+                            "color": "rgba(74,159,110,0.6)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                     }
                 ],
                 "layout": {"height": max(220, len(features) * 22)},
@@ -675,7 +745,10 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                     ],
                     "layout": {
                         "height": 300,
-                        "xaxis": {"title": "Mean Predicted Probability", "range": [0, 1]},
+                        "xaxis": {
+                            "title": "Mean Predicted Probability",
+                            "range": [0, 1],
+                        },
                         "yaxis": {"title": "Fraction of Positives", "range": [0, 1]},
                     },
                 }
@@ -710,7 +783,11 @@ def _diag_regression(model, X_test, y_test, y_pred, features, model_name):
                     "x": y_test_arr.tolist(),
                     "y": y_pred_arr.tolist(),
                     "mode": "markers",
-                    "marker": {"color": "rgba(74,159,110,0.5)", "size": 5, "line": {"color": "#4a9f6e", "width": 0.5}},
+                    "marker": {
+                        "color": "rgba(74,159,110,0.5)",
+                        "size": 5,
+                        "line": {"color": "#4a9f6e", "width": 0.5},
+                    },
                     "name": "Predictions",
                 },
                 {
@@ -803,7 +880,10 @@ def _diag_regression(model, X_test, y_test, y_pred, features, model_name):
                     "type": "histogram",
                     "x": residuals.tolist(),
                     "nbinsx": 30,
-                    "marker": {"color": "rgba(74,159,110,0.5)", "line": {"color": "#4a9f6e", "width": 1}},
+                    "marker": {
+                        "color": "rgba(74,159,110,0.5)",
+                        "line": {"color": "#4a9f6e", "width": 1},
+                    },
                     "name": "Residuals",
                 },
                 {
@@ -875,8 +955,14 @@ def _diag_regression(model, X_test, y_test, y_pred, features, model_name):
                         "type": "bar",
                         "orientation": "h",
                         "x": importances[sorted_idx].tolist(),
-                        "y": [features[i] if i < len(features) else f"feat_{i}" for i in sorted_idx],
-                        "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "y": [
+                            features[i] if i < len(features) else f"feat_{i}"
+                            for i in sorted_idx
+                        ],
+                        "marker": {
+                            "color": "rgba(74,159,110,0.6)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                     }
                 ],
                 "layout": {"height": max(220, len(features) * 22)},
@@ -1004,13 +1090,19 @@ def _generate_data_from_schema(schema, n_records):
             dist = feat.get("distribution", "normal")
             params = feat.get("params", {})
             if dist == "normal":
-                data[name] = np.random.normal(params.get("mean", 0), params.get("std", 1), n_records)
+                data[name] = np.random.normal(
+                    params.get("mean", 0), params.get("std", 1), n_records
+                )
             elif dist == "uniform":
-                data[name] = np.random.uniform(params.get("low", 0), params.get("high", 100), n_records)
+                data[name] = np.random.uniform(
+                    params.get("low", 0), params.get("high", 100), n_records
+                )
             elif dist == "exponential":
                 data[name] = np.random.exponential(params.get("scale", 1), n_records)
             elif dist == "poisson":
-                data[name] = np.random.poisson(params.get("lam", 5), n_records).astype(float)
+                data[name] = np.random.poisson(params.get("lam", 5), n_records).astype(
+                    float
+                )
             else:
                 data[name] = np.random.normal(0, 1, n_records)
         elif ftype == "categorical":
@@ -1090,7 +1182,11 @@ def _clean_for_ml(df, target):
 
     # Encode categorical target for classification
     label_map = None
-    if hasattr(y.dtype, "categories") or y.dtype == object or y.dtype.name == "category":
+    if (
+        hasattr(y.dtype, "categories")
+        or y.dtype == object
+        or y.dtype.name == "category"
+    ):
         cats = y.unique().tolist()
         label_map = {cat: i for i, cat in enumerate(sorted(str(c) for c in cats))}
         y = y.map(label_map).astype(np.int32)
@@ -1119,7 +1215,9 @@ def _stratified_split(X, y, test_size=0.2, base_seed=42, max_retries=10):
 
     for seed in range(base_seed, base_seed + max_retries):
         try:
-            sss = StratifiedShuffleSplit(n_splits=1, test_size=test_size, random_state=seed)
+            sss = StratifiedShuffleSplit(
+                n_splits=1, test_size=test_size, random_state=seed
+            )
             train_idx, test_idx = next(sss.split(X, y))
             X_tr, X_te = X.iloc[train_idx], X.iloc[test_idx]
             y_tr, y_te = y.iloc[train_idx], y.iloc[test_idx]
@@ -1130,7 +1228,9 @@ def _stratified_split(X, y, test_size=0.2, base_seed=42, max_retries=10):
 
     # Fallback: plain stratified split
     try:
-        return train_test_split(X, y, test_size=test_size, random_state=base_seed, stratify=y)
+        return train_test_split(
+            X, y, test_size=test_size, random_state=base_seed, stratify=y
+        )
     except ValueError:
         return train_test_split(X, y, test_size=test_size, random_state=base_seed)
 
@@ -1143,14 +1243,20 @@ def _stratified_split_3way(X, y, base_seed=42):
     from sklearn.model_selection import train_test_split
 
     try:
-        X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.30, random_state=base_seed, stratify=y)
+        X_train, X_temp, y_train, y_temp = train_test_split(
+            X, y, test_size=0.30, random_state=base_seed, stratify=y
+        )
         X_cal, X_test, y_cal, y_test = train_test_split(
             X_temp, y_temp, test_size=0.50, random_state=base_seed, stratify=y_temp
         )
     except ValueError:
         # Fallback: unstratified if classes too small
-        X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.30, random_state=base_seed)
-        X_cal, X_test, y_cal, y_test = train_test_split(X_temp, y_temp, test_size=0.50, random_state=base_seed)
+        X_train, X_temp, y_train, y_temp = train_test_split(
+            X, y, test_size=0.30, random_state=base_seed
+        )
+        X_cal, X_test, y_cal, y_test = train_test_split(
+            X_temp, y_temp, test_size=0.50, random_state=base_seed
+        )
     return X_train, X_cal, X_test, y_train, y_cal, y_test
 
 
@@ -1176,8 +1282,12 @@ def _classification_reliability(y_full, y_test, y_pred, metrics):
 
     # Enriched metrics
     metrics["balanced_accuracy"] = round(balanced_accuracy_score(y_test, y_pred), 4)
-    metrics["f1_macro"] = round(f1_score(y_test, y_pred, average="macro", zero_division=0), 4)
-    metrics["recall_macro"] = round(recall_score(y_test, y_pred, average="macro", zero_division=0), 4)
+    metrics["f1_macro"] = round(
+        f1_score(y_test, y_pred, average="macro", zero_division=0), 4
+    )
+    metrics["recall_macro"] = round(
+        recall_score(y_test, y_pred, average="macro", zero_division=0), 4
+    )
     metrics["baseline_accuracy"] = round(majority_pct, 4)
     metrics["class_balance"] = {str(k): int(v) for k, v in counts.items()}
 
@@ -1185,8 +1295,12 @@ def _classification_reliability(y_full, y_test, y_pred, metrics):
     report = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
     metrics["per_class"] = {}
     for k, vals in report.items():
-        if k not in ("accuracy", "macro avg", "weighted avg") and isinstance(vals, dict):
-            metrics["per_class"][str(k)] = {m: round(float(v), 4) for m, v in vals.items()}
+        if k not in ("accuracy", "macro avg", "weighted avg") and isinstance(
+            vals, dict
+        ):
+            metrics["per_class"][str(k)] = {
+                m: round(float(v), 4) for m, v in vals.items()
+            }
 
     # Reliability warnings
     warnings = []
@@ -1366,7 +1480,10 @@ def _data_skepticism(X, y, importances=None):
         )
     elif n_rows < 100:
         warnings.append(
-            {"level": "medium", "msg": f"Small dataset ({n_rows} rows). Cross-validation variance will be high."}
+            {
+                "level": "medium",
+                "msg": f"Small dataset ({n_rows} rows). Cross-validation variance will be high.",
+            }
         )
 
     # Feature importance concentration
@@ -1485,7 +1602,11 @@ def _permutation_reality_test(model, X, y, task, cv=None):
         rng = np.random.RandomState(42)
         idx = rng.choice(n_rows, max_rows, replace=False)
         X = X.iloc[idx].reset_index(drop=True)
-        y = y.iloc[idx].reset_index(drop=True) if hasattr(y, "iloc") else np.array(y)[idx]
+        y = (
+            y.iloc[idx].reset_index(drop=True)
+            if hasattr(y, "iloc")
+            else np.array(y)[idx]
+        )
         n_rows = max_rows
 
     if n_rows < 500:
@@ -1514,7 +1635,9 @@ def _permutation_reality_test(model, X, y, task, cv=None):
 
     estimator = clone(model)
     if hasattr(estimator, "n_estimators"):
-        estimator.set_params(n_estimators=min(getattr(estimator, "n_estimators", 100), 30))
+        estimator.set_params(
+            n_estimators=min(getattr(estimator, "n_estimators", 100), 30)
+        )
     # Keep n_jobs=1 inside the estimator — permutation_test_score already
     # parallelises across permutations; nesting parallelism causes OOM on
     # production (single gunicorn worker, limited RAM).
@@ -1589,11 +1712,15 @@ def _duplicate_audit(X, y):
         series = X[col]
         n_unique = series.nunique()
 
-        name_match = any(kw in col_lower for kw in ("_id", "index", "_key", "row_num", "record_id"))
+        name_match = any(
+            kw in col_lower for kw in ("_id", "index", "_key", "row_num", "record_id")
+        )
         is_monotonic = False
         if series.dtype in (np.int32, np.int64, np.float64):
             try:
-                is_monotonic = bool(series.is_monotonic_increasing or series.is_monotonic_decreasing)
+                is_monotonic = bool(
+                    series.is_monotonic_increasing or series.is_monotonic_decreasing
+                )
             except Exception:
                 pass
         high_cardinality = n_unique > 0.9 * n_rows and n_rows > 20
@@ -1624,7 +1751,10 @@ def _duplicate_audit(X, y):
                 else:
                     y_bin = label_binarize(y, classes=classes)
                     auc = roc_auc_score(
-                        y_bin, np.column_stack([vals] * len(classes)), multi_class="ovr", average="macro"
+                        y_bin,
+                        np.column_stack([vals] * len(classes)),
+                        multi_class="ovr",
+                        average="macro",
                     )
                 if auc > 0.995:
                     perfect_separators.append(str(col))
@@ -1640,7 +1770,9 @@ def _duplicate_audit(X, y):
     }
 
 
-def _build_permutation_histogram(real_score, perm_scores, p_value, scoring, baseline=None):
+def _build_permutation_histogram(
+    real_score, perm_scores, p_value, scoring, baseline=None
+):
     """Build Plotly spec for permutation test null distribution histogram."""
     signal_prob = 1.0 - p_value
     label = scoring.replace("_", " ").title()
@@ -1727,7 +1859,9 @@ def _build_permutation_histogram(real_score, perm_scores, p_value, scoring, base
     }
 
 
-def _bayesian_model_beliefs(metrics, X, y, importances, task, *, model=None, cv_std=None):
+def _bayesian_model_beliefs(
+    metrics, X, y, importances, task, *, model=None, cv_std=None
+):
     """Compute calibrated Bayesian beliefs about model trustworthiness.
 
     Each concern is mapped to a probability via sigmoid. Overall model
@@ -1769,7 +1903,10 @@ def _bayesian_model_beliefs(metrics, X, y, importances, task, *, model=None, cv_
                         f"{majority_pct:.0%} of data is the majority class. "
                         f"Balanced accuracy ({balanced_acc:.3f}) is more reliable than standard accuracy ({acc:.3f})."
                     ),
-                    "evidence": {"majority_pct": round(majority_pct, 4), "balanced_accuracy": round(balanced_acc, 4)},
+                    "evidence": {
+                        "majority_pct": round(majority_pct, 4),
+                        "balanced_accuracy": round(balanced_acc, 4),
+                    },
                 }
             )
 
@@ -1819,14 +1956,20 @@ def _bayesian_model_beliefs(metrics, X, y, importances, task, *, model=None, cv_
                         f"Accuracy ({acc:.3f}) is only {lift:+.3f} above the majority baseline ({baseline:.3f}). "
                         f"The remaining {1 - acc:.3f} error is {'consistent with noise.' if lift < 0.02 else 'modest lift.'}"
                     ),
-                    "evidence": {"accuracy": round(acc, 4), "baseline": round(baseline, 4), "lift": round(lift, 4)},
+                    "evidence": {
+                        "accuracy": round(acc, 4),
+                        "baseline": round(baseline, 4),
+                        "lift": round(lift, 4),
+                    },
                 }
             )
 
         # Minority blindness
         per_class = metrics.get("per_class", {})
         if per_class:
-            min_recall = min((v.get("recall", 1.0) for v in per_class.values()), default=1.0)
+            min_recall = min(
+                (v.get("recall", 1.0) for v in per_class.values()), default=1.0
+            )
             p = _concern_sigmoid(1 - min_recall, center=0.50, steepness=8)
             if p > 0.05:
                 beliefs.append(
@@ -1912,7 +2055,10 @@ def _bayesian_model_beliefs(metrics, X, y, importances, task, *, model=None, cv_
                             f"Model systematically {direction}-predicts (mean residual: {mean_resid:.3f}, "
                             f"{bias_frac:.0%} of target std)."
                         ),
-                        "evidence": {"mean_residual": round(mean_resid, 4), "bias_fraction": round(bias_frac, 4)},
+                        "evidence": {
+                            "mean_residual": round(mean_resid, 4),
+                            "bias_fraction": round(bias_frac, 4),
+                        },
                     }
                 )
 
@@ -1930,7 +2076,11 @@ def _bayesian_model_beliefs(metrics, X, y, importances, task, *, model=None, cv_
                     f"{n_cols} features for {n_rows} rows (ratio {ratio:.3f}). "
                     f"{'High risk of memorizing noise.' if ratio > 0.3 else 'Moderate overfitting risk.'}"
                 ),
-                "evidence": {"n_features": n_cols, "n_rows": n_rows, "ratio": round(ratio, 4)},
+                "evidence": {
+                    "n_features": n_cols,
+                    "n_rows": n_rows,
+                    "ratio": round(ratio, 4),
+                },
             }
         )
 
@@ -1990,7 +2140,10 @@ def _bayesian_model_beliefs(metrics, X, y, importances, task, *, model=None, cv_
                         f"'{importances[0]['feature']}' accounts for {frac:.0%} of total importance. "
                         f"Model is essentially a single-feature predictor."
                     ),
-                    "evidence": {"top_feature": importances[0]["feature"], "importance_fraction": round(frac, 4)},
+                    "evidence": {
+                        "top_feature": importances[0]["feature"],
+                        "importance_fraction": round(frac, 4),
+                    },
                 }
             )
 
@@ -2054,12 +2207,15 @@ def _bayesian_model_beliefs(metrics, X, y, importances, task, *, model=None, cv_
             if id_cols:
                 parts.append(f"ID-like columns: {', '.join(id_cols)}")
             if separators:
-                parts.append(f"Near-perfect separators (AUC > 0.995): {', '.join(separators)}")
+                parts.append(
+                    f"Near-perfect separators (AUC > 0.995): {', '.join(separators)}"
+                )
             beliefs.append(
                 {
                     "concern": "duplicate_contamination",
                     "probability": round(dup_concern, 3),
-                    "narrative": ". ".join(parts) + ". These may inflate metrics if they span train/test.",
+                    "narrative": ". ".join(parts)
+                    + ". These may inflate metrics if they span train/test.",
                     "evidence": {
                         "duplicate_rate": round(dup_rate, 4),
                         "n_exact_duplicates": n_exact,
@@ -2091,10 +2247,17 @@ def _bayesian_model_beliefs(metrics, X, y, importances, task, *, model=None, cv_
             )
 
     # ── Weighted log-linear fusion ──
-    active = [(b, _CONCERN_WEIGHTS.get(b["concern"], 0.5)) for b in beliefs if b["probability"] > 0.1]
+    active = [
+        (b, _CONCERN_WEIGHTS.get(b["concern"], 0.5))
+        for b in beliefs
+        if b["probability"] > 0.1
+    ]
     if active:
         total_weight = sum(w for _, w in active)
-        log_trust = sum(w * math.log(1.0 - min(b["probability"], 0.95)) for b, w in active) / total_weight
+        log_trust = (
+            sum(w * math.log(1.0 - min(b["probability"], 0.95)) for b, w in active)
+            / total_weight
+        )
         model_confidence = math.exp(log_trust)
     else:
         model_confidence = 0.95
@@ -2145,9 +2308,15 @@ def _bayesian_model_beliefs(metrics, X, y, importances, task, *, model=None, cv_
                 "mode": "gauge+number",
                 "value": round(model_confidence * 100, 1),
                 "number": {"suffix": "%", "font": {"size": 28, "color": gauge_color}},
-                "title": {"text": "Model Confidence", "font": {"size": 13, "color": "#b0b0b0"}},
+                "title": {
+                    "text": "Model Confidence",
+                    "font": {"size": 13, "color": "#b0b0b0"},
+                },
                 "gauge": {
-                    "axis": {"range": [0, 100], "tickfont": {"size": 10, "color": "#666"}},
+                    "axis": {
+                        "range": [0, 100],
+                        "tickfont": {"size": 10, "color": "#666"},
+                    },
                     "bar": {"color": gauge_color, "thickness": 0.75},
                     "bgcolor": "rgba(0,0,0,0)",
                     "steps": [
@@ -2201,7 +2370,11 @@ def _auto_train(X, y, task=None):
 
     # Auto-detect task type
     if task is None:
-        is_cat = y.dtype == object or y.dtype.name == "category" or hasattr(y.dtype, "categories")
+        is_cat = (
+            y.dtype == object
+            or y.dtype.name == "category"
+            or hasattr(y.dtype, "categories")
+        )
         if y.nunique() <= 20 and (is_cat or y.nunique() <= 10):
             task = "classification"
         else:
@@ -2227,9 +2400,15 @@ def _auto_train(X, y, task=None):
 
         metrics = {
             "accuracy": round(accuracy_score(y_test, y_pred), 4),
-            "precision": round(precision_score(y_test, y_pred, average="weighted", zero_division=0), 4),
-            "recall": round(recall_score(y_test, y_pred, average="weighted", zero_division=0), 4),
-            "f1": round(f1_score(y_test, y_pred, average="weighted", zero_division=0), 4),
+            "precision": round(
+                precision_score(y_test, y_pred, average="weighted", zero_division=0), 4
+            ),
+            "recall": round(
+                recall_score(y_test, y_pred, average="weighted", zero_division=0), 4
+            ),
+            "f1": round(
+                f1_score(y_test, y_pred, average="weighted", zero_division=0), 4
+            ),
         }
 
         # MCC — best single metric under imbalance (all classification)
@@ -2243,7 +2422,9 @@ def _auto_train(X, y, task=None):
         if n_classes == 2 and hasattr(model, "predict_proba"):
             try:
                 y_proba = model.predict_proba(X_test)[:, 1]
-                metrics["average_precision"] = round(average_precision_score(y_test, y_proba), 4)
+                metrics["average_precision"] = round(
+                    average_precision_score(y_test, y_proba), 4
+                )
                 metrics["brier_score"] = round(brier_score_loss(y_test, y_proba), 4)
             except Exception:
                 pass
@@ -2253,7 +2434,9 @@ def _auto_train(X, y, task=None):
 
     else:
         # --- Regression (unchanged split) ---
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
 
         model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
         model.fit(X_train, y_train)
@@ -2281,7 +2464,9 @@ def _auto_train(X, y, task=None):
     return model, metrics, importances, task, X_test, y_test, y_pred
 
 
-def _claude_interpret_results(user, context, metrics, importances, task=None, warnings=None):
+def _claude_interpret_results(
+    user, context, metrics, importances, task=None, warnings=None
+):
     """Ask Claude to interpret ML results in plain English."""
     from agents_api.llm_manager import LLMManager
 
@@ -2433,7 +2618,9 @@ def _check_outliers(data, label="Data", method="iqr"):
     return None
 
 
-def _cross_validate(primary_p, alt_p, primary_name, alt_name, alpha=0.05, normality_failed=False):
+def _cross_validate(
+    primary_p, alt_p, primary_name, alt_name, alpha=0.05, normality_failed=False
+):
     """Compare two test p-values and return agreement/contradiction diagnostic."""
     primary_sig = primary_p < alpha
     alt_sig = alt_p < alpha
@@ -2473,7 +2660,9 @@ def _narrative(verdict, body, next_steps=None, chart_guidance=None):
     }
 
 
-def _practical_block(effect_name, effect_val, effect_type, pval, alpha=0.05, context=""):
+def _practical_block(
+    effect_name, effect_val, effect_type, pval, alpha=0.05, context=""
+):
     """Build practical significance interpretation block for analysis summaries."""
     label, meaningful = _effect_magnitude(effect_val, effect_type)
 
@@ -2489,7 +2678,9 @@ def _practical_block(effect_name, effect_val, effect_type, pval, alpha=0.05, con
         b += "<<COLOR:warn>>Statistically significant but small effect.<</COLOR>>\n"
         b += f"<<COLOR:text>>The difference is real but may be too small to justify action. Consider whether the cost of change is worth this magnitude.{' ' + context if context else ''}<</COLOR>>"
     elif pval < alpha:
-        b += "<<COLOR:warn>>Statistically significant but negligible effect.<</COLOR>>\n"
+        b += (
+            "<<COLOR:warn>>Statistically significant but negligible effect.<</COLOR>>\n"
+        )
         b += "<<COLOR:text>>With enough data, even trivial differences reach significance. This difference is too small to act on.<</COLOR>>"
     elif pval >= alpha and meaningful:
         b += f"<<COLOR:warn>>Not statistically significant, but the effect size is {label}.<</COLOR>>\n"
@@ -2536,7 +2727,11 @@ def _bayesian_shadow(shadow_type, **kwargs):
                 t_stat, _ = sp_stats.ttest_1samp(x, mu)
                 n_eff = len(x)
                 v = len(x) - 1
-                d = (np.mean(x) - mu) / np.std(x, ddof=1) if np.std(x, ddof=1) > 0 else 0
+                d = (
+                    (np.mean(x) - mu) / np.std(x, ddof=1)
+                    if np.std(x, ddof=1) > 0
+                    else 0
+                )
                 se_d = np.sqrt(1 / len(x) + d**2 / (2 * len(x)))
 
             elif shadow_type == "ttest_2samp":
@@ -2550,7 +2745,9 @@ def _bayesian_shadow(shadow_type, **kwargs):
                 n1, n2 = len(x), len(y)
                 n_eff = n1 * n2 / (n1 + n2)
                 v = n1 + n2 - 2
-                pooled_std = np.sqrt(((n1 - 1) * np.var(x, ddof=1) + (n2 - 1) * np.var(y, ddof=1)) / v)
+                pooled_std = np.sqrt(
+                    ((n1 - 1) * np.var(x, ddof=1) + (n2 - 1) * np.var(y, ddof=1)) / v
+                )
                 d = (np.mean(x) - np.mean(y)) / pooled_std if pooled_std > 0 else 0
                 se_d = np.sqrt((n1 + n2) / (n1 * n2) + d**2 / (2 * (n1 + n2)))
 
@@ -2565,7 +2762,11 @@ def _bayesian_shadow(shadow_type, **kwargs):
                 t_stat, _ = sp_stats.ttest_rel(x, y)
                 n_eff = len(diff)
                 v = len(diff) - 1
-                d = np.mean(diff) / np.std(diff, ddof=1) if np.std(diff, ddof=1) > 0 else 0
+                d = (
+                    np.mean(diff) / np.std(diff, ddof=1)
+                    if np.std(diff, ddof=1) > 0
+                    else 0
+                )
                 se_d = np.sqrt(1 / len(diff) + d**2 / (2 * len(diff)))
 
             # JZS integrand (Rouder et al. 2009, Eq. 2)
@@ -2632,7 +2833,9 @@ def _bayesian_shadow(shadow_type, **kwargs):
             def _corr_bf_integrand(rho):
                 if abs(rho) >= 1:
                     return 0.0
-                log_term = ((n - 2) / 2) * np.log(1 - rho**2) - ((n - 1) / 2) * np.log(1 - r * rho)
+                log_term = ((n - 2) / 2) * np.log(1 - rho**2) - (
+                    (n - 1) / 2
+                ) * np.log(1 - r * rho)
                 return np.exp(log_term)
 
             bf_integral, _ = quad(_corr_bf_integrand, -1 + 1e-10, 1 - 1e-10)
@@ -2675,7 +2878,9 @@ def _bayesian_shadow(shadow_type, **kwargs):
                 "ci_high": round(ci_high, 4),
                 "level": 0.95,
             }
-            interp_parts.append(f"95% CrI for proportion: [{ci_low:.3f}, {ci_high:.3f}]")
+            interp_parts.append(
+                f"95% CrI for proportion: [{ci_low:.3f}, {ci_high:.3f}]"
+            )
 
         elif shadow_type == "chi2":
             # BIC-approximated BF (Wagenmakers 2007)
@@ -2746,7 +2951,9 @@ def _bayesian_shadow(shadow_type, **kwargs):
                 "ci_high": round(float(np.tanh(z_r + 1.96 * se_z)), 4),
                 "level": 0.95,
             }
-            interp_parts.append(f"95% CrI for r: [{ci_dict['ci_low']:.3f}, {ci_dict['ci_high']:.3f}]")
+            interp_parts.append(
+                f"95% CrI for r: [{ci_dict['ci_low']:.3f}, {ci_dict['ci_high']:.3f}]"
+            )
 
         else:
             return None
@@ -2779,9 +2986,7 @@ def _bayesian_shadow(shadow_type, **kwargs):
             interp = f"BF\u2081\u2080 = {bf10:.1f} \u2014 the data are {bf10:.1f}\u00d7 more likely under H\u2081 than H\u2080 ({bf_label} evidence)."
         else:
             bf01 = 1 / bf10 if bf10 > 0 else float("inf")
-            interp = (
-                f"BF\u2081\u2080 = {bf10:.2f} (BF\u2080\u2081 = {bf01:.1f}) \u2014 the data favor H\u2080 ({bf_label})."
-            )
+            interp = f"BF\u2081\u2080 = {bf10:.2f} (BF\u2080\u2081 = {bf01:.1f}) \u2014 the data favor H\u2080 ({bf_label})."
         if interp_parts:
             interp += " " + ". ".join(interp_parts) + "."
 
@@ -2874,7 +3079,9 @@ def _evidence_grade(p_value, bf10=None, effect_magnitude=None, cross_val_agrees=
         return None
 
 
-def _ml_interpretation(task, metrics, y_test=None, y_pred=None, features=None, target=None, model=None):
+def _ml_interpretation(
+    task, metrics, y_test=None, y_pred=None, features=None, target=None, model=None
+):
     """Build practical interpretation block for ML models."""
     import numpy as np
 
@@ -2996,7 +3203,9 @@ def _fit_best_distribution(data):
         try:
             c, loc, scale = sp_stats.weibull_min.fit(data, floc=0)
             ks = sp_stats.kstest(data, "weibull_min", args=(c, 0, scale))
-            candidates.append(("weibull", sp_stats.weibull_min, (c, 0, scale), ks.pvalue))
+            candidates.append(
+                ("weibull", sp_stats.weibull_min, (c, 0, scale), ks.pvalue)
+            )
         except Exception:
             pass
 

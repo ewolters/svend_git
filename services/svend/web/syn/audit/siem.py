@@ -127,7 +127,9 @@ class SIEMEvent:
     status: str | None = None
     payload: dict[str, Any] = field(default_factory=dict)
 
-    def to_cef(self, vendor: str = "Synara", product: str = "QMS", version: str = "1.0") -> str:
+    def to_cef(
+        self, vendor: str = "Synara", product: str = "QMS", version: str = "1.0"
+    ) -> str:
         """
         Convert to Common Event Format (CEF).
 
@@ -175,7 +177,9 @@ class SIEMEvent:
             f"{self.severity.value}|{ext_str}"
         )
 
-    def to_leef(self, vendor: str = "Synara", product: str = "QMS", version: str = "1.0") -> str:
+    def to_leef(
+        self, vendor: str = "Synara", product: str = "QMS", version: str = "1.0"
+    ) -> str:
         """
         Convert to Log Event Extended Format (LEEF).
 
@@ -213,9 +217,7 @@ class SIEMEvent:
 
         ext_str = "\t".join(fields)
 
-        return (
-            f"LEEF:1.0|{sanitize(vendor)}|{sanitize(product)}|{sanitize(version)}|{sanitize(self.event_id)}|{ext_str}"
-        )
+        return f"LEEF:1.0|{sanitize(vendor)}|{sanitize(product)}|{sanitize(version)}|{sanitize(self.event_id)}|{ext_str}"
 
     def to_json(self) -> str:
         """
@@ -540,7 +542,9 @@ class SyslogExporter(SIEMExporter):
 
                 success_count += 1
 
-            logger.info(f"[SIEM/Syslog] Exported {success_count} events to {self.host}:{self.port}")
+            logger.info(
+                f"[SIEM/Syslog] Exported {success_count} events to {self.host}:{self.port}"
+            )
             return True
 
         except OSError as e:
@@ -602,7 +606,9 @@ class SIEMManager:
 
         self._initialized = True
 
-    def _create_exporter(self, name: str, config: dict[str, Any]) -> SIEMExporter | None:
+    def _create_exporter(
+        self, name: str, config: dict[str, Any]
+    ) -> SIEMExporter | None:
         """Create exporter from configuration."""
         exporter_type = config.get("type", "http").lower()
 
@@ -659,7 +665,9 @@ class SIEMManager:
         severity_str = event_config.get("siem_severity", "medium")
         siem_event = SIEMEvent(
             event_id=str(entry.id),
-            correlation_id=str(entry.correlation_id) if entry.correlation_id else str(uuid4()),
+            correlation_id=(
+                str(entry.correlation_id) if entry.correlation_id else str(uuid4())
+            ),
             timestamp=entry.timestamp,
             event_name=entry.event_name,
             severity=SEVERITY_MAP.get(severity_str, SIEMSeverity.MEDIUM),
@@ -725,7 +733,9 @@ class SIEMManager:
                 if exporter.export(events):
                     success = True
             except Exception as e:
-                logger.error(f"[SIEM] Batch export failed for {type(exporter).__name__}: {e}")
+                logger.error(
+                    f"[SIEM] Batch export failed for {type(exporter).__name__}: {e}"
+                )
 
         return success
 

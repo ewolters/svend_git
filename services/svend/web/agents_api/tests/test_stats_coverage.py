@@ -327,7 +327,9 @@ class RegressionCoverageTest(TestCase):
 
     def test_nonlinear_regression(self):
         x = list(np.linspace(0.1, 10, 50))
-        y = [3 * np.exp(-0.5 * xi) + np.random.RandomState(42).normal(0, 0.1) for xi in x]
+        y = [
+            3 * np.exp(-0.5 * xi) + np.random.RandomState(42).normal(0, 0.1) for xi in x
+        ]
         r = _run(
             "nonlinear_regression",
             {"var_x": "x", "var_y": "y", "model": "exponential"},
@@ -537,23 +539,43 @@ class AdvancedPowerTest(TestCase):
     """Power and sample size analyses."""
 
     def test_power_z(self):
-        r = _run("power_z", {"delta": 0.5, "sigma": 1.0, "alpha": 0.05, "power": 0.80}, {"x": [1]})
+        r = _run(
+            "power_z",
+            {"delta": 0.5, "sigma": 1.0, "alpha": 0.05, "power": 0.80},
+            {"x": [1]},
+        )
         _check_schema(self, r)
 
     def test_power_1prop(self):
-        r = _run("power_1prop", {"p0": 0.5, "pa": 0.7, "alpha": 0.05, "power": 0.80}, {"x": [1]})
+        r = _run(
+            "power_1prop",
+            {"p0": 0.5, "pa": 0.7, "alpha": 0.05, "power": 0.80},
+            {"x": [1]},
+        )
         _check_schema(self, r)
 
     def test_power_2prop(self):
-        r = _run("power_2prop", {"p1": 0.5, "p2": 0.7, "alpha": 0.05, "power": 0.80}, {"x": [1]})
+        r = _run(
+            "power_2prop",
+            {"p1": 0.5, "p2": 0.7, "alpha": 0.05, "power": 0.80},
+            {"x": [1]},
+        )
         _check_schema(self, r)
 
     def test_power_1variance(self):
-        r = _run("power_1variance", {"sigma0": 1.0, "sigma1": 1.5, "alpha": 0.05, "power": 0.80}, {"x": [1]})
+        r = _run(
+            "power_1variance",
+            {"sigma0": 1.0, "sigma1": 1.5, "alpha": 0.05, "power": 0.80},
+            {"x": [1]},
+        )
         _check_schema(self, r)
 
     def test_power_2variance(self):
-        r = _run("power_2variance", {"sigma1": 1.0, "sigma2": 1.5, "alpha": 0.05, "power": 0.80}, {"x": [1]})
+        r = _run(
+            "power_2variance",
+            {"sigma1": 1.0, "sigma2": 1.5, "alpha": 0.05, "power": 0.80},
+            {"x": [1]},
+        )
         _check_schema(self, r)
 
     def test_power_equivalence(self):
@@ -611,7 +633,12 @@ class AdvancedMSATest(TestCase):
         vals = list(np.random.RandomState(42).normal(50, 2, 60))
         r = _run(
             "gage_rr_expanded",
-            {"measurement": "y", "part": "part", "operator": "op", "factors": ["fixture"]},
+            {
+                "measurement": "y",
+                "part": "part",
+                "operator": "op",
+                "factors": ["fixture"],
+            },
             {"y": vals, "part": parts, "op": ops, "fixture": fixture},
         )
         _check_schema(self, r)
@@ -673,7 +700,8 @@ class AdvancedMSATest(TestCase):
         subjects = list(range(1, 16)) * 2
         raters = ["R1"] * 15 + ["R2"] * 15
         vals = list(np.random.RandomState(42).normal(5, 1, 15)) + [
-            x + np.random.RandomState(43).normal(0, 0.5) for x in np.random.RandomState(42).normal(5, 1, 15)
+            x + np.random.RandomState(43).normal(0, 0.5)
+            for x in np.random.RandomState(42).normal(5, 1, 15)
         ]
         r = _run(
             "icc",
@@ -732,14 +760,23 @@ class AdvancedTimeSeriesTest(TestCase):
         _check_schema(self, r)
 
     def test_decomposition(self):
-        ts = list(np.sin(np.linspace(0, 4 * np.pi, 48)) * 10 + np.random.RandomState(42).normal(0, 1, 48) + 50)
+        ts = list(
+            np.sin(np.linspace(0, 4 * np.pi, 48)) * 10
+            + np.random.RandomState(42).normal(0, 1, 48)
+            + 50
+        )
         r = _run("decomposition", {"var": "y", "period": 12}, {"y": ts})
         _check_schema(self, r)
 
     def test_granger(self):
         x = list(np.random.RandomState(42).normal(0, 1, 50))
-        y = [0] + [0.5 * x[i - 1] + np.random.RandomState(43).normal(0, 0.5) for i in range(1, 50)]
-        r = _run("granger", {"var_x": "x", "var_y": "y", "max_lag": 3}, {"x": x, "y": y})
+        y = [0] + [
+            0.5 * x[i - 1] + np.random.RandomState(43).normal(0, 0.5)
+            for i in range(1, 50)
+        ]
+        r = _run(
+            "granger", {"var_x": "x", "var_y": "y", "max_lag": 3}, {"x": x, "y": y}
+        )
         _check_schema(self, r)
 
     def test_changepoint(self):
@@ -880,7 +917,9 @@ class ExploratoryCoverageTest(TestCase):
 
     def test_mixture_model(self):
         # Bimodal data
-        mix = list(np.random.RandomState(42).normal(50, 5, 25)) + list(np.random.RandomState(43).normal(80, 5, 25))
+        mix = list(np.random.RandomState(42).normal(50, 5, 25)) + list(
+            np.random.RandomState(43).normal(80, 5, 25)
+        )
         r = _run("mixture_model", {"var1": "x", "n_components": 2}, {"x": mix})
         _check_schema(self, r)
 
@@ -962,7 +1001,10 @@ class ExploratoryCoverageTest(TestCase):
         r = _run(
             "fisher_exact",
             {"var1": "x", "var2": "y"},
-            {"x": BINARY_50, "y": np.random.RandomState(42).choice([0, 1], 50).tolist()},
+            {
+                "x": BINARY_50,
+                "y": np.random.RandomState(42).choice([0, 1], 50).tolist(),
+            },
         )
         _check_schema(self, r)
 

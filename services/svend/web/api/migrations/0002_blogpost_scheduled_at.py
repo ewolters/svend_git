@@ -6,18 +6,27 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0001_blogpost'),
+        ("api", "0001_blogpost"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='blogpost',
-            name='scheduled_at',
+            model_name="blogpost",
+            name="scheduled_at",
             field=models.DateTimeField(blank=True, db_index=True, null=True),
         ),
         migrations.AlterField(
-            model_name='blogpost',
-            name='status',
-            field=models.CharField(choices=[('draft', 'Draft'), ('scheduled', 'Scheduled'), ('published', 'Published')], db_index=True, default='draft', max_length=10),
+            model_name="blogpost",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("draft", "Draft"),
+                    ("scheduled", "Scheduled"),
+                    ("published", "Published"),
+                ],
+                db_index=True,
+                default="draft",
+                max_length=10,
+            ),
         ),
     ]

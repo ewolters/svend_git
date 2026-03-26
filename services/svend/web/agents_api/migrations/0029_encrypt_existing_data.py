@@ -18,7 +18,10 @@ def encrypt_triage_results(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("agents_api", "0028_alter_dswresult_data_alter_triageresult_cleaned_csv_and_more"),
+        (
+            "agents_api",
+            "0028_alter_dswresult_data_alter_triageresult_cleaned_csv_and_more",
+        ),
     ]
 
     operations = [

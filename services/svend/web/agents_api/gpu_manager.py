@@ -33,9 +33,12 @@ class GPUTrainingContext:
             self._acquired = True
             try:
                 import torch
+
                 if torch.cuda.is_available():
                     self.available = True
-                    logger.info(f"GPU acquired for training ({_GPU_PERCENT}% allocation)")
+                    logger.info(
+                        f"GPU acquired for training ({_GPU_PERCENT}% allocation)"
+                    )
                 else:
                     logger.info("CUDA not available, falling back to CPU")
             except ImportError:

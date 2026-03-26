@@ -34,8 +34,12 @@ def _run_model_tools(df, analysis_id, config, user):
     y = df[target].loc[X.index]
 
     # 3-way split for conformal prediction: train 70% / calibration 15% / test 15%
-    X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.30, random_state=42)
-    X_cal, X_test, y_cal, y_test = train_test_split(X_temp, y_temp, test_size=0.50, random_state=42)
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        X, y, test_size=0.30, random_state=42
+    )
+    X_cal, X_test, y_cal, y_test = train_test_split(
+        X_temp, y_temp, test_size=0.50, random_state=42
+    )
 
     if analysis_id == "model_compare":
         import time as _time
@@ -47,7 +51,9 @@ def _run_model_tools(df, analysis_id, config, user):
         from accounts.constants import can_use_ml
 
         if not can_use_ml(getattr(user, "tier", "free")):
-            result["summary"] = "Error: Model comparison requires a paid tier with ML access."
+            result["summary"] = (
+                "Error: Model comparison requires a paid tier with ML access."
+            )
             return result
 
         cv_folds = int(config.get("cv_folds", 5))
@@ -55,13 +61,17 @@ def _run_model_tools(df, analysis_id, config, user):
 
         # Auto-detect task type
         if task_type == "auto":
-            if y.nunique() <= 20 and (y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10):
+            if y.nunique() <= 20 and (
+                y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10
+            ):
                 task_type = "classification"
             else:
                 task_type = "regression"
 
         # Encode categorical target for classification
-        if task_type == "classification" and (y.dtype == object or y.dtype.name == "category"):
+        if task_type == "classification" and (
+            y.dtype == object or y.dtype.name == "category"
+        ):
             from sklearn.preprocessing import LabelEncoder
 
             le = LabelEncoder()
@@ -85,10 +95,20 @@ def _run_model_tools(df, analysis_id, config, user):
             from sklearn.naive_bayes import GaussianNB
 
             models = [
-                ("Random Forest", RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)),
+                (
+                    "Random Forest",
+                    RandomForestClassifier(
+                        n_estimators=100, random_state=42, n_jobs=-1
+                    ),
+                ),
                 (
                     "Logistic Regression",
-                    Pipeline([("scaler", StandardScaler()), ("lr", LogisticRegression(max_iter=1000))]),
+                    Pipeline(
+                        [
+                            ("scaler", StandardScaler()),
+                            ("lr", LogisticRegression(max_iter=1000)),
+                        ]
+                    ),
                 ),
                 ("LDA", LinearDiscriminantAnalysis()),
                 ("Naive Bayes", GaussianNB()),
@@ -110,14 +130,21 @@ def _run_model_tools(df, analysis_id, config, user):
             )
 
             models = [
-                ("Random Forest", RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)),
+                (
+                    "Random Forest",
+                    RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1),
+                ),
                 ("Linear Regression", LinearRegression()),
                 ("Ridge", Ridge(alpha=1.0)),
                 ("LASSO", Lasso(alpha=0.1)),
                 ("ElasticNet", ElasticNet(alpha=0.1, l1_ratio=0.5)),
                 ("Bayesian Ridge", BayesianRidge()),
             ]
-            scoring = {"r2": "r2", "neg_rmse": "neg_root_mean_squared_error", "neg_mae": "neg_mean_absolute_error"}
+            scoring = {
+                "r2": "r2",
+                "neg_rmse": "neg_root_mean_squared_error",
+                "neg_mae": "neg_mean_absolute_error",
+            }
             primary_metric = "r2"
 
         # Try adding XGBoost / LightGBM if installed
@@ -138,7 +165,14 @@ def _run_model_tools(df, analysis_id, config, user):
                     )
                 )
             else:
-                models.append(("XGBoost", xgb.XGBRegressor(n_estimators=100, random_state=42, verbosity=0)))
+                models.append(
+                    (
+                        "XGBoost",
+                        xgb.XGBRegressor(
+                            n_estimators=100, random_state=42, verbosity=0
+                        ),
+                    )
+                )
         except ImportError:
             pass
 
@@ -146,9 +180,23 @@ def _run_model_tools(df, analysis_id, config, user):
             import lightgbm as lgb
 
             if task_type == "classification":
-                models.append(("LightGBM", lgb.LGBMClassifier(n_estimators=100, random_state=42, verbosity=-1)))
+                models.append(
+                    (
+                        "LightGBM",
+                        lgb.LGBMClassifier(
+                            n_estimators=100, random_state=42, verbosity=-1
+                        ),
+                    )
+                )
             else:
-                models.append(("LightGBM", lgb.LGBMRegressor(n_estimators=100, random_state=42, verbosity=-1)))
+                models.append(
+                    (
+                        "LightGBM",
+                        lgb.LGBMRegressor(
+                            n_estimators=100, random_state=42, verbosity=-1
+                        ),
+                    )
+                )
         except ImportError:
             pass
 
@@ -184,11 +232,17 @@ def _run_model_tools(df, analysis_id, config, user):
                     # Handle negative metrics
                     if "neg_" in scorer_key:
                         mean_val = -mean_val
-                        train_vals = -np.array(train_vals) if len(train_vals) > 0 else train_vals
+                        train_vals = (
+                            -np.array(train_vals) if len(train_vals) > 0 else train_vals
+                        )
 
                     row[metric_name] = round(mean_val, 4)
                     row[f"{metric_name}_std"] = round(std_val, 4)
-                    row[f"{metric_name}_train"] = round(float(np.mean(train_vals)), 4) if len(train_vals) > 0 else None
+                    row[f"{metric_name}_train"] = (
+                        round(float(np.mean(train_vals)), 4)
+                        if len(train_vals) > 0
+                        else None
+                    )
 
                 comparison.append(row)
 
@@ -203,8 +257,12 @@ def _run_model_tools(df, analysis_id, config, user):
                 comparison.append({"model": name, "error": str(e_model)[:100]})
 
         # Summary text
-        summary_lines = [f"Model Comparison — {task_type.title()} ({cv_folds}-fold CV)\n"]
-        summary_lines.append(f"{'Model':<22} {'Score':>8} {'± Std':>8} {'Train':>8} {'Time':>6}")
+        summary_lines = [
+            f"Model Comparison — {task_type.title()} ({cv_folds}-fold CV)\n"
+        ]
+        summary_lines.append(
+            f"{'Model':<22} {'Score':>8} {'± Std':>8} {'Train':>8} {'Time':>6}"
+        )
         summary_lines.append("-" * 55)
         for row in comparison:
             if "error" in row:
@@ -217,7 +275,9 @@ def _run_model_tools(df, analysis_id, config, user):
             summary_lines.append(
                 f"{row['model']:<22} {score:>8.4f} {std:>8.4f} {train:>8.4f} {row['fit_time']:>5.1f}s{marker}"
             )
-        summary_lines.append(f"\n* Best: {best_model_name} ({primary_metric} = {best_score:.4f})")
+        summary_lines.append(
+            f"\n* Best: {best_model_name} ({primary_metric} = {best_score:.4f})"
+        )
 
         # --- MODEL ASSESSMENT ---
         assess = f"\n{'─' * 55}\nMODEL ASSESSMENT\n{'─' * 55}\n"
@@ -243,20 +303,22 @@ def _run_model_tools(df, analysis_id, config, user):
         if overfit_warnings:
             assess += "Overfitting check:\n" + "\n".join(overfit_warnings) + "\n\n"
         else:
-            assess += "Overfitting check: ✓ No significant train-test gaps detected.\n\n"
+            assess += (
+                "Overfitting check: ✓ No significant train-test gaps detected.\n\n"
+            )
 
         # Is the best model meaningfully better than others?
         if len(valid_rows) >= 2:
-            scores_sorted = sorted(valid_rows, key=lambda r: r.get(primary_metric, 0), reverse=True)
+            scores_sorted = sorted(
+                valid_rows, key=lambda r: r.get(primary_metric, 0), reverse=True
+            )
             best_r = scores_sorted[0]
             second_r = scores_sorted[1]
             margin = best_r.get(primary_metric, 0) - second_r.get(primary_metric, 0)
             best_std = best_r.get(f"{primary_metric}_std", 0)
             if margin < best_std:
                 assess += f"Winner margin: {best_r['model']} beats {second_r['model']} by {margin:.4f} — within 1 std ({best_std:.4f}).\n"
-                assess += (
-                    f"  → The difference may be noise. Consider {second_r['model']} if it's simpler or faster.\n\n"
-                )
+                assess += f"  → The difference may be noise. Consider {second_r['model']} if it's simpler or faster.\n\n"
             else:
                 assess += f"Winner margin: {best_r['model']} beats {second_r['model']} by {margin:.4f} (> 1 std). Solid winner.\n\n"
 
@@ -293,7 +355,9 @@ def _run_model_tools(df, analysis_id, config, user):
         # Comparison bar chart
         model_names = [r["model"] for r in comparison if "error" not in r]
         scores = [r.get(primary_metric, 0) for r in comparison if "error" not in r]
-        stds = [r.get(f"{primary_metric}_std", 0) for r in comparison if "error" not in r]
+        stds = [
+            r.get(f"{primary_metric}_std", 0) for r in comparison if "error" not in r
+        ]
 
         result["plots"].append(
             {
@@ -306,7 +370,11 @@ def _run_model_tools(df, analysis_id, config, user):
                         "error_y": {"type": "data", "array": stds, "visible": True},
                         "marker": {
                             "color": [
-                                "rgba(74,159,110,0.85)" if n == best_model_name else "rgba(74,159,110,0.4)"
+                                (
+                                    "rgba(74,159,110,0.85)"
+                                    if n == best_model_name
+                                    else "rgba(74,159,110,0.4)"
+                                )
                                 for n in model_names
                             ],
                             "line": {"color": "#4a9f6e", "width": 1},
@@ -349,7 +417,11 @@ def _run_model_tools(df, analysis_id, config, user):
                             "z": heatmap_z,
                             "x": heatmap_names,
                             "y": [m.upper() for m in metric_keys],
-                            "colorscale": [[0, "#0d120d"], [0.5, "#2a6b3a"], [1, "#4a9f6e"]],
+                            "colorscale": [
+                                [0, "#0d120d"],
+                                [0.5, "#2a6b3a"],
+                                [1, "#4a9f6e"],
+                            ],
                             "showscale": True,
                             "text": [[f"{v:.4f}" for v in row] for row in heatmap_z],
                             "texttemplate": "%{text}",
@@ -376,7 +448,10 @@ def _run_model_tools(df, analysis_id, config, user):
                             "type": "bar",
                             "x": fit_names,
                             "y": fit_times,
-                            "marker": {"color": "rgba(232,149,71,0.6)", "line": {"color": "#e89547", "width": 1}},
+                            "marker": {
+                                "color": "rgba(232,149,71,0.6)",
+                                "line": {"color": "#e89547", "width": 1},
+                            },
                             "text": [f"{t:.1f}s" for t in fit_times],
                             "textposition": "auto",
                         }
@@ -393,7 +468,11 @@ def _run_model_tools(df, analysis_id, config, user):
             roc_traces = []
             for name, mdl in models:
                 try:
-                    mdl_fitted = mdl.__class__(**mdl.get_params()) if not isinstance(mdl, Pipeline) else mdl
+                    mdl_fitted = (
+                        mdl.__class__(**mdl.get_params())
+                        if not isinstance(mdl, Pipeline)
+                        else mdl
+                    )
                     mdl_fitted.fit(X_enc.values, y_enc.values)
                     if hasattr(mdl_fitted, "predict_proba"):
                         y_prob = mdl_fitted.predict_proba(X_enc.values)[:, 1]
@@ -439,19 +518,29 @@ def _run_model_tools(df, analysis_id, config, user):
             colors = ["#4a9f6e", "#e89547", "#6a7fff", "#e8c547", "#ff7eb9", "#4a9faf"]
             for i, (name, mdl) in enumerate(models[:4]):
                 try:
-                    mdl_fitted = mdl.__class__(**mdl.get_params()) if not isinstance(mdl, Pipeline) else mdl
+                    mdl_fitted = (
+                        mdl.__class__(**mdl.get_params())
+                        if not isinstance(mdl, Pipeline)
+                        else mdl
+                    )
                     mdl_fitted.fit(
                         X_train.values if hasattr(X_train, "values") else X_train,
                         y_train.values if hasattr(y_train, "values") else y_train,
                     )
-                    y_pred_cmp = mdl_fitted.predict(X_test.values if hasattr(X_test, "values") else X_test)
+                    y_pred_cmp = mdl_fitted.predict(
+                        X_test.values if hasattr(X_test, "values") else X_test
+                    )
                     avp_traces.append(
                         {
                             "type": "scatter",
                             "x": y_test.tolist(),
                             "y": y_pred_cmp.tolist(),
                             "mode": "markers",
-                            "marker": {"color": colors[i % len(colors)], "size": 4, "opacity": 0.6},
+                            "marker": {
+                                "color": colors[i % len(colors)],
+                                "size": 4,
+                                "opacity": 0.6,
+                            },
                             "name": name,
                         }
                     )
@@ -486,9 +575,15 @@ def _run_model_tools(df, analysis_id, config, user):
             try:
                 # Split for conformal: train on 70%, calibrate on 15%, evaluate on 15%
                 if task_type == "classification":
-                    Xc_train, Xc_cal, Xc_test, yc_train, yc_cal, yc_test = _stratified_split_3way(
-                        pd.DataFrame(X_enc.values, columns=X_enc.columns),
-                        pd.Series(y_enc.values, name=y_enc.name) if hasattr(y_enc, "name") else pd.Series(y_enc.values),
+                    Xc_train, Xc_cal, Xc_test, yc_train, yc_cal, yc_test = (
+                        _stratified_split_3way(
+                            pd.DataFrame(X_enc.values, columns=X_enc.columns),
+                            (
+                                pd.Series(y_enc.values, name=y_enc.name)
+                                if hasattr(y_enc, "name")
+                                else pd.Series(y_enc.values)
+                            ),
+                        )
                     )
                 else:
                     Xc_train, Xc_temp, yc_train, yc_temp = train_test_split(
@@ -512,7 +607,9 @@ def _run_model_tools(df, analysis_id, config, user):
                 try:
                     from agents_api.conformal import compute_conformal
 
-                    cf = compute_conformal(best_clone, Xc_cal, yc_cal, task_type=task_type)
+                    cf = compute_conformal(
+                        best_clone, Xc_cal, yc_cal, task_type=task_type
+                    )
                     conformal_state = cf.get_state()
                 except Exception:
                     pass
@@ -540,7 +637,10 @@ def _run_model_tools(df, analysis_id, config, user):
             for r in valid_rows
             if r.get(f"{primary_metric}_train", 0)
             and r.get(primary_metric, 0)
-            and (r[f"{primary_metric}_train"] - r[primary_metric]) / r[f"{primary_metric}_train"] * 100 > 15
+            and (r[f"{primary_metric}_train"] - r[primary_metric])
+            / r[f"{primary_metric}_train"]
+            * 100
+            > 15
         ]
         obs = f"Compared {len(comparison)} models ({task_type}, {cv_folds}-fold CV). Best: {best_model_name} ({primary_metric}={best_score:.4f})."
         if overfit_models:
@@ -553,18 +653,24 @@ def _run_model_tools(df, analysis_id, config, user):
         from accounts.constants import can_use_ml
 
         if not can_use_ml(getattr(user, "tier", "free")):
-            result["summary"] = "Error: SHAP explainability requires a paid tier with ML access."
+            result["summary"] = (
+                "Error: SHAP explainability requires a paid tier with ML access."
+            )
             return result
 
         # Get model from cache
         model_key = config.get("model_key", "")
         if not model_key:
-            result["summary"] = "Error: No model selected. Train a model first, then explain it."
+            result["summary"] = (
+                "Error: No model selected. Train a model first, then explain it."
+            )
             return result
 
         cached = get_cached_model(user.id if user else 0, model_key)
         if not cached:
-            result["summary"] = "Error: Model not found in cache. It may have expired — retrain and try again."
+            result["summary"] = (
+                "Error: Model not found in cache. It may have expired — retrain and try again."
+            )
             return result
 
         model_obj = cached["model"]
@@ -573,7 +679,9 @@ def _run_model_tools(df, analysis_id, config, user):
         sample_idx = int(config.get("sample_index", 0))
 
         # Prepare data
-        X_explain = X[model_features] if all(f in X.columns for f in model_features) else X
+        X_explain = (
+            X[model_features] if all(f in X.columns for f in model_features) else X
+        )
         # Encode categoricals
         for col in X_explain.select_dtypes(include=["object", "category"]).columns:
             X_explain[col] = pd.Categorical(X_explain[col]).codes.astype(int)
@@ -587,7 +695,9 @@ def _run_model_tools(df, analysis_id, config, user):
             bg_data = X_explain
 
         # Choose explainer
-        is_tree = hasattr(model_obj, "feature_importances_") and type(model_obj).__name__ in (
+        is_tree = hasattr(model_obj, "feature_importances_") and type(
+            model_obj
+        ).__name__ in (
             "RandomForestClassifier",
             "RandomForestRegressor",
             "XGBClassifier",
@@ -616,7 +726,9 @@ def _run_model_tools(df, analysis_id, config, user):
         else:
             sv = shap_values
 
-        feature_names_explain = list(X_explain.columns) if hasattr(X_explain, "columns") else model_features
+        feature_names_explain = (
+            list(X_explain.columns) if hasattr(X_explain, "columns") else model_features
+        )
 
         # Global: mean absolute SHAP values (feature importance bar)
         mean_abs = np.abs(sv).mean(axis=0)
@@ -630,7 +742,10 @@ def _run_model_tools(df, analysis_id, config, user):
                         "orientation": "h",
                         "x": mean_abs[sorted_idx].tolist(),
                         "y": [feature_names_explain[i] for i in sorted_idx],
-                        "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "marker": {
+                            "color": "rgba(74,159,110,0.6)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                     }
                 ],
                 "layout": {
@@ -645,7 +760,9 @@ def _run_model_tools(df, analysis_id, config, user):
         for i in sorted_idx[-10:]:  # Top 10
             feat_name = feature_names_explain[i]
             vals = sv[:, i]
-            feat_vals = bg_data.iloc[:, i].values if hasattr(bg_data, "iloc") else bg_data[:, i]
+            feat_vals = (
+                bg_data.iloc[:, i].values if hasattr(bg_data, "iloc") else bg_data[:, i]
+            )
             # Normalize feature values for color
             fmin, fmax = float(np.min(feat_vals)), float(np.max(feat_vals))
             colors = ((feat_vals - fmin) / (fmax - fmin + 1e-10)).tolist()
@@ -655,7 +772,9 @@ def _run_model_tools(df, analysis_id, config, user):
                     "type": "scatter",
                     "mode": "markers",
                     "x": vals.tolist(),
-                    "y": (jitter + len(sorted_idx) - 1 - np.where(sorted_idx == i)[0][0]).tolist(),
+                    "y": (
+                        jitter + len(sorted_idx) - 1 - np.where(sorted_idx == i)[0][0]
+                    ).tolist(),
                     "marker": {
                         "size": 3,
                         "color": colors,
@@ -681,7 +800,10 @@ def _run_model_tools(df, analysis_id, config, user):
                             "zeroline": True,
                             "zerolinecolor": "#555",
                         },
-                        "yaxis": {"tickvals": list(range(len(tick_labels))), "ticktext": tick_labels},
+                        "yaxis": {
+                            "tickvals": list(range(len(tick_labels))),
+                            "ticktext": tick_labels,
+                        },
                         "showlegend": False,
                     },
                 }
@@ -695,7 +817,9 @@ def _run_model_tools(df, analysis_id, config, user):
                 float(explainer.expected_value)
                 if not isinstance(explainer.expected_value, (list, np.ndarray))
                 else float(
-                    explainer.expected_value[1] if len(explainer.expected_value) > 1 else explainer.expected_value[0]
+                    explainer.expected_value[1]
+                    if len(explainer.expected_value) > 1
+                    else explainer.expected_value[0]
                 )
             )
 
@@ -703,7 +827,10 @@ def _run_model_tools(df, analysis_id, config, user):
             sorted_single = np.argsort(np.abs(single_sv))[-10:]
             wf_names = [feature_names_explain[i] for i in sorted_single]
             wf_vals = [float(single_sv[i]) for i in sorted_single]
-            wf_colors = ["rgba(74,159,110,0.7)" if v >= 0 else "rgba(208,96,96,0.7)" for v in wf_vals]
+            wf_colors = [
+                "rgba(74,159,110,0.7)" if v >= 0 else "rgba(208,96,96,0.7)"
+                for v in wf_vals
+            ]
 
             result["plots"].append(
                 {
@@ -737,7 +864,11 @@ def _run_model_tools(df, analysis_id, config, user):
 
         # Dependence plot (top feature vs SHAP)
         top_feat_idx = sorted_idx[-1]
-        dep_x = bg_data.iloc[:, top_feat_idx].values if hasattr(bg_data, "iloc") else bg_data[:, top_feat_idx]
+        dep_x = (
+            bg_data.iloc[:, top_feat_idx].values
+            if hasattr(bg_data, "iloc")
+            else bg_data[:, top_feat_idx]
+        )
         dep_y = sv[:, top_feat_idx]
         result["plots"].append(
             {
@@ -760,16 +891,22 @@ def _run_model_tools(df, analysis_id, config, user):
         )
 
         # Summary text
-        top_3 = [(feature_names_explain[i], float(mean_abs[i])) for i in sorted_idx[-3:]][::-1]
+        top_3 = [
+            (feature_names_explain[i], float(mean_abs[i])) for i in sorted_idx[-3:]
+        ][::-1]
         result["summary"] = (
             f"SHAP Explainability Analysis\n\n"
             f"Explainer: {'TreeExplainer' if is_tree else 'KernelExplainer'}\n"
             f"Background samples: {len(bg_data)}\n\n"
             f"Top 3 features by mean |SHAP|:\n"
-            + "\n".join(f"  {i + 1}. {name}: {val:.4f}" for i, (name, val) in enumerate(top_3))
+            + "\n".join(
+                f"  {i + 1}. {name}: {val:.4f}" for i, (name, val) in enumerate(top_3)
+            )
         )
 
-        result["guide_observation"] = f"SHAP: top feature is {top_3[0][0]} (mean |SHAP| = {top_3[0][1]:.4f})."
+        result["guide_observation"] = (
+            f"SHAP: top feature is {top_3[0][0]} (mean |SHAP| = {top_3[0][1]:.4f})."
+        )
 
     elif analysis_id == "hyperparameter_tune":
         import time as _time
@@ -781,7 +918,9 @@ def _run_model_tools(df, analysis_id, config, user):
         optuna.logging.set_verbosity(optuna.logging.WARNING)
 
         if not can_use_ml(getattr(user, "tier", "free")):
-            result["summary"] = "Error: Hyperparameter tuning requires a paid tier with ML access."
+            result["summary"] = (
+                "Error: Hyperparameter tuning requires a paid tier with ML access."
+            )
             return result
 
         model_type = config.get("model_type", "rf")
@@ -792,13 +931,22 @@ def _run_model_tools(df, analysis_id, config, user):
         if task_type == "auto":
             task_type = (
                 "classification"
-                if (y.nunique() <= 20 and (y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10))
+                if (
+                    y.nunique() <= 20
+                    and (
+                        y.dtype == object
+                        or y.dtype.name == "category"
+                        or y.nunique() <= 10
+                    )
+                )
                 else "regression"
             )
 
         # Encode
         y_work = y.copy()
-        if task_type == "classification" and (y_work.dtype == object or y_work.dtype.name == "category"):
+        if task_type == "classification" and (
+            y_work.dtype == object or y_work.dtype.name == "category"
+        ):
             from sklearn.preprocessing import LabelEncoder
 
             le = LabelEncoder()
@@ -832,14 +980,20 @@ def _run_model_tools(df, analysis_id, config, user):
                 params = {
                     "n_estimators": trial.suggest_int("n_estimators", 50, 300),
                     "max_depth": trial.suggest_int("max_depth", 3, 12),
-                    "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+                    "learning_rate": trial.suggest_float(
+                        "learning_rate", 0.01, 0.3, log=True
+                    ),
                     "subsample": trial.suggest_float("subsample", 0.5, 1.0),
-                    "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
+                    "colsample_bytree": trial.suggest_float(
+                        "colsample_bytree", 0.5, 1.0
+                    ),
                     "random_state": 42,
                     "verbosity": 0,
                 }
                 mdl = (
-                    xgb.XGBClassifier(**params, use_label_encoder=False, eval_metric="logloss")
+                    xgb.XGBClassifier(
+                        **params, use_label_encoder=False, eval_metric="logloss"
+                    )
                     if task_type == "classification"
                     else xgb.XGBRegressor(**params)
                 )
@@ -849,12 +1003,18 @@ def _run_model_tools(df, analysis_id, config, user):
                 params = {
                     "n_estimators": trial.suggest_int("n_estimators", 50, 300),
                     "num_leaves": trial.suggest_int("num_leaves", 10, 127),
-                    "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+                    "learning_rate": trial.suggest_float(
+                        "learning_rate", 0.01, 0.3, log=True
+                    ),
                     "subsample": trial.suggest_float("subsample", 0.5, 1.0),
                     "random_state": 42,
                     "verbosity": -1,
                 }
-                mdl = lgb.LGBMClassifier(**params) if task_type == "classification" else lgb.LGBMRegressor(**params)
+                mdl = (
+                    lgb.LGBMClassifier(**params)
+                    if task_type == "classification"
+                    else lgb.LGBMRegressor(**params)
+                )
             elif model_type == "ridge":
                 from sklearn.linear_model import LogisticRegression, Ridge
 
@@ -868,7 +1028,9 @@ def _run_model_tools(df, analysis_id, config, user):
 
                 alpha = trial.suggest_float("alpha", 0.001, 10.0, log=True)
                 if task_type == "classification":
-                    mdl = LogisticRegression(C=1.0 / alpha, max_iter=1000, penalty="l1", solver="saga")
+                    mdl = LogisticRegression(
+                        C=1.0 / alpha, max_iter=1000, penalty="l1", solver="saga"
+                    )
                 else:
                     mdl = Lasso(alpha=alpha)
             else:
@@ -886,7 +1048,9 @@ def _run_model_tools(df, analysis_id, config, user):
                 )
 
             scoring = "accuracy" if task_type == "classification" else "r2"
-            scores = cross_val_score(mdl, X_enc, y_work, cv=cv_folds, scoring=scoring, n_jobs=-1)
+            scores = cross_val_score(
+                mdl, X_enc, y_work, cv=cv_folds, scoring=scoring, n_jobs=-1
+            )
             return float(np.mean(scores))
 
         # Run optimization with timeout
@@ -908,7 +1072,9 @@ def _run_model_tools(df, analysis_id, config, user):
             "\nBest Parameters:",
         ]
         for k, v in best_params.items():
-            summary_lines.append(f"  {k}: {v:.4f}" if isinstance(v, float) else f"  {k}: {v}")
+            summary_lines.append(
+                f"  {k}: {v:.4f}" if isinstance(v, float) else f"  {k}: {v}"
+            )
 
         result["summary"] = "\n".join(summary_lines)
 
@@ -965,7 +1131,10 @@ def _run_model_tools(df, analysis_id, config, user):
                                 "orientation": "h",
                                 "x": p_vals,
                                 "y": p_names,
-                                "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+                                "marker": {
+                                    "color": "rgba(74,159,110,0.6)",
+                                    "line": {"color": "#4a9f6e", "width": 1},
+                                },
                             }
                         ],
                         "layout": {"height": max(200, len(p_names) * 30)},
@@ -988,20 +1157,38 @@ def _run_model_tools(df, analysis_id, config, user):
                 )()
                 # Simpler: just train directly
                 if model_type == "rf":
-                    final_model = (RandomForestClassifier if task_type == "classification" else RandomForestRegressor)(
-                        **{k: v for k, v in best_params.items()}, random_state=42, n_jobs=-1
+                    final_model = (
+                        RandomForestClassifier
+                        if task_type == "classification"
+                        else RandomForestRegressor
+                    )(
+                        **{k: v for k, v in best_params.items()},
+                        random_state=42,
+                        n_jobs=-1,
                     )
                 elif model_type == "xgboost":
                     import xgboost as xgb
 
-                    final_model = (xgb.XGBClassifier if task_type == "classification" else xgb.XGBRegressor)(
-                        **{k: v for k, v in best_params.items()}, random_state=42, verbosity=0
+                    final_model = (
+                        xgb.XGBClassifier
+                        if task_type == "classification"
+                        else xgb.XGBRegressor
+                    )(
+                        **{k: v for k, v in best_params.items()},
+                        random_state=42,
+                        verbosity=0,
                     )
                 elif model_type == "lightgbm":
                     import lightgbm as lgb
 
-                    final_model = (lgb.LGBMClassifier if task_type == "classification" else lgb.LGBMRegressor)(
-                        **{k: v for k, v in best_params.items()}, random_state=42, verbosity=-1
+                    final_model = (
+                        lgb.LGBMClassifier
+                        if task_type == "classification"
+                        else lgb.LGBMRegressor
+                    )(
+                        **{k: v for k, v in best_params.items()},
+                        random_state=42,
+                        verbosity=-1,
                     )
                 elif model_type in ("ridge", "lasso"):
                     from sklearn.linear_model import Lasso, LogisticRegression, Ridge
@@ -1010,12 +1197,22 @@ def _run_model_tools(df, analysis_id, config, user):
                     if task_type == "classification":
                         penalty = "l1" if model_type == "lasso" else "l2"
                         solver = "saga" if model_type == "lasso" else "lbfgs"
-                        final_model = LogisticRegression(C=1.0 / alpha, max_iter=1000, penalty=penalty, solver=solver)
+                        final_model = LogisticRegression(
+                            C=1.0 / alpha, max_iter=1000, penalty=penalty, solver=solver
+                        )
                     else:
-                        final_model = (Lasso if model_type == "lasso" else Ridge)(alpha=alpha)
+                        final_model = (Lasso if model_type == "lasso" else Ridge)(
+                            alpha=alpha
+                        )
                 else:
-                    final_model = (RandomForestClassifier if task_type == "classification" else RandomForestRegressor)(
-                        **{k: v for k, v in best_params.items()}, random_state=42, n_jobs=-1
+                    final_model = (
+                        RandomForestClassifier
+                        if task_type == "classification"
+                        else RandomForestRegressor
+                    )(
+                        **{k: v for k, v in best_params.items()},
+                        random_state=42,
+                        n_jobs=-1,
                     )
 
                 final_model.fit(X_enc, y_work)

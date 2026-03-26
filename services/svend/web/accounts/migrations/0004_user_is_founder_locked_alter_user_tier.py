@@ -6,18 +6,28 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0003_user_avatar_url_user_bio_user_current_theme_and_more'),
+        ("accounts", "0003_user_avatar_url_user_bio_user_current_theme_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='is_founder_locked',
+            model_name="user",
+            name="is_founder_locked",
             field=models.BooleanField(default=False),
         ),
         migrations.AlterField(
-            model_name='user',
-            name='tier',
-            field=models.CharField(choices=[('free', 'Free'), ('founder', 'Founder ($19/month)'), ('pro', 'Pro ($29/month)'), ('team', 'Team ($79/month)'), ('enterprise', 'Enterprise ($199/month)')], default='free', max_length=12),
+            model_name="user",
+            name="tier",
+            field=models.CharField(
+                choices=[
+                    ("free", "Free"),
+                    ("founder", "Founder ($19/month)"),
+                    ("pro", "Pro ($29/month)"),
+                    ("team", "Team ($79/month)"),
+                    ("enterprise", "Enterprise ($199/month)"),
+                ],
+                default="free",
+                max_length=12,
+            ),
         ),
     ]

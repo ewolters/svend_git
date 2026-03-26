@@ -141,10 +141,16 @@ def _run_multivariate(df, analysis_id, config, user):
             pval = row.get("p-value", 1)
 
             if op == "~":  # Regression
-                sig = "***" if pval < 0.001 else "**" if pval < 0.01 else "*" if pval < 0.05 else ""
+                sig = (
+                    "***"
+                    if pval < 0.001
+                    else "**" if pval < 0.01 else "*" if pval < 0.05 else ""
+                )
                 summary += f"  {lval} ← {rval}: β = {est:.3f} (SE={se:.3f}) {sig}\n"
             elif op == ":=":  # Defined parameter
-                summary += f"  <<COLOR:accent>>{lval}<</COLOR>>: {est:.3f} (SE={se:.3f})\n"
+                summary += (
+                    f"  <<COLOR:accent>>{lval}<</COLOR>>: {est:.3f} (SE={se:.3f})\n"
+                )
         summary += "\n"
 
         # Interpretation for mediation
@@ -166,14 +172,24 @@ def _run_multivariate(df, analysis_id, config, user):
         # Plot 1: Path diagram (simplified as coefficient bar chart)
         path_data = estimates[estimates["op"] == "~"].copy()
         if not path_data.empty:
-            labels = [f"{row['rval']} → {row['lval']}" for _, row in path_data.iterrows()]
+            labels = [
+                f"{row['rval']} → {row['lval']}" for _, row in path_data.iterrows()
+            ]
             coefs = path_data["Estimate"].tolist()
             colors = ["#4a9f6e" if c > 0 else "#e85747" for c in coefs]
 
             result["plots"].append(
                 {
                     "title": "Path Coefficients",
-                    "data": [{"type": "bar", "x": coefs, "y": labels, "orientation": "h", "marker": {"color": colors}}],
+                    "data": [
+                        {
+                            "type": "bar",
+                            "x": coefs,
+                            "y": labels,
+                            "orientation": "h",
+                            "marker": {"color": colors},
+                        }
+                    ],
                     "layout": {
                         "height": max(200, len(labels) * 40),
                         "xaxis": {"title": "Standardized Coefficient"},
@@ -200,7 +216,10 @@ def _run_multivariate(df, analysis_id, config, user):
                                 "x": y_fitted.tolist(),
                                 "y": residuals.tolist(),
                                 "mode": "markers",
-                                "marker": {"color": "rgba(74, 159, 110, 0.5)", "size": 6},
+                                "marker": {
+                                    "color": "rgba(74, 159, 110, 0.5)",
+                                    "size": 6,
+                                },
                             },
                             {
                                 "type": "scatter",
@@ -224,9 +243,7 @@ def _run_multivariate(df, analysis_id, config, user):
         fit_quality = (
             "good"
             if (cfi and cfi > 0.95 and rmsea and rmsea < 0.05)
-            else "acceptable"
-            if (cfi and cfi > 0.90)
-            else "poor"
+            else "acceptable" if (cfi and cfi > 0.90) else "poor"
         )
         result["guide_observation"] = (
             f"SEM {model_type} model with {fit_quality} fit. Check path coefficients for significant relationships."
@@ -243,7 +260,10 @@ def _run_multivariate(df, analysis_id, config, user):
                     "model_type": f"SEM ({model_type.title()})",
                     "features": predictors,
                     "target": outcome,
-                    "metrics": {"cfi": float(cfi) if cfi else None, "rmsea": float(rmsea) if rmsea else None},
+                    "metrics": {
+                        "cfi": float(cfi) if cfi else None,
+                        "rmsea": float(rmsea) if rmsea else None,
+                    },
                 },
             )
             result["model_key"] = model_key
@@ -259,7 +279,11 @@ def _run_multivariate(df, analysis_id, config, user):
             LinearDiscriminantAnalysis,
             QuadraticDiscriminantAnalysis,
         )
-        from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+        from sklearn.metrics import (
+            accuracy_score,
+            classification_report,
+            confusion_matrix,
+        )
         from sklearn.model_selection import train_test_split
         from sklearn.preprocessing import LabelEncoder
 
@@ -271,7 +295,11 @@ def _run_multivariate(df, analysis_id, config, user):
             result["summary"] = "Error: Please select a target (group) variable."
             return result
         if not predictors:
-            predictors = [c for c in df.select_dtypes(include=[np.number]).columns if c != response]
+            predictors = [
+                c
+                for c in df.select_dtypes(include=[np.number]).columns
+                if c != response
+            ]
         if not predictors:
             result["summary"] = "Error: No numeric predictor variables available."
             return result
@@ -288,7 +316,9 @@ def _run_multivariate(df, analysis_id, config, user):
         split_val = float(config.get("split", 20))
         test_frac = split_val if split_val < 1 else split_val / 100
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_frac, random_state=42, stratify=y)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_frac, random_state=42, stratify=y
+        )
 
         if method == "qda":
             model = QuadraticDiscriminantAnalysis()
@@ -333,7 +363,14 @@ def _run_multivariate(df, analysis_id, config, user):
             X_proj = model.transform(X)
             if X_proj.shape[1] >= 2:
                 traces = []
-                colors = ["#2c5f2d", "#4a90d9", "#d94a4a", "#d9a04a", "#7d4ad9", "#d94a99"]
+                colors = [
+                    "#2c5f2d",
+                    "#4a90d9",
+                    "#d94a4a",
+                    "#d9a04a",
+                    "#7d4ad9",
+                    "#d94a99",
+                ]
                 for i, cls in enumerate(classes):
                     mask = y == i
                     traces.append(
@@ -342,7 +379,11 @@ def _run_multivariate(df, analysis_id, config, user):
                             "y": X_proj[mask, 1].tolist(),
                             "mode": "markers",
                             "name": str(cls),
-                            "marker": {"color": colors[i % len(colors)], "size": 6, "opacity": 0.7},
+                            "marker": {
+                                "color": colors[i % len(colors)],
+                                "size": 6,
+                                "opacity": 0.7,
+                            },
                             "type": "scatter",
                         }
                     )
@@ -386,11 +427,15 @@ def _run_multivariate(df, analysis_id, config, user):
         # Coefficient importance (LDA only)
         coef_info = ""
         if method != "qda" and hasattr(model, "coef_"):
-            coef_magnitudes = np.abs(model.coef_[0]) if model.coef_.ndim > 1 else np.abs(model.coef_)
+            coef_magnitudes = (
+                np.abs(model.coef_[0]) if model.coef_.ndim > 1 else np.abs(model.coef_)
+            )
             sorted_idx = np.argsort(coef_magnitudes)[::-1]
             coef_rows = []
             for idx in sorted_idx:
-                coef_val = model.coef_[0][idx] if model.coef_.ndim > 1 else model.coef_[idx]
+                coef_val = (
+                    model.coef_[0][idx] if model.coef_.ndim > 1 else model.coef_[idx]
+                )
                 coef_rows.append(f"| {predictors[idx]} | {coef_val:.4f} |")
             coef_info = (
                 "\n\n**Discriminant Coefficients (LD1):**\n| Predictor | Coefficient |\n|---|---|\n"
@@ -398,7 +443,9 @@ def _run_multivariate(df, analysis_id, config, user):
             )
 
         # Classification report
-        cr = classification_report(y_test, y_pred, target_names=[str(c) for c in classes])
+        cr = classification_report(
+            y_test, y_pred, target_names=[str(c) for c in classes]
+        )
 
         result["summary"] = (
             f"**{model_name}**\n\nClasses: {', '.join(str(c) for c in classes)} ({len(classes)} groups)\nTraining accuracy: {train_acc:.3f}\nTest accuracy: {test_acc:.3f}\nCV accuracy: {cv_scores.mean():.3f} ± {cv_scores.std():.3f}\n\nPrior probabilities: {', '.join(f'{c}: {p:.3f}' for c, p in zip(classes, model.priors_))}{coef_info}\n\n**Classification Report:**\n```\n{cr}\n```"
@@ -431,7 +478,9 @@ def _run_multivariate(df, analysis_id, config, user):
         try:
             ct_ca = pd.crosstab(data_ca[row_var_ca], data_ca[col_var_ca])
             if ct_ca.shape[0] < 2 or ct_ca.shape[1] < 2:
-                result["summary"] = "Need at least 2 rows and 2 columns for correspondence analysis."
+                result["summary"] = (
+                    "Need at least 2 rows and 2 columns for correspondence analysis."
+                )
                 return result
 
             # Total, row/col profiles
@@ -457,7 +506,9 @@ def _run_multivariate(df, analysis_id, config, user):
             # Inertia (eigenvalues = sigma^2)
             inertia = sigma_ca**2
             total_inertia = float(np.sum(inertia))
-            pct_inertia = inertia / total_inertia * 100 if total_inertia > 0 else inertia * 0
+            pct_inertia = (
+                inertia / total_inertia * 100 if total_inertia > 0 else inertia * 0
+            )
 
             # Row and column coordinates (principal coordinates)
             row_coords = Dr_inv_sqrt @ U_ca[:, :n_dims] * sigma_ca[:n_dims]
@@ -485,9 +536,13 @@ def _run_multivariate(df, analysis_id, config, user):
                 summary_ca += "  <<COLOR:good>>Significant association<</COLOR>>"
             summary_ca += "\n\n"
 
-            summary_ca += "<<COLOR:text>>Inertia (variance explained by dimensions):<</COLOR>>\n"
+            summary_ca += (
+                "<<COLOR:text>>Inertia (variance explained by dimensions):<</COLOR>>\n"
+            )
             for d in range(min(len(inertia), 5)):
-                summary_ca += f"  Dim {d + 1}: {inertia[d]:.4f} ({pct_inertia[d]:.1f}%)\n"
+                summary_ca += (
+                    f"  Dim {d + 1}: {inertia[d]:.4f} ({pct_inertia[d]:.1f}%)\n"
+                )
             summary_ca += f"  Total: {total_inertia:.4f}\n"
 
             if n_dims >= 2:
@@ -495,7 +550,11 @@ def _run_multivariate(df, analysis_id, config, user):
 
             # Row contributions
             summary_ca += "\n<<COLOR:text>>Row Coordinates:<</COLOR>>\n"
-            summary_ca += f"{'Level':<20}" + "".join([f"{'Dim ' + str(d + 1):>10}" for d in range(n_dims)]) + "\n"
+            summary_ca += (
+                f"{'Level':<20}"
+                + "".join([f"{'Dim ' + str(d + 1):>10}" for d in range(n_dims)])
+                + "\n"
+            )
             summary_ca += f"{'─' * (20 + 10 * n_dims)}\n"
             for ri, rl in enumerate(row_labels_ca):
                 row_str = f"{rl:<20}"
@@ -504,7 +563,11 @@ def _run_multivariate(df, analysis_id, config, user):
                 summary_ca += row_str + "\n"
 
             summary_ca += "\n<<COLOR:text>>Column Coordinates:<</COLOR>>\n"
-            summary_ca += f"{'Level':<20}" + "".join([f"{'Dim ' + str(d + 1):>10}" for d in range(n_dims)]) + "\n"
+            summary_ca += (
+                f"{'Level':<20}"
+                + "".join([f"{'Dim ' + str(d + 1):>10}" for d in range(n_dims)])
+                + "\n"
+            )
             summary_ca += f"{'─' * (20 + 10 * n_dims)}\n"
             for ci, cl in enumerate(col_labels_ca):
                 col_str = f"{cl:<20}"
@@ -572,7 +635,11 @@ def _run_multivariate(df, analysis_id, config, user):
                             "line": {"color": "#4a9f6e", "width": 2},
                         }
                     ],
-                    "layout": {"height": 280, "xaxis": {"title": "Dimension"}, "yaxis": {"title": "% of Inertia"}},
+                    "layout": {
+                        "height": 280,
+                        "xaxis": {"title": "Dimension"},
+                        "yaxis": {"title": "% of Inertia"},
+                    },
                 }
             )
 
@@ -586,8 +653,14 @@ def _run_multivariate(df, analysis_id, config, user):
                 "n_dims": n_dims,
                 "inertia": inertia[:n_dims].tolist(),
                 "pct_inertia": pct_inertia[:n_dims].tolist(),
-                "row_coords": {rl: row_coords[ri, :n_dims].tolist() for ri, rl in enumerate(row_labels_ca)},
-                "col_coords": {cl: col_coords[ci, :n_dims].tolist() for ci, cl in enumerate(col_labels_ca)},
+                "row_coords": {
+                    rl: row_coords[ri, :n_dims].tolist()
+                    for ri, rl in enumerate(row_labels_ca)
+                },
+                "col_coords": {
+                    cl: col_coords[ci, :n_dims].tolist()
+                    for ci, cl in enumerate(col_labels_ca)
+                },
             }
 
         except Exception as e:
@@ -618,7 +691,11 @@ def _run_multivariate(df, analysis_id, config, user):
             # Cronbach's alpha
             item_vars = np.var(X_ia, axis=0, ddof=1)
             total_var = np.var(X_ia.sum(axis=1), ddof=1)
-            alpha_overall = (k_ia / (k_ia - 1)) * (1 - np.sum(item_vars) / total_var) if total_var > 0 else 0
+            alpha_overall = (
+                (k_ia / (k_ia - 1)) * (1 - np.sum(item_vars) / total_var)
+                if total_var > 0
+                else 0
+            )
 
             # Item statistics
             total_scores = X_ia.sum(axis=1)
@@ -628,7 +705,11 @@ def _run_multivariate(df, analysis_id, config, user):
                 item_std = float(np.std(X_ia[:, i], ddof=1))
                 # Corrected item-total correlation (correlation with total minus this item)
                 rest_total = total_scores - X_ia[:, i]
-                corr_it = float(np.corrcoef(X_ia[:, i], rest_total)[0, 1]) if item_std > 0 else 0
+                corr_it = (
+                    float(np.corrcoef(X_ia[:, i], rest_total)[0, 1])
+                    if item_std > 0
+                    else 0
+                )
 
                 # Alpha if item deleted
                 if k_ia > 2:
@@ -637,7 +718,10 @@ def _run_multivariate(df, analysis_id, config, user):
                     rem_total_var = np.var(remaining.sum(axis=1), ddof=1)
                     k_rem = k_ia - 1
                     alpha_deleted = (
-                        (k_rem / (k_rem - 1)) * (1 - np.sum(rem_item_vars) / rem_total_var) if rem_total_var > 0 else 0
+                        (k_rem / (k_rem - 1))
+                        * (1 - np.sum(rem_item_vars) / rem_total_var)
+                        if rem_total_var > 0
+                        else 0
                     )
                 else:
                     alpha_deleted = 0
@@ -673,7 +757,11 @@ def _run_multivariate(df, analysis_id, config, user):
             summary_ia += f"<<COLOR:highlight>>N (complete cases):<</COLOR>> {n_ia}\n\n"
 
             summary_ia += "<<COLOR:text>>Overall Reliability:<</COLOR>>\n"
-            alpha_color = "good" if alpha_overall >= 0.7 else ("warning" if alpha_overall >= 0.5 else "accent")
+            alpha_color = (
+                "good"
+                if alpha_overall >= 0.7
+                else ("warning" if alpha_overall >= 0.5 else "accent")
+            )
             summary_ia += f"  <<COLOR:{alpha_color}>>Cronbach's α = {alpha_overall:.4f}<</COLOR>>\n"
             summary_ia += f"  Standardized α = {std_alpha:.4f}\n"
             summary_ia += f"  Average inter-item correlation = {avg_inter_item:.4f}\n\n"
@@ -695,10 +783,16 @@ def _run_multivariate(df, analysis_id, config, user):
             summary_ia += f"{'Item':<25} {'Mean':>8} {'SD':>8} {'r(item-total)':>14} {'α if deleted':>12}\n"
             summary_ia += f"{'─' * 72}\n"
             for s in item_stats:
-                flag = " <<COLOR:warning>>↑<</COLOR>>" if s["alpha_if_deleted"] > alpha_overall + 0.01 else ""
+                flag = (
+                    " <<COLOR:warning>>↑<</COLOR>>"
+                    if s["alpha_if_deleted"] > alpha_overall + 0.01
+                    else ""
+                )
                 summary_ia += f"{s['item']:<25} {s['mean']:>8.3f} {s['std']:>8.3f} {s['corrected_item_total']:>14.4f} {s['alpha_if_deleted']:>12.4f}{flag}\n"
 
-            summary_ia += "\n<<COLOR:text>>↑ = removing this item would improve α<</COLOR>>\n"
+            summary_ia += (
+                "\n<<COLOR:text>>↑ = removing this item would improve α<</COLOR>>\n"
+            )
 
             result["summary"] = summary_ia
 
@@ -713,7 +807,12 @@ def _run_multivariate(df, analysis_id, config, user):
                             "y": [s["corrected_item_total"] for s in item_stats],
                             "marker": {
                                 "color": [
-                                    "#4a9f6e" if s["corrected_item_total"] >= 0.3 else "#d94a4a" for s in item_stats
+                                    (
+                                        "#4a9f6e"
+                                        if s["corrected_item_total"] >= 0.3
+                                        else "#d94a4a"
+                                    )
+                                    for s in item_stats
                                 ]
                             },
                         }
@@ -747,7 +846,11 @@ def _run_multivariate(df, analysis_id, config, user):
                             "y": [s["alpha_if_deleted"] for s in item_stats],
                             "marker": {
                                 "color": [
-                                    "#d94a4a" if s["alpha_if_deleted"] > alpha_overall else "#4a9f6e"
+                                    (
+                                        "#d94a4a"
+                                        if s["alpha_if_deleted"] > alpha_overall
+                                        else "#4a9f6e"
+                                    )
                                     for s in item_stats
                                 ]
                             },
@@ -761,7 +864,11 @@ def _run_multivariate(df, analysis_id, config, user):
                             "line": {"color": "#e89547", "dash": "dash"},
                         },
                     ],
-                    "layout": {"height": 300, "xaxis": {"tickangle": -45}, "yaxis": {"title": "Cronbach's α"}},
+                    "layout": {
+                        "height": 300,
+                        "xaxis": {"tickangle": -45},
+                        "yaxis": {"title": "Cronbach's α"},
+                    },
                 }
             )
 
@@ -777,7 +884,10 @@ def _run_multivariate(df, analysis_id, config, user):
                             "y": items_ia,
                             "colorscale": "RdBu",
                             "zmid": 0,
-                            "text": [[f"{corr_matrix_ia[i, j]:.2f}" for j in range(k_ia)] for i in range(k_ia)],
+                            "text": [
+                                [f"{corr_matrix_ia[i, j]:.2f}" for j in range(k_ia)]
+                                for i in range(k_ia)
+                            ],
                             "texttemplate": "%{text}",
                             "showscale": True,
                         }

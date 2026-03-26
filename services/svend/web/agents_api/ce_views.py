@@ -51,7 +51,9 @@ def _ce_connect_investigation(request, investigation_id, matrix):
                 spec=specs,
             )
     except Exception:
-        logger.exception("C&E Matrix investigation bridge error for matrix %s", matrix.id)
+        logger.exception(
+            "C&E Matrix investigation bridge error for matrix %s", matrix.id
+        )
 
 
 # --- CRUD Endpoints ---

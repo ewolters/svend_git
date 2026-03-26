@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0062_qms_site_and_created_by'),
+        ("agents_api", "0062_qms_site_and_created_by"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='nonconformancerecord',
-            name='approved_at',
+            model_name="nonconformancerecord",
+            name="approved_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
     ]

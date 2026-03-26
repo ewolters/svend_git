@@ -58,7 +58,9 @@ class SynaraViewsSmokeTest(TestCase):
         return str(p.id)
 
     def test_hypotheses_list_unauth(self):
-        res = self.anon.get("/api/synara/00000000-0000-0000-0000-000000000000/hypotheses/")
+        res = self.anon.get(
+            "/api/synara/00000000-0000-0000-0000-000000000000/hypotheses/"
+        )
         self.assertIn(res.status_code, [401, 403])
 
     def test_hypotheses_list_auth(self):
@@ -239,11 +241,19 @@ class VizEngineCoverageTest(TestCase):
         return run_visualization(df, analysis_id, config)
 
     def test_histogram(self):
-        r = self._run_viz("histogram", {"var": "x"}, {"x": list(np.random.RandomState(42).normal(0, 1, 50))})
+        r = self._run_viz(
+            "histogram",
+            {"var": "x"},
+            {"x": list(np.random.RandomState(42).normal(0, 1, 50))},
+        )
         self.assertIsInstance(r, dict)
 
     def test_boxplot(self):
-        r = self._run_viz("boxplot", {"var": "x"}, {"x": list(np.random.RandomState(42).normal(0, 1, 50))})
+        r = self._run_viz(
+            "boxplot",
+            {"var": "x"},
+            {"x": list(np.random.RandomState(42).normal(0, 1, 50))},
+        )
         self.assertIsInstance(r, dict)
 
     def test_scatter(self):
@@ -270,7 +280,9 @@ class VizEngineCoverageTest(TestCase):
         self.assertIsInstance(r, dict)
 
     def test_qq(self):
-        r = self._run_viz("qq", {"var1": "x"}, {"x": list(np.random.RandomState(42).normal(0, 1, 50))})
+        r = self._run_viz(
+            "qq", {"var1": "x"}, {"x": list(np.random.RandomState(42).normal(0, 1, 50))}
+        )
         self.assertIsInstance(r, dict)
 
 

@@ -38,7 +38,9 @@ class NarrativeTest(TestCase):
     def test_narrative_with_chart_guidance(self):
         from agents_api.dsw.common import _narrative
 
-        result = _narrative("Verdict", "Body", chart_guidance="Look at the scatter plot")
+        result = _narrative(
+            "Verdict", "Body", chart_guidance="Look at the scatter plot"
+        )
         self.assertEqual(result["chart_guidance"], "Look at the scatter plot")
 
     def test_narrative_all_fields(self):

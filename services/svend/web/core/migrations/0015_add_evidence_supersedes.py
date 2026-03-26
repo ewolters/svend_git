@@ -7,13 +7,20 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0014_add_investigation'),
+        ("core", "0014_add_investigation"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='evidence',
-            name='supersedes',
-            field=models.ForeignKey(blank=True, help_text='Evidence this record replaces (same source/tool, newer run)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='superseded_by', to='core.evidence'),
+            model_name="evidence",
+            name="supersedes",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Evidence this record replaces (same source/tool, newer run)",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="superseded_by",
+                to="core.evidence",
+            ),
         ),
     ]

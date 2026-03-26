@@ -37,7 +37,11 @@ class Command(BaseMigrate):
         plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
         count = len(plan)
 
-        self.stderr.write(self.style.WARNING(f"\n\u26a0 Production database: {db}\n  Pending migrations: {count}\n"))
+        self.stderr.write(
+            self.style.WARNING(
+                f"\n\u26a0 Production database: {db}\n  Pending migrations: {count}\n"
+            )
+        )
 
         if options.get("fake"):
             self.stderr.write(
@@ -54,7 +58,9 @@ class Command(BaseMigrate):
                 sys.exit(1)
 
             if answer.strip().lower() != "production":
-                self.stderr.write(self.style.ERROR("Aborted. Did not type 'production'."))
+                self.stderr.write(
+                    self.style.ERROR("Aborted. Did not type 'production'.")
+                )
                 sys.exit(1)
 
         super().handle(*args, **options)
@@ -77,4 +83,6 @@ class Command(BaseMigrate):
             )
         except Exception:
             # Don't fail the migration because audit logging failed
-            self.stderr.write(self.style.WARNING("Warning: Could not create audit log entry."))
+            self.stderr.write(
+                self.style.WARNING("Warning: Could not create audit log entry.")
+            )

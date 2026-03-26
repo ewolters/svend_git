@@ -128,7 +128,9 @@ class Command(BaseCommand):
                 stats["testing_plan"] += 1
 
             # -- implementation_plan --
-            if (not cr.implementation_plan or cr.implementation_plan == {}) and is_completed:
+            if (
+                not cr.implementation_plan or cr.implementation_plan == {}
+            ) and is_completed:
                 new_val = {
                     "steps": ["See description for implementation details"],
                     "backfilled": True,
@@ -161,7 +163,11 @@ class Command(BaseCommand):
                     f"  {str(cr.id)[:8]} | {cr.change_type:15s} | {cr.status:12s} | {len(changes)} field(s)"
                 )
                 for field, val in changes:
-                    preview = str(val)[:60] if not isinstance(val, dict) else f"{{...{len(val)} keys}}"
+                    preview = (
+                        str(val)[:60]
+                        if not isinstance(val, dict)
+                        else f"{{...{len(val)} keys}}"
+                    )
                     self.stdout.write(f"    -> {field}: {preview}")
 
                 if not dry_run:
@@ -173,7 +179,9 @@ class Command(BaseCommand):
                         change_request=cr,
                         actor="system",
                         action="comment",
-                        message=(f"[BACKFILL] CHG-001 v1.6 enforcement: backfilled {', '.join(f for f, _ in changes)}"),
+                        message=(
+                            f"[BACKFILL] CHG-001 v1.6 enforcement: backfilled {', '.join(f for f, _ in changes)}"
+                        ),
                         details={
                             "backfill": True,
                             "fields": [f for f, _ in changes],
@@ -194,7 +202,9 @@ class Command(BaseCommand):
             is_multi = cr.change_type in ["feature", "migration"]
             assessment_type = "multi_agent" if is_multi else "expedited"
 
-            self.stdout.write(f"  {str(cr.id)[:8]} | {cr.change_type:15s} | {cr.status:12s} | RA: {assessment_type}")
+            self.stdout.write(
+                f"  {str(cr.id)[:8]} | {cr.change_type:15s} | {cr.status:12s} | RA: {assessment_type}"
+            )
 
             if not dry_run:
                 ra = RiskAssessment.objects.create(
@@ -241,7 +251,9 @@ class Command(BaseCommand):
                     change_request=cr,
                     actor="system",
                     action="risk_assessed",
-                    message=("[BACKFILL] Retroactive risk assessment created per CHG-001 v1.6 enforcement"),
+                    message=(
+                        "[BACKFILL] Retroactive risk assessment created per CHG-001 v1.6 enforcement"
+                    ),
                     details={
                         "backfill": True,
                         "assessment_type": assessment_type,
@@ -265,7 +277,9 @@ class Command(BaseCommand):
             self.stdout.write("  Run with --execute to apply these changes.\n")
         else:
             self.stdout.write(
-                self.style.SUCCESS(f"  Backfill complete. {stats['logs_created']} ChangeLog entries created.")
+                self.style.SUCCESS(
+                    f"  Backfill complete. {stats['logs_created']} ChangeLog entries created."
+                )
             )
 
     def _report(self, crs, total):
@@ -279,12 +293,20 @@ class Command(BaseCommand):
 
         fields = {
             "title": lambda cr: bool(cr.title and len(cr.title.strip()) >= 10),
-            "description": lambda cr: bool(cr.description and len(cr.description.strip()) >= 20),
-            "justification": lambda cr: bool(cr.justification and cr.justification.strip()),
+            "description": lambda cr: bool(
+                cr.description and len(cr.description.strip()) >= 20
+            ),
+            "justification": lambda cr: bool(
+                cr.justification and cr.justification.strip()
+            ),
             "affected_files": lambda cr: bool(cr.affected_files),
-            "implementation_plan": lambda cr: bool(cr.implementation_plan and cr.implementation_plan != {}),
+            "implementation_plan": lambda cr: bool(
+                cr.implementation_plan and cr.implementation_plan != {}
+            ),
             "testing_plan": lambda cr: bool(cr.testing_plan and cr.testing_plan != {}),
-            "rollback_plan": lambda cr: bool(cr.rollback_plan and cr.rollback_plan != {}),
+            "rollback_plan": lambda cr: bool(
+                cr.rollback_plan and cr.rollback_plan != {}
+            ),
             "commit_shas": lambda cr: bool(cr.commit_shas),
             "log_md_ref": lambda cr: bool(cr.log_md_ref and cr.log_md_ref.strip()),
             "risk_assessment": lambda cr: cr.risk_assessments.exists(),
@@ -294,6 +316,8 @@ class Command(BaseCommand):
             filled = sum(1 for cr in code_crs if check(cr))
             pct = (filled / code_total * 100) if code_total else 0
             bar = "#" * int(pct / 5) + "." * (20 - int(pct / 5))
-            self.stdout.write(f"  {field:25s} {filled:3d}/{code_total} ({pct:5.1f}%) [{bar}]")
+            self.stdout.write(
+                f"  {field:25s} {filled:3d}/{code_total} ({pct:5.1f}%) [{bar}]"
+            )
 
         self.stdout.write("")

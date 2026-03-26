@@ -144,10 +144,9 @@ class ConformalClassifier:
         """
         y_cal_int = np.asarray(y_cal_int, dtype=int)
         proba_cal = np.asarray(proba_cal)
-        scores = np.array([
-            1.0 - proba_cal[i, y_cal_int[i]]
-            for i in range(len(y_cal_int))
-        ])
+        scores = np.array(
+            [1.0 - proba_cal[i, y_cal_int[i]] for i in range(len(y_cal_int))]
+        )
         self.scores_sorted = np.sort(scores)
         self.n_cal = len(self.scores_sorted)
         self.qhats = {}
@@ -184,7 +183,7 @@ class ConformalClassifier:
                 )
         proba_new = np.asarray(proba_new)
         threshold = 1.0 - qhat
-        mask = (proba_new >= threshold)  # (n_samples, n_classes)
+        mask = proba_new >= threshold  # (n_samples, n_classes)
         sets = [np.where(mask[i])[0].tolist() for i in range(mask.shape[0])]
         return sets, {"threshold": float(threshold), "qhat": float(qhat)}
 

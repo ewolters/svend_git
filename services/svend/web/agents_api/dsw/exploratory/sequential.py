@@ -51,7 +51,10 @@ def run_run_chart(df, config):
             # Expected runs and standard deviation
             n1, n2 = n_above, n_below
             expected_runs = (2 * n1 * n2) / (n1 + n2) + 1
-            std_runs = np.sqrt((2 * n1 * n2 * (2 * n1 * n2 - n1 - n2)) / ((n1 + n2) ** 2 * (n1 + n2 - 1)))
+            std_runs = np.sqrt(
+                (2 * n1 * n2 * (2 * n1 * n2 - n1 - n2))
+                / ((n1 + n2) ** 2 * (n1 + n2 - 1))
+            )
 
             z_score = (runs - expected_runs) / std_runs if std_runs > 0 else 0
             p_clustering = stats.norm.cdf(z_score)  # Too few runs = clustering
@@ -67,8 +70,16 @@ def run_run_chart(df, config):
                 else:
                     current_run = 1
 
-            cluster_flag = "<<COLOR:danger>>Yes<</COLOR>>" if p_clustering < 0.05 else "<<COLOR:success>>No<</COLOR>>"
-            mixture_flag = "<<COLOR:danger>>Yes<</COLOR>>" if p_mixtures < 0.05 else "<<COLOR:success>>No<</COLOR>>"
+            cluster_flag = (
+                "<<COLOR:danger>>Yes<</COLOR>>"
+                if p_clustering < 0.05
+                else "<<COLOR:success>>No<</COLOR>>"
+            )
+            mixture_flag = (
+                "<<COLOR:danger>>Yes<</COLOR>>"
+                if p_mixtures < 0.05
+                else "<<COLOR:success>>No<</COLOR>>"
+            )
 
             summary = f"""<<COLOR:title>>RUN CHART<</COLOR>>
 {"=" * 50}
@@ -93,7 +104,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             runs = 0
 
         result["summary"] = summary
-        result["guide_observation"] = f"Run chart: {n} obs, median={median_val:.4g}, {runs} runs."
+        result["guide_observation"] = (
+            f"Run chart: {n} obs, median={median_val:.4g}, {runs} runs."
+        )
         result["narrative"] = _narrative(
             f"Run Chart: {n} observations, {runs} runs",
             f"Median = {median_val:.4g}. A run chart monitors process behavior over time without requiring control limits.",
@@ -198,10 +211,14 @@ def run_sprt(df, config):
     summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:text>>Variable:<</COLOR>> {col}    N: {n}\n"
     summary += f"<<COLOR:text>>H\u2080:<</COLOR>> \u03bc = {mu0:.4f}\n"
-    summary += f"<<COLOR:text>>H\u2081:<</COLOR>> \u03bc = {mu1:.4f} (shift = {delta:.4f})\n"
+    summary += (
+        f"<<COLOR:text>>H\u2081:<</COLOR>> \u03bc = {mu1:.4f} (shift = {delta:.4f})\n"
+    )
     summary += f"<<COLOR:text>>\u03c3:<</COLOR>> {sigma:.4f}\n"
     summary += f"<<COLOR:text>>\u03b1:<</COLOR>> {alpha}    \u03b2: {beta}\n\n"
-    summary += "<<COLOR:accent>>\u2500\u2500 Decision Boundaries \u2500\u2500<</COLOR>>\n"
+    summary += (
+        "<<COLOR:accent>>\u2500\u2500 Decision Boundaries \u2500\u2500<</COLOR>>\n"
+    )
     summary += f"  Upper (reject H\u2080): {A:.3f}\n"
     summary += f"  Lower (accept H\u2080): {B:.3f}\n\n"
     summary += "<<COLOR:accent>>\u2500\u2500 Result \u2500\u2500<</COLOR>>\n"
@@ -219,7 +236,9 @@ def run_sprt(df, config):
         "lower_boundary": float(B),
         "final_llr": float(ll_ratio[min(decision_idx or n - 1, n - 1)]),
     }
-    result["guide_observation"] = f"SPRT: {decision} after {samples_used} samples (of {n})."
+    result["guide_observation"] = (
+        f"SPRT: {decision} after {samples_used} samples (of {n})."
+    )
 
     _sprt_savings = (
         f" Saved {n - samples_used} inspections ({(n - samples_used) / n * 100:.0f}%) vs fixed-sample testing."
@@ -367,7 +386,11 @@ def run_tolerance_interval(df, config):
         # Probability that at least proportion of population is between order statistics
         prob = 0
         for j in range(r, n - r + 2):
-            prob += comb(n, j, exact=True) * (proportion ** (j)) * ((1 - proportion) ** (n - j))
+            prob += (
+                comb(n, j, exact=True)
+                * (proportion ** (j))
+                * ((1 - proportion) ** (n - j))
+            )
         if prob >= confidence:
             r_found = r
             break
@@ -398,7 +421,9 @@ def run_tolerance_interval(df, config):
     summary += f"  We are {confidence * 100:.0f}% confident that at least {proportion * 100:.0f}%\n"
     summary += "  of the population falls within the tolerance interval.\n"
     summary += "\n<<COLOR:dim>>Note: Tolerance intervals are WIDER than confidence intervals<</COLOR>>\n"
-    summary += "<<COLOR:dim>>because they cover the population, not just the mean.<</COLOR>>\n"
+    summary += (
+        "<<COLOR:dim>>because they cover the population, not just the mean.<</COLOR>>\n"
+    )
 
     result["summary"] = summary
     result["guide_observation"] = (
@@ -427,7 +452,10 @@ def run_tolerance_interval(df, config):
                 {
                     "type": "histogram",
                     "x": data.tolist(),
-                    "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+                    "marker": {
+                        "color": "rgba(74, 159, 110, 0.3)",
+                        "line": {"color": "#4a9f6e", "width": 1},
+                    },
                     "name": "Data",
                 },
             ],

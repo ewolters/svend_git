@@ -120,7 +120,9 @@ class SessionCache:
             if entry.value_type == "json":
                 return json.loads(entry.value.decode("utf-8"))
             else:
-                logger.warning(f"Rejecting non-JSON cache entry {key} (type={entry.value_type})")
+                logger.warning(
+                    f"Rejecting non-JSON cache entry {key} (type={entry.value_type})"
+                )
                 entry.delete()
                 return default
 
@@ -179,7 +181,9 @@ class SessionCache:
 
         # Create new value
         value = factory()
-        cls.set(key, value, ttl_seconds=ttl_seconds, namespace=namespace, user_id=user_id)
+        cls.set(
+            key, value, ttl_seconds=ttl_seconds, namespace=namespace, user_id=user_id
+        )
         return value
 
     @classmethod
@@ -213,7 +217,9 @@ class SessionCache:
         ).count()
 
         by_namespace = {}
-        for entry in CacheEntry.objects.values("namespace").annotate(count=models.Count("id")):
+        for entry in CacheEntry.objects.values("namespace").annotate(
+            count=models.Count("id")
+        ):
             ns = entry["namespace"] or "(default)"
             by_namespace[ns] = entry["count"]
 

@@ -3,7 +3,9 @@
 from typing import Any
 
 
-def validate_records(records: list[dict], schema: dict, quality_level: str = "standard") -> dict:
+def validate_records(
+    records: list[dict], schema: dict, quality_level: str = "standard"
+) -> dict:
     """
     Validate generated records against schema and quality standards.
 
@@ -43,7 +45,12 @@ def validate_records(records: list[dict], schema: dict, quality_level: str = "st
 def check_schema_compliance(records: list[dict], schema: dict) -> dict:
     """Check all records have required fields with correct types."""
     if not records or not schema:
-        return {"name": "schema", "passed": True, "message": "No schema to validate", "score": 1.0}
+        return {
+            "name": "schema",
+            "passed": True,
+            "message": "No schema to validate",
+            "score": 1.0,
+        }
 
     errors = 0
     for i, record in enumerate(records[:100]):  # Sample first 100
@@ -57,7 +64,9 @@ def check_schema_compliance(records: list[dict], schema: dict) -> dict:
             if value is None:
                 continue
 
-            expected_type = field_def.get("type") if isinstance(field_def, dict) else "string"
+            expected_type = (
+                field_def.get("type") if isinstance(field_def, dict) else "string"
+            )
             if not check_type(value, expected_type):
                 errors += 1
 
@@ -94,7 +103,12 @@ def check_type(value: Any, expected_type: str) -> bool:
 def check_uniqueness(records: list[dict]) -> dict:
     """Check for duplicate records."""
     if not records:
-        return {"name": "uniqueness", "passed": True, "message": "No records", "score": 1.0}
+        return {
+            "name": "uniqueness",
+            "passed": True,
+            "message": "No records",
+            "score": 1.0,
+        }
 
     # Hash records for comparison
     seen = set()
@@ -112,7 +126,11 @@ def check_uniqueness(records: list[dict]) -> dict:
     return {
         "name": "uniqueness",
         "passed": passed,
-        "message": f"{duplicates} duplicates ({duplicate_rate:.1%})" if duplicates else "No duplicates",
+        "message": (
+            f"{duplicates} duplicates ({duplicate_rate:.1%})"
+            if duplicates
+            else "No duplicates"
+        ),
         "score": 1.0 - duplicate_rate,
     }
 
@@ -120,7 +138,12 @@ def check_uniqueness(records: list[dict]) -> dict:
 def check_null_rate(records: list[dict]) -> dict:
     """Check null rate is acceptable."""
     if not records:
-        return {"name": "null_rate", "passed": True, "message": "No records", "score": 1.0}
+        return {
+            "name": "null_rate",
+            "passed": True,
+            "message": "No records",
+            "score": 1.0,
+        }
 
     total_values = 0
     null_values = 0
@@ -145,7 +168,12 @@ def check_null_rate(records: list[dict]) -> dict:
 def check_distributions(records: list[dict], schema: dict) -> dict:
     """Check value distributions match constraints (premium check)."""
     if not records or not schema:
-        return {"name": "distribution", "passed": True, "message": "No data", "score": 1.0}
+        return {
+            "name": "distribution",
+            "passed": True,
+            "message": "No data",
+            "score": 1.0,
+        }
 
     issues = []
 

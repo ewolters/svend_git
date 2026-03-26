@@ -21,7 +21,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=password, **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -214,7 +216,9 @@ class RCAScenarioTest(TestCase):
         session = resp.json()["session"]
         session_id = session["id"]
         self.assertEqual(session["status"], "draft")
-        self.assertEqual(session["event"], "Press #3 jammed during third shift, 2 hours downtime")
+        self.assertEqual(
+            session["event"], "Press #3 jammed during third shift, 2 hours downtime"
+        )
         # Auto-created project
         self.assertIsNotNone(session["project_id"])
 
@@ -224,7 +228,10 @@ class RCAScenarioTest(TestCase):
             {"claim": "Humidity control failed overnight", "accepted": True},
             {"claim": "HVAC maintenance was overdue by 3 months", "accepted": True},
             {"claim": "PM schedule not enforced due to budget cuts", "accepted": True},
-            {"claim": "Management prioritized production over maintenance", "accepted": True},
+            {
+                "claim": "Management prioritized production over maintenance",
+                "accepted": True,
+            },
         ]
         resp = c.put(
             f"/api/rca/sessions/{session_id}/update/",
@@ -240,7 +247,8 @@ class RCAScenarioTest(TestCase):
         self.assertEqual(updated["status"], "investigating")
         self.assertEqual(len(updated["chain"]), 5)
         self.assertEqual(
-            updated["root_cause"], "Management prioritized production over maintenance, deferring PM schedule"
+            updated["root_cause"],
+            "Management prioritized production over maintenance, deferring PM schedule",
         )
 
     # -- Scenario 2: 5-why chain depth verification --
@@ -786,7 +794,9 @@ class AutopilotScenarioTest(TestCase):
         # Missing target (send file but no target)
         import io
 
-        csv_content = "x,y\n1,2\n3,4\n5,6\n7,8\n9,10\n11,12\n13,14\n15,16\n17,18\n19,20\n"
+        csv_content = (
+            "x,y\n1,2\n3,4\n5,6\n7,8\n9,10\n11,12\n13,14\n15,16\n17,18\n19,20\n"
+        )
         csv_file = io.BytesIO(csv_content.encode())
         csv_file.name = "data.csv"
 
@@ -940,7 +950,9 @@ class CrossSystemIntegrationTest(TestCase):
         a3_report["id"]
 
         # A3 should have RCA content in root_cause
-        self.assertIn("inspection does not test material hardness", a3_report["root_cause"])
+        self.assertIn(
+            "inspection does not test material hardness", a3_report["root_cause"]
+        )
 
         # Step 3: Create CAPA report for the same project
         resp = c.post(
@@ -958,7 +970,10 @@ class CrossSystemIntegrationTest(TestCase):
 
         # CAPA root cause section should also have RCA content
         rca_key = "root_cause_analysis"
-        self.assertIn("inspection does not test material hardness", capa_report["sections"][rca_key])
+        self.assertIn(
+            "inspection does not test material hardness",
+            capa_report["sections"][rca_key],
+        )
 
     # -- Scenario 3: multiple tools touch same project, verify coherent state --
 

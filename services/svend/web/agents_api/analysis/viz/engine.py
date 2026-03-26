@@ -184,7 +184,11 @@ def render_chart(df, config, spec, hooks=None):
 
     # 5. Assemble plot
     if traces:
-        title_template = spec.get("title_grouped", spec.get("title", "")) if group_col else spec.get("title", "")
+        title_template = (
+            spec.get("title_grouped", spec.get("title", ""))
+            if group_col
+            else spec.get("title", "")
+        )
         title = _format_title(title_template, config, spec, group_col)
 
         layout = {"height": 300}

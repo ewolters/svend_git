@@ -47,7 +47,9 @@ def _user(email, tier=Tier.TEAM, **extra):
 
 
 def _post(client, url, data=None):
-    return client.post(url, data=json.dumps(data or {}), content_type="application/json")
+    return client.post(
+        url, data=json.dumps(data or {}), content_type="application/json"
+    )
 
 
 def _put(client, url, data=None):
@@ -55,7 +57,9 @@ def _put(client, url, data=None):
 
 
 def _patch(client, url, data=None):
-    return client.patch(url, data=json.dumps(data or {}), content_type="application/json")
+    return client.patch(
+        url, data=json.dumps(data or {}), content_type="application/json"
+    )
 
 
 def _project(user, title="Test Project"):
@@ -1097,7 +1101,9 @@ class WhiteboardCRUDTest(TestCase):
             f"/api/whiteboard/boards/{room_code}/update/",
             {
                 "name": "Updated Board",
-                "elements": [{"id": "e1", "type": "note", "text": "Hello", "x": 100, "y": 100}],
+                "elements": [
+                    {"id": "e1", "type": "note", "text": "Hello", "x": 100, "y": 100}
+                ],
                 "connections": [],
                 "zoom": 1.5,
                 "pan_x": 50,
@@ -1152,7 +1158,9 @@ class WhiteboardCRUDTest(TestCase):
         )
         room_code = create_resp.json()["room_code"]
         # Enable voting first
-        _post(self.client, f"/api/whiteboard/boards/{room_code}/voting/", {"active": True})
+        _post(
+            self.client, f"/api/whiteboard/boards/{room_code}/voting/", {"active": True}
+        )
         # Clear votes
         resp = _post(
             self.client,
@@ -1174,7 +1182,9 @@ class WhiteboardCRUDTest(TestCase):
         )
         room_code = create_resp.json()["room_code"]
         # Enable voting
-        _post(self.client, f"/api/whiteboard/boards/{room_code}/voting/", {"active": True})
+        _post(
+            self.client, f"/api/whiteboard/boards/{room_code}/voting/", {"active": True}
+        )
         # Add a vote
         resp = _post(
             self.client,
@@ -1236,7 +1246,9 @@ class WhiteboardCRUDTest(TestCase):
             self.client,
             f"/api/whiteboard/boards/{room_code}/update/",
             {
-                "elements": [{"id": "e1", "type": "note", "text": "Test", "x": 10, "y": 10}],
+                "elements": [
+                    {"id": "e1", "type": "note", "text": "Test", "x": 10, "y": 10}
+                ],
             },
         )
         resp = self.client.get(f"/api/whiteboard/boards/{room_code}/svg/")
@@ -1354,7 +1366,9 @@ class LearnModuleTest(TestCase):
         self.assertEqual(resp.status_code, 404)
 
     def test_get_section_detail(self):
-        resp = self.client.get("/api/learn/modules/foundations/sections/bayesian-thinking/")
+        resp = self.client.get(
+            "/api/learn/modules/foundations/sections/bayesian-thinking/"
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["module_id"], "foundations")
@@ -1450,15 +1464,21 @@ class LearnModuleTest(TestCase):
 
     def test_get_section_with_rich_content(self):
         """Test section that has rich content (exercises get_section_content path)."""
-        resp = self.client.get("/api/learn/modules/foundations/sections/base-rate-neglect/")
+        resp = self.client.get(
+            "/api/learn/modules/foundations/sections/base-rate-neglect/"
+        )
         self.assertEqual(resp.status_code, 200)
 
     def test_get_section_hypothesis_driven(self):
-        resp = self.client.get("/api/learn/modules/foundations/sections/hypothesis-driven/")
+        resp = self.client.get(
+            "/api/learn/modules/foundations/sections/hypothesis-driven/"
+        )
         self.assertEqual(resp.status_code, 200)
 
     def test_get_section_evidence_quality(self):
-        resp = self.client.get("/api/learn/modules/foundations/sections/evidence-quality/")
+        resp = self.client.get(
+            "/api/learn/modules/foundations/sections/evidence-quality/"
+        )
         self.assertEqual(resp.status_code, 200)
 
 
@@ -1481,9 +1501,7 @@ class AutopilotViewsTest(TestCase):
     def _make_csv(self, content=None):
         """Create a simple CSV file for upload."""
         if content is None:
-            content = (
-                "x,y,target\n1,2,a\n3,4,b\n5,6,a\n7,8,b\n9,10,a\n11,12,b\n13,14,a\n15,16,b\n17,18,a\n19,20,b\n21,22,a\n"
-            )
+            content = "x,y,target\n1,2,a\n3,4,b\n5,6,a\n7,8,b\n9,10,a\n11,12,b\n13,14,a\n15,16,b\n17,18,a\n19,20,b\n21,22,a\n"
         f = io.BytesIO(content.encode("utf-8"))
         f.name = "test.csv"
         return f
@@ -2386,19 +2404,27 @@ class LearnMultiModuleTest(TestCase):
         self.assertEqual(resp.status_code, 200)
 
     def test_get_section_regression_to_mean(self):
-        resp = self.client.get("/api/learn/modules/foundations/sections/regression-to-mean/")
+        resp = self.client.get(
+            "/api/learn/modules/foundations/sections/regression-to-mean/"
+        )
         self.assertEqual(resp.status_code, 200)
 
     def test_get_section_choosing_tests(self):
-        resp = self.client.get("/api/learn/modules/statistical-inference/sections/choosing-tests/")
+        resp = self.client.get(
+            "/api/learn/modules/statistical-inference/sections/choosing-tests/"
+        )
         self.assertEqual(resp.status_code, 200)
 
     def test_get_section_data_cleaning(self):
-        resp = self.client.get("/api/learn/modules/data-fundamentals/sections/data-cleaning/")
+        resp = self.client.get(
+            "/api/learn/modules/data-fundamentals/sections/data-cleaning/"
+        )
         self.assertEqual(resp.status_code, 200)
 
     def test_get_section_power_analysis(self):
-        resp = self.client.get("/api/learn/modules/experimental-design/sections/power-analysis/")
+        resp = self.client.get(
+            "/api/learn/modules/experimental-design/sections/power-analysis/"
+        )
         self.assertEqual(resp.status_code, 200)
 
     def test_mark_section_complete_no_body(self):

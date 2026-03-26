@@ -53,8 +53,12 @@ def _setup(user, slug="safetycorp"):
     tenant = Tenant.objects.create(name="Safety Corp", slug=slug)
     Membership.objects.create(user=user, tenant=tenant, role="owner")
     site = Site.objects.create(tenant=tenant, name="Plant X", code="PX")
-    employee = Employee.objects.create(tenant=tenant, name="Jane Auditor", email="jane@plant.com", role="auditor")
-    zone = FrontierZone.objects.create(site=site, name="Press Mezzanine", zone_type="overhead")
+    employee = Employee.objects.create(
+        tenant=tenant, name="Jane Auditor", email="jane@plant.com", role="auditor"
+    )
+    zone = FrontierZone.objects.create(
+        site=site, name="Press Mezzanine", zone_type="overhead"
+    )
     return tenant, site, employee, zone
 
 
@@ -65,7 +69,9 @@ def _setup(user, slug="safetycorp"):
 class FrontierCardModelTest(TestCase):
     def setUp(self):
         self.user = _make_user("cardtest@test.com")
-        self.tenant, self.site, self.employee, self.zone = _setup(self.user, "card-corp")
+        self.tenant, self.site, self.employee, self.zone = _setup(
+            self.user, "card-corp"
+        )
 
     def test_create_card(self):
         card = FrontierCard.objects.create(
@@ -74,7 +80,13 @@ class FrontierCardModelTest(TestCase):
             site=self.site,
             audit_date=date.today(),
             safety_observations=[
-                {"category": "ppe", "item": "Missing gloves", "rating": "AR", "severity": "H", "notes": ""},
+                {
+                    "category": "ppe",
+                    "item": "Missing gloves",
+                    "rating": "AR",
+                    "severity": "H",
+                    "notes": "",
+                },
                 {"category": "housekeeping", "item": "Clear walkway", "rating": "S"},
             ],
         )
@@ -83,7 +95,12 @@ class FrontierCardModelTest(TestCase):
         self.assertFalse(card.is_processed)
 
     def test_severity_mapping(self):
-        card = FrontierCard(auditor=self.employee, zone=self.zone, site=self.site, audit_date=date.today())
+        card = FrontierCard(
+            auditor=self.employee,
+            zone=self.zone,
+            site=self.site,
+            audit_date=date.today(),
+        )
         self.assertEqual(card.severity_to_fmea_score("C"), 10)
         self.assertEqual(card.severity_to_fmea_score("H"), 8)
         self.assertEqual(card.severity_to_fmea_score("M"), 5)
@@ -95,7 +112,13 @@ class FrontierCardModelTest(TestCase):
             zone=self.zone,
             site=self.site,
             audit_date=date.today(),
-            five_s_tallies={"sort": 3, "set_in_order": 2, "shine": 1, "standardize": 0, "sustain": 4},
+            five_s_tallies={
+                "sort": 3,
+                "set_in_order": 2,
+                "shine": 1,
+                "standardize": 0,
+                "sustain": 4,
+            },
         )
         self.assertEqual(card.total_five_s_deficiencies, 10)
 
@@ -120,7 +143,9 @@ class FrontierCardModelTest(TestCase):
 class CardToFMEATest(TestCase):
     def setUp(self):
         self.user = _make_user("pipeline@test.com")
-        self.tenant, self.site, self.employee, self.zone = _setup(self.user, "pipe-corp")
+        self.tenant, self.site, self.employee, self.zone = _setup(
+            self.user, "pipe-corp"
+        )
         self.project = Project.objects.create(user=self.user, title="Safety FMEA")
         self.fmea = FMEA.objects.create(owner=self.user, title="Plant X Safety FMEA")
 
@@ -167,7 +192,12 @@ class CardToFMEATest(TestCase):
             site=self.site,
             audit_date=date.today(),
             safety_observations=[
-                {"category": "ppe", "item": "No hard hat", "rating": "AR", "severity": "H"},
+                {
+                    "category": "ppe",
+                    "item": "No hard hat",
+                    "rating": "AR",
+                    "severity": "H",
+                },
             ],
             has_safety_crossfeed=True,
             crossfeed_notes="Missing LOTO shadow board = 5S-SET failure + energy hazard",
@@ -181,7 +211,9 @@ class CardToFMEATest(TestCase):
             zone=self.zone,
             site=self.site,
             audit_date=date.today(),
-            safety_observations=[{"category": "ppe", "item": "test", "rating": "AR", "severity": "L"}],
+            safety_observations=[
+                {"category": "ppe", "item": "test", "rating": "AR", "severity": "L"}
+            ],
         )
         process_card_to_fmea(card, self.fmea, self.user)
         # Second call should be blocked by the view (model doesn't enforce)
@@ -196,7 +228,9 @@ class CardToFMEATest(TestCase):
 class FiveSParetoTest(TestCase):
     def setUp(self):
         self.user = _make_user("pareto@test.com")
-        self.tenant, self.site, self.employee, self.zone = _setup(self.user, "pareto-corp")
+        self.tenant, self.site, self.employee, self.zone = _setup(
+            self.user, "pareto-corp"
+        )
 
     def test_insufficient_data(self):
         result = aggregate_five_s_pareto(self.site, min_cards=10)
@@ -209,7 +243,13 @@ class FiveSParetoTest(TestCase):
                 zone=self.zone,
                 site=self.site,
                 audit_date=date.today() - timedelta(days=i),
-                five_s_tallies={"sort": 3, "set_in_order": 1, "shine": 2, "standardize": 0, "sustain": 1},
+                five_s_tallies={
+                    "sort": 3,
+                    "set_in_order": 1,
+                    "shine": 2,
+                    "standardize": 0,
+                    "sustain": 1,
+                },
             )
         result = aggregate_five_s_pareto(self.site, min_cards=10)
         self.assertIsNotNone(result)
@@ -228,7 +268,9 @@ class FiveSParetoTest(TestCase):
 class SafetyZoneAPITest(TestCase):
     def setUp(self):
         self.user = _make_user("zoneapi@test.com")
-        self.tenant, self.site, self.employee, self.zone = _setup(self.user, "zone-corp")
+        self.tenant, self.site, self.employee, self.zone = _setup(
+            self.user, "zone-corp"
+        )
         self.client.force_login(self.user)
 
     def test_list_zones(self):
@@ -256,7 +298,9 @@ class SafetyZoneAPITest(TestCase):
 class SafetyCardAPITest(TestCase):
     def setUp(self):
         self.user = _make_user("cardapi@test.com")
-        self.tenant, self.site, self.employee, self.zone = _setup(self.user, "cardapi-corp")
+        self.tenant, self.site, self.employee, self.zone = _setup(
+            self.user, "cardapi-corp"
+        )
         self.client.force_login(self.user)
 
     def test_submit_card(self):
@@ -268,7 +312,12 @@ class SafetyCardAPITest(TestCase):
                 "auditor_id": str(self.employee.id),
                 "zone_id": str(self.zone.id),
                 "safety_observations": [
-                    {"category": "ppe", "item": "No safety glasses", "rating": "AR", "severity": "M"},
+                    {
+                        "category": "ppe",
+                        "item": "No safety glasses",
+                        "rating": "AR",
+                        "severity": "M",
+                    },
                 ],
                 "five_s_tallies": {"sort": 2, "shine": 1},
                 "operator_name": "Mike",
@@ -314,7 +363,9 @@ class SafetyCardAPITest(TestCase):
 class SafetyDashboardAPITest(TestCase):
     def setUp(self):
         self.user = _make_user("dashapi@test.com")
-        self.tenant, self.site, self.employee, self.zone = _setup(self.user, "dash-corp")
+        self.tenant, self.site, self.employee, self.zone = _setup(
+            self.user, "dash-corp"
+        )
         self.client.force_login(self.user)
 
     def test_dashboard_empty(self):

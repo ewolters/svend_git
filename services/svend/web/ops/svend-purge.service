@@ -6,9 +6,9 @@ After=network.target postgresql.service
 Type=oneshot
 User=eric
 Group=eric
-WorkingDirectory=%h/kjerne/services/svend/web
-Environment="PATH=%h/.local/bin:/usr/local/bin:/usr/bin"
-ExecStart=%h/kjerne/services/svend/web/ops/run_purge.sh
+WorkingDirectory=/home/eric/kjerne/services/svend/web
+Environment="PATH=/home/eric/.local/bin:/usr/local/bin:/usr/bin"
+ExecStart=/home/eric/kjerne/services/svend/web/ops/run_purge.sh
 
 [Install]
 WantedBy=multi-user.target

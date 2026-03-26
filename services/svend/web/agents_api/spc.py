@@ -22,15 +22,96 @@ from typing import Literal, Optional
 # Constants for control chart calculations (from statistical tables)
 # A2, A3, B3, B4, D3, D4 for subgroup sizes 2-25
 CONTROL_CHART_CONSTANTS = {
-    2: {"A2": 1.880, "A3": 2.659, "B3": 0.000, "B4": 3.267, "D3": 0.000, "D4": 3.267, "d2": 1.128, "c4": 0.7979},
-    3: {"A2": 1.023, "A3": 1.954, "B3": 0.000, "B4": 2.568, "D3": 0.000, "D4": 2.574, "d2": 1.693, "c4": 0.8862},
-    4: {"A2": 0.729, "A3": 1.628, "B3": 0.000, "B4": 2.266, "D3": 0.000, "D4": 2.282, "d2": 2.059, "c4": 0.9213},
-    5: {"A2": 0.577, "A3": 1.427, "B3": 0.000, "B4": 2.089, "D3": 0.000, "D4": 2.114, "d2": 2.326, "c4": 0.9400},
-    6: {"A2": 0.483, "A3": 1.287, "B3": 0.030, "B4": 1.970, "D3": 0.000, "D4": 2.004, "d2": 2.534, "c4": 0.9515},
-    7: {"A2": 0.419, "A3": 1.182, "B3": 0.118, "B4": 1.882, "D3": 0.076, "D4": 1.924, "d2": 2.704, "c4": 0.9594},
-    8: {"A2": 0.373, "A3": 1.099, "B3": 0.185, "B4": 1.815, "D3": 0.136, "D4": 1.864, "d2": 2.847, "c4": 0.9650},
-    9: {"A2": 0.337, "A3": 1.032, "B3": 0.239, "B4": 1.761, "D3": 0.184, "D4": 1.816, "d2": 2.970, "c4": 0.9693},
-    10: {"A2": 0.308, "A3": 0.975, "B3": 0.284, "B4": 1.716, "D3": 0.223, "D4": 1.777, "d2": 3.078, "c4": 0.9727},
+    2: {
+        "A2": 1.880,
+        "A3": 2.659,
+        "B3": 0.000,
+        "B4": 3.267,
+        "D3": 0.000,
+        "D4": 3.267,
+        "d2": 1.128,
+        "c4": 0.7979,
+    },
+    3: {
+        "A2": 1.023,
+        "A3": 1.954,
+        "B3": 0.000,
+        "B4": 2.568,
+        "D3": 0.000,
+        "D4": 2.574,
+        "d2": 1.693,
+        "c4": 0.8862,
+    },
+    4: {
+        "A2": 0.729,
+        "A3": 1.628,
+        "B3": 0.000,
+        "B4": 2.266,
+        "D3": 0.000,
+        "D4": 2.282,
+        "d2": 2.059,
+        "c4": 0.9213,
+    },
+    5: {
+        "A2": 0.577,
+        "A3": 1.427,
+        "B3": 0.000,
+        "B4": 2.089,
+        "D3": 0.000,
+        "D4": 2.114,
+        "d2": 2.326,
+        "c4": 0.9400,
+    },
+    6: {
+        "A2": 0.483,
+        "A3": 1.287,
+        "B3": 0.030,
+        "B4": 1.970,
+        "D3": 0.000,
+        "D4": 2.004,
+        "d2": 2.534,
+        "c4": 0.9515,
+    },
+    7: {
+        "A2": 0.419,
+        "A3": 1.182,
+        "B3": 0.118,
+        "B4": 1.882,
+        "D3": 0.076,
+        "D4": 1.924,
+        "d2": 2.704,
+        "c4": 0.9594,
+    },
+    8: {
+        "A2": 0.373,
+        "A3": 1.099,
+        "B3": 0.185,
+        "B4": 1.815,
+        "D3": 0.136,
+        "D4": 1.864,
+        "d2": 2.847,
+        "c4": 0.9650,
+    },
+    9: {
+        "A2": 0.337,
+        "A3": 1.032,
+        "B3": 0.239,
+        "B4": 1.761,
+        "D3": 0.184,
+        "D4": 1.816,
+        "d2": 2.970,
+        "c4": 0.9693,
+    },
+    10: {
+        "A2": 0.308,
+        "A3": 0.975,
+        "B3": 0.284,
+        "B4": 1.716,
+        "D3": 0.223,
+        "D4": 1.777,
+        "d2": 3.078,
+        "c4": 0.9727,
+    },
 }
 
 # For I-MR charts (subgroup size = 1)
@@ -221,7 +302,9 @@ def z_to_dpmo(z: float) -> float:
 
     # Two-tailed defect rate
     defect_rate = 1 - norm_cdf(z_shifted) + norm_cdf(-z_shifted - 3)  # Simplified
-    defect_rate = max(0, min(1, 1 - norm_cdf(z_shifted)))  # Upper tail only for simplicity
+    defect_rate = max(
+        0, min(1, 1 - norm_cdf(z_shifted))
+    )  # Upper tail only for simplicity
 
     return defect_rate * 1_000_000
 
@@ -269,7 +352,13 @@ def dpmo_to_sigma(dpmo: float) -> float:
         4.374664141464968e00,
         2.938163982698783e00,
     ]
-    d = [0, 7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e00, 3.754408661907416e00]
+    d = [
+        0,
+        7.784695709041462e-03,
+        3.224671290700398e-01,
+        2.445134137142996e00,
+        3.754408661907416e00,
+    ]
 
     p_low = 0.02425
     p_high = 1 - p_low
@@ -351,7 +440,9 @@ def individuals_moving_range_chart(
     mr_out_of_control = []
     for i, val in enumerate(moving_ranges):
         if val > mr_ucl:
-            mr_out_of_control.append({"index": i + 1, "value": val, "reason": "Above UCL"})
+            mr_out_of_control.append(
+                {"index": i + 1, "value": val, "reason": "Above UCL"}
+            )
 
     mr_chart = ControlChartResult(
         chart_type="MR",
@@ -442,7 +533,9 @@ def xbar_r_chart(
             out_of_control.append({"index": i, "value": val, "reason": "Below LCL"})
 
     # Check run rules
-    run_violations = check_western_electric_rules(subgroup_means, x_bar_bar, sigma / math.sqrt(subgroup_size))
+    run_violations = check_western_electric_rules(
+        subgroup_means, x_bar_bar, sigma / math.sqrt(subgroup_size)
+    )
 
     # R chart out of control
     r_out_of_control = []
@@ -462,7 +555,11 @@ def xbar_r_chart(
         summary=f"R Chart: R-bar={r_bar:.4f}, UCL={r_ucl:.4f}",
     )
 
-    in_control = len(out_of_control) == 0 and len(run_violations) == 0 and len(r_out_of_control) == 0
+    in_control = (
+        len(out_of_control) == 0
+        and len(run_violations) == 0
+        and len(r_out_of_control) == 0
+    )
 
     summary_parts = [
         f"X-bar R Chart Analysis (k={n_subgroups}, n={subgroup_size})",
@@ -479,7 +576,9 @@ def xbar_r_chart(
     return ControlChartResult(
         chart_type="X-bar R",
         data_points=subgroup_means,
-        limits=ControlLimits(ucl=xbar_ucl, cl=x_bar_bar, lcl=xbar_lcl, usl=usl, lsl=lsl),
+        limits=ControlLimits(
+            ucl=xbar_ucl, cl=x_bar_bar, lcl=xbar_lcl, usl=usl, lsl=lsl
+        ),
         out_of_control=out_of_control,
         run_violations=run_violations,
         in_control=in_control,
@@ -540,7 +639,9 @@ def p_chart(
     if in_control:
         summary_parts.append("Process is IN CONTROL")
     else:
-        summary_parts.append(f"Process is OUT OF CONTROL ({len(out_of_control)} points)")
+        summary_parts.append(
+            f"Process is OUT OF CONTROL ({len(out_of_control)} points)"
+        )
 
     return ControlChartResult(
         chart_type="p",
@@ -589,7 +690,9 @@ def c_chart(
     if in_control:
         summary_parts.append("Process is IN CONTROL")
     else:
-        summary_parts.append(f"Process is OUT OF CONTROL ({len(out_of_control)} points)")
+        summary_parts.append(
+            f"Process is OUT OF CONTROL ({len(out_of_control)} points)"
+        )
 
     return ControlChartResult(
         chart_type="c",
@@ -853,7 +956,10 @@ def calculate_capability(
         # Use pooled within-subgroup variance
         # Reshape data into subgroups
         n_subgroups = n // subgroup_size
-        subgroups = [data[i * subgroup_size : (i + 1) * subgroup_size] for i in range(n_subgroups)]
+        subgroups = [
+            data[i * subgroup_size : (i + 1) * subgroup_size]
+            for i in range(n_subgroups)
+        ]
 
         if subgroup_size in CONTROL_CHART_CONSTANTS:
             # Use R-bar method
@@ -863,7 +969,11 @@ def calculate_capability(
         else:
             # Use pooled std dev
             within_vars = [statistics.variance(sg) for sg in subgroups if len(sg) > 1]
-            sigma_within = math.sqrt(statistics.mean(within_vars)) if within_vars else sigma_overall
+            sigma_within = (
+                math.sqrt(statistics.mean(within_vars))
+                if within_vars
+                else sigma_overall
+            )
 
     # Specification width
     spec_width = usl - lsl
@@ -1034,7 +1144,9 @@ class ParsedDataset:
             "filename": self.filename,
             "row_count": self.row_count,
             "columns": [c.to_dict() for c in self.columns],
-            "preview": {col: vals[:10] for col, vals in self.data.items()},  # First 10 rows
+            "preview": {
+                col: vals[:10] for col, vals in self.data.items()
+            },  # First 10 rows
             "errors": self.errors,
         }
 
@@ -1219,7 +1331,9 @@ def hotelling_t_squared_chart(
     n, p = X.shape
 
     if n < p + 1:
-        raise ValueError(f"Need at least {p + 1} observations for {p} variables, got {n}")
+        raise ValueError(
+            f"Need at least {p + 1} observations for {p} variables, got {n}"
+        )
 
     # Mean vector and covariance matrix
     x_bar = X.mean(axis=0)
@@ -1292,7 +1406,9 @@ def hotelling_t_squared_chart(
     summary_parts.append("")
     summary_parts.append("Variable Statistics:")
     for j in range(p):
-        summary_parts.append(f"  Var {j + 1}: mean={x_bar[j]:.4f}, std={np.sqrt(S[j, j]):.4f}")
+        summary_parts.append(
+            f"  Var {j + 1}: mean={x_bar[j]:.4f}, std={np.sqrt(S[j, j]):.4f}"
+        )
 
     # Correlation matrix
     if p <= 6:
@@ -1308,7 +1424,9 @@ def hotelling_t_squared_chart(
     return ControlChartResult(
         chart_type="T-squared",
         data_points=t2_values,
-        limits=ControlLimits(ucl=ucl, cl=float(np.mean(t2_values)), lcl=0.0, usl=usl, lsl=lsl),
+        limits=ControlLimits(
+            ucl=ucl, cl=float(np.mean(t2_values)), lcl=0.0, usl=usl, lsl=lsl
+        ),
         out_of_control=out_of_control,
         run_violations=[],  # Standard run rules don't apply to T²
         in_control=in_control,
@@ -1421,7 +1539,9 @@ def gage_rr_crossed(
     for pi_list in cells:
         for cell_list in pi_list:
             if len(cell_list) == 0:
-                raise ValueError("Unbalanced design: some part-operator combinations have no measurements")
+                raise ValueError(
+                    "Unbalanced design: some part-operator combinations have no measurements"
+                )
             replicate_counts.add(len(cell_list))
 
     if len(replicate_counts) > 1:
@@ -1448,7 +1568,12 @@ def gage_rr_crossed(
     ss_total = float(np.sum((data_array - grand_mean) ** 2))
     ss_part = float(o_count * r_count * np.sum((part_means - grand_mean) ** 2))
     ss_operator = float(p_count * r_count * np.sum((op_means - grand_mean) ** 2))
-    ss_interaction = float(r_count * np.sum((cell_means - part_means[:, None] - op_means[None, :] + grand_mean) ** 2))
+    ss_interaction = float(
+        r_count
+        * np.sum(
+            (cell_means - part_means[:, None] - op_means[None, :] + grand_mean) ** 2
+        )
+    )
     ss_error = ss_total - ss_part - ss_operator - ss_interaction
 
     # Degrees of freedom
@@ -1467,7 +1592,9 @@ def gage_rr_crossed(
     # F-test for interaction
     if df_interaction > 0 and ms_error > 0:
         f_interaction = ms_interaction / ms_error
-        p_interaction = float(1 - scipy_stats.f.cdf(f_interaction, df_interaction, df_error))
+        p_interaction = float(
+            1 - scipy_stats.f.cdf(f_interaction, df_interaction, df_error)
+        )
     else:
         f_interaction = 0.0
         p_interaction = 1.0
@@ -1479,14 +1606,22 @@ def gage_rr_crossed(
         # Pool interaction into error
         ss_error_pooled = ss_interaction + ss_error
         df_error_pooled = df_interaction + df_error
-        ms_error_pooled = ss_error_pooled / df_error_pooled if df_error_pooled > 0 else 0.0
+        ms_error_pooled = (
+            ss_error_pooled / df_error_pooled if df_error_pooled > 0 else 0.0
+        )
 
         # F-tests against pooled error
         f_part = ms_part / ms_error_pooled if ms_error_pooled > 0 else 0.0
-        p_part = float(1 - scipy_stats.f.cdf(f_part, df_part, df_error_pooled)) if ms_error_pooled > 0 else 1.0
+        p_part = (
+            float(1 - scipy_stats.f.cdf(f_part, df_part, df_error_pooled))
+            if ms_error_pooled > 0
+            else 1.0
+        )
         f_operator = ms_operator / ms_error_pooled if ms_error_pooled > 0 else 0.0
         p_operator = (
-            float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_error_pooled)) if ms_error_pooled > 0 else 1.0
+            float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_error_pooled))
+            if ms_error_pooled > 0
+            else 1.0
         )
 
         # Variance components (EMS method)
@@ -1497,10 +1632,16 @@ def gage_rr_crossed(
     else:
         # Keep interaction term — test Part and Operator against interaction MS
         f_part = ms_part / ms_interaction if ms_interaction > 0 else 0.0
-        p_part = float(1 - scipy_stats.f.cdf(f_part, df_part, df_interaction)) if ms_interaction > 0 else 1.0
+        p_part = (
+            float(1 - scipy_stats.f.cdf(f_part, df_part, df_interaction))
+            if ms_interaction > 0
+            else 1.0
+        )
         f_operator = ms_operator / ms_interaction if ms_interaction > 0 else 0.0
         p_operator = (
-            float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_interaction)) if ms_interaction > 0 else 1.0
+            float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_interaction))
+            if ms_interaction > 0
+            else 1.0
         )
 
         # Variance components (EMS method)
@@ -1538,7 +1679,9 @@ def gage_rr_crossed(
         ("Part-to-Part", var_part),
         ("Total", var_total),
     ]:
-        pct_study_var[source] = math.sqrt(var) / sigma_total * 100 if sigma_total > 0 else 0.0
+        pct_study_var[source] = (
+            math.sqrt(var) / sigma_total * 100 if sigma_total > 0 else 0.0
+        )
 
     # %Tolerance
     pct_tolerance = {}
@@ -1666,7 +1809,9 @@ def gage_rr_crossed(
     )
 
 
-def _generate_grr_plots(data_array, unique_parts, unique_operators, pct_contribution, cell_means):
+def _generate_grr_plots(
+    data_array, unique_parts, unique_operators, pct_contribution, cell_means
+):
     """Generate the 4 Plotly charts for Gage R&R."""
     p, o, r = data_array.shape
     part_labels = [str(x) for x in unique_parts]
@@ -1689,7 +1834,10 @@ def _generate_grr_plots(data_array, unique_parts, unique_operators, pct_contribu
         ],
         "layout": {
             "title": "% Contribution to Total Variation",
-            "yaxis": {"title": "% Contribution", "range": [0, max(vals) * 1.2 if vals else 100]},
+            "yaxis": {
+                "title": "% Contribution",
+                "range": [0, max(vals) * 1.2 if vals else 100],
+            },
             "margin": {"t": 40, "b": 60},
         },
     }

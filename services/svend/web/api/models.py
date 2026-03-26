@@ -20,7 +20,9 @@ class BlogPost(models.Model):
     slug = models.SlugField(max_length=200, unique=True, blank=True)
     body = models.TextField(help_text="Markdown content")
     meta_description = models.CharField(max_length=160, blank=True)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True
+    )
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -65,7 +67,9 @@ class BlogView(models.Model):
     referrer = models.URLField(max_length=500, blank=True)
     referrer_domain = models.CharField(max_length=200, blank=True, db_index=True)
     path = models.CharField(max_length=300, blank=True)
-    ip_hash = models.CharField(max_length=64, blank=True)  # SHA-256 hashed IP for unique visitor counting
+    ip_hash = models.CharField(
+        max_length=64, blank=True
+    )  # SHA-256 hashed IP for unique visitor counting
     user_agent = models.CharField(max_length=500, blank=True)
     country = models.CharField(max_length=2, blank=True)  # ISO code, future use
     is_bot = models.BooleanField(default=False)
@@ -121,12 +125,18 @@ class WhitePaper(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True, blank=True)
-    description = models.TextField(blank=True, help_text="Short marketing copy / abstract")
+    description = models.TextField(
+        blank=True, help_text="Short marketing copy / abstract"
+    )
     body = models.TextField(blank=True, help_text="Full markdown content")
     meta_description = models.CharField(max_length=160, blank=True)
     topic = models.CharField(max_length=100, blank=True, db_index=True)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True)
-    is_gated = models.BooleanField(default=True, db_column="gated", help_text="Require email to download")
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True
+    )
+    is_gated = models.BooleanField(
+        default=True, db_column="gated", help_text="Require email to download"
+    )
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -150,7 +160,9 @@ class WhitePaper(models.Model):
             self.slug = slugify(self.title)[:200]
             base_slug = self.slug
             counter = 1
-            while WhitePaper.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+            while (
+                WhitePaper.objects.filter(slug=self.slug).exclude(pk=self.pk).exists()
+            ):
                 self.slug = f"{base_slug[:190]}-{counter}"
                 counter += 1
         super().save(*args, **kwargs)
@@ -202,7 +214,9 @@ class OnboardingSurvey(models.Model):
 
     # Goals — what brought them here
     primary_goal = models.CharField(max_length=40, blank=True)
-    tools_used = models.JSONField(default=list, blank=True)  # ["minitab", "jmp", "excel", ...]
+    tools_used = models.JSONField(
+        default=list, blank=True
+    )  # ["minitab", "jmp", "excel", ...]
 
     # Self-assessment — "how do you feel" style (your dissertation insight)
     confidence_stats = models.IntegerField(default=3)  # 1-5 scale
@@ -217,8 +231,12 @@ class OnboardingSurvey(models.Model):
     )  # quality_engineer, analyst, beginner, researcher, manager
 
     # Feedback tracking
-    helpful_emails = models.JSONField(default=list, blank=True)  # email IDs user found useful
-    skipped_emails = models.JSONField(default=list, blank=True)  # email IDs user skipped/unsubscribed
+    helpful_emails = models.JSONField(
+        default=list, blank=True
+    )  # email IDs user found useful
+    skipped_emails = models.JSONField(
+        default=list, blank=True
+    )  # email IDs user skipped/unsubscribed
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -268,7 +286,9 @@ class OnboardingEmail(models.Model):
     email_key = models.CharField(
         max_length=40
     )  # e.g. "welcome", "getting_started", "tips_1", "learning_path", "checkin"
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.PENDING
+    )
     scheduled_for = models.DateTimeField(db_index=True)
     sent_at = models.DateTimeField(null=True, blank=True)
     opened_at = models.DateTimeField(null=True, blank=True)  # future: track opens
@@ -289,7 +309,9 @@ class EmailCampaign(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     subject = models.CharField(max_length=200)
     body_md = models.TextField()
-    target = models.CharField(max_length=50)  # "all", "tier:free", "eric@example.com", etc.
+    target = models.CharField(
+        max_length=50
+    )  # "all", "tier:free", "eric@example.com", etc.
     sent_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -312,7 +334,9 @@ class EmailRecipient(models.Model):
     """Per-recipient tracking for a campaign."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    campaign = models.ForeignKey(EmailCampaign, on_delete=models.CASCADE, related_name="recipients")
+    campaign = models.ForeignKey(
+        EmailCampaign, on_delete=models.CASCADE, related_name="recipients"
+    )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -362,9 +386,15 @@ class Experiment(models.Model):
     name = models.CharField(max_length=100, unique=True)
     hypothesis = models.TextField(blank=True)
     experiment_type = models.CharField(max_length=20, choices=ExperimentType.choices)
-    metric = models.CharField(max_length=20, choices=Metric.choices, default=Metric.CONVERSION)
-    variants = models.JSONField(default=list)  # [{"name": "A", "weight": 50, "config": {...}}, ...]
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True)
+    metric = models.CharField(
+        max_length=20, choices=Metric.choices, default=Metric.CONVERSION
+    )
+    variants = models.JSONField(
+        default=list
+    )  # [{"name": "A", "weight": 50, "config": {...}}, ...]
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True
+    )
     winner = models.CharField(max_length=50, blank=True)  # winning variant name
     target = models.CharField(max_length=100, default="all")  # all / tier:X / new_users
     min_sample_size = models.IntegerField(default=100)
@@ -385,8 +415,14 @@ class ExperimentAssignment(models.Model):
     """Tracks which user got which variant."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, related_name="assignments")
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="experiment_assignments")
+    experiment = models.ForeignKey(
+        Experiment, on_delete=models.CASCADE, related_name="assignments"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="experiment_assignments",
+    )
     variant = models.CharField(max_length=50)
     assigned_at = models.DateTimeField(auto_now_add=True)
     has_converted = models.BooleanField(default=False, db_column="converted")
@@ -421,10 +457,16 @@ class AutomationRule(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     trigger = models.CharField(max_length=20, choices=Trigger.choices)
-    trigger_config = models.JSONField(default=dict)  # {"days": 7}, {"threshold": 80}, etc.
-    trigger_2 = models.CharField(max_length=20, choices=Trigger.choices, blank=True, default="")
+    trigger_config = models.JSONField(
+        default=dict
+    )  # {"days": 7}, {"threshold": 80}, etc.
+    trigger_2 = models.CharField(
+        max_length=20, choices=Trigger.choices, blank=True, default=""
+    )
     trigger_2_config = models.JSONField(null=True, blank=True)
-    trigger_logic = models.CharField(max_length=3, default="and", choices=[("and", "AND"), ("or", "OR")])
+    trigger_logic = models.CharField(
+        max_length=3, default="and", choices=[("and", "AND"), ("or", "OR")]
+    )
     action = models.CharField(max_length=20, choices=Action.choices)
     action_config = models.JSONField(default=dict)  # {"template": "inactive_nudge"}
     is_active = models.BooleanField(default=True)
@@ -445,8 +487,14 @@ class AutomationLog(models.Model):
     """Audit trail for automation rule fires."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    rule = models.ForeignKey(AutomationRule, on_delete=models.CASCADE, related_name="logs")
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="automation_logs")
+    rule = models.ForeignKey(
+        AutomationRule, on_delete=models.CASCADE, related_name="logs"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="automation_logs",
+    )
     fired_at = models.DateTimeField(auto_now_add=True)
     action_taken = models.CharField(max_length=200)
     result = models.CharField(max_length=20)  # success / failed / skipped
@@ -471,7 +519,9 @@ class AutopilotReport(models.Model):
     insights = models.JSONField(default=list)
     recommendations = models.JSONField(default=list)
     alerts = models.JSONField(default=list)
-    status = models.CharField(max_length=20, default="pending_review")  # pending_review / reviewed
+    status = models.CharField(
+        max_length=20, default="pending_review"
+    )  # pending_review / reviewed
 
     class Meta:
         db_table = "autopilot_reports"
@@ -498,9 +548,13 @@ class Feedback(models.Model):
         null=True,
         blank=True,
     )
-    category = models.CharField(max_length=10, choices=Category.choices, default=Category.OTHER)
+    category = models.CharField(
+        max_length=10, choices=Category.choices, default=Category.OTHER
+    )
     message = models.TextField()
-    page = models.CharField(max_length=200, blank=True)  # URL path where feedback was submitted
+    page = models.CharField(
+        max_length=200, blank=True
+    )  # URL path where feedback was submitted
     status = models.CharField(max_length=10, default="new")  # new / reviewed / resolved
     internal_notes = models.TextField(blank=True, default="")  # Staff-only annotations
     created_at = models.DateTimeField(auto_now_add=True)
@@ -549,8 +603,12 @@ class CRMLead(models.Model):
     company = models.CharField(max_length=200, blank=True)
     role = models.CharField(max_length=100, blank=True)
     industry = models.CharField(max_length=100, blank=True)
-    source = models.CharField(max_length=20, choices=Source.choices, default=Source.OTHER)
-    stage = models.CharField(max_length=20, choices=Stage.choices, default=Stage.PROSPECT, db_index=True)
+    source = models.CharField(
+        max_length=20, choices=Source.choices, default=Source.OTHER
+    )
+    stage = models.CharField(
+        max_length=20, choices=Stage.choices, default=Stage.PROSPECT, db_index=True
+    )
     notes = models.TextField(blank=True)
     tags = models.JSONField(default=list, blank=True)
     is_email_opted_out = models.BooleanField(default=False, db_column="email_opted_out")
@@ -601,10 +659,16 @@ class OutreachEnrollment(models.Model):
         OPTED_OUT = "opted_out", "Opted Out"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    lead = models.ForeignKey(CRMLead, on_delete=models.CASCADE, related_name="enrollments")
-    sequence = models.ForeignKey(OutreachSequence, on_delete=models.CASCADE, related_name="enrollments")
+    lead = models.ForeignKey(
+        CRMLead, on_delete=models.CASCADE, related_name="enrollments"
+    )
+    sequence = models.ForeignKey(
+        OutreachSequence, on_delete=models.CASCADE, related_name="enrollments"
+    )
     current_step = models.IntegerField(default=0)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.ACTIVE
+    )
     variant = models.CharField(max_length=1)
     last_sent_at = models.DateTimeField(null=True, blank=True)
     next_send_at = models.DateTimeField(null=True, blank=True)
@@ -760,10 +824,13 @@ class Initiative(models.Model):
         default=Status.PLANNED,
         db_index=True,
     )
-    target_quarter = models.CharField(max_length=7, blank=True, help_text="Target quarter: Q1-2026, Q2-2026, etc.")
+    target_quarter = models.CharField(
+        max_length=7, blank=True, help_text="Target quarter: Q1-2026, Q2-2026, etc."
+    )
     sort_order = models.IntegerField(default=0)
     notes = models.TextField(
-        blank=True, help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's."
+        blank=True,
+        help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -774,7 +841,11 @@ class Initiative(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.short_id:
-            last = Initiative.objects.filter(short_id__startswith="INIT-").order_by("-short_id").first()
+            last = (
+                Initiative.objects.filter(short_id__startswith="INIT-")
+                .order_by("-short_id")
+                .first()
+            )
             seq = 1
             if last:
                 try:
@@ -833,7 +904,9 @@ class Feature(models.Model):
     # Identity
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    acceptance_criteria = models.TextField(blank=True, help_text="What must be true for this feature to be complete")
+    acceptance_criteria = models.TextField(
+        blank=True, help_text="What must be true for this feature to be complete"
+    )
 
     # Classification
     initiative = models.ForeignKey(
@@ -856,10 +929,15 @@ class Feature(models.Model):
 
     # Standards & compliance
     iso_clause = models.CharField(
-        max_length=20, blank=True, db_index=True, help_text="ISO 9001 clause (e.g., §7.5, §10.2)"
+        max_length=20,
+        blank=True,
+        db_index=True,
+        help_text="ISO 9001 clause (e.g., §7.5, §10.2)",
     )
     standards = models.JSONField(
-        default=list, blank=True, help_text="Standards this implements: ['SIG-001', 'QMS-001']"
+        default=list,
+        blank=True,
+        help_text="Standards this implements: ['SIG-001', 'QMS-001']",
     )
 
     # Dependencies (DAG)
@@ -871,15 +949,21 @@ class Feature(models.Model):
     )
 
     # Cross-references
-    roadmap_item_id = models.UUIDField(null=True, blank=True, db_index=True, help_text="Public RoadmapItem UUID")
+    roadmap_item_id = models.UUIDField(
+        null=True, blank=True, db_index=True, help_text="Public RoadmapItem UUID"
+    )
     change_request_ids = models.JSONField(
         default=list, blank=True, help_text="ChangeRequest UUIDs linked to this feature"
     )
     legacy_id = models.CharField(
-        max_length=20, blank=True, db_index=True, help_text="ID from master plan (e.g., E3-001)"
+        max_length=20,
+        blank=True,
+        db_index=True,
+        help_text="ID from master plan (e.g., E3-001)",
     )
     notes = models.TextField(
-        blank=True, help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's."
+        blank=True,
+        help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's.",
     )
 
     # Timestamps
@@ -898,7 +982,11 @@ class Feature(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.short_id:
-            last = Feature.objects.filter(short_id__startswith="FEAT-").order_by("-short_id").first()
+            last = (
+                Feature.objects.filter(short_id__startswith="FEAT-")
+                .order_by("-short_id")
+                .first()
+            )
             seq = 1
             if last:
                 try:
@@ -984,7 +1072,10 @@ class PlanTask(models.Model):
 
     # Execution link
     change_request_id = models.UUIDField(
-        null=True, blank=True, db_index=True, help_text="ChangeRequest UUID (created when work begins)"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="ChangeRequest UUID (created when work begins)",
     )
 
     # Timestamps
@@ -1001,7 +1092,11 @@ class PlanTask(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.short_id:
-            last = PlanTask.objects.filter(short_id__startswith="TASK-").order_by("-short_id").first()
+            last = (
+                PlanTask.objects.filter(short_id__startswith="TASK-")
+                .order_by("-short_id")
+                .first()
+            )
             seq = 1
             if last:
                 try:

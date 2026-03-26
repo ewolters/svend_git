@@ -10,48 +10,91 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('chat', '0002_tracelog_trainingcandidate'),
+        ("chat", "0002_tracelog_trainingcandidate"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ModelVersion',
+            name="ModelVersion",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('model_type', models.CharField(choices=[('safety_router', 'Safety Router'), ('intuition', 'Intuition'), ('diffusion', 'Diffusion'), ('reasoner', 'MoE Reasoner'), ('verifier', 'Verifier'), ('language_model', 'Language Model')], db_index=True, max_length=30)),
-                ('name', models.CharField(max_length=100)),
-                ('checkpoint_path', models.CharField(max_length=500)),
-                ('is_active', models.BooleanField(db_index=True, default=False)),
-                ('description', models.TextField(blank=True)),
-                ('metrics', models.JSONField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('activated_at', models.DateTimeField(blank=True, null=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "model_type",
+                    models.CharField(
+                        choices=[
+                            ("safety_router", "Safety Router"),
+                            ("intuition", "Intuition"),
+                            ("diffusion", "Diffusion"),
+                            ("reasoner", "MoE Reasoner"),
+                            ("verifier", "Verifier"),
+                            ("language_model", "Language Model"),
+                        ],
+                        db_index=True,
+                        max_length=30,
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
+                ("checkpoint_path", models.CharField(max_length=500)),
+                ("is_active", models.BooleanField(db_index=True, default=False)),
+                ("description", models.TextField(blank=True)),
+                ("metrics", models.JSONField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("activated_at", models.DateTimeField(blank=True, null=True)),
             ],
             options={
-                'db_table': 'model_versions',
-                'ordering': ['-created_at'],
-                'constraints': [models.UniqueConstraint(condition=models.Q(('is_active', True)), fields=('model_type',), name='unique_active_model_per_type')],
+                "db_table": "model_versions",
+                "ordering": ["-created_at"],
+                "constraints": [
+                    models.UniqueConstraint(
+                        condition=models.Q(("is_active", True)),
+                        fields=("model_type",),
+                        name="unique_active_model_per_type",
+                    )
+                ],
             },
         ),
         migrations.CreateModel(
-            name='UsageLog',
+            name="UsageLog",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('date', models.DateField(db_index=True)),
-                ('request_count', models.IntegerField(default=0)),
-                ('tokens_input', models.BigIntegerField(default=0)),
-                ('tokens_output', models.BigIntegerField(default=0)),
-                ('blocked_count', models.IntegerField(default=0)),
-                ('error_count', models.IntegerField(default=0)),
-                ('total_inference_ms', models.BigIntegerField(default=0)),
-                ('domain_counts', models.JSONField(blank=True, null=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='usage_logs', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("date", models.DateField(db_index=True)),
+                ("request_count", models.IntegerField(default=0)),
+                ("tokens_input", models.BigIntegerField(default=0)),
+                ("tokens_output", models.BigIntegerField(default=0)),
+                ("blocked_count", models.IntegerField(default=0)),
+                ("error_count", models.IntegerField(default=0)),
+                ("total_inference_ms", models.BigIntegerField(default=0)),
+                ("domain_counts", models.JSONField(blank=True, null=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="usage_logs",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'usage_logs',
-                'ordering': ['-date'],
-                'unique_together': {('user', 'date')},
+                "db_table": "usage_logs",
+                "ordering": ["-date"],
+                "unique_together": {("user", "date")},
             },
         ),
     ]

@@ -26,10 +26,19 @@ def harada_daily_reminders(payload, context=None):
     today = date.today()
     yesterday = today - timedelta(days=1)
 
-    stats = {"routine_missed": 0, "routine_reminder": 0, "diary_reminder": 0, "goal_due": 0}
+    stats = {
+        "routine_missed": 0,
+        "routine_reminder": 0,
+        "diary_reminder": 0,
+        "goal_due": 0,
+    }
 
     # Get all users with active routines
-    users_with_routines = Window64.objects.filter(cell_type="routine").values_list("user_id", flat=True).distinct()
+    users_with_routines = (
+        Window64.objects.filter(cell_type="routine")
+        .values_list("user_id", flat=True)
+        .distinct()
+    )
 
     for user_id in users_with_routines:
         try:
@@ -41,7 +50,9 @@ def harada_daily_reminders(payload, context=None):
         routine_count = routines.count()
 
         # --- Missed yesterday ---
-        yesterday_checks = RoutineCheck.objects.filter(user=user, date=yesterday, is_completed=True).count()
+        yesterday_checks = RoutineCheck.objects.filter(
+            user=user, date=yesterday, is_completed=True
+        ).count()
 
         if yesterday_checks < routine_count:
             missed = routine_count - yesterday_checks
@@ -66,7 +77,9 @@ def harada_daily_reminders(payload, context=None):
             stats["routine_reminder"] += 1
 
     # --- Diary reminder (users who had a diary yesterday but not today) ---
-    users_with_diary = DailyDiary.objects.filter(date=yesterday).values_list("user_id", flat=True)
+    users_with_diary = DailyDiary.objects.filter(date=yesterday).values_list(
+        "user_id", flat=True
+    )
     for user_id in users_with_diary:
         has_today = DailyDiary.objects.filter(user_id=user_id, date=today).exists()
         if not has_today:
@@ -133,7 +146,9 @@ def check_streak_and_notify(user, routine_cell):
             entity_type="routine",
             entity_id=str(routine_cell.id),
         )
-        logger.info("Streak milestone %d for %s on '%s'", streak, user.email, routine_cell.text)
+        logger.info(
+            "Streak milestone %d for %s on '%s'", streak, user.email, routine_cell.text
+        )
 
     return streak
 

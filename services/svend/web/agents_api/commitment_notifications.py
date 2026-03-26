@@ -27,7 +27,9 @@ def _dispatch_commitment_requested(commitment):
     employee = commitment.employee
     project_title = commitment.project.project.title
     requester = commitment.requested_by
-    requester_name = requester.get_full_name() or requester.email if requester else "Someone"
+    requester_name = (
+        requester.get_full_name() or requester.email if requester else "Someone"
+    )
 
     title = f"Resource commitment requested: {project_title}"
     message = (
@@ -94,7 +96,9 @@ def notify_commitment_response(commitment, old_status):
     try:
         _dispatch_commitment_response(commitment, old_status)
     except Exception:
-        logger.exception("Failed to send commitment response notification for %s", commitment.id)
+        logger.exception(
+            "Failed to send commitment response notification for %s", commitment.id
+        )
 
 
 def _dispatch_commitment_response(commitment, old_status):

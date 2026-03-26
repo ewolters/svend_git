@@ -8,25 +8,58 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0019_roadmapitem'),
+        ("api", "0019_roadmapitem"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='PlanDocument',
+            name="PlanDocument",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(max_length=200)),
-                ('body', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('draft', 'Draft'), ('active', 'Active'), ('archived', 'Archived')], db_index=True, default='draft', max_length=10)),
-                ('category', models.CharField(choices=[('spec', 'Spec'), ('plan', 'Plan'), ('rfc', 'RFC'), ('retro', 'Retro')], db_index=True, default='plan', max_length=10)),
-                ('roadmap_items', models.JSONField(blank=True, default=list)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("title", models.CharField(max_length=200)),
+                ("body", models.TextField(blank=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Draft"),
+                            ("active", "Active"),
+                            ("archived", "Archived"),
+                        ],
+                        db_index=True,
+                        default="draft",
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "category",
+                    models.CharField(
+                        choices=[
+                            ("spec", "Spec"),
+                            ("plan", "Plan"),
+                            ("rfc", "RFC"),
+                            ("retro", "Retro"),
+                        ],
+                        db_index=True,
+                        default="plan",
+                        max_length=10,
+                    ),
+                ),
+                ("roadmap_items", models.JSONField(blank=True, default=list)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'db_table': 'plan_documents',
-                'ordering': ['-updated_at'],
+                "db_table": "plan_documents",
+                "ordering": ["-updated_at"],
             },
         ),
     ]

@@ -6,7 +6,15 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from forge.models import APIKey, DataType, Job, JobStatus, QualityLevel, SchemaTemplate, Tier
+from forge.models import (
+    APIKey,
+    DataType,
+    Job,
+    JobStatus,
+    QualityLevel,
+    SchemaTemplate,
+    Tier,
+)
 from forge.tasks import format_output
 from forge.views import calculate_cost
 
@@ -95,7 +103,9 @@ class APIKeyTest(TestCase):
     """Test API key management."""
 
     def setUp(self):
-        self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
 
     def test_create_api_key(self):
         """API key creation should work."""
@@ -104,7 +114,10 @@ class APIKeyTest(TestCase):
 
         raw_key = secrets.token_urlsafe(32)
         api_key = APIKey.objects.create(
-            user=self.user, name="Test Key", tier=Tier.STARTER, key_hash=hashlib.sha256(raw_key.encode()).hexdigest()
+            user=self.user,
+            name="Test Key",
+            tier=Tier.STARTER,
+            key_hash=hashlib.sha256(raw_key.encode()).hexdigest(),
         )
         self.assertIsNotNone(api_key.key_hash)
         self.assertTrue(api_key.is_active)
@@ -135,8 +148,12 @@ class JobModelTest(TestCase):
     """Test Job model."""
 
     def setUp(self):
-        self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
-        self.api_key = APIKey.objects.create(user=self.user, name="Test Key", tier=Tier.STARTER)
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        self.api_key = APIKey.objects.create(
+            user=self.user, name="Test Key", tier=Tier.STARTER
+        )
 
     def test_create_job(self):
         """Job creation should generate UUID."""
@@ -206,7 +223,10 @@ class SchemaTemplateTest(TestCase):
             schema_def={
                 "product_name": {"type": "string"},
                 "price": {"type": "float", "constraints": {"min": 0}},
-                "category": {"type": "category", "constraints": {"values": ["A", "B", "C"]}},
+                "category": {
+                    "type": "category",
+                    "constraints": {"values": ["A", "B", "C"]},
+                },
             },
         )
         self.assertEqual(template.name, "products")
@@ -218,8 +238,12 @@ class ForgeAPITest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
-        self.api_key = APIKey.objects.create(user=self.user, name="Test Key", tier=Tier.STARTER)
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        self.api_key = APIKey.objects.create(
+            user=self.user, name="Test Key", tier=Tier.STARTER
+        )
         # Store the actual key before hashing
         import secrets
 
@@ -291,7 +315,9 @@ class ForgeAPITest(TestCase):
         )
 
         response = self.client.get(
-            f"/api/forge/jobs/{job.job_id}", HTTP_AUTHORIZATION=f"Bearer {self.raw_key}", HTTP_X_API_KEY=self.raw_key
+            f"/api/forge/jobs/{job.job_id}",
+            HTTP_AUTHORIZATION=f"Bearer {self.raw_key}",
+            HTTP_X_API_KEY=self.raw_key,
         )
         if response.status_code in [401, 403]:
             self.skipTest("API key authentication not working in test environment")
@@ -302,7 +328,9 @@ class ForgeAPITest(TestCase):
     def test_usage_endpoint(self):
         """Should return usage stats."""
         response = self.client.get(
-            "/api/forge/usage", HTTP_AUTHORIZATION=f"Bearer {self.raw_key}", HTTP_X_API_KEY=self.raw_key
+            "/api/forge/usage",
+            HTTP_AUTHORIZATION=f"Bearer {self.raw_key}",
+            HTTP_X_API_KEY=self.raw_key,
         )
         if response.status_code in [401, 403]:
             self.skipTest("API key authentication not working in test environment")

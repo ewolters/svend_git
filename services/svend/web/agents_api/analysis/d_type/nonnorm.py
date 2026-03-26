@@ -32,13 +32,17 @@ def run_d_nonnorm(df, config):
 
     variable = config.get("variable") or config.get("measurement")
     if not variable or variable not in df.columns:
-        result["summary"] = "<<COLOR:danger>>Please select a valid measurement variable.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Please select a valid measurement variable.<</COLOR>>"
+        )
         return result
 
     lsl = float(config["lsl"]) if config.get("lsl") is not None else None
     usl = float(config["usl"]) if config.get("usl") is not None else None
     if lsl is None and usl is None:
-        result["summary"] = "<<COLOR:danger>>At least one spec limit (LSL or USL) is required.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>At least one spec limit (LSL or USL) is required.<</COLOR>>"
+        )
         return result
 
     data = df[variable].dropna().astype(float).values
@@ -314,7 +318,10 @@ def run_d_nonnorm(df, config):
                 {
                     "type": "scatter",
                     "x": [theoretical_q[0], theoretical_q[-1]],
-                    "y": [mu + sigma * theoretical_q[0], mu + sigma * theoretical_q[-1]],
+                    "y": [
+                        mu + sigma * theoretical_q[0],
+                        mu + sigma * theoretical_q[-1],
+                    ],
                     "mode": "lines",
                     "name": "Normal Reference",
                     "line": {"color": COLOR_BAD, "dash": "dash", "width": 1.5},
@@ -418,9 +425,11 @@ def run_d_nonnorm(df, config):
         (
             "Process is capable — monitor for drift."
             if ppk_kde >= 1.33
-            else "Investigate sources of variation to improve capability."
-            if ppk_kde >= 1.0
-            else "Prioritise variation reduction; consider the D-Chart to identify contributing factors."
+            else (
+                "Investigate sources of variation to improve capability."
+                if ppk_kde >= 1.0
+                else "Prioritise variation reduction; consider the D-Chart to identify contributing factors."
+            )
         ),
         "The top plot overlays KDE (actual shape) vs normal assumption. "
         "The middle plot shows the best-fit parametric distribution. "

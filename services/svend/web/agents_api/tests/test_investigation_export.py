@@ -46,7 +46,9 @@ class ExportInvestigationTest(TestCase):
         inv.transition_to("active", self.user)
 
         # Add a hypothesis via bridge
-        tool_output = MeasurementSystem.objects.create(name="Export Gage", system_type="variable", owner=self.user)
+        tool_output = MeasurementSystem.objects.create(
+            name="Export Gage", system_type="variable", owner=self.user
+        )
         spec = HypothesisSpec(description="Root cause: bearing wear", prior=0.7)
         connect_tool(
             investigation_id=str(inv.id),
@@ -70,7 +72,9 @@ class ExportInvestigationTest(TestCase):
             user=self.user,
         )
 
-        self.assertEqual(Evidence.objects.filter(project=self.project).count(), initial_count + 1)
+        self.assertEqual(
+            Evidence.objects.filter(project=self.project).count(), initial_count + 1
+        )
 
     def test_export_transitions_to_exported(self):
         """Export transitions investigation to exported state."""
@@ -217,8 +221,12 @@ class CausalChainTest(TestCase):
         h_a = synara.create_hypothesis(description="Root cause A", prior=0.6)
         h_b = synara.create_hypothesis(description="Intermediate B", prior=0.5)
         h_c = synara.create_hypothesis(description="Effect C", prior=0.4)
-        synara.create_link(from_id=h_a.id, to_id=h_b.id, strength=0.8, mechanism="A causes B")
-        synara.create_link(from_id=h_b.id, to_id=h_c.id, strength=0.7, mechanism="B causes C")
+        synara.create_link(
+            from_id=h_a.id, to_id=h_b.id, strength=0.8, mechanism="A causes B"
+        )
+        synara.create_link(
+            from_id=h_b.id, to_id=h_c.id, strength=0.7, mechanism="B causes C"
+        )
 
         chain = _trace_causal_chain(h_c.id, synara.graph.hypotheses, synara.graph.links)
         self.assertEqual(len(chain), 2)
@@ -257,7 +265,9 @@ class CausalChainTest(TestCase):
         h_b = synara.create_hypothesis(description="Strong cause", prior=0.7)
         h_c = synara.create_hypothesis(description="Effect", prior=0.5)
         synara.create_link(from_id=h_a.id, to_id=h_c.id, strength=0.3, mechanism="weak")
-        synara.create_link(from_id=h_b.id, to_id=h_c.id, strength=0.9, mechanism="strong")
+        synara.create_link(
+            from_id=h_b.id, to_id=h_c.id, strength=0.9, mechanism="strong"
+        )
 
         chain = _trace_causal_chain(h_c.id, synara.graph.hypotheses, synara.graph.links)
         self.assertEqual(len(chain), 1)

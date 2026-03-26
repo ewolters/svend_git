@@ -50,7 +50,9 @@ class UserFile(models.Model):
     )
 
     # File metadata (encrypted at rest via EncryptedFileSystemStorage)
-    file = models.FileField(upload_to=user_file_path, storage=EncryptedFileSystemStorage())
+    file = models.FileField(
+        upload_to=user_file_path, storage=EncryptedFileSystemStorage()
+    )
     original_name = models.CharField(max_length=255)
     file_type = models.CharField(
         max_length=20,
@@ -195,13 +197,19 @@ class UserQuota(models.Model):
     def can_upload(self, file_size: int) -> tuple[bool, str]:
         """Check if user can upload a file of given size."""
         if file_size > self.max_file_size_bytes:
-            return False, f"File too large. Maximum size: {self.max_file_size_bytes // 1024 // 1024} MB"
+            return (
+                False,
+                f"File too large. Maximum size: {self.max_file_size_bytes // 1024 // 1024} MB",
+            )
 
         if self.file_count >= self.max_files:
             return False, f"File limit reached. Maximum files: {self.max_files}"
 
         if self.used_bytes + file_size > self.quota_bytes:
-            return False, f"Storage quota exceeded. Remaining: {self.remaining_bytes // 1024 // 1024} MB"
+            return (
+                False,
+                f"Storage quota exceeded. Remaining: {self.remaining_bytes // 1024 // 1024} MB",
+            )
 
         return True, ""
 
@@ -238,9 +246,21 @@ class UserQuota(models.Model):
         if created:
             # Set limits based on tier
             tier_limits = {
-                "free": (100 * 1024 * 1024, 100, 5 * 1024 * 1024),  # 100 MB, 100 files, 5 MB/file
-                "beta": (500 * 1024 * 1024, 500, 10 * 1024 * 1024),  # 500 MB, 500 files, 10 MB/file
-                "pro": (5 * 1024 * 1024 * 1024, 5000, 100 * 1024 * 1024),  # 5 GB, 5000 files, 100 MB/file
+                "free": (
+                    100 * 1024 * 1024,
+                    100,
+                    5 * 1024 * 1024,
+                ),  # 100 MB, 100 files, 5 MB/file
+                "beta": (
+                    500 * 1024 * 1024,
+                    500,
+                    10 * 1024 * 1024,
+                ),  # 500 MB, 500 files, 10 MB/file
+                "pro": (
+                    5 * 1024 * 1024 * 1024,
+                    5000,
+                    100 * 1024 * 1024,
+                ),  # 5 GB, 5000 files, 100 MB/file
             }
 
             limits = tier_limits.get(user.tier, tier_limits["free"])

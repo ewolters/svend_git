@@ -10,65 +10,182 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0050_ratelimitoverride'),
-        ('core', '0011_employee_resourcecommitment_actiontoken'),
+        ("agents_api", "0050_ratelimitoverride"),
+        ("core", "0011_employee_resourcecommitment_actiontoken"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Employee',
+            name="Employee",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=255)),
-                ('email', models.EmailField(max_length=254)),
-                ('role', models.CharField(blank=True, max_length=255)),
-                ('department', models.CharField(blank=True, max_length=255)),
-                ('is_active', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('site', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='employees', to='agents_api.site')),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='employees', to='core.tenant')),
-                ('user_link', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='employee_profile', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("email", models.EmailField(max_length=254)),
+                ("role", models.CharField(blank=True, max_length=255)),
+                ("department", models.CharField(blank=True, max_length=255)),
+                ("is_active", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "site",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="employees",
+                        to="agents_api.site",
+                    ),
+                ),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="employees",
+                        to="core.tenant",
+                    ),
+                ),
+                (
+                    "user_link",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="employee_profile",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'hoshin_employees',
-                'unique_together': {('tenant', 'email')},
+                "db_table": "hoshin_employees",
+                "unique_together": {("tenant", "email")},
             },
         ),
         migrations.CreateModel(
-            name='ActionToken',
+            name="ActionToken",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('action_type', models.CharField(choices=[('confirm_availability', 'Confirm Availability'), ('decline', 'Decline'), ('update_progress', 'Update Progress'), ('view_dashboard', 'View Dashboard')], max_length=30)),
-                ('scoped_to', models.JSONField(default=dict)),
-                ('token', models.CharField(db_index=True, max_length=64, unique=True)),
-                ('expires_at', models.DateTimeField()),
-                ('used_at', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('employee', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='action_tokens', to='agents_api.employee')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "action_type",
+                    models.CharField(
+                        choices=[
+                            ("confirm_availability", "Confirm Availability"),
+                            ("decline", "Decline"),
+                            ("update_progress", "Update Progress"),
+                            ("view_dashboard", "View Dashboard"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                ("scoped_to", models.JSONField(default=dict)),
+                ("token", models.CharField(db_index=True, max_length=64, unique=True)),
+                ("expires_at", models.DateTimeField()),
+                ("used_at", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "employee",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="action_tokens",
+                        to="agents_api.employee",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'hoshin_action_tokens',
+                "db_table": "hoshin_action_tokens",
             },
         ),
         migrations.CreateModel(
-            name='ResourceCommitment',
+            name="ResourceCommitment",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('role', models.CharField(choices=[('facilitator', 'Facilitator'), ('team_member', 'Team Member'), ('sponsor', 'Sponsor'), ('process_owner', 'Process Owner'), ('subject_expert', 'Subject Expert')], max_length=30)),
-                ('start_date', models.DateField()),
-                ('end_date', models.DateField()),
-                ('hours_per_day', models.DecimalField(decimal_places=1, default=8, max_digits=4)),
-                ('status', models.CharField(choices=[('requested', 'Requested'), ('confirmed', 'Confirmed'), ('active', 'Active'), ('completed', 'Completed'), ('declined', 'Declined')], default='requested', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('employee', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='commitments', to='agents_api.employee')),
-                ('project', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='commitments', to='agents_api.hoshinproject')),
-                ('requested_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='requested_commitments', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[
+                            ("facilitator", "Facilitator"),
+                            ("team_member", "Team Member"),
+                            ("sponsor", "Sponsor"),
+                            ("process_owner", "Process Owner"),
+                            ("subject_expert", "Subject Expert"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                ("start_date", models.DateField()),
+                ("end_date", models.DateField()),
+                (
+                    "hours_per_day",
+                    models.DecimalField(decimal_places=1, default=8, max_digits=4),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("requested", "Requested"),
+                            ("confirmed", "Confirmed"),
+                            ("active", "Active"),
+                            ("completed", "Completed"),
+                            ("declined", "Declined"),
+                        ],
+                        default="requested",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "employee",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="commitments",
+                        to="agents_api.employee",
+                    ),
+                ),
+                (
+                    "project",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="commitments",
+                        to="agents_api.hoshinproject",
+                    ),
+                ),
+                (
+                    "requested_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="requested_commitments",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'hoshin_resource_commitments',
+                "db_table": "hoshin_resource_commitments",
             },
         ),
     ]

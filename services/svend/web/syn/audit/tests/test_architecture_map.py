@@ -45,7 +45,9 @@ class RegistryTableTest(SimpleTestCase):
 
     def test_registry_covers_all_md_files(self):
         """Every .md in docs/standards/ appears in the registry."""
-        registry_files = {entry["file"] for entry in self.registry if entry.get("file") != "—"}
+        registry_files = {
+            entry["file"] for entry in self.registry if entry.get("file") != "—"
+        }
         for md_file in sorted(_MAP_STANDARDS_DIR.glob("*.md")):
             rel_path = f"docs/standards/{md_file.name}"
             self.assertIn(
@@ -57,7 +59,11 @@ class RegistryTableTest(SimpleTestCase):
     def test_no_duplicate_ids(self):
         """Registry has no duplicate standard IDs."""
         ids = [entry["id"] for entry in self.registry]
-        self.assertEqual(len(ids), len(set(ids)), f"Duplicate IDs: {[i for i in ids if ids.count(i) > 1]}")
+        self.assertEqual(
+            len(ids),
+            len(set(ids)),
+            f"Duplicate IDs: {[i for i in ids if ids.count(i) > 1]}",
+        )
 
     def test_phantom_entries_have_no_file(self):
         """PHANTOM entries have '—' as their file path."""
@@ -74,7 +80,9 @@ class RegistryTableTest(SimpleTestCase):
         approved = sum(1 for e in self.registry if e.get("status") == "APPROVED")
         deprecated = sum(1 for e in self.registry if e.get("status") == "DEPRECATED")
         self.assertGreaterEqual(approved, 25, f"Expected ≥25 APPROVED, got {approved}")
-        self.assertGreaterEqual(deprecated, 30, f"Expected ≥30 DEPRECATED, got {deprecated}")
+        self.assertGreaterEqual(
+            deprecated, 30, f"Expected ≥30 DEPRECATED, got {deprecated}"
+        )
 
     def test_deprecated_entries_have_no_file(self):
         """DEPRECATED entries have '—' as their file path."""
@@ -146,13 +154,19 @@ class TableParserTest(SimpleTestCase):
         """Parser extracts correct number of entries from MAP-001."""
         map_path = _MAP_STANDARDS_DIR / "MAP-001.md"
         registry = _parse_map_table(map_path, "standards-registry")
-        self.assertGreater(len(registry), 30, f"Expected >30 registry entries, got {len(registry)}")
+        self.assertGreater(
+            len(registry), 30, f"Expected >30 registry entries, got {len(registry)}"
+        )
 
     def test_parses_module_map(self):
         """Parser extracts module map entries with correct keys."""
         map_path = _MAP_STANDARDS_DIR / "MAP-001.md"
         module_map = _parse_map_table(map_path, "module-map")
-        self.assertGreater(len(module_map), 15, f"Expected >15 module map entries, got {len(module_map)}")
+        self.assertGreater(
+            len(module_map),
+            15,
+            f"Expected >15 module map entries, got {len(module_map)}",
+        )
         for entry in module_map[:3]:
             self.assertIn("module", entry)
             self.assertIn("standards", entry)

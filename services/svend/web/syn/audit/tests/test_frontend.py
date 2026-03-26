@@ -131,13 +131,17 @@ class CDNLibraryTest(SimpleTestCase):
     def test_required_libraries_loaded(self):
         """All required CDN libraries present in base template."""
         for lib_name, cdn in self.REQUIRED_LIBS:
-            self.assertIn(cdn, self.content, f"Library {lib_name} not loaded from {cdn}")
+            self.assertIn(
+                cdn, self.content, f"Library {lib_name} not loaded from {cdn}"
+            )
 
     def test_no_unapproved_cdn_sources(self):
         """No script/link tags load from unapproved CDN origins."""
         urls = re.findall(r'(?:src|href)=["\']https?://([^/"\']+)', self.content)
         for domain in urls:
-            self.assertIn(domain, self.APPROVED_CDNS, f"Unapproved CDN source: {domain}")
+            self.assertIn(
+                domain, self.APPROVED_CDNS, f"Unapproved CDN source: {domain}"
+            )
 
 
 @SECURE_OFF
@@ -309,7 +313,9 @@ class ColorComplianceTest(SimpleTestCase):
     def test_chart_colors_defined(self):
         """SvendTheme.chartColors contains the 6-color brand palette."""
         for color in CHART_COLORS:
-            self.assertIn(color, self.content, f"Missing chart color in SvendTheme: {color}")
+            self.assertIn(
+                color, self.content, f"Missing chart color in SvendTheme: {color}"
+            )
 
     def test_chart_colors_use_css_vars(self):
         """SvendTheme.chartColors reads from CSS variables, not hardcoded values."""
@@ -346,7 +352,11 @@ class ColorComplianceTest(SimpleTestCase):
     def test_error_pages_use_brand_colors(self):
         """Error pages (400/403/404/500) use brand palette, not Tailwind."""
         templates_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+            os.path.dirname(
+                os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                )
+            ),
             "templates",
         )
         tailwind_colors = {"#0f1117", "#e2e8f0", "#f59e0b", "#60a5fa"}
@@ -367,11 +377,22 @@ class ColorComplianceTest(SimpleTestCase):
     def test_doe_js_no_hardcoded_tailwind(self):
         """DOE JS files use SvendTheme/CSS vars, not hardcoded Tailwind colors."""
         static_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+            os.path.dirname(
+                os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                )
+            ),
             "static",
             "js",
         )
-        tailwind_colors = {"#60a5fa", "#f97316", "#22c55e", "#6b7280", "#3b82f6", "#e2e8f0"}
+        tailwind_colors = {
+            "#60a5fa",
+            "#f97316",
+            "#22c55e",
+            "#6b7280",
+            "#3b82f6",
+            "#e2e8f0",
+        }
         for fname in ["doe-power.js", "doe-analysis.js"]:
             path = os.path.join(static_dir, fname)
             if not os.path.exists(path):
@@ -472,7 +493,11 @@ class EmojiComplianceTest(SimpleTestCase):
     def test_no_emoji_in_dashboard(self):
         """internal_dashboard.html contains no emoji or Unicode pictographs."""
         templates_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+            os.path.dirname(
+                os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                )
+            ),
             "templates",
         )
         path = os.path.join(templates_dir, "internal_dashboard.html")
@@ -488,7 +513,11 @@ class EmojiComplianceTest(SimpleTestCase):
     def test_no_emoji_in_app_templates(self):
         """Core app templates (base_app, base_guest) contain no emoji."""
         templates_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+            os.path.dirname(
+                os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                )
+            ),
             "templates",
         )
         for tpl in ["base_app.html", "base_guest.html"]:
@@ -510,7 +539,9 @@ class CanvasConsistencyTest(SimpleTestCase):
 
     def _template_path(self, name):
         # syn/audit/tests/ → syn/audit/ → syn/ → web/
-        web_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        web_dir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        )
         return os.path.join(web_dir, "templates", name)
 
     def _read_template(self, name):

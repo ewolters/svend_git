@@ -37,7 +37,9 @@ def _put(client, url, data=None):
 
 def _make_team_user(email):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123!")
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123!"
+    )
     user.tier = Tier.TEAM
     user.save(update_fields=["tier"])
     return user
@@ -45,7 +47,9 @@ def _make_team_user(email):
 
 def _make_enterprise_user(email):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123!")
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123!"
+    )
     user.tier = Tier.ENTERPRISE
     user.save(update_fields=["tier"])
     return user
@@ -318,7 +322,9 @@ class FMEASuggestTest(TestCase):
 
     def test_suggest_requires_process_step(self):
         """Suggest endpoint requires process_step."""
-        resp = _post(self.client, f"/api/fmea/{self.fmea_id}/suggest-failure-modes/", {})
+        resp = _post(
+            self.client, f"/api/fmea/{self.fmea_id}/suggest-failure-modes/", {}
+        )
         self.assertEqual(resp.status_code, 400)
 
 
@@ -418,9 +424,18 @@ class A3CritiqueTest(TestCase):
             "content": json.dumps(
                 {
                     "sections": {
-                        "background": {"rating": "[STRONG]", "feedback": "Good context"},
-                        "current_condition": {"rating": "[ADEQUATE]", "feedback": "Has data"},
-                        "root_cause": {"rating": "[WEAK]", "feedback": "Needs more depth"},
+                        "background": {
+                            "rating": "[STRONG]",
+                            "feedback": "Good context",
+                        },
+                        "current_condition": {
+                            "rating": "[ADEQUATE]",
+                            "feedback": "Has data",
+                        },
+                        "root_cause": {
+                            "rating": "[WEAK]",
+                            "feedback": "Needs more depth",
+                        },
                     },
                     "overall": "Needs work on root cause",
                     "logical_flow": "Background connects to condition well",

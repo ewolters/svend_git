@@ -68,7 +68,10 @@ class CorrelationMixin(models.Model):
     )
 
     parent_correlation_id = models.UUIDField(
-        null=True, blank=True, db_index=True, help_text="Parent entity correlation ID for causal chain"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Parent entity correlation ID for causal chain",
     )
 
     class Meta:
@@ -120,7 +123,9 @@ class TenantMixin(models.Model):
     Standard: SDK-001 §6.2, SEC-001 §5.2
     """
 
-    tenant_id = models.UUIDField(db_index=True, help_text="Tenant ID for multi-tenant isolation (SEC-001 §5.2)")
+    tenant_id = models.UUIDField(
+        db_index=True, help_text="Tenant ID for multi-tenant isolation (SEC-001 §5.2)"
+    )
 
     class Meta:
         abstract = True
@@ -147,14 +152,26 @@ class AuditMixin(models.Model):
     Standard: SDK-001 §6.3, AUD-001
     """
 
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="Record creation timestamp")
+    created_at = models.DateTimeField(
+        auto_now_add=True, db_index=True, help_text="Record creation timestamp"
+    )
 
-    updated_at = models.DateTimeField(auto_now=True, help_text="Last modification timestamp")
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="Last modification timestamp"
+    )
 
-    created_by = models.CharField(max_length=255, blank=True, default="", help_text="User ID who created this record")
+    created_by = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="User ID who created this record",
+    )
 
     updated_by = models.CharField(
-        max_length=255, blank=True, default="", help_text="User ID who last modified this record"
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="User ID who last modified this record",
     )
 
     class Meta:
@@ -202,11 +219,20 @@ class SoftDeleteMixin(models.Model):
     Standard: SDK-001 §6.4, DAT-001 §9
     """
 
-    is_deleted = models.BooleanField(default=False, db_index=True, help_text="Soft delete flag")
+    is_deleted = models.BooleanField(
+        default=False, db_index=True, help_text="Soft delete flag"
+    )
 
-    deleted_at = models.DateTimeField(null=True, blank=True, help_text="Deletion timestamp")
+    deleted_at = models.DateTimeField(
+        null=True, blank=True, help_text="Deletion timestamp"
+    )
 
-    deleted_by = models.CharField(max_length=255, blank=True, default="", help_text="User ID who deleted this record")
+    deleted_by = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="User ID who deleted this record",
+    )
 
     objects = SoftDeleteManager()
     all_objects = models.Manager()
@@ -233,7 +259,9 @@ class SoftDeleteMixin(models.Model):
         # Update updated_by if the mixin is present
         if hasattr(self, "updated_by"):
             self.updated_by = restored_by
-            self.save(update_fields=["is_deleted", "deleted_at", "deleted_by", "updated_by"])
+            self.save(
+                update_fields=["is_deleted", "deleted_at", "deleted_by", "updated_by"]
+            )
         else:
             self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
 
@@ -487,7 +515,9 @@ class MetadataMixin(models.Model):
     Standard: SDK-001 §6.7, MOD-001 §10
     """
 
-    metadata = models.JSONField(default=dict, blank=True, help_text="Extensible metadata")
+    metadata = models.JSONField(
+        default=dict, blank=True, help_text="Extensible metadata"
+    )
 
     class Meta:
         abstract = True
@@ -561,9 +591,13 @@ class VersioningMixin(models.Model):
     Standard: SDK-001 §6.8
     """
 
-    version = models.CharField(max_length=20, default="1.0.0", help_text="Semantic version (MAJOR.MINOR.PATCH)")
+    version = models.CharField(
+        max_length=20, default="1.0.0", help_text="Semantic version (MAJOR.MINOR.PATCH)"
+    )
 
-    version_number = models.PositiveIntegerField(default=1, help_text="Sequential version number")
+    version_number = models.PositiveIntegerField(
+        default=1, help_text="Sequential version number"
+    )
 
     class Meta:
         abstract = True

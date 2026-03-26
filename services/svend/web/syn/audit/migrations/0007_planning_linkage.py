@@ -6,18 +6,28 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('audit', '0006_add_healthping'),
+        ("audit", "0006_add_healthping"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='changerequest',
-            name='feature_id',
-            field=models.UUIDField(blank=True, db_index=True, help_text='Feature UUID from planning system (FEAT-xxx)', null=True),
+            model_name="changerequest",
+            name="feature_id",
+            field=models.UUIDField(
+                blank=True,
+                db_index=True,
+                help_text="Feature UUID from planning system (FEAT-xxx)",
+                null=True,
+            ),
         ),
         migrations.AddField(
-            model_name='changerequest',
-            name='task_id',
-            field=models.UUIDField(blank=True, db_index=True, help_text='PlanTask UUID from planning system (TASK-xxx)', null=True),
+            model_name="changerequest",
+            name="task_id",
+            field=models.UUIDField(
+                blank=True,
+                db_index=True,
+                help_text="PlanTask UUID from planning system (TASK-xxx)",
+                null=True,
+            ),
         ),
     ]

@@ -102,7 +102,9 @@ class CognitionPipelineManager:
         try:
             from cognition_qwen import CognitionPipeline
 
-            workspace = Path(getattr(settings, "KJERNE_PATH", ".")) / "cognition_workspace"
+            workspace = (
+                Path(getattr(settings, "KJERNE_PATH", ".")) / "cognition_workspace"
+            )
 
             self._pipeline = CognitionPipeline(
                 workspace=workspace,
@@ -112,7 +114,9 @@ class CognitionPipelineManager:
 
             # Pre-load the model
             logger.info("Loading Qwen-Coder model...")
-            self._pipeline.lora_manager.load_base_model(quantize=True, model_type="coder")
+            self._pipeline.lora_manager.load_base_model(
+                quantize=True, model_type="coder"
+            )
 
             self._initialized = True
             logger.info("Cognition Pipeline initialized successfully")
@@ -152,7 +156,9 @@ class CognitionPipelineManager:
                 force_mode = mode_map.get(mode.lower())
 
             # Run through pipeline
-            trace = self.pipeline.process(query=text, force_mode=force_mode, use_thompson=(mode == "auto"))
+            trace = self.pipeline.process(
+                query=text, force_mode=force_mode, use_thompson=(mode == "auto")
+            )
 
             inference_time_ms = (time.time() - start_time) * 1000
 

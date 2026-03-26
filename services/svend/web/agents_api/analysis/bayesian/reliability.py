@@ -58,7 +58,9 @@ def run_bayes_survival(df, config, ci_level, z):
         t_i = times[i]
         e_i = events[i]
         log_lik += e_i * (
-            np.log(beta_grid + 1e-15) + (beta_grid - 1) * np.log(t_i + 1e-15) - beta_grid * np.log(eta_grid + 1e-15)
+            np.log(beta_grid + 1e-15)
+            + (beta_grid - 1) * np.log(t_i + 1e-15)
+            - beta_grid * np.log(eta_grid + 1e-15)
         )
         log_lik -= (t_i / (eta_grid + 1e-15)) ** beta_grid
 
@@ -76,12 +78,28 @@ def run_bayes_survival(df, config, ci_level, z):
     beta_mean = float(np.sum(beta_range * beta_marginal))
     eta_mean = float(np.sum(eta_range * eta_marginal))
     beta_ci = (
-        float(beta_range[np.searchsorted(np.cumsum(beta_marginal), (1 - ci_level) / 2)]),
-        float(beta_range[min(n_grid - 1, np.searchsorted(np.cumsum(beta_marginal), (1 + ci_level) / 2))]),
+        float(
+            beta_range[np.searchsorted(np.cumsum(beta_marginal), (1 - ci_level) / 2)]
+        ),
+        float(
+            beta_range[
+                min(
+                    n_grid - 1,
+                    np.searchsorted(np.cumsum(beta_marginal), (1 + ci_level) / 2),
+                )
+            ]
+        ),
     )
     eta_ci = (
         float(eta_range[np.searchsorted(np.cumsum(eta_marginal), (1 - ci_level) / 2)]),
-        float(eta_range[min(n_grid - 1, np.searchsorted(np.cumsum(eta_marginal), (1 + ci_level) / 2))]),
+        float(
+            eta_range[
+                min(
+                    n_grid - 1,
+                    np.searchsorted(np.cumsum(eta_marginal), (1 + ci_level) / 2),
+                )
+            ]
+        ),
     )
 
     # Posterior predictive reliability metrics via MC
@@ -118,15 +136,19 @@ def run_bayes_survival(df, config, ci_level, z):
     summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
     summary += "<<COLOR:title>>BAYESIAN WEIBULL SURVIVAL<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
+    summary += f"<<COLOR:text>>Observations:<</COLOR>> {n} ({int(events.sum())} events, {int(n - events.sum())} censored)\n\n"
     summary += (
-        f"<<COLOR:text>>Observations:<</COLOR>> {n} ({int(events.sum())} events, {int(n - events.sum())} censored)\n\n"
+        "<<COLOR:accent>>\u2500\u2500 Shape (\u03b2) Posterior \u2500\u2500<</COLOR>>\n"
     )
-    summary += "<<COLOR:accent>>\u2500\u2500 Shape (\u03b2) Posterior \u2500\u2500<</COLOR>>\n"
     summary += f"  Mean: {beta_mean:.3f}  [{beta_ci[0]:.3f}, {beta_ci[1]:.3f}]\n"
     summary += f"  Phase: {phase}\n\n"
-    summary += "<<COLOR:accent>>\u2500\u2500 Scale (\u03b7) Posterior \u2500\u2500<</COLOR>>\n"
+    summary += (
+        "<<COLOR:accent>>\u2500\u2500 Scale (\u03b7) Posterior \u2500\u2500<</COLOR>>\n"
+    )
     summary += f"  Mean: {eta_mean:.2f}  [{eta_ci[0]:.2f}, {eta_ci[1]:.2f}]\n\n"
-    summary += "<<COLOR:accent>>\u2500\u2500 Reliability Metrics \u2500\u2500<</COLOR>>\n"
+    summary += (
+        "<<COLOR:accent>>\u2500\u2500 Reliability Metrics \u2500\u2500<</COLOR>>\n"
+    )
     summary += f"  B10 Life: {b10_mean:.2f}  [{b10_ci[0]:.2f}, {b10_ci[1]:.2f}]\n"
     summary += f"  MTTF:    {mttf_mean:.2f}  [{mttf_ci[0]:.2f}, {mttf_ci[1]:.2f}]\n"
 
@@ -240,7 +262,11 @@ def run_bayes_survival(df, config, ci_level, z):
                     "name": "\u03b2=1 (exponential)",
                 },
             ],
-            "layout": {"height": 250, "xaxis": {"title": "Shape \u03b2"}, "yaxis": {"title": "Density"}},
+            "layout": {
+                "height": 250,
+                "xaxis": {"title": "Shape \u03b2"},
+                "yaxis": {"title": "Density"},
+            },
         }
     )
 
@@ -307,13 +333,15 @@ def run_bayes_demo(df, config, ci_level, z):
     summary += f"<<COLOR:highlight>>Failures:<</COLOR>> {n_failures}\n"
     summary += f"<<COLOR:highlight>>Target reliability:<</COLOR>> {target_r}\n\n"
     summary += f"<<COLOR:highlight>>Posterior mean R:<</COLOR>> {post_mean:.4f}\n"
+    summary += f"<<COLOR:highlight>>{int(ci_level * 100)}% Credible interval:<</COLOR>> [{post_ci[0]:.4f}, {post_ci[1]:.4f}]\n"
     summary += (
-        f"<<COLOR:highlight>>{int(ci_level * 100)}% Credible interval:<</COLOR>> [{post_ci[0]:.4f}, {post_ci[1]:.4f}]\n"
+        f"<<COLOR:highlight>>P(R \u2265 {target_r}):<</COLOR>> {prob_exceed:.4f}\n\n"
     )
-    summary += f"<<COLOR:highlight>>P(R \u2265 {target_r}):<</COLOR>> {prob_exceed:.4f}\n\n"
 
     if prob_exceed >= 0.95:
-        summary += "<<COLOR:good>>Strong evidence that reliability meets target.<</COLOR>>\n"
+        summary += (
+            "<<COLOR:good>>Strong evidence that reliability meets target.<</COLOR>>\n"
+        )
     elif prob_exceed >= 0.5:
         summary += "<<COLOR:warning>>Moderate evidence for reliability target \u2014 consider more testing.<</COLOR>>\n"
     else:
@@ -572,7 +600,14 @@ def run_bayes_repairable(df, config, ci_level, z):
     theta_post_mean = float(np.sum(theta_range * theta_marg))
     beta_post_ci = (
         float(beta_range[np.searchsorted(np.cumsum(beta_marg), (1 - ci_level) / 2)]),
-        float(beta_range[min(n_grid - 1, np.searchsorted(np.cumsum(beta_marg), (1 + ci_level) / 2))]),
+        float(
+            beta_range[
+                min(
+                    n_grid - 1,
+                    np.searchsorted(np.cumsum(beta_marg), (1 + ci_level) / 2),
+                )
+            ]
+        ),
     )
     p_deteriorating = float(np.sum(beta_marg[beta_range > 1]))
 
@@ -594,11 +629,22 @@ def run_bayes_repairable(df, config, ci_level, z):
     dt = T * 0.1
     next_samples = ((T + dt) / theta_s) ** beta_s - (T / theta_s) ** beta_s
     next_mean = float(np.mean(next_samples))
-    next_ci = (float(np.percentile(next_samples, 2.5)), float(np.percentile(next_samples, 97.5)))
+    next_ci = (
+        float(np.percentile(next_samples, 2.5)),
+        float(np.percentile(next_samples, 97.5)),
+    )
 
     obs_mcf = np.arange(1, n_events + 1)
-    trend_label = "deteriorating" if p_deteriorating > 0.8 else ("improving" if p_deteriorating < 0.2 else "stable")
-    verdict = "FAIL" if p_deteriorating > 0.8 else ("PASS" if p_deteriorating < 0.2 else "WARNING")
+    trend_label = (
+        "deteriorating"
+        if p_deteriorating > 0.8
+        else ("improving" if p_deteriorating < 0.2 else "stable")
+    )
+    verdict = (
+        "FAIL"
+        if p_deteriorating > 0.8
+        else ("PASS" if p_deteriorating < 0.2 else "WARNING")
+    )
 
     summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
     summary += "<<COLOR:title>>BAYESIAN REPAIRABLE SYSTEM (NHPP)<</COLOR>>\n"
@@ -606,7 +652,9 @@ def run_bayes_repairable(df, config, ci_level, z):
     summary += f"<<COLOR:highlight>>Events:<</COLOR>> {n_events}\n"
     summary += f"<<COLOR:highlight>>Observation window:<</COLOR>> [0, {T:.1f}]\n\n"
     summary += f"<<COLOR:highlight>>\u03b2 posterior mean:<</COLOR>> {beta_post_mean:.3f} (CI: {beta_post_ci[0]:.3f}\u2013{beta_post_ci[1]:.3f})\n"
-    summary += f"<<COLOR:highlight>>\u03b8 posterior mean:<</COLOR>> {theta_post_mean:.1f}\n"
+    summary += (
+        f"<<COLOR:highlight>>\u03b8 posterior mean:<</COLOR>> {theta_post_mean:.1f}\n"
+    )
     color_tag = "bad" if p_deteriorating > 0.8 else "good"
     summary += f"<<COLOR:highlight>>P(deteriorating, \u03b2>1):<</COLOR>> <<COLOR:{color_tag}>>{p_deteriorating:.3f}<</COLOR>>\n"
     summary += f"<<COLOR:highlight>>Trend:<</COLOR>> {trend_label}\n"
@@ -771,8 +819,12 @@ def run_bayes_repairable(df, config, ci_level, z):
                     "error_y": {
                         "type": "data",
                         "symmetric": False,
-                        "array": [h - m for h, m in zip(forecast_hi_bars, forecast_bars)],
-                        "arrayminus": [m - lo for m, lo in zip(forecast_bars, forecast_lo_bars)],
+                        "array": [
+                            h - m for h, m in zip(forecast_hi_bars, forecast_bars)
+                        ],
+                        "arrayminus": [
+                            m - lo for m, lo in zip(forecast_bars, forecast_lo_bars)
+                        ],
                     },
                     "marker": {"color": _rgba(SVEND_COLORS[2], 0.7)},
                     "name": "Expected Failures",
@@ -882,29 +934,45 @@ def run_bayes_rul(df, config, ci_level, z):
         return result
 
     slope_mean = float(np.mean(slopes))
-    slope_var = float(np.var(slopes, ddof=1)) if n_units > 1 else float(slope_mean**2 * 0.1)
+    slope_var = (
+        float(np.var(slopes, ddof=1)) if n_units > 1 else float(slope_mean**2 * 0.1)
+    )
     slope_std = float(np.sqrt(slope_var))
 
     all_times = df_clean[time_col].values.astype(float)
     all_meas = df_clean[meas_col].values.astype(float)
     t_current = float(np.max(all_times))
     last_mask = all_times == all_times.max()
-    y_current = float(np.mean(all_meas[last_mask])) if np.sum(last_mask) > 0 else float(all_meas[-1])
+    y_current = (
+        float(np.mean(all_meas[last_mask]))
+        if np.sum(last_mask) > 0
+        else float(all_meas[-1])
+    )
 
     n_mc = 10000
     rng = np.random.default_rng(42)
     if n_units > 2:
         df_t = n_units - 1
         slope_samples = stats.t.rvs(
-            df_t, loc=slope_mean, scale=slope_std / np.sqrt(n_units), size=n_mc, random_state=42
+            df_t,
+            loc=slope_mean,
+            scale=slope_std / np.sqrt(n_units),
+            size=n_mc,
+            random_state=42,
         )
     else:
-        slope_samples = rng.normal(slope_mean, slope_std if slope_std > 0 else abs(slope_mean) * 0.1, size=n_mc)
+        slope_samples = rng.normal(
+            slope_mean, slope_std if slope_std > 0 else abs(slope_mean) * 0.1, size=n_mc
+        )
 
     if direction == "decreasing":
-        rul_samples = np.where(slope_samples < 0, (threshold - y_current) / slope_samples, np.inf)
+        rul_samples = np.where(
+            slope_samples < 0, (threshold - y_current) / slope_samples, np.inf
+        )
     else:
-        rul_samples = np.where(slope_samples > 0, (threshold - y_current) / slope_samples, np.inf)
+        rul_samples = np.where(
+            slope_samples > 0, (threshold - y_current) / slope_samples, np.inf
+        )
 
     valid_rul = rul_samples[(rul_samples > 0) & np.isfinite(rul_samples)]
     if len(valid_rul) < 100:
@@ -920,7 +988,9 @@ def run_bayes_rul(df, config, ci_level, z):
     else:
         rul_mean, rul_ci = float("inf"), (0.0, float("inf"))
 
-    horizon = float(config.get("horizon", rul_mean * 1.5 if np.isfinite(rul_mean) else t_current))
+    horizon = float(
+        config.get("horizon", rul_mean * 1.5 if np.isfinite(rul_mean) else t_current)
+    )
     p_fail_horizon = float(np.mean(valid_rul <= horizon)) if len(valid_rul) > 0 else 0.0
     verdict = "WARNING" if p_fail_horizon > 0.5 else "PASS"
 
@@ -944,7 +1014,9 @@ def run_bayes_rul(df, config, ci_level, z):
         "p_fail_horizon": p_fail_horizon,
         "n_units": n_units,
     }
-    result["guide_observation"] = f"Bayes RUL: mean={rul_mean:.1f}, P(fail before {horizon:.0f})={p_fail_horizon:.3f}"
+    result["guide_observation"] = (
+        f"Bayes RUL: mean={rul_mean:.1f}, P(fail before {horizon:.0f})={p_fail_horizon:.3f}"
+    )
     result["narrative"] = _narrative(
         verdict,
         f"Degradation rate: {slope_mean:.4f} \u00b1 {slope_std:.4f}/time ({n_units} units). "
@@ -969,7 +1041,10 @@ def run_bayes_rul(df, config, ci_level, z):
                 "x": t_u.tolist(),
                 "y": y_u.tolist(),
                 "mode": "lines+markers",
-                "line": {"color": SVEND_COLORS[u_idx % len(SVEND_COLORS)], "width": 1.5},
+                "line": {
+                    "color": SVEND_COLORS[u_idx % len(SVEND_COLORS)],
+                    "width": 1.5,
+                },
                 "marker": {"size": 3},
                 "name": str(u),
                 "showlegend": n_units <= 10,
@@ -1014,9 +1089,13 @@ def run_bayes_rul(df, config, ci_level, z):
         else np.linspace(slope_mean * 0.5, slope_mean * 1.5, 200)
     )
     if n_units > 2:
-        rate_pdf = stats.t.pdf(rate_x, n_units - 1, loc=slope_mean, scale=slope_std / np.sqrt(n_units))
+        rate_pdf = stats.t.pdf(
+            rate_x, n_units - 1, loc=slope_mean, scale=slope_std / np.sqrt(n_units)
+        )
     else:
-        rate_pdf = stats.norm.pdf(rate_x, slope_mean, slope_std if slope_std > 0 else abs(slope_mean) * 0.1)
+        rate_pdf = stats.norm.pdf(
+            rate_x, slope_mean, slope_std if slope_std > 0 else abs(slope_mean) * 0.1
+        )
     result["plots"].append(
         {
             "title": "Posterior on Degradation Rate",
@@ -1031,7 +1110,11 @@ def run_bayes_rul(df, config, ci_level, z):
                     "name": "Rate Posterior",
                 }
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Degradation Rate"}, "yaxis": {"title": "Density"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Degradation Rate"},
+                "yaxis": {"title": "Density"},
+            },
         }
     )
 
@@ -1063,7 +1146,11 @@ def run_bayes_rul(df, config, ci_level, z):
                             "y0": 0,
                             "y1": 1,
                             "yref": "paper",
-                            "line": {"color": COLOR_WARNING, "dash": "dash", "width": 2},
+                            "line": {
+                                "color": COLOR_WARNING,
+                                "dash": "dash",
+                                "width": 2,
+                            },
                         }
                     ],
                 },
@@ -1138,7 +1225,9 @@ def run_bayes_alt(df, config, ci_level, z):
         try:
             _, _, scale = stats.weibull_min.fit(t_s, floc=0)
             log_lives.append(np.log(scale))
-            stress_x.append(1.0 / s if (model_type == "arrhenius" and s > 0) else np.log(s + 1e-15))
+            stress_x.append(
+                1.0 / s if (model_type == "arrhenius" and s > 0) else np.log(s + 1e-15)
+            )
             weights.append(len(t_s))
         except Exception:
             continue
@@ -1168,11 +1257,15 @@ def run_bayes_alt(df, config, ci_level, z):
     else:
         sigma2_samples = np.full(n_mc, s2)
 
-    a_samples = rng.normal(a, np.sqrt(sigma2_samples * (1 / n_pts + x_mean_s**2 / max(Sxx, 1e-15))))
+    a_samples = rng.normal(
+        a, np.sqrt(sigma2_samples * (1 / n_pts + x_mean_s**2 / max(Sxx, 1e-15)))
+    )
     b_samples = rng.normal(b, np.sqrt(sigma2_samples / max(Sxx, 1e-15)))
 
     life_use_samples = np.exp(a_samples + b_samples * x_use)
-    life_use_samples = life_use_samples[np.isfinite(life_use_samples) & (life_use_samples > 0)]
+    life_use_samples = life_use_samples[
+        np.isfinite(life_use_samples) & (life_use_samples > 0)
+    ]
 
     if len(life_use_samples) > 0:
         life_mean = float(np.mean(life_use_samples))
@@ -1186,7 +1279,11 @@ def run_bayes_alt(df, config, ci_level, z):
         life_ci = (life_use * 0.5, life_use * 2.0)
         b10_use = life_use * 0.5
 
-    af = float(life_use / float(np.exp(a + b * stress_x[-1]))) if len(stress_x) > 0 else 1.0
+    af = (
+        float(life_use / float(np.exp(a + b * stress_x[-1])))
+        if len(stress_x) > 0
+        else 1.0
+    )
     verdict = "PASS"
 
     summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
@@ -1227,13 +1324,19 @@ def run_bayes_alt(df, config, ci_level, z):
     )
 
     # Plot 1: Life vs Stress with credible band
-    x_plot = np.linspace(min(min(stress_x), x_use) * 0.9, max(max(stress_x), x_use) * 1.1, 100)
+    x_plot = np.linspace(
+        min(min(stress_x), x_use) * 0.9, max(max(stress_x), x_use) * 1.1, 100
+    )
     log_life_fit = a + b * x_plot
     log_life_hi = np.percentile(
-        a_samples[:, None] + b_samples[:, None] * x_plot[None, :], (1 + ci_level) / 2 * 100, axis=0
+        a_samples[:, None] + b_samples[:, None] * x_plot[None, :],
+        (1 + ci_level) / 2 * 100,
+        axis=0,
     )
     log_life_lo = np.percentile(
-        a_samples[:, None] + b_samples[:, None] * x_plot[None, :], (1 - ci_level) / 2 * 100, axis=0
+        a_samples[:, None] + b_samples[:, None] * x_plot[None, :],
+        (1 - ci_level) / 2 * 100,
+        axis=0,
     )
 
     if model_type == "arrhenius":
@@ -1317,7 +1420,11 @@ def run_bayes_alt(df, config, ci_level, z):
         shape_overall = 1.5
     t_surv = np.linspace(0, life_ci[1] * 1.5, 200)
     surv_mean = np.exp(-((t_surv / life_mean) ** shape_overall))
-    surv_lo = np.exp(-((t_surv / life_ci[0]) ** shape_overall)) if life_ci[0] > 0 else np.ones_like(t_surv)
+    surv_lo = (
+        np.exp(-((t_surv / life_ci[0]) ** shape_overall))
+        if life_ci[0] > 0
+        else np.ones_like(t_surv)
+    )
     surv_hi = np.exp(-((t_surv / life_ci[1]) ** shape_overall))
     result["plots"].append(
         {
@@ -1348,7 +1455,11 @@ def run_bayes_alt(df, config, ci_level, z):
                     "name": "S(t) at Use",
                 },
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Time"}, "yaxis": {"title": "Survival Probability"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Time"},
+                "yaxis": {"title": "Survival Probability"},
+            },
         }
     )
 
@@ -1439,7 +1550,9 @@ def run_bayes_comprisk(df, config, ci_level, z):
     modes = sorted([m for m in np.unique(events_cr) if m > 0])
     n_modes = len(modes)
     if n_modes < 2:
-        result["summary"] = "Error: Need at least 2 failure modes (event: 0=censored, 1,2,...=modes)."
+        result["summary"] = (
+            "Error: Need at least 2 failure modes (event: 0=censored, 1,2,...=modes)."
+        )
         return result
 
     mode_counts = np.array([np.sum(events_cr == m) for m in modes], dtype=float)
@@ -1481,7 +1594,11 @@ def run_bayes_comprisk(df, config, ci_level, z):
         bg, eg = np.meshgrid(b_range, e_range)
         ll = np.zeros_like(bg)
         for t_i in t_m:
-            ll += np.log(bg + 1e-15) + (bg - 1) * np.log(t_i + 1e-15) - bg * np.log(eg + 1e-15)
+            ll += (
+                np.log(bg + 1e-15)
+                + (bg - 1) * np.log(t_i + 1e-15)
+                - bg * np.log(eg + 1e-15)
+            )
             ll -= (t_i / (eg + 1e-15)) ** bg
         lp = ll - ll.max()
         post = np.exp(lp)
@@ -1496,13 +1613,32 @@ def run_bayes_comprisk(df, config, ci_level, z):
         e_mean = float(np.sum(e_range * e_marg))
         b_ci_m = (
             float(b_range[np.searchsorted(np.cumsum(b_marg), (1 - ci_level) / 2)]),
-            float(b_range[min(n_grid - 1, np.searchsorted(np.cumsum(b_marg), (1 + ci_level) / 2))]),
+            float(
+                b_range[
+                    min(
+                        n_grid - 1,
+                        np.searchsorted(np.cumsum(b_marg), (1 + ci_level) / 2),
+                    )
+                ]
+            ),
         )
         e_ci_m = (
             float(e_range[np.searchsorted(np.cumsum(e_marg), (1 - ci_level) / 2)]),
-            float(e_range[min(n_grid - 1, np.searchsorted(np.cumsum(e_marg), (1 + ci_level) / 2))]),
+            float(
+                e_range[
+                    min(
+                        n_grid - 1,
+                        np.searchsorted(np.cumsum(e_marg), (1 + ci_level) / 2),
+                    )
+                ]
+            ),
         )
-        mode_weibull[m] = {"shape": b_mean, "scale": e_mean, "shape_ci": b_ci_m, "scale_ci": e_ci_m}
+        mode_weibull[m] = {
+            "shape": b_mean,
+            "scale": e_mean,
+            "shape_ci": b_ci_m,
+            "scale_ci": e_ci_m,
+        }
 
     # CIF via MC
     t_eval = np.linspace(0, float(np.max(times_cr)) * 1.2, 150)
@@ -1514,7 +1650,9 @@ def run_bayes_comprisk(df, config, ci_level, z):
         h_per_mode = {}
         for j, m in enumerate(modes):
             w = mode_weibull[m]
-            h_j = (w["shape"] / w["scale"]) * ((t_eval + 1e-15) / w["scale"]) ** (w["shape"] - 1)
+            h_j = (w["shape"] / w["scale"]) * ((t_eval + 1e-15) / w["scale"]) ** (
+                w["shape"] - 1
+            )
             h_per_mode[m] = h_j
             h_total += p_i[j] * h_j
 
@@ -1543,16 +1681,23 @@ def run_bayes_comprisk(df, config, ci_level, z):
     result["statistics"] = {
         "n_modes": n_modes,
         "dominant_mode": int(dominant_mode),
-        "mode_probabilities": {str(m): float(mode_probs[j]) for j, m in enumerate(modes)},
+        "mode_probabilities": {
+            str(m): float(mode_probs[j]) for j, m in enumerate(modes)
+        },
         "mode_weibull": {str(m): mode_weibull[m] for m in modes},
     }
-    result["guide_observation"] = f"Bayes competing risks: {n_modes} modes, dominant=Mode {dominant_mode}"
+    result["guide_observation"] = (
+        f"Bayes competing risks: {n_modes} modes, dominant=Mode {dominant_mode}"
+    )
     result["narrative"] = _narrative(
         verdict,
         f"{n_modes} competing failure modes identified. "
         f"Dominant: Mode {dominant_mode} (P = {mode_probs[modes.index(dominant_mode)]:.3f}). "
         + "; ".join(
-            [f"Mode {m}: \u03b2={mode_weibull[m]['shape']:.2f}, \u03b7={mode_weibull[m]['scale']:.1f}" for m in modes]
+            [
+                f"Mode {m}: \u03b2={mode_weibull[m]['shape']:.2f}, \u03b7={mode_weibull[m]['scale']:.1f}"
+                for m in modes
+            ]
         ),
         [
             "Focus corrective action on dominant failure mode",
@@ -1601,7 +1746,11 @@ def run_bayes_comprisk(df, config, ci_level, z):
         {
             "title": "Cumulative Incidence Functions (CIF) with Credible Bands",
             "data": cif_traces,
-            "layout": {"height": 400, "xaxis": {"title": "Time"}, "yaxis": {"title": "Cumulative Incidence"}},
+            "layout": {
+                "height": 400,
+                "xaxis": {"title": "Time"},
+                "yaxis": {"title": "Cumulative Incidence"},
+            },
         }
     )
 
@@ -1620,10 +1769,18 @@ def run_bayes_comprisk(df, config, ci_level, z):
                         "array": [ci[1] - p for p, ci in zip(mode_probs, mode_ci)],
                         "arrayminus": [p - ci[0] for p, ci in zip(mode_probs, mode_ci)],
                     },
-                    "marker": {"color": [SVEND_COLORS[j % len(SVEND_COLORS)] for j in range(n_modes)]},
+                    "marker": {
+                        "color": [
+                            SVEND_COLORS[j % len(SVEND_COLORS)] for j in range(n_modes)
+                        ]
+                    },
                 }
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Failure Mode"}, "yaxis": {"title": "Probability"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Failure Mode"},
+                "yaxis": {"title": "Probability"},
+            },
         }
     )
 

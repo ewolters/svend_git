@@ -161,16 +161,29 @@ def _run_abc(df, config):
     # ── Compute annual value ──
     if value_col and value_col in df.columns:
         work["_value"] = work[value_col].astype(float)
-    elif unit_cost_col and demand_col and unit_cost_col in df.columns and demand_col in df.columns:
-        work["_value"] = work[unit_cost_col].astype(float) * work[demand_col].astype(float)
+    elif (
+        unit_cost_col
+        and demand_col
+        and unit_cost_col in df.columns
+        and demand_col in df.columns
+    ):
+        work["_value"] = work[unit_cost_col].astype(float) * work[demand_col].astype(
+            float
+        )
     else:
         # Try to auto-detect: look for columns with "value", "revenue", "cost"
-        candidates = [c for c in df.columns if any(k in c.lower() for k in ("value", "revenue", "sales", "spend"))]
+        candidates = [
+            c
+            for c in df.columns
+            if any(k in c.lower() for k in ("value", "revenue", "sales", "spend"))
+        ]
         if candidates:
             work["_value"] = work[candidates[0]].astype(float)
             value_col = candidates[0]
         else:
-            result["summary"] = "Error: Provide a value column, or unit_cost + demand columns for ABC classification."
+            result["summary"] = (
+                "Error: Provide a value column, or unit_cost + demand columns for ABC classification."
+            )
             return result
 
     total_value = work["_value"].sum()
@@ -226,8 +239,12 @@ def _run_abc(df, config):
         "total_items": n_total,
         "total_value": round(total_value, 2),
         "abc_counts": {k: int(v) for k, v in abc_counts.items()},
-        "abc_pct_items": {k: round(int(v) / n_total * 100, 1) for k, v in abc_counts.items()},
-        "abc_pct_value": {k: round(v / total_value * 100, 1) for k, v in abc_value.items()},
+        "abc_pct_items": {
+            k: round(int(v) / n_total * 100, 1) for k, v in abc_counts.items()
+        },
+        "abc_pct_value": {
+            k: round(v / total_value * 100, 1) for k, v in abc_value.items()
+        },
         "a_threshold": a_thresh,
         "b_threshold": b_thresh,
     }
@@ -237,7 +254,9 @@ def _run_abc(df, config):
         stats["xyz_counts"] = {k: int(v) for k, v in xyz_counts.items()}
         matrix = work.groupby("abc_xyz").size().to_dict()
         stats["abc_xyz_matrix"] = {k: int(v) for k, v in matrix.items()}
-        stats["mean_cov"] = round(float(work["_cov"].replace([np.inf], np.nan).mean()), 3)
+        stats["mean_cov"] = round(
+            float(work["_cov"].replace([np.inf], np.nan).mean()), 3
+        )
 
     result["statistics"] = stats
 
@@ -245,7 +264,10 @@ def _run_abc(df, config):
     items = work[item_col].astype(str).tolist()
     values = work["_value"].tolist()
     cum_pct = work["_cum_pct"].tolist()
-    colors = [COLOR_GOOD if c == "A" else COLOR_WARNING if c == "B" else COLOR_BAD for c in work["abc_class"]]
+    colors = [
+        COLOR_GOOD if c == "A" else COLOR_WARNING if c == "B" else COLOR_BAD
+        for c in work["abc_class"]
+    ]
 
     pareto_bar = {
         "type": "bar",
@@ -288,7 +310,12 @@ def _run_abc(df, config):
         },
     ]
     pareto_layout = _layout("ABC Pareto Analysis", "Item", "Value ($)")
-    pareto_layout["yaxis2"] = {"title": "Cumulative %", "overlaying": "y", "side": "right", "range": [0, 105]}
+    pareto_layout["yaxis2"] = {
+        "title": "Cumulative %",
+        "overlaying": "y",
+        "side": "right",
+        "range": [0, 105],
+    }
     pareto_layout["shapes"] = shapes
     pareto_layout["showlegend"] = True
     result["plots"].append({"data": [pareto_bar, pareto_line], "layout": pareto_layout})
@@ -346,7 +373,9 @@ def _run_abc(df, config):
             "showscale": True,
             "colorbar": {"title": "Count"},
         }
-        heat_layout = _layout("ABC-XYZ Matrix", "Demand Variability (XYZ)", "Value Classification (ABC)")
+        heat_layout = _layout(
+            "ABC-XYZ Matrix", "Demand Variability (XYZ)", "Value Classification (ABC)"
+        )
         result["plots"].append({"data": [heatmap], "layout": heat_layout})
 
     # ── Summary ──
@@ -366,9 +395,15 @@ def _run_abc(df, config):
         ax = stats["abc_xyz_matrix"].get("AX", 0)
         az = stats["abc_xyz_matrix"].get("AZ", 0)
         lines.append("")
-        lines.append(f"<<COLOR:accent>>XYZ overlay: mean CoV = {stats['mean_cov']:.3f}<</COLOR>>")
-        lines.append(f"  AX (high value, stable demand): {ax} items — ideal for JIT/kanban")
-        lines.append(f"  AZ (high value, volatile demand): {az} items — need safety stock review")
+        lines.append(
+            f"<<COLOR:accent>>XYZ overlay: mean CoV = {stats['mean_cov']:.3f}<</COLOR>>"
+        )
+        lines.append(
+            f"  AX (high value, stable demand): {ax} items — ideal for JIT/kanban"
+        )
+        lines.append(
+            f"  AZ (high value, volatile demand): {az} items — need safety stock review"
+        )
 
     result["summary"] = "\n".join(lines)
     result["guide_observation"] = (
@@ -397,9 +432,11 @@ def _run_abc(df, config):
         next_steps=[
             "Run Safety Stock analysis on Class A items with appropriate service levels",
             "Run EOQ analysis to optimize order quantities by class",
-            "Review AZ items for demand sensing or flexible supply contracts"
-            if has_xyz
-            else "Add period demand columns for XYZ classification",
+            (
+                "Review AZ items for demand sensing or flexible supply contracts"
+                if has_xyz
+                else "Add period demand columns for XYZ classification"
+            ),
             "Consider kanban for AX items with stable demand patterns",
         ],
     )
@@ -538,8 +575,12 @@ def _run_eoq(df, config):
     result["plots"].append(
         {
             "data": [
-                _scatter_trace(q_range, oc_curve, "Ordering Cost", COLOR_WARNING, dash="dash"),
-                _scatter_trace(q_range, hc_curve, "Holding Cost", COLOR_INFO, dash="dash"),
+                _scatter_trace(
+                    q_range, oc_curve, "Ordering Cost", COLOR_WARNING, dash="dash"
+                ),
+                _scatter_trace(
+                    q_range, hc_curve, "Holding Cost", COLOR_INFO, dash="dash"
+                ),
                 _scatter_trace(q_range, tc_curve, "Total Cost", COLOR_GOOD),
                 {
                     "type": "scatter",
@@ -552,7 +593,9 @@ def _run_eoq(df, config):
                     "textposition": "top center",
                 },
             ],
-            "layout": _layout("EOQ Cost Curve", "Order Quantity (Q)", "Annual Cost ($)"),
+            "layout": _layout(
+                "EOQ Cost Curve", "Order Quantity (Q)", "Annual Cost ($)"
+            ),
         }
     )
 
@@ -612,9 +655,9 @@ def _run_eoq(df, config):
 
     if discount_analysis:
         best = min(discount_analysis, key=lambda d: d["total_cost"])
-        result["summary"] += (
-            f"\n\n<<COLOR:warn>>Quantity discount: best total cost at Q = {best['order_qty']:,.0f} (${best['total_cost']:,.2f} incl. purchase)<</COLOR>>"
-        )
+        result[
+            "summary"
+        ] += f"\n\n<<COLOR:warn>>Quantity discount: best total cost at Q = {best['order_qty']:,.0f} (${best['total_cost']:,.2f} incl. purchase)<</COLOR>>"
 
     result["guide_observation"] = (
         f"EOQ = {eoq:,.0f} units. At {orders_per_year:.1f} orders/year, "
@@ -647,7 +690,14 @@ def _run_eoq(df, config):
                 "max": D * 5,
                 "step": max(1, D // 100),
             },
-            {"name": "order_cost", "label": "Order Cost ($)", "default": S, "min": 1, "max": S * 10, "step": 1},
+            {
+                "name": "order_cost",
+                "label": "Order Cost ($)",
+                "default": S,
+                "min": 1,
+                "max": S * 10,
+                "step": 1,
+            },
             {
                 "name": "holding_pct",
                 "label": "Holding Cost (%)",
@@ -743,11 +793,21 @@ def _run_safety_stock(df, config):
     result["statistics"] = stats
 
     # ── Demand distribution plot with ROP ──
-    x_range = np.linspace(max(0, avg_demand_lt - 4 * sigma_dlt), avg_demand_lt + 4 * sigma_dlt, 300)
-    pdf_vals = norm.pdf(x_range, avg_demand_lt, sigma_dlt) if sigma_dlt > 0 else np.zeros_like(x_range)
+    x_range = np.linspace(
+        max(0, avg_demand_lt - 4 * sigma_dlt), avg_demand_lt + 4 * sigma_dlt, 300
+    )
+    pdf_vals = (
+        norm.pdf(x_range, avg_demand_lt, sigma_dlt)
+        if sigma_dlt > 0
+        else np.zeros_like(x_range)
+    )
 
     fill_x = x_range[x_range <= rop]
-    fill_y = norm.pdf(fill_x, avg_demand_lt, sigma_dlt) if sigma_dlt > 0 else np.zeros_like(fill_x)
+    fill_y = (
+        norm.pdf(fill_x, avg_demand_lt, sigma_dlt)
+        if sigma_dlt > 0
+        else np.zeros_like(fill_x)
+    )
 
     result["plots"].append(
         {
@@ -765,7 +825,9 @@ def _run_safety_stock(df, config):
                 },
             ],
             "layout": {
-                **_layout("Demand During Lead Time", "Demand (units)", "Probability Density"),
+                **_layout(
+                    "Demand During Lead Time", "Demand (units)", "Probability Density"
+                ),
                 "shapes": [
                     {
                         "type": "line",
@@ -818,7 +880,11 @@ def _run_safety_stock(df, config):
                     "name": f"Current ({sl * 100:.0f}%)",
                 },
             ],
-            "layout": _layout("Service Level vs Safety Stock", "Service Level (%)", "Safety Stock (units)"),
+            "layout": _layout(
+                "Service Level vs Safety Stock",
+                "Service Level (%)",
+                "Safety Stock (units)",
+            ),
         }
     )
 
@@ -854,9 +920,11 @@ def _run_safety_stock(df, config):
             "Run ROP Simulation to validate stockout probability under real demand patterns",
             "Run EOQ to pair optimal order quantity with this reorder point",
             "Run Service Level analysis to explore cost-service trade-offs",
-            f"Consider reducing lead time variability (current σ = {lt_std:.2f}) for biggest SS reduction"
-            if lt_std > 0
-            else "Consider adding lead time variability data for more realistic SS",
+            (
+                f"Consider reducing lead time variability (current σ = {lt_std:.2f}) for biggest SS reduction"
+                if lt_std > 0
+                else "Consider adding lead time variability data for more realistic SS"
+            ),
         ],
     )
 
@@ -914,12 +982,37 @@ def _run_inventory_turns(df, config):
 
     # Benchmarks by industry
     benchmarks = {
-        "manufacturing": {"typical": 6, "good": 10, "world_class": 20, "label": "Manufacturing"},
+        "manufacturing": {
+            "typical": 6,
+            "good": 10,
+            "world_class": 20,
+            "label": "Manufacturing",
+        },
         "retail": {"typical": 8, "good": 14, "world_class": 25, "label": "Retail"},
-        "food": {"typical": 12, "good": 20, "world_class": 40, "label": "Food & Beverage"},
-        "automotive": {"typical": 8, "good": 15, "world_class": 30, "label": "Automotive"},
-        "pharma": {"typical": 3, "good": 6, "world_class": 12, "label": "Pharmaceutical"},
-        "electronics": {"typical": 6, "good": 12, "world_class": 25, "label": "Electronics"},
+        "food": {
+            "typical": 12,
+            "good": 20,
+            "world_class": 40,
+            "label": "Food & Beverage",
+        },
+        "automotive": {
+            "typical": 8,
+            "good": 15,
+            "world_class": 30,
+            "label": "Automotive",
+        },
+        "pharma": {
+            "typical": 3,
+            "good": 6,
+            "world_class": 12,
+            "label": "Pharmaceutical",
+        },
+        "electronics": {
+            "typical": 6,
+            "good": 12,
+            "world_class": 25,
+            "label": "Electronics",
+        },
     }
 
     cogs_col = config.get("cogs_col", "")
@@ -942,7 +1035,9 @@ def _run_inventory_turns(df, config):
         avg_inv = float(inv_series.mean())
 
         # Per-period turns
-        period_turns = (cogs_series * periods_per_year / inv_series).replace([np.inf, -np.inf], np.nan)
+        period_turns = (cogs_series * periods_per_year / inv_series).replace(
+            [np.inf, -np.inf], np.nan
+        )
         turns_trend = period_turns.dropna().tolist()
     else:
         annual_cogs = _float(config, "cogs")
@@ -1001,12 +1096,27 @@ def _run_inventory_turns(df, config):
                         "axis": {"range": [0, max_gauge]},
                         "bar": {"color": COLOR_GOOD},
                         "steps": [
-                            {"range": [0, bench["typical"]], "color": "rgba(208, 96, 96, 0.3)"},
-                            {"range": [bench["typical"], bench["good"]], "color": "rgba(232, 149, 71, 0.3)"},
-                            {"range": [bench["good"], bench["world_class"]], "color": "rgba(74, 159, 110, 0.3)"},
-                            {"range": [bench["world_class"], max_gauge], "color": "rgba(74, 159, 175, 0.3)"},
+                            {
+                                "range": [0, bench["typical"]],
+                                "color": "rgba(208, 96, 96, 0.3)",
+                            },
+                            {
+                                "range": [bench["typical"], bench["good"]],
+                                "color": "rgba(232, 149, 71, 0.3)",
+                            },
+                            {
+                                "range": [bench["good"], bench["world_class"]],
+                                "color": "rgba(74, 159, 110, 0.3)",
+                            },
+                            {
+                                "range": [bench["world_class"], max_gauge],
+                                "color": "rgba(74, 159, 175, 0.3)",
+                            },
                         ],
-                        "threshold": {"line": {"color": COLOR_REFERENCE, "width": 3}, "value": bench["good"]},
+                        "threshold": {
+                            "line": {"color": COLOR_REFERENCE, "width": 3},
+                            "value": bench["good"],
+                        },
                     },
                 }
             ],
@@ -1019,9 +1129,18 @@ def _run_inventory_turns(df, config):
         result["plots"].append(
             {
                 "data": [
-                    _scatter_trace(list(range(1, len(turns_trend) + 1)), turns_trend, "Period Turns", COLOR_INFO),
                     _scatter_trace(
-                        [1, len(turns_trend)], [bench["good"]] * 2, f"Good ({bench['good']})", COLOR_GOOD, dash="dash"
+                        list(range(1, len(turns_trend) + 1)),
+                        turns_trend,
+                        "Period Turns",
+                        COLOR_INFO,
+                    ),
+                    _scatter_trace(
+                        [1, len(turns_trend)],
+                        [bench["good"]] * 2,
+                        f"Good ({bench['good']})",
+                        COLOR_GOOD,
+                        dash="dash",
                     ),
                     _scatter_trace(
                         [1, len(turns_trend)],
@@ -1171,8 +1290,18 @@ def _run_service_level(df, config):
     # ── Safety stock cost curve ──
     traces = [_scatter_trace(sl_range * 100, ss_cost, "SS Holding Cost", COLOR_INFO)]
     if annual_stockout_cost is not None:
-        traces.append(_scatter_trace(sl_range * 100, annual_stockout_cost, "Stockout Cost", COLOR_BAD, dash="dash"))
-        traces.append(_scatter_trace(sl_range * 100, total_cost, "Total Cost", COLOR_GOOD))
+        traces.append(
+            _scatter_trace(
+                sl_range * 100,
+                annual_stockout_cost,
+                "Stockout Cost",
+                COLOR_BAD,
+                dash="dash",
+            )
+        )
+        traces.append(
+            _scatter_trace(sl_range * 100, total_cost, "Total Cost", COLOR_GOOD)
+        )
         if optimal_sl is not None:
             traces.append(
                 {
@@ -1190,7 +1319,9 @@ def _run_service_level(df, config):
     result["plots"].append(
         {
             "data": traces,
-            "layout": _layout("Service Level vs Cost", "Cycle Service Level (%)", "Annual Cost ($)"),
+            "layout": _layout(
+                "Service Level vs Cost", "Cycle Service Level (%)", "Annual Cost ($)"
+            ),
         }
     )
 
@@ -1198,10 +1329,18 @@ def _run_service_level(df, config):
     result["plots"].append(
         {
             "data": [
-                _scatter_trace(sl_range * 100, fill_rate * 100, "Fill Rate", COLOR_GOOD),
-                _scatter_trace([80, 100], [80, 100], "1:1 Line", COLOR_NEUTRAL, dash="dot"),
+                _scatter_trace(
+                    sl_range * 100, fill_rate * 100, "Fill Rate", COLOR_GOOD
+                ),
+                _scatter_trace(
+                    [80, 100], [80, 100], "1:1 Line", COLOR_NEUTRAL, dash="dot"
+                ),
             ],
-            "layout": _layout("Fill Rate vs Cycle Service Level", "Cycle Service Level (%)", "Fill Rate (%)"),
+            "layout": _layout(
+                "Fill Rate vs Cycle Service Level",
+                "Cycle Service Level (%)",
+                "Fill Rate (%)",
+            ),
         }
     )
 
@@ -1218,13 +1357,14 @@ def _run_service_level(df, config):
         ]
     )
     if optimal_sl is not None:
-        result["summary"] += (
-            f"\n\n<<COLOR:accent>>Cost-optimal service level: {optimal_sl:.1f}% (total cost ${optimal_cost:,.2f}/yr)<</COLOR>>"
-        )
+        result[
+            "summary"
+        ] += f"\n\n<<COLOR:accent>>Cost-optimal service level: {optimal_sl:.1f}% (total cost ${optimal_cost:,.2f}/yr)<</COLOR>>"
 
     result["guide_observation"] = (
         f"Service level trade-off: 95% SL requires {ss95['ss']:,.0f} units SS costing ${ss95['cost']:,.2f}/yr. "
-        f"Going to 99% doubles the holding cost. " + (f"Cost-optimal SL is {optimal_sl:.1f}%. " if optimal_sl else "")
+        f"Going to 99% doubles the holding cost. "
+        + (f"Cost-optimal SL is {optimal_sl:.1f}%. " if optimal_sl else "")
     )
     result["narrative"] = _narrative(
         verdict="Marginal cost of safety stock increases exponentially above 95%",
@@ -1278,7 +1418,9 @@ def _run_demand_profile(df, config):
     # ADI (Average Demand Interval) for intermittent demand
     nonzero_idx = demand[demand > 0].index.tolist()
     if len(nonzero_idx) > 1:
-        intervals = [nonzero_idx[i + 1] - nonzero_idx[i] for i in range(len(nonzero_idx) - 1)]
+        intervals = [
+            nonzero_idx[i + 1] - nonzero_idx[i] for i in range(len(nonzero_idx) - 1)
+        ]
         adi = float(np.mean(intervals))
     else:
         adi = float(n) if zeros > 0 else 1.0
@@ -1308,7 +1450,14 @@ def _run_demand_profile(df, config):
         trend_dir = "increasing" if slope > 0 else "decreasing"
         trend_pct = abs(slope * n / mean_d) * 100 if mean_d > 0 else 0
     else:
-        slope, p_value, has_trend, trend_dir, trend_pct, r_value = 0, 1, False, "flat", 0, 0
+        slope, p_value, has_trend, trend_dir, trend_pct, r_value = (
+            0,
+            1,
+            False,
+            "flat",
+            0,
+            0,
+        )
 
     stats = {
         "n_periods": n,
@@ -1332,10 +1481,24 @@ def _run_demand_profile(df, config):
     traces = [_bar_trace(periods, demand.tolist(), "Demand", COLOR_INFO)]
     if has_trend:
         trend_line = intercept + slope * x
-        traces.append(_scatter_trace(periods, trend_line.tolist(), f"Trend ({trend_dir})", COLOR_WARNING, dash="dash"))
-    traces.append(_scatter_trace(periods, [mean_d] * n, f"Mean ({mean_d:.1f})", COLOR_NEUTRAL, dash="dot"))
+        traces.append(
+            _scatter_trace(
+                periods,
+                trend_line.tolist(),
+                f"Trend ({trend_dir})",
+                COLOR_WARNING,
+                dash="dash",
+            )
+        )
+    traces.append(
+        _scatter_trace(
+            periods, [mean_d] * n, f"Mean ({mean_d:.1f})", COLOR_NEUTRAL, dash="dot"
+        )
+    )
 
-    result["plots"].append({"data": traces, "layout": _layout("Demand History", "Period", "Demand")})
+    result["plots"].append(
+        {"data": traces, "layout": _layout("Demand History", "Period", "Demand")}
+    )
 
     # ── Syntetos-Boylan quadrant ──
     result["plots"].append(
@@ -1352,16 +1515,48 @@ def _run_demand_profile(df, config):
                     "name": "This item",
                 },
                 # Quadrant boundaries
-                _scatter_trace([1.32, 1.32], [0, 2], "ADI = 1.32", COLOR_NEUTRAL, dash="dash"),
-                _scatter_trace([0, 3], [0.49, 0.49], "CV² = 0.49", COLOR_NEUTRAL, dash="dash"),
+                _scatter_trace(
+                    [1.32, 1.32], [0, 2], "ADI = 1.32", COLOR_NEUTRAL, dash="dash"
+                ),
+                _scatter_trace(
+                    [0, 3], [0.49, 0.49], "CV² = 0.49", COLOR_NEUTRAL, dash="dash"
+                ),
             ],
             "layout": {
-                **_layout("Syntetos-Boylan Classification", "ADI (Avg Demand Interval)", "CV² (Demand Variability)"),
+                **_layout(
+                    "Syntetos-Boylan Classification",
+                    "ADI (Avg Demand Interval)",
+                    "CV² (Demand Variability)",
+                ),
                 "annotations": [
-                    {"x": 0.66, "y": 0.24, "text": "Smooth", "showarrow": False, "font": {"color": COLOR_GOOD}},
-                    {"x": 0.66, "y": 1.2, "text": "Erratic", "showarrow": False, "font": {"color": COLOR_WARNING}},
-                    {"x": 2.0, "y": 0.24, "text": "Intermittent", "showarrow": False, "font": {"color": COLOR_INFO}},
-                    {"x": 2.0, "y": 1.2, "text": "Lumpy", "showarrow": False, "font": {"color": COLOR_BAD}},
+                    {
+                        "x": 0.66,
+                        "y": 0.24,
+                        "text": "Smooth",
+                        "showarrow": False,
+                        "font": {"color": COLOR_GOOD},
+                    },
+                    {
+                        "x": 0.66,
+                        "y": 1.2,
+                        "text": "Erratic",
+                        "showarrow": False,
+                        "font": {"color": COLOR_WARNING},
+                    },
+                    {
+                        "x": 2.0,
+                        "y": 0.24,
+                        "text": "Intermittent",
+                        "showarrow": False,
+                        "font": {"color": COLOR_INFO},
+                    },
+                    {
+                        "x": 2.0,
+                        "y": 1.2,
+                        "text": "Lumpy",
+                        "showarrow": False,
+                        "font": {"color": COLOR_BAD},
+                    },
                 ],
             },
         }
@@ -1400,9 +1595,11 @@ def _run_demand_profile(df, config):
             f"Apply {method} for this demand pattern",
             "Run Safety Stock analysis using appropriate demand distribution",
             "Run ABC/XYZ analysis across all SKUs for portfolio-level classification",
-            "Consider demand sensing for erratic/lumpy items"
-            if pattern in ("Erratic", "Lumpy")
-            else "Monitor for trend emergence with control charts",
+            (
+                "Consider demand sensing for erratic/lumpy items"
+                if pattern in ("Erratic", "Lumpy")
+                else "Monitor for trend emergence with control charts"
+            ),
         ],
     )
 
@@ -1507,9 +1704,9 @@ def _run_kanban_sizing(df, config):
         ]
     )
     if stat_cards is not None:
-        result["summary"] += (
-            f"\n\n  <<COLOR:accent>>Statistical alternative (95% SL): {stat_cards} cards ({stat_safety:.0f} units SS)<</COLOR>>"
-        )
+        result[
+            "summary"
+        ] += f"\n\n  <<COLOR:accent>>Statistical alternative (95% SL): {stat_cards} cards ({stat_safety:.0f} units SS)<</COLOR>>"
 
     result["guide_observation"] = (
         f"Kanban: {cards} cards at {container:.0f} units each = {total_inventory:.0f} total inventory. "
@@ -1619,7 +1816,9 @@ def _run_epei(df, config):
                     "name": f"Current ({co_time:.0f} min)",
                 },
             ],
-            "layout": _layout("EPEI vs Changeover Time", "Avg Changeover (min)", "EPEI (days)"),
+            "layout": _layout(
+                "EPEI vs Changeover Time", "Avg Changeover (min)", "EPEI (days)"
+            ),
         }
     )
 
@@ -1636,9 +1835,9 @@ def _run_epei(df, config):
         ]
     )
     if co_pct_actual > target * 100:
-        result["summary"] += (
-            f"\n\n<<COLOR:bad>>Warning: actual C/O load ({co_pct_actual:.1f}%) exceeds budget ({target * 100:.0f}%)<</COLOR>>"
-        )
+        result[
+            "summary"
+        ] += f"\n\n<<COLOR:bad>>Warning: actual C/O load ({co_pct_actual:.1f}%) exceeds budget ({target * 100:.0f}%)<</COLOR>>"
 
     result["guide_observation"] = (
         f"EPEI = {epei:.1f} days for {num_parts} parts at {co_time:.0f} min avg changeover. "
@@ -1710,7 +1909,9 @@ def _run_rop_simulation(df, config):
     n_runs = min(int(_float(config, "runs", 1000)), 5000)
 
     if d_mean is None or lt_mean is None or rop is None or Q is None:
-        result["summary"] = "Error: Provide demand_mean, lead_time, reorder_point, and order_quantity."
+        result["summary"] = (
+            "Error: Provide demand_mean, lead_time, reorder_point, and order_quantity."
+        )
         return result
 
     rng = np.random.default_rng(42)
@@ -1773,7 +1974,9 @@ def _run_rop_simulation(df, config):
 
             # Reorder check
             if inventory <= rop and not any(True for _ in orders_in_transit):
-                lt = max(1, round(rng.normal(lt_mean, lt_std) if lt_std > 0 else lt_mean))
+                lt = max(
+                    1, round(rng.normal(lt_mean, lt_std) if lt_std > 0 else lt_mean)
+                )
                 orders_in_transit.append((t + lt, Q))
                 cost += o_cost
 
@@ -1813,10 +2016,20 @@ def _run_rop_simulation(df, config):
             {
                 "data": [
                     _scatter_trace(periods, sample_inventory, "Inventory", COLOR_INFO),
-                    _scatter_trace([1, n_periods], [rop, rop], f"ROP = {rop:.0f}", COLOR_WARNING, dash="dash"),
-                    _scatter_trace([1, n_periods], [0, 0], "Stockout", COLOR_BAD, dash="dot"),
+                    _scatter_trace(
+                        [1, n_periods],
+                        [rop, rop],
+                        f"ROP = {rop:.0f}",
+                        COLOR_WARNING,
+                        dash="dash",
+                    ),
+                    _scatter_trace(
+                        [1, n_periods], [0, 0], "Stockout", COLOR_BAD, dash="dot"
+                    ),
                 ],
-                "layout": _layout("Sample Inventory Trajectory", "Day", "Inventory (units)"),
+                "layout": _layout(
+                    "Sample Inventory Trajectory", "Day", "Inventory (units)"
+                ),
             }
         )
 
@@ -1832,7 +2045,9 @@ def _run_rop_simulation(df, config):
                     "name": "Fill Rate",
                 }
             ],
-            "layout": _layout(f"Fill Rate Distribution ({n_runs} runs)", "Fill Rate (%)", "Frequency"),
+            "layout": _layout(
+                f"Fill Rate Distribution ({n_runs} runs)", "Fill Rate (%)", "Frequency"
+            ),
         }
     )
 
@@ -1861,7 +2076,9 @@ def _run_rop_simulation(df, config):
             f"5th percentile fill rate is {stats['p5_fill_rate']:.1f}% — this is the worst-case performance level."
         ),
         next_steps=[
-            "Adjust ROP up to improve fill rate (currently at 5th pctile: {:.1f}%)".format(stats["p5_fill_rate"]),
+            "Adjust ROP up to improve fill rate (currently at 5th pctile: {:.1f}%)".format(
+                stats["p5_fill_rate"]
+            ),
             "Run Safety Stock analysis to analytically set ROP",
             "Run Service Level analysis to find cost-optimal service level",
         ],
@@ -1911,7 +2128,9 @@ def _run_mrp_netting(df, config):
     gross = df[gross_col].fillna(0).astype(float).tolist()
     n = len(gross)
     receipts = (
-        df[receipts_col].fillna(0).astype(float).tolist() if receipts_col and receipts_col in df.columns else [0] * n
+        df[receipts_col].fillna(0).astype(float).tolist()
+        if receipts_col and receipts_col in df.columns
+        else [0] * n
     )
 
     # ── MRP netting logic ──
@@ -1973,9 +2192,26 @@ def _run_mrp_netting(df, config):
         {
             "data": [
                 _bar_trace(periods, gross, "Gross Requirements", COLOR_BAD),
-                _bar_trace(periods, [planned_receipts[t] for t in range(n)], "Planned Receipts", COLOR_GOOD),
-                _scatter_trace(periods, projected, "Projected Inventory", COLOR_INFO, mode="lines+markers"),
-                _scatter_trace([1, n], [ss, ss], f"Safety Stock ({ss:.0f})", COLOR_WARNING, dash="dash"),
+                _bar_trace(
+                    periods,
+                    [planned_receipts[t] for t in range(n)],
+                    "Planned Receipts",
+                    COLOR_GOOD,
+                ),
+                _scatter_trace(
+                    periods,
+                    projected,
+                    "Projected Inventory",
+                    COLOR_INFO,
+                    mode="lines+markers",
+                ),
+                _scatter_trace(
+                    [1, n],
+                    [ss, ss],
+                    f"Safety Stock ({ss:.0f})",
+                    COLOR_WARNING,
+                    dash="dash",
+                ),
             ],
             "layout": _layout("MRP Netting — Requirements Plan", "Period", "Units"),
         }
@@ -1985,7 +2221,11 @@ def _run_mrp_netting(df, config):
     if any(o > 0 for o in planned_orders):
         result["plots"].append(
             {
-                "data": [_bar_trace(periods, planned_orders, "Planned Order Releases", COLOR_GOLD)],
+                "data": [
+                    _bar_trace(
+                        periods, planned_orders, "Planned Order Releases", COLOR_GOLD
+                    )
+                ],
                 "layout": _layout("Planned Order Releases", "Period", "Order Qty"),
             }
         )
@@ -2004,9 +2244,9 @@ def _run_mrp_netting(df, config):
         ]
     )
     if min_proj < 0:
-        result["summary"] += (
-            f"\n\n<<COLOR:bad>>Warning: Projected shortage of {abs(min_proj):,.0f} units — review safety stock or expedite.<</COLOR>>"
-        )
+        result[
+            "summary"
+        ] += f"\n\n<<COLOR:bad>>Warning: Projected shortage of {abs(min_proj):,.0f} units — review safety stock or expedite.<</COLOR>>"
 
     result["guide_observation"] = (
         f"MRP plan: {total_ordered:,.0f} units across {total_orders} orders to cover {total_gross:,.0f} gross requirements. "

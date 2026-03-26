@@ -10,29 +10,61 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('notifications', '0001_initial'),
+        ("notifications", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='NotificationToken',
+            name="NotificationToken",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('action_type', models.CharField(choices=[('acknowledge', 'Acknowledge'), ('view', 'View')], max_length=20)),
-                ('token', models.CharField(db_index=True, max_length=64, unique=True)),
-                ('expires_at', models.DateTimeField()),
-                ('used_at', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('email_sent_at', models.DateTimeField(blank=True, null=True)),
-                ('email_failed_at', models.DateTimeField(blank=True, null=True)),
-                ('email_opened_at', models.DateTimeField(blank=True, null=True)),
-                ('notification', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tokens', to='notifications.notification')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notification_tokens', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "action_type",
+                    models.CharField(
+                        choices=[("acknowledge", "Acknowledge"), ("view", "View")],
+                        max_length=20,
+                    ),
+                ),
+                ("token", models.CharField(db_index=True, max_length=64, unique=True)),
+                ("expires_at", models.DateTimeField()),
+                ("used_at", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("email_sent_at", models.DateTimeField(blank=True, null=True)),
+                ("email_failed_at", models.DateTimeField(blank=True, null=True)),
+                ("email_opened_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "notification",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="tokens",
+                        to="notifications.notification",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="notification_tokens",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'notification_tokens',
-                'indexes': [models.Index(fields=['user', '-created_at'], name='ntf_token_user_recent')],
+                "db_table": "notification_tokens",
+                "indexes": [
+                    models.Index(
+                        fields=["user", "-created_at"], name="ntf_token_user_recent"
+                    )
+                ],
             },
         ),
     ]

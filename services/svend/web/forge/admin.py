@@ -7,7 +7,15 @@ from .models import APIKey, Job, SchemaTemplate, UsageLog
 
 @admin.register(APIKey)
 class APIKeyAdmin(admin.ModelAdmin):
-    list_display = ["name", "user", "key_prefix", "tier", "is_active", "created_at", "last_used_at"]
+    list_display = [
+        "name",
+        "user",
+        "key_prefix",
+        "tier",
+        "is_active",
+        "created_at",
+        "last_used_at",
+    ]
     list_filter = ["tier", "is_active"]
     search_fields = ["name", "user__email", "key_prefix"]
     readonly_fields = ["key_hash", "key_prefix", "created_at", "last_used_at"]
@@ -15,7 +23,14 @@ class APIKeyAdmin(admin.ModelAdmin):
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
-    list_display = ["job_id", "api_key", "data_type", "record_count", "status", "created_at"]
+    list_display = [
+        "job_id",
+        "api_key",
+        "data_type",
+        "record_count",
+        "status",
+        "created_at",
+    ]
     list_filter = ["status", "data_type", "quality_level"]
     search_fields = ["job_id", "api_key__name"]
     readonly_fields = ["job_id", "created_at", "started_at", "completed_at"]
@@ -24,7 +39,14 @@ class JobAdmin(admin.ModelAdmin):
 
 @admin.register(UsageLog)
 class UsageLogAdmin(admin.ModelAdmin):
-    list_display = ["api_key", "job", "data_type", "record_count", "cost_cents", "created_at"]
+    list_display = [
+        "api_key",
+        "job",
+        "data_type",
+        "record_count",
+        "cost_cents",
+        "created_at",
+    ]
     list_filter = ["data_type", "quality_level"]
     date_hierarchy = "created_at"
 

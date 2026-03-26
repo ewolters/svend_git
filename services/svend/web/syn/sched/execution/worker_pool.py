@@ -115,7 +115,9 @@ class WorkerPoolMetrics:
             "avg_task_duration_ms": self.avg_task_duration_ms,
             "queue_depth": self.queue_depth,
             "utilization": self.utilization,
-            "last_scale_time": self.last_scale_time.isoformat() if self.last_scale_time else None,
+            "last_scale_time": (
+                self.last_scale_time.isoformat() if self.last_scale_time else None
+            ),
             "scale_up_count": self.scale_up_count,
             "scale_down_count": self.scale_down_count,
             "workers_recycled": self.workers_recycled,
@@ -181,7 +183,9 @@ class WorkerGroup:
             for i in range(self.config.default_workers):
                 self._create_worker()
 
-            logger.info(f"[WORKER_GROUP] Started {self.resource_class.value} with {len(self._workers)} workers")
+            logger.info(
+                f"[WORKER_GROUP] Started {self.resource_class.value} with {len(self._workers)} workers"
+            )
 
     def stop(self, graceful: bool = True, timeout: float = 30.0) -> None:
         """Stop all workers in the group."""
@@ -352,7 +356,9 @@ class WorkerGroup:
         # Emit recycled event (SCH-003 compliance)
         self._emit_worker_recycled_event(worker_id, tasks_completed, tasks_failed)
 
-    def _emit_worker_recycled_event(self, worker_id: str, tasks_completed: int, tasks_failed: int) -> None:
+    def _emit_worker_recycled_event(
+        self, worker_id: str, tasks_completed: int, tasks_failed: int
+    ) -> None:
         """Emit scheduler.worker.recycled event per SCH-003."""
         try:
             from syn.synara.cortex import Cortex
@@ -382,14 +388,18 @@ class WorkerGroup:
             Number of workers after scaling
         """
         with self._lock:
-            target = max(self.config.min_workers, min(self.config.max_workers, target_workers))
+            target = max(
+                self.config.min_workers, min(self.config.max_workers, target_workers)
+            )
             current = len(self._workers)
 
             if target > current:
                 # Scale up
                 for _ in range(target - current):
                     self._create_worker()
-                logger.info(f"[WORKER_GROUP] Scaled up {self.resource_class.value}: {current} → {target}")
+                logger.info(
+                    f"[WORKER_GROUP] Scaled up {self.resource_class.value}: {current} → {target}"
+                )
                 # Emit scaled event (SCH-003 compliance)
                 self._emit_worker_scaled_event(current, target, "up")
 
@@ -402,14 +412,18 @@ class WorkerGroup:
                         self._remove_worker(worker_id)
                         removed += 1
                 new_count = len(self._workers)
-                logger.info(f"[WORKER_GROUP] Scaled down {self.resource_class.value}: {current} → {new_count}")
+                logger.info(
+                    f"[WORKER_GROUP] Scaled down {self.resource_class.value}: {current} → {new_count}"
+                )
                 # Emit scaled event (SCH-003 compliance)
                 self._emit_worker_scaled_event(current, new_count, "down")
 
             self._last_scale_time = timezone.now()
             return len(self._workers)
 
-    def _emit_worker_scaled_event(self, previous_count: int, new_count: int, direction: str) -> None:
+    def _emit_worker_scaled_event(
+        self, previous_count: int, new_count: int, direction: str
+    ) -> None:
         """Emit scheduler.worker.scaled event per SCH-003."""
         try:
             from syn.synara.cortex import Cortex
@@ -430,7 +444,9 @@ class WorkerGroup:
     def get_available_capacity(self) -> int:
         """Get number of tasks this group can accept."""
         with self._lock:
-            idle_workers = sum(1 for w in self._workers.values() if w.state == WorkerState.IDLE)
+            idle_workers = sum(
+                1 for w in self._workers.values() if w.state == WorkerState.IDLE
+            )
             return idle_workers * self.config.max_concurrent_per_worker
 
     def get_utilization(self) -> float:
@@ -448,10 +464,18 @@ class WorkerGroup:
             return {
                 "resource_class": self.resource_class.value,
                 "total_workers": len(self._workers),
-                "idle_workers": sum(1 for w in self._workers.values() if w.state == WorkerState.IDLE),
-                "busy_workers": sum(1 for w in self._workers.values() if w.state == WorkerState.BUSY),
+                "idle_workers": sum(
+                    1 for w in self._workers.values() if w.state == WorkerState.IDLE
+                ),
+                "busy_workers": sum(
+                    1 for w in self._workers.values() if w.state == WorkerState.BUSY
+                ),
                 "utilization": self.get_utilization(),
-                "avg_duration_ms": sum(self._task_durations) / len(self._task_durations) if self._task_durations else 0,
+                "avg_duration_ms": (
+                    sum(self._task_durations) / len(self._task_durations)
+                    if self._task_durations
+                    else 0
+                ),
                 "capacity": self.get_available_capacity(),
             }
 
@@ -589,7 +613,9 @@ class WorkerPool:
                 task.state = TaskState.DEAD_LETTERED.value
                 task.error_message = result.error_message
                 task.error_type = result.error_type
-                DeadLetterEntry.create_from_task(task, result.error_message or "Unknown error")
+                DeadLetterEntry.create_from_task(
+                    task, result.error_message or "Unknown error"
+                )
 
             task.save()
 
@@ -601,7 +627,11 @@ class WorkerPool:
         try:
             from syn.synara.cortex import Cortex
 
-            event_name = "scheduler.task.completed" if result.is_success else "scheduler.task.failed"
+            event_name = (
+                "scheduler.task.completed"
+                if result.is_success
+                else "scheduler.task.failed"
+            )
             Cortex.emit(
                 event_name,
                 {
@@ -749,20 +779,28 @@ class WorkerPool:
 
                     # Check cooldown
                     if group._last_scale_time:
-                        cooldown_end = group._last_scale_time + timedelta(seconds=config.scale_cooldown_seconds)
+                        cooldown_end = group._last_scale_time + timedelta(
+                            seconds=config.scale_cooldown_seconds
+                        )
                         if timezone.now() < cooldown_end:
                             continue
 
                     utilization = group.get_utilization()
                     current = len(group._workers)
 
-                    if utilization >= config.scale_up_threshold and current < config.max_workers:
+                    if (
+                        utilization >= config.scale_up_threshold
+                        and current < config.max_workers
+                    ):
                         # Scale up
                         target = min(current + 1, config.max_workers)
                         group.scale(target)
                         self._metrics.scale_up_count += 1
 
-                    elif utilization <= config.scale_down_threshold and current > config.min_workers:
+                    elif (
+                        utilization <= config.scale_down_threshold
+                        and current > config.min_workers
+                    ):
                         # Scale down
                         target = max(current - 1, config.min_workers)
                         group.scale(target)
@@ -797,7 +835,9 @@ class WorkerPool:
         self._metrics.idle_workers = total_workers - active_workers
         self._metrics.workers_by_class = workers_by_class
         self._metrics.queue_depth = self._queue.size()
-        self._metrics.utilization = active_workers / total_workers if total_workers > 0 else 0
+        self._metrics.utilization = (
+            active_workers / total_workers if total_workers > 0 else 0
+        )
 
         return self._metrics
 

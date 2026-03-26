@@ -42,7 +42,10 @@ def _run_quality(analysis_id, df, config):
             factor_col = config.get("group_var") or config.get("factor") or var2
             data_clean = df[[response_col, factor_col]].dropna()
             groups_labels = sorted(data_clean[factor_col].unique().tolist(), key=str)
-            groups_data = [data_clean[data_clean[factor_col] == g][response_col].values for g in groups_labels]
+            groups_data = [
+                data_clean[data_clean[factor_col] == g][response_col].values
+                for g in groups_labels
+            ]
             mode = "factor"
         elif var2 and var2 != var1:
             # Mode 2: two separate columns
@@ -81,7 +84,9 @@ def _run_quality(analysis_id, df, config):
             ci_lo_var = (n - 1) * s2 / stats.chi2.ppf(1 - alpha / 2, n - 1)
             ci_hi_var = (n - 1) * s2 / stats.chi2.ppf(alpha / 2, n - 1)
 
-            summary += "<<COLOR:title>>ONE-SAMPLE VARIANCE TEST (Chi-Square)<</COLOR>>\n"
+            summary += (
+                "<<COLOR:title>>ONE-SAMPLE VARIANCE TEST (Chi-Square)<</COLOR>>\n"
+            )
             summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
             summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var1}\n"
             summary += f"<<COLOR:highlight>>H₀:<</COLOR>> σ = {sigma0}\n\n"
@@ -93,7 +98,9 @@ def _run_quality(analysis_id, df, config):
             summary += f"  Chi-square statistic: {chi2_stat:.4f}\n"
             summary += f"  df: {n - 1}\n"
             summary += f"  p-value: {p_val:.4f}\n"
-            summary += f"  {conf_pct:.0f}% CI for σ²: ({ci_lo_var:.4f}, {ci_hi_var:.4f})\n"
+            summary += (
+                f"  {conf_pct:.0f}% CI for σ²: ({ci_lo_var:.4f}, {ci_hi_var:.4f})\n"
+            )
             summary += f"  {conf_pct:.0f}% CI for σ:  ({np.sqrt(ci_lo_var):.4f}, {np.sqrt(ci_hi_var):.4f})\n\n"
 
             if p_val < alpha:
@@ -155,13 +162,17 @@ def _run_quality(analysis_id, df, config):
             summary += "\n<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
             summary += f"  {'Test':<25} {'Statistic':>12} {'p-value':>10}\n"
             summary += f"  {'─' * 50}\n"
-            summary += f"  {'Bartlett (normal data)':<25} {bart_stat:>12.4f} {bart_p:>10.4f}\n"
+            summary += (
+                f"  {'Bartlett (normal data)':<25} {bart_stat:>12.4f} {bart_p:>10.4f}\n"
+            )
             summary += f"  {'Levene (robust)':<25} {lev_stat:>12.4f} {lev_p:>10.4f}\n"
 
             # F-test only for exactly 2 groups
             f_stat, f_p = None, None
             if k == 2:
-                f_stat = variances[0] / variances[1] if variances[1] > 0 else float("inf")
+                f_stat = (
+                    variances[0] / variances[1] if variances[1] > 0 else float("inf")
+                )
                 df1, df2 = ns[0] - 1, ns[1] - 1
                 f_p = float(
                     2
@@ -195,7 +206,9 @@ def _run_quality(analysis_id, df, config):
                 "levene_statistic": float(lev_stat),
                 "levene_p": float(lev_p),
                 "group_stds": dict(zip([str(g) for g in groups_labels], stds)),
-                "group_variances": dict(zip([str(g) for g in groups_labels], variances)),
+                "group_variances": dict(
+                    zip([str(g) for g in groups_labels], variances)
+                ),
             }
             if f_stat is not None:
                 result["statistics"]["f_statistic"] = float(f_stat)
@@ -221,7 +234,16 @@ def _run_quality(analysis_id, df, config):
             # Side-by-side box/strip plots showing spread
             traces = []
             for i, (lbl, gd) in enumerate(zip(groups_labels, groups_data)):
-                colors = ["#4a9f6e", "#4a90d9", "#e8c547", "#c75a3a", "#7a5fb8", "#5a9fd4", "#d4a05a", "#5ad4a0"]
+                colors = [
+                    "#4a9f6e",
+                    "#4a90d9",
+                    "#e8c547",
+                    "#c75a3a",
+                    "#7a5fb8",
+                    "#5a9fd4",
+                    "#d4a05a",
+                    "#5ad4a0",
+                ]
                 traces.append(
                     {
                         "type": "box",
@@ -346,10 +368,14 @@ def _run_quality(analysis_id, df, config):
                     d = float(col.sum())
                     event = "sum"
                 else:
-                    result["summary"] = "Cannot auto-detect defect value. Please specify 'event' in config."
+                    result["summary"] = (
+                        "Cannot auto-detect defect value. Please specify 'event' in config."
+                    )
                     return result
         else:
-            result["summary"] = "Provide a column name (var) or direct counts (defects, units)."
+            result["summary"] = (
+                "Provide a column name (var) or direct counts (defects, units)."
+            )
             return result
 
         if n <= 0:
@@ -378,7 +404,11 @@ def _run_quality(analysis_id, df, config):
         total_opp = n * opp
         denom = 1 + z_a**2 / total_opp
         center = (p_hat + z_a**2 / (2 * total_opp)) / denom
-        half = z_a * np.sqrt(p_hat * (1 - p_hat) / total_opp + z_a**2 / (4 * total_opp**2)) / denom
+        half = (
+            z_a
+            * np.sqrt(p_hat * (1 - p_hat) / total_opp + z_a**2 / (4 * total_opp**2))
+            / denom
+        )
         ci_lo = max(0, center - half)
         ci_hi = min(1, center + half)
 
@@ -419,7 +449,9 @@ def _run_quality(analysis_id, df, config):
             interp = "Marginal — improvement needed"
         else:
             interp = "Poor — significant defect rate"
-        summary += f"<<COLOR:{'good' if sigma_st >= 4 else 'warning'}>>{interp}<</COLOR>>"
+        summary += (
+            f"<<COLOR:{'good' if sigma_st >= 4 else 'warning'}>>{interp}<</COLOR>>"
+        )
 
         result["summary"] = summary
 
@@ -434,7 +466,10 @@ def _run_quality(analysis_id, df, config):
                         "x": [f"{s}σ" for s in sigma_levels],
                         "y": dpmo_levels,
                         "marker": {
-                            "color": ["#c75a3a" if s < sigma_st else "#4a9f6e" for s in sigma_levels],
+                            "color": [
+                                "#c75a3a" if s < sigma_st else "#4a9f6e"
+                                for s in sigma_levels
+                            ],
                             "opacity": 0.5,
                         },
                         "name": "DPMO by sigma",
@@ -462,20 +497,24 @@ def _run_quality(analysis_id, df, config):
         _sigma_label = (
             "world-class"
             if sigma_st >= 6
-            else "excellent"
-            if sigma_st >= 5
-            else "good"
-            if sigma_st >= 4
-            else "needs improvement"
-            if sigma_st >= 3
-            else "poor"
+            else (
+                "excellent"
+                if sigma_st >= 5
+                else (
+                    "good"
+                    if sigma_st >= 4
+                    else "needs improvement" if sigma_st >= 3 else "poor"
+                )
+            )
         )
         result["narrative"] = _narrative(
             f"Attribute Capability: {sigma_st:.1f}\u03c3 ({_sigma_label})",
             f"DPMO = {dpmo:.0f}, Yield = {yield_pct:.2f}%. Process sigma level = {sigma_st:.1f}.",
-            next_steps="Focus on reducing DPMO. Pareto the top defect types to prioritize improvement."
-            if sigma_st < 4
-            else "Strong capability. Monitor and maintain.",
+            next_steps=(
+                "Focus on reducing DPMO. Pareto the top defect types to prioritize improvement."
+                if sigma_st < 4
+                else "Strong capability. Monitor and maintain."
+            ),
             chart_guidance="The sigma scale: 3\u03c3 = 66,807 DPMO, 4\u03c3 = 6,210 DPMO, 6\u03c3 = 3.4 DPMO.",
         )
         result["statistics"] = {
@@ -508,7 +547,9 @@ def _run_quality(analysis_id, df, config):
         data_arr = df[var].dropna().values.astype(float)
         n = len(data_arr)
         if n < 10:
-            result["summary"] = "Nonparametric capability requires at least 10 data points."
+            result["summary"] = (
+                "Nonparametric capability requires at least 10 data points."
+            )
             return result
 
         mean_val = float(np.mean(data_arr))
@@ -529,8 +570,14 @@ def _run_quality(analysis_id, df, config):
         np_width = p_high - p_low
         cnp = spec_width / np_width if np_width > 0 else 0
 
-        cnpk_upper = (usl - median_val) / (p_high - median_val) if (p_high - median_val) > 0 else 0
-        cnpk_lower = (median_val - lsl) / (median_val - p_low) if (median_val - p_low) > 0 else 0
+        cnpk_upper = (
+            (usl - median_val) / (p_high - median_val)
+            if (p_high - median_val) > 0
+            else 0
+        )
+        cnpk_lower = (
+            (median_val - lsl) / (median_val - p_low) if (median_val - p_low) > 0 else 0
+        )
         cnpk = min(cnpk_upper, cnpk_lower)
 
         # PPM outside specs (empirical)
@@ -559,11 +606,17 @@ def _run_quality(analysis_id, df, config):
         summary += f"  5% critical value: {ad_crit[2]:.4f}\n"
         summary += f"  Data is {'normal' if is_normal else '<<COLOR:warning>>non-normal<</COLOR>>'}\n\n"
 
-        summary += "<<COLOR:accent>>── Comparison — Normal vs Nonparametric ──<</COLOR>>\n"
+        summary += (
+            "<<COLOR:accent>>── Comparison — Normal vs Nonparametric ──<</COLOR>>\n"
+        )
         summary += f"  {'Method':<25} {'Cp/Cnp':>10} {'Cpk/Cnpk':>10}\n"
         summary += f"  {'─' * 48}\n"
-        summary += f"  {'Normal assumption':<25} {cp_normal:>10.3f} {cpk_normal:>10.3f}\n"
-        summary += f"  {'Nonparametric (percentile)':<25} {cnp:>10.3f} {cnpk:>10.3f}\n\n"
+        summary += (
+            f"  {'Normal assumption':<25} {cp_normal:>10.3f} {cpk_normal:>10.3f}\n"
+        )
+        summary += (
+            f"  {'Nonparametric (percentile)':<25} {cnp:>10.3f} {cnpk:>10.3f}\n\n"
+        )
 
         summary += "<<COLOR:accent>>── Nonparametric Details ──<</COLOR>>\n"
         summary += f"  Median: {median_val:.4f}\n"
@@ -685,13 +738,17 @@ def _run_quality(analysis_id, df, config):
         result["guide_observation"] = (
             f"Nonparametric capability: Cnpk={cnpk:.3f}, Empirical PPM={ppm_total:.0f}. Data is {'normal' if is_normal else 'non-normal'}."
         )
-        _cnpk_label = "capable" if cnpk >= 1.33 else "marginal" if cnpk >= 1.0 else "not capable"
+        _cnpk_label = (
+            "capable" if cnpk >= 1.33 else "marginal" if cnpk >= 1.0 else "not capable"
+        )
         result["narrative"] = _narrative(
             f"Non-parametric Cpk = {cnpk:.3f} ({_cnpk_label})",
             f"Distribution-free capability using percentile-based estimates. PPM = {ppm_total:.0f}. Data is {'normal' if is_normal else 'non-normal — this method is more appropriate than standard Cpk'}.",
-            next_steps="Non-normal capability avoids distributional assumptions. If Cnpk < 1.33, reduce variation or center the process."
-            if cnpk < 1.33
-            else "Process is capable. Monitor with control charts.",
+            next_steps=(
+                "Non-normal capability avoids distributional assumptions. If Cnpk < 1.33, reduce variation or center the process."
+                if cnpk < 1.33
+                else "Process is capable. Monitor with control charts."
+            ),
         )
         result["statistics"] = {
             "cnp": cnp,
@@ -762,7 +819,9 @@ def _run_quality(analysis_id, df, config):
         summary += f"  Lot size:                               {lot_size}\n\n"
         summary += "<<COLOR:accent>>── Sampling Plan ──<</COLOR>>\n"
         summary += f"  <<COLOR:highlight>>Sample size (n):<</COLOR>>      {n_sample}\n"
-        summary += f"  <<COLOR:highlight>>Critical value (k):<</COLOR>>   {k_val:.4f}\n\n"
+        summary += (
+            f"  <<COLOR:highlight>>Critical value (k):<</COLOR>>   {k_val:.4f}\n\n"
+        )
         summary += f"<<COLOR:accent>>── Decision Rule ({spec_type} spec) ──<</COLOR>>\n"
         if spec_type == "lower" and lsl_vs is not None:
             summary += f"  Accept if: (xbar - {lsl_vs}) / s >= {k_val:.4f}\n"
@@ -878,7 +937,12 @@ def _run_quality(analysis_id, df, config):
             c_mpc = int(plan.get("c", plan.get("accept_number", 2)))
 
             # Compute OC curve
-            pa_vals = np.array([float(mpc_stats.binom.cdf(c_mpc, n_mpc, p)) if p > 0 else 1.0 for p in p_range_mpc])
+            pa_vals = np.array(
+                [
+                    float(mpc_stats.binom.cdf(c_mpc, n_mpc, p)) if p > 0 else 1.0
+                    for p in p_range_mpc
+                ]
+            )
 
             # Key metrics
             pa_aql = float(np.interp(aql_mpc, p_range_mpc, pa_vals))
@@ -989,7 +1053,9 @@ def _run_quality(analysis_id, df, config):
         summary_mpc += f"{'─' * 82}\n"
         best_beta = min(pr["beta"] for pr in plan_results)
         for pr in plan_results:
-            beta_mark = "<<COLOR:good>> ◄<</COLOR>>" if pr["beta"] == best_beta else "   "
+            beta_mark = (
+                "<<COLOR:good>> ◄<</COLOR>>" if pr["beta"] == best_beta else "   "
+            )
             summary_mpc += f"{pr['name']:<20} {pr['n']:>5} {pr['c']:>3} {pr['pa_aql']:>11.4f} {pr['pa_ltpd']:>12.4f} {pr['alpha']:>6.3f} {pr['beta']:>6.3f} {pr['aoql'] * 100:>7.3f} {pr['ati_aql']:>8.0f}{beta_mark}\n"
 
         summary_mpc += "\n<<COLOR:text>>◄ = lowest consumer risk (β)<</COLOR>>\n"
@@ -1005,7 +1071,12 @@ def _run_quality(analysis_id, df, config):
         )
         result["statistics"] = {
             "plans": [
-                {k: v for k, v in pr.items() if k not in ("pa_values", "aoq_values", "color")} for pr in plan_results
+                {
+                    k: v
+                    for k, v in pr.items()
+                    if k not in ("pa_values", "aoq_values", "color")
+                }
+                for pr in plan_results
             ],
             "aql": aql_mpc,
             "ltpd": ltpd_mpc,
@@ -1032,12 +1103,22 @@ def _run_quality(analysis_id, df, config):
             result["summary"] = "Need at least 10 observations for capability sixpack."
             return result
 
-        lsl_val = float(lsl_cs) if lsl_cs is not None and str(lsl_cs).strip() != "" else None
-        usl_val = float(usl_cs) if usl_cs is not None and str(usl_cs).strip() != "" else None
-        target_val = float(target_cs) if target_cs is not None and str(target_cs).strip() != "" else None
+        lsl_val = (
+            float(lsl_cs) if lsl_cs is not None and str(lsl_cs).strip() != "" else None
+        )
+        usl_val = (
+            float(usl_cs) if usl_cs is not None and str(usl_cs).strip() != "" else None
+        )
+        target_val = (
+            float(target_cs)
+            if target_cs is not None and str(target_cs).strip() != ""
+            else None
+        )
 
         if lsl_val is None and usl_val is None:
-            result["summary"] = "At least one specification limit (LSL or USL) is required."
+            result["summary"] = (
+                "At least one specification limit (LSL or USL) is required."
+            )
             return result
 
         if target_val is None and lsl_val is not None and usl_val is not None:
@@ -1062,9 +1143,15 @@ def _run_quality(analysis_id, df, config):
             cpl_val = (x_bar_cs - lsl_val) / (3 * s_cs) if s_cs > 0 else 0
             cpk_val = cpl_val
 
-        ppm_below = float(norm_dist.cdf((lsl_val - x_bar_cs) / s_cs) * 1e6) if lsl_val is not None and s_cs > 0 else 0
+        ppm_below = (
+            float(norm_dist.cdf((lsl_val - x_bar_cs) / s_cs) * 1e6)
+            if lsl_val is not None and s_cs > 0
+            else 0
+        )
         ppm_above = (
-            float((1 - norm_dist.cdf((usl_val - x_bar_cs) / s_cs)) * 1e6) if usl_val is not None and s_cs > 0 else 0
+            float((1 - norm_dist.cdf((usl_val - x_bar_cs) / s_cs)) * 1e6)
+            if usl_val is not None and s_cs > 0
+            else 0
         )
         ppm_total = ppm_below + ppm_above
 
@@ -1099,7 +1186,9 @@ def _run_quality(analysis_id, df, config):
         elif cpk_val >= 1.0:
             summary += "\n<<COLOR:warning>>Process is marginally capable (1.0 <= Cpk < 1.33).<</COLOR>>\n"
         else:
-            summary += "\n<<COLOR:warning>>Process is NOT capable (Cpk < 1.0).<</COLOR>>\n"
+            summary += (
+                "\n<<COLOR:warning>>Process is NOT capable (Cpk < 1.0).<</COLOR>>\n"
+            )
 
         result["summary"] = summary
 
@@ -1145,7 +1234,11 @@ def _run_quality(analysis_id, df, config):
                             "name": f"LCL={lcl_i:.2f}",
                         },
                     ],
-                    "layout": {"height": 200, "margin": {"t": 30, "b": 30}, "showlegend": False},
+                    "layout": {
+                        "height": 200,
+                        "margin": {"t": 30, "b": 30},
+                        "showlegend": False,
+                    },
                     "group": "Control Charts",
                 }
             )
@@ -1175,20 +1268,56 @@ def _run_quality(analysis_id, df, config):
                             "line": {"color": "#e85747", "dash": "dash", "width": 1},
                         },
                     ],
-                    "layout": {"height": 200, "margin": {"t": 30, "b": 30}, "showlegend": False},
+                    "layout": {
+                        "height": 200,
+                        "margin": {"t": 30, "b": 30},
+                        "showlegend": False,
+                    },
                     "group": "Control Charts",
                 }
             )
         else:
             n_sg = n_cs // subgroup_size
-            subgroups = [col_cs[i * subgroup_size : (i + 1) * subgroup_size] for i in range(n_sg)]
+            subgroups = [
+                col_cs[i * subgroup_size : (i + 1) * subgroup_size] for i in range(n_sg)
+            ]
             xbar_sg = [float(np.mean(sg)) for sg in subgroups]
             ranges_sg = [float(np.max(sg) - np.min(sg)) for sg in subgroups]
             xbar_bar = float(np.mean(xbar_sg))
             r_bar = float(np.mean(ranges_sg))
-            A2_tbl = {2: 1.880, 3: 1.023, 4: 0.729, 5: 0.577, 6: 0.483, 7: 0.419, 8: 0.373, 9: 0.337, 10: 0.308}
-            D4_tbl = {2: 3.267, 3: 2.575, 4: 2.282, 5: 2.115, 6: 2.004, 7: 1.924, 8: 1.864, 9: 1.816, 10: 1.777}
-            D3_tbl = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0.076, 8: 0.136, 9: 0.184, 10: 0.223}
+            A2_tbl = {
+                2: 1.880,
+                3: 1.023,
+                4: 0.729,
+                5: 0.577,
+                6: 0.483,
+                7: 0.419,
+                8: 0.373,
+                9: 0.337,
+                10: 0.308,
+            }
+            D4_tbl = {
+                2: 3.267,
+                3: 2.575,
+                4: 2.282,
+                5: 2.115,
+                6: 2.004,
+                7: 1.924,
+                8: 1.864,
+                9: 1.816,
+                10: 1.777,
+            }
+            D3_tbl = {
+                2: 0,
+                3: 0,
+                4: 0,
+                5: 0,
+                6: 0,
+                7: 0.076,
+                8: 0.136,
+                9: 0.184,
+                10: 0.223,
+            }
             a2 = A2_tbl.get(subgroup_size, 0.577)
             d4 = D4_tbl.get(subgroup_size, 2.115)
             d3 = D3_tbl.get(subgroup_size, 0)
@@ -1222,7 +1351,11 @@ def _run_quality(analysis_id, df, config):
                             "line": {"color": "#e85747", "dash": "dash", "width": 1},
                         },
                     ],
-                    "layout": {"height": 200, "margin": {"t": 30, "b": 30}, "showlegend": False},
+                    "layout": {
+                        "height": 200,
+                        "margin": {"t": 30, "b": 30},
+                        "showlegend": False,
+                    },
                     "group": "Control Charts",
                 }
             )
@@ -1256,7 +1389,11 @@ def _run_quality(analysis_id, df, config):
                             "line": {"color": "#e85747", "dash": "dash", "width": 1},
                         },
                     ],
-                    "layout": {"height": 200, "margin": {"t": 30, "b": 30}, "showlegend": False},
+                    "layout": {
+                        "height": 200,
+                        "margin": {"t": 30, "b": 30},
+                        "showlegend": False,
+                    },
                     "group": "Control Charts",
                 }
             )
@@ -1298,7 +1435,12 @@ def _run_quality(analysis_id, df, config):
                         "line": {"color": "#9aaa9a", "width": 1},
                     }
                 ],
-                "layout": {"height": 200, "margin": {"t": 30, "b": 30}, "shapes": spec_shapes, "showlegend": False},
+                "layout": {
+                    "height": 200,
+                    "margin": {"t": 30, "b": 30},
+                    "shapes": spec_shapes,
+                    "showlegend": False,
+                },
                 "group": "Control Charts",
             }
         )
@@ -1446,8 +1588,14 @@ def _run_quality(analysis_id, df, config):
             }
         )
 
-        result["guide_observation"] = f"Capability sixpack: Cpk={cpk_val:.3f}, PPM={ppm_total:.0f}."
-        _cpk_label = "capable" if cpk_val >= 1.33 else "marginal" if cpk_val >= 1.0 else "not capable"
+        result["guide_observation"] = (
+            f"Capability sixpack: Cpk={cpk_val:.3f}, PPM={ppm_total:.0f}."
+        )
+        _cpk_label = (
+            "capable"
+            if cpk_val >= 1.33
+            else "marginal" if cpk_val >= 1.0 else "not capable"
+        )
         result["narrative"] = _narrative(
             f"Capability Sixpack: Cpk = {cpk_val:.3f} ({_cpk_label})",
             f"PPM = {ppm_total:.0f}. The sixpack combines control charts, capability histogram, normal probability plot, and capability indices in one view.",
@@ -1478,15 +1626,22 @@ def _run_quality(analysis_id, df, config):
         Supports factor format or multiple columns.
         """
         var_anom = config.get("var") or config.get("var1") or config.get("response")
-        factor_anom = config.get("factor") or config.get("group_var") or config.get("var2")
+        factor_anom = (
+            config.get("factor") or config.get("group_var") or config.get("var2")
+        )
         alpha_anom = 1 - float(config.get("conf", 95)) / 100
 
         if factor_anom and factor_anom in df.columns:
             data_anom = df[[var_anom, factor_anom]].dropna()
             groups_labels = sorted(data_anom[factor_anom].unique().tolist(), key=str)
-            groups_data = [data_anom[data_anom[factor_anom] == g][var_anom].values.astype(float) for g in groups_labels]
+            groups_data = [
+                data_anom[data_anom[factor_anom] == g][var_anom].values.astype(float)
+                for g in groups_labels
+            ]
         else:
-            cols_anom = config.get("columns") or [c for c in df.select_dtypes(include=[np.number]).columns[:10]]
+            cols_anom = config.get("columns") or [
+                c for c in df.select_dtypes(include=[np.number]).columns[:10]
+            ]
             groups_labels = [str(c) for c in cols_anom]
             groups_data = [df[c].dropna().values.astype(float) for c in cols_anom]
 
@@ -1512,7 +1667,11 @@ def _run_quality(analysis_id, df, config):
         udls = []
         ldls = []
         for ni in group_ns:
-            margin = h_alpha * np.sqrt(mse_anom * (1 - ni / n_total) / ni) if ni > 0 and n_total > ni else 0
+            margin = (
+                h_alpha * np.sqrt(mse_anom * (1 - ni / n_total) / ni)
+                if ni > 0 and n_total > ni
+                else 0
+            )
             udls.append(grand_mean + margin)
             ldls.append(grand_mean - margin)
 
@@ -1544,15 +1703,18 @@ def _run_quality(analysis_id, df, config):
             summary += f"  {str(groups_labels[i]):<15} {group_ns[i]:>5} {group_means[i]:>10.4f} {udls[i]:>10.4f} {ldls[i]:>10.4f} {sig:>8}\n"
 
         if outside:
-            summary += (
-                f"\n<<COLOR:warning>>Groups outside decision limits: {', '.join(str(o) for o in outside)}<</COLOR>>\n"
-            )
+            summary += f"\n<<COLOR:warning>>Groups outside decision limits: {', '.join(str(o) for o in outside)}<</COLOR>>\n"
         else:
-            summary += "\n<<COLOR:good>>All group means within decision limits.<</COLOR>>\n"
+            summary += (
+                "\n<<COLOR:good>>All group means within decision limits.<</COLOR>>\n"
+            )
 
         result["summary"] = summary
 
-        marker_colors = ["#e85747" if groups_labels[i] in outside else "#4a9f6e" for i in range(k_anom)]
+        marker_colors = [
+            "#e85747" if groups_labels[i] in outside else "#4a9f6e"
+            for i in range(k_anom)
+        ]
         chart_data = [
             {
                 "type": "scatter",
@@ -1693,9 +1855,13 @@ def _run_quality(analysis_id, df, config):
                         pa_values.append(1.0)
                         continue
                     # P(accept on 1st sample): P(d1 <= c1)
-                    p_accept_1 = sum(scipy_stats.binom.pmf(d, n1, p) for d in range(c1 + 1))
+                    p_accept_1 = sum(
+                        scipy_stats.binom.pmf(d, n1, p) for d in range(c1 + 1)
+                    )
                     # P(reject on 1st sample): P(d1 >= r1)
-                    p_reject_1 = sum(scipy_stats.binom.pmf(d, n1, p) for d in range(r1, n1 + 1))
+                    p_reject_1 = sum(
+                        scipy_stats.binom.pmf(d, n1, p) for d in range(r1, n1 + 1)
+                    )
                     # P(go to 2nd sample): c1 < d1 < r1
                     1 - p_accept_1 - p_reject_1
                     # P(accept on combined): P(d1+d2 <= c2) for each d1 in [c1+1, r1-1]
@@ -1704,7 +1870,10 @@ def _run_quality(analysis_id, df, config):
                         p_d1 = scipy_stats.binom.pmf(d1, n1, p)
                         max_d2 = c2 - d1
                         if max_d2 >= 0:
-                            p_accept_2 += p_d1 * sum(scipy_stats.binom.pmf(d2, n2, p) for d2 in range(max_d2 + 1))
+                            p_accept_2 += p_d1 * sum(
+                                scipy_stats.binom.pmf(d2, n2, p)
+                                for d2 in range(max_d2 + 1)
+                            )
                     pa = p_accept_1 + p_accept_2
                     pa_values.append(float(min(1.0, max(0.0, pa))))
                 pa_values = np.array(pa_values)
@@ -1712,7 +1881,14 @@ def _run_quality(analysis_id, df, config):
             else:
                 # Single sampling OC curve using binomial
                 pa_values = np.array(
-                    [float(scipy_stats.binom.cdf(accept_num, n_sample, p)) if p > 0 else 1.0 for p in p_range]
+                    [
+                        (
+                            float(scipy_stats.binom.cdf(accept_num, n_sample, p))
+                            if p > 0
+                            else 1.0
+                        )
+                        for p in p_range
+                    ]
                 )
                 plan_desc = f"Single: n={n_sample}, Ac={accept_num}"
 
@@ -1766,7 +1942,10 @@ def _run_quality(analysis_id, df, config):
                     "layout": {
                         "title": f"Operating Characteristic (OC) Curve — {plan_desc}",
                         "xaxis": {"title": "Lot Defect Rate (%)"},
-                        "yaxis": {"title": "Probability of Acceptance", "range": [0, 1.05]},
+                        "yaxis": {
+                            "title": "Probability of Acceptance",
+                            "range": [0, 1.05],
+                        },
                     },
                 }
             )
@@ -1856,7 +2035,11 @@ def _run_quality(analysis_id, df, config):
                 formula = f"{response} ~ 1"
                 model = mixedlm(formula, data, groups=data[factors[0]])
                 fit = model.fit(reml=True)
-                var_factor = float(fit.cov_re.iloc[0, 0]) if hasattr(fit.cov_re, "iloc") else float(fit.cov_re)
+                var_factor = (
+                    float(fit.cov_re.iloc[0, 0])
+                    if hasattr(fit.cov_re, "iloc")
+                    else float(fit.cov_re)
+                )
                 var_error = float(fit.scale)
                 components[factors[0]] = var_factor
                 components["Error"] = var_error
@@ -1868,27 +2051,46 @@ def _run_quality(analysis_id, df, config):
                     grand_mean = data[response].mean()
                     k_groups = len(group_means)
                     n_per = N / k_groups  # average group size
-                    ms_between = float(np.sum(groups.count() * (group_means - grand_mean) ** 2) / (k_groups - 1))
-                    ms_within = float(np.sum(groups.apply(lambda x: np.sum((x - x.mean()) ** 2))) / (N - k_groups))
+                    ms_between = float(
+                        np.sum(groups.count() * (group_means - grand_mean) ** 2)
+                        / (k_groups - 1)
+                    )
+                    ms_within = float(
+                        np.sum(groups.apply(lambda x: np.sum((x - x.mean()) ** 2)))
+                        / (N - k_groups)
+                    )
                     var_component = max(0, (ms_between - ms_within) / n_per)
                     components[factor] = var_component
                 components["Error"] = (
-                    float(data.groupby(factors[0])[response].apply(lambda x: x.var()).mean()) if factors else total_var
+                    float(
+                        data.groupby(factors[0])[response]
+                        .apply(lambda x: x.var())
+                        .mean()
+                    )
+                    if factors
+                    else total_var
                 )
 
             comp_total = sum(components.values())
-            pct = {k: v / comp_total * 100 if comp_total > 0 else 0 for k, v in components.items()}
+            pct = {
+                k: v / comp_total * 100 if comp_total > 0 else 0
+                for k, v in components.items()
+            }
 
             summary_text = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
             summary_text += "<<COLOR:title>>VARIANCE COMPONENTS ANALYSIS<</COLOR>>\n"
             summary_text += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
             summary_text += f"<<COLOR:highlight>>Response:<</COLOR>> {response}\n"
-            summary_text += f"<<COLOR:highlight>>Factors:<</COLOR>> {', '.join(factors)}\n"
+            summary_text += (
+                f"<<COLOR:highlight>>Factors:<</COLOR>> {', '.join(factors)}\n"
+            )
             summary_text += f"<<COLOR:highlight>>Method:<</COLOR>> {method.upper()}\n"
             summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
             summary_text += "<<COLOR:accent>>── Variance Components ──<</COLOR>>\n"
-            summary_text += f"{'Source':<20} {'Variance':>12} {'% of Total':>12} {'Std Dev':>12}\n"
+            summary_text += (
+                f"{'Source':<20} {'Variance':>12} {'% of Total':>12} {'Std Dev':>12}\n"
+            )
             summary_text += f"{'─' * 58}\n"
             for source, var_val in components.items():
                 summary_text += f"{source:<20} {var_val:>12.4f} {pct[source]:>11.1f}% {np.sqrt(var_val):>12.4f}\n"
@@ -1938,14 +2140,17 @@ def _run_quality(analysis_id, df, config):
 
             result["statistics"] = {
                 "components": {
-                    k: {"variance": v, "pct": pct[k], "std_dev": float(np.sqrt(v))} for k, v in components.items()
+                    k: {"variance": v, "pct": pct[k], "std_dev": float(np.sqrt(v))}
+                    for k, v in components.items()
                 },
                 "total_variance": comp_total,
                 "method": method,
                 "n": N,
             }
             result["guide_observation"] = (
-                "Variance components: " + ", ".join([f"{k}={pct[k]:.1f}%" for k in components]) + "."
+                "Variance components: "
+                + ", ".join([f"{k}={pct[k]:.1f}%" for k in components])
+                + "."
             )
             _top_comp = max(pct.items(), key=lambda x: x[1]) if pct else ("", 0)
             result["narrative"] = _narrative(

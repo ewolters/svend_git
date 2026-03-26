@@ -317,15 +317,41 @@ This prevents falling in love with your first idea.
             "config": {
                 "schema": {
                     "columns": [
-                        {"name": "diameter_mm", "type": "numeric", "mean": 25.0, "std": 0.05, "decimals": 3},
-                        {"name": "temperature_c", "type": "numeric", "mean": 22.0, "std": 1.5, "decimals": 1},
-                        {"name": "supplier", "type": "categorical", "values": ["Alpha", "Beta"], "weights": [0.6, 0.4]},
-                        {"name": "shift", "type": "categorical", "values": ["day", "night"]},
+                        {
+                            "name": "diameter_mm",
+                            "type": "numeric",
+                            "mean": 25.0,
+                            "std": 0.05,
+                            "decimals": 3,
+                        },
+                        {
+                            "name": "temperature_c",
+                            "type": "numeric",
+                            "mean": 22.0,
+                            "std": 1.5,
+                            "decimals": 1,
+                        },
+                        {
+                            "name": "supplier",
+                            "type": "categorical",
+                            "values": ["Alpha", "Beta"],
+                            "weights": [0.6, 0.4],
+                        },
+                        {
+                            "name": "shift",
+                            "type": "categorical",
+                            "values": ["day", "night"],
+                        },
                         {"name": "defect", "type": "binary", "prob": 0.08},
                     ],
                     "rows": 200,
                     "injections": [
-                        {"type": "mean_shift", "column": "temperature_c", "start_row": 140, "delta": 3.0},
+                        {
+                            "type": "mean_shift",
+                            "column": "temperature_c",
+                            "start_row": 140,
+                            "delta": 3.0,
+                        },
                     ],
                 },
             },

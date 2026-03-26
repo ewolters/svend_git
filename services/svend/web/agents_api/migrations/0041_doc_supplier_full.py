@@ -10,104 +10,217 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0040_backfill_ncr_projects'),
-        ('core', '0009_study_action_model'),
-        ('files', '0002_alter_userfile_file'),
+        ("agents_api", "0040_backfill_ncr_projects"),
+        ("core", "0009_study_action_model"),
+        ("files", "0002_alter_userfile_file"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='controlleddocument',
-            name='approved_by_user',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='approved_documents', to=settings.AUTH_USER_MODEL),
+            model_name="controlleddocument",
+            name="approved_by_user",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="approved_documents",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='controlleddocument',
-            name='files',
-            field=models.ManyToManyField(blank=True, related_name='controlled_documents', to='files.userfile'),
+            model_name="controlleddocument",
+            name="files",
+            field=models.ManyToManyField(
+                blank=True, related_name="controlled_documents", to="files.userfile"
+            ),
         ),
         migrations.AddField(
-            model_name='controlleddocument',
-            name='retention_years',
-            field=models.IntegerField(default=7, help_text='Document retention period in years'),
+            model_name="controlleddocument",
+            name="retention_years",
+            field=models.IntegerField(
+                default=7, help_text="Document retention period in years"
+            ),
         ),
         migrations.AddField(
-            model_name='controlleddocument',
-            name='source_study',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='controlled_documents', to='core.project'),
+            model_name="controlleddocument",
+            name="source_study",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="controlled_documents",
+                to="core.project",
+            ),
         ),
         migrations.AddField(
-            model_name='supplierrecord',
-            name='contact_phone',
+            model_name="supplierrecord",
+            name="contact_phone",
             field=models.CharField(blank=True, max_length=50),
         ),
         migrations.AddField(
-            model_name='supplierrecord',
-            name='disqualification_reason',
+            model_name="supplierrecord",
+            name="disqualification_reason",
             field=models.TextField(blank=True),
         ),
         migrations.AddField(
-            model_name='supplierrecord',
-            name='evaluation_scores',
-            field=models.JSONField(blank=True, default=dict, help_text='{"quality": 1-5, "delivery": 1-5, "price": 1-5, "communication": 1-5}'),
+            model_name="supplierrecord",
+            name="evaluation_scores",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text='{"quality": 1-5, "delivery": 1-5, "price": 1-5, "communication": 1-5}',
+            ),
         ),
         migrations.AddField(
-            model_name='supplierrecord',
-            name='supplier_type',
-            field=models.CharField(choices=[('raw_material', 'Raw Material'), ('component', 'Component'), ('service', 'Service'), ('equipment', 'Equipment'), ('calibration', 'Calibration'), ('other', 'Other')], default='other', max_length=30),
+            model_name="supplierrecord",
+            name="supplier_type",
+            field=models.CharField(
+                choices=[
+                    ("raw_material", "Raw Material"),
+                    ("component", "Component"),
+                    ("service", "Service"),
+                    ("equipment", "Equipment"),
+                    ("calibration", "Calibration"),
+                    ("other", "Other"),
+                ],
+                default="other",
+                max_length=30,
+            ),
         ),
         migrations.AlterField(
-            model_name='supplierrecord',
-            name='status',
-            field=models.CharField(choices=[('pending', 'Pending Approval'), ('approved', 'Approved'), ('conditional', 'Conditional'), ('suspended', 'Suspended'), ('disqualified', 'Disqualified')], default='pending', max_length=20),
+            model_name="supplierrecord",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("pending", "Pending Approval"),
+                    ("approved", "Approved"),
+                    ("conditional", "Conditional"),
+                    ("suspended", "Suspended"),
+                    ("disqualified", "Disqualified"),
+                ],
+                default="pending",
+                max_length=20,
+            ),
         ),
         migrations.CreateModel(
-            name='DocumentRevision',
+            name="DocumentRevision",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('version', models.CharField(max_length=20)),
-                ('change_summary', models.TextField(blank=True)),
-                ('content_snapshot', models.TextField(blank=True, help_text='Content at this revision')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('changed_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
-                ('document', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='revisions', to='agents_api.controlleddocument')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("version", models.CharField(max_length=20)),
+                ("change_summary", models.TextField(blank=True)),
+                (
+                    "content_snapshot",
+                    models.TextField(blank=True, help_text="Content at this revision"),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "changed_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "document",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="revisions",
+                        to="agents_api.controlleddocument",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'iso_document_revisions',
-                'ordering': ['-created_at'],
+                "db_table": "iso_document_revisions",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='DocumentStatusChange',
+            name="DocumentStatusChange",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('from_status', models.CharField(max_length=20)),
-                ('to_status', models.CharField(max_length=20)),
-                ('note', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('changed_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
-                ('document', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='status_changes', to='agents_api.controlleddocument')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("from_status", models.CharField(max_length=20)),
+                ("to_status", models.CharField(max_length=20)),
+                ("note", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "changed_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "document",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="status_changes",
+                        to="agents_api.controlleddocument",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'iso_document_status_changes',
-                'ordering': ['created_at'],
+                "db_table": "iso_document_status_changes",
+                "ordering": ["created_at"],
             },
         ),
         migrations.CreateModel(
-            name='SupplierStatusChange',
+            name="SupplierStatusChange",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('from_status', models.CharField(max_length=20)),
-                ('to_status', models.CharField(max_length=20)),
-                ('note', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('changed_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
-                ('supplier', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='status_changes', to='agents_api.supplierrecord')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("from_status", models.CharField(max_length=20)),
+                ("to_status", models.CharField(max_length=20)),
+                ("note", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "changed_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "supplier",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="status_changes",
+                        to="agents_api.supplierrecord",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'iso_supplier_status_changes',
-                'ordering': ['created_at'],
+                "db_table": "iso_supplier_status_changes",
+                "ordering": ["created_at"],
             },
         ),
     ]

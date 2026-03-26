@@ -117,7 +117,9 @@ class RiskRegistryCheckTest(TestCase):
 
     def test_low_risk_open_passes(self):
         """Open low-risk items → pass."""
-        self._create_entry(likelihood=2, severity=2, detectability=2, status="identified")
+        self._create_entry(
+            likelihood=2, severity=2, detectability=2, status="identified"
+        )
         from syn.audit.compliance import check_risk_registry
 
         result = check_risk_registry()

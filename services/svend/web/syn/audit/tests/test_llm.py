@@ -113,7 +113,10 @@ class ClaudeModelsTest(SimpleTestCase):
     def test_model_ids_are_strings(self):
         for key, model_id in CLAUDE_MODELS.items():
             self.assertIsInstance(model_id, str)
-            self.assertTrue(model_id.startswith("claude-"), f"{key}: {model_id} doesn't start with 'claude-'")
+            self.assertTrue(
+                model_id.startswith("claude-"),
+                f"{key}: {model_id} doesn't start with 'claude-'",
+            )
 
 
 class LLMRateLimitTest(SimpleTestCase):
@@ -125,7 +128,9 @@ class LLMRateLimitTest(SimpleTestCase):
         mock_user.id = 1
         mock_user.subscription_tier = "FREE"
 
-        with patch("agents_api.llm_manager.LLMManager.get_anthropic", return_value=None):
+        with patch(
+            "agents_api.llm_manager.LLMManager.get_anthropic", return_value=None
+        ):
             LLMManager.chat(mock_user, [{"role": "user", "content": "test"}])
             # When API not available, returns None — which is valid error handling
             # Rate limit structure is only in success/rate-limited responses

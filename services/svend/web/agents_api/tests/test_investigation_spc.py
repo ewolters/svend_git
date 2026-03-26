@@ -29,7 +29,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.TEAM):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123")
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123"
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -38,9 +40,14 @@ def _make_user(email, tier=Tier.TEAM):
 def _make_active_investigation(user):
     """Create an active investigation with a hypothesis for evidence to support."""
     inv = Investigation.objects.create(
-        title="SPC Bridge Test", description="Testing SPC integration", owner=user, status="active"
+        title="SPC Bridge Test",
+        description="Testing SPC integration",
+        owner=user,
+        status="active",
     )
-    tool = MeasurementSystem.objects.create(name="SPC Test Gage", system_type="variable", owner=user)
+    tool = MeasurementSystem.objects.create(
+        name="SPC Test Gage", system_type="variable", owner=user
+    )
     spec = HypothesisSpec(description="Process drift hypothesis", prior=0.5)
     connect_tool(
         investigation_id=str(inv.id),
@@ -80,7 +87,11 @@ class ControlChartBridgeTest(TestCase):
         initial = _count_evidence(self.inv)
         resp = self.client.post(
             "/api/spc/chart/",
-            {"chart_type": "I-MR", "data": [10, 12, 11, 13, 12, 15, 14, 11], "investigation_id": str(self.inv.id)},
+            {
+                "chart_type": "I-MR",
+                "data": [10, 12, 11, 13, 12, 15, 14, 11],
+                "investigation_id": str(self.inv.id),
+            },
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
@@ -90,12 +101,18 @@ class ControlChartBridgeTest(TestCase):
         """Control chart with investigation_id creates InvestigationToolLink."""
         resp = self.client.post(
             "/api/spc/chart/",
-            {"chart_type": "I-MR", "data": [10, 12, 11, 13, 12, 15, 14, 11], "investigation_id": str(self.inv.id)},
+            {
+                "chart_type": "I-MR",
+                "data": [10, 12, 11, 13, 12, 15, 14, 11],
+                "investigation_id": str(self.inv.id),
+            },
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(
-            InvestigationToolLink.objects.filter(investigation=self.inv, tool_type="spc_control_chart").exists()
+            InvestigationToolLink.objects.filter(
+                investigation=self.inv, tool_type="spc_control_chart"
+            ).exists()
         )
 
 
@@ -139,7 +156,10 @@ class SummaryBridgeTest(TestCase):
         initial = _count_evidence(self.inv)
         resp = self.client.post(
             "/api/spc/summary/",
-            {"data": [10, 12, 11, 13, 12, 15, 14, 11, 10, 13], "investigation_id": str(self.inv.id)},
+            {
+                "data": [10, 12, 11, 13, 12, 15, 14, 11, 10, 13],
+                "investigation_id": str(self.inv.id),
+            },
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
@@ -162,8 +182,34 @@ class GageRRBridgeTest(TestCase):
             "/api/spc/gage-rr/",
             {
                 "parts": ["A", "A", "B", "B", "C", "C", "A", "A", "B", "B", "C", "C"],
-                "operators": ["Op1", "Op1", "Op1", "Op1", "Op1", "Op1", "Op2", "Op2", "Op2", "Op2", "Op2", "Op2"],
-                "measurements": [10.1, 10.2, 10.5, 10.4, 10.8, 10.9, 10.0, 10.3, 10.6, 10.5, 10.7, 10.8],
+                "operators": [
+                    "Op1",
+                    "Op1",
+                    "Op1",
+                    "Op1",
+                    "Op1",
+                    "Op1",
+                    "Op2",
+                    "Op2",
+                    "Op2",
+                    "Op2",
+                    "Op2",
+                    "Op2",
+                ],
+                "measurements": [
+                    10.1,
+                    10.2,
+                    10.5,
+                    10.4,
+                    10.8,
+                    10.9,
+                    10.0,
+                    10.3,
+                    10.6,
+                    10.5,
+                    10.7,
+                    10.8,
+                ],
                 "tolerance": 1.0,
                 "investigation_id": str(self.inv.id),
             },
@@ -187,7 +233,11 @@ class RecommendBridgeTest(TestCase):
         initial = _count_evidence(self.inv)
         resp = self.client.post(
             "/api/spc/chart/recommend/",
-            {"data_type": "continuous", "subgroup_size": 5, "investigation_id": str(self.inv.id)},
+            {
+                "data_type": "continuous",
+                "subgroup_size": 5,
+                "investigation_id": str(self.inv.id),
+            },
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
@@ -216,7 +266,11 @@ class NoBridgeWithoutIdTest(TestCase):
         """Capability study without investigation_id works normally."""
         resp = self.client.post(
             "/api/spc/capability/",
-            {"data": [10.1, 10.2, 10.0, 9.9, 10.3, 10.1, 10.0, 9.8, 10.2, 10.1], "usl": 10.5, "lsl": 9.5},
+            {
+                "data": [10.1, 10.2, 10.0, 9.9, 10.3, 10.1, 10.0, 9.8, 10.2, 10.1],
+                "usl": 10.5,
+                "lsl": 9.5,
+            },
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)

@@ -60,7 +60,14 @@ class SLATagParserTest(SimpleTestCase):
 
     def test_sla_definition_has_required_fields(self):
         """SLADefinition has description, sla_id, metric, target, window, severity."""
-        for field in ["description", "sla_id", "metric", "target", "window", "severity"]:
+        for field in [
+            "description",
+            "sla_id",
+            "metric",
+            "target",
+            "window",
+            "severity",
+        ]:
             self.assertIn(field, self.standards_src)
 
     def test_parse_sla_definitions_exists(self):
@@ -81,8 +88,14 @@ class SLATagParserTest(SimpleTestCase):
 
     def test_valid_metrics_defined(self):
         """VALID_METRICS set includes all 6 metric types."""
-        for metric in ["availability", "response_time", "durability",
-                       "incident_response", "compliance", "change_velocity"]:
+        for metric in [
+            "availability",
+            "response_time",
+            "durability",
+            "incident_response",
+            "compliance",
+            "change_velocity",
+        ]:
             self.assertIn(metric, self.standards_src)
 
     def test_incomplete_tag_rejected(self):
@@ -93,7 +106,8 @@ class SLATagParserTest(SimpleTestCase):
         """parse_all_sla_definitions deduplicates by sla_id."""
         fn_match = re.search(
             r"def parse_all_sla_definitions\(.*?(?=\ndef |\Z)",
-            self.standards_src, re.DOTALL,
+            self.standards_src,
+            re.DOTALL,
         )
         self.assertIsNotNone(fn_match)
         fn_body = fn_match.group()
@@ -138,7 +152,9 @@ class SLATagAttributeTest(SimpleTestCase):
     def test_twelve_sla_definitions_in_standard(self):
         """SLA-001 defines exactly 12 SLAs per §14 acceptance criteria."""
         sla_tags = _extract_sla_tags(self.sla_standard)
-        self.assertEqual(len(sla_tags), 12, f"Expected 12 SLA tags, found {len(sla_tags)}")
+        self.assertEqual(
+            len(sla_tags), 12, f"Expected 12 SLA tags, found {len(sla_tags)}"
+        )
 
 
 # ── §5-10: SLA Definitions Coverage ──────────────────────────────────────
@@ -201,14 +217,22 @@ class SLAComplianceCheckTest(SimpleTestCase):
         """_measure_sla dispatches to all 6 metric types."""
         fn_match = re.search(
             r"def _measure_sla\(.*?(?=\ndef [a-z]|\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         self.assertIsNotNone(fn_match)
         fn_body = fn_match.group()
-        for metric in ["availability", "durability", "compliance",
-                       "change_velocity", "response_time", "incident_response"]:
+        for metric in [
+            "availability",
+            "durability",
+            "compliance",
+            "change_velocity",
+            "response_time",
+            "incident_response",
+        ]:
             self.assertIn(
-                metric, fn_body,
+                metric,
+                fn_body,
                 f"_measure_sla missing dispatch for '{metric}'",
             )
 
@@ -216,7 +240,8 @@ class SLAComplianceCheckTest(SimpleTestCase):
         """Manual measurement SLAs return unmeasurable status."""
         fn_match = re.search(
             r"def _measure_sla\(.*?(?=\ndef [a-z]|\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         fn_body = fn_match.group()
         self.assertIn("manual", fn_body)
@@ -246,7 +271,8 @@ class SLAMeasurementTest(SimpleTestCase):
         self.assertIn("def _parse_target(", self.compliance_src)
         fn_match = re.search(
             r"def _parse_target\(.*?(?=\ndef |\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         fn_body = fn_match.group()
         self.assertIn("%", fn_body)
@@ -255,7 +281,8 @@ class SLAMeasurementTest(SimpleTestCase):
         """_parse_target handles '2000ms' format."""
         fn_match = re.search(
             r"def _parse_target\(.*?(?=\ndef |\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         fn_body = fn_match.group()
         self.assertIn("ms", fn_body)
@@ -264,7 +291,8 @@ class SLAMeasurementTest(SimpleTestCase):
         """_parse_target handles '24h' format."""
         fn_match = re.search(
             r"def _parse_target\(.*?(?=\ndef |\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         fn_body = fn_match.group()
         self.assertIn("h", fn_body)
@@ -297,7 +325,8 @@ class SLAMeasurementTest(SimpleTestCase):
         """_measure_response_time computes p95 and p99 percentiles."""
         fn_match = re.search(
             r"def _measure_response_time\(.*?(?=\ndef |\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         self.assertIsNotNone(fn_match)
         fn_body = fn_match.group()
@@ -308,7 +337,8 @@ class SLAMeasurementTest(SimpleTestCase):
         """_measure_availability uses HealthPing records for real-time measurement."""
         fn_match = re.search(
             r"def _measure_availability\(.*?(?=\ndef |\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         fn_body = fn_match.group()
         self.assertIn("HealthPing", fn_body)
@@ -327,13 +357,16 @@ class SLAAntiPatternTest(SimpleTestCase):
         """Unmeasurable SLAs return explicit 'unmeasurable' status, not silent skip."""
         # Count occurrences — should be in multiple measurement functions
         count = self.compliance_src.count('"unmeasurable"')
-        self.assertGreaterEqual(count, 5, f"'unmeasurable' status used only {count} times")
+        self.assertGreaterEqual(
+            count, 5, f"'unmeasurable' status used only {count} times"
+        )
 
     def test_no_silent_skip_on_unknown_metric(self):
         """Unknown metric types are reported, not silently skipped."""
         fn_match = re.search(
             r"def _measure_sla\(.*?(?=\ndef [a-z]|\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         fn_body = fn_match.group()
         self.assertIn("Unknown metric", fn_body)

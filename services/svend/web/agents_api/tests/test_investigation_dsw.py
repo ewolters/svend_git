@@ -28,7 +28,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.TEAM):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123")
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123"
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -37,9 +39,14 @@ def _make_user(email, tier=Tier.TEAM):
 def _make_active_investigation(user):
     """Create an active investigation with a hypothesis for evidence to support."""
     inv = Investigation.objects.create(
-        title="DSW Bridge Test", description="Testing DSW integration", owner=user, status="active"
+        title="DSW Bridge Test",
+        description="Testing DSW integration",
+        owner=user,
+        status="active",
     )
-    tool = MeasurementSystem.objects.create(name="DSW Test Gage", system_type="variable", owner=user)
+    tool = MeasurementSystem.objects.create(
+        name="DSW Test Gage", system_type="variable", owner=user
+    )
     spec = HypothesisSpec(description="Statistical hypothesis", prior=0.5)
     connect_tool(
         investigation_id=str(inv.id),
@@ -65,7 +72,9 @@ def _count_evidence(inv):
     return len(graph.get("evidence", []))
 
 
-def _dsw_payload(analysis_type, analysis_id, config=None, investigation_id=None, data=None):
+def _dsw_payload(
+    analysis_type, analysis_id, config=None, investigation_id=None, data=None
+):
     """Build a DSW analysis request payload with inline data."""
     payload = {
         "type": analysis_type,
@@ -176,7 +185,11 @@ class DSWBridgeStatsTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(InvestigationToolLink.objects.filter(investigation=self.inv, tool_type="dsw").exists())
+        self.assertTrue(
+            InvestigationToolLink.objects.filter(
+                investigation=self.inv, tool_type="dsw"
+            ).exists()
+        )
 
     def test_ttest_bridge_result_in_response(self):
         """Response includes investigation_bridge when investigation_id provided."""
@@ -289,7 +302,9 @@ class DSWBridgeMetricsTest(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
         # Bridge uses MeasurementSystem as the tool_output for InvestigationToolLink
-        self.assertTrue(MeasurementSystem.objects.filter(name="DSW stats", owner=self.user).exists())
+        self.assertTrue(
+            MeasurementSystem.objects.filter(name="DSW stats", owner=self.user).exists()
+        )
 
     def test_evidence_weight_is_positive(self):
         """Evidence weight in bridge result is a positive float."""

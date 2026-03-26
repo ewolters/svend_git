@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0016_add_country_index_sitevisit'),
+        ("api", "0016_add_country_index_sitevisit"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='sitevisit',
-            name='duration_ms',
+            model_name="sitevisit",
+            name="duration_ms",
             field=models.IntegerField(blank=True, null=True),
         ),
     ]

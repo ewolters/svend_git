@@ -49,6 +49,7 @@ class SecuritySettingsTest(SimpleTestCase):
 
     def test_secure_ssl_redirect(self):
         from django.conf import settings
+
         self.assertTrue(
             getattr(settings, "SECURE_SSL_REDIRECT", False),
             "SECURE_SSL_REDIRECT should be True in production",
@@ -56,11 +57,13 @@ class SecuritySettingsTest(SimpleTestCase):
 
     def test_hsts_seconds_set(self):
         from django.conf import settings
+
         hsts = getattr(settings, "SECURE_HSTS_SECONDS", 0)
         self.assertGreater(hsts, 0, "SECURE_HSTS_SECONDS should be > 0")
 
     def test_hsts_include_subdomains(self):
         from django.conf import settings
+
         self.assertTrue(
             getattr(settings, "SECURE_HSTS_INCLUDE_SUBDOMAINS", False),
             "SECURE_HSTS_INCLUDE_SUBDOMAINS should be True",
@@ -68,6 +71,7 @@ class SecuritySettingsTest(SimpleTestCase):
 
     def test_hsts_preload(self):
         from django.conf import settings
+
         self.assertTrue(
             getattr(settings, "SECURE_HSTS_PRELOAD", False),
             "SECURE_HSTS_PRELOAD should be True",
@@ -75,6 +79,7 @@ class SecuritySettingsTest(SimpleTestCase):
 
     def test_session_cookie_secure(self):
         from django.conf import settings
+
         self.assertTrue(
             getattr(settings, "SESSION_COOKIE_SECURE", False),
             "SESSION_COOKIE_SECURE should be True",
@@ -82,6 +87,7 @@ class SecuritySettingsTest(SimpleTestCase):
 
     def test_csrf_cookie_secure(self):
         from django.conf import settings
+
         self.assertTrue(
             getattr(settings, "CSRF_COOKIE_SECURE", False),
             "CSRF_COOKIE_SECURE should be True",
@@ -93,6 +99,7 @@ class RateLimitTest(SimpleTestCase):
 
     def test_rate_limit_decorator_exists(self):
         from accounts.permissions import require_auth
+
         self.assertTrue(callable(require_auth))
 
 
@@ -113,17 +120,20 @@ class StaticFilesTest(SimpleTestCase):
 
     def test_whitenoise_in_middleware(self):
         from django.conf import settings
+
         middleware = getattr(settings, "MIDDLEWARE", [])
         has_whitenoise = any("whitenoise" in m.lower() for m in middleware)
         self.assertTrue(has_whitenoise, "WhiteNoise middleware not found")
 
     def test_staticfiles_storage(self):
         from django.conf import settings
+
         storage = getattr(settings, "STATICFILES_STORAGE", "")
         storages = getattr(settings, "STORAGES", {})
         whitenoise_configured = (
             "whitenoise" in storage.lower()
-            or "whitenoise" in str(storages.get("staticfiles", {}).get("BACKEND", "")).lower()
+            or "whitenoise"
+            in str(storages.get("staticfiles", {}).get("BACKEND", "")).lower()
         )
         self.assertTrue(
             whitenoise_configured,
@@ -136,10 +146,12 @@ class LogRotationTest(SimpleTestCase):
 
     def test_logging_config_has_file_handler(self):
         from django.conf import settings
+
         logging_config = getattr(settings, "LOGGING", {})
         handlers = logging_config.get("handlers", {})
         file_handlers = {
-            k: v for k, v in handlers.items()
+            k: v
+            for k, v in handlers.items()
             if "RotatingFileHandler" in v.get("class", "")
             or "FileHandler" in v.get("class", "")
         }
@@ -152,6 +164,7 @@ class HealthCheckTest(SimpleTestCase):
     @override_settings(SECURE_SSL_REDIRECT=False)
     def test_health_endpoint_exists(self):
         from django.test import Client
+
         client = Client()
         response = client.get("/api/health/")
         self.assertEqual(response.status_code, 200)
@@ -162,6 +175,7 @@ class EncryptionConfigTest(SimpleTestCase):
 
     def test_fernet_key_configured(self):
         from django.conf import settings
+
         # Check that a Fernet key or encryption key is configured
         has_key = (
             hasattr(settings, "FERNET_KEY")
@@ -169,7 +183,9 @@ class EncryptionConfigTest(SimpleTestCase):
             or hasattr(settings, "FIELD_ENCRYPTION_KEY")
             or os.environ.get("FERNET_KEY")
         )
-        self.assertTrue(has_key, "No encryption key configured for field-level encryption")
+        self.assertTrue(
+            has_key, "No encryption key configured for field-level encryption"
+        )
 
 
 class StartupScriptTest(SimpleTestCase):

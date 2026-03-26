@@ -261,7 +261,9 @@ class Synara:
 
         # Evidence confidence already factors in separately
         if evidence.confidence < 0.5:
-            reasoning_parts.append(f"Low evidence confidence ({evidence.confidence:.0%})")
+            reasoning_parts.append(
+                f"Low evidence confidence ({evidence.confidence:.0%})"
+            )
 
         if not reasoning_parts:
             reasoning_parts.append("No statistical data available, using neutral LR")
@@ -342,7 +344,9 @@ class Synara:
         issues = []
 
         # Get all relationships in graph
-        relationships = list(knowledge_graph.relationships.select_related("source", "target"))
+        relationships = list(
+            knowledge_graph.relationships.select_related("source", "target")
+        )
 
         # Build adjacency for analysis
         causal_edges = {}  # (source_id, target_id) -> [relation_types]
@@ -356,8 +360,12 @@ class Synara:
         for (src, tgt), types in causal_edges.items():
             contradictions = self._find_contradictions(types)
             if contradictions:
-                source = next(r.source for r in relationships if str(r.source_id) == src)
-                target = next(r.target for r in relationships if str(r.target_id) == tgt)
+                source = next(
+                    r.source for r in relationships if str(r.source_id) == src
+                )
+                target = next(
+                    r.target for r in relationships if str(r.target_id) == tgt
+                )
                 issues.append(
                     ConsistencyIssue(
                         issue_type="contradiction",
@@ -377,7 +385,9 @@ class Synara:
                     severity="warning",
                     description=f"Circular causation detected: {' → '.join(cycle)}",
                     entities_involved=cycle,
-                    suggestions=["Review causal chain for feedback loops vs actual circularity"],
+                    suggestions=[
+                        "Review causal chain for feedback loops vs actual circularity"
+                    ],
                 )
             )
 

@@ -65,7 +65,9 @@ def _put_json(client, url, data=None):
 
 def _not_500(tc, resp, msg=""):
     """Assert response is not a server error."""
-    tc.assertNotEqual(resp.status_code, 500, msg or f"Got 500 from {resp.wsgi_request.path}")
+    tc.assertNotEqual(
+        resp.status_code, 500, msg or f"Got 500 from {resp.wsgi_request.path}"
+    )
 
 
 def _is_unauth(tc, resp):
@@ -149,10 +151,14 @@ class ISONCRTest(TestCase):
         _not_500(self, self.client.get("/api/iso/ncrs/stats/"))
 
     def test_ncr_launch_rca_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/iso/ncrs/{FAKE_UUID}/launch-rca/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/iso/ncrs/{FAKE_UUID}/launch-rca/")
+        )
 
     def test_ncr_files_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/iso/ncrs/{FAKE_UUID}/files/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/iso/ncrs/{FAKE_UUID}/files/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -191,7 +197,9 @@ class ISOAuditTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/iso/audits/{FAKE_UUID}/"))
 
     def test_audit_finding_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/iso/audits/{FAKE_UUID}/findings/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/iso/audits/{FAKE_UUID}/findings/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -210,7 +218,9 @@ class ISOChecklistTest(TestCase):
         _not_500(self, _post_json(self.client, "/api/iso/checklists/"))
 
     def test_checklist_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/iso/checklists/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/iso/checklists/{FAKE_UUID}/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -236,13 +246,19 @@ class ISOTrainingTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/iso/training/{FAKE_UUID}/"))
 
     def test_training_record_create_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/iso/training/{FAKE_UUID}/records/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/iso/training/{FAKE_UUID}/records/")
+        )
 
     def test_training_record_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/iso/training/records/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/iso/training/records/{FAKE_UUID}/")
+        )
 
     def test_training_record_files_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/iso/training/records/{FAKE_UUID}/files/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/iso/training/records/{FAKE_UUID}/files/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -284,10 +300,14 @@ class ISODocumentTest(TestCase):
         _not_500(self, _post_json(self.client, "/api/iso/documents/"))
 
     def test_document_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/iso/documents/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/iso/documents/{FAKE_UUID}/")
+        )
 
     def test_document_files_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/iso/documents/{FAKE_UUID}/files/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/iso/documents/{FAKE_UUID}/files/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -310,7 +330,9 @@ class ISOSupplierTest(TestCase):
         _not_500(self, _post_json(self.client, "/api/iso/suppliers/"))
 
     def test_supplier_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/iso/suppliers/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/iso/suppliers/{FAKE_UUID}/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -329,7 +351,9 @@ class ISOSignatureTest(TestCase):
         _not_500(self, _post_json(self.client, "/api/iso/signatures/"))
 
     def test_signature_verify_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/iso/signatures/{FAKE_UUID}/verify/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/iso/signatures/{FAKE_UUID}/verify/")
+        )
 
     def test_signature_verify_chain_empty(self):
         _not_500(self, _post_json(self.client, "/api/iso/signatures/verify-chain/"))
@@ -348,16 +372,24 @@ class ISOStudyActionsTest(TestCase):
         _not_500(self, _post_json(self.client, "/api/iso/study-actions/raise-capa/"))
 
     def test_schedule_audit_empty(self):
-        _not_500(self, _post_json(self.client, "/api/iso/study-actions/schedule-audit/"))
+        _not_500(
+            self, _post_json(self.client, "/api/iso/study-actions/schedule-audit/")
+        )
 
     def test_request_doc_update_empty(self):
-        _not_500(self, _post_json(self.client, "/api/iso/study-actions/request-doc-update/"))
+        _not_500(
+            self, _post_json(self.client, "/api/iso/study-actions/request-doc-update/")
+        )
 
     def test_flag_training_gap_empty(self):
-        _not_500(self, _post_json(self.client, "/api/iso/study-actions/flag-training-gap/"))
+        _not_500(
+            self, _post_json(self.client, "/api/iso/study-actions/flag-training-gap/")
+        )
 
     def test_flag_fmea_update_empty(self):
-        _not_500(self, _post_json(self.client, "/api/iso/study-actions/flag-fmea-update/"))
+        _not_500(
+            self, _post_json(self.client, "/api/iso/study-actions/flag-fmea-update/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -382,7 +414,10 @@ class HoshinSiteTest(TestCase):
         _not_500(self, self.client.get("/api/hoshin/sites/"))
 
     def test_sites_create_minimal(self):
-        _not_500(self, _post_json(self.client, "/api/hoshin/sites/create/", {"name": "Test Site"}))
+        _not_500(
+            self,
+            _post_json(self.client, "/api/hoshin/sites/create/", {"name": "Test Site"}),
+        )
 
     def test_sites_create_empty(self):
         _not_500(self, _post_json(self.client, "/api/hoshin/sites/create/"))
@@ -391,19 +426,33 @@ class HoshinSiteTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/hoshin/sites/{FAKE_UUID}/"))
 
     def test_site_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/hoshin/sites/{FAKE_UUID}/update/", {"name": "X"}))
+        _is_not_found_or_error(
+            self,
+            _put_json(
+                self.client, f"/api/hoshin/sites/{FAKE_UUID}/update/", {"name": "X"}
+            ),
+        )
 
     def test_site_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/hoshin/sites/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/hoshin/sites/{FAKE_UUID}/delete/")
+        )
 
     def test_site_members_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/hoshin/sites/{FAKE_UUID}/members/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/hoshin/sites/{FAKE_UUID}/members/")
+        )
 
     def test_site_grant_access_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/hoshin/sites/{FAKE_UUID}/members/grant/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, f"/api/hoshin/sites/{FAKE_UUID}/members/grant/"),
+        )
 
     def test_site_alignment_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/hoshin/sites/{FAKE_UUID}/alignment/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/hoshin/sites/{FAKE_UUID}/alignment/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -426,19 +475,28 @@ class HoshinProjectTest(TestCase):
         _not_500(self, _post_json(self.client, "/api/hoshin/projects/create/"))
 
     def test_project_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/hoshin/projects/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/hoshin/projects/{FAKE_UUID}/")
+        )
 
     def test_project_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/hoshin/projects/{FAKE_UUID}/update/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/hoshin/projects/{FAKE_UUID}/update/")
+        )
 
     def test_project_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/hoshin/projects/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/hoshin/projects/{FAKE_UUID}/delete/")
+        )
 
     def test_project_from_proposals_empty(self):
         _not_500(self, _post_json(self.client, "/api/hoshin/projects/from-proposals/"))
 
     def test_project_monthly_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/hoshin/projects/{FAKE_UUID}/monthly/1/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, f"/api/hoshin/projects/{FAKE_UUID}/monthly/1/"),
+        )
 
 
 @override_settings(**SMOKE)
@@ -451,16 +509,27 @@ class HoshinActionsTest(TestCase):
         self.client.login(username=self.user.username, password=PWD)
 
     def test_actions_list_invalid_project(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/hoshin/projects/{FAKE_UUID}/actions/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/hoshin/projects/{FAKE_UUID}/actions/")
+        )
 
     def test_action_create_invalid_project(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/hoshin/projects/{FAKE_UUID}/actions/create/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(
+                self.client, f"/api/hoshin/projects/{FAKE_UUID}/actions/create/"
+            ),
+        )
 
     def test_action_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/hoshin/actions/{FAKE_UUID}/update/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/hoshin/actions/{FAKE_UUID}/update/")
+        )
 
     def test_action_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/hoshin/actions/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/hoshin/actions/{FAKE_UUID}/delete/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -508,13 +577,19 @@ class HoshinEmployeeTest(TestCase):
         _not_500(self, _post_json(self.client, "/api/hoshin/employees/"))
 
     def test_employee_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/hoshin/employees/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/hoshin/employees/{FAKE_UUID}/")
+        )
 
     def test_employee_availability_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/hoshin/employees/{FAKE_UUID}/availability/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/hoshin/employees/{FAKE_UUID}/availability/")
+        )
 
     def test_employee_timeline_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/hoshin/employees/{FAKE_UUID}/timeline/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/hoshin/employees/{FAKE_UUID}/timeline/")
+        )
 
     def test_employees_import_empty(self):
         _not_500(self, _post_json(self.client, "/api/hoshin/employees/import/"))
@@ -536,7 +611,9 @@ class HoshinCommitmentTest(TestCase):
         _not_500(self, _post_json(self.client, "/api/hoshin/commitments/"))
 
     def test_commitment_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/hoshin/commitments/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/hoshin/commitments/{FAKE_UUID}/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -580,19 +657,31 @@ class XMatrixStrategicTest(TestCase):
         _not_500(self, self.client.get("/api/hoshin/strategic-objectives/"))
 
     def test_strategic_create_minimal(self):
-        _not_500(self, _post_json(self.client, "/api/hoshin/strategic-objectives/", {"text": "Test Obj"}))
+        _not_500(
+            self,
+            _post_json(
+                self.client, "/api/hoshin/strategic-objectives/", {"text": "Test Obj"}
+            ),
+        )
 
     def test_strategic_create_empty(self):
         _not_500(self, _post_json(self.client, "/api/hoshin/strategic-objectives/"))
 
     def test_strategic_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/hoshin/strategic-objectives/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/hoshin/strategic-objectives/{FAKE_UUID}/")
+        )
 
     def test_strategic_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/hoshin/strategic-objectives/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self,
+            _put_json(self.client, f"/api/hoshin/strategic-objectives/{FAKE_UUID}/"),
+        )
 
     def test_strategic_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/hoshin/strategic-objectives/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/hoshin/strategic-objectives/{FAKE_UUID}/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -611,7 +700,9 @@ class XMatrixAnnualTest(TestCase):
         _not_500(self, _post_json(self.client, "/api/hoshin/annual-objectives/"))
 
     def test_annual_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/hoshin/annual-objectives/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/hoshin/annual-objectives/{FAKE_UUID}/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -633,7 +724,9 @@ class XMatrixKPITest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/hoshin/kpis/{FAKE_UUID}/"))
 
     def test_kpi_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/hoshin/kpis/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/hoshin/kpis/{FAKE_UUID}/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -646,7 +739,9 @@ class XMatrixVSMPromoteTest(TestCase):
         self.client.login(username=self.user.username, password=PWD)
 
     def test_promote_vsm_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/hoshin/vsm/{FAKE_UUID}/promote/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/hoshin/vsm/{FAKE_UUID}/promote/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -690,22 +785,30 @@ class FMEACRUDTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/fmea/{FAKE_UUID}/"))
 
     def test_fmea_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/fmea/{FAKE_UUID}/update/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/fmea/{FAKE_UUID}/update/")
+        )
 
     def test_fmea_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/fmea/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/fmea/{FAKE_UUID}/delete/")
+        )
 
     def test_fmea_rpn_summary_invalid(self):
         _is_not_found_or_error(self, self.client.get(f"/api/fmea/{FAKE_UUID}/summary/"))
 
     def test_fmea_trending_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/fmea/{FAKE_UUID}/trending/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/fmea/{FAKE_UUID}/trending/")
+        )
 
     def test_fmea_patterns(self):
         _not_500(self, self.client.get("/api/fmea/patterns/"))
 
     def test_fmea_suggest_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/fmea/{FAKE_UUID}/suggest-failure-modes/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/fmea/{FAKE_UUID}/suggest-failure-modes/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -718,34 +821,69 @@ class FMEARowTest(TestCase):
         self.client.login(username=self.user.username, password=PWD)
 
     def test_add_row_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/fmea/{FAKE_UUID}/rows/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/fmea/{FAKE_UUID}/rows/")
+        )
 
     def test_update_row_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/")
+        )
 
     def test_delete_row_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/delete/")
+        )
 
     def test_reorder_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/fmea/{FAKE_UUID}/reorder/", {"order": []}))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, f"/api/fmea/{FAKE_UUID}/reorder/", {"order": []}),
+        )
 
     def test_link_hypothesis_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/link/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/link/"),
+        )
 
     def test_record_revision_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/revise/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/revise/"),
+        )
 
     def test_spc_update_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/spc-update/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(
+                self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/spc-update/"
+            ),
+        )
 
     def test_spc_cpk_update_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/spc-cpk-update/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(
+                self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/spc-cpk-update/"
+            ),
+        )
 
     def test_promote_action_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/promote-action/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(
+                self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/promote-action/"
+            ),
+        )
 
     def test_investigate_row_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/investigate/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(
+                self.client, f"/api/fmea/{FAKE_UUID}/rows/{FAKE_UUID}/investigate/"
+            ),
+        )
 
     def test_fmea_actions_invalid(self):
         _is_not_found_or_error(self, self.client.get(f"/api/fmea/{FAKE_UUID}/actions/"))
@@ -792,31 +930,45 @@ class A3CRUDTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/a3/{FAKE_UUID}/"))
 
     def test_a3_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/a3/{FAKE_UUID}/update/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/a3/{FAKE_UUID}/update/")
+        )
 
     def test_a3_delete_invalid(self):
         _is_not_found_or_error(self, self.client.delete(f"/api/a3/{FAKE_UUID}/delete/"))
 
     def test_a3_import_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/a3/{FAKE_UUID}/import/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/a3/{FAKE_UUID}/import/")
+        )
 
     def test_a3_auto_populate_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/a3/{FAKE_UUID}/auto-populate/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/a3/{FAKE_UUID}/auto-populate/")
+        )
 
     def test_a3_critique_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/a3/{FAKE_UUID}/critique/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/a3/{FAKE_UUID}/critique/")
+        )
 
     def test_a3_embed_diagram_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/a3/{FAKE_UUID}/embed-diagram/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/a3/{FAKE_UUID}/embed-diagram/")
+        )
 
     def test_a3_export_pdf_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/a3/{FAKE_UUID}/export/pdf/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/a3/{FAKE_UUID}/export/pdf/")
+        )
 
     def test_a3_actions_list_invalid(self):
         _is_not_found_or_error(self, self.client.get(f"/api/a3/{FAKE_UUID}/actions/"))
 
     def test_a3_action_create_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/a3/{FAKE_UUID}/actions/create/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/a3/{FAKE_UUID}/actions/create/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -860,19 +1012,30 @@ class RCACRUDTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/rca/sessions/{FAKE_UUID}/"))
 
     def test_session_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/rca/sessions/{FAKE_UUID}/update/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/rca/sessions/{FAKE_UUID}/update/")
+        )
 
     def test_session_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/rca/sessions/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/rca/sessions/{FAKE_UUID}/delete/")
+        )
 
     def test_session_link_a3_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/rca/sessions/{FAKE_UUID}/link-a3/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/rca/sessions/{FAKE_UUID}/link-a3/")
+        )
 
     def test_session_actions_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/rca/sessions/{FAKE_UUID}/actions/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/rca/sessions/{FAKE_UUID}/actions/")
+        )
 
     def test_session_action_create_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/rca/sessions/{FAKE_UUID}/actions/create/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, f"/api/rca/sessions/{FAKE_UUID}/actions/create/"),
+        )
 
 
 @override_settings(**SMOKE)
@@ -932,19 +1095,31 @@ class WhiteboardCRUDTest(TestCase):
         _not_500(self, self.client.get("/api/whiteboard/boards/"))
 
     def test_board_create_minimal(self):
-        _not_500(self, _post_json(self.client, "/api/whiteboard/boards/create/", {"title": "Test Board"}))
+        _not_500(
+            self,
+            _post_json(
+                self.client, "/api/whiteboard/boards/create/", {"title": "Test Board"}
+            ),
+        )
 
     def test_board_create_empty(self):
         _not_500(self, _post_json(self.client, "/api/whiteboard/boards/create/"))
 
     def test_board_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get("/api/whiteboard/boards/nonexistent-room/"))
+        _is_not_found_or_error(
+            self, self.client.get("/api/whiteboard/boards/nonexistent-room/")
+        )
 
     def test_board_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, "/api/whiteboard/boards/nonexistent-room/update/"))
+        _is_not_found_or_error(
+            self,
+            _put_json(self.client, "/api/whiteboard/boards/nonexistent-room/update/"),
+        )
 
     def test_board_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete("/api/whiteboard/boards/nonexistent-room/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete("/api/whiteboard/boards/nonexistent-room/delete/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -958,40 +1133,78 @@ class WhiteboardFeaturesTest(TestCase):
 
     def test_cursor_update_invalid(self):
         _is_not_found_or_error(
-            self, _post_json(self.client, "/api/whiteboard/boards/nonexistent-room/cursor/", {"x": 0, "y": 0})
+            self,
+            _post_json(
+                self.client,
+                "/api/whiteboard/boards/nonexistent-room/cursor/",
+                {"x": 0, "y": 0},
+            ),
         )
 
     def test_toggle_voting_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, "/api/whiteboard/boards/nonexistent-room/voting/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, "/api/whiteboard/boards/nonexistent-room/voting/"),
+        )
 
     def test_add_vote_invalid(self):
         _is_not_found_or_error(
-            self, _post_json(self.client, "/api/whiteboard/boards/nonexistent-room/vote/", {"element_id": "x"})
+            self,
+            _post_json(
+                self.client,
+                "/api/whiteboard/boards/nonexistent-room/vote/",
+                {"element_id": "x"},
+            ),
         )
 
     def test_remove_vote_invalid(self):
-        _is_not_found_or_error(self, self.client.delete("/api/whiteboard/boards/nonexistent-room/vote/test-element/"))
+        _is_not_found_or_error(
+            self,
+            self.client.delete(
+                "/api/whiteboard/boards/nonexistent-room/vote/test-element/"
+            ),
+        )
 
     def test_export_hypotheses_invalid(self):
         _is_not_found_or_error(
-            self, _post_json(self.client, "/api/whiteboard/boards/nonexistent-room/export-hypotheses/")
+            self,
+            _post_json(
+                self.client,
+                "/api/whiteboard/boards/nonexistent-room/export-hypotheses/",
+            ),
         )
 
     def test_export_svg_invalid(self):
-        _is_not_found_or_error(self, self.client.get("/api/whiteboard/boards/nonexistent-room/svg/"))
+        _is_not_found_or_error(
+            self, self.client.get("/api/whiteboard/boards/nonexistent-room/svg/")
+        )
 
     def test_export_png_invalid(self):
-        _is_not_found_or_error(self, self.client.get("/api/whiteboard/boards/nonexistent-room/png/"))
+        _is_not_found_or_error(
+            self, self.client.get("/api/whiteboard/boards/nonexistent-room/png/")
+        )
 
     def test_guest_list_invalid(self):
-        _is_not_found_or_error(self, self.client.get("/api/whiteboard/boards/nonexistent-room/guests/"))
+        _is_not_found_or_error(
+            self, self.client.get("/api/whiteboard/boards/nonexistent-room/guests/")
+        )
 
     def test_guest_create_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, "/api/whiteboard/boards/nonexistent-room/guests/create/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(
+                self.client, "/api/whiteboard/boards/nonexistent-room/guests/create/"
+            ),
+        )
 
     def test_guest_name_invalid(self):
         _is_not_found_or_error(
-            self, _post_json(self.client, "/api/whiteboard/boards/nonexistent-room/guest-name/", {"name": "Test"})
+            self,
+            _post_json(
+                self.client,
+                "/api/whiteboard/boards/nonexistent-room/guest-name/",
+                {"name": "Test"},
+            ),
         )
 
 
@@ -1017,11 +1230,16 @@ class LearnModulesTest(TestCase):
         _not_500(self, self.client.get("/api/learn/modules/"))
 
     def test_module_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get("/api/learn/modules/nonexistent-module/"))
+        _is_not_found_or_error(
+            self, self.client.get("/api/learn/modules/nonexistent-module/")
+        )
 
     def test_section_detail_invalid(self):
         _is_not_found_or_error(
-            self, self.client.get("/api/learn/modules/nonexistent-module/sections/nonexistent-section/")
+            self,
+            self.client.get(
+                "/api/learn/modules/nonexistent-module/sections/nonexistent-section/"
+            ),
         )
 
 
@@ -1042,7 +1260,9 @@ class LearnProgressTest(TestCase):
         _not_500(self, self.client.get("/api/learn/progress/"))
 
     def test_mark_complete_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, "/api/learn/progress/nonexistent/complete/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, "/api/learn/progress/nonexistent/complete/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -1058,10 +1278,17 @@ class LearnSessionTest(TestCase):
         _not_500(self, _post_json(self.client, "/api/learn/session/start/"))
 
     def test_execute_step_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/learn/session/{FAKE_UUID}/step/step1/execute/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(
+                self.client, f"/api/learn/session/{FAKE_UUID}/step/step1/execute/"
+            ),
+        )
 
     def test_reset_session_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/learn/session/{FAKE_UUID}/reset/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/learn/session/{FAKE_UUID}/reset/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -1111,7 +1338,9 @@ class AutopilotEndpointsTest(TestCase):
         _not_500(self, _post_json(self.client, "/api/dsw/autopilot/augment-train/"))
 
     def test_retrain_model_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/dsw/models/{FAKE_UUID}/retrain/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/dsw/models/{FAKE_UUID}/retrain/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1136,7 +1365,10 @@ class WorkbenchCRUDTest(TestCase):
         _not_500(self, self.client.get("/api/workbench/"))
 
     def test_workbench_create_minimal(self):
-        _not_500(self, _post_json(self.client, "/api/workbench/create/", {"title": "Test WB"}))
+        _not_500(
+            self,
+            _post_json(self.client, "/api/workbench/create/", {"title": "Test WB"}),
+        )
 
     def test_workbench_create_empty(self):
         _not_500(self, _post_json(self.client, "/api/workbench/create/"))
@@ -1145,16 +1377,22 @@ class WorkbenchCRUDTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/workbench/{FAKE_UUID}/"))
 
     def test_workbench_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/workbench/{FAKE_UUID}/update/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/workbench/{FAKE_UUID}/update/")
+        )
 
     def test_workbench_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/workbench/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/workbench/{FAKE_UUID}/delete/")
+        )
 
     def test_workbench_import_empty(self):
         _not_500(self, _post_json(self.client, "/api/workbench/import/"))
 
     def test_workbench_export_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/workbench/{FAKE_UUID}/export/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/workbench/{FAKE_UUID}/export/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -1167,18 +1405,30 @@ class WorkbenchArtifactTest(TestCase):
         self.client.login(username=self.user.username, password=PWD)
 
     def test_create_artifact_invalid_wb(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/artifacts/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/artifacts/")
+        )
 
     def test_get_artifact_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/workbench/{FAKE_UUID}/artifacts/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/workbench/{FAKE_UUID}/artifacts/{FAKE_UUID}/")
+        )
 
     def test_update_artifact_invalid(self):
         _is_not_found_or_error(
-            self, _put_json(self.client, f"/api/workbench/{FAKE_UUID}/artifacts/{FAKE_UUID}/update/")
+            self,
+            _put_json(
+                self.client, f"/api/workbench/{FAKE_UUID}/artifacts/{FAKE_UUID}/update/"
+            ),
         )
 
     def test_delete_artifact_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/workbench/{FAKE_UUID}/artifacts/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self,
+            self.client.delete(
+                f"/api/workbench/{FAKE_UUID}/artifacts/{FAKE_UUID}/delete/"
+            ),
+        )
 
 
 @override_settings(**SMOKE)
@@ -1191,13 +1441,19 @@ class WorkbenchConnectionTest(TestCase):
         self.client.login(username=self.user.username, password=PWD)
 
     def test_connect_artifacts_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/connect/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/connect/")
+        )
 
     def test_disconnect_artifacts_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/disconnect/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/disconnect/")
+        )
 
     def test_advance_phase_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/advance-phase/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/advance-phase/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -1210,10 +1466,15 @@ class WorkbenchGuideTest(TestCase):
         self.client.login(username=self.user.username, password=PWD)
 
     def test_add_observation_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/guide/observe/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/guide/observe/")
+        )
 
     def test_acknowledge_observation_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/guide/0/acknowledge/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, f"/api/workbench/{FAKE_UUID}/guide/0/acknowledge/"),
+        )
 
 
 @override_settings(**SMOKE)
@@ -1234,20 +1495,36 @@ class WorkbenchProjectTest(TestCase):
 
     def test_project_create_minimal(self):
         _not_500(
-            self, _post_json(self.client, "/api/workbench/projects/create/", {"title": "Test", "description": "T"})
+            self,
+            _post_json(
+                self.client,
+                "/api/workbench/projects/create/",
+                {"title": "Test", "description": "T"},
+            ),
         )
 
     def test_project_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/workbench/projects/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/workbench/projects/{FAKE_UUID}/")
+        )
 
     def test_project_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/workbench/projects/{FAKE_UUID}/update/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/workbench/projects/{FAKE_UUID}/update/")
+        )
 
     def test_project_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/workbench/projects/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/workbench/projects/{FAKE_UUID}/delete/")
+        )
 
     def test_add_workbench_to_project_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/workbench/projects/{FAKE_UUID}/workbenches/add/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(
+                self.client, f"/api/workbench/projects/{FAKE_UUID}/workbenches/add/"
+            ),
+        )
 
 
 @override_settings(**SMOKE)
@@ -1260,13 +1537,25 @@ class WorkbenchHypothesisTest(TestCase):
         self.client.login(username=self.user.username, password=PWD)
 
     def test_hypotheses_list_invalid_project(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/workbench/projects/{FAKE_UUID}/hypotheses/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/workbench/projects/{FAKE_UUID}/hypotheses/")
+        )
 
     def test_hypothesis_create_invalid_project(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/workbench/projects/{FAKE_UUID}/hypotheses/create/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(
+                self.client, f"/api/workbench/projects/{FAKE_UUID}/hypotheses/create/"
+            ),
+        )
 
     def test_hypothesis_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/workbench/projects/{FAKE_UUID}/hypotheses/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self,
+            self.client.get(
+                f"/api/workbench/projects/{FAKE_UUID}/hypotheses/{FAKE_UUID}/"
+            ),
+        )
 
 
 @override_settings(**SMOKE)
@@ -1279,37 +1568,64 @@ class WorkbenchGraphTest(TestCase):
         self.client.login(username=self.user.username, password=PWD)
 
     def test_get_graph_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/workbench/{FAKE_UUID}/graph/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/workbench/{FAKE_UUID}/graph/")
+        )
 
     def test_get_nodes_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/workbench/{FAKE_UUID}/graph/nodes/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/workbench/{FAKE_UUID}/graph/nodes/")
+        )
 
     def test_add_node_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/graph/nodes/add/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, f"/api/workbench/{FAKE_UUID}/graph/nodes/add/"),
+        )
 
     def test_get_edges_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/workbench/{FAKE_UUID}/graph/edges/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/workbench/{FAKE_UUID}/graph/edges/")
+        )
 
     def test_add_edge_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/graph/edges/add/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, f"/api/workbench/{FAKE_UUID}/graph/edges/add/"),
+        )
 
     def test_apply_evidence_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/graph/evidence/apply/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(
+                self.client, f"/api/workbench/{FAKE_UUID}/graph/evidence/apply/"
+            ),
+        )
 
     def test_check_expansion_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/workbench/{FAKE_UUID}/graph/expansion/check/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/workbench/{FAKE_UUID}/graph/expansion/check/")
+        )
 
     def test_expansion_signals_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/workbench/{FAKE_UUID}/graph/expansions/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/workbench/{FAKE_UUID}/graph/expansions/")
+        )
 
     def test_epistemic_log_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/workbench/{FAKE_UUID}/epistemic-log/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/workbench/{FAKE_UUID}/epistemic-log/")
+        )
 
     def test_clear_graph_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/graph/clear/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/workbench/{FAKE_UUID}/graph/clear/")
+        )
 
     def test_project_graph_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/workbench/projects/{FAKE_UUID}/graph/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/workbench/projects/{FAKE_UUID}/graph/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1372,7 +1688,9 @@ class VSMCRUDTest(TestCase):
         _not_500(self, self.client.get("/api/vsm/"))
 
     def test_vsm_create_minimal(self):
-        _not_500(self, _post_json(self.client, "/api/vsm/create/", {"title": "Test VSM"}))
+        _not_500(
+            self, _post_json(self.client, "/api/vsm/create/", {"title": "Test VSM"})
+        )
 
     def test_vsm_create_empty(self):
         _not_500(self, _post_json(self.client, "/api/vsm/create/"))
@@ -1381,28 +1699,42 @@ class VSMCRUDTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/vsm/{FAKE_UUID}/"))
 
     def test_vsm_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/vsm/{FAKE_UUID}/update/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/vsm/{FAKE_UUID}/update/")
+        )
 
     def test_vsm_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/vsm/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/vsm/{FAKE_UUID}/delete/")
+        )
 
     def test_vsm_process_step_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/vsm/{FAKE_UUID}/process-step/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/vsm/{FAKE_UUID}/process-step/")
+        )
 
     def test_vsm_inventory_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/vsm/{FAKE_UUID}/inventory/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/vsm/{FAKE_UUID}/inventory/")
+        )
 
     def test_vsm_kaizen_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/vsm/{FAKE_UUID}/kaizen/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/vsm/{FAKE_UUID}/kaizen/")
+        )
 
     def test_vsm_future_state_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/vsm/{FAKE_UUID}/future-state/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/vsm/{FAKE_UUID}/future-state/")
+        )
 
     def test_vsm_compare_invalid(self):
         _is_not_found_or_error(self, self.client.get(f"/api/vsm/{FAKE_UUID}/compare/"))
 
     def test_vsm_waste_analysis_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/vsm/{FAKE_UUID}/waste-analysis/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/vsm/{FAKE_UUID}/waste-analysis/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1430,28 +1762,45 @@ class ProblemCRUDTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/problems/{FAKE_UUID}/"))
 
     def test_add_hypothesis_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/hypotheses/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/hypotheses/")
+        )
 
     def test_generate_hypotheses_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/hypotheses/generate/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, f"/api/problems/{FAKE_UUID}/hypotheses/generate/"),
+        )
 
     def test_add_evidence_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/evidence/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/evidence/")
+        )
 
     def test_resolve_problem_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/resolve/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/resolve/")
+        )
 
     def test_set_methodology_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/methodology/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/methodology/")
+        )
 
     def test_advance_phase_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/phase/advance/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/phase/advance/")
+        )
 
     def test_get_phase_guidance_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/problems/{FAKE_UUID}/phase/guidance/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/problems/{FAKE_UUID}/phase/guidance/")
+        )
 
     def test_get_context_file_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/problems/{FAKE_UUID}/context/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/problems/{FAKE_UUID}/context/")
+        )
 
 
 @override_settings(**SMOKE)
@@ -1464,19 +1813,30 @@ class ProblemInterviewTest(TestCase):
         self.client.login(username=self.user.username, password=PWD)
 
     def test_start_interview_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/interview/start/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/interview/start/")
+        )
 
     def test_interview_answer_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/interview/answer/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, f"/api/problems/{FAKE_UUID}/interview/answer/"),
+        )
 
     def test_interview_skip_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/interview/skip/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/interview/skip/")
+        )
 
     def test_interview_save_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/interview/save/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/problems/{FAKE_UUID}/interview/save/")
+        )
 
     def test_interview_status_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/problems/{FAKE_UUID}/interview/status/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/problems/{FAKE_UUID}/interview/status/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1510,22 +1870,34 @@ class ReportCRUDTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/reports/{FAKE_UUID}/"))
 
     def test_report_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/reports/{FAKE_UUID}/update/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/reports/{FAKE_UUID}/update/")
+        )
 
     def test_report_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/reports/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/reports/{FAKE_UUID}/delete/")
+        )
 
     def test_report_import_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/reports/{FAKE_UUID}/import/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/reports/{FAKE_UUID}/import/")
+        )
 
     def test_report_auto_populate_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/reports/{FAKE_UUID}/auto-populate/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/reports/{FAKE_UUID}/auto-populate/")
+        )
 
     def test_report_embed_diagram_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/reports/{FAKE_UUID}/embed-diagram/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/reports/{FAKE_UUID}/embed-diagram/")
+        )
 
     def test_report_export_pdf_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/reports/{FAKE_UUID}/export/pdf/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/reports/{FAKE_UUID}/export/pdf/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1570,7 +1942,9 @@ class CAPACRUDTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/capa/{FAKE_UUID}/"))
 
     def test_capa_launch_rca_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/capa/{FAKE_UUID}/launch-rca/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/capa/{FAKE_UUID}/launch-rca/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1601,13 +1975,19 @@ class TriageCRUDTest(TestCase):
         _not_500(self, self.client.get("/api/triage/datasets/"))
 
     def test_triage_download_invalid(self):
-        _is_not_found_or_error(self, self.client.get("/api/triage/nonexistent-job/download/"))
+        _is_not_found_or_error(
+            self, self.client.get("/api/triage/nonexistent-job/download/")
+        )
 
     def test_triage_report_invalid(self):
-        _is_not_found_or_error(self, self.client.get("/api/triage/nonexistent-job/report/"))
+        _is_not_found_or_error(
+            self, self.client.get("/api/triage/nonexistent-job/report/")
+        )
 
     def test_load_dataset_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, "/api/triage/nonexistent-job/load/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, "/api/triage/nonexistent-job/load/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1679,7 +2059,9 @@ class NotificationsDeepTest(TestCase):
         _not_500(self, _post_json(self.client, "/api/notifications/unsubscribe/"))
 
     def test_mark_single_read_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/notifications/{FAKE_UUID}/read/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/notifications/{FAKE_UUID}/read/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1704,7 +2086,10 @@ class PlantSimCRUDTest(TestCase):
         _not_500(self, self.client.get("/api/plantsim/"))
 
     def test_simulation_create_minimal(self):
-        _not_500(self, _post_json(self.client, "/api/plantsim/create/", {"title": "Test Sim"}))
+        _not_500(
+            self,
+            _post_json(self.client, "/api/plantsim/create/", {"title": "Test Sim"}),
+        )
 
     def test_simulation_create_empty(self):
         _not_500(self, _post_json(self.client, "/api/plantsim/create/"))
@@ -1713,19 +2098,29 @@ class PlantSimCRUDTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/plantsim/{FAKE_UUID}/"))
 
     def test_simulation_update_invalid(self):
-        _is_not_found_or_error(self, _put_json(self.client, f"/api/plantsim/{FAKE_UUID}/update/"))
+        _is_not_found_or_error(
+            self, _put_json(self.client, f"/api/plantsim/{FAKE_UUID}/update/")
+        )
 
     def test_simulation_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/plantsim/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/plantsim/{FAKE_UUID}/delete/")
+        )
 
     def test_save_results_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/plantsim/{FAKE_UUID}/results/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/plantsim/{FAKE_UUID}/results/")
+        )
 
     def test_import_vsm_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/plantsim/{FAKE_UUID}/import-vsm/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/plantsim/{FAKE_UUID}/import-vsm/")
+        )
 
     def test_export_to_project_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/plantsim/{FAKE_UUID}/export/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/plantsim/{FAKE_UUID}/export/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1763,22 +2158,35 @@ class ISODocCreatorTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/iso-docs/{FAKE_UUID}/"))
 
     def test_section_create_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/iso-docs/{FAKE_UUID}/sections/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/iso-docs/{FAKE_UUID}/sections/")
+        )
 
     def test_section_reorder_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/iso-docs/{FAKE_UUID}/sections/reorder/"))
+        _is_not_found_or_error(
+            self,
+            _post_json(self.client, f"/api/iso-docs/{FAKE_UUID}/sections/reorder/"),
+        )
 
     def test_section_detail_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/iso-docs/{FAKE_UUID}/sections/{FAKE_UUID}/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/iso-docs/{FAKE_UUID}/sections/{FAKE_UUID}/")
+        )
 
     def test_export_pdf_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/iso-docs/{FAKE_UUID}/export/pdf/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/iso-docs/{FAKE_UUID}/export/pdf/")
+        )
 
     def test_export_docx_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/iso-docs/{FAKE_UUID}/export/docx/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/iso-docs/{FAKE_UUID}/export/docx/")
+        )
 
     def test_publish_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/iso-docs/{FAKE_UUID}/publish/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/iso-docs/{FAKE_UUID}/publish/")
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1887,16 +2295,26 @@ class DSWModelsTest(TestCase):
         _is_not_found_or_error(self, self.client.get(f"/api/dsw/models/{FAKE_UUID}/"))
 
     def test_model_delete_invalid(self):
-        _is_not_found_or_error(self, self.client.delete(f"/api/dsw/models/{FAKE_UUID}/delete/"))
+        _is_not_found_or_error(
+            self, self.client.delete(f"/api/dsw/models/{FAKE_UUID}/delete/")
+        )
 
     def test_model_run_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/dsw/models/{FAKE_UUID}/run/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/dsw/models/{FAKE_UUID}/run/")
+        )
 
     def test_model_optimize_invalid(self):
-        _is_not_found_or_error(self, _post_json(self.client, f"/api/dsw/models/{FAKE_UUID}/optimize/"))
+        _is_not_found_or_error(
+            self, _post_json(self.client, f"/api/dsw/models/{FAKE_UUID}/optimize/")
+        )
 
     def test_model_versions_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/dsw/models/{FAKE_UUID}/versions/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/dsw/models/{FAKE_UUID}/versions/")
+        )
 
     def test_model_report_invalid(self):
-        _is_not_found_or_error(self, self.client.get(f"/api/dsw/models/{FAKE_UUID}/report/"))
+        _is_not_found_or_error(
+            self, self.client.get(f"/api/dsw/models/{FAKE_UUID}/report/")
+        )

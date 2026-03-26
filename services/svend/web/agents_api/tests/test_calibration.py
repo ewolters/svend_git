@@ -126,7 +126,9 @@ class CheckExpectationTest(TestCase):
     def test_contains(self):
         from agents_api.calibration import Expectation, _check_expectation
 
-        exp = Expectation(key="summary_contains", expected="significant", comparison="contains")
+        exp = Expectation(
+            key="summary_contains", expected="significant", comparison="contains"
+        )
         result = {"summary": "The result is statistically significant at p < 0.05"}
         check = _check_expectation(result, exp)
         self.assertTrue(check["passed"])
@@ -205,7 +207,9 @@ class CalibrationGoldenTest(TestCase):
             if absent:
                 missing.append(f"{gf.name}: missing {absent}")
 
-        self.assertEqual(missing, [], "Golden files with missing keys:\n" + "\n".join(missing))
+        self.assertEqual(
+            missing, [], "Golden files with missing keys:\n" + "\n".join(missing)
+        )
 
     def test_golden_expectations_have_tolerances(self):
         """Numeric expectations must specify value and tolerance."""

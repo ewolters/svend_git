@@ -46,12 +46,14 @@ def render_dsw_charts(plots, max_charts=10):
     for plot_dict in (plots or [])[:max_charts]:
         svg = plotly_dict_to_svg(plot_dict)
         if svg:
-            results.append({
-                "id": uuid.uuid4().hex[:8],
-                "svg": svg,
-                "title": plot_dict.get("title", "Chart"),
-                "source": "dsw",
-                "width": plot_dict.get("layout", {}).get("width", 700),
-                "height": plot_dict.get("layout", {}).get("height", 400),
-            })
+            results.append(
+                {
+                    "id": uuid.uuid4().hex[:8],
+                    "svg": svg,
+                    "title": plot_dict.get("title", "Chart"),
+                    "source": "dsw",
+                    "width": plot_dict.get("layout", {}).get("width", 700),
+                    "height": plot_dict.get("layout", {}).get("height", 400),
+                }
+            )
     return results

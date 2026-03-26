@@ -186,7 +186,9 @@ def notification_mark_read(request, notification_id):
 @require_http_methods(["POST"])
 def notification_mark_all_read(request):
     """NTF-001 §6.4 — mark all notifications as read."""
-    updated = Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+    updated = Notification.objects.filter(recipient=request.user, is_read=False).update(
+        is_read=True
+    )
     return JsonResponse({"updated": updated})
 
 
@@ -243,7 +245,9 @@ def notification_preferences(request):
         mode = data["email_mode"]
         if mode not in VALID_EMAIL_MODES:
             return JsonResponse(
-                {"error": f"Invalid email_mode. Must be one of: {', '.join(sorted(VALID_EMAIL_MODES))}"},
+                {
+                    "error": f"Invalid email_mode. Must be one of: {', '.join(sorted(VALID_EMAIL_MODES))}"
+                },
                 status=400,
             )
         user.preferences["notifications"]["email_mode"] = mode
@@ -253,8 +257,12 @@ def notification_preferences(request):
     return JsonResponse(
         {
             "muted_types": user.preferences["notifications"].get("muted_types", []),
-            "email_enabled": user.preferences["notifications"].get("email_enabled", False),
-            "email_mode": user.preferences["notifications"].get("email_mode", "immediate"),
+            "email_enabled": user.preferences["notifications"].get(
+                "email_enabled", False
+            ),
+            "email_mode": user.preferences["notifications"].get(
+                "email_mode", "immediate"
+            ),
         }
     )
 

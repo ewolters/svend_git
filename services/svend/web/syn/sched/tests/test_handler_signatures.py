@@ -43,22 +43,33 @@ class HandlerSignatureTest(SimpleTestCase):
             params = [
                 p
                 for p in sig.parameters.values()
-                if p.default is inspect.Parameter.empty and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+                if p.default is inspect.Parameter.empty
+                and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
             ]
             # Must accept at least 2 positional args (payload, context)
             # or use *args / **kwargs
-            has_var_positional = any(p.kind == p.VAR_POSITIONAL for p in sig.parameters.values())
-            has_var_keyword = any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values())
+            has_var_positional = any(
+                p.kind == p.VAR_POSITIONAL for p in sig.parameters.values()
+            )
+            has_var_keyword = any(
+                p.kind == p.VAR_KEYWORD for p in sig.parameters.values()
+            )
 
             total_positional = len(
-                [p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+                [
+                    p
+                    for p in sig.parameters.values()
+                    if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+                ]
             )
 
             if has_var_positional or has_var_keyword:
                 continue  # *args or **kwargs — accepts anything
 
             if total_positional < 2:
-                bad.append(f"{name}: {handler.__qualname__}{sig} — needs (payload, context)")
+                bad.append(
+                    f"{name}: {handler.__qualname__}{sig} — needs (payload, context)"
+                )
 
         if bad:
             self.fail(

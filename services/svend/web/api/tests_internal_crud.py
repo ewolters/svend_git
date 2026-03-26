@@ -20,7 +20,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier="free", password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=password, **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -63,7 +65,11 @@ class BlogManagementTest(TestCase):
         # Step 1: Create a blog post
         res = self.client.post(
             "/api/internal/blog/save/",
-            {"title": "Test Blog Post", "body": "# Hello\nThis is a test.", "meta_description": "A test post"},
+            {
+                "title": "Test Blog Post",
+                "body": "# Hello\nThis is a test.",
+                "meta_description": "A test post",
+            },
             format="json",
         )
         self.assertEqual(res.status_code, 200)
@@ -164,7 +170,11 @@ class BlogManagementTest(TestCase):
         )
         post_id = res.json()["id"]
 
-        self.client.post(f"/api/internal/blog/{post_id}/publish/", {"action": "publish"}, format="json")
+        self.client.post(
+            f"/api/internal/blog/{post_id}/publish/",
+            {"action": "publish"},
+            format="json",
+        )
 
         res = self.client.post(
             f"/api/internal/blog/{post_id}/publish/",
@@ -332,7 +342,10 @@ class ExperimentManagementTest(TestCase):
                 "hypothesis": "Shorter subjects get more opens",
                 "experiment_type": "email_subject",
                 "metric": "engagement",
-                "variants": [{"name": "short", "weight": 50}, {"name": "long", "weight": 50}],
+                "variants": [
+                    {"name": "short", "weight": 50},
+                    {"name": "long", "weight": 50},
+                ],
                 "status": "running",
             },
             format="json",
@@ -407,12 +420,16 @@ class AutomationRulesTest(TestCase):
         self.assertTrue(rules[0]["is_active"])
 
         # Toggle off
-        res = self.client.post(f"/api/internal/automation/rules/{rule_id}/toggle/", format="json")
+        res = self.client.post(
+            f"/api/internal/automation/rules/{rule_id}/toggle/", format="json"
+        )
         self.assertEqual(res.status_code, 200)
         self.assertFalse(res.json()["is_active"])
 
         # Toggle back on
-        res = self.client.post(f"/api/internal/automation/rules/{rule_id}/toggle/", format="json")
+        res = self.client.post(
+            f"/api/internal/automation/rules/{rule_id}/toggle/", format="json"
+        )
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.json()["is_active"])
 
@@ -487,8 +504,12 @@ class AutomationLogTest(TestCase):
             action="internal_alert",
             action_config={},
         )
-        AutomationLog.objects.create(rule=rule1, user=self.staff, action_taken="Action 1", result="success")
-        AutomationLog.objects.create(rule=rule2, user=self.staff, action_taken="Action 2", result="success")
+        AutomationLog.objects.create(
+            rule=rule1, user=self.staff, action_taken="Action 1", result="success"
+        )
+        AutomationLog.objects.create(
+            rule=rule2, user=self.staff, action_taken="Action 2", result="success"
+        )
 
         res = self.client.get(f"/api/internal/automation/log/?rule_id={rule1.id}")
         self.assertEqual(len(res.json()["log"]), 1)
@@ -529,7 +550,13 @@ class AutopilotTest(TestCase):
         AutopilotReport.objects.create(
             data_snapshot={"users": {"total": 100}},
             insights=["Signup rate increasing"],
-            recommendations=[{"type": "blog", "title": "Write about SPC", "config": {"title": "SPC Guide"}}],
+            recommendations=[
+                {
+                    "type": "blog",
+                    "title": "Write about SPC",
+                    "config": {"title": "SPC Guide"},
+                }
+            ],
             alerts=[],
             status="pending_review",
         )
@@ -551,7 +578,10 @@ class AutopilotTest(TestCase):
                 {
                     "type": "blog",
                     "title": "Write about SPC",
-                    "config": {"title": "SPC Control Charts Guide", "target_keyword": "SPC"},
+                    "config": {
+                        "title": "SPC Control Charts Guide",
+                        "target_keyword": "SPC",
+                    },
                 }
             ],
             alerts=[],
@@ -566,7 +596,9 @@ class AutopilotTest(TestCase):
         self.assertEqual(res.json()["action"], "blog_draft_created")
 
         # Verify a BlogPost was created
-        self.assertTrue(BlogPost.objects.filter(title="SPC Control Charts Guide").exists())
+        self.assertTrue(
+            BlogPost.objects.filter(title="SPC Control Charts Guide").exists()
+        )
 
     def test_autopilot_approve_invalid_index(self):
         """Approving an out-of-range recommendation returns 400."""
@@ -663,7 +695,9 @@ class RoadmapManagementTest(TestCase):
         self.assertIsNotNone(res.json()["shipped_at"])
 
         # Delete
-        res = self.client.post(f"/api/internal/roadmap/{item_id}/delete/", format="json")
+        res = self.client.post(
+            f"/api/internal/roadmap/{item_id}/delete/", format="json"
+        )
         self.assertEqual(res.status_code, 200)
 
         # Verify gone
@@ -851,7 +885,10 @@ class FeaturePlanningTest(TestCase):
         """Update feature fields via save endpoint."""
         res = self.client.post(
             f"/api/internal/features/{self.feature.id}/save/",
-            {"description": "Updated description.", "acceptance_criteria": "Must pass all tests."},
+            {
+                "description": "Updated description.",
+                "acceptance_criteria": "Must pass all tests.",
+            },
             format="json",
         )
         self.assertEqual(res.status_code, 200)
@@ -938,7 +975,9 @@ class ChangeManagementEndpointTest(TestCase):
         res = self.client.get(f"/api/internal/changes/{change_id}/")
         self.assertEqual(res.status_code, 200)
         detail = res.json()
-        self.assertEqual(detail["change"]["title"], "Add CAPA report generation feature")
+        self.assertEqual(
+            detail["change"]["title"], "Add CAPA report generation feature"
+        )
         self.assertEqual(detail["change"]["status"], "draft")
         self.assertGreaterEqual(len(detail["logs"]), 1)  # Initial log entry
 
@@ -1038,7 +1077,9 @@ class IncidentManagementEndpointTest(TestCase):
         res = self.client.get(f"/api/internal/incidents/{inc_id}/")
         self.assertEqual(res.status_code, 200)
         detail = res.json()
-        self.assertEqual(detail["incident"]["title"], "Database connection pool exhausted")
+        self.assertEqual(
+            detail["incident"]["title"], "Database connection pool exhausted"
+        )
         self.assertEqual(detail["incident"]["status"], "detected")
         self.assertGreaterEqual(len(detail["logs"]), 1)
 

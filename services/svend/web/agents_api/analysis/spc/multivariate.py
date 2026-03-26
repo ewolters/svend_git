@@ -43,7 +43,9 @@ def run_mewma(df, config):
     # T2 statistic for each MEWMA vector
     t2_values = []
     for i in range(n):
-        factor = (lambda_param / (2 - lambda_param)) * (1 - (1 - lambda_param) ** (2 * (i + 1)))
+        factor = (lambda_param / (2 - lambda_param)) * (
+            1 - (1 - lambda_param) ** (2 * (i + 1))
+        )
         Sigma_Z = factor * Sigma
         try:
             Sigma_Z_inv = np.linalg.inv(Sigma_Z)
@@ -86,7 +88,10 @@ def run_mewma(df, config):
                 "height": 290,
                 "showlegend": True,
                 "yaxis": {"title": "T\u00b2 Statistic"},
-                "xaxis": {"title": "Observation", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "xaxis": {
+                    "title": "Observation",
+                    "rangeslider": {"visible": True, "thickness": 0.12},
+                },
             },
             "interactive": {"type": "spc_inspect"},
         }
@@ -106,8 +111,19 @@ def run_mewma(df, config):
         result["plots"].append(
             {
                 "title": f"Variable Contribution at First OOC (obs {first_ooc})",
-                "data": [{"type": "bar", "x": vars_list, "y": pct_contrib, "marker": {"color": "#4a9f6e"}}],
-                "layout": {"height": 250, "yaxis": {"title": "% Contribution"}, "xaxis": {"title": "Variable"}},
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": vars_list,
+                        "y": pct_contrib,
+                        "marker": {"color": "#4a9f6e"},
+                    }
+                ],
+                "layout": {
+                    "height": 250,
+                    "yaxis": {"title": "% Contribution"},
+                    "xaxis": {"title": "Variable"},
+                },
             }
         )
 
@@ -135,8 +151,14 @@ def run_generalized_variance(df, config):
 
     # Create subgroups
     if subgroup_col:
-        subgroups = [grp[variables_gv].values for _, grp in data_gv.groupby(subgroup_col) if len(grp) >= 2]
-        subgroup_labels = [str(name) for name, grp in data_gv.groupby(subgroup_col) if len(grp) >= 2]
+        subgroups = [
+            grp[variables_gv].values
+            for _, grp in data_gv.groupby(subgroup_col)
+            if len(grp) >= 2
+        ]
+        subgroup_labels = [
+            str(name) for name, grp in data_gv.groupby(subgroup_col) if len(grp) >= 2
+        ]
     else:
         n_obs = len(data_gv)
         subgroups = [
@@ -252,7 +274,10 @@ def run_generalized_variance(df, config):
             "data": chart_traces,
             "layout": {
                 "height": 440,
-                "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "xaxis": {
+                    "title": "Subgroup",
+                    "rangeslider": {"visible": True, "thickness": 0.12},
+                },
                 "yaxis": {"title": "|S| (Determinant)"},
             },
         }
@@ -268,7 +293,9 @@ def run_generalized_variance(df, config):
     summary_gv += f"  CL  = {cl_gv:.6f}\n"
     summary_gv += f"  LCL = {lcl_gv:.6f}\n\n"
     if ooc_gv:
-        summary_gv += f"<<COLOR:warning>>Out-of-control points: {len(ooc_gv)}<</COLOR>>\n"
+        summary_gv += (
+            f"<<COLOR:warning>>Out-of-control points: {len(ooc_gv)}<</COLOR>>\n"
+        )
         for idx_ooc in ooc_gv:
             summary_gv += f"  Subgroup {subgroup_labels[idx_ooc]}: |S| = {det_values[idx_ooc]:.6f}\n"
     else:
@@ -299,9 +326,11 @@ def run_generalized_variance(df, config):
     result["narrative"] = _narrative(
         _gv_verdict,
         _gv_body,
-        next_steps="Pair with a Hotelling T\u00b2 chart to distinguish mean shifts from variability shifts."
-        if _gv_n_ooc > 0
-        else "Continue monitoring. Process variability is stable across all measured dimensions.",
+        next_steps=(
+            "Pair with a Hotelling T\u00b2 chart to distinguish mean shifts from variability shifts."
+            if _gv_n_ooc > 0
+            else "Continue monitoring. Process variability is stable across all measured dimensions."
+        ),
         chart_guidance="Each point is the determinant |S| of the subgroup covariance matrix. Higher values mean more joint spread.",
     )
 

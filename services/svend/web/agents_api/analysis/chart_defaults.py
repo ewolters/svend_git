@@ -25,7 +25,16 @@ from .common import (
 # ── Allowed palette (for validation) ──────────────────────────────────────
 
 ALLOWED_HEX = {c.lower() for c in SVEND_COLORS} | {
-    c.lower() for c in [COLOR_GOOD, COLOR_BAD, COLOR_WARNING, COLOR_INFO, COLOR_NEUTRAL, COLOR_REFERENCE, COLOR_GOLD]
+    c.lower()
+    for c in [
+        COLOR_GOOD,
+        COLOR_BAD,
+        COLOR_WARNING,
+        COLOR_INFO,
+        COLOR_NEUTRAL,
+        COLOR_REFERENCE,
+        COLOR_GOLD,
+    ]
 }
 
 # ── Off-palette → palette normalization map (VIS-001 §4.2) ───────────────
@@ -124,7 +133,9 @@ def _normalize_color(color):
     if s.startswith("rgba(") or s.startswith("rgb("):
         import re
 
-        m = re.match(r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([0-9.]+))?\s*\)", s)
+        m = re.match(
+            r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([0-9.]+))?\s*\)", s
+        )
         if m:
             r, g, b = int(m.group(1)), int(m.group(2)), int(m.group(3))
             base_hex = f"#{r:02x}{g:02x}{b:02x}"
@@ -372,7 +383,9 @@ def heatmap_trace(z, x=None, y=None, colorscale=None, **kwargs):
     return trace
 
 
-def control_chart_trace(x, y, ucl, lcl, cl=None, name="Observations", color_index=0, **kwargs):
+def control_chart_trace(
+    x, y, ucl, lcl, cl=None, name="Observations", color_index=0, **kwargs
+):
     """Pre-styled control chart (observation line + control limits).
 
     Returns a list of traces: [observations, UCL, LCL, optional CL].

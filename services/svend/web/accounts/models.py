@@ -46,7 +46,9 @@ class Subscription(models.Model):
     )
 
     # Stripe IDs
-    stripe_subscription_id = models.CharField(max_length=255, unique=True, db_index=True)
+    stripe_subscription_id = models.CharField(
+        max_length=255, unique=True, db_index=True
+    )
     stripe_price_id = models.CharField(max_length=255, blank=True)
 
     # Status
@@ -59,7 +61,9 @@ class Subscription(models.Model):
     # Billing period
     current_period_start = models.DateTimeField(null=True, blank=True)
     current_period_end = models.DateTimeField(null=True, blank=True)
-    is_cancel_at_period_end = models.BooleanField(default=False, db_column="cancel_at_period_end")
+    is_cancel_at_period_end = models.BooleanField(
+        default=False, db_column="cancel_at_period_end"
+    )
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -131,7 +135,9 @@ class InviteCode(models.Model):
         return True
 
     @classmethod
-    def generate(cls, count: int = 1, max_uses: int = 1, note: str = "") -> list["InviteCode"]:
+    def generate(
+        cls, count: int = 1, max_uses: int = 1, note: str = ""
+    ) -> list["InviteCode"]:
         """Generate new invite codes."""
         codes = []
         for _ in range(count):
@@ -224,7 +230,9 @@ class User(AbstractUser):
     stripe_customer_id_hash = models.CharField(max_length=64, blank=True, db_index=True)
 
     # Legacy fields (kept for backwards compat, use Subscription model instead)
-    is_subscription_active = models.BooleanField(default=False, db_column="subscription_active")
+    is_subscription_active = models.BooleanField(
+        default=False, db_column="subscription_active"
+    )
     subscription_ends_at = models.DateTimeField(null=True, blank=True)
 
     # === Future features (nullable, no migration needed to enable) ===
@@ -247,8 +255,12 @@ class User(AbstractUser):
     # Profile — demographics (for personalized onboarding + learning paths)
     industry = models.CharField(max_length=20, choices=Industry.choices, blank=True)
     role = models.CharField(max_length=20, choices=Role.choices, blank=True)
-    experience_level = models.CharField(max_length=20, choices=ExperienceLevel.choices, blank=True)
-    organization_size = models.CharField(max_length=20, choices=OrganizationSize.choices, blank=True)
+    experience_level = models.CharField(
+        max_length=20, choices=ExperienceLevel.choices, blank=True
+    )
+    organization_size = models.CharField(
+        max_length=20, choices=OrganizationSize.choices, blank=True
+    )
 
     # Preferences (JSON blob for flexibility)
     preferences = models.JSONField(null=True, blank=True)  # theme, shortcuts, etc.
@@ -259,14 +271,18 @@ class User(AbstractUser):
     total_tokens_used = models.BigIntegerField(default=0)
 
     # Halloween/seasonal (for your mockup!)
-    current_theme = models.CharField(max_length=50, blank=True)  # "halloween", "winter", etc.
+    current_theme = models.CharField(
+        max_length=50, blank=True
+    )  # "halloween", "winter", etc.
 
     # Onboarding
     onboarding_completed_at = models.DateTimeField(null=True, blank=True)
 
     # Email verification (token stored as SHA-256 hash)
     is_email_verified = models.BooleanField(default=False, db_column="email_verified")
-    email_verification_token = models.CharField(max_length=64, blank=True, db_index=True)
+    email_verification_token = models.CharField(
+        max_length=64, blank=True, db_index=True
+    )
     email_verification_token_sent_at = models.DateTimeField(null=True, blank=True)
     is_email_opted_out = models.BooleanField(default=False, db_column="email_opted_out")
 
@@ -303,9 +319,9 @@ class User(AbstractUser):
         # Reset daily counter if needed
         if self.queries_reset_at is None or self.queries_reset_at < timezone.now():
             self.queries_today = 0
-            self.queries_reset_at = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(
-                days=1
-            )
+            self.queries_reset_at = timezone.now().replace(
+                hour=0, minute=0, second=0, microsecond=0
+            ) + timedelta(days=1)
             self.save(update_fields=["queries_today", "queries_reset_at"])
 
         return self.queries_today < self.daily_limit
@@ -331,7 +347,12 @@ class User(AbstractUser):
         plaintext = secrets.token_urlsafe(32)
         self.email_verification_token = hash_token(plaintext)
         self.email_verification_token_sent_at = timezone.now()
-        self.save(update_fields=["email_verification_token", "email_verification_token_sent_at"])
+        self.save(
+            update_fields=[
+                "email_verification_token",
+                "email_verification_token_sent_at",
+            ]
+        )
         return plaintext
 
     def send_verification_email(self):
@@ -383,7 +404,11 @@ If you didn't create this account, you can ignore this email.
             self.email_verification_token = ""
             self.email_verification_token_sent_at = None
             self.save(
-                update_fields=["is_email_verified", "email_verification_token", "email_verification_token_sent_at"]
+                update_fields=[
+                    "is_email_verified",
+                    "email_verification_token",
+                    "email_verification_token_sent_at",
+                ]
             )
             return True
         return False

@@ -13,7 +13,9 @@ logger = logging.getLogger(__name__)
 _VALID_TYPES = frozenset(t.value for t in NotificationType)
 
 
-def notify(recipient, notification_type, title, message="", entity_type="", entity_id=None):
+def notify(
+    recipient, notification_type, title, message="", entity_type="", entity_id=None
+):
     """Create a notification, respecting user preferences.
 
     Args:
@@ -28,7 +30,11 @@ def notify(recipient, notification_type, title, message="", entity_type="", enti
         Notification instance, or None if the type is muted by user preferences.
     """
     # Resolve enum member to string value
-    type_val = notification_type.value if hasattr(notification_type, "value") else notification_type
+    type_val = (
+        notification_type.value
+        if hasattr(notification_type, "value")
+        else notification_type
+    )
 
     if type_val not in _VALID_TYPES:
         raise ValueError(f"Invalid notification type: {type_val}")
@@ -97,4 +103,6 @@ def _maybe_schedule_email(recipient, notification):
             queue="core",
         )
     except Exception:
-        logger.exception("Failed to schedule notification email for %s", notification.id)
+        logger.exception(
+            "Failed to schedule notification email for %s", notification.id
+        )

@@ -27,7 +27,9 @@ def generate_export(payload, context=None):
     from accounts.models import DataExportRequest
 
     export_id = (
-        payload.get("export_id") if isinstance(payload, dict) else getattr(payload, "payload", {}).get("export_id")
+        payload.get("export_id")
+        if isinstance(payload, dict)
+        else getattr(payload, "payload", {}).get("export_id")
     )
     if not export_id:
         logger.error("[privacy] generate_export called without export_id")
@@ -40,7 +42,9 @@ def generate_export(payload, context=None):
         return {"error": "not_found"}
 
     if export_req.status != DataExportRequest.Status.PENDING:
-        logger.warning("[privacy] Export %s not pending (status=%s)", export_id, export_req.status)
+        logger.warning(
+            "[privacy] Export %s not pending (status=%s)", export_id, export_req.status
+        )
         return {"error": "not_pending"}
 
     export_req.status = DataExportRequest.Status.PROCESSING
@@ -184,9 +188,15 @@ def _export_profile(user):
         "preferences": user.preferences,
         "current_theme": user.current_theme,
         "date_joined": user.date_joined.isoformat() if user.date_joined else None,
-        "last_active_at": user.last_active_at.isoformat() if user.last_active_at else None,
+        "last_active_at": (
+            user.last_active_at.isoformat() if user.last_active_at else None
+        ),
         "is_email_verified": user.is_email_verified,
-        "onboarding_completed_at": (user.onboarding_completed_at.isoformat() if user.onboarding_completed_at else None),
+        "onboarding_completed_at": (
+            user.onboarding_completed_at.isoformat()
+            if user.onboarding_completed_at
+            else None
+        ),
         "total_queries": user.total_queries,
     }
 
@@ -196,8 +206,14 @@ def _export_subscription(user):
         sub = user.subscription
         return {
             "status": sub.status,
-            "current_period_start": sub.current_period_start.isoformat() if sub.current_period_start else None,
-            "current_period_end": sub.current_period_end.isoformat() if sub.current_period_end else None,
+            "current_period_start": (
+                sub.current_period_start.isoformat()
+                if sub.current_period_start
+                else None
+            ),
+            "current_period_end": (
+                sub.current_period_end.isoformat() if sub.current_period_end else None
+            ),
             "created_at": sub.created_at.isoformat() if sub.created_at else None,
         }
     except Exception:

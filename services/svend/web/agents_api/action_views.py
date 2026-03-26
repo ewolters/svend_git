@@ -22,7 +22,15 @@ def update_action_item(request, action_id):
     item = get_object_or_404(ActionItem, id=action_id, project__user=request.user)
     data = json.loads(request.body)
 
-    for field in ["title", "description", "owner_name", "status", "start_date", "end_date", "due_date"]:
+    for field in [
+        "title",
+        "description",
+        "owner_name",
+        "status",
+        "start_date",
+        "end_date",
+        "due_date",
+    ]:
         if field in data:
             setattr(item, field, data[field])
 

@@ -7,42 +7,127 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0010_project_changelog'),
+        ("core", "0010_project_changelog"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='project',
-            name='interview_completed',
+            model_name="project",
+            name="interview_completed",
         ),
         migrations.AddField(
-            model_name='project',
-            name='is_interview_completed',
-            field=models.BooleanField(db_column='interview_completed', default=False),
+            model_name="project",
+            name="is_interview_completed",
+            field=models.BooleanField(db_column="interview_completed", default=False),
         ),
         migrations.CreateModel(
-            name='SecretStore',
+            name="SecretStore",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(db_index=True, help_text="Unique name for this secret (e.g., 'stripe_api_key')", max_length=255)),
-                ('value_encrypted', models.TextField(help_text='Encrypted secret value (base64 encoded)')),
-                ('dek_encrypted', models.TextField(help_text='Encrypted Data Encryption Key used to encrypt this secret')),
-                ('kek_version', models.IntegerField(default=1, help_text='Version of the Key Encryption Key used')),
-                ('tenant_id', models.UUIDField(blank=True, db_index=True, help_text='Tenant identifier for multi-tenant isolation (SEC-001 §5.2)', null=True)),
-                ('created_at', models.DateTimeField(db_index=True, default=django.utils.timezone.now, help_text='When this secret was created')),
-                ('updated_at', models.DateTimeField(auto_now=True, help_text='When this secret was last updated')),
-                ('created_by', models.CharField(blank=True, help_text='User or service that created this secret', max_length=255)),
-                ('last_rotated_at', models.DateTimeField(blank=True, help_text='When this secret was last rotated', null=True)),
-                ('rotation_schedule_days', models.IntegerField(default=90, help_text='How often to rotate this secret (in days)')),
-                ('metadata', models.JSONField(blank=True, default=dict, help_text='Non-sensitive metadata about this secret')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        db_index=True,
+                        help_text="Unique name for this secret (e.g., 'stripe_api_key')",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "value_encrypted",
+                    models.TextField(
+                        help_text="Encrypted secret value (base64 encoded)"
+                    ),
+                ),
+                (
+                    "dek_encrypted",
+                    models.TextField(
+                        help_text="Encrypted Data Encryption Key used to encrypt this secret"
+                    ),
+                ),
+                (
+                    "kek_version",
+                    models.IntegerField(
+                        default=1, help_text="Version of the Key Encryption Key used"
+                    ),
+                ),
+                (
+                    "tenant_id",
+                    models.UUIDField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        db_index=True,
+                        default=django.utils.timezone.now,
+                        help_text="When this secret was created",
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(
+                        auto_now=True, help_text="When this secret was last updated"
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.CharField(
+                        blank=True,
+                        help_text="User or service that created this secret",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "last_rotated_at",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="When this secret was last rotated",
+                        null=True,
+                    ),
+                ),
+                (
+                    "rotation_schedule_days",
+                    models.IntegerField(
+                        default=90,
+                        help_text="How often to rotate this secret (in days)",
+                    ),
+                ),
+                (
+                    "metadata",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="Non-sensitive metadata about this secret",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Secret',
-                'verbose_name_plural': 'Secrets',
-                'db_table': 'core_secret_store',
-                'ordering': ['tenant_id', 'name'],
-                'indexes': [models.Index(fields=['tenant_id', 'name'], name='secret_tenant_name'), models.Index(fields=['tenant_id', 'created_at'], name='secret_tenant_time'), models.Index(fields=['last_rotated_at'], name='secret_rotation')],
-                'unique_together': {('name', 'tenant_id')},
+                "verbose_name": "Secret",
+                "verbose_name_plural": "Secrets",
+                "db_table": "core_secret_store",
+                "ordering": ["tenant_id", "name"],
+                "indexes": [
+                    models.Index(
+                        fields=["tenant_id", "name"], name="secret_tenant_name"
+                    ),
+                    models.Index(
+                        fields=["tenant_id", "created_at"], name="secret_tenant_time"
+                    ),
+                    models.Index(fields=["last_rotated_at"], name="secret_rotation"),
+                ],
+                "unique_together": {("name", "tenant_id")},
             },
         ),
     ]

@@ -48,7 +48,9 @@ PAID_TIERS = [Tier.FOUNDER, Tier.PRO, Tier.TEAM, Tier.ENTERPRISE]
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     """Create a test user at the given tier."""
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=password, **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user

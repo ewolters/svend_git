@@ -36,7 +36,10 @@ class TestSysLogEntryModel(TestCase):
     def test_create_log_entry(self):
         """Test creating a basic log entry."""
         entry = SysLogEntry(
-            tenant_id=self.tenant_id, actor=self.actor, event_name=self.event_name, payload={"ip": "192.168.1.1"}
+            tenant_id=self.tenant_id,
+            actor=self.actor,
+            event_name=self.event_name,
+            payload={"ip": "192.168.1.1"},
         )
         entry.save()
 
@@ -48,7 +51,10 @@ class TestSysLogEntryModel(TestCase):
     def test_genesis_entry_creation(self):
         """Test genesis (first) entry has special properties."""
         entry = SysLogEntry.objects.create(
-            tenant_id=self.tenant_id, actor=self.actor, event_name=self.event_name, payload={}
+            tenant_id=self.tenant_id,
+            actor=self.actor,
+            event_name=self.event_name,
+            payload={},
         )
 
         # Genesis entry properties
@@ -60,12 +66,18 @@ class TestSysLogEntryModel(TestCase):
         """Test subsequent entries link to previous entry."""
         # Create first entry
         entry1 = SysLogEntry.objects.create(
-            tenant_id=self.tenant_id, actor=self.actor, event_name="event.one", payload={"data": "first"}
+            tenant_id=self.tenant_id,
+            actor=self.actor,
+            event_name="event.one",
+            payload={"data": "first"},
         )
 
         # Create second entry
         entry2 = SysLogEntry.objects.create(
-            tenant_id=self.tenant_id, actor=self.actor, event_name="event.two", payload={"data": "second"}
+            tenant_id=self.tenant_id,
+            actor=self.actor,
+            event_name="event.two",
+            payload={"data": "second"},
         )
 
         # Second entry should link to first
@@ -111,7 +123,10 @@ class TestImmutability(TestCase):
     def test_cannot_update_entry(self):
         """Test entries cannot be updated after creation."""
         entry = SysLogEntry.objects.create(
-            tenant_id=self.tenant_id, actor="user@example.com", event_name="test.event", payload={"data": "original"}
+            tenant_id=self.tenant_id,
+            actor="user@example.com",
+            event_name="test.event",
+            payload={"data": "original"},
         )
 
         # Attempt to modify and save
@@ -127,23 +142,34 @@ class TestImmutability(TestCase):
         # Create entries
         for i in range(3):
             SysLogEntry.objects.create(
-                tenant_id=self.tenant_id, actor="user@example.com", event_name=f"event.{i}", payload={"index": i}
+                tenant_id=self.tenant_id,
+                actor="user@example.com",
+                event_name=f"event.{i}",
+                payload={"index": i},
             )
 
         # Attempt bulk update should fail
         with self.assertRaises(Exception):
-            SysLogEntry.objects.filter(tenant_id=self.tenant_id).update(actor="hacker@example.com")
+            SysLogEntry.objects.filter(tenant_id=self.tenant_id).update(
+                actor="hacker@example.com"
+            )
 
     def test_can_create_new_entries(self):
         """Test new entries can still be created."""
         # Create first entry
         entry1 = SysLogEntry.objects.create(
-            tenant_id=self.tenant_id, actor="user@example.com", event_name="event.one", payload={}
+            tenant_id=self.tenant_id,
+            actor="user@example.com",
+            event_name="event.one",
+            payload={},
         )
 
         # Create second entry should work
         entry2 = SysLogEntry.objects.create(
-            tenant_id=self.tenant_id, actor="user@example.com", event_name="event.two", payload={}
+            tenant_id=self.tenant_id,
+            actor="user@example.com",
+            event_name="event.two",
+            payload={},
         )
 
         self.assertIsNotNone(entry2.id)
@@ -162,7 +188,10 @@ class TestHashChainValidation(TestCase):
         # Create a chain of entries
         for i in range(5):
             SysLogEntry.objects.create(
-                tenant_id=self.tenant_id, actor="user@example.com", event_name=f"event.{i}", payload={"index": i}
+                tenant_id=self.tenant_id,
+                actor="user@example.com",
+                event_name=f"event.{i}",
+                payload={"index": i},
             )
 
         # Verify chain
@@ -176,7 +205,10 @@ class TestHashChainValidation(TestCase):
     def test_verify_individual_entry_hash(self):
         """Test individual entry hash verification."""
         entry = SysLogEntry.objects.create(
-            tenant_id=self.tenant_id, actor="user@example.com", event_name="test.event", payload={"data": "test"}
+            tenant_id=self.tenant_id,
+            actor="user@example.com",
+            event_name="test.event",
+            payload={"data": "test"},
         )
 
         # Hash should be valid
@@ -186,11 +218,17 @@ class TestHashChainValidation(TestCase):
         """Test chain link verification."""
         # Create two entries
         entry1 = SysLogEntry.objects.create(
-            tenant_id=self.tenant_id, actor="user@example.com", event_name="event.one", payload={}
+            tenant_id=self.tenant_id,
+            actor="user@example.com",
+            event_name="event.one",
+            payload={},
         )
 
         entry2 = SysLogEntry.objects.create(
-            tenant_id=self.tenant_id, actor="user@example.com", event_name="event.two", payload={}
+            tenant_id=self.tenant_id,
+            actor="user@example.com",
+            event_name="event.two",
+            payload={},
         )
 
         # Chain links should be valid
@@ -201,11 +239,16 @@ class TestHashChainValidation(TestCase):
         """Test detection of hash tampering."""
         # Create entry
         entry = SysLogEntry.objects.create(
-            tenant_id=self.tenant_id, actor="user@example.com", event_name="test.event", payload={"data": "original"}
+            tenant_id=self.tenant_id,
+            actor="user@example.com",
+            event_name="test.event",
+            payload={"data": "original"},
         )
 
         # Simulate tampering by changing hash directly in DB
-        SysLogEntry.objects.filter(id=entry.id).update(current_hash="tampered_hash_" + "0" * 48)
+        SysLogEntry.objects.filter(id=entry.id).update(
+            current_hash="tampered_hash_" + "0" * 48
+        )
 
         # Reload entry
         entry.refresh_from_db()
@@ -217,15 +260,23 @@ class TestHashChainValidation(TestCase):
         """Test detection of broken chain links."""
         # Create entries
         SysLogEntry.objects.create(
-            tenant_id=self.tenant_id, actor="user@example.com", event_name="event.one", payload={}
+            tenant_id=self.tenant_id,
+            actor="user@example.com",
+            event_name="event.one",
+            payload={},
         )
 
         entry2 = SysLogEntry.objects.create(
-            tenant_id=self.tenant_id, actor="user@example.com", event_name="event.two", payload={}
+            tenant_id=self.tenant_id,
+            actor="user@example.com",
+            event_name="event.two",
+            payload={},
         )
 
         # Break the chain by changing previous_hash
-        SysLogEntry.objects.filter(id=entry2.id).update(previous_hash="broken_hash_" + "0" * 51)
+        SysLogEntry.objects.filter(id=entry2.id).update(
+            previous_hash="broken_hash_" + "0" * 51
+        )
 
         # Reload and verify
         entry2.refresh_from_db()
@@ -259,13 +310,18 @@ class TestIntegrityFailureDetection(TestCase):
         # Create valid chain
         for i in range(3):
             SysLogEntry.objects.create(
-                tenant_id=self.tenant_id, actor="user@example.com", event_name=f"event.{i}", payload={}
+                tenant_id=self.tenant_id,
+                actor="user@example.com",
+                event_name=f"event.{i}",
+                payload={},
             )
 
         # Tamper with middle entry
         entries = SysLogEntry.objects.filter(tenant_id=self.tenant_id).order_by("id")
         middle_entry = entries[1]
-        SysLogEntry.objects.filter(id=middle_entry.id).update(current_hash="tampered_" + "0" * 56)
+        SysLogEntry.objects.filter(id=middle_entry.id).update(
+            current_hash="tampered_" + "0" * 56
+        )
 
         # Verify chain (should detect violation)
         result = verify_chain_integrity(self.tenant_id)
@@ -298,18 +354,28 @@ class TestTenantIsolation(TestCase):
         # Create entries for tenant 1
         for i in range(3):
             SysLogEntry.objects.create(
-                tenant_id=tenant1, actor="user1@example.com", event_name=f"event.{i}", payload={}
+                tenant_id=tenant1,
+                actor="user1@example.com",
+                event_name=f"event.{i}",
+                payload={},
             )
 
         # Create entries for tenant 2
         for i in range(3):
             SysLogEntry.objects.create(
-                tenant_id=tenant2, actor="user2@example.com", event_name=f"event.{i}", payload={}
+                tenant_id=tenant2,
+                actor="user2@example.com",
+                event_name=f"event.{i}",
+                payload={},
             )
 
         # Each tenant should have separate chains
-        tenant1_entries = list(SysLogEntry.objects.filter(tenant_id=tenant1).order_by("id"))
-        tenant2_entries = list(SysLogEntry.objects.filter(tenant_id=tenant2).order_by("id"))
+        tenant1_entries = list(
+            SysLogEntry.objects.filter(tenant_id=tenant1).order_by("id")
+        )
+        tenant2_entries = list(
+            SysLogEntry.objects.filter(tenant_id=tenant2).order_by("id")
+        )
 
         self.assertEqual(len(tenant1_entries), 3)
         self.assertEqual(len(tenant2_entries), 3)
@@ -319,7 +385,9 @@ class TestTenantIsolation(TestCase):
         self.assertTrue(tenant2_entries[0].is_genesis)
 
         # Chains should be independent
-        self.assertNotEqual(tenant1_entries[1].previous_hash, tenant2_entries[1].previous_hash)
+        self.assertNotEqual(
+            tenant1_entries[1].previous_hash, tenant2_entries[1].previous_hash
+        )
 
     def test_chain_validation_per_tenant(self):
         """Test chain validation is tenant-specific."""
@@ -330,12 +398,17 @@ class TestTenantIsolation(TestCase):
         for tenant in [tenant1, tenant2]:
             for i in range(3):
                 SysLogEntry.objects.create(
-                    tenant_id=tenant, actor=f"user@{tenant}.com", event_name=f"event.{i}", payload={}
+                    tenant_id=tenant,
+                    actor=f"user@{tenant}.com",
+                    event_name=f"event.{i}",
+                    payload={},
                 )
 
         # Tamper with tenant1's chain
         tenant1_entry = SysLogEntry.objects.filter(tenant_id=tenant1).first()
-        SysLogEntry.objects.filter(id=tenant1_entry.id).update(current_hash="tampered_" + "0" * 56)
+        SysLogEntry.objects.filter(id=tenant1_entry.id).update(
+            current_hash="tampered_" + "0" * 56
+        )
 
         # Verify both chains
         result1 = verify_chain_integrity(tenant1)
@@ -351,9 +424,19 @@ class TestTenantIsolation(TestCase):
         tenant2 = uuid.uuid4()
 
         # Create entries for both tenants
-        SysLogEntry.objects.create(tenant_id=tenant1, actor="user1@example.com", event_name="event.one", payload={})
+        SysLogEntry.objects.create(
+            tenant_id=tenant1,
+            actor="user1@example.com",
+            event_name="event.one",
+            payload={},
+        )
 
-        SysLogEntry.objects.create(tenant_id=tenant2, actor="user2@example.com", event_name="event.two", payload={})
+        SysLogEntry.objects.create(
+            tenant_id=tenant2,
+            actor="user2@example.com",
+            event_name="event.two",
+            payload={},
+        )
 
         # Get trail for tenant1
         trail1 = get_audit_trail(tenant1)
@@ -370,7 +453,10 @@ class TestGenerateEntry(TestCase):
         """Test generating a basic audit entry."""
         tenant_id = uuid.uuid4()
         entry = generate_entry(
-            tenant_id=tenant_id, actor="user@example.com", event_name="user.login", payload={"ip": "192.168.1.1"}
+            tenant_id=tenant_id,
+            actor="user@example.com",
+            event_name="user.login",
+            payload={"ip": "192.168.1.1"},
         )
 
         self.assertIsNotNone(entry.id)
@@ -383,7 +469,10 @@ class TestGenerateEntry(TestCase):
         """Test generating entry with correlation ID."""
         correlation_id = uuid.uuid4()
         entry = generate_entry(
-            tenant_id=uuid.uuid4(), actor="system", event_name="batch.process", correlation_id=correlation_id
+            tenant_id=uuid.uuid4(),
+            actor="system",
+            event_name="batch.process",
+            correlation_id=correlation_id,
         )
 
         self.assertEqual(entry.correlation_id, correlation_id)
@@ -393,9 +482,13 @@ class TestGenerateEntry(TestCase):
         tenant_id = uuid.uuid4()
 
         # Generate multiple entries
-        entry1 = generate_entry(tenant_id=tenant_id, actor="user@example.com", event_name="event.one")
+        entry1 = generate_entry(
+            tenant_id=tenant_id, actor="user@example.com", event_name="event.one"
+        )
 
-        entry2 = generate_entry(tenant_id=tenant_id, actor="user@example.com", event_name="event.two")
+        entry2 = generate_entry(
+            tenant_id=tenant_id, actor="user@example.com", event_name="event.two"
+        )
 
         # Should form a chain
         self.assertTrue(entry1.is_genesis)
@@ -413,7 +506,10 @@ class TestGetChainMethods(TestCase):
         # Create chain
         for i in range(5):
             SysLogEntry.objects.create(
-                tenant_id=self.tenant_id, actor="user@example.com", event_name=f"event.{i}", payload={"index": i}
+                tenant_id=self.tenant_id,
+                actor="user@example.com",
+                event_name=f"event.{i}",
+                payload={"index": i},
             )
 
     def test_get_chain_head(self):
@@ -462,7 +558,9 @@ class TestComplianceRequirements(TestCase):
         )
 
         # Simulate tampering
-        SysLogEntry.objects.filter(id=entry.id).update(current_hash="tampered_" + "0" * 56)
+        SysLogEntry.objects.filter(id=entry.id).update(
+            current_hash="tampered_" + "0" * 56
+        )
 
         # Reload and verify - tampering should be detected
         entry.refresh_from_db()
@@ -471,7 +569,10 @@ class TestComplianceRequirements(TestCase):
     def test_immutability_enforcement(self):
         """Test entries cannot be altered (SOC 2 CC7.2)."""
         entry = SysLogEntry.objects.create(
-            tenant_id=uuid.uuid4(), actor="user@example.com", event_name="test.event", payload={}
+            tenant_id=uuid.uuid4(),
+            actor="user@example.com",
+            event_name="test.event",
+            payload={},
         )
 
         # Attempt modification
@@ -483,7 +584,10 @@ class TestComplianceRequirements(TestCase):
     def test_violation_alerting(self):
         """Test violations are recorded and trigger events (SOC 2 CC7.2)."""
         violation = record_integrity_violation(
-            tenant_id=uuid.uuid4(), violation_type="chain_break", entry_id=123, details={"severity": "critical"}
+            tenant_id=uuid.uuid4(),
+            violation_type="chain_break",
+            entry_id=123,
+            details={"severity": "critical"},
         )
 
         # Violation should be recorded in DB
@@ -508,13 +612,18 @@ class TestConcurrentChainWrites(TransactionTestCase):
         tenant = uuid.uuid4()
 
         # Seed the chain
-        SysLogEntry.objects.create(tenant_id=tenant, actor="setup", event_name="seed", payload={})
+        SysLogEntry.objects.create(
+            tenant_id=tenant, actor="setup", event_name="seed", payload={}
+        )
 
         def write_entry(i):
             close_old_connections()
             try:
                 SysLogEntry.objects.create(
-                    tenant_id=tenant, actor=f"writer-{i}", event_name=f"concurrent.{i}", payload={"i": i}
+                    tenant_id=tenant,
+                    actor=f"writer-{i}",
+                    event_name=f"concurrent.{i}",
+                    payload={"i": i},
                 )
             finally:
                 close_old_connections()
@@ -526,10 +635,17 @@ class TestConcurrentChainWrites(TransactionTestCase):
 
         # Verify the entire chain is intact
         result = verify_chain_integrity(tenant)
-        self.assertTrue(result["is_valid"], f"Chain broken after concurrent writes: {result['violations']}")
+        self.assertTrue(
+            result["is_valid"],
+            f"Chain broken after concurrent writes: {result['violations']}",
+        )
         self.assertEqual(result["total_entries"], 9)  # 1 seed + 8 concurrent
 
         # Verify no duplicate previous_hash values (the exact bug we're preventing)
         entries = list(SysLogEntry.objects.filter(tenant_id=tenant).order_by("id"))
         prev_hashes = [e.previous_hash for e in entries if not e.is_genesis]
-        self.assertEqual(len(prev_hashes), len(set(prev_hashes)), "Duplicate previous_hash found — race condition")
+        self.assertEqual(
+            len(prev_hashes),
+            len(set(prev_hashes)),
+            "Duplicate previous_hash found — race condition",
+        )

@@ -76,7 +76,9 @@ def _serialize_enrollment(e):
         "status": e.status,
         "enrolled_at": e.enrolled_at.isoformat(),
         "graduated_at": e.graduated_at.isoformat() if e.graduated_at else None,
-        "conversion_deadline": e.conversion_deadline.isoformat() if e.conversion_deadline else None,
+        "conversion_deadline": (
+            e.conversion_deadline.isoformat() if e.conversion_deadline else None
+        ),
         "converted_at": e.converted_at.isoformat() if e.converted_at else None,
     }
 
@@ -183,7 +185,9 @@ def list_create_programs(request):
 @permission_classes([IsInternalUser])
 def list_enrollments(request):
     """List enrollments. Optional ?program_id= or ?center_id= filter."""
-    enrollments = StudentEnrollment.objects.select_related("user", "program", "program__center").all()
+    enrollments = StudentEnrollment.objects.select_related(
+        "user", "program", "program__center"
+    ).all()
 
     program_id = request.query_params.get("program_id")
     if program_id:
@@ -297,7 +301,9 @@ def batch_enroll(request):
             "program": _serialize_program(program),
             "results": results,
             "enrolled": enrolled_count,
-            "already_enrolled": sum(1 for r in results if r["status"] == "already_enrolled"),
+            "already_enrolled": sum(
+                1 for r in results if r["status"] == "already_enrolled"
+            ),
             "skipped": sum(1 for r in results if r["status"] == "skipped"),
         }
     )
@@ -333,7 +339,9 @@ def batch_graduate(request):
     ).select_related("user")
 
     if student_emails:
-        enrollments = enrollments.filter(user__email__in=[e.lower() for e in student_emails])
+        enrollments = enrollments.filter(
+            user__email__in=[e.lower() for e in student_emails]
+        )
 
     graduated = 0
     results = []
@@ -357,7 +365,9 @@ def batch_graduate(request):
         program.status = TrainingProgram.Status.COMPLETED
         program.save(update_fields=["status"])
 
-    logger.info("Batch graduation: %d students graduated from %s", graduated, program.title)
+    logger.info(
+        "Batch graduation: %d students graduated from %s", graduated, program.title
+    )
 
     return Response(
         {

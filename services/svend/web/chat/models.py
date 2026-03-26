@@ -411,7 +411,9 @@ class EventLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     # Event classification
-    event_type = models.CharField(max_length=20, choices=EventType.choices, db_index=True)
+    event_type = models.CharField(
+        max_length=20, choices=EventType.choices, db_index=True
+    )
     category = models.CharField(max_length=50, blank=True, db_index=True)
     action = models.CharField(max_length=100, blank=True)
     label = models.CharField(max_length=200, blank=True)

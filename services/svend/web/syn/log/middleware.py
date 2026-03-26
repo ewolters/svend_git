@@ -242,7 +242,9 @@ class RequestLoggingMiddleware:
         """Check if path should be excluded from logging."""
         from django.conf import settings
 
-        exclude_paths = getattr(settings, "LOG_REQUEST_PATHS_EXCLUDE", self.DEFAULT_EXCLUDE_PATHS)
+        exclude_paths = getattr(
+            settings, "LOG_REQUEST_PATHS_EXCLUDE", self.DEFAULT_EXCLUDE_PATHS
+        )
         return any(path.startswith(excluded) for excluded in exclude_paths)
 
     def _log_request_start(self, request: HttpRequest) -> None:
@@ -289,7 +291,9 @@ class RequestLoggingMiddleware:
                 "status_code": response.status_code,
                 "duration_ms": duration_ms,
                 "user": user,
-                "content_length": len(response.content) if hasattr(response, "content") else 0,
+                "content_length": (
+                    len(response.content) if hasattr(response, "content") else 0
+                ),
             },
         )
 
@@ -322,7 +326,9 @@ class RequestLoggingMiddleware:
 # =============================================================================
 
 # UUID pattern for path normalization
-_UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
+_UUID_RE = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I
+)
 _INT_ID_RE = re.compile(r"/(\d+)(/|$)")
 
 # Reservoir sample size per bucket
@@ -362,7 +368,9 @@ class PerformanceMiddleware:
     def __init__(self, get_response: Callable):
         self.get_response = get_response
         self._lock = threading.Lock()
-        self._buffer = []  # list of (bucket_start, method, path_pattern, status_class, duration_ms)
+        self._buffer = (
+            []
+        )  # list of (bucket_start, method, path_pattern, status_class, duration_ms)
         self._last_flush = time.monotonic()
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
@@ -427,7 +435,9 @@ class PerformanceMiddleware:
         try:
             self._write_metrics(to_flush)
         except Exception:
-            logger.warning("PerformanceMiddleware: failed to flush metrics", exc_info=True)
+            logger.warning(
+                "PerformanceMiddleware: failed to flush metrics", exc_info=True
+            )
 
     def _write_metrics(self, records):
         """Write buffered records to RequestMetric using update_or_create."""
@@ -441,7 +451,12 @@ class PerformanceMiddleware:
                 groups[key] = []
             groups[key].append(duration_ms)
 
-        for (bucket_start, method, path_pattern, status_class), durations in groups.items():
+        for (
+            bucket_start,
+            method,
+            path_pattern,
+            status_class,
+        ), durations in groups.items():
             try:
                 obj, created = RequestMetric.objects.get_or_create(
                     bucket_start=bucket_start,
@@ -575,11 +590,17 @@ class AuditLoggingMiddleware:
             tenant_id = None
             if hasattr(request, "tenant_id") and request.tenant_id is not None:
                 tenant_id = str(request.tenant_id)
-            elif hasattr(request, "user") and hasattr(request.user, "tenant_id") and request.user.tenant_id is not None:
+            elif (
+                hasattr(request, "user")
+                and hasattr(request.user, "tenant_id")
+                and request.user.tenant_id is not None
+            ):
                 tenant_id = str(request.user.tenant_id)
 
             # Build event name
-            event_name = f"api.{request.method.lower()}.{self._path_to_event(request.path)}"
+            event_name = (
+                f"api.{request.method.lower()}.{self._path_to_event(request.path)}"
+            )
 
             # Build payload
             payload = {
@@ -592,7 +613,9 @@ class AuditLoggingMiddleware:
             # Add query params (sanitized)
             if request.GET:
                 payload["query_params"] = {
-                    k: v for k, v in request.GET.items() if k.lower() not in ["password", "token", "key"]
+                    k: v
+                    for k, v in request.GET.items()
+                    if k.lower() not in ["password", "token", "key"]
                 }
 
             # Get correlation ID (must be valid UUID for SysLogEntry)
@@ -635,7 +658,9 @@ class AuditLoggingMiddleware:
         # Replace slashes with dots, remove UUIDs
         import re
 
-        path = re.sub(r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}", "", path)
+        path = re.sub(
+            r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}", "", path
+        )
         path = re.sub(r"/+", ".", path)
         path = re.sub(r"\.+", ".", path)
         path = path.strip(".")

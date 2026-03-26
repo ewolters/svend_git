@@ -20,7 +20,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=password, **kwargs
+    )
     user.tier = tier
     user.is_email_verified = True  # most tests need this to use chat
     user.save(update_fields=["tier", "is_email_verified"])
@@ -101,14 +103,20 @@ class ChatEndpointTest(TestCase):
         res1 = self.client.post("/api/chat/", {"message": "Hello"}, format="json")
         cid = res1.json()["conversation_id"]
         # Second message to same conversation
-        res2 = self.client.post("/api/chat/", {"message": "Follow-up", "conversation_id": cid}, format="json")
+        res2 = self.client.post(
+            "/api/chat/",
+            {"message": "Follow-up", "conversation_id": cid},
+            format="json",
+        )
         self.assertEqual(res2.status_code, 200)
         self.assertEqual(res2.json()["conversation_id"], cid)
 
     @patch("api.views.process_query")
     def test_chat_nonexistent_conversation_404(self, mock_pq):
         fake_id = str(uuid.uuid4())
-        res = self.client.post("/api/chat/", {"message": "Hi", "conversation_id": fake_id}, format="json")
+        res = self.client.post(
+            "/api/chat/", {"message": "Hi", "conversation_id": fake_id}, format="json"
+        )
         self.assertEqual(res.status_code, 404)
 
     def test_chat_unauthenticated_rejected(self):
@@ -210,7 +218,9 @@ class ConversationScenarioTest(TestCase):
         self.assertEqual(res.status_code, 404)
 
     def test_share_nonexistent_conversation(self):
-        res = self.client.post("/api/share/", {"conversation_id": str(uuid.uuid4())}, format="json")
+        res = self.client.post(
+            "/api/share/", {"conversation_id": str(uuid.uuid4())}, format="json"
+        )
         self.assertEqual(res.status_code, 404)
 
 
@@ -236,7 +246,9 @@ class FlagMessageTest(TestCase):
         res = self.client.post("/api/chat/", {"message": "Bad answer"}, format="json")
         msg_id = res.json()["assistant_message"]["id"]
 
-        res = self.client.post(f"/api/messages/{msg_id}/flag/", {"reason": "Incorrect"}, format="json")
+        res = self.client.post(
+            f"/api/messages/{msg_id}/flag/", {"reason": "Incorrect"}, format="json"
+        )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["status"], "flagged")
         self.assertIn("candidate_id", res.json())
@@ -248,7 +260,9 @@ class FlagMessageTest(TestCase):
         self.assertIn("Incorrect", candidate.reviewer_notes)
 
     def test_flag_nonexistent_message_404(self):
-        res = self.client.post(f"/api/messages/{uuid.uuid4()}/flag/", {"reason": "Bad"}, format="json")
+        res = self.client.post(
+            f"/api/messages/{uuid.uuid4()}/flag/", {"reason": "Bad"}, format="json"
+        )
         self.assertEqual(res.status_code, 404)
 
     @patch("api.views.process_query")
@@ -257,8 +271,12 @@ class FlagMessageTest(TestCase):
 
         other = _make_user("victim@example.com")
         convo = Conversation.objects.create(user=other)
-        msg = Message.objects.create(conversation=convo, role="assistant", content="Test")
-        res = self.client.post(f"/api/messages/{msg.id}/flag/", {"reason": "Nope"}, format="json")
+        msg = Message.objects.create(
+            conversation=convo, role="assistant", content="Test"
+        )
+        res = self.client.post(
+            f"/api/messages/{msg.id}/flag/", {"reason": "Nope"}, format="json"
+        )
         self.assertEqual(res.status_code, 403)
 
 
@@ -300,7 +318,10 @@ class MonitoringStatsTest(TestCase):
 
     @patch("api.views.get_flywheel")
     def test_flywheel_stats_returns_data(self, mock_fw):
-        mock_fw.return_value.get_stats.return_value = {"total_queries": 100, "escalations": 5}
+        mock_fw.return_value.get_stats.return_value = {
+            "total_queries": 100,
+            "escalations": 5,
+        }
         res = self.client.get("/api/stats/flywheel/")
         self.assertEqual(res.status_code, 200)
         self.assertIn("total_queries", res.json())
@@ -388,7 +409,9 @@ class ExportPDFTest(TestCase):
         # Should either return PDF or fallback HTML
         self.assertIn(res.status_code, [200])
         content_type = res["Content-Type"]
-        self.assertTrue(content_type.startswith("text/html") or content_type == "application/pdf")
+        self.assertTrue(
+            content_type.startswith("text/html") or content_type == "application/pdf"
+        )
 
     def test_export_pdf_empty_content_rejected(self):
         res = self.client.post("/api/export/pdf/", {"content": ""}, format="json")
@@ -415,8 +438,12 @@ class EmailTrackingTest(TestCase):
     def _make_recipient(self):
         from api.models import EmailCampaign, EmailRecipient
 
-        campaign = EmailCampaign.objects.create(subject="Test Campaign", body_md="Hello", target="all")
-        return EmailRecipient.objects.create(campaign=campaign, email="recipient@example.com")
+        campaign = EmailCampaign.objects.create(
+            subject="Test Campaign", body_md="Hello", target="all"
+        )
+        return EmailRecipient.objects.create(
+            campaign=campaign, email="recipient@example.com"
+        )
 
     def test_email_open_returns_pixel(self):
         rcpt = self._make_recipient()
@@ -435,7 +462,9 @@ class EmailTrackingTest(TestCase):
 
     def test_email_click_redirects(self):
         rcpt = self._make_recipient()
-        res = self.client.get(f"/api/email/click/{rcpt.id}/", {"url": "https://svend.ai/pricing/"})
+        res = self.client.get(
+            f"/api/email/click/{rcpt.id}/", {"url": "https://svend.ai/pricing/"}
+        )
         self.assertEqual(res.status_code, 302)
         self.assertEqual(res["Location"], "https://svend.ai/pricing/")
         rcpt.refresh_from_db()
@@ -444,7 +473,9 @@ class EmailTrackingTest(TestCase):
 
     def test_email_click_blocks_external_redirect(self):
         rcpt = self._make_recipient()
-        res = self.client.get(f"/api/email/click/{rcpt.id}/", {"url": "https://evil.com/phish"})
+        res = self.client.get(
+            f"/api/email/click/{rcpt.id}/", {"url": "https://evil.com/phish"}
+        )
         self.assertEqual(res.status_code, 302)
         self.assertEqual(res["Location"], "https://svend.ai")
 
@@ -534,7 +565,9 @@ class PublicBeaconTest(TestCase):
         )
         self.assertEqual(res.status_code, 204)
         # Verify SiteVisit was created with funnel path convention
-        self.assertTrue(SiteVisit.objects.filter(path="/register/#_email_focus").exists())
+        self.assertTrue(
+            SiteVisit.objects.filter(path="/register/#_email_focus").exists()
+        )
 
     def test_funnel_event_invalid_action_ignored(self):
         res = self.client.post(
@@ -677,7 +710,9 @@ class EnterpriseModelTest(TestCase):
         user = _make_user("normie@enterprise.com", Tier.PRO, username="normie_ent")
         client = APIClient()
         client.force_authenticate(user)
-        res = client.post("/api/chat/", {"message": "Hi", "model": "opus"}, format="json")
+        res = client.post(
+            "/api/chat/", {"message": "Hi", "model": "opus"}, format="json"
+        )
         self.assertEqual(res.status_code, 200)
         # process_query should be called (default pipeline), not call_enterprise_model
         mock_pq.assert_called_once()
@@ -686,13 +721,17 @@ class EnterpriseModelTest(TestCase):
     def test_enterprise_user_gets_selected_model(self, mock_cem):
         from api.views import EnterpriseModelResult
 
-        mock_cem.return_value = EnterpriseModelResult(response="Enterprise response", inference_time_ms=200)
+        mock_cem.return_value = EnterpriseModelResult(
+            response="Enterprise response", inference_time_ms=200
+        )
         user = _make_user("boss@corp.com", Tier.FREE, username="boss")
         user.tier = "enterprise"
         user.save(update_fields=["tier"])
         client = APIClient()
         client.force_authenticate(user)
-        res = client.post("/api/chat/", {"message": "Analyze this", "model": "opus"}, format="json")
+        res = client.post(
+            "/api/chat/", {"message": "Analyze this", "model": "opus"}, format="json"
+        )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data["model"], "opus")

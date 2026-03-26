@@ -97,7 +97,9 @@ class CoverageRatchetTest(TestCase):
             "details",
         ]
         for field in required:
-            self.assertIn(field, field_names, f"CalibrationReport missing field: {field}")
+            self.assertIn(
+                field, field_names, f"CalibrationReport missing field: {field}"
+            )
 
 
 # ── §6 Golden Files ──────────────────────────────────────────────────────
@@ -266,12 +268,26 @@ class ManagementCommandTest(SimpleTestCase):
 
     def test_measure_coverage_command_exists(self):
         """CAL-001 §10.2: measure_coverage command file exists."""
-        cmd = WEB_ROOT / "syn" / "audit" / "management" / "commands" / "measure_coverage.py"
+        cmd = (
+            WEB_ROOT
+            / "syn"
+            / "audit"
+            / "management"
+            / "commands"
+            / "measure_coverage.py"
+        )
         self.assertTrue(cmd.exists(), "measure_coverage.py not found")
 
     def test_generate_calibration_cert_command_exists(self):
         """CAL-001 §10.3: generate_calibration_cert command file exists."""
-        cmd = WEB_ROOT / "syn" / "audit" / "management" / "commands" / "generate_calibration_cert.py"
+        cmd = (
+            WEB_ROOT
+            / "syn"
+            / "audit"
+            / "management"
+            / "commands"
+            / "generate_calibration_cert.py"
+        )
         self.assertTrue(cmd.exists(), "generate_calibration_cert.py not found")
 
 
@@ -314,4 +330,6 @@ class StandardDocumentTest(SimpleTestCase):
         import re
 
         assertions = re.findall(r"<!-- assert:", content)
-        self.assertGreaterEqual(len(assertions), 10, f"CAL-001.md has only {len(assertions)} assertions")
+        self.assertGreaterEqual(
+            len(assertions), 10, f"CAL-001.md has only {len(assertions)} assertions"
+        )

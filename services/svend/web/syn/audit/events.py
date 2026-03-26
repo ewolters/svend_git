@@ -131,7 +131,12 @@ AUDIT_EVENTS: dict[str, dict[str, Any]] = {
                 "tenant_id": {"type": "string"},
                 "violation_type": {
                     "type": "string",
-                    "enum": ["hash_mismatch", "chain_break", "missing_entry", "duplicate_hash"],
+                    "enum": [
+                        "hash_mismatch",
+                        "chain_break",
+                        "missing_entry",
+                        "duplicate_hash",
+                    ],
                 },
                 "entry_id": {"type": ["integer", "null"]},
                 "details": {"type": "object"},
@@ -214,7 +219,10 @@ AUDIT_EVENTS: dict[str, dict[str, Any]] = {
                 "correlation_id": {"type": "string", "format": "uuid"},
                 "tenant_id": {"type": ["string", "null"], "format": "uuid"},
                 "enforcement_check": {"type": "string"},
-                "severity": {"type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"]},
+                "severity": {
+                    "type": "string",
+                    "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+                },
                 "file_path": {"type": "string"},
                 "line_number": {"type": ["integer", "null"]},
                 "function_name": {"type": ["string", "null"]},
@@ -222,7 +230,13 @@ AUDIT_EVENTS: dict[str, dict[str, Any]] = {
                 "git_commit_sha": {"type": ["string", "null"]},
                 "detected_by": {"type": "string"},
             },
-            "required": ["drift_id", "enforcement_check", "severity", "file_path", "violation_message"],
+            "required": [
+                "drift_id",
+                "enforcement_check",
+                "severity",
+                "file_path",
+                "violation_message",
+            ],
         },
     },
     "audit.drift.remediation_available": {
@@ -503,7 +517,9 @@ def redact_event_payload(
 
         # Recursively process nested dicts
         if isinstance(value, dict):
-            nested_redacted, nested_count, nested_tags = redact_event_payload(value, depth + 1, max_depth)
+            nested_redacted, nested_count, nested_tags = redact_event_payload(
+                value, depth + 1, max_depth
+            )
             redacted[key] = nested_redacted
             redaction_count += nested_count
             for tag in nested_tags:
@@ -516,7 +532,9 @@ def redact_event_payload(
             redacted_list = []
             for item in value:
                 if isinstance(item, dict):
-                    nested_redacted, nested_count, nested_tags = redact_event_payload(item, depth + 1, max_depth)
+                    nested_redacted, nested_count, nested_tags = redact_event_payload(
+                        item, depth + 1, max_depth
+                    )
                     redacted_list.append(nested_redacted)
                     redaction_count += nested_count
                     for tag in nested_tags:
@@ -619,7 +637,9 @@ def emit_audit_event(
         # Publish event
         Cortex.publish(event_name, enriched_payload)
 
-        logger.info(f"[AUDIT EVENTS] Emitted {event_name}: correlation_id={final_correlation_id}")
+        logger.info(
+            f"[AUDIT EVENTS] Emitted {event_name}: correlation_id={final_correlation_id}"
+        )
         return True
 
     except ImportError:
@@ -768,7 +788,9 @@ def build_drift_sla_breached_payload(
         "tenant_id": str(drift.tenant_id) if drift.tenant_id else None,
         "enforcement_check": drift.enforcement_check,
         "severity": drift.severity,
-        "remediation_due_at": drift.remediation_due_at.isoformat() if drift.remediation_due_at else None,
+        "remediation_due_at": (
+            drift.remediation_due_at.isoformat() if drift.remediation_due_at else None
+        ),
         "hours_overdue": hours_overdue,
     }
 
@@ -784,7 +806,9 @@ def build_drift_governance_escalated_payload(
         "tenant_id": str(drift.tenant_id) if drift.tenant_id else None,
         "enforcement_check": drift.enforcement_check,
         "severity": drift.severity,
-        "governance_rule_id": str(drift.governance_rule_id) if drift.governance_rule_id else None,
+        "governance_rule_id": (
+            str(drift.governance_rule_id) if drift.governance_rule_id else None
+        ),
     }
 
 

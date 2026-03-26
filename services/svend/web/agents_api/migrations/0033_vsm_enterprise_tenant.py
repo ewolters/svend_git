@@ -8,37 +8,67 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0032_valuestreammap_parent_vsm'),
-        ('core', '0006_tenant_stripe_seat_item'),
+        ("agents_api", "0032_valuestreammap_parent_vsm"),
+        ("core", "0006_tenant_stripe_seat_item"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='valuestreammap',
-            name='created_by',
-            field=models.ForeignKey(blank=True, help_text='User who created this VSM (for tenant-owned VSMs)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL),
+            model_name="valuestreammap",
+            name="created_by",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="User who created this VSM (for tenant-owned VSMs)",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="+",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='valuestreammap',
-            name='tenant',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='value_stream_maps', to='core.tenant'),
+            model_name="valuestreammap",
+            name="tenant",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="value_stream_maps",
+                to="core.tenant",
+            ),
         ),
         migrations.AlterField(
-            model_name='valuestreammap',
-            name='owner',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='value_stream_maps', to=settings.AUTH_USER_MODEL),
+            model_name="valuestreammap",
+            name="owner",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="value_stream_maps",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddIndex(
-            model_name='valuestreammap',
-            index=models.Index(fields=['owner', 'status'], name='value_strea_owner_i_8da449_idx'),
+            model_name="valuestreammap",
+            index=models.Index(
+                fields=["owner", "status"], name="value_strea_owner_i_8da449_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='valuestreammap',
-            index=models.Index(fields=['tenant', 'status'], name='value_strea_tenant__b3a696_idx'),
+            model_name="valuestreammap",
+            index=models.Index(
+                fields=["tenant", "status"], name="value_strea_tenant__b3a696_idx"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='valuestreammap',
-            constraint=models.CheckConstraint(condition=models.Q(models.Q(('owner__isnull', False), ('tenant__isnull', True)), models.Q(('owner__isnull', True), ('tenant__isnull', False)), _connector='OR'), name='vsm_has_single_owner'),
+            model_name="valuestreammap",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    models.Q(("owner__isnull", False), ("tenant__isnull", True)),
+                    models.Q(("owner__isnull", True), ("tenant__isnull", False)),
+                    _connector="OR",
+                ),
+                name="vsm_has_single_owner",
+            ),
         ),
     ]

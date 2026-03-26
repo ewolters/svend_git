@@ -52,11 +52,15 @@ def run_d_cpk(df, config):
     usl = config.get("usl")
 
     if not variable or not factor:
-        result["summary"] = "<<COLOR:danger>>Error: variable and factor are required.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Error: variable and factor are required.<</COLOR>>"
+        )
         return result
 
     if lsl is None and usl is None:
-        result["summary"] = "<<COLOR:danger>>Error: at least one spec limit (LSL or USL) is required.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Error: at least one spec limit (LSL or USL) is required.<</COLOR>>"
+        )
         return result
 
     lsl = float(lsl) if lsl is not None else None
@@ -124,7 +128,9 @@ def run_d_cpk(df, config):
         # Uses complement (all data except this factor) instead of pooled
         # to avoid the "pooled contamination" problem.
         other_data = values[~mask]
-        complement_density = _kde_density(other_data, grid) if len(other_data) >= 5 else pooled_density
+        complement_density = (
+            _kde_density(other_data, grid) if len(other_data) >= 5 else pooled_density
+        )
         jsd_full = _jsd(f_density, complement_density, grid)
 
         # Tail-only JSD: divergence in the out-of-spec regions only
@@ -140,7 +146,9 @@ def run_d_cpk(df, config):
         direction = 1 if f_cpk < pooled_cpk else -1
 
         # Counterfactual: Cpk without this factor
-        cpk_without = _compute_cpk(other_data, lsl, usl) if len(other_data) >= 5 else pooled_cpk
+        cpk_without = (
+            _compute_cpk(other_data, lsl, usl) if len(other_data) >= 5 else pooled_cpk
+        )
 
         # PPM defect rate (computed here so we can sort by it)
         from scipy import stats as sp_stats
@@ -202,7 +210,8 @@ def run_d_cpk(df, config):
                     "y": [round(fr["cpk"], 3) for fr in fr_by_cpk],
                     "marker": {"color": cpk_bar_colors},
                     "text": [
-                        f"Cpk={fr['cpk']:.3f}<br>JSD={fr['jsd']:.4f}<br>PPM={fr.get('ppm', 'N/A')}" for fr in fr_by_cpk
+                        f"Cpk={fr['cpk']:.3f}<br>JSD={fr['jsd']:.4f}<br>PPM={fr.get('ppm', 'N/A')}"
+                        for fr in fr_by_cpk
                     ],
                     "hoverinfo": "text+x",
                     "textposition": "outside",
@@ -294,7 +303,12 @@ def run_d_cpk(df, config):
                     "type": "bar",
                     "x": [fr["factor"] for fr in factor_results],
                     "y": [round(fr["cpk_without"], 3) for fr in factor_results],
-                    "marker": {"color": [COLOR_BAD if fr["delta_cpk"] > 0.05 else COLOR_INFO for fr in factor_results]},
+                    "marker": {
+                        "color": [
+                            COLOR_BAD if fr["delta_cpk"] > 0.05 else COLOR_INFO
+                            for fr in factor_results
+                        ]
+                    },
                     "name": "Cpk without factor",
                 },
                 {
@@ -329,7 +343,12 @@ def run_d_cpk(df, config):
                         "y": [fr["ppm"] for fr in ppm_sorted],
                         "marker": {
                             "color": [
-                                COLOR_BAD if fr["jsd"] > noise else _rgba(COLOR_NEUTRAL, 0.6) for fr in ppm_sorted
+                                (
+                                    COLOR_BAD
+                                    if fr["jsd"] > noise
+                                    else _rgba(COLOR_NEUTRAL, 0.6)
+                                )
+                                for fr in ppm_sorted
                             ]
                         },
                         "text": [f"{fr['ppm']:,.0f}" for fr in ppm_sorted],
@@ -339,7 +358,10 @@ def run_d_cpk(df, config):
                 "layout": {
                     "height": 400,
                     "xaxis": {"title": factor},
-                    "yaxis": {"title": "PPM (parts per million)", "rangemode": "tozero"},
+                    "yaxis": {
+                        "title": "PPM (parts per million)",
+                        "rangemode": "tozero",
+                    },
                 },
             }
         )
@@ -392,10 +414,14 @@ def run_d_cpk(df, config):
     # Summary — factor_results is sorted by PPM descending (worst defect producer first)
     significant = [fr for fr in factor_results if fr["jsd"] > noise]
     degraders = [fr for fr in significant if fr["direction"] > 0]
-    worst = degraders[0] if degraders else (factor_results[0] if factor_results else None)
+    worst = (
+        degraders[0] if degraders else (factor_results[0] if factor_results else None)
+    )
 
     summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-    summary += "<<COLOR:title>>D-Cpk: FACTOR-ATTRIBUTED CAPABILITY DIVERGENCE<</COLOR>>\n"
+    summary += (
+        "<<COLOR:title>>D-Cpk: FACTOR-ATTRIBUTED CAPABILITY DIVERGENCE<</COLOR>>\n"
+    )
     summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {variable}\n"
     summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({len(unique_factors)} levels)\n"
@@ -406,7 +432,9 @@ def run_d_cpk(df, config):
     summary += f"<<COLOR:highlight>>Pooled Cpk:<</COLOR>> {pooled_cpk:.3f}\n"
     summary += f"<<COLOR:highlight>>Noise Floor:<</COLOR>> {noise:.4f} bits\n\n"
 
-    summary += "<<COLOR:accent>>── Factor Attribution (sorted by defect rate) ──<</COLOR>>\n"
+    summary += (
+        "<<COLOR:accent>>── Factor Attribution (sorted by defect rate) ──<</COLOR>>\n"
+    )
     for fr in factor_results:
         dir_sym = "▲" if fr["direction"] > 0 else "▼"
         sig = " <<COLOR:danger>>***<</COLOR>>" if fr["jsd"] > noise else ""
@@ -428,7 +456,9 @@ def run_d_cpk(df, config):
 
     summary += "\n<<COLOR:accent>>── Assessment ──<</COLOR>>\n"
     if degraders:
-        pooled_ppm = sum(fr["ppm"] * fr["n"] for fr in factor_results) / sum(fr["n"] for fr in factor_results)
+        pooled_ppm = sum(fr["ppm"] * fr["n"] for fr in factor_results) / sum(
+            fr["n"] for fr in factor_results
+        )
         summary += f"<<COLOR:danger>>Factor '{worst['factor']}' is the largest defect contributor at {worst['ppm']:,.0f} PPM (pooled avg: {pooled_ppm:,.0f} PPM).<</COLOR>>\n"
         summary += f"<<COLOR:warning>>Cpk for {worst['factor']}: {worst['cpk']:.3f} vs pooled {pooled_cpk:.3f}. Removing it would raise Cpk to {worst['cpk_without']:.3f}.<</COLOR>>\n"
         # Explain the D-Chart vs D-Cpk ranking difference if it exists
@@ -443,7 +473,9 @@ def run_d_cpk(df, config):
                 f"{jsd_top['defect_eff']:.0%} ({int(jsd_top['loc_pct'] * 100)}% location).<</COLOR>>\n"
             )
         if len(degraders) > 1:
-            others = ", ".join(f"{fr['factor']} ({fr['ppm']:,.0f} PPM)" for fr in degraders[1:])
+            others = ", ".join(
+                f"{fr['factor']} ({fr['ppm']:,.0f} PPM)" for fr in degraders[1:]
+            )
             summary += f"<<COLOR:highlight>>Also degrading: {others}<</COLOR>>\n"
     elif significant:
         summary += "<<COLOR:warning>>Significant divergence detected but factors are performing BETTER than pooled.<</COLOR>>\n"

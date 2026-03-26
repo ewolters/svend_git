@@ -511,7 +511,9 @@ def retry(
                     # Check if we should retry
                     should_retry = backoff.should_retry(attempt, e)
                     if retryable_exceptions:
-                        should_retry = should_retry or isinstance(e, tuple(retryable_exceptions))
+                        should_retry = should_retry or isinstance(
+                            e, tuple(retryable_exceptions)
+                        )
 
                     if not should_retry or attempt >= config.max_attempts - 1:
                         raise
@@ -551,7 +553,9 @@ def retry(
 
                     should_retry = backoff.should_retry(attempt, e)
                     if retryable_exceptions:
-                        should_retry = should_retry or isinstance(e, tuple(retryable_exceptions))
+                        should_retry = should_retry or isinstance(
+                            e, tuple(retryable_exceptions)
+                        )
 
                     if not should_retry or attempt >= config.max_attempts - 1:
                         raise

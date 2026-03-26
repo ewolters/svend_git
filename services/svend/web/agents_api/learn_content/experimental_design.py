@@ -168,8 +168,16 @@ Then use:
                     {"name": "outcome", "type": "numeric", "mean": 70, "std": 10},
                 ],
                 "injections": [
-                    {"type": "correlation", "columns": ["severity", "treatment"], "strength": 0.6},
-                    {"type": "correlation", "columns": ["severity", "outcome"], "strength": -0.5},
+                    {
+                        "type": "correlation",
+                        "columns": ["severity", "treatment"],
+                        "strength": 0.6,
+                    },
+                    {
+                        "type": "correlation",
+                        "columns": ["severity", "outcome"],
+                        "strength": -0.5,
+                    },
                 ],
             },
             "editable_fields": [],
@@ -425,7 +433,11 @@ Rough guide for detecting 5 percentage point difference:
                 "n_rows": 128,
                 "columns": [
                     {"name": "participant_id", "type": "integer", "min": 1, "max": 128},
-                    {"name": "group", "type": "categorical", "categories": ["control", "treatment"]},
+                    {
+                        "name": "group",
+                        "type": "categorical",
+                        "categories": ["control", "treatment"],
+                    },
                     {"name": "outcome", "type": "numeric", "mean": 50, "std": 10},
                 ],
                 "injections": [
@@ -453,7 +465,11 @@ Rough guide for detecting 5 percentage point difference:
                 "n_rows": 20,
                 "columns": [
                     {"name": "participant_id", "type": "integer", "min": 1, "max": 20},
-                    {"name": "group", "type": "categorical", "categories": ["control", "treatment"]},
+                    {
+                        "name": "group",
+                        "type": "categorical",
+                        "categories": ["control", "treatment"],
+                    },
                     {"name": "outcome", "type": "numeric", "mean": 50, "std": 10},
                 ],
                 "injections": [

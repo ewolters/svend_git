@@ -79,7 +79,9 @@ class SysLogEntryAdmin(admin.ModelAdmin):
 
     def hash_display(self, obj):
         """Display abbreviated hash."""
-        return format_html('<code style="font-size: 0.9em;">{}</code>', obj.current_hash[:16] + "...")
+        return format_html(
+            '<code style="font-size: 0.9em;">{}</code>', obj.current_hash[:16] + "..."
+        )
 
     hash_display.short_description = "Hash"
 
@@ -173,7 +175,9 @@ class IntegrityViolationAdmin(admin.ModelAdmin):
         if obj.is_resolved:
             return format_html('<span style="color: green;">Resolved</span>')
         else:
-            return format_html('<span style="color: red; font-weight: bold;">⚠ Active</span>')
+            return format_html(
+                '<span style="color: red; font-weight: bold;">⚠ Active</span>'
+            )
 
     severity_display.short_description = "Status"
 
@@ -322,7 +326,9 @@ class DriftViolationAdmin(admin.ModelAdmin):
         if obj.resolved_at:
             return format_html('<span style="color: green;">✓ Resolved</span>')
         elif obj.sla_breached or obj.is_overdue():
-            return format_html('<span style="color: red; font-weight: bold;">⚠ SLA Breached</span>')
+            return format_html(
+                '<span style="color: red; font-weight: bold;">⚠ SLA Breached</span>'
+            )
         elif obj.remediation_due_at:
             return format_html('<span style="color: orange;">⏱ Pending</span>')
         else:
@@ -333,7 +339,9 @@ class DriftViolationAdmin(admin.ModelAdmin):
     def is_overdue_display(self, obj):
         """Display whether the violation is overdue."""
         if obj.is_overdue():
-            return format_html('<span style="color: red; font-weight: bold;">Yes - Overdue!</span>')
+            return format_html(
+                '<span style="color: red; font-weight: bold;">Yes - Overdue!</span>'
+            )
         else:
             return format_html('<span style="color: green;">No</span>')
 

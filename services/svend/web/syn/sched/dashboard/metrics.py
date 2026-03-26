@@ -107,7 +107,9 @@ class WorkerMetrics:
             "tasks_completed": self.tasks_completed,
             "tasks_failed": self.tasks_failed,
             "uptime_seconds": self.uptime_seconds,
-            "last_heartbeat": self.last_heartbeat.isoformat() if self.last_heartbeat else None,
+            "last_heartbeat": (
+                self.last_heartbeat.isoformat() if self.last_heartbeat else None
+            ),
             "memory_mb": self.memory_mb,
             "cpu_percent": self.cpu_percent,
         }
@@ -145,9 +147,15 @@ class TaskTypeMetrics:
             "p50_duration_ms": self.p50_duration_ms,
             "p95_duration_ms": self.p95_duration_ms,
             "p99_duration_ms": self.p99_duration_ms,
-            "last_execution": self.last_execution.isoformat() if self.last_execution else None,
-            "last_success": self.last_success.isoformat() if self.last_success else None,
-            "last_failure": self.last_failure.isoformat() if self.last_failure else None,
+            "last_execution": (
+                self.last_execution.isoformat() if self.last_execution else None
+            ),
+            "last_success": (
+                self.last_success.isoformat() if self.last_success else None
+            ),
+            "last_failure": (
+                self.last_failure.isoformat() if self.last_failure else None
+            ),
         }
 
 
@@ -214,10 +222,16 @@ class CircuitMetrics:
             "state": self.state,
             "failure_count": self.failure_count,
             "success_count": self.success_count,
-            "last_failure": self.last_failure.isoformat() if self.last_failure else None,
-            "last_success": self.last_success.isoformat() if self.last_success else None,
+            "last_failure": (
+                self.last_failure.isoformat() if self.last_failure else None
+            ),
+            "last_success": (
+                self.last_success.isoformat() if self.last_success else None
+            ),
             "opened_at": self.opened_at.isoformat() if self.opened_at else None,
-            "half_open_at": self.half_open_at.isoformat() if self.half_open_at else None,
+            "half_open_at": (
+                self.half_open_at.isoformat() if self.half_open_at else None
+            ),
             "failure_rate": self.failure_rate,
             "consecutive_failures": self.consecutive_failures,
         }
@@ -469,10 +483,16 @@ class SchedulerMetricsCollector:
 
             # Pending and running counts
             metrics.total_pending_tasks = CognitiveTask.objects.filter(
-                state__in=[TaskState.PENDING.value, TaskState.SCHEDULED.value, TaskState.RETRYING.value]
+                state__in=[
+                    TaskState.PENDING.value,
+                    TaskState.SCHEDULED.value,
+                    TaskState.RETRYING.value,
+                ]
             ).count()
 
-            metrics.total_running_tasks = CognitiveTask.objects.filter(state=TaskState.RUNNING.value).count()
+            metrics.total_running_tasks = CognitiveTask.objects.filter(
+                state=TaskState.RUNNING.value
+            ).count()
 
             # Today's stats
             metrics.total_completed_today = CognitiveTask.objects.filter(
@@ -488,7 +508,9 @@ class SchedulerMetricsCollector:
             # Success rate
             total_today = metrics.total_completed_today + metrics.total_failed_today
             if total_today > 0:
-                metrics.overall_success_rate = metrics.total_completed_today / total_today
+                metrics.overall_success_rate = (
+                    metrics.total_completed_today / total_today
+                )
 
         except Exception as e:
             logger.debug(f"[DASHBOARD] Summary metrics error: {e}")
@@ -510,7 +532,9 @@ class SchedulerMetricsCollector:
 
                 # Counts by state
                 qm.pending = queue_tasks.filter(state=TaskState.PENDING.value).count()
-                qm.scheduled = queue_tasks.filter(state=TaskState.SCHEDULED.value).count()
+                qm.scheduled = queue_tasks.filter(
+                    state=TaskState.SCHEDULED.value
+                ).count()
                 qm.running = queue_tasks.filter(state=TaskState.RUNNING.value).count()
                 qm.depth = qm.pending + qm.scheduled
 
@@ -530,13 +554,17 @@ class SchedulerMetricsCollector:
 
                 # Oldest task age
                 oldest = (
-                    queue_tasks.filter(state__in=[TaskState.PENDING.value, TaskState.SCHEDULED.value])
+                    queue_tasks.filter(
+                        state__in=[TaskState.PENDING.value, TaskState.SCHEDULED.value]
+                    )
                     .order_by("created_at")
                     .first()
                 )
 
                 if oldest:
-                    qm.oldest_task_age_seconds = (now - oldest.created_at).total_seconds()
+                    qm.oldest_task_age_seconds = (
+                        now - oldest.created_at
+                    ).total_seconds()
 
                 # Average wait time (from created to started for recently completed)
                 from syn.sched.models import TaskExecution
@@ -549,7 +577,9 @@ class SchedulerMetricsCollector:
                     wait_times = []
                     for exe in recent_executions[:100]:
                         if exe.started_at and exe.task.created_at:
-                            wait = (exe.started_at - exe.task.created_at).total_seconds()
+                            wait = (
+                                exe.started_at - exe.task.created_at
+                            ).total_seconds()
                             wait_times.append(wait)
                     if wait_times:
                         qm.avg_wait_time_seconds = sum(wait_times) / len(wait_times)
@@ -583,7 +613,9 @@ class SchedulerMetricsCollector:
                 wm.tasks_failed = worker.failed_tasks
 
                 if worker.started_at:
-                    wm.uptime_seconds = (timezone.now() - worker.started_at).total_seconds()
+                    wm.uptime_seconds = (
+                        timezone.now() - worker.started_at
+                    ).total_seconds()
                     wm.last_heartbeat = timezone.now()
 
                 metrics.workers.append(wm)
@@ -600,7 +632,9 @@ class SchedulerMetricsCollector:
 
             # Get distinct task names with recent activity
             task_names = (
-                CognitiveTask.objects.filter(created_at__gte=lookback).values_list("task_name", flat=True).distinct()
+                CognitiveTask.objects.filter(created_at__gte=lookback)
+                .values_list("task_name", flat=True)
+                .distinct()
             )
 
             for task_name in task_names[:50]:  # Limit to top 50
@@ -620,7 +654,9 @@ class SchedulerMetricsCollector:
                     ttm.success_rate = ttm.successful_executions / ttm.total_executions
 
                 # Duration stats
-                successful = executions.filter(is_success=True, duration_ms__isnull=False)
+                successful = executions.filter(
+                    is_success=True, duration_ms__isnull=False
+                )
                 if successful.exists():
                     durations = list(successful.values_list("duration_ms", flat=True))
                     durations.sort()
@@ -635,11 +671,17 @@ class SchedulerMetricsCollector:
                 if last_exec:
                     ttm.last_execution = last_exec.completed_at
 
-                last_success = executions.filter(is_success=True).order_by("-completed_at").first()
+                last_success = (
+                    executions.filter(is_success=True).order_by("-completed_at").first()
+                )
                 if last_success:
                     ttm.last_success = last_success.completed_at
 
-                last_failure = executions.filter(is_success=False).order_by("-completed_at").first()
+                last_failure = (
+                    executions.filter(is_success=False)
+                    .order_by("-completed_at")
+                    .first()
+                )
                 if last_failure:
                     ttm.last_failure = last_failure.completed_at
 
@@ -660,7 +702,8 @@ class SchedulerMetricsCollector:
                     task_name=schedule.task_name,
                     enabled=schedule.is_enabled,
                     schedule_type=schedule.schedule_type,
-                    expression=schedule.cron_expression or str(schedule.interval_seconds) + "s",
+                    expression=schedule.cron_expression
+                    or str(schedule.interval_seconds) + "s",
                     last_run_at=schedule.last_run_at,
                     next_run_at=schedule.next_run_at,
                     run_count=schedule.run_count,
@@ -674,8 +717,10 @@ class SchedulerMetricsCollector:
                     recent_task = (
                         CognitiveTask.objects.filter(
                             task_name=schedule.task_name,
-                            created_at__gte=schedule.last_run_at - timedelta(seconds=10),
-                            created_at__lte=schedule.last_run_at + timedelta(seconds=10),
+                            created_at__gte=schedule.last_run_at
+                            - timedelta(seconds=10),
+                            created_at__lte=schedule.last_run_at
+                            + timedelta(seconds=10),
                         )
                         .order_by("-created_at")
                         .first()
@@ -735,7 +780,11 @@ class SchedulerMetricsCollector:
 
                 # Get active count from scheduler
                 if self._scheduler and hasattr(self._scheduler, "backpressure"):
-                    health = self._scheduler.backpressure.get_health_metrics() if self._scheduler.backpressure else None
+                    health = (
+                        self._scheduler.backpressure.get_health_metrics()
+                        if self._scheduler.backpressure
+                        else None
+                    )
                     if health:
                         rcm.utilization = health.worker_utilization
 
@@ -752,28 +801,54 @@ class SchedulerMetricsCollector:
             dlq = DLQMetrics()
 
             dlq.total_entries = DeadLetterEntry.objects.count()
-            dlq.pending_entries = DeadLetterEntry.objects.filter(status="pending").count()
-            dlq.resolved_entries = DeadLetterEntry.objects.filter(status="resolved").count()
-            dlq.retried_entries = DeadLetterEntry.objects.filter(status="retried").count()
-            dlq.discarded_entries = DeadLetterEntry.objects.filter(status="discarded").count()
+            dlq.pending_entries = DeadLetterEntry.objects.filter(
+                status="pending"
+            ).count()
+            dlq.resolved_entries = DeadLetterEntry.objects.filter(
+                status="resolved"
+            ).count()
+            dlq.retried_entries = DeadLetterEntry.objects.filter(
+                status="retried"
+            ).count()
+            dlq.discarded_entries = DeadLetterEntry.objects.filter(
+                status="discarded"
+            ).count()
 
             # Growth rate (entries in last hour)
             one_hour_ago = timezone.now() - timedelta(hours=1)
-            recent_entries = DeadLetterEntry.objects.filter(created_at__gte=one_hour_ago).count()
+            recent_entries = DeadLetterEntry.objects.filter(
+                created_at__gte=one_hour_ago
+            ).count()
             dlq.growth_rate_per_hour = float(recent_entries)
 
             # Oldest entry
-            oldest = DeadLetterEntry.objects.filter(status="pending").order_by("created_at").first()
+            oldest = (
+                DeadLetterEntry.objects.filter(status="pending")
+                .order_by("created_at")
+                .first()
+            )
             if oldest:
-                dlq.oldest_entry_age_hours = (timezone.now() - oldest.created_at).total_seconds() / 3600
+                dlq.oldest_entry_age_hours = (
+                    timezone.now() - oldest.created_at
+                ).total_seconds() / 3600
 
             # By task name
-            by_task = DeadLetterEntry.objects.values("task_name").annotate(count=Count("id")).order_by("-count")[:10]
+            by_task = (
+                DeadLetterEntry.objects.values("task_name")
+                .annotate(count=Count("id"))
+                .order_by("-count")[:10]
+            )
             dlq.entries_by_task = {item["task_name"]: item["count"] for item in by_task}
 
             # By error type
-            by_error = DeadLetterEntry.objects.values("error_type").annotate(count=Count("id")).order_by("-count")[:10]
-            dlq.entries_by_error_type = {item["error_type"] or "unknown": item["count"] for item in by_error}
+            by_error = (
+                DeadLetterEntry.objects.values("error_type")
+                .annotate(count=Count("id"))
+                .order_by("-count")[:10]
+            )
+            dlq.entries_by_error_type = {
+                item["error_type"] or "unknown": item["count"] for item in by_error
+            }
 
             metrics.dlq = dlq
 
@@ -837,7 +912,9 @@ class SchedulerMetricsCollector:
 
             # Circuit health
             metrics.circuits_total = len(metrics.circuits)
-            metrics.circuits_open = sum(1 for c in metrics.circuits if c.state in ["open", "half_open"])
+            metrics.circuits_open = sum(
+                1 for c in metrics.circuits if c.state in ["open", "half_open"]
+            )
 
         except Exception as e:
             logger.debug(f"[DASHBOARD] Health indicators error: {e}")

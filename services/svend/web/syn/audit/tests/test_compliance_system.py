@@ -30,7 +30,16 @@ from syn.audit.standards import (
 class TagVocabularyTest(SimpleTestCase):
     """CMP-001 §4: Standards parser recognizes all DOC-001 §7.5 tag types."""
 
-    REQUIRED_TAGS = ["assert", "impl", "check", "code", "control", "rule", "table", "test"]
+    REQUIRED_TAGS = [
+        "assert",
+        "impl",
+        "check",
+        "code",
+        "control",
+        "rule",
+        "table",
+        "test",
+    ]
 
     def test_tag_re_matches_all_required_tags(self):
         for tag in self.REQUIRED_TAGS:
@@ -105,7 +114,9 @@ class AssertionDataclassTest(SimpleTestCase):
     def test_fields_mutable(self):
         a = Assertion(text="Test", check_id="t")
         a.impls.append("syn/err/exceptions.py")
-        a.tests.append("syn.audit.tests.test_error_handling.ErrorHierarchyTest.test_all")
+        a.tests.append(
+            "syn.audit.tests.test_error_handling.ErrorHierarchyTest.test_all"
+        )
         self.assertEqual(len(a.impls), 1)
         self.assertEqual(len(a.tests), 1)
 
@@ -223,7 +234,9 @@ class AllChecksRegistryTest(SimpleTestCase):
 
     def test_expected_checks_registered(self):
         for check_name in self.EXPECTED_CHECKS:
-            self.assertIn(check_name, ALL_CHECKS, f"Check '{check_name}' not in ALL_CHECKS")
+            self.assertIn(
+                check_name, ALL_CHECKS, f"Check '{check_name}' not in ALL_CHECKS"
+            )
 
     def test_all_checks_are_callable(self):
         for name, entry in ALL_CHECKS.items():
@@ -299,7 +312,9 @@ class DailyRotationTest(SimpleTestCase):
 
     def test_daily_critical_are_in_all_checks(self):
         for name in DAILY_CRITICAL:
-            self.assertIn(name, ALL_CHECKS, f"DAILY_CRITICAL check '{name}' not in ALL_CHECKS")
+            self.assertIn(
+                name, ALL_CHECKS, f"DAILY_CRITICAL check '{name}' not in ALL_CHECKS"
+            )
 
 
 class ManagementCommandTest(SimpleTestCase):
@@ -366,10 +381,18 @@ class DriftViolationLifecycleTest(DjangoTestCase):
 
     def test_failure_creates_violation(self):
         """A failing assertion creates a DriftViolation record."""
-        from syn.audit.compliance import _compute_drift_signature, _sync_drift_violations
+        from syn.audit.compliance import (
+            _compute_drift_signature,
+            _sync_drift_violations,
+        )
         from syn.audit.models import DriftViolation
 
-        a = Assertion(text="Test claim", check_id="test-check-create", standard="TST-001", section="1")
+        a = Assertion(
+            text="Test claim",
+            check_id="test-check-create",
+            standard="TST-001",
+            section="1",
+        )
         r = {
             "status": "fail",
             "check_id": "test-check-create",
@@ -386,7 +409,10 @@ class DriftViolationLifecycleTest(DjangoTestCase):
 
     def test_pass_resolves_violation(self):
         """A passing assertion resolves an existing DriftViolation."""
-        from syn.audit.compliance import _compute_drift_signature, _sync_drift_violations
+        from syn.audit.compliance import (
+            _compute_drift_signature,
+            _sync_drift_violations,
+        )
         from syn.audit.models import DriftViolation
 
         sig = _compute_drift_signature("TST-001", "test-check-resolve", "1")
@@ -398,7 +424,12 @@ class DriftViolationLifecycleTest(DjangoTestCase):
             violation_message="Test failure",
             detected_by="compliance_runner",
         )
-        a = Assertion(text="Test claim", check_id="test-check-resolve", standard="TST-001", section="1")
+        a = Assertion(
+            text="Test claim",
+            check_id="test-check-resolve",
+            standard="TST-001",
+            section="1",
+        )
         r = {
             "status": "pass",
             "check_id": "test-check-resolve",
@@ -413,10 +444,18 @@ class DriftViolationLifecycleTest(DjangoTestCase):
 
     def test_idempotent_no_duplicates(self):
         """Running twice with same failure doesn't create duplicate."""
-        from syn.audit.compliance import _compute_drift_signature, _sync_drift_violations
+        from syn.audit.compliance import (
+            _compute_drift_signature,
+            _sync_drift_violations,
+        )
         from syn.audit.models import DriftViolation
 
-        a = Assertion(text="Test claim", check_id="test-check-dedup", standard="TST-001", section="1")
+        a = Assertion(
+            text="Test claim",
+            check_id="test-check-dedup",
+            standard="TST-001",
+            section="1",
+        )
         r = {
             "status": "fail",
             "check_id": "test-check-dedup",
@@ -535,21 +574,27 @@ class VerifyTestExistsTest(SimpleTestCase):
         """A non-existent module path returns False."""
         from syn.audit.standards import verify_test_exists
 
-        ok, msg = verify_test_exists("syn.audit.tests.nonexistent_module.FakeClass.fake_method")
+        ok, msg = verify_test_exists(
+            "syn.audit.tests.nonexistent_module.FakeClass.fake_method"
+        )
         self.assertFalse(ok)
 
     def test_invalid_class_fails(self):
         """A valid module but non-existent class returns False."""
         from syn.audit.standards import verify_test_exists
 
-        ok, msg = verify_test_exists("syn.audit.tests.test_compliance_system.NonExistentClass.some_method")
+        ok, msg = verify_test_exists(
+            "syn.audit.tests.test_compliance_system.NonExistentClass.some_method"
+        )
         self.assertFalse(ok)
 
     def test_invalid_method_fails(self):
         """A valid class but non-existent method returns False."""
         from syn.audit.standards import verify_test_exists
 
-        ok, msg = verify_test_exists("syn.audit.tests.test_compliance_system.TagVocabularyTest.nonexistent_method")
+        ok, msg = verify_test_exists(
+            "syn.audit.tests.test_compliance_system.TagVocabularyTest.nonexistent_method"
+        )
         self.assertFalse(ok)
 
 
@@ -850,7 +895,9 @@ class CalibrationTest(unittest.TestCase):
         self.assertGreaterEqual(len(categories), 5)
         # Every case has expectations
         for case in pool:
-            self.assertTrue(len(case.expectations) > 0, f"{case.case_id} has no expectations")
+            self.assertTrue(
+                len(case.expectations) > 0, f"{case.case_id} has no expectations"
+            )
 
     def test_calibration_runner_returns_results(self):
         """run_calibration returns per-case results with expected fields."""
@@ -895,7 +942,10 @@ class CalibrationTest(unittest.TestCase):
         self.assertEqual(len(inf001), 1)
         result = run_calibration(cases=inf001, subset_size=0)
         self.assertEqual(result["cases_run"], 1)
-        self.assertTrue(result["results"][0]["passed"], f"CAL-INF-001 failed: {result['results'][0]}")
+        self.assertTrue(
+            result["results"][0]["passed"],
+            f"CAL-INF-001 failed: {result['results'][0]}",
+        )
 
     def test_drift_violation_on_failure(self):
         """Compliance check creates DriftViolation when a case fails."""

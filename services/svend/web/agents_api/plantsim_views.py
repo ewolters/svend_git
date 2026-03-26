@@ -117,7 +117,14 @@ def update_simulation(request, sim_id):
             setattr(sim, field, data[field])
 
     # Structured layout data
-    for field in ["stations", "connections", "sources", "sinks", "work_centers", "simulation_config"]:
+    for field in [
+        "stations",
+        "connections",
+        "sources",
+        "sinks",
+        "work_centers",
+        "simulation_config",
+    ]:
         if field in data:
             setattr(sim, field, data[field])
 

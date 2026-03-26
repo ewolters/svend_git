@@ -37,7 +37,10 @@ _rng44 = np.random.RandomState(44)
 X1 = list(_rng42.normal(0, 1, N))
 X2 = list(_rng43.normal(0, 1, N))
 X3 = list(_rng44.normal(0, 1, N))
-Y_REG = [2 * x1 + 0.5 * x2 + np.random.RandomState(45).normal(0, 0.5) for x1, x2 in zip(X1, X2)]
+Y_REG = [
+    2 * x1 + 0.5 * x2 + np.random.RandomState(45).normal(0, 0.5)
+    for x1, x2 in zip(X1, X2)
+]
 Y_CLS = [1 if y > 0 else 0 for y in Y_REG]
 DATES = pd.date_range("2020-01-01", periods=N, freq="D").strftime("%Y-%m-%d").tolist()
 GROUPS_AB = (["A"] * 30) + (["B"] * 30)
@@ -184,7 +187,13 @@ class VizDeepCoverageTest(TestCase):
     def test_ivp_with_group(self):
         r = self._run(
             "individual_value_plot",
-            {"var": "x", "group": "g", "show_mean": True, "show_ci": True, "confidence": 0.95},
+            {
+                "var": "x",
+                "group": "g",
+                "show_mean": True,
+                "show_ci": True,
+                "confidence": 0.95,
+            },
             {"x": X1, "g": GROUPS_AB},
         )
         self.assertIn("plots", r)
@@ -556,7 +565,12 @@ class ExperimenterDeepTest(TestCase):
     def test_power_ttest_ind(self):
         res = self._post(
             "/api/experimenter/power/",
-            {"effect_size": 0.5, "test_type": "ttest_ind", "alpha": 0.05, "power": 0.80},
+            {
+                "effect_size": 0.5,
+                "test_type": "ttest_ind",
+                "alpha": 0.05,
+                "power": 0.80,
+            },
         )
         self.assertIn(res.status_code, [200, 201])
         data = res.json()
@@ -565,42 +579,72 @@ class ExperimenterDeepTest(TestCase):
     def test_power_ttest_paired(self):
         res = self._post(
             "/api/experimenter/power/",
-            {"effect_size": 0.5, "test_type": "ttest_paired", "alpha": 0.05, "power": 0.80},
+            {
+                "effect_size": 0.5,
+                "test_type": "ttest_paired",
+                "alpha": 0.05,
+                "power": 0.80,
+            },
         )
         self.assertIn(res.status_code, [200, 201])
 
     def test_power_anova(self):
         res = self._post(
             "/api/experimenter/power/",
-            {"effect_size": 0.5, "test_type": "anova", "alpha": 0.05, "power": 0.80, "groups": 3},
+            {
+                "effect_size": 0.5,
+                "test_type": "anova",
+                "alpha": 0.05,
+                "power": 0.80,
+                "groups": 3,
+            },
         )
         self.assertIn(res.status_code, [200, 201])
 
     def test_power_correlation(self):
         res = self._post(
             "/api/experimenter/power/",
-            {"effect_size": 0.3, "test_type": "correlation", "alpha": 0.05, "power": 0.80},
+            {
+                "effect_size": 0.3,
+                "test_type": "correlation",
+                "alpha": 0.05,
+                "power": 0.80,
+            },
         )
         self.assertIn(res.status_code, [200, 201])
 
     def test_power_chi_square(self):
         res = self._post(
             "/api/experimenter/power/",
-            {"effect_size": 0.3, "test_type": "chi_square", "alpha": 0.05, "power": 0.80, "groups": 3},
+            {
+                "effect_size": 0.3,
+                "test_type": "chi_square",
+                "alpha": 0.05,
+                "power": 0.80,
+                "groups": 3,
+            },
         )
         self.assertIn(res.status_code, [200, 201])
 
     def test_power_with_curve(self):
         res = self._post(
             "/api/experimenter/power/",
-            {"effect_size": 0.5, "test_type": "ttest_ind", "alpha": 0.05, "power": 0.80, "include_curve": True},
+            {
+                "effect_size": 0.5,
+                "test_type": "ttest_ind",
+                "alpha": 0.05,
+                "power": 0.80,
+                "include_curve": True,
+            },
         )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertIn("power_curve", data)
 
     def test_power_invalid_json(self):
-        res = self.c.post("/api/experimenter/power/", "not json", content_type="text/plain")
+        res = self.c.post(
+            "/api/experimenter/power/", "not json", content_type="text/plain"
+        )
         self.assertEqual(res.status_code, 400)
 
     # --- design experiment ---
@@ -662,7 +706,10 @@ class ExperimenterDeepTest(TestCase):
         self.assertIn(res.status_code, [200, 201])
 
     def test_design_no_factors(self):
-        res = self._post("/api/experimenter/design/", {"design_type": "full_factorial", "factors": []})
+        res = self._post(
+            "/api/experimenter/design/",
+            {"design_type": "full_factorial", "factors": []},
+        )
         self.assertEqual(res.status_code, 400)
 
     def test_design_taguchi(self):
@@ -857,18 +904,27 @@ class SPCDeepTest(TestCase):
 
     def test_chart_xbar_r(self):
         subgroups = [SPC_DATA[i : i + 5] for i in range(0, 25, 5)]
-        res = self._post("/api/spc/chart/", {"chart_type": "X-bar R", "data": subgroups})
+        res = self._post(
+            "/api/spc/chart/", {"chart_type": "X-bar R", "data": subgroups}
+        )
         self.assertEqual(res.status_code, 200)
 
     def test_chart_p(self):
         res = self._post(
             "/api/spc/chart/",
-            {"chart_type": "p", "data": [3, 5, 2, 4, 6, 3, 5, 2, 4, 3], "sample_sizes": [100] * 10},
+            {
+                "chart_type": "p",
+                "data": [3, 5, 2, 4, 6, 3, 5, 2, 4, 3],
+                "sample_sizes": [100] * 10,
+            },
         )
         self.assertEqual(res.status_code, 200)
 
     def test_chart_c(self):
-        res = self._post("/api/spc/chart/", {"chart_type": "c", "data": [3, 5, 2, 4, 6, 3, 5, 2, 4, 3]})
+        res = self._post(
+            "/api/spc/chart/",
+            {"chart_type": "c", "data": [3, 5, 2, 4, 6, 3, 5, 2, 4, 3]},
+        )
         self.assertEqual(res.status_code, 200)
 
     def test_chart_no_data(self):
@@ -880,15 +936,21 @@ class SPCDeepTest(TestCase):
         self.assertEqual(res.status_code, 400)
 
     def test_chart_imr_wrong_format(self):
-        res = self._post("/api/spc/chart/", {"chart_type": "I-MR", "data": [[1, 2], [3, 4]]})
+        res = self._post(
+            "/api/spc/chart/", {"chart_type": "I-MR", "data": [[1, 2], [3, 4]]}
+        )
         self.assertEqual(res.status_code, 400)
 
     def test_chart_xbar_r_wrong_format(self):
-        res = self._post("/api/spc/chart/", {"chart_type": "X-bar R", "data": [1, 2, 3]})
+        res = self._post(
+            "/api/spc/chart/", {"chart_type": "X-bar R", "data": [1, 2, 3]}
+        )
         self.assertEqual(res.status_code, 400)
 
     def test_chart_p_no_samples(self):
-        res = self._post("/api/spc/chart/", {"chart_type": "p", "data": [3, 5], "sample_sizes": []})
+        res = self._post(
+            "/api/spc/chart/", {"chart_type": "p", "data": [3, 5], "sample_sizes": []}
+        )
         self.assertEqual(res.status_code, 400)
 
     def test_chart_invalid_json(self):
@@ -896,33 +958,48 @@ class SPCDeepTest(TestCase):
         self.assertEqual(res.status_code, 400)
 
     def test_chart_with_spec_limits(self):
-        res = self._post("/api/spc/chart/", {"chart_type": "I-MR", "data": SPC_DATA, "usl": 56, "lsl": 44})
+        res = self._post(
+            "/api/spc/chart/",
+            {"chart_type": "I-MR", "data": SPC_DATA, "usl": 56, "lsl": 44},
+        )
         self.assertEqual(res.status_code, 200)
 
     # --- recommend chart ---
     def test_recommend_continuous_individual(self):
-        res = self._post("/api/spc/chart/recommend/", {"data_type": "continuous", "subgroup_size": 1})
+        res = self._post(
+            "/api/spc/chart/recommend/", {"data_type": "continuous", "subgroup_size": 1}
+        )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertIn("recommended", data)
 
     def test_recommend_continuous_subgroup(self):
-        res = self._post("/api/spc/chart/recommend/", {"data_type": "continuous", "subgroup_size": 5})
+        res = self._post(
+            "/api/spc/chart/recommend/", {"data_type": "continuous", "subgroup_size": 5}
+        )
         self.assertEqual(res.status_code, 200)
 
     def test_recommend_attribute(self):
-        res = self._post("/api/spc/chart/recommend/", {"data_type": "attribute", "attribute_type": "defects"})
+        res = self._post(
+            "/api/spc/chart/recommend/",
+            {"data_type": "attribute", "attribute_type": "defects"},
+        )
         self.assertEqual(res.status_code, 200)
 
     # --- capability study ---
     def test_capability(self):
-        res = self._post("/api/spc/capability/", {"data": SPC_DATA, "usl": 56, "lsl": 44})
+        res = self._post(
+            "/api/spc/capability/", {"data": SPC_DATA, "usl": 56, "lsl": 44}
+        )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertTrue(data.get("success"))
 
     def test_capability_with_target(self):
-        res = self._post("/api/spc/capability/", {"data": SPC_DATA, "usl": 56, "lsl": 44, "target": 50})
+        res = self._post(
+            "/api/spc/capability/",
+            {"data": SPC_DATA, "usl": 56, "lsl": 44, "target": 50},
+        )
         self.assertEqual(res.status_code, 200)
 
     def test_capability_no_data(self):
@@ -970,7 +1047,12 @@ class SPCDeepTest(TestCase):
         ]
         res = self._post(
             "/api/spc/gage-rr/",
-            {"parts": parts, "operators": operators, "measurements": measurements, "tolerance": 0.5},
+            {
+                "parts": parts,
+                "operators": operators,
+                "measurements": measurements,
+                "tolerance": 0.5,
+            },
         )
         self.assertNotEqual(res.status_code, 500)
 
@@ -1145,7 +1227,11 @@ class CoreProjectCRUDTest(TestCase):
     def test_entity_create(self):
         res = self.c.post(
             "/api/core/graph/entities/",
-            {"name": "Test Entity", "entity_type": "concept", "description": "A test concept"},
+            {
+                "name": "Test Entity",
+                "entity_type": "concept",
+                "description": "A test concept",
+            },
             format="json",
         )
         self.assertIn(res.status_code, [200, 201])
@@ -1397,7 +1483,9 @@ class VizHelperFunctionsTest(TestCase):
         from agents_api.dsw.viz import _nig_posterior_update
 
         data = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-        mu_n, nu_n, alpha_n, beta_n = _nig_posterior_update(data, mu0=3.0, nu0=1.0, alpha0=2.0, beta0=1.0)
+        mu_n, nu_n, alpha_n, beta_n = _nig_posterior_update(
+            data, mu0=3.0, nu0=1.0, alpha0=2.0, beta0=1.0
+        )
         self.assertIsInstance(mu_n, float)
         self.assertIsInstance(nu_n, float)
         self.assertGreater(alpha_n, 2.0)
@@ -1519,7 +1607,11 @@ class ExperimenterEdgeCasesTest(TestCase):
             {
                 "design_type": "rcbd",
                 "factors": [
-                    {"name": "Treatment", "levels": ["A", "B", "C"], "categorical": True},
+                    {
+                        "name": "Treatment",
+                        "levels": ["A", "B", "C"],
+                        "categorical": True,
+                    },
                     {"name": "Block", "levels": [1, 2, 3, 4]},
                 ],
             },
@@ -1544,7 +1636,12 @@ class ExperimenterEdgeCasesTest(TestCase):
         """Unknown test type defaults to ttest_ind."""
         res = self._post(
             "/api/experimenter/power/",
-            {"effect_size": 0.5, "test_type": "unknown_test", "alpha": 0.05, "power": 0.80},
+            {
+                "effect_size": 0.5,
+                "test_type": "unknown_test",
+                "alpha": 0.05,
+                "power": 0.80,
+            },
         )
         self.assertIn(res.status_code, [200, 201])
 
@@ -1687,7 +1784,11 @@ class CoreAdvancedTest(TestCase):
     def test_entity_create_and_detail(self):
         res = self.c.post(
             "/api/core/graph/entities/",
-            {"name": "Detail Test Entity", "entity_type": "variable", "description": "For detail test"},
+            {
+                "name": "Detail Test Entity",
+                "entity_type": "variable",
+                "description": "For detail test",
+            },
             format="json",
         )
         self.assertIn(res.status_code, [200, 201])

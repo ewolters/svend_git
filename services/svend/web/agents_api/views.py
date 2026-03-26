@@ -32,7 +32,9 @@ def researcher_agent(request):
     depth = request.data.get("depth", "standard")
 
     if not query:
-        return Response({"error": "Query is required"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Query is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     try:
         from researcher.agent import ResearchAgent, ResearchQuery
@@ -45,8 +47,14 @@ def researcher_agent(request):
 
         response = {
             "summary": summary,
-            "sources": [{"title": s.title, "url": s.url} for s in result.sources] if hasattr(result, "sources") else [],
-            "markdown": result.to_markdown() if hasattr(result, "to_markdown") else None,
+            "sources": (
+                [{"title": s.title, "url": s.url} for s in result.sources]
+                if hasattr(result, "sources")
+                else []
+            ),
+            "markdown": (
+                result.to_markdown() if hasattr(result, "to_markdown") else None
+            ),
         }
 
         if llm is None:
@@ -67,7 +75,9 @@ def researcher_agent(request):
         )
     except Exception as e:
         logger.exception("Researcher agent error")
-        return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(["POST"])
@@ -78,7 +88,9 @@ def coder_agent(request):
     language = request.data.get("language", "python")
 
     if not prompt:
-        return Response({"error": "Prompt is required"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Prompt is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     try:
         from coder.agent import CodingAgent, CodingTask
@@ -112,7 +124,9 @@ def coder_agent(request):
         )
     except Exception as e:
         logger.exception("Coder agent error")
-        return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(["POST"])
@@ -125,14 +139,18 @@ def writer_agent(request):
     original_prompt = request.data.get("prompt", "")
 
     if not topic:
-        return Response({"error": "Topic is required"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Topic is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     try:
         from writer.agent import DocumentRequest, DocumentType, WriterAgent
 
         llm = get_shared_llm()
         agent = WriterAgent(llm=llm)
-        doc_type = getattr(DocumentType, template.upper(), DocumentType.EXECUTIVE_SUMMARY)
+        doc_type = getattr(
+            DocumentType, template.upper(), DocumentType.EXECUTIVE_SUMMARY
+        )
         result = agent.write(
             DocumentRequest(topic=topic, doc_type=doc_type),
             run_editor=run_editor,
@@ -141,7 +159,9 @@ def writer_agent(request):
 
         response = {
             "content": result.content if hasattr(result, "content") else str(result),
-            "quality_report": result.quality_report() if hasattr(result, "quality_report") else None,
+            "quality_report": (
+                result.quality_report() if hasattr(result, "quality_report") else None
+            ),
             "quality_passed": getattr(result, "quality_passed", True),
             "quality_issues": getattr(result, "quality_issues", []),
         }
@@ -154,7 +174,13 @@ def writer_agent(request):
                 "citation_confidence": result.editor_result.citation_confidence,
                 "prompt_alignment": result.editor_result.prompt_alignment,
                 "edits_made": result.editor_result.edits_made,
-                "repeated_stats": len([r for r in result.editor_result.repetitions if r.issue_type == "statistic"]),
+                "repeated_stats": len(
+                    [
+                        r
+                        for r in result.editor_result.repetitions
+                        if r.issue_type == "statistic"
+                    ]
+                ),
                 "gaps": len(result.editor_result.gaps),
                 "citation_concerns": len(result.editor_result.citation_concerns),
                 "editorial_report": result.editor_result.editorial_report,
@@ -179,7 +205,9 @@ def writer_agent(request):
         )
     except Exception as e:
         logger.exception("Writer agent error")
-        return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(["POST"])
@@ -192,7 +220,9 @@ def editor_agent(request):
     prompt = request.data.get("prompt", "")
 
     if not document:
-        return Response({"error": "Document is required"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Document is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     try:
         from reviewer.editor import Editor
@@ -217,14 +247,20 @@ def editor_agent(request):
             "issues": {
                 "grammar_fixes": len(result.grammar_fixes),
                 "repetitions": len(result.repetitions),
-                "repeated_statistics": len([r for r in result.repetitions if r.issue_type == "statistic"]),
+                "repeated_statistics": len(
+                    [r for r in result.repetitions if r.issue_type == "statistic"]
+                ),
                 "citation_concerns": len(result.citation_concerns),
                 "gaps": len(result.gaps),
                 "drift_issues": len(result.drift_issues),
             },
             "details": {
                 "citation_concerns": [
-                    {"text": c.citation_text[:100], "issues": c.issues, "confidence": c.confidence}
+                    {
+                        "text": c.citation_text[:100],
+                        "issues": c.issues,
+                        "confidence": c.confidence,
+                    }
                     for c in result.citation_concerns[:5]
                 ],
                 "repeated_stats": [
@@ -232,9 +268,16 @@ def editor_agent(request):
                     for r in result.repetitions
                     if r.issue_type == "statistic"
                 ][:5],
-                "gaps": [{"topic": g.topic, "issue": g.issue, "suggestion": g.suggestion} for g in result.gaps],
+                "gaps": [
+                    {"topic": g.topic, "issue": g.issue, "suggestion": g.suggestion}
+                    for g in result.gaps
+                ],
                 "drift_issues": [
-                    {"expected": d.expected, "severity": d.severity, "suggestion": d.suggestion}
+                    {
+                        "expected": d.expected,
+                        "severity": d.severity,
+                        "suggestion": d.suggestion,
+                    }
                     for d in result.drift_issues
                 ],
             },
@@ -261,7 +304,9 @@ def editor_agent(request):
         )
     except Exception as e:
         logger.exception("Editor agent error")
-        return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(["POST"])
@@ -272,7 +317,9 @@ def experimenter_agent(request):
     exp_type = request.data.get("type", "power")
 
     if not goal:
-        return Response({"error": "Goal is required"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Goal is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     try:
         from experimenter import ExperimenterAgent, ExperimentRequest
@@ -320,7 +367,9 @@ def experimenter_agent(request):
         result = agent.design_experiment(exp_req)
 
         response = {
-            "summary": result.to_markdown() if hasattr(result, "to_markdown") else str(result),
+            "summary": (
+                result.to_markdown() if hasattr(result, "to_markdown") else str(result)
+            ),
             "experiment_type": exp_type,
         }
 
@@ -330,7 +379,11 @@ def experimenter_agent(request):
             response["effect_size"] = result.power_result.effect_size
 
         if hasattr(result, "design") and result.design:
-            response["design"] = result.design.to_dict() if hasattr(result.design, "to_dict") else str(result.design)
+            response["design"] = (
+                result.design.to_dict()
+                if hasattr(result.design, "to_dict")
+                else str(result.design)
+            )
 
         if llm is None:
             response["note"] = "Running without LLM - using statistical defaults."
@@ -353,7 +406,9 @@ def experimenter_agent(request):
         )
     except Exception as e:
         logger.exception("Experimenter agent error")
-        return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(["POST"])
@@ -363,7 +418,9 @@ def eda_agent(request):
     import pandas as pd
 
     if "file" not in request.FILES:
-        return Response({"error": "No file uploaded"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "No file uploaded"}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     file = request.FILES["file"]
     name = request.data.get("name", "dataset")
@@ -376,7 +433,9 @@ def eda_agent(request):
             file.seek(0)
             df = pd.read_csv(file, encoding="latin-1")
     except Exception as e:
-        return Response({"error": f"Failed to read CSV: {e}"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": f"Failed to read CSV: {e}"}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     try:
         from analyst import quick_eda
@@ -412,16 +471,26 @@ def eda_agent(request):
                 }
                 for c in report.columns
             ],
-            "missing_report": {
-                "total_missing": report.total_missing,
-                "total_missing_pct": report.total_missing_pct,
-                "columns_with_missing": len([c for c in report.columns if c.missing > 0]),
-                "by_column": {c.name: c.missing for c in report.columns if c.missing > 0},
-            }
-            if report.total_missing > 0
-            else None,
+            "missing_report": (
+                {
+                    "total_missing": report.total_missing,
+                    "total_missing_pct": report.total_missing_pct,
+                    "columns_with_missing": len(
+                        [c for c in report.columns if c.missing > 0]
+                    ),
+                    "by_column": {
+                        c.name: c.missing for c in report.columns if c.missing > 0
+                    },
+                }
+                if report.total_missing > 0
+                else None
+            ),
             "outliers": [
-                {"column": c.name, "count": c.outlier_count, "pct": c.outlier_count / c.count if c.count else 0}
+                {
+                    "column": c.name,
+                    "count": c.outlier_count,
+                    "pct": c.outlier_count / c.count if c.count else 0,
+                }
                 for c in report.columns
                 if c.has_outliers
             ],
@@ -434,12 +503,18 @@ def eda_agent(request):
 
         # Add recommendations
         if report.total_missing_pct > 0.05:
-            response["recommendations"].append(f"Address missing values ({report.total_missing_pct:.1%} of data)")
+            response["recommendations"].append(
+                f"Address missing values ({report.total_missing_pct:.1%} of data)"
+            )
         if report.duplicate_pct > 0.01:
-            response["recommendations"].append(f"Review duplicate rows ({report.duplicate_pct:.1%})")
+            response["recommendations"].append(
+                f"Review duplicate rows ({report.duplicate_pct:.1%})"
+            )
         outlier_cols = [c for c in report.columns if c.has_outliers]
         if outlier_cols:
-            response["recommendations"].append(f"Review outliers in {len(outlier_cols)} column(s)")
+            response["recommendations"].append(
+                f"Review outliers in {len(outlier_cols)} column(s)"
+            )
         if report.high_correlations:
             response["recommendations"].append(
                 f"Consider multicollinearity ({len(report.high_correlations)} high correlations)"
@@ -468,4 +543,6 @@ def eda_agent(request):
         )
     except Exception as e:
         logger.exception("EDA agent error")
-        return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

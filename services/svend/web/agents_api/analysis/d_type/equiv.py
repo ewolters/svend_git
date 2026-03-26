@@ -30,10 +30,14 @@ def run_d_equiv(df, config):
     variable = config.get("variable") or config.get("measurement")
     batch_col = config.get("batch") or config.get("group") or config.get("factor")
     if not variable or variable not in df.columns:
-        result["summary"] = "<<COLOR:danger>>Please select a valid measurement variable.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Please select a valid measurement variable.<</COLOR>>"
+        )
         return result
     if not batch_col or batch_col not in df.columns:
-        result["summary"] = "<<COLOR:danger>>Please select a valid batch/group column.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Please select a valid batch/group column.<</COLOR>>"
+        )
         return result
 
     threshold = float(config.get("threshold", 0.05))
@@ -45,7 +49,9 @@ def run_d_equiv(df, config):
 
     batches = work[batch_col].unique()
     if len(batches) < 2:
-        result["summary"] = "<<COLOR:danger>>Need at least 2 batches for equivalence testing.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Need at least 2 batches for equivalence testing.<</COLOR>>"
+        )
         return result
 
     # Choose reference batch
@@ -57,7 +63,9 @@ def run_d_equiv(df, config):
 
     ref_data = work.loc[work[batch_col] == ref_batch, variable].values
     if len(ref_data) < 5:
-        result["summary"] = f"<<COLOR:danger>>Reference batch '{ref_batch}' has fewer than 5 observations.<</COLOR>>"
+        result["summary"] = (
+            f"<<COLOR:danger>>Reference batch '{ref_batch}' has fewer than 5 observations.<</COLOR>>"
+        )
         return result
 
     # Common grid
@@ -76,7 +84,9 @@ def run_d_equiv(df, config):
     for _ in range(n_perm):
         perm = rng.permutation(all_vals)
         d1 = _kde_density(perm[:n_ref], grid)
-        d2 = _kde_density(perm[n_ref : 2 * n_ref] if len(perm) >= 2 * n_ref else perm[n_ref:], grid)
+        d2 = _kde_density(
+            perm[n_ref : 2 * n_ref] if len(perm) >= 2 * n_ref else perm[n_ref:], grid
+        )
         perm_jsds.append(_jsd(d1, d2, grid))
     noise_95 = float(np.percentile(perm_jsds, 95))
 
@@ -118,8 +128,15 @@ def run_d_equiv(df, config):
     jsd_matrix = np.zeros((n_batches, n_batches))
     for i in range(n_batches):
         for j in range(i + 1, n_batches):
-            if all_batch_names[i] in all_batch_data and all_batch_names[j] in all_batch_data:
-                jsd_ij = _jsd(all_batch_data[all_batch_names[i]], all_batch_data[all_batch_names[j]], grid)
+            if (
+                all_batch_names[i] in all_batch_data
+                and all_batch_names[j] in all_batch_data
+            ):
+                jsd_ij = _jsd(
+                    all_batch_data[all_batch_names[i]],
+                    all_batch_data[all_batch_names[j]],
+                    grid,
+                )
                 jsd_matrix[i, j] = jsd_ij
                 jsd_matrix[j, i] = jsd_ij
 
@@ -191,14 +208,23 @@ def run_d_equiv(df, config):
                 "y": b_dens.tolist(),
                 "mode": "lines",
                 "name": br["batch"],
-                "line": {"color": color, "width": 1.5, "dash": "dash" if not br["equivalent"] else "solid"},
+                "line": {
+                    "color": color,
+                    "width": 1.5,
+                    "dash": "dash" if not br["equivalent"] else "solid",
+                },
             }
         )
     result["plots"].append(
         {
             "title": "Batch Density Overlay",
             "data": density_traces,
-            "layout": {"height": 340, "xaxis": {"title": variable}, "yaxis": {"title": "Density"}, "showlegend": True},
+            "layout": {
+                "height": 340,
+                "xaxis": {"title": variable},
+                "yaxis": {"title": "Density"},
+                "showlegend": True,
+            },
         }
     )
 
@@ -213,7 +239,10 @@ def run_d_equiv(df, config):
                     "x": all_batch_names,
                     "y": all_batch_names,
                     "colorscale": [[0, "#f0f8f0"], [0.5, COLOR_GOLD], [1, COLOR_BAD]],
-                    "text": [[f"{jsd_matrix[i][j]:.4f}" for j in range(n_batches)] for i in range(n_batches)],
+                    "text": [
+                        [f"{jsd_matrix[i][j]:.4f}" for j in range(n_batches)]
+                        for i in range(n_batches)
+                    ],
                     "texttemplate": "%{text}",
                     "showscale": True,
                     "colorbar": {"title": "JSD"},
@@ -232,8 +261,12 @@ def run_d_equiv(df, config):
     n_test = len(batch_results)
     summary = "<<COLOR:title>>D-EQUIV — BATCH EQUIVALENCE VIA JSD<</COLOR>>\n\n"
     summary += f"<<COLOR:header>>Reference Batch:<</COLOR>> '{ref_batch}' (n={len(ref_data)})\n"
-    summary += f"<<COLOR:header>>Equivalence Threshold:<</COLOR>> {threshold} JSD bits\n"
-    summary += f"<<COLOR:header>>Permutation Noise Floor (95th):<</COLOR>> {noise_95:.5f}\n\n"
+    summary += (
+        f"<<COLOR:header>>Equivalence Threshold:<</COLOR>> {threshold} JSD bits\n"
+    )
+    summary += (
+        f"<<COLOR:header>>Permutation Noise Floor (95th):<</COLOR>> {noise_95:.5f}\n\n"
+    )
 
     summary += "<<COLOR:header>>Results:<</COLOR>>\n"
     summary += f"  {'Batch':<15} {'n':>5} {'JSD':>8} {'p-val':>7} {'Decision':>12}\n"

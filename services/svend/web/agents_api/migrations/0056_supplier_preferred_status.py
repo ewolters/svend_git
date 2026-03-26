@@ -6,13 +6,24 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0055_rename_recurrence_check_to_is_recurrence_checked'),
+        ("agents_api", "0055_rename_recurrence_check_to_is_recurrence_checked"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='supplierrecord',
-            name='status',
-            field=models.CharField(choices=[('pending', 'Pending Approval'), ('approved', 'Approved'), ('preferred', 'Preferred'), ('conditional', 'Conditional'), ('suspended', 'Suspended'), ('disqualified', 'Disqualified')], default='pending', max_length=20),
+            model_name="supplierrecord",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("pending", "Pending Approval"),
+                    ("approved", "Approved"),
+                    ("preferred", "Preferred"),
+                    ("conditional", "Conditional"),
+                    ("suspended", "Suspended"),
+                    ("disqualified", "Disqualified"),
+                ],
+                default="pending",
+                max_length=20,
+            ),
         ),
     ]

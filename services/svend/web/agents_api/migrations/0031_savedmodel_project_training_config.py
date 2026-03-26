@@ -7,34 +7,49 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0030_alter_boardvote_unique_together_alter_boardvote_user_and_more'),
-        ('core', '0006_tenant_stripe_seat_item'),
+        (
+            "agents_api",
+            "0030_alter_boardvote_unique_together_alter_boardvote_user_and_more",
+        ),
+        ("core", "0006_tenant_stripe_seat_item"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='savedmodel',
-            name='data_lineage',
+            model_name="savedmodel",
+            name="data_lineage",
             field=models.JSONField(blank=True, default=dict),
         ),
         migrations.AddField(
-            model_name='savedmodel',
-            name='parent_model',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='retrained_versions', to='agents_api.savedmodel'),
+            model_name="savedmodel",
+            name="parent_model",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="retrained_versions",
+                to="agents_api.savedmodel",
+            ),
         ),
         migrations.AddField(
-            model_name='savedmodel',
-            name='project',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='saved_models', to='core.project'),
+            model_name="savedmodel",
+            name="project",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="saved_models",
+                to="core.project",
+            ),
         ),
         migrations.AddField(
-            model_name='savedmodel',
-            name='training_config',
+            model_name="savedmodel",
+            name="training_config",
             field=models.JSONField(blank=True, default=dict),
         ),
         migrations.AddField(
-            model_name='savedmodel',
-            name='version',
+            model_name="savedmodel",
+            name="version",
             field=models.IntegerField(default=1),
         ),
     ]

@@ -41,7 +41,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 def _make_user(email, tier=Tier.TEAM, **kwargs):
     """Create a user with given tier (default TEAM to pass rate_limited checks)."""
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123", **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123", **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -80,12 +82,16 @@ def _make_tenant(name="Test Org", slug="test-org", plan=Tenant.Plan.TEAM, **kwar
 
 
 def _make_membership(tenant, user, role=Membership.Role.MEMBER, **kwargs):
-    return Membership.objects.create(tenant=tenant, user=user, role=role, joined_at=timezone.now(), **kwargs)
+    return Membership.objects.create(
+        tenant=tenant, user=user, role=role, joined_at=timezone.now(), **kwargs
+    )
 
 
 def _make_graph(user):
     """Get or create a knowledge graph for the user."""
-    graph, _ = KnowledgeGraph.objects.get_or_create(user=user, defaults={"name": f"{user.username}'s KG"})
+    graph, _ = KnowledgeGraph.objects.get_or_create(
+        user=user, defaults={"name": f"{user.username}'s KG"}
+    )
     return graph
 
 
@@ -333,7 +339,9 @@ class HypothesisWorkflowTest(TestCase):
         self.assertEqual(res.status_code, 201)
         hyp_data = res.json()
         hyp_id = hyp_data["id"]
-        self.assertEqual(hyp_data["statement"], "If temperature rises, then yield drops")
+        self.assertEqual(
+            hyp_data["statement"], "If temperature rises, then yield drops"
+        )
         self.assertAlmostEqual(float(hyp_data["prior_probability"]), 0.5)
         self.assertEqual(hyp_data["status"], "active")
 
@@ -382,7 +390,11 @@ class HypothesisWorkflowTest(TestCase):
         self.assertTrue(res.json()["created"])
 
         # Verify EvidenceLink was created in DB
-        self.assertTrue(EvidenceLink.objects.filter(hypothesis_id=hyp_id, evidence_id=ev_id).exists())
+        self.assertTrue(
+            EvidenceLink.objects.filter(
+                hypothesis_id=hyp_id, evidence_id=ev_id
+            ).exists()
+        )
         link = EvidenceLink.objects.get(hypothesis_id=hyp_id, evidence_id=ev_id)
         self.assertAlmostEqual(link.likelihood_ratio, 3.0)
         self.assertEqual(link.direction, "supports")
@@ -417,7 +429,9 @@ class HypothesisWorkflowTest(TestCase):
         # Step 7: Recalculate single hypothesis (mock synara)
         with patch("core.views.synara") as mock_synara:
             mock_synara.recalculate_hypothesis.return_value = 0.8
-            res = self.client.post(f"/api/core/projects/{self.pid}/hypotheses/{hyp_id}/recalculate/")
+            res = self.client.post(
+                f"/api/core/projects/{self.pid}/hypotheses/{hyp_id}/recalculate/"
+            )
             self.assertEqual(res.status_code, 200)
             self.assertTrue(res.json()["success"])
             self.assertIn("hypothesis", res.json())
@@ -426,7 +440,9 @@ class HypothesisWorkflowTest(TestCase):
         """GET hypothesis detail includes evidence_links, supporting, opposing."""
         hyp = _make_hypothesis(self.project)
         ev = _make_evidence(self.project, summary="Supporting observation")
-        EvidenceLink.objects.create(hypothesis=hyp, evidence=ev, likelihood_ratio=2.0, is_manual=True)
+        EvidenceLink.objects.create(
+            hypothesis=hyp, evidence=ev, likelihood_ratio=2.0, is_manual=True
+        )
 
         res = self.client.get(f"/api/core/projects/{self.pid}/hypotheses/{hyp.id}/")
         self.assertEqual(res.status_code, 200)
@@ -486,7 +502,9 @@ class EvidenceManagementTest(TestCase):
         )
         self.assertEqual(res.status_code, 201)
         ev_id = res.json()["id"]
-        self.assertEqual(res.json()["summary"], "SPC chart shows out-of-control process")
+        self.assertEqual(
+            res.json()["summary"], "SPC chart shows out-of-control process"
+        )
         self.assertAlmostEqual(float(res.json()["confidence"]), 0.85)
 
         # Verify in DB
@@ -495,7 +513,9 @@ class EvidenceManagementTest(TestCase):
         # Detail
         res = self.client.get(f"/api/core/projects/{self.pid}/evidence/{ev_id}/")
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["summary"], "SPC chart shows out-of-control process")
+        self.assertEqual(
+            res.json()["summary"], "SPC chart shows out-of-control process"
+        )
 
     def test_evidence_create_with_hypothesis_link(self):
         """Create evidence pre-linked to a hypothesis."""
@@ -515,7 +535,9 @@ class EvidenceManagementTest(TestCase):
         ev_id = res.json()["id"]
 
         # Verify EvidenceLink created
-        self.assertTrue(EvidenceLink.objects.filter(hypothesis=hyp, evidence_id=ev_id).exists())
+        self.assertTrue(
+            EvidenceLink.objects.filter(hypothesis=hyp, evidence_id=ev_id).exists()
+        )
         link = EvidenceLink.objects.get(hypothesis=hyp, evidence_id=ev_id)
         self.assertAlmostEqual(link.likelihood_ratio, 5.0)
 
@@ -636,7 +658,9 @@ class DatasetWorkflowTest(TestCase):
 
     def test_dataset_delete(self):
         """DELETE a dataset removes it."""
-        ds = Dataset.objects.create(project=self.project, name="To Delete", uploaded_by=self.user)
+        ds = Dataset.objects.create(
+            project=self.project, name="To Delete", uploaded_by=self.user
+        )
         res = self.client.delete(f"/api/core/projects/{self.pid}/datasets/{ds.id}/")
         self.assertEqual(res.status_code, 204)
         self.assertFalse(Dataset.objects.filter(id=ds.id).exists())
@@ -851,7 +875,9 @@ class OrgManagementScenarioTest(TestCase):
         self.assertEqual(res.json()["role"], "member")
 
         # Verify membership in DB
-        invitee_membership = Membership.objects.get(tenant=tenant, user=self.invitee, is_active=True)
+        invitee_membership = Membership.objects.get(
+            tenant=tenant, user=self.invitee, is_active=True
+        )
         self.assertEqual(invitee_membership.role, "member")
 
         # Step 6: List members (as owner)
@@ -877,7 +903,9 @@ class OrgManagementScenarioTest(TestCase):
 
         # Step 8: Remove member
         with patch("accounts.billing.remove_org_seat"):
-            res = self.client.delete(f"/api/core/org/members/{invitee_membership.id}/remove/")
+            res = self.client.delete(
+                f"/api/core/org/members/{invitee_membership.id}/remove/"
+            )
             self.assertEqual(res.status_code, 200)
             self.assertTrue(res.json()["success"])
         invitee_membership.refresh_from_db()
@@ -1221,10 +1249,14 @@ class EvidenceFromAnalysisTest(TestCase):
             self.assertAlmostEqual(ev.p_value, 0.005)
             self.assertEqual(ev.source_description, "Coder")
             self.assertTrue(ev.is_reproducible)
-            self.assertEqual(ev.code_reference, "import numpy as np\nnp.random.seed(42)")
+            self.assertEqual(
+                ev.code_reference, "import numpy as np\nnp.random.seed(42)"
+            )
 
             # Verify link
-            self.assertTrue(EvidenceLink.objects.filter(hypothesis=self.hyp, evidence=ev).exists())
+            self.assertTrue(
+                EvidenceLink.objects.filter(hypothesis=self.hyp, evidence=ev).exists()
+            )
 
     def test_create_evidence_from_analysis(self):
         """POST /evidence/from-analysis/ creates evidence from DSW results."""

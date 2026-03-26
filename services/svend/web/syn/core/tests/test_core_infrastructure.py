@@ -584,11 +584,15 @@ class AuthenticationSettingsTest(SimpleTestCase):
         from pydantic import ValidationError
 
         with self.assertRaises(ValidationError):
-            AuthenticationSettings(JWT_SECRET="test-secret-key-123", JWT_ALGORITHM="INVALID")
+            AuthenticationSettings(
+                JWT_SECRET="test-secret-key-123", JWT_ALGORITHM="INVALID"
+            )
 
     def test_valid_algorithms_accepted(self):
         for algo in ["HS256", "HS384", "HS512", "RS256", "RS384", "RS512"]:
-            settings = AuthenticationSettings(JWT_SECRET="test-secret-key-123", JWT_ALGORITHM=algo)
+            settings = AuthenticationSettings(
+                JWT_SECRET="test-secret-key-123", JWT_ALGORITHM=algo
+            )
             self.assertEqual(settings.jwt_algorithm, algo)
 
 
@@ -751,7 +755,10 @@ class SemanticVersionStringTest(SimpleTestCase):
         self.assertEqual(str(SemanticVersion(1, 0, 0, build="456")), "1.0.0+456")
 
     def test_str_full(self):
-        self.assertEqual(str(SemanticVersion(1, 0, 0, prerelease="beta", build="42")), "1.0.0-beta+42")
+        self.assertEqual(
+            str(SemanticVersion(1, 0, 0, prerelease="beta", build="42")),
+            "1.0.0-beta+42",
+        )
 
 
 class SemanticVersionCompatibilityTest(SimpleTestCase):
@@ -775,7 +782,9 @@ class SemanticVersionCompatibilityTest(SimpleTestCase):
     def test_get_compatibility_forward(self):
         v1 = SemanticVersion(1, 0, 0)
         v2 = SemanticVersion(1, 1, 0)
-        self.assertEqual(v1.get_compatibility(v2), VersionCompatibility.FORWARD_COMPATIBLE)
+        self.assertEqual(
+            v1.get_compatibility(v2), VersionCompatibility.FORWARD_COMPATIBLE
+        )
 
     def test_get_compatibility_transparent(self):
         v1 = SemanticVersion(1, 0, 0)
@@ -913,7 +922,13 @@ class DetectBreakingChangesTest(SimpleTestCase):
         self.assertEqual(diff.compatibility, VersionCompatibility.FORWARD_COMPATIBLE)
 
     def test_migration_complexity_high_for_many_removals(self):
-        old = {"properties": {"a": {"type": "string"}, "b": {"type": "string"}, "c": {"type": "string"}}}
+        old = {
+            "properties": {
+                "a": {"type": "string"},
+                "b": {"type": "string"},
+                "c": {"type": "string"},
+            }
+        }
         new = {"properties": {}}
         diff = detect_breaking_changes(old, new)
         self.assertEqual(diff.migration_complexity, "HIGH")

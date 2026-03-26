@@ -133,7 +133,12 @@ class FilesAuthTest(TestCase):
         self.assertIn(resp.status_code, [401, 403])
 
     def test_upload_file_requires_auth(self):
-        resp = _post(self.client, "/api/files/upload/", data=None, content_type="multipart/form-data")
+        resp = _post(
+            self.client,
+            "/api/files/upload/",
+            data=None,
+            content_type="multipart/form-data",
+        )
         self.assertIn(resp.status_code, [401, 403])
 
     def test_storage_quota_requires_auth(self):
@@ -189,7 +194,9 @@ class ForgeAuthTest(TestCase):
     """Smoke tests for forge/views.py auth enforcement."""
 
     def test_generate_requires_auth(self):
-        resp = _post(self.client, "/api/forge/generate", json.dumps({"data_type": "tabular"}))
+        resp = _post(
+            self.client, "/api/forge/generate", json.dumps({"data_type": "tabular"})
+        )
         self.assertIn(resp.status_code, [401, 403])
 
     def test_list_schemas_requires_auth(self):

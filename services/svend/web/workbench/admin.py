@@ -19,14 +19,24 @@ class ArtifactInline(admin.TabularInline):
 class WorkbenchAdmin(admin.ModelAdmin):
     """Admin for Workbench model."""
 
-    list_display = ["title", "user", "template", "status", "artifact_count", "updated_at"]
+    list_display = [
+        "title",
+        "user",
+        "template",
+        "status",
+        "artifact_count",
+        "updated_at",
+    ]
     list_filter = ["template", "status", "created_at"]
     search_fields = ["title", "description", "user__username", "user__email"]
     readonly_fields = ["id", "created_at", "updated_at"]
     inlines = [ArtifactInline]
 
     fieldsets = [
-        (None, {"fields": ["id", "user", "title", "description", "template", "status"]}),
+        (
+            None,
+            {"fields": ["id", "user", "title", "description", "template", "status"]},
+        ),
         (
             "Template State",
             {
@@ -89,7 +99,12 @@ class ArtifactAdmin(admin.ModelAdmin):
         (
             "Relationships",
             {
-                "fields": ["source_artifact_id", "probability", "supports_hypotheses", "weakens_hypotheses"],
+                "fields": [
+                    "source_artifact_id",
+                    "probability",
+                    "supports_hypotheses",
+                    "weakens_hypotheses",
+                ],
                 "classes": ["collapse"],
             },
         ),

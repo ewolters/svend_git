@@ -39,7 +39,9 @@ def run_simulation(df, analysis_id, config, user):
         result["summary"] = "Error: Maximum 20 variables supported."
         return result
     if not formula and not model_id:
-        result["summary"] = "Error: Provide a transfer function formula or a saved model ID."
+        result["summary"] = (
+            "Error: Provide a transfer function formula or a saved model ID."
+        )
         return result
 
     rng = np.random.default_rng(int(seed) if seed else None)
@@ -62,23 +64,36 @@ def run_simulation(df, analysis_id, config, user):
             else:
                 samples[name] = rng.normal(0, 1, n_iter)
         elif dist == "normal":
-            samples[name] = rng.normal(float(params.get("mean", 0)), max(float(params.get("std", 1)), 1e-9), n_iter)
+            samples[name] = rng.normal(
+                float(params.get("mean", 0)),
+                max(float(params.get("std", 1)), 1e-9),
+                n_iter,
+            )
         elif dist == "uniform":
             lo, hi = float(params.get("low", 0)), float(params.get("high", 1))
             samples[name] = rng.uniform(lo, hi, n_iter)
         elif dist == "lognormal":
             samples[name] = rng.lognormal(
-                float(params.get("mean", 0)), max(float(params.get("sigma", 1)), 1e-9), n_iter
+                float(params.get("mean", 0)),
+                max(float(params.get("sigma", 1)), 1e-9),
+                n_iter,
             )
         elif dist == "weibull":
             samples[name] = sp_stats.weibull_min.rvs(
-                float(params.get("shape", 2)), scale=float(params.get("scale", 1)), size=n_iter, random_state=rng
+                float(params.get("shape", 2)),
+                scale=float(params.get("scale", 1)),
+                size=n_iter,
+                random_state=rng,
             )
         elif dist == "exponential":
-            samples[name] = rng.exponential(max(float(params.get("scale", 1)), 1e-9), n_iter)
+            samples[name] = rng.exponential(
+                max(float(params.get("scale", 1)), 1e-9), n_iter
+            )
         elif dist == "gamma":
             samples[name] = rng.gamma(
-                max(float(params.get("shape", 2)), 0.01), max(float(params.get("scale", 1)), 1e-9), n_iter
+                max(float(params.get("shape", 2)), 0.01),
+                max(float(params.get("scale", 1)), 1e-9),
+                n_iter,
             )
         elif dist == "triangular":
             lo = float(params.get("low", 0))
@@ -89,7 +104,11 @@ def run_simulation(df, analysis_id, config, user):
             mode = max(lo, min(hi, mode))
             samples[name] = rng.triangular(lo, mode, hi, n_iter)
         elif dist == "beta":
-            samples[name] = rng.beta(max(float(params.get("a", 2)), 0.01), max(float(params.get("b", 2)), 0.01), n_iter)
+            samples[name] = rng.beta(
+                max(float(params.get("a", 2)), 0.01),
+                max(float(params.get("b", 2)), 0.01),
+                n_iter,
+            )
         else:
             samples[name] = rng.normal(0, 1, n_iter)
 
@@ -143,7 +162,9 @@ def run_simulation(df, analysis_id, config, user):
                     )
                     return result
                 if isinstance(node, (ast.Import, ast.ImportFrom)):
-                    result["summary"] = "Error: Import statements not allowed in formula."
+                    result["summary"] = (
+                        "Error: Import statements not allowed in formula."
+                    )
                     return result
                 if isinstance(node, ast.Attribute):
                     result["summary"] = (
@@ -215,7 +236,9 @@ def run_simulation(df, analysis_id, config, user):
             prob = float(np.mean(outputs > val))
         else:
             prob = float(np.mean(outputs < val))
-        threshold_results.append({"value": val, "direction": direction, "probability": prob})
+        threshold_results.append(
+            {"value": val, "direction": direction, "probability": prob}
+        )
 
     # Sensitivity tornado: vary each input +/-1sigma, hold others at mean
     sensitivity = []
@@ -296,7 +319,10 @@ def run_simulation(df, analysis_id, config, user):
                 {
                     "type": "histogram",
                     "x": hist_data,
-                    "marker": {"color": "rgba(74, 159, 110, 0.5)", "line": {"color": "#4a9f6e", "width": 1}},
+                    "marker": {
+                        "color": "rgba(74, 159, 110, 0.5)",
+                        "line": {"color": "#4a9f6e", "width": 1},
+                    },
                     "name": "Output",
                 }
             ],
@@ -355,7 +381,12 @@ def run_simulation(df, analysis_id, config, user):
                         "type": "bar",
                         "x": [c["variable"] for c in correlations],
                         "y": [c["r"] for c in correlations],
-                        "marker": {"color": ["#4a9f6e" if c["r"] >= 0 else "#dc5050" for c in correlations]},
+                        "marker": {
+                            "color": [
+                                "#4a9f6e" if c["r"] >= 0 else "#dc5050"
+                                for c in correlations
+                            ]
+                        },
                     }
                 ],
                 "layout": {
@@ -400,7 +431,11 @@ def run_simulation(df, analysis_id, config, user):
 
     # Narrative
     _mc_top = sensitivity[0] if sensitivity else None
-    _mc_top_pct = (abs(correlations[0]["r"]) ** 2 * 100) if correlations and correlations[0]["r"] else 0
+    _mc_top_pct = (
+        (abs(correlations[0]["r"]) ** 2 * 100)
+        if correlations and correlations[0]["r"]
+        else 0
+    )
     _mc_spec_note = ""
     if threshold_results:
         _mc_best_t = threshold_results[0]
@@ -413,7 +448,11 @@ def run_simulation(df, analysis_id, config, user):
             if _mc_top
             else ""
         )
-        + (f" It contributes ~{_mc_top_pct:.0f}% of output variance." if _mc_top_pct > 1 else "")
+        + (
+            f" It contributes ~{_mc_top_pct:.0f}% of output variance."
+            if _mc_top_pct > 1
+            else ""
+        )
         + _mc_spec_note,
         next_steps="Focus improvement on the top driver. Tighening its tolerance will reduce output variation the most.",
         chart_guidance="The tornado chart shows which inputs drive the most output variation (\u00b11\u03c3 impact). The correlation chart shows linear input-output relationships.",
@@ -452,7 +491,9 @@ def _tolerance_stackup(df, config, result):
     seed = config.get("seed")
 
     if not dimensions or len(dimensions) < 2:
-        result["summary"] = "Error: At least 2 dimensions required for tolerance stackup."
+        result["summary"] = (
+            "Error: At least 2 dimensions required for tolerance stackup."
+        )
         return result
     if len(dimensions) > 30:
         result["summary"] = "Error: Maximum 30 dimensions supported."
@@ -510,7 +551,9 @@ def _tolerance_stackup(df, config, result):
     for i, name in enumerate(names):
         var_i = float(np.var(mc_samples[i]))
         pct = (var_i / total_var * 100) if total_var > 0 else 0
-        contributions.append({"name": name, "variance": var_i, "pct": pct, "tolerance": tolerances[i]})
+        contributions.append(
+            {"name": name, "variance": var_i, "pct": pct, "tolerance": tolerances[i]}
+        )
     contributions.sort(key=lambda x: x["pct"], reverse=True)
 
     # Spec limit analysis
@@ -519,12 +562,18 @@ def _tolerance_stackup(df, config, result):
     if spec_limit is not None:
         spec_val = float(spec_limit)
         spec_pct = float(np.mean(np.abs(mc_assembly - wc_nominal) > spec_val) * 100)
-        spec_note = f" {spec_pct:.2f}% of assemblies exceed the spec limit of {spec_val}."
+        spec_note = (
+            f" {spec_pct:.2f}% of assemblies exceed the spec limit of {spec_val}."
+        )
 
     # --- Plots ---
 
     # 1. Assembly distribution histogram
-    hist_data = mc_assembly.tolist() if len(mc_assembly) <= 10000 else mc_assembly[:10000].tolist()
+    hist_data = (
+        mc_assembly.tolist()
+        if len(mc_assembly) <= 10000
+        else mc_assembly[:10000].tolist()
+    )
     shapes = []
     # WC limits
     shapes.append(
@@ -580,7 +629,10 @@ def _tolerance_stackup(df, config, result):
                 {
                     "type": "histogram",
                     "x": hist_data,
-                    "marker": {"color": "rgba(74, 159, 110, 0.5)", "line": {"color": "#4a9f6e", "width": 1}},
+                    "marker": {
+                        "color": "rgba(74, 159, 110, 0.5)",
+                        "line": {"color": "#4a9f6e", "width": 1},
+                    },
                     "name": "Assembly",
                 }
             ],
@@ -646,7 +698,11 @@ def _tolerance_stackup(df, config, result):
                     "x": ["Worst Case", "RSS", "Monte Carlo (P5-P95)"],
                     "y": [wc_tolerance * 2, rss_tolerance * 2, mc_p95 - mc_p5],
                     "marker": {"color": ["#dc5050", "#4a90d9", "#4a9f6e"]},
-                    "text": [f"\u00b1{wc_tolerance:.4f}", f"\u00b1{rss_tolerance:.4f}", f"{mc_p95 - mc_p5:.4f}"],
+                    "text": [
+                        f"\u00b1{wc_tolerance:.4f}",
+                        f"\u00b1{rss_tolerance:.4f}",
+                        f"{mc_p95 - mc_p5:.4f}",
+                    ],
                     "textposition": "auto",
                 }
             ],
@@ -670,9 +726,7 @@ def _tolerance_stackup(df, config, result):
     summary += f"  {'Method':<20} {'Tolerance':>12} {'Band':>14}\n"
     summary += f"  {_dash}\n"
     summary += f"  {'Worst Case':<20} {wc_tolerance:>12.4f} [{wc_nominal - wc_tolerance:.4f}, {wc_nominal + wc_tolerance:.4f}]\n"
-    summary += (
-        f"  {'RSS':<20} {rss_tolerance:>12.4f} [{wc_nominal - rss_tolerance:.4f}, {wc_nominal + rss_tolerance:.4f}]\n"
-    )
+    summary += f"  {'RSS':<20} {rss_tolerance:>12.4f} [{wc_nominal - rss_tolerance:.4f}, {wc_nominal + rss_tolerance:.4f}]\n"
     summary += f"  {'Monte Carlo (90%)':<20} {(mc_p95 - mc_p5) / 2:>12.4f} [{mc_p5:.4f}, {mc_p95:.4f}]\n"
 
     summary += "\n<<COLOR:highlight>>Variance Contributors:<</COLOR>>\n"
@@ -808,7 +862,9 @@ def _variance_propagation(df, config, result):
             mode = float(params.get("mode", 0.5))
             hi = float(params.get("high", 1))
             means[name] = (lo + mode + hi) / 3
-            variances[name] = (lo**2 + mode**2 + hi**2 - lo * mode - lo * hi - mode * hi) / 18
+            variances[name] = (
+                lo**2 + mode**2 + hi**2 - lo * mode - lo * hi - mode * hi
+            ) / 18
         elif dist == "exponential":
             scale = float(params.get("scale", 1))
             means[name] = scale
@@ -862,7 +918,11 @@ def _variance_propagation(df, config, result):
     # Contribution percentages
     contrib_list = []
     for name in var_names:
-        pct = (var_contributions[name] / total_prop_var * 100) if total_prop_var > 0 else 0
+        pct = (
+            (var_contributions[name] / total_prop_var * 100)
+            if total_prop_var > 0
+            else 0
+        )
         contrib_list.append(
             {
                 "name": name,
@@ -925,7 +985,12 @@ def _variance_propagation(df, config, result):
                     "type": "bar",
                     "x": [c["name"] for c in contrib_list],
                     "y": [c["partial"] for c in contrib_list],
-                    "marker": {"color": ["#4a9f6e" if c["partial"] >= 0 else "#dc5050" for c in contrib_list]},
+                    "marker": {
+                        "color": [
+                            "#4a9f6e" if c["partial"] >= 0 else "#dc5050"
+                            for c in contrib_list
+                        ]
+                    },
                 }
             ],
             "layout": {
@@ -998,7 +1063,11 @@ def _variance_propagation(df, config, result):
         f"Variance propagation: output = {f_mean:.4f} \u00b1 {prop_std:.4f}. Top driver: {contrib_list[0]['name']} ({contrib_list[0]['pct']:.0f}%). Delta method vs MC error: {pct_err:.1f}%."
     )
 
-    accuracy = "excellent" if pct_err < 2 else ("good" if pct_err < 10 else "poor (consider full Monte Carlo)")
+    accuracy = (
+        "excellent"
+        if pct_err < 2
+        else ("good" if pct_err < 10 else "poor (consider full Monte Carlo)")
+    )
     result["narrative"] = _narrative(
         f"Output: {f_mean:.4f} \u00b1 {prop_std:.4f} (analytical \u03c3)",
         f"The delta method propagates input uncertainties through the transfer function. "

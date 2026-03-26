@@ -72,7 +72,9 @@ class DispatchCoverageTest(TestCase):
 
     # ── JSON parsing error (line 64-67) ──
     def test_invalid_json(self):
-        resp = self.client.post("/api/dsw/analysis/", data="not json{{{", content_type="application/json")
+        resp = self.client.post(
+            "/api/dsw/analysis/", data="not json{{{", content_type="application/json"
+        )
         self.assertEqual(resp.status_code, 400)
 
     # ── No data loaded (line 128-129) ──
@@ -82,7 +84,9 @@ class DispatchCoverageTest(TestCase):
 
     # ── Unknown analysis type (line 201-202) ──
     def test_unknown_type(self):
-        resp = self._post({"type": "unknown_type", "analysis": "x", "data": {"x": [1, 2, 3]}})
+        resp = self._post(
+            {"type": "unknown_type", "analysis": "x", "data": {"x": [1, 2, 3]}}
+        )
         self.assertEqual(resp.status_code, 400)
 
     # ── Inline data loading (line 87-94) + stats routing (line 134-137) ──
@@ -329,7 +333,12 @@ class StandardizeBranchTest(TestCase):
     def test_narrative_dict_kept(self):
         out = self._std(
             {
-                "narrative": {"verdict": "V", "body": "B", "next_steps": "N", "chart_guidance": "C"},
+                "narrative": {
+                    "verdict": "V",
+                    "body": "B",
+                    "next_steps": "N",
+                    "chart_guidance": "C",
+                },
             }
         )
         self.assertEqual(out["narrative"]["verdict"], "V")
@@ -470,33 +479,47 @@ class StandardizeClassifyEffectTest(TestCase):
         self.assertEqual(self._classify({"statistics": {"cohens_d": 0.3}}), "small")
 
     def test_cohens_d_negligible(self):
-        self.assertEqual(self._classify({"statistics": {"cohens_d": 0.1}}), "negligible")
+        self.assertEqual(
+            self._classify({"statistics": {"cohens_d": 0.1}}), "negligible"
+        )
 
     # ── Eta squared branches ──
     def test_eta_large(self):
         self.assertEqual(self._classify({"statistics": {"eta_squared": 0.2}}), "large")
 
     def test_eta_medium(self):
-        self.assertEqual(self._classify({"statistics": {"eta_squared": 0.08}}), "medium")
+        self.assertEqual(
+            self._classify({"statistics": {"eta_squared": 0.08}}), "medium"
+        )
 
     def test_eta_small(self):
         self.assertEqual(self._classify({"statistics": {"eta_squared": 0.02}}), "small")
 
     def test_eta_negligible(self):
-        self.assertEqual(self._classify({"statistics": {"eta_squared": 0.005}}), "negligible")
+        self.assertEqual(
+            self._classify({"statistics": {"eta_squared": 0.005}}), "negligible"
+        )
 
     # ── Effect r branches ──
     def test_effect_r_large(self):
-        self.assertEqual(self._classify({"statistics": {"effect_size_r": 0.6}}), "large")
+        self.assertEqual(
+            self._classify({"statistics": {"effect_size_r": 0.6}}), "large"
+        )
 
     def test_effect_r_medium(self):
-        self.assertEqual(self._classify({"statistics": {"effect_size_r": 0.35}}), "medium")
+        self.assertEqual(
+            self._classify({"statistics": {"effect_size_r": 0.35}}), "medium"
+        )
 
     def test_effect_r_small(self):
-        self.assertEqual(self._classify({"statistics": {"effect_size_r": 0.15}}), "small")
+        self.assertEqual(
+            self._classify({"statistics": {"effect_size_r": 0.15}}), "small"
+        )
 
     def test_effect_r_negligible(self):
-        self.assertEqual(self._classify({"statistics": {"effect_size_r": 0.05}}), "negligible")
+        self.assertEqual(
+            self._classify({"statistics": {"effect_size_r": 0.05}}), "negligible"
+        )
 
     # ── R-squared branches ──
     def test_r2_large(self):
@@ -509,7 +532,9 @@ class StandardizeClassifyEffectTest(TestCase):
         self.assertEqual(self._classify({"statistics": {"r_squared": 0.05}}), "small")
 
     def test_r2_negligible(self):
-        self.assertEqual(self._classify({"statistics": {"r_squared": 0.01}}), "negligible")
+        self.assertEqual(
+            self._classify({"statistics": {"r_squared": 0.01}}), "negligible"
+        )
 
     # ── No statistics ──
     def test_no_statistics(self):
@@ -747,7 +772,9 @@ class BayesianAnovaBranchTest(TestCase):
         """Three well-separated groups → BF > 10."""
         rng = np.random.RandomState(42)
         data = {
-            "y": list(rng.normal(10, 1, 20)) + list(rng.normal(20, 1, 20)) + list(rng.normal(30, 1, 20)),
+            "y": list(rng.normal(10, 1, 20))
+            + list(rng.normal(20, 1, 20))
+            + list(rng.normal(30, 1, 20)),
             "g": ["A"] * 20 + ["B"] * 20 + ["C"] * 20,
         }
         r = _run_bayes("bayes_anova", {"response": "y", "factor": "g"}, data)
@@ -952,7 +979,13 @@ class BayesianEquivalenceBranchTest(TestCase):
         """use_effect_size=False → raw difference (line 1223-1225)."""
         r = _run_bayes(
             "bayes_equivalence",
-            {"var1": "x", "var2": "y", "use_effect_size": False, "rope_low": -5, "rope_high": 5},
+            {
+                "var1": "x",
+                "var2": "y",
+                "use_effect_size": False,
+                "rope_low": -5,
+                "rope_high": 5,
+            },
             {"x": NORMAL_50[:25], "y": NORMAL_50[25:]},
         )
         self.assertIn("effect", r["statistics"])
@@ -1148,7 +1181,13 @@ class BayesianDemoBranchTest(TestCase):
     def test_custom_prior(self):
         r = _run_bayes(
             "bayes_demo",
-            {"n_tested": 50, "n_failures": 1, "target_reliability": 0.95, "prior_a": 5.0, "prior_b": 1.0},
+            {
+                "n_tested": 50,
+                "n_failures": 1,
+                "target_reliability": 0.95,
+                "prior_a": 5.0,
+                "prior_b": 1.0,
+            },
             {"x": [0]},
         )
         self.assertIn("prob_exceed_target", r["statistics"])
@@ -1179,7 +1218,12 @@ class BayesianSparesBranchTest(TestCase):
         """No demand column → use total_demand/n_periods from config (line 2649-2651)."""
         r = _run_bayes(
             "bayes_spares",
-            {"var1": "nonexistent_col", "total_demand": 50, "n_periods": 12, "planning_horizon": 6},
+            {
+                "var1": "nonexistent_col",
+                "total_demand": 50,
+                "n_periods": 12,
+                "planning_horizon": 6,
+            },
             {"x": [0]},
         )
         self.assertIn("rate_mean", r["statistics"])
@@ -1187,7 +1231,12 @@ class BayesianSparesBranchTest(TestCase):
     def test_custom_costs(self):
         r = _run_bayes(
             "bayes_spares",
-            {"var1": "demand", "holding_cost": 50, "stockout_cost": 500, "planning_horizon": 12},
+            {
+                "var1": "demand",
+                "holding_cost": 50,
+                "stockout_cost": 500,
+                "planning_horizon": 12,
+            },
             {"demand": COUNTS_50},
         )
         self.assertIn("min_cost", r["statistics"])
@@ -1250,7 +1299,10 @@ class BayesianSystemBranchTest(TestCase):
     def test_too_few_components(self):
         r = _run_bayes(
             "bayes_system",
-            {"components": [{"name": "A", "n": 10, "failures": 0}], "topology": "series"},
+            {
+                "components": [{"name": "A", "n": 10, "failures": 0}],
+                "topology": "series",
+            },
             {"x": [0]},
         )
         self.assertIn("Error", r["summary"])
@@ -1262,7 +1314,12 @@ class BayesianWarrantyBranchTest(TestCase):
     def test_basic_warranty(self):
         r = _run_bayes(
             "bayes_warranty",
-            {"var1": "t", "warranty_period": 12, "fleet_size": 500, "forecast_period": 6},
+            {
+                "var1": "t",
+                "warranty_period": 12,
+                "fleet_size": 500,
+                "forecast_period": 6,
+            },
             {"t": TIME_50},
         )
         self.assertIn("rate_mean", r["statistics"])

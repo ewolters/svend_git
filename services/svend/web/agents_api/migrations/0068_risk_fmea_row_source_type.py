@@ -7,18 +7,30 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0067_universal_checklists'),
+        ("agents_api", "0067_universal_checklists"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='risk',
-            name='fmea_row',
-            field=models.ForeignKey(blank=True, help_text='Source FMEA failure mode — scores normalized from S/O/D (1-10) to L/I (1-5)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='risks', to='agents_api.fmearow'),
+            model_name="risk",
+            name="fmea_row",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Source FMEA failure mode — scores normalized from S/O/D (1-10) to L/I (1-5)",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="risks",
+                to="agents_api.fmearow",
+            ),
         ),
         migrations.AddField(
-            model_name='risk',
-            name='source_type',
-            field=models.CharField(blank=True, default='manual', help_text='How this risk was created: manual, fmea, audit, complaint, spc', max_length=30),
+            model_name="risk",
+            name="source_type",
+            field=models.CharField(
+                blank=True,
+                default="manual",
+                help_text="How this risk was created: manual, fmea, audit, complaint, spc",
+                max_length=30,
+            ),
         ),
     ]

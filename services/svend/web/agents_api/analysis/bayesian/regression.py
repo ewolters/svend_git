@@ -49,7 +49,9 @@ def run_bayes_regression(df, config, ci_level, z):
         ci_low = mean - z * std
         ci_high = mean + z * std
         sig = "***" if ci_low > 0 or ci_high < 0 else ""
-        summary += f"  {feat:<20} β = {mean:>8.4f}  [{ci_low:>8.4f}, {ci_high:>8.4f}] {sig}\n"
+        summary += (
+            f"  {feat:<20} β = {mean:>8.4f}  [{ci_low:>8.4f}, {ci_high:>8.4f}] {sig}\n"
+        )
 
     result["summary"] = summary
     result["plots"].append(
@@ -62,11 +64,19 @@ def run_bayes_regression(df, config, ci_level, z):
                     "y": features,
                     "mode": "markers",
                     "marker": {"color": "#4a9f6e", "size": 10},
-                    "error_x": {"type": "data", "array": (z * coef_std).tolist(), "color": "#4a9f6e"},
+                    "error_x": {
+                        "type": "data",
+                        "array": (z * coef_std).tolist(),
+                        "color": "#4a9f6e",
+                    },
                     "name": f"β ± {int(ci_level * 100)}% CI",
                 }
             ],
-            "layout": {"height": max(300, len(features) * 30), "xaxis": {"zeroline": True}, "margin": {"l": 150}},
+            "layout": {
+                "height": max(300, len(features) * 30),
+                "xaxis": {"zeroline": True},
+                "margin": {"l": 150},
+            },
         }
     )
 
@@ -126,7 +136,9 @@ def run_bayes_logistic(df, config, ci_level, z):
     y = df[target].dropna()
     classes = sorted(y.unique())
     if len(classes) != 2:
-        result["summary"] = f"Error: Target must have exactly 2 classes (found {len(classes)})."
+        result["summary"] = (
+            f"Error: Target must have exactly 2 classes (found {len(classes)})."
+        )
         return result
 
     X = df[features].loc[y.index].dropna()
@@ -164,7 +176,11 @@ def run_bayes_logistic(df, config, ci_level, z):
     # P(coefficient > 0)
     p_positive = np.array(
         [
-            float(1 - stats.norm.cdf(0, coef[i], coef_se[i])) if not np.isnan(coef_se[i]) else 0.5
+            (
+                float(1 - stats.norm.cdf(0, coef[i], coef_se[i]))
+                if not np.isnan(coef_se[i])
+                else 0.5
+            )
             for i in range(len(features))
         ]
     )
@@ -172,7 +188,9 @@ def run_bayes_logistic(df, config, ci_level, z):
     summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
     summary += "<<COLOR:title>>BAYESIAN LOGISTIC REGRESSION<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
-    summary += f"<<COLOR:text>>Target:<</COLOR>> {target} ({classes[0]} vs {classes[1]})\n"
+    summary += (
+        f"<<COLOR:text>>Target:<</COLOR>> {target} ({classes[0]} vs {classes[1]})\n"
+    )
     summary += f"<<COLOR:text>>N:<</COLOR>> {n}    Accuracy: {accuracy:.1%}\n\n"
     summary += "<<COLOR:accent>>── Coefficient Posteriors (per std dev) ──<</COLOR>>\n"
     _bl_header = "P(β>0)"
@@ -236,8 +254,12 @@ def run_bayes_logistic(df, config, ci_level, z):
                     "error_x": {
                         "type": "data",
                         "symmetric": False,
-                        "array": [float(or_ci_high[i] - odds_ratios[i]) for i in sorted_idx],
-                        "arrayminus": [float(odds_ratios[i] - or_ci_low[i]) for i in sorted_idx],
+                        "array": [
+                            float(or_ci_high[i] - odds_ratios[i]) for i in sorted_idx
+                        ],
+                        "arrayminus": [
+                            float(odds_ratios[i] - or_ci_low[i]) for i in sorted_idx
+                        ],
                     },
                     "mode": "markers",
                     "marker": {"size": 10, "color": "#4a90d9"},
@@ -273,11 +295,15 @@ def run_bayes_logistic(df, config, ci_level, z):
                     "y": [float(p_positive[i]) for i in sorted_idx],
                     "marker": {
                         "color": [
-                            "#4a9f6e"
-                            if p_positive[i] > 0.975 or p_positive[i] < 0.025
-                            else "#d4a24a"
-                            if p_positive[i] > 0.95 or p_positive[i] < 0.05
-                            else "#999"
+                            (
+                                "#4a9f6e"
+                                if p_positive[i] > 0.975 or p_positive[i] < 0.025
+                                else (
+                                    "#d4a24a"
+                                    if p_positive[i] > 0.95 or p_positive[i] < 0.05
+                                    else "#999"
+                                )
+                            )
                             for i in sorted_idx
                         ]
                     },
@@ -339,7 +365,11 @@ def run_bayes_poisson(df, config, ci_level, z):
     x1 = df[var1].dropna().values.astype(float)
     n1 = len(x1)
     total1 = float(x1.sum())
-    exposure1 = float(df[exposure_col].dropna().sum()) if exposure_col and exposure_col in df.columns else float(n1)
+    exposure1 = (
+        float(df[exposure_col].dropna().sum())
+        if exposure_col and exposure_col in df.columns
+        else float(n1)
+    )
 
     # Gamma posterior: Gamma(alpha + sum(x), beta + exposure)
     # Jeffreys prior: Gamma(0.5, 0)
@@ -357,7 +387,9 @@ def run_bayes_poisson(df, config, ci_level, z):
     summary += "<<COLOR:title>>BAYESIAN POISSON RATE<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:highlight>>{var1}<</COLOR>>: {int(total1)} events in {exposure1:.0f} units\n"
-    summary += f"  Posterior rate: {rate1_mean:.4f} [{rate1_ci[0]:.4f}, {rate1_ci[1]:.4f}]\n"
+    summary += (
+        f"  Posterior rate: {rate1_mean:.4f} [{rate1_ci[0]:.4f}, {rate1_ci[1]:.4f}]\n"
+    )
 
     # Rate range for plotting
     lo_plot = max(0, rate1_mean - 4 * np.sqrt(a1) / b1)
@@ -382,7 +414,11 @@ def run_bayes_poisson(df, config, ci_level, z):
         x2 = df[var2].dropna().values.astype(float)
         n2 = len(x2)
         total2 = float(x2.sum())
-        exposure2 = float(df[exposure_col].dropna().sum()) if exposure_col and exposure_col in df.columns else float(n2)
+        exposure2 = (
+            float(df[exposure_col].dropna().sum())
+            if exposure_col and exposure_col in df.columns
+            else float(n2)
+        )
         a2 = alpha_prior + total2
         b2 = beta_prior + exposure2
         rate2_mean = float(a2 / b2)
@@ -425,9 +461,15 @@ def run_bayes_poisson(df, config, ci_level, z):
         )
 
     result["summary"] = summary
-    stat_dict = {"rate1_mean": rate1_mean, "rate1_ci_low": rate1_ci[0], "rate1_ci_high": rate1_ci[1]}
+    stat_dict = {
+        "rate1_mean": rate1_mean,
+        "rate1_ci_low": rate1_ci[0],
+        "rate1_ci_high": rate1_ci[1],
+    }
     if two_sample:
-        stat_dict.update({"rate2_mean": rate2_mean, "p_greater": p_greater, "rate_ratio": rr_mean})
+        stat_dict.update(
+            {"rate2_mean": rate2_mean, "p_greater": p_greater, "rate_ratio": rr_mean}
+        )
     result["statistics"] = stat_dict
 
     if two_sample:
@@ -461,7 +503,11 @@ def run_bayes_poisson(df, config, ci_level, z):
         {
             "title": "Posterior Rate Distribution",
             "data": plot_data,
-            "layout": {"height": 300, "xaxis": {"title": "Rate (λ)"}, "yaxis": {"title": "Density"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Rate (λ)"},
+                "yaxis": {"title": "Density"},
+            },
         }
     )
 

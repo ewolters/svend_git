@@ -6,18 +6,27 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0026_site_access'),
+        ("agents_api", "0026_site_access"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='actionitem',
-            name='source_id',
-            field=models.UUIDField(blank=True, help_text='ID of the source object (A3Report, RCASession, FMEARow, etc.)', null=True),
+            model_name="actionitem",
+            name="source_id",
+            field=models.UUIDField(
+                blank=True,
+                help_text="ID of the source object (A3Report, RCASession, FMEARow, etc.)",
+                null=True,
+            ),
         ),
         migrations.AddField(
-            model_name='actionitem',
-            name='source_type',
-            field=models.CharField(blank=True, default='', help_text='Origin: hoshin, a3, rca, fmea, report, or blank for manual', max_length=20),
+            model_name="actionitem",
+            name="source_type",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="Origin: hoshin, a3, rca, fmea, report, or blank for manual",
+                max_length=20,
+            ),
         ),
     ]

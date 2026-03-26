@@ -17,7 +17,13 @@ from .models import (
 class ModelVersionAdmin(admin.ModelAdmin):
     """Admin for hot-swapping model checkpoints."""
 
-    list_display = ["model_type", "name", "is_active", "checkpoint_path", "activated_at"]
+    list_display = [
+        "model_type",
+        "name",
+        "is_active",
+        "checkpoint_path",
+        "activated_at",
+    ]
     list_filter = ["model_type", "is_active"]
     search_fields = ["name", "checkpoint_path"]
     readonly_fields = ["created_at", "activated_at"]
@@ -26,7 +32,9 @@ class ModelVersionAdmin(admin.ModelAdmin):
     @admin.action(description="Activate selected model version")
     def activate_selected(self, request, queryset):
         if queryset.count() != 1:
-            self.message_user(request, "Select exactly one model to activate", level="error")
+            self.message_user(
+                request, "Select exactly one model to activate", level="error"
+            )
             return
         model = queryset.first()
         model.activate()
@@ -55,7 +63,14 @@ class ConversationAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ["role", "content_preview", "domain", "is_verified", "is_blocked", "created_at"]
+    list_display = [
+        "role",
+        "content_preview",
+        "domain",
+        "is_verified",
+        "is_blocked",
+        "created_at",
+    ]
     list_filter = ["role", "is_blocked", "is_verified", "domain"]
     search_fields = ["content"]
     readonly_fields = ["created_at"]
@@ -72,8 +87,20 @@ class SharedConversationAdmin(admin.ModelAdmin):
 
 @admin.register(TraceLog)
 class TraceLogAdmin(admin.ModelAdmin):
-    list_display = ["domain", "has_safety_passed", "is_verified", "total_time_ms", "created_at"]
-    list_filter = ["has_safety_passed", "is_verified", "has_gate_passed", "has_fallback_used", "domain"]
+    list_display = [
+        "domain",
+        "has_safety_passed",
+        "is_verified",
+        "total_time_ms",
+        "created_at",
+    ]
+    list_filter = [
+        "has_safety_passed",
+        "is_verified",
+        "has_gate_passed",
+        "has_fallback_used",
+        "domain",
+    ]
     search_fields = ["input_text"]
     date_hierarchy = "created_at"
     readonly_fields = ["created_at"]
@@ -87,7 +114,9 @@ class TrainingCandidateAdmin(admin.ModelAdmin):
     actions = ["approve_selected", "reject_selected", "export_approved"]
 
     def input_preview(self, obj):
-        return obj.input_text[:60] + "..." if len(obj.input_text) > 60 else obj.input_text
+        return (
+            obj.input_text[:60] + "..." if len(obj.input_text) > 60 else obj.input_text
+        )
 
     @admin.action(description="Approve selected for training")
     def approve_selected(self, request, queryset):
@@ -104,4 +133,7 @@ class TrainingCandidateAdmin(admin.ModelAdmin):
         approved = queryset.filter(status=TrainingCandidate.Status.APPROVED)
         data = [c.to_training_format() for c in approved]
         approved.update(status=TrainingCandidate.Status.EXPORTED)
-        self.message_user(request, f"Exported {len(data)} candidates (check TrainingCandidate.to_training_format())")
+        self.message_user(
+            request,
+            f"Exported {len(data)} candidates (check TrainingCandidate.to_training_format())",
+        )

@@ -156,4 +156,8 @@ def run_statistical_analysis(df, analysis_id, config):
         return _run_exploratory(analysis_id, df, config)
     else:
         logger.warning(f"Unknown analysis_id: {analysis_id}")
-        return {"plots": [], "summary": f"Unknown analysis: {analysis_id}", "guide_observation": ""}
+        return {
+            "plots": [],
+            "summary": f"Unknown analysis: {analysis_id}",
+            "guide_observation": "",
+        }

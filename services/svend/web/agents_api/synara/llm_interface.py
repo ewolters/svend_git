@@ -33,7 +33,9 @@ logger = logging.getLogger(__name__)
 class LogicalIssue:
     """A logical issue detected in the causal graph."""
 
-    issue_type: str  # "circular", "unsupported_leap", "missing_premise", "contradiction"
+    issue_type: (
+        str  # "circular", "unsupported_leap", "missing_premise", "contradiction"
+    )
     severity: str  # "error", "warning", "suggestion"
     description: str
     involved_hypotheses: list[str]
@@ -80,7 +82,10 @@ class SynaraLLMInterface:
         Used when expansion signal indicates incomplete causal surface.
         """
         existing_hypotheses = "\n".join(
-            [f"- {h.description} (P={h.posterior:.2f})" for h in self.synara.get_all_hypotheses()]
+            [
+                f"- {h.description} (P={h.posterior:.2f})"
+                for h in self.synara.get_all_hypotheses()
+            ]
         )
 
         return f"""An evidence observation does not fit any existing hypothesis well.
@@ -142,7 +147,9 @@ Format as JSON:
 
         links_desc = []
         for link in self.synara.graph.links:
-            links_desc.append(f"{link.from_id} → {link.to_id}: {link.mechanism} (strength={link.strength})")
+            links_desc.append(
+                f"{link.from_id} → {link.to_id}: {link.mechanism} (strength={link.strength})"
+            )
 
         evidence_desc = []
         for e in self.synara.graph.evidence[-10:]:  # Last 10
@@ -200,7 +207,9 @@ Format response as JSON:
         Explains what the evidence means for the hypothesis space.
         """
         top_hypotheses = self.synara.get_competing_hypotheses(threshold=0.15)
-        top_desc = "\n".join([f"- {h.description}: P={h.posterior:.3f}" for h in top_hypotheses[:5]])
+        top_desc = "\n".join(
+            [f"- {h.description}: P={h.posterior:.3f}" for h in top_hypotheses[:5]]
+        )
 
         return f"""New evidence was added. Please interpret its implications.
 
@@ -334,16 +343,22 @@ Include:
             "hypothesis_count": len(self.synara.graph.hypotheses),
             "evidence_count": len(self.synara.graph.evidence),
             "link_count": len(self.synara.graph.links),
-            "top_hypothesis": {
-                "id": top.id,
-                "description": top.description,
-                "posterior": top.posterior,
-            }
-            if top
-            else None,
+            "top_hypothesis": (
+                {
+                    "id": top.id,
+                    "description": top.description,
+                    "posterior": top.posterior,
+                }
+                if top
+                else None
+            ),
             "competing_count": len(competing),
             "pending_expansions": len(pending),
-            "last_update": self.synara.update_history[-1].to_dict() if self.synara.update_history else None,
+            "last_update": (
+                self.synara.update_history[-1].to_dict()
+                if self.synara.update_history
+                else None
+            ),
         }
 
     def format_for_context(self, max_hypotheses: int = 10) -> str:
@@ -356,7 +371,9 @@ Include:
         if self.synara.expansion_signals:
             pending = self.synara.get_pending_expansions()
             if pending:
-                lines.append(f"\n{len(pending)} unresolved expansion signals (incomplete causal surface)")
+                lines.append(
+                    f"\n{len(pending)} unresolved expansion signals (incomplete causal surface)"
+                )
 
         return "\n".join(lines)
 
@@ -365,7 +382,9 @@ Include:
     # =========================================================================
 
     @staticmethod
-    def _call_llm(user, prompt: str, system: str = None, max_tokens: int = 4096) -> str | None:
+    def _call_llm(
+        user, prompt: str, system: str = None, max_tokens: int = 4096
+    ) -> str | None:
         """Call LLM via LLMManager. Returns response text or None."""
         from agents_api.llm_manager import LLMManager
 
@@ -376,7 +395,8 @@ Include:
         response = LLMManager.chat(
             user=user,
             messages=[{"role": "user", "content": prompt}],
-            system=system or "You are a scientific reasoning assistant. Respond with valid JSON when asked.",
+            system=system
+            or "You are a scientific reasoning assistant. Respond with valid JSON when asked.",
             max_tokens=max_tokens,
             temperature=0.3,
         )

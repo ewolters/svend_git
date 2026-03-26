@@ -146,7 +146,9 @@ def _compute_feature_stats(X_train, feature_names, feature_info):
     and correlation-aware optimization constraints.
     """
     numeric_cols = [
-        f for f in feature_names if f in X_train.columns and feature_info.get(f, {}).get("type") == "numeric"
+        f
+        for f in feature_names
+        if f in X_train.columns and feature_info.get(f, {}).get("type") == "numeric"
     ]
 
     if len(numeric_cols) < 2:
@@ -162,7 +164,9 @@ def _compute_feature_stats(X_train, feature_names, feature_info):
     # Covariance matrix for Mahalanobis distance
     cov = X_num.cov()
     # Store as nested dict (JSON-serializable)
-    cov_dict = {c: {r: float(cov.loc[r, c]) for r in numeric_cols} for c in numeric_cols}
+    cov_dict = {
+        c: {r: float(cov.loc[r, c]) for r in numeric_cols} for c in numeric_cols
+    }
 
     # Feature correlations (for detecting implausible combos)
     corr = X_num.corr()
@@ -185,7 +189,15 @@ def _compute_feature_stats(X_train, feature_names, feature_info):
 
 
 def _build_training_interpretation(
-    task, metrics, model_type, y_test, y_pred, top_features, target, original_shape, clean_shape
+    task,
+    metrics,
+    model_type,
+    y_test,
+    y_pred,
+    top_features,
+    target,
+    original_shape,
+    clean_shape,
 ):
     """Build a plain-language interpretation of ML training results."""
     lines = []
@@ -198,23 +210,37 @@ def _build_training_interpretation(
         from collections import Counter
 
         class_counts = Counter(y_test)
-        majority_pct = max(class_counts.values()) / len(y_test) if len(y_test) > 0 else 0
+        majority_pct = (
+            max(class_counts.values()) / len(y_test) if len(y_test) > 0 else 0
+        )
         lift = acc - majority_pct
         n_classes = len(class_counts)
 
-        lines.append(f"Your {model_type} predicts '{target}' with {acc:.1%} accuracy ({n_classes} classes).")
-        lines.append(f"Baseline (always guess majority class): {majority_pct:.1%}. Model lift: {lift:+.1%}.")
+        lines.append(
+            f"Your {model_type} predicts '{target}' with {acc:.1%} accuracy ({n_classes} classes)."
+        )
+        lines.append(
+            f"Baseline (always guess majority class): {majority_pct:.1%}. Model lift: {lift:+.1%}."
+        )
 
         if lift < 0.02:
-            lines.append("⚠ Model is barely better than guessing. Consider different features or more data.")
+            lines.append(
+                "⚠ Model is barely better than guessing. Consider different features or more data."
+            )
         elif acc >= 0.95:
-            lines.append("✓ Excellent. Verify no data leakage (feature derived from target).")
+            lines.append(
+                "✓ Excellent. Verify no data leakage (feature derived from target)."
+            )
         elif acc >= 0.85:
             lines.append("✓ Strong model — suitable for decision support.")
         elif acc >= 0.70:
-            lines.append("Moderate performance. Useful for screening, not for high-stakes automated decisions.")
+            lines.append(
+                "Moderate performance. Useful for screening, not for high-stakes automated decisions."
+            )
         else:
-            lines.append("Limited performance. The target may be hard to predict with these features.")
+            lines.append(
+                "Limited performance. The target may be hard to predict with these features."
+            )
 
         # Class imbalance
         if majority_pct > 0.8:
@@ -231,19 +257,29 @@ def _build_training_interpretation(
         float(np.mean(y_test)) if len(y_test) > 0 else 0
         rmse_pct = rmse / y_range * 100 if y_range > 0 else 0
 
-        lines.append(f"Your {model_type} predicts '{target}' with R²={r2:.3f} (explains {r2 * 100:.0f}% of variation).")
-        lines.append(f"Average prediction error: ±{rmse:.4f} ({rmse_pct:.0f}% of data range).")
+        lines.append(
+            f"Your {model_type} predicts '{target}' with R²={r2:.3f} (explains {r2 * 100:.0f}% of variation)."
+        )
+        lines.append(
+            f"Average prediction error: ±{rmse:.4f} ({rmse_pct:.0f}% of data range)."
+        )
 
         if r2 >= 0.8:
-            lines.append("✓ Strong model — suitable for forecasting and process optimization.")
+            lines.append(
+                "✓ Strong model — suitable for forecasting and process optimization."
+            )
         elif r2 >= 0.5:
-            lines.append("Moderate fit. Useful for identifying trends, but predictions have notable uncertainty.")
+            lines.append(
+                "Moderate fit. Useful for identifying trends, but predictions have notable uncertainty."
+            )
         elif r2 >= 0.2:
             lines.append(
                 "Weak fit. The model captures some patterns but misses most variation. Try adding more features."
             )
         else:
-            lines.append("⚠ Very weak fit. These features may not meaningfully predict the target.")
+            lines.append(
+                "⚠ Very weak fit. These features may not meaningfully predict the target."
+            )
 
     # Data quality impact
     orig_rows, clean_rows = original_shape[0], clean_shape[0]
@@ -259,7 +295,9 @@ def _build_training_interpretation(
 
     # Top features
     if top_features:
-        feat_names = [f[0] if isinstance(f, (list, tuple)) else str(f) for f in top_features[:3]]
+        feat_names = [
+            f[0] if isinstance(f, (list, tuple)) else str(f) for f in top_features[:3]
+        ]
         lines.append(f"Top drivers: {', '.join(feat_names)}.")
 
     # Next steps
@@ -270,12 +308,16 @@ def _build_training_interpretation(
     if task == "classification" and metrics.get("accuracy", 0) < 0.85:
         lines.append("• Try Full Pipeline mode to compare multiple algorithms")
     if task == "regression" and metrics.get("r2", 0) < 0.7:
-        lines.append("• Consider adding interaction features or trying Full Pipeline mode")
+        lines.append(
+            "• Consider adding interaction features or trying Full Pipeline mode"
+        )
 
     return "\n".join(lines)
 
 
-def _build_retrain_interpretation(task, metrics, old_metrics, comparison, model_type, target):
+def _build_retrain_interpretation(
+    task, metrics, old_metrics, comparison, model_type, target
+):
     """Build interpretation for retrained model comparing to previous version."""
     lines = []
 
@@ -283,11 +325,15 @@ def _build_retrain_interpretation(task, metrics, old_metrics, comparison, model_
         old_acc = old_metrics.get("accuracy", 0)
         new_acc = metrics.get("accuracy", 0)
         delta = new_acc - old_acc
-        lines.append(f"Retrained {model_type} for '{target}': accuracy {old_acc:.1%} → {new_acc:.1%} ({delta:+.1%}).")
+        lines.append(
+            f"Retrained {model_type} for '{target}': accuracy {old_acc:.1%} → {new_acc:.1%} ({delta:+.1%})."
+        )
         if delta > 0.02:
             lines.append("✓ Model improved. The new data helped.")
         elif delta > -0.02:
-            lines.append("Model performance is stable. The new data is consistent with previous training data.")
+            lines.append(
+                "Model performance is stable. The new data is consistent with previous training data."
+            )
         else:
             lines.append(
                 "⚠ Model degraded. Possible causes: data distribution shift, data quality issues, or the new data introduces new patterns the model hasn't seen."
@@ -296,13 +342,17 @@ def _build_retrain_interpretation(task, metrics, old_metrics, comparison, model_
         old_r2 = old_metrics.get("r2", 0)
         new_r2 = metrics.get("r2", 0)
         delta = new_r2 - old_r2
-        lines.append(f"Retrained {model_type} for '{target}': R² {old_r2:.3f} → {new_r2:.3f} ({delta:+.3f}).")
+        lines.append(
+            f"Retrained {model_type} for '{target}': R² {old_r2:.3f} → {new_r2:.3f} ({delta:+.3f})."
+        )
         if delta > 0.02:
             lines.append("✓ Model improved with new data.")
         elif delta > -0.02:
             lines.append("Performance stable — model generalizes well to new data.")
         else:
-            lines.append("⚠ Model degraded. Check if the new data has different characteristics.")
+            lines.append(
+                "⚠ Model degraded. Check if the new data has different characteristics."
+            )
 
     # Metric-by-metric changes
     notable = []
@@ -348,7 +398,11 @@ def _compute_subgroup_diagnostics(X_test, y_test, y_pred, feature_info, task):
             if n < 5:
                 continue
             yt = y_test[mask]
-            yp = y_pred[mask] if hasattr(y_pred, "__getitem__") else np.array(y_pred)[mask]
+            yp = (
+                y_pred[mask]
+                if hasattr(y_pred, "__getitem__")
+                else np.array(y_pred)[mask]
+            )
             if task == "classification":
                 val = float(accuracy_score(yt, yp))
             else:
@@ -425,7 +479,10 @@ def _compute_threshold_analysis(y_test, model, X_test, class_names=None):
     best_acc = max(rows, key=lambda r: r["accuracy"])
     # Youden's J = sensitivity + specificity - 1 = recall + (tn/(tn+fp)) - 1
     best_youden = max(
-        rows, key=lambda r: r["recall"] + (r["tn"] / (r["tn"] + r["fp"]) if (r["tn"] + r["fp"]) > 0 else 0) - 1
+        rows,
+        key=lambda r: r["recall"]
+        + (r["tn"] / (r["tn"] + r["fp"]) if (r["tn"] + r["fp"]) > 0 else 0)
+        - 1,
     )
 
     names = class_names or ["0", "1"]
@@ -470,10 +527,14 @@ def autopilot_clean_train(request):
         df = _read_csv_safe(request.FILES["file"])
 
         if target not in df.columns:
-            return JsonResponse({"error": f'Target column "{target}" not found'}, status=400)
+            return JsonResponse(
+                {"error": f'Target column "{target}" not found'}, status=400
+            )
 
         if len(df) < 10:
-            return JsonResponse({"error": "Dataset too small — need at least 10 rows"}, status=400)
+            return JsonResponse(
+                {"error": "Dataset too small — need at least 10 rows"}, status=400
+            )
 
         original_shape = list(df.shape)
         steps = []
@@ -489,7 +550,9 @@ def autopilot_clean_train(request):
         )
 
         # Step 2: Train model with recipe
-        model, metrics, importances, task, X_test, y_test, y_pred, recipe = train_with_recipe(df_clean, target)
+        model, metrics, importances, task, X_test, y_test, y_pred, recipe = (
+            train_with_recipe(df_clean, target)
+        )
 
         steps.append(
             {
@@ -525,7 +588,9 @@ def autopilot_clean_train(request):
 
         # Bayesian model beliefs
         X_full, y_full, _ = _clean_for_ml(df_clean, target)
-        belief_result = _bayesian_model_beliefs(metrics, X_full, y_full, importances, task, model=model)
+        belief_result = _bayesian_model_beliefs(
+            metrics, X_full, y_full, importances, task, model=model
+        )
 
         # Save model
         result_id = f"dsw_{uuid.uuid4().hex[:8]}"
@@ -540,13 +605,19 @@ def autopilot_clean_train(request):
         }
 
         recipe["feature_info"] = _compute_feature_info(df_clean, feature_names)
-        recipe["feature_stats"] = _compute_feature_stats(df_clean, feature_names, recipe["feature_info"])
+        recipe["feature_stats"] = _compute_feature_stats(
+            df_clean, feature_names, recipe["feature_info"]
+        )
 
         # Store threshold analysis in recipe for profiler access
         if task == "classification":
             label_map_ct = recipe.get("label_map", {})
-            inv_map_ct = {int(v): k for k, v in label_map_ct.items()} if label_map_ct else None
-            class_names_ct = [inv_map_ct[i] for i in sorted(inv_map_ct)] if inv_map_ct else None
+            inv_map_ct = (
+                {int(v): k for k, v in label_map_ct.items()} if label_map_ct else None
+            )
+            class_names_ct = (
+                [inv_map_ct[i] for i in sorted(inv_map_ct)] if inv_map_ct else None
+            )
             ta_ct = _compute_threshold_analysis(y_test, model, X_test, class_names_ct)
             if ta_ct:
                 recipe["threshold_analysis"] = ta_ct
@@ -619,7 +690,10 @@ def autopilot_clean_train(request):
 
         response = {
             "result_id": result_id,
-            "pipeline_stages": [{"name": s["name"], "success": s.get("status") == "completed"} for s in steps],
+            "pipeline_stages": [
+                {"name": s["name"], "success": s.get("status") == "completed"}
+                for s in steps
+            ],
             "cleaning": cleaning_summary,
             "model_type": type(model).__name__,
             "task": task,
@@ -710,10 +784,14 @@ def autopilot_full_pipeline(request):
         df = _read_csv_safe(request.FILES["file"])
 
         if target not in df.columns:
-            return JsonResponse({"error": f'Target column "{target}" not found'}, status=400)
+            return JsonResponse(
+                {"error": f'Target column "{target}" not found'}, status=400
+            )
 
         if len(df) < 10:
-            return JsonResponse({"error": "Dataset too small — need at least 10 rows"}, status=400)
+            return JsonResponse(
+                {"error": "Dataset too small — need at least 10 rows"}, status=400
+            )
 
         original_shape = list(df.shape)
         steps = []
@@ -739,7 +817,11 @@ def autopilot_full_pipeline(request):
 
         # Auto-detect task
         n_unique = len(set(y))
-        task_type = "classification" if n_unique <= 20 and n_unique / len(y) < 0.05 else "regression"
+        task_type = (
+            "classification"
+            if n_unique <= 20 and n_unique / len(y) < 0.05
+            else "regression"
+        )
 
         if task_type == "classification":
             from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
@@ -748,14 +830,23 @@ def autopilot_full_pipeline(request):
             from sklearn.naive_bayes import GaussianNB
 
             roster = {
-                "RandomForest": RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
+                "RandomForest": RandomForestClassifier(
+                    n_estimators=100, random_state=42, n_jobs=-1
+                ),
                 "LogisticRegression": Pipeline(
-                    [("scaler", StandardScaler()), ("lr", LogisticRegression(max_iter=500, random_state=42))]
+                    [
+                        ("scaler", StandardScaler()),
+                        ("lr", LogisticRegression(max_iter=500, random_state=42)),
+                    ]
                 ),
                 "LDA": LinearDiscriminantAnalysis(),
                 "GaussianNB": GaussianNB(),
             }
-            scoring = {"accuracy": "accuracy", "f1": "f1_weighted", "mcc": "matthews_corrcoef"}
+            scoring = {
+                "accuracy": "accuracy",
+                "f1": "f1_weighted",
+                "mcc": "matthews_corrcoef",
+            }
             primary_score = "accuracy"
         else:
             from sklearn.ensemble import RandomForestRegressor
@@ -768,7 +859,9 @@ def autopilot_full_pipeline(request):
             )
 
             roster = {
-                "RandomForest": RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1),
+                "RandomForest": RandomForestRegressor(
+                    n_estimators=100, random_state=42, n_jobs=-1
+                ),
                 "Linear": LinearRegression(),
                 "Ridge": Ridge(alpha=1.0),
                 "LASSO": Lasso(alpha=0.01),
@@ -783,18 +876,26 @@ def autopilot_full_pipeline(request):
             import xgboost as xgb
 
             if task_type == "classification":
-                roster["XGBoost"] = xgb.XGBClassifier(n_estimators=100, random_state=42, verbosity=0)
+                roster["XGBoost"] = xgb.XGBClassifier(
+                    n_estimators=100, random_state=42, verbosity=0
+                )
             else:
-                roster["XGBoost"] = xgb.XGBRegressor(n_estimators=100, random_state=42, verbosity=0)
+                roster["XGBoost"] = xgb.XGBRegressor(
+                    n_estimators=100, random_state=42, verbosity=0
+                )
         except ImportError:
             pass
         try:
             import lightgbm as lgb
 
             if task_type == "classification":
-                roster["LightGBM"] = lgb.LGBMClassifier(n_estimators=100, random_state=42, verbosity=-1)
+                roster["LightGBM"] = lgb.LGBMClassifier(
+                    n_estimators=100, random_state=42, verbosity=-1
+                )
             else:
-                roster["LightGBM"] = lgb.LGBMRegressor(n_estimators=100, random_state=42, verbosity=-1)
+                roster["LightGBM"] = lgb.LGBMRegressor(
+                    n_estimators=100, random_state=42, verbosity=-1
+                )
         except ImportError:
             pass
 
@@ -812,17 +913,25 @@ def autopilot_full_pipeline(request):
                 )
                 row = {"model": name}
                 for metric_key in scoring:
-                    row[f"test_{metric_key}_mean"] = float(cv_results[f"test_{metric_key}"].mean())
-                    row[f"test_{metric_key}_std"] = float(cv_results[f"test_{metric_key}"].std())
+                    row[f"test_{metric_key}_mean"] = float(
+                        cv_results[f"test_{metric_key}"].mean()
+                    )
+                    row[f"test_{metric_key}_std"] = float(
+                        cv_results[f"test_{metric_key}"].std()
+                    )
                 comparison.append(row)
             except Exception as e:
                 logger.warning(f"Model {name} failed in comparison: {e}")
 
         # Find best model
         if not comparison:
-            return JsonResponse({"error": "All models failed during comparison"}, status=500)
+            return JsonResponse(
+                {"error": "All models failed during comparison"}, status=500
+            )
 
-        best_row = max(comparison, key=lambda r: r.get(f"test_{primary_score}_mean", -999))
+        best_row = max(
+            comparison, key=lambda r: r.get(f"test_{primary_score}_mean", -999)
+        )
         best_name = best_row["model"]
         best_model_obj = roster[best_name]
 
@@ -839,7 +948,9 @@ def autopilot_full_pipeline(request):
         # Step 3: Train best model on full train set
         from sklearn.model_selection import train_test_split
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
         best_model_obj.fit(X_train, y_train)
         y_pred = best_model_obj.predict(X_test)
 
@@ -857,15 +968,21 @@ def autopilot_full_pipeline(request):
         if task_type == "classification":
             metrics = {
                 "accuracy": float(accuracy_score(y_test, y_pred)),
-                "f1": float(f1_score(y_test, y_pred, average="weighted", zero_division=0)),
+                "f1": float(
+                    f1_score(y_test, y_pred, average="weighted", zero_division=0)
+                ),
                 "mcc": float(matthews_corrcoef(y_test, y_pred)),
             }
             # Binary: Brier + PR-AUC
             if len(set(y)) == 2 and hasattr(best_model_obj, "predict_proba"):
                 try:
                     y_proba = best_model_obj.predict_proba(X_test)[:, 1]
-                    metrics["brier_score"] = round(float(brier_score_loss(y_test, y_proba)), 4)
-                    metrics["average_precision"] = round(float(average_precision_score(y_test, y_proba)), 4)
+                    metrics["brier_score"] = round(
+                        float(brier_score_loss(y_test, y_proba)), 4
+                    )
+                    metrics["average_precision"] = round(
+                        float(average_precision_score(y_test, y_proba)), 4
+                    )
                 except Exception:
                     pass
         else:
@@ -879,7 +996,12 @@ def autopilot_full_pipeline(request):
         if hasattr(best_model_obj, "feature_importances_"):
             for i, imp in enumerate(best_model_obj.feature_importances_):
                 importances.append(
-                    {"feature": feature_names[i] if i < len(feature_names) else f"f{i}", "importance": float(imp)}
+                    {
+                        "feature": (
+                            feature_names[i] if i < len(feature_names) else f"f{i}"
+                        ),
+                        "importance": float(imp),
+                    }
                 )
             importances.sort(key=lambda x: x["importance"], reverse=True)
 
@@ -909,7 +1031,9 @@ def autopilot_full_pipeline(request):
                 # Transform test data through all steps except the final estimator
                 shap_X_test = best_model_obj[:-1].transform(X_test)
                 if hasattr(shap_X_test, "values"):
-                    shap_X_test = pd.DataFrame(shap_X_test, columns=feature_names[: shap_X_test.shape[1]])
+                    shap_X_test = pd.DataFrame(
+                        shap_X_test, columns=feature_names[: shap_X_test.shape[1]]
+                    )
                 shap_model = best_model_obj[-1]  # final estimator
 
             if hasattr(shap_model, "predict"):
@@ -923,7 +1047,9 @@ def autopilot_full_pipeline(request):
 
                 # Normalize shape: SHAP can return list, 3D array, or 2D array
                 if isinstance(shap_values, list):
-                    shap_values = shap_values[1] if len(shap_values) > 1 else shap_values[0]
+                    shap_values = (
+                        shap_values[1] if len(shap_values) > 1 else shap_values[0]
+                    )
                 elif hasattr(shap_values, "ndim") and shap_values.ndim == 3:
                     # (n_samples, n_features, n_classes) — take last class for binary
                     shap_values = shap_values[:, :, -1]
@@ -938,12 +1064,22 @@ def autopilot_full_pipeline(request):
                             {
                                 "type": "bar",
                                 "x": [float(mean_abs[i]) for i in sorted_idx],
-                                "y": [feature_names[i] if i < len(feature_names) else f"f{i}" for i in sorted_idx],
+                                "y": [
+                                    (
+                                        feature_names[i]
+                                        if i < len(feature_names)
+                                        else f"f{i}"
+                                    )
+                                    for i in sorted_idx
+                                ],
                                 "orientation": "h",
                                 "marker": {"color": "rgba(74, 159, 110, 0.7)"},
                             }
                         ],
-                        "layout": {"yaxis": {"autorange": "reversed"}, "xaxis": {"title": "Mean |SHAP|"}},
+                        "layout": {
+                            "yaxis": {"autorange": "reversed"},
+                            "xaxis": {"title": "Mean |SHAP|"},
+                        },
                     }
                 )
 
@@ -978,7 +1114,9 @@ def autopilot_full_pipeline(request):
                     params = {
                         "n_estimators": trial.suggest_int("n_estimators", 50, 300),
                         "max_depth": trial.suggest_int("max_depth", 3, 20),
-                        "min_samples_split": trial.suggest_int("min_samples_split", 2, 20),
+                        "min_samples_split": trial.suggest_int(
+                            "min_samples_split", 2, 20
+                        ),
                     }
                     if task_type == "classification":
                         m = RandomForestClassifier(**params, random_state=42, n_jobs=-1)
@@ -988,7 +1126,9 @@ def autopilot_full_pipeline(request):
                     params = {
                         "n_estimators": trial.suggest_int("n_estimators", 50, 300),
                         "max_depth": trial.suggest_int("max_depth", 3, 15),
-                        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+                        "learning_rate": trial.suggest_float(
+                            "learning_rate", 0.01, 0.3, log=True
+                        ),
                         "subsample": trial.suggest_float("subsample", 0.5, 1.0),
                     }
                     if task_type == "classification":
@@ -999,7 +1139,9 @@ def autopilot_full_pipeline(request):
                     params = {
                         "n_estimators": trial.suggest_int("n_estimators", 50, 300),
                         "num_leaves": trial.suggest_int("num_leaves", 10, 100),
-                        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+                        "learning_rate": trial.suggest_float(
+                            "learning_rate", 0.01, 0.3, log=True
+                        ),
                     }
                     if task_type == "classification":
                         m = lgb.LGBMClassifier(**params, random_state=42, verbosity=-1)
@@ -1011,7 +1153,9 @@ def autopilot_full_pipeline(request):
 
                 from sklearn.model_selection import cross_val_score
 
-                scores = cross_val_score(m, X, y, cv=min(cv_folds, len(X)), scoring=primary_score)
+                scores = cross_val_score(
+                    m, X, y, cv=min(cv_folds, len(X)), scoring=primary_score
+                )
                 return float(scores.mean())
 
             study = optuna.create_study(direction="maximize")
@@ -1027,19 +1171,31 @@ def autopilot_full_pipeline(request):
             if study.best_value > best_row.get(f"test_{primary_score}_mean", 0):
                 if "RandomForest" in best_name:
                     if task_type == "classification":
-                        best_model_obj = RandomForestClassifier(**study.best_params, random_state=42, n_jobs=-1)
+                        best_model_obj = RandomForestClassifier(
+                            **study.best_params, random_state=42, n_jobs=-1
+                        )
                     else:
-                        best_model_obj = RandomForestRegressor(**study.best_params, random_state=42, n_jobs=-1)
+                        best_model_obj = RandomForestRegressor(
+                            **study.best_params, random_state=42, n_jobs=-1
+                        )
                 elif "XGBoost" in best_name:
                     if task_type == "classification":
-                        best_model_obj = xgb.XGBClassifier(**study.best_params, random_state=42, verbosity=0)
+                        best_model_obj = xgb.XGBClassifier(
+                            **study.best_params, random_state=42, verbosity=0
+                        )
                     else:
-                        best_model_obj = xgb.XGBRegressor(**study.best_params, random_state=42, verbosity=0)
+                        best_model_obj = xgb.XGBRegressor(
+                            **study.best_params, random_state=42, verbosity=0
+                        )
                 elif "LightGBM" in best_name:
                     if task_type == "classification":
-                        best_model_obj = lgb.LGBMClassifier(**study.best_params, random_state=42, verbosity=-1)
+                        best_model_obj = lgb.LGBMClassifier(
+                            **study.best_params, random_state=42, verbosity=-1
+                        )
                     else:
-                        best_model_obj = lgb.LGBMRegressor(**study.best_params, random_state=42, verbosity=-1)
+                        best_model_obj = lgb.LGBMRegressor(
+                            **study.best_params, random_state=42, verbosity=-1
+                        )
 
                 best_model_obj.fit(X_train, y_train)
                 y_pred = best_model_obj.predict(X_test)
@@ -1047,7 +1203,11 @@ def autopilot_full_pipeline(request):
                 if task_type == "classification":
                     metrics = {
                         "accuracy": float(accuracy_score(y_test, y_pred)),
-                        "f1": float(f1_score(y_test, y_pred, average="weighted", zero_division=0)),
+                        "f1": float(
+                            f1_score(
+                                y_test, y_pred, average="weighted", zero_division=0
+                            )
+                        ),
                     }
                 else:
                     metrics = {
@@ -1079,7 +1239,10 @@ def autopilot_full_pipeline(request):
         # Convert label_map keys to strings for JSON serialization
         json_label_map = None
         if label_map:
-            json_label_map = {str(k): int(v) if isinstance(v, (int, np.integer)) else v for k, v in label_map.items()}
+            json_label_map = {
+                str(k): int(v) if isinstance(v, (int, np.integer)) else v
+                for k, v in label_map.items()
+            }
 
         training_config = {
             "features": feature_names,
@@ -1095,7 +1258,9 @@ def autopilot_full_pipeline(request):
         }
         fi_fp = _compute_feature_info(df_clean, feature_names)
         training_config["feature_info"] = fi_fp
-        training_config["feature_stats"] = _compute_feature_stats(df_clean, feature_names, fi_fp)
+        training_config["feature_stats"] = _compute_feature_stats(
+            df_clean, feature_names, fi_fp
+        )
         data_lineage = {
             "source_type": "upload",
             "original_file": request.FILES["file"].name,
@@ -1107,7 +1272,11 @@ def autopilot_full_pipeline(request):
 
         # Store threshold analysis for profiler
         if task_type == "classification":
-            inv_map_fp = {int(v): k for k, v in json_label_map.items()} if json_label_map else None
+            inv_map_fp = (
+                {int(v): k for k, v in json_label_map.items()}
+                if json_label_map
+                else None
+            )
             cn_fp = [inv_map_fp[i] for i in sorted(inv_map_fp)] if inv_map_fp else None
             ta_fp = _compute_threshold_analysis(y_test, best_model_obj, X_test, cn_fp)
             if ta_fp:
@@ -1193,7 +1362,10 @@ def autopilot_full_pipeline(request):
 
         response = {
             "result_id": result_id,
-            "pipeline_stages": [{"name": s["name"], "success": s.get("status") == "completed"} for s in steps],
+            "pipeline_stages": [
+                {"name": s["name"], "success": s.get("status") == "completed"}
+                for s in steps
+            ],
             "cleaning": cleaning_summary,
             "comparison": comparison,
             "tuning": tuning_result,
@@ -1205,7 +1377,8 @@ def autopilot_full_pipeline(request):
                 for p in all_plots
                 if "SHAP"
                 in (
-                    p.get("title") or p.get("layout", {}).get("title", {}).get("text", "")
+                    p.get("title")
+                    or p.get("layout", {}).get("title", {}).get("text", "")
                     if isinstance(p.get("layout", {}).get("title"), dict)
                     else p.get("layout", {}).get("title", "")
                 )
@@ -1215,7 +1388,8 @@ def autopilot_full_pipeline(request):
                 for p in all_plots
                 if "SHAP"
                 not in (
-                    p.get("title") or p.get("layout", {}).get("title", {}).get("text", "")
+                    p.get("title")
+                    or p.get("layout", {}).get("title", {}).get("text", "")
                     if isinstance(p.get("layout", {}).get("title"), dict)
                     else p.get("layout", {}).get("title", "")
                 )
@@ -1248,9 +1422,15 @@ def autopilot_full_pipeline(request):
         }
 
         if task_type == "classification":
-            inv_map = {int(v): k for k, v in json_label_map.items()} if json_label_map else None
+            inv_map = (
+                {int(v): k for k, v in json_label_map.items()}
+                if json_label_map
+                else None
+            )
             class_names = [inv_map[i] for i in sorted(inv_map)] if inv_map else None
-            ta = _compute_threshold_analysis(y_test, best_model_obj, X_test, class_names)
+            ta = _compute_threshold_analysis(
+                y_test, best_model_obj, X_test, class_names
+            )
             if ta:
                 response["threshold_analysis"] = ta
 
@@ -1287,10 +1467,14 @@ def autopilot_augment_train(request):
         df = _read_csv_safe(request.FILES["file"])
 
         if target not in df.columns:
-            return JsonResponse({"error": f'Target column "{target}" not found'}, status=400)
+            return JsonResponse(
+                {"error": f'Target column "{target}" not found'}, status=400
+            )
 
         if len(df) < 10:
-            return JsonResponse({"error": "Dataset too small — need at least 10 rows"}, status=400)
+            return JsonResponse(
+                {"error": "Dataset too small — need at least 10 rows"}, status=400
+            )
 
         original_shape = list(df.shape)
         n_synthetic = int(request.POST.get("n_synthetic", str(len(df))))
@@ -1309,7 +1493,9 @@ def autopilot_augment_train(request):
         )
 
         # Step 2: Train on augmented data
-        model, metrics, importances, task, X_test, y_test, y_pred, recipe = train_with_recipe(augmented_df, target)
+        model, metrics, importances, task, X_test, y_test, y_pred, recipe = (
+            train_with_recipe(augmented_df, target)
+        )
 
         steps.append(
             {
@@ -1345,7 +1531,9 @@ def autopilot_augment_train(request):
 
         # Bayesian model beliefs
         X_full, y_full, _ = _clean_for_ml(augmented_df, target)
-        belief_result = _bayesian_model_beliefs(metrics, X_full, y_full, importances, task, model=model)
+        belief_result = _bayesian_model_beliefs(
+            metrics, X_full, y_full, importances, task, model=model
+        )
 
         # Save model
         result_id = f"dsw_{uuid.uuid4().hex[:8]}"
@@ -1362,11 +1550,15 @@ def autopilot_augment_train(request):
         recipe["source"] = "autopilot_augment_train"
         recipe["forge_config"] = {"n_synthetic": n_synthetic}
         recipe["feature_info"] = _compute_feature_info(augmented_df, feature_names)
-        recipe["feature_stats"] = _compute_feature_stats(augmented_df, feature_names, recipe["feature_info"])
+        recipe["feature_stats"] = _compute_feature_stats(
+            augmented_df, feature_names, recipe["feature_info"]
+        )
 
         if task == "classification":
             label_map_at = recipe.get("label_map", {})
-            inv_map_at = {int(v): k for k, v in label_map_at.items()} if label_map_at else None
+            inv_map_at = (
+                {int(v): k for k, v in label_map_at.items()} if label_map_at else None
+            )
             cn_at = [inv_map_at[i] for i in sorted(inv_map_at)] if inv_map_at else None
             ta_at = _compute_threshold_analysis(y_test, model, X_test, cn_at)
             if ta_at:
@@ -1440,7 +1632,10 @@ def autopilot_augment_train(request):
 
         response = {
             "result_id": result_id,
-            "pipeline_stages": [{"name": s["name"], "success": s.get("status") == "completed"} for s in steps],
+            "pipeline_stages": [
+                {"name": s["name"], "success": s.get("status") == "completed"}
+                for s in steps
+            ],
             "augmentation": forge_report,
             "model_type": type(model).__name__,
             "task": task,
@@ -1504,7 +1699,9 @@ def retrain_model(request, model_id):
 
     recipe = saved.training_config
     if not recipe or not recipe.get("features"):
-        return JsonResponse({"error": "No training recipe found for this model"}, status=400)
+        return JsonResponse(
+            {"error": "No training recipe found for this model"}, status=400
+        )
 
     try:
         from pathlib import Path
@@ -1519,16 +1716,23 @@ def retrain_model(request, model_id):
             data_path = Path(saved.data_lineage["data_path"])
             if not data_path.exists():
                 return JsonResponse(
-                    {"error": "Original training data no longer available. Upload new data."}, status=400
+                    {
+                        "error": "Original training data no longer available. Upload new data."
+                    },
+                    status=400,
                 )
             df = _read_csv_safe(data_path)
             data_source = str(data_path)
         else:
-            return JsonResponse({"error": "No data available. Upload a CSV file."}, status=400)
+            return JsonResponse(
+                {"error": "No data available. Upload a CSV file."}, status=400
+            )
 
         target = recipe["target"]
         if target not in df.columns:
-            return JsonResponse({"error": f'Target column "{target}" not found in data'}, status=400)
+            return JsonResponse(
+                {"error": f'Target column "{target}" not found in data'}, status=400
+            )
 
         # Re-apply triage if original recipe used it
         triage_applied = False
@@ -1545,8 +1749,8 @@ def retrain_model(request, model_id):
             forge_applied = True
 
         # Train
-        model, metrics, importances, task, X_test, y_test, y_pred, new_recipe = train_with_recipe(
-            df, target, config={"task_type": recipe.get("task_type")}
+        model, metrics, importances, task, X_test, y_test, y_pred, new_recipe = (
+            train_with_recipe(df, target, config={"task_type": recipe.get("task_type")})
         )
 
         # Diagnostic plots
@@ -1577,11 +1781,15 @@ def retrain_model(request, model_id):
 
         new_recipe["source"] = "retrain"
         new_recipe["feature_info"] = _compute_feature_info(df, feature_names)
-        new_recipe["feature_stats"] = _compute_feature_stats(df, feature_names, new_recipe["feature_info"])
+        new_recipe["feature_stats"] = _compute_feature_stats(
+            df, feature_names, new_recipe["feature_info"]
+        )
 
         if task == "classification":
             label_map_rt = new_recipe.get("label_map", {})
-            inv_map_rt = {int(v): k for k, v in label_map_rt.items()} if label_map_rt else None
+            inv_map_rt = (
+                {int(v): k for k, v in label_map_rt.items()} if label_map_rt else None
+            )
             cn_rt = [inv_map_rt[i] for i in sorted(inv_map_rt)] if inv_map_rt else None
             ta_rt = _compute_threshold_analysis(y_test, model, X_test, cn_rt)
             if ta_rt:

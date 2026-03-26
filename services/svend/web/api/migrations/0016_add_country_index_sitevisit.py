@@ -6,12 +6,14 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0015_site_visit_model'),
+        ("api", "0015_site_visit_model"),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='sitevisit',
-            index=models.Index(fields=['country', 'viewed_at'], name='site_visits_country_a6762c_idx'),
+            model_name="sitevisit",
+            index=models.Index(
+                fields=["country", "viewed_at"], name="site_visits_country_a6762c_idx"
+            ),
         ),
     ]

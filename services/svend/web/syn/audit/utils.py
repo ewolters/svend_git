@@ -71,7 +71,9 @@ def generate_entry(
         # Save triggers hash computation and chain linkage
         entry.save()
 
-        logger.debug(f"Audit entry created: {event_name} by {actor} (chain: {entry.current_hash[:8]}...)")
+        logger.debug(
+            f"Audit entry created: {event_name} by {actor} (chain: {entry.current_hash[:8]}...)"
+        )
 
         # TD-AUD-EVENTS-001: FIXED 2025-12-26
         # Event emission now works because audit.* events are short-circuited
@@ -81,7 +83,9 @@ def generate_entry(
         return entry
 
     except Exception as e:
-        logger.error(f"Failed to create audit entry: {event_name} by {actor}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to create audit entry: {event_name} by {actor}: {e}", exc_info=True
+        )
         raise ValidationError(f"Failed to create audit log entry: {e}")
 
 
@@ -135,7 +139,11 @@ def verify_chain_integrity(tenant_id: str) -> dict[str, Any]:
 
         if not genesis_valid:
             violations.append(
-                {"type": "invalid_genesis", "entry_id": genesis.id, "message": "Genesis entry is invalid"}
+                {
+                    "type": "invalid_genesis",
+                    "entry_id": genesis.id,
+                    "message": "Genesis entry is invalid",
+                }
             )
 
         # Verify each entry
@@ -145,13 +153,21 @@ def verify_chain_integrity(tenant_id: str) -> dict[str, Any]:
             # Verify hash
             if not entry.verify_hash():
                 violations.append(
-                    {"type": "hash_mismatch", "entry_id": entry.id, "message": f"Hash mismatch for entry {entry.id}"}
+                    {
+                        "type": "hash_mismatch",
+                        "entry_id": entry.id,
+                        "message": f"Hash mismatch for entry {entry.id}",
+                    }
                 )
 
             # Verify chain link
             if not entry.verify_chain_link():
                 violations.append(
-                    {"type": "chain_break", "entry_id": entry.id, "message": f"Chain break at entry {entry.id}"}
+                    {
+                        "type": "chain_break",
+                        "entry_id": entry.id,
+                        "message": f"Chain break at entry {entry.id}",
+                    }
                 )
 
             # Check for ID gaps — but distinguish benign sequence gaps
@@ -181,7 +197,9 @@ def verify_chain_integrity(tenant_id: str) -> dict[str, Any]:
             "total_entries": total_entries,
             "violations": violations,
             "genesis_valid": genesis_valid,
-            "message": "Chain is intact" if is_valid else f"Found {len(violations)} violations",
+            "message": (
+                "Chain is intact" if is_valid else f"Found {len(violations)} violations"
+            ),
         }
 
     except Exception as e:
@@ -196,7 +214,10 @@ def verify_chain_integrity(tenant_id: str) -> dict[str, Any]:
 
 
 def record_integrity_violation(
-    tenant_id: str, violation_type: str, entry_id: int | None = None, details: dict[str, Any] | None = None
+    tenant_id: str,
+    violation_type: str,
+    entry_id: int | None = None,
+    details: dict[str, Any] | None = None,
 ) -> "IntegrityViolation":
     """
     Record a detected integrity violation.
@@ -220,7 +241,10 @@ def record_integrity_violation(
     try:
         # Create violation record
         violation = IntegrityViolation.objects.create(
-            tenant_id=tenant_id, violation_type=violation_type, entry_id=entry_id, details=details or {}
+            tenant_id=tenant_id,
+            violation_type=violation_type,
+            entry_id=entry_id,
+            details=details or {},
         )
 
         # Emit audit events per AUD-001 §8
@@ -250,7 +274,9 @@ def record_integrity_violation(
                 tenant_id=tenant_id,
             )
 
-            logger.critical(f"Audit integrity violation detected: {violation_type} for tenant {tenant_id}")
+            logger.critical(
+                f"Audit integrity violation detected: {violation_type} for tenant {tenant_id}"
+            )
 
         except Exception as e:
             logger.error(f"Failed to emit violation event: {e}")

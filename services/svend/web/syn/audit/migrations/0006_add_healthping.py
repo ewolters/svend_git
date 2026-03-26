@@ -7,76 +7,162 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('audit', '0005_drift_violation_std_choice_and_max_length'),
+        ("audit", "0005_drift_violation_std_choice_and_max_length"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='changerequest',
-            name='affected_files',
-            field=models.JSONField(blank=True, default=list, help_text='List of files to be modified'),
+            model_name="changerequest",
+            name="affected_files",
+            field=models.JSONField(
+                blank=True, default=list, help_text="List of files to be modified"
+            ),
         ),
         migrations.AlterField(
-            model_name='changerequest',
-            name='audit_entry_ids',
-            field=models.JSONField(blank=True, default=list, help_text='IDs of SysLogEntry records related to this change'),
+            model_name="changerequest",
+            name="audit_entry_ids",
+            field=models.JSONField(
+                blank=True,
+                default=list,
+                help_text="IDs of SysLogEntry records related to this change",
+            ),
         ),
         migrations.AlterField(
-            model_name='changerequest',
-            name='commit_shas',
-            field=models.JSONField(blank=True, default=list, help_text='Git commit SHAs associated with this change'),
+            model_name="changerequest",
+            name="commit_shas",
+            field=models.JSONField(
+                blank=True,
+                default=list,
+                help_text="Git commit SHAs associated with this change",
+            ),
         ),
         migrations.AlterField(
-            model_name='changerequest',
-            name='compliance_check_ids',
-            field=models.JSONField(blank=True, default=list, help_text='UUIDs of ComplianceCheck records that triggered or relate to this change'),
+            model_name="changerequest",
+            name="compliance_check_ids",
+            field=models.JSONField(
+                blank=True,
+                default=list,
+                help_text="UUIDs of ComplianceCheck records that triggered or relate to this change",
+            ),
         ),
         migrations.AlterField(
-            model_name='changerequest',
-            name='drift_violation_ids',
-            field=models.JSONField(blank=True, default=list, help_text='UUIDs of DriftViolation records this change remediates'),
+            model_name="changerequest",
+            name="drift_violation_ids",
+            field=models.JSONField(
+                blank=True,
+                default=list,
+                help_text="UUIDs of DriftViolation records this change remediates",
+            ),
         ),
         migrations.AlterField(
-            model_name='changerequest',
-            name='implementation_plan',
-            field=models.JSONField(blank=True, default=dict, help_text='Steps for implementing the change'),
+            model_name="changerequest",
+            name="implementation_plan",
+            field=models.JSONField(
+                blank=True, default=dict, help_text="Steps for implementing the change"
+            ),
         ),
         migrations.AlterField(
-            model_name='changerequest',
-            name='related_change_ids',
-            field=models.JSONField(blank=True, default=list, help_text='List of related change request UUIDs'),
+            model_name="changerequest",
+            name="related_change_ids",
+            field=models.JSONField(
+                blank=True,
+                default=list,
+                help_text="List of related change request UUIDs",
+            ),
         ),
         migrations.AlterField(
-            model_name='changerequest',
-            name='rollback_plan',
-            field=models.JSONField(blank=True, default=dict, help_text='Steps for reverting the change if it fails'),
+            model_name="changerequest",
+            name="rollback_plan",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text="Steps for reverting the change if it fails",
+            ),
         ),
         migrations.AlterField(
-            model_name='changerequest',
-            name='testing_plan',
-            field=models.JSONField(blank=True, default=dict, help_text='Steps for verifying the change after implementation'),
+            model_name="changerequest",
+            name="testing_plan",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text="Steps for verifying the change after implementation",
+            ),
         ),
         migrations.AlterField(
-            model_name='driftviolation',
-            name='enforcement_check',
-            field=models.CharField(choices=[('ENC-001', 'ENC-001 - Primitive Organization'), ('ENC-002', 'ENC-002 - Layer Imports'), ('ENC-003', 'ENC-003 - Field Naming'), ('ENC-004', 'ENC-004 - Event Naming'), ('ENC-005', 'ENC-005 - Security Patterns'), ('ENC-006', 'ENC-006 - Serializer Patterns'), ('ENC-007', 'ENC-007 - Pure Functions'), ('ENC-008', 'ENC-008 - Pydantic V2'), ('ENC-009', 'ENC-009 - Primitive Pattern'), ('ENC-010', 'ENC-010 - Test Coverage'), ('ENC-011', 'ENC-011 - Tenant Isolation'), ('STD', 'STD - Standards Compliance'), ('CAL', 'CAL - Statistical Calibration')], db_index=True, help_text='Enforcement check that detected this violation', max_length=20),
+            model_name="driftviolation",
+            name="enforcement_check",
+            field=models.CharField(
+                choices=[
+                    ("ENC-001", "ENC-001 - Primitive Organization"),
+                    ("ENC-002", "ENC-002 - Layer Imports"),
+                    ("ENC-003", "ENC-003 - Field Naming"),
+                    ("ENC-004", "ENC-004 - Event Naming"),
+                    ("ENC-005", "ENC-005 - Security Patterns"),
+                    ("ENC-006", "ENC-006 - Serializer Patterns"),
+                    ("ENC-007", "ENC-007 - Pure Functions"),
+                    ("ENC-008", "ENC-008 - Pydantic V2"),
+                    ("ENC-009", "ENC-009 - Primitive Pattern"),
+                    ("ENC-010", "ENC-010 - Test Coverage"),
+                    ("ENC-011", "ENC-011 - Tenant Isolation"),
+                    ("STD", "STD - Standards Compliance"),
+                    ("CAL", "CAL - Statistical Calibration"),
+                ],
+                db_index=True,
+                help_text="Enforcement check that detected this violation",
+                max_length=20,
+            ),
         ),
         migrations.CreateModel(
-            name='HealthPing',
+            name="HealthPing",
             fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
-                ('timestamp', models.DateTimeField(db_index=True, default=django.utils.timezone.now)),
-                ('is_healthy', models.BooleanField(help_text='True if /api/health/ returned 200 with expected JSON')),
-                ('status_code', models.IntegerField(blank=True, help_text='HTTP status code (null if connection failed)', null=True)),
-                ('response_time_ms', models.FloatField(blank=True, help_text='Response time in milliseconds', null=True)),
-                ('error', models.CharField(blank=True, default='', help_text='Error message if ping failed', max_length=500)),
+                ("id", models.BigAutoField(primary_key=True, serialize=False)),
+                (
+                    "timestamp",
+                    models.DateTimeField(
+                        db_index=True, default=django.utils.timezone.now
+                    ),
+                ),
+                (
+                    "is_healthy",
+                    models.BooleanField(
+                        help_text="True if /api/health/ returned 200 with expected JSON"
+                    ),
+                ),
+                (
+                    "status_code",
+                    models.IntegerField(
+                        blank=True,
+                        help_text="HTTP status code (null if connection failed)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "response_time_ms",
+                    models.FloatField(
+                        blank=True, help_text="Response time in milliseconds", null=True
+                    ),
+                ),
+                (
+                    "error",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="Error message if ping failed",
+                        max_length=500,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Health Ping',
-                'verbose_name_plural': 'Health Pings',
-                'db_table': 'audit_health_ping',
-                'ordering': ['-timestamp'],
-                'indexes': [models.Index(fields=['timestamp', 'is_healthy'], name='health_ping_time_status')],
+                "verbose_name": "Health Ping",
+                "verbose_name_plural": "Health Pings",
+                "db_table": "audit_health_ping",
+                "ordering": ["-timestamp"],
+                "indexes": [
+                    models.Index(
+                        fields=["timestamp", "is_healthy"],
+                        name="health_ping_time_status",
+                    )
+                ],
             },
         ),
     ]

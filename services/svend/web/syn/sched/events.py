@@ -644,7 +644,9 @@ def build_task_created_payload(task) -> dict[str, Any]:
     }
 
 
-def build_task_started_payload(task, worker_id: str, attempt_number: int) -> dict[str, Any]:
+def build_task_started_payload(
+    task, worker_id: str, attempt_number: int
+) -> dict[str, Any]:
     """Build payload for scheduler.task.started event."""
     return {
         "task_id": str(task.id),
@@ -751,7 +753,9 @@ def build_schedule_triggered_payload(schedule, task) -> dict[str, Any]:
         "schedule_id": schedule.schedule_id,
         "task_id": str(task.id),
         "run_number": schedule.run_count,
-        "next_run_at": schedule.next_run_at.isoformat() if schedule.next_run_at else None,
+        "next_run_at": (
+            schedule.next_run_at.isoformat() if schedule.next_run_at else None
+        ),
         "tenant_id": str(schedule.tenant_id),
     }
 

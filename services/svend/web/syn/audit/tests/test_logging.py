@@ -148,7 +148,9 @@ class JsonFormatterTest(SimpleTestCase):
 
     def test_outputs_valid_json(self):
         formatter = JsonFormatter()
-        record = logging.LogRecord("test.logger", logging.INFO, "", 0, "test message", (), None)
+        record = logging.LogRecord(
+            "test.logger", logging.INFO, "", 0, "test message", (), None
+        )
         record.correlation_id = "cid-123"
         record.tenant_id = None
         output = formatter.format(record)
@@ -192,7 +194,13 @@ class SynaraLogHandlerTest(SimpleTestCase):
         self.assertIn("ActorFilter", filter_types)
 
     def test_level_map_complete(self):
-        expected = {logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL}
+        expected = {
+            logging.DEBUG,
+            logging.INFO,
+            logging.WARNING,
+            logging.ERROR,
+            logging.CRITICAL,
+        }
         self.assertEqual(set(SynaraLogHandler.LEVEL_MAP.keys()), expected)
 
 
@@ -217,7 +225,9 @@ class CorrelationMiddlewareTest(SimpleTestCase):
 
     def setUp(self):
         self.factory = RequestFactory()
-        self.get_response = lambda r: MagicMock(status_code=200, __setitem__=MagicMock())
+        self.get_response = lambda r: MagicMock(
+            status_code=200, __setitem__=MagicMock()
+        )
 
     def test_generates_correlation_id_when_missing(self):
         middleware = CorrelationMiddleware(self.get_response)

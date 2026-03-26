@@ -49,7 +49,10 @@ def _create_export(request):
             created_at__gte=timezone.now() - timedelta(hours=24),
         )
         .exclude(
-            status__in=[DataExportRequest.Status.CANCELLED, DataExportRequest.Status.EXPIRED],
+            status__in=[
+                DataExportRequest.Status.CANCELLED,
+                DataExportRequest.Status.EXPIRED,
+            ],
         )
         .exists()
     )
@@ -181,8 +184,16 @@ def _serialize_export(export_req):
         "status": export_req.status,
         "export_format": export_req.export_format,
         "file_size_bytes": export_req.file_size_bytes,
-        "created_at": export_req.created_at.isoformat() if export_req.created_at else None,
-        "completed_at": export_req.completed_at.isoformat() if export_req.completed_at else None,
-        "expires_at": export_req.expires_at.isoformat() if export_req.expires_at else None,
-        "downloaded_at": export_req.downloaded_at.isoformat() if export_req.downloaded_at else None,
+        "created_at": (
+            export_req.created_at.isoformat() if export_req.created_at else None
+        ),
+        "completed_at": (
+            export_req.completed_at.isoformat() if export_req.completed_at else None
+        ),
+        "expires_at": (
+            export_req.expires_at.isoformat() if export_req.expires_at else None
+        ),
+        "downloaded_at": (
+            export_req.downloaded_at.isoformat() if export_req.downloaded_at else None
+        ),
     }

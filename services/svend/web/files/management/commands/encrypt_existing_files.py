@@ -33,7 +33,9 @@ class Command(BaseCommand):
         skipped = 0
         errors = 0
 
-        self.stdout.write(f"Processing {total} files{'  (DRY RUN)' if dry_run else ''}...")
+        self.stdout.write(
+            f"Processing {total} files{'  (DRY RUN)' if dry_run else ''}..."
+        )
 
         for uf in files:
             try:
@@ -50,7 +52,9 @@ class Command(BaseCommand):
                     continue
 
                 if dry_run:
-                    self.stdout.write(f"  Would encrypt: {uf.original_name} ({len(raw)} bytes)")
+                    self.stdout.write(
+                        f"  Would encrypt: {uf.original_name} ({len(raw)} bytes)"
+                    )
                     encrypted += 1
                     continue
 
@@ -64,4 +68,6 @@ class Command(BaseCommand):
                 errors += 1
                 self.stderr.write(f"  Error processing {uf.original_name}: {e}")
 
-        self.stdout.write(f"\nDone: {encrypted} encrypted, {skipped} skipped, {errors} errors")
+        self.stdout.write(
+            f"\nDone: {encrypted} encrypted, {skipped} skipped, {errors} errors"
+        )

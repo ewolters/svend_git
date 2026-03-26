@@ -45,7 +45,15 @@ class OrgInvitationInline(admin.TabularInline):
 
 @admin.register(Tenant)
 class TenantAdmin(admin.ModelAdmin):
-    list_display = ["name", "slug", "plan", "member_count", "max_members", "is_active", "created_at"]
+    list_display = [
+        "name",
+        "slug",
+        "plan",
+        "member_count",
+        "max_members",
+        "is_active",
+        "created_at",
+    ]
     list_filter = ["plan", "is_active"]
     search_fields = ["name", "slug"]
     readonly_fields = ["id", "created_at", "updated_at"]
@@ -62,7 +70,15 @@ class MembershipAdmin(admin.ModelAdmin):
 
 @admin.register(OrgInvitation)
 class OrgInvitationAdmin(admin.ModelAdmin):
-    list_display = ["email", "tenant", "role", "status", "invited_by", "created_at", "expires_at"]
+    list_display = [
+        "email",
+        "tenant",
+        "role",
+        "status",
+        "invited_by",
+        "created_at",
+        "expires_at",
+    ]
     list_filter = ["status", "role"]
     search_fields = ["email", "tenant__name"]
     readonly_fields = ["id", "token", "created_at"]
@@ -78,7 +94,13 @@ class ProjectAdmin(admin.ModelAdmin):
 
 @admin.register(Hypothesis)
 class HypothesisAdmin(admin.ModelAdmin):
-    list_display = ["statement_preview", "project", "status", "current_probability", "created_at"]
+    list_display = [
+        "statement_preview",
+        "project",
+        "status",
+        "current_probability",
+        "created_at",
+    ]
     list_filter = ["status", "created_at"]
     search_fields = ["statement"]
     readonly_fields = ["id", "created_at", "updated_at"]
@@ -91,7 +113,13 @@ class HypothesisAdmin(admin.ModelAdmin):
 
 @admin.register(Evidence)
 class EvidenceAdmin(admin.ModelAdmin):
-    list_display = ["summary_preview", "project", "source_type", "confidence", "created_at"]
+    list_display = [
+        "summary_preview",
+        "project",
+        "source_type",
+        "confidence",
+        "created_at",
+    ]
     list_filter = ["source_type", "result_type", "created_at"]
     search_fields = ["summary"]
     readonly_fields = ["id", "created_at"]
@@ -131,7 +159,14 @@ class ExperimentDesignAdmin(admin.ModelAdmin):
 class TrialInline(admin.TabularInline):
     model = Trial
     extra = 0
-    fields = ["sequence", "title", "verdict", "before_value", "after_value", "is_adopted"]
+    fields = [
+        "sequence",
+        "title",
+        "verdict",
+        "before_value",
+        "after_value",
+        "is_adopted",
+    ]
     readonly_fields = ["sequence", "started_at"]
 
 
@@ -144,7 +179,15 @@ class NotebookPageInline(admin.TabularInline):
 
 @admin.register(Notebook)
 class NotebookAdmin(admin.ModelAdmin):
-    list_display = ["title", "project", "owner", "status", "baseline_value", "current_value", "created_at"]
+    list_display = [
+        "title",
+        "project",
+        "owner",
+        "status",
+        "baseline_value",
+        "current_value",
+        "created_at",
+    ]
     list_filter = ["status", "created_at"]
     search_fields = ["title", "owner__email"]
     readonly_fields = ["id", "created_at", "updated_at", "concluded_at"]
@@ -153,7 +196,15 @@ class NotebookAdmin(admin.ModelAdmin):
 
 @admin.register(Trial)
 class TrialAdmin(admin.ModelAdmin):
-    list_display = ["title", "notebook", "sequence", "verdict", "before_value", "after_value", "is_adopted"]
+    list_display = [
+        "title",
+        "notebook",
+        "sequence",
+        "verdict",
+        "before_value",
+        "after_value",
+        "is_adopted",
+    ]
     list_filter = ["verdict", "is_adopted"]
     search_fields = ["title", "notebook__title"]
     readonly_fields = ["id", "started_at", "completed_at"]
@@ -161,7 +212,15 @@ class TrialAdmin(admin.ModelAdmin):
 
 @admin.register(NotebookPage)
 class NotebookPageAdmin(admin.ModelAdmin):
-    list_display = ["title", "notebook", "page_type", "source_tool", "trial_role", "sequence", "created_at"]
+    list_display = [
+        "title",
+        "notebook",
+        "page_type",
+        "source_tool",
+        "trial_role",
+        "sequence",
+        "created_at",
+    ]
     list_filter = ["page_type", "source_tool", "trial_role"]
     search_fields = ["title", "notebook__title"]
     readonly_fields = ["id", "created_at"]
@@ -199,7 +258,14 @@ class StudentEnrollmentInline(admin.TabularInline):
 
 @admin.register(TrainingCenter)
 class TrainingCenterAdmin(admin.ModelAdmin):
-    list_display = ["name", "country", "contact_name", "is_ilssi_partner", "is_ngo", "created_at"]
+    list_display = [
+        "name",
+        "country",
+        "contact_name",
+        "is_ilssi_partner",
+        "is_ngo",
+        "created_at",
+    ]
     list_filter = ["is_ilssi_partner", "is_ngo", "country"]
     search_fields = ["name", "contact_name", "contact_email"]
     readonly_fields = ["id", "created_at", "updated_at"]
@@ -217,7 +283,14 @@ class TrainingProgramAdmin(admin.ModelAdmin):
 
 @admin.register(StudentEnrollment)
 class StudentEnrollmentAdmin(admin.ModelAdmin):
-    list_display = ["user", "program", "status", "enrolled_at", "graduated_at", "conversion_deadline"]
+    list_display = [
+        "user",
+        "program",
+        "status",
+        "enrolled_at",
+        "graduated_at",
+        "conversion_deadline",
+    ]
     list_filter = ["status"]
     search_fields = ["user__email", "program__title"]
     readonly_fields = ["id", "enrolled_at"]
@@ -244,7 +317,13 @@ class ScenarioInline(admin.TabularInline):
 
 @admin.register(QuestionDimension)
 class QuestionDimensionAdmin(admin.ModelAdmin):
-    list_display = ["dimension_number", "instrument", "name", "category", "response_type"]
+    list_display = [
+        "dimension_number",
+        "instrument",
+        "name",
+        "category",
+        "response_type",
+    ]
     list_filter = ["instrument", "category", "response_type"]
     ordering = ["instrument", "dimension_number"]
     inlines = [ScenarioInline]
@@ -252,7 +331,14 @@ class QuestionDimensionAdmin(admin.ModelAdmin):
 
 @admin.register(QuestionnaireResponse)
 class QuestionnaireResponseAdmin(admin.ModelAdmin):
-    list_display = ["user", "dimension", "score", "option_chosen", "instrument_version", "timestamp"]
+    list_display = [
+        "user",
+        "dimension",
+        "score",
+        "option_chosen",
+        "instrument_version",
+        "timestamp",
+    ]
     list_filter = ["dimension__instrument", "instrument_version"]
     search_fields = ["user__email"]
     readonly_fields = ["id", "timestamp"]
@@ -268,7 +354,14 @@ class HaradaGoalAdmin(admin.ModelAdmin):
 
 @admin.register(Window64)
 class Window64Admin(admin.ModelAdmin):
-    list_display = ["text", "user", "goal_number", "position", "cell_type", "is_completed"]
+    list_display = [
+        "text",
+        "user",
+        "goal_number",
+        "position",
+        "cell_type",
+        "is_completed",
+    ]
     list_filter = ["cell_type", "is_completed", "goal_number"]
     search_fields = ["text", "user__email"]
 

@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0046_iso_document_creator'),
+        ("agents_api", "0046_iso_document_creator"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='fmearow',
-            name='spc_measurement',
-            field=models.CharField(blank=True, default='', max_length=255),
+            model_name="fmearow",
+            name="spc_measurement",
+            field=models.CharField(blank=True, default="", max_length=255),
         ),
     ]

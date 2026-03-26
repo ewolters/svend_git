@@ -6,44 +6,44 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('workbench', '0005_alter_epistemiclog_led_to_dead_end_and_more'),
+        ("workbench", "0005_alter_epistemiclog_led_to_dead_end_and_more"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='evidence',
-            name='hypothesis',
+            model_name="evidence",
+            name="hypothesis",
         ),
         migrations.RemoveField(
-            model_name='hypothesis',
-            name='project',
+            model_name="hypothesis",
+            name="project",
         ),
         migrations.RemoveField(
-            model_name='project',
-            name='user',
+            model_name="project",
+            name="user",
         ),
         migrations.RemoveField(
-            model_name='knowledgegraph',
-            name='project',
+            model_name="knowledgegraph",
+            name="project",
         ),
         migrations.RemoveField(
-            model_name='workbench',
-            name='project',
+            model_name="workbench",
+            name="project",
         ),
         migrations.RemoveField(
-            model_name='epistemiclog',
-            name='project',
+            model_name="epistemiclog",
+            name="project",
         ),
         migrations.DeleteModel(
-            name='Conversation',
+            name="Conversation",
         ),
         migrations.DeleteModel(
-            name='Evidence',
+            name="Evidence",
         ),
         migrations.DeleteModel(
-            name='Hypothesis',
+            name="Hypothesis",
         ),
         migrations.DeleteModel(
-            name='Project',
+            name="Project",
         ),
     ]

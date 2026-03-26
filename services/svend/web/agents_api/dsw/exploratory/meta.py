@@ -25,18 +25,30 @@ def run_meta_analysis(df, config):
             se_col = config.get("se_col", "")
             study_col = config.get("study_col", "")
             if not all([effect_col, se_col, study_col]):
-                result["summary"] = "Please specify effect size, SE, and study label columns."
+                result["summary"] = (
+                    "Please specify effect size, SE, and study label columns."
+                )
                 return result
             effects = df[effect_col].dropna().values.astype(float)
             ses = df[se_col].dropna().values.astype(float)
             studies = df[study_col].values[: len(effects)]
         else:
             # Raw mode: compute Cohen's d
-            m1c, s1c, n1c = config.get("mean1_col", ""), config.get("sd1_col", ""), config.get("n1_col", "")
-            m2c, s2c, n2c = config.get("mean2_col", ""), config.get("sd2_col", ""), config.get("n2_col", "")
+            m1c, s1c, n1c = (
+                config.get("mean1_col", ""),
+                config.get("sd1_col", ""),
+                config.get("n1_col", ""),
+            )
+            m2c, s2c, n2c = (
+                config.get("mean2_col", ""),
+                config.get("sd2_col", ""),
+                config.get("n2_col", ""),
+            )
             study_col = config.get("study_col", "")
             if not all([m1c, s1c, n1c, m2c, s2c, n2c]):
-                result["summary"] = "Please specify all 6 raw data columns (mean, SD, n for each group)."
+                result["summary"] = (
+                    "Please specify all 6 raw data columns (mean, SD, n for each group)."
+                )
                 return result
             m1 = df[m1c].values.astype(float)
             s1 = df[s1c].values.astype(float)
@@ -47,7 +59,11 @@ def run_meta_analysis(df, config):
             sp = np.sqrt(((n1 - 1) * s1**2 + (n2 - 1) * s2**2) / (n1 + n2 - 2))
             effects = (m1 - m2) / sp
             ses = np.sqrt(1 / n1 + 1 / n2 + effects**2 / (2 * (n1 + n2)))
-            studies = df[study_col].values[: len(effects)] if study_col else np.arange(1, len(effects) + 1)
+            studies = (
+                df[study_col].values[: len(effects)]
+                if study_col
+                else np.arange(1, len(effects) + 1)
+            )
 
         k = len(effects)
         if k < 2:
@@ -90,7 +106,9 @@ def run_meta_analysis(df, config):
         re_p = float(2 * (1 - norm_dist.cdf(abs(re_z))))
 
         interpretation = (
-            "Low heterogeneity" if I2 < 25 else ("Moderate heterogeneity" if I2 < 75 else "High heterogeneity")
+            "Low heterogeneity"
+            if I2 < 25
+            else ("Moderate heterogeneity" if I2 < 75 else "High heterogeneity")
         )
         if I2 < 40:
             interpretation += " — fixed and random effects models give similar results."
@@ -149,7 +167,10 @@ Interpretation:
                 "mode": "markers",
                 "name": "Studies",
                 "marker": {
-                    "size": [max(4, min(16, float(w_re[i] / np.max(w_re) * 16))) for i in range(k)],
+                    "size": [
+                        max(4, min(16, float(w_re[i] / np.max(w_re) * 16)))
+                        for i in range(k)
+                    ],
                     "color": "rgba(74,144,217,0.8)",
                 },
                 "error_x": {
@@ -221,7 +242,11 @@ Interpretation:
                     # Funnel lines
                     {
                         "type": "scatter",
-                        "x": [re_est - 1.96 * max(ses), re_est, re_est + 1.96 * max(ses)],
+                        "x": [
+                            re_est - 1.96 * max(ses),
+                            re_est,
+                            re_est + 1.96 * max(ses),
+                        ],
                         "y": [max(ses), 0, max(ses)],
                         "mode": "lines",
                         "line": {"color": "gray", "dash": "dash"},
@@ -252,10 +277,16 @@ Interpretation:
         )
 
         # Narrative
-        _ma_sig = "statistically significant" if re_p < 0.05 else "not statistically significant"
+        _ma_sig = (
+            "statistically significant"
+            if re_p < 0.05
+            else "not statistically significant"
+        )
         _ma_het = "low" if I2 < 25 else ("moderate" if I2 < 75 else "high")
         _ma_model = (
-            "Fixed effects may suffice." if I2 < 25 else "Random effects model is preferred due to heterogeneity."
+            "Fixed effects may suffice."
+            if I2 < 25
+            else "Random effects model is preferred due to heterogeneity."
         )
         result["narrative"] = _narrative(
             f"Meta-Analysis — {k} studies, pooled effect = {re_est:.4f} (RE)",
@@ -379,7 +410,12 @@ Interpretation:
             if effect_type == "odds_ratio":
                 if b * c > 0:
                     es = (a * dd) / (b * c)
-                    se_ln = np.sqrt(1 / max(a, 0.5) + 1 / max(b, 0.5) + 1 / max(c, 0.5) + 1 / max(dd, 0.5))
+                    se_ln = np.sqrt(
+                        1 / max(a, 0.5)
+                        + 1 / max(b, 0.5)
+                        + 1 / max(c, 0.5)
+                        + 1 / max(dd, 0.5)
+                    )
                 else:
                     es, se_ln = 0, 0
                 name = "Odds Ratio"
@@ -387,7 +423,12 @@ Interpretation:
                 r1 = a / (a + b) if (a + b) > 0 else 0
                 r2 = c / (c + dd) if (c + dd) > 0 else 0
                 es = r1 / r2 if r2 > 0 else 0
-                se_ln = np.sqrt(1 / max(a, 0.5) - 1 / max(a + b, 1) + 1 / max(c, 0.5) - 1 / max(c + dd, 1))
+                se_ln = np.sqrt(
+                    1 / max(a, 0.5)
+                    - 1 / max(a + b, 1)
+                    + 1 / max(c, 0.5)
+                    - 1 / max(c + dd, 1)
+                )
                 name = "Risk Ratio"
 
             ci_lo = es * np.exp(-1.96 * se_ln) if es > 0 else 0
@@ -537,7 +578,9 @@ def run_copula(df, config):
     ll_gauss = float(
         np.sum(
             sp_stats.multivariate_normal.logpdf(
-                np.column_stack([z_u, z_v]), mean=[0, 0], cov=[[1, rho_gauss], [rho_gauss, 1]]
+                np.column_stack([z_u, z_v]),
+                mean=[0, 0],
+                cov=[[1, rho_gauss], [rho_gauss, 1]],
             )
             - sp_stats.norm.logpdf(z_u)
             - sp_stats.norm.logpdf(z_v)
@@ -554,7 +597,13 @@ def run_copula(df, config):
     try:
         t = theta_clayton
         term = np.clip(u ** (-t) + v ** (-t) - 1, 1e-15, None)
-        ll_clayton = float(np.sum(np.log(1 + t) + (-1 - t) * (np.log(u) + np.log(v)) + (-1 / t - 2) * np.log(term)))
+        ll_clayton = float(
+            np.sum(
+                np.log(1 + t)
+                + (-1 - t) * (np.log(u) + np.log(v))
+                + (-1 / t - 2) * np.log(term)
+            )
+        )
     except Exception:
         ll_clayton = -np.inf
 
@@ -600,7 +649,13 @@ def run_copula(df, config):
 
     # Compare by AIC (each copula has 1 parameter)
     copulas = [
-        {"name": "Gaussian", "param": rho_gauss, "param_name": "\u03c1", "ll": ll_gauss, "aic": -2 * ll_gauss + 2},
+        {
+            "name": "Gaussian",
+            "param": rho_gauss,
+            "param_name": "\u03c1",
+            "ll": ll_gauss,
+            "aic": -2 * ll_gauss + 2,
+        },
         {
             "name": "Clayton",
             "param": theta_clayton,
@@ -608,7 +663,13 @@ def run_copula(df, config):
             "ll": ll_clayton,
             "aic": -2 * ll_clayton + 2,
         },
-        {"name": "Frank", "param": theta_frank, "param_name": "\u03b8", "ll": ll_frank, "aic": -2 * ll_frank + 2},
+        {
+            "name": "Frank",
+            "param": theta_frank,
+            "param_name": "\u03b8",
+            "ll": ll_frank,
+            "aic": -2 * ll_frank + 2,
+        },
     ]
     copulas.sort(key=lambda c: c["aic"])
     best_cop = copulas[0]
@@ -630,7 +691,9 @@ def run_copula(df, config):
     summary += "<<COLOR:title>>COPULA DEPENDENCY MODELING<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:text>>{var1}<</COLOR>> \u00d7 <<COLOR:text>>{var2}<</COLOR>>    N: {n}\n\n"
-    summary += "<<COLOR:accent>>\u2500\u2500 Marginal Correlations \u2500\u2500<</COLOR>>\n"
+    summary += (
+        "<<COLOR:accent>>\u2500\u2500 Marginal Correlations \u2500\u2500<</COLOR>>\n"
+    )
     summary += f"  Pearson r:    {pearson_r:.4f} (p={pearson_p:.4f})\n"
     summary += f"  Spearman \u03c1:  {spearman_r:.4f} (p={spearman_p:.4f})\n"
     summary += f"  Kendall \u03c4:   {kendall_tau:.4f} (p={kendall_p:.4f})\n\n"
@@ -700,7 +763,11 @@ def run_copula(df, config):
                     "marker": {"size": 4, "color": "#4a9f6e", "opacity": 0.5},
                 }
             ],
-            "layout": {"height": 280, "xaxis": {"title": var1}, "yaxis": {"title": var2}},
+            "layout": {
+                "height": 280,
+                "xaxis": {"title": var1},
+                "yaxis": {"title": var2},
+            },
         }
     )
 

@@ -32,7 +32,16 @@ from agents_api.dsw.common import (
 # ── Allowed color set ────────────────────────────────────────────────────
 
 ALLOWED_HEX = {c.lower() for c in SVEND_COLORS} | {
-    c.lower() for c in [COLOR_GOOD, COLOR_BAD, COLOR_WARNING, COLOR_INFO, COLOR_NEUTRAL, COLOR_REFERENCE, COLOR_GOLD]
+    c.lower()
+    for c in [
+        COLOR_GOOD,
+        COLOR_BAD,
+        COLOR_WARNING,
+        COLOR_INFO,
+        COLOR_NEUTRAL,
+        COLOR_REFERENCE,
+        COLOR_GOLD,
+    ]
 }
 
 # rgba() pattern: rgba(R, G, B, A)
@@ -410,12 +419,16 @@ class LegendPositionTest(TestCase):
     def test_legend_helper(self):
         """Verify _is_legend_inside_chart detection logic."""
         # Inside chart — FAIL
-        self.assertTrue(_is_legend_inside_chart({"x": 0.98, "y": 0.98, "xanchor": "right"}))
+        self.assertTrue(
+            _is_legend_inside_chart({"x": 0.98, "y": 0.98, "xanchor": "right"})
+        )
         self.assertTrue(_is_legend_inside_chart({"x": 1, "y": 0.5}))
         # Below chart — OK
         self.assertFalse(_is_legend_inside_chart({"y": -0.25, "orientation": "h"}))
         # Above chart horizontal — OK
-        self.assertFalse(_is_legend_inside_chart({"y": 1.15, "orientation": "h", "x": 0.5}))
+        self.assertFalse(
+            _is_legend_inside_chart({"y": 1.15, "orientation": "h", "x": 0.5})
+        )
         # Empty/None — OK
         self.assertFalse(_is_legend_inside_chart({}))
         self.assertFalse(_is_legend_inside_chart(None))
@@ -456,7 +469,9 @@ class DimensionsTest(TestCase):
             layout = plot.get("layout", {})
             h = layout.get("height")
             if h is not None:
-                self.assertIn(h, (300, 350), f"plot[{i}] height={h}, expected 300 or 350")
+                self.assertIn(
+                    h, (300, 350), f"plot[{i}] height={h}, expected 300 or 350"
+                )
 
 
 # ── Typography Tests (VIS-001 §8) ───────────────────────────────────────

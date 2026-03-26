@@ -134,7 +134,9 @@ class ResourceCommitmentModelTest(TestCase):
             name="Frank",
             email="frank@test.com",
         )
-        cls.project = _make_hoshin_project(cls.user, cls.tenant, cls.site, "Reduce Waste")
+        cls.project = _make_hoshin_project(
+            cls.user, cls.tenant, cls.site, "Reduce Waste"
+        )
 
     def test_commitment_fields_exist(self):
         """ResourceCommitment has all required fields per QMS-002 §2.2."""
@@ -381,7 +383,9 @@ class CommitmentAPITest(TestCase):
             name="Frank",
             email="frank@example.com",
         )
-        cls.project = _make_hoshin_project(cls.user, cls.tenant, cls.site, "Improve OEE")
+        cls.project = _make_hoshin_project(
+            cls.user, cls.tenant, cls.site, "Improve OEE"
+        )
 
     def test_create_commitment(self):
         """POST /api/hoshin/commitments/ creates a commitment."""
@@ -525,7 +529,9 @@ class EmployeeImportTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user, cls.tenant = _make_enterprise_user("imp_api", "imp_api@test.com")
-        cls.site = Site.objects.create(tenant=cls.tenant, name="Plant Import", code="IMP")
+        cls.site = Site.objects.create(
+            tenant=cls.tenant, name="Plant Import", code="IMP"
+        )
 
     def _make_csv(self, rows):
         """Build an in-memory CSV file from list of dicts."""
@@ -546,8 +552,18 @@ class EmployeeImportTest(TestCase):
         self.client.force_login(self.user)
         csv_file = self._make_csv(
             [
-                {"name": "Alice", "email": "alice@import.com", "role": "Engineer", "department": "QA"},
-                {"name": "Bob", "email": "bob@import.com", "role": "Technician", "department": "Ops"},
+                {
+                    "name": "Alice",
+                    "email": "alice@import.com",
+                    "role": "Engineer",
+                    "department": "QA",
+                },
+                {
+                    "name": "Bob",
+                    "email": "bob@import.com",
+                    "role": "Technician",
+                    "department": "Ops",
+                },
             ]
         )
         resp = self.client.post(
@@ -559,7 +575,11 @@ class EmployeeImportTest(TestCase):
         data = resp.json()
         self.assertEqual(data["created"], 2)
         self.assertEqual(data["updated"], 0)
-        self.assertTrue(Employee.objects.filter(tenant=self.tenant, email="alice@import.com").exists())
+        self.assertTrue(
+            Employee.objects.filter(
+                tenant=self.tenant, email="alice@import.com"
+            ).exists()
+        )
 
     def test_import_deduplicates_by_email(self):
         """Re-importing same email updates instead of creating duplicate."""
@@ -572,7 +592,12 @@ class EmployeeImportTest(TestCase):
         self.client.force_login(self.user)
         csv_file = self._make_csv(
             [
-                {"name": "Carol Updated", "email": "carol@import.com", "role": "New Role", "department": "Engineering"},
+                {
+                    "name": "Carol Updated",
+                    "email": "carol@import.com",
+                    "role": "New Role",
+                    "department": "Engineering",
+                },
             ]
         )
         resp = self.client.post(
@@ -618,7 +643,9 @@ class EmployeeTimelineTest(TestCase):
             name="Dave",
             email="dave@tl.com",
         )
-        cls.project = _make_hoshin_project(cls.user, cls.tenant, cls.site, "Timeline Project")
+        cls.project = _make_hoshin_project(
+            cls.user, cls.tenant, cls.site, "Timeline Project"
+        )
         # Active commitment in April-June 2026
         ResourceCommitment.objects.create(
             employee=cls.emp,
@@ -674,7 +701,9 @@ class FacilitatorCalendarTest(TestCase):
             name="Eve",
             email="eve@fc.com",
         )
-        cls.proj1 = _make_hoshin_project(cls.user, cls.tenant, cls.site, "Project Alpha")
+        cls.proj1 = _make_hoshin_project(
+            cls.user, cls.tenant, cls.site, "Project Alpha"
+        )
         cls.proj2 = _make_hoshin_project(cls.user, cls.tenant, cls.site, "Project Beta")
 
         # Two overlapping facilitator commitments (5h + 5h = 10h > 8h)

@@ -20,7 +20,11 @@ def build_commitment_request_email(commitment, confirm_token, decline_token):
     employee = commitment.employee
     project_title = commitment.project.project.title
     requester = commitment.requested_by
-    requester_name = requester.get_full_name() or requester.email if requester else "A project coordinator"
+    requester_name = (
+        requester.get_full_name() or requester.email
+        if requester
+        else "A project coordinator"
+    )
     role_display = commitment.get_role_display()
 
     subject = f"[Svend] Resource commitment request: {project_title}"
@@ -65,7 +69,11 @@ def send_commitment_request_email_task(payload, context=None):
     from agents_api.models import ActionToken, ResourceCommitment
     from api.internal_views import EMAIL_TEMPLATE
 
-    args = payload.get("args", {}) if isinstance(payload, dict) else getattr(payload, "args", {}) or {}
+    args = (
+        payload.get("args", {})
+        if isinstance(payload, dict)
+        else getattr(payload, "args", {}) or {}
+    )
     commitment_id = args.get("commitment_id")
     confirm_token_id = args.get("confirm_token_id")
     decline_token_id = args.get("decline_token_id")
@@ -74,15 +82,17 @@ def send_commitment_request_email_task(payload, context=None):
         return {"error": "Missing required args"}
 
     try:
-        commitment = ResourceCommitment.objects.select_related("employee", "project__project", "requested_by").get(
-            id=commitment_id
-        )
+        commitment = ResourceCommitment.objects.select_related(
+            "employee", "project__project", "requested_by"
+        ).get(id=commitment_id)
         confirm_tok = ActionToken.objects.get(id=confirm_token_id)
         decline_tok = ActionToken.objects.get(id=decline_token_id)
     except (ResourceCommitment.DoesNotExist, ActionToken.DoesNotExist) as e:
         return {"error": str(e)}
 
-    subject, body_html = build_commitment_request_email(commitment, confirm_tok, decline_tok)
+    subject, body_html = build_commitment_request_email(
+        commitment, confirm_tok, decline_tok
+    )
 
     # Wrap in branded template — no unsubscribe for transactional non-user email
     full_html = EMAIL_TEMPLATE.format(body=body_html, unsub_url="https://svend.ai")
@@ -97,5 +107,7 @@ def send_commitment_request_email_task(payload, context=None):
         )
         return {"sent": True, "email": commitment.employee.email}
     except Exception:
-        logger.exception("Failed to send commitment email to %s", commitment.employee.email)
+        logger.exception(
+            "Failed to send commitment email to %s", commitment.employee.email
+        )
         return {"sent": False, "error": "SMTP failure"}

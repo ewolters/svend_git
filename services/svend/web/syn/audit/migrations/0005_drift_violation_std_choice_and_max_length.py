@@ -6,13 +6,31 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('audit', '0004_add_remediation_change_backlinks'),
+        ("audit", "0004_add_remediation_change_backlinks"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='driftviolation',
-            name='enforcement_check',
-            field=models.CharField(choices=[('ENC-001', 'ENC-001 - Primitive Organization'), ('ENC-002', 'ENC-002 - Layer Imports'), ('ENC-003', 'ENC-003 - Field Naming'), ('ENC-004', 'ENC-004 - Event Naming'), ('ENC-005', 'ENC-005 - Security Patterns'), ('ENC-006', 'ENC-006 - Serializer Patterns'), ('ENC-007', 'ENC-007 - Pure Functions'), ('ENC-008', 'ENC-008 - Pydantic V2'), ('ENC-009', 'ENC-009 - Primitive Pattern'), ('ENC-010', 'ENC-010 - Test Coverage'), ('ENC-011', 'ENC-011 - Tenant Isolation'), ('STD', 'STD - Standards Compliance')], db_index=True, help_text='Enforcement check that detected this violation', max_length=20),
+            model_name="driftviolation",
+            name="enforcement_check",
+            field=models.CharField(
+                choices=[
+                    ("ENC-001", "ENC-001 - Primitive Organization"),
+                    ("ENC-002", "ENC-002 - Layer Imports"),
+                    ("ENC-003", "ENC-003 - Field Naming"),
+                    ("ENC-004", "ENC-004 - Event Naming"),
+                    ("ENC-005", "ENC-005 - Security Patterns"),
+                    ("ENC-006", "ENC-006 - Serializer Patterns"),
+                    ("ENC-007", "ENC-007 - Pure Functions"),
+                    ("ENC-008", "ENC-008 - Pydantic V2"),
+                    ("ENC-009", "ENC-009 - Primitive Pattern"),
+                    ("ENC-010", "ENC-010 - Test Coverage"),
+                    ("ENC-011", "ENC-011 - Tenant Isolation"),
+                    ("STD", "STD - Standards Compliance"),
+                ],
+                db_index=True,
+                help_text="Enforcement check that detected this violation",
+                max_length=20,
+            ),
         ),
     ]

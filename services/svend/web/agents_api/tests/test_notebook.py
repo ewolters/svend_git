@@ -436,11 +436,21 @@ class NotebookPageTest(TestCase):
                 "source_tool": "ishikawa",
                 "inputs": {
                     "effect": "High scrap rate on Line 3",
-                    "categories": ["Man", "Machine", "Method", "Material", "Measurement", "Mother Nature"],
+                    "categories": [
+                        "Man",
+                        "Machine",
+                        "Method",
+                        "Material",
+                        "Measurement",
+                        "Mother Nature",
+                    ],
                     "total_causes": 12,
                 },
                 "outputs": {
-                    "root_causes": ["Feed rate too high", "No operator refresher training"],
+                    "root_causes": [
+                        "Feed rate too high",
+                        "No operator refresher training",
+                    ],
                     "status": "complete",
                     "branch_count": 6,
                 },
@@ -539,7 +549,9 @@ class ConcludeAndReflectTest(TestCase):
 
         # Verify in DB
         yokoten = Yokoten.objects.get(source_notebook=self.nb)
-        self.assertEqual(yokoten.learning, "Alignment jigs reduce scrap on high-speed lines")
+        self.assertEqual(
+            yokoten.learning, "Alignment jigs reduce scrap on high-speed lines"
+        )
 
     def test_conclude_requires_active_status(self):
         """Cannot conclude an open notebook (no trials)."""
@@ -669,7 +681,9 @@ class FrontMatterTest(TestCase):
         self.user = _make_user("fm@test.com")
         self.client = _authed_client(self.user)
         self.charter = _make_charter(self.user)
-        self.nb = Notebook.objects.create(project=self.charter, title="Front Matter NB", owner=self.user)
+        self.nb = Notebook.objects.create(
+            project=self.charter, title="Front Matter NB", owner=self.user
+        )
 
     def test_add_personal_note_as_front_matter(self):
         """POST /api/notebooks/{id}/front-matter/ creates a front matter page."""
@@ -686,7 +700,9 @@ class FrontMatterTest(TestCase):
         data = res.json()
         self.assertEqual(data["trial_role"], "front_matter")
         self.assertEqual(data["source_tool"], "anti_pattern")
-        self.assertTrue(data["sequence"] < 0, "Front matter should have negative sequence")
+        self.assertTrue(
+            data["sequence"] < 0, "Front matter should have negative sequence"
+        )
 
     def test_front_matter_sorts_before_trial_pages(self):
         """Front matter pages appear before regular pages in timeline."""
@@ -713,7 +729,9 @@ class FrontMatterTest(TestCase):
     def test_yokoten_adoption_creates_front_matter(self):
         """Adopting yokoten creates a front matter page in target notebook."""
         # Source notebook with yokoten
-        source_nb = Notebook.objects.create(project=self.charter, title="Source NB", owner=self.user)
+        source_nb = Notebook.objects.create(
+            project=self.charter, title="Source NB", owner=self.user
+        )
         yokoten = Yokoten.objects.create(
             source_notebook=source_nb,
             learning="Alignment jigs reduce scrap on high-speed lines",
@@ -731,7 +749,9 @@ class FrontMatterTest(TestCase):
         self.assertEqual(res.status_code, 201)
 
         # Check front matter page was created
-        fm_pages = NotebookPage.objects.filter(notebook=self.nb, trial_role="front_matter", source_tool="yokoten")
+        fm_pages = NotebookPage.objects.filter(
+            notebook=self.nb, trial_role="front_matter", source_tool="yokoten"
+        )
         self.assertEqual(fm_pages.count(), 1)
         page = fm_pages.first()
         self.assertIn("Alignment jigs", page.narrative)
@@ -756,7 +776,9 @@ class FrontMatterTest(TestCase):
             {"title": "Note 3", "narrative": "Third"},
         )
 
-        fm = NotebookPage.objects.filter(notebook=self.nb, trial_role="front_matter").order_by("sequence")
+        fm = NotebookPage.objects.filter(
+            notebook=self.nb, trial_role="front_matter"
+        ).order_by("sequence")
         self.assertEqual(fm.count(), 3)
         sequences = [p.sequence for p in fm]
         # All negative, all unique, sorted ascending

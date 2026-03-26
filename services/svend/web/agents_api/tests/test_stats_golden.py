@@ -103,7 +103,9 @@ class GoldenFileTest(TestCase):
         self.assertIsNotNone(case, f"No calibration case for {case_id}")
 
         # Run the analysis using case data
-        result = _run_analysis(case.analysis_type, case.analysis_id, case.config, case.data)
+        result = _run_analysis(
+            case.analysis_type, case.analysis_id, case.config, case.data
+        )
         self.assertIsNotNone(result, f"{case_id}: analysis returned None")
 
         # Check each expected value
@@ -136,12 +138,17 @@ class GoldenFileTest(TestCase):
                 tolerance = float(spec["tolerance"])
                 deviation = abs(actual_f - expected_f)
                 if deviation > tolerance:
-                    failures.append(f"  {key}: |{actual_f:.6f} - {expected_f}| = {deviation:.6f} > {tolerance}")
+                    failures.append(
+                        f"  {key}: |{actual_f:.6f} - {expected_f}| = {deviation:.6f} > {tolerance}"
+                    )
             except (TypeError, ValueError):
                 failures.append(f"  {key}: cannot compare {actual} vs {spec['value']}")
 
         if failures:
-            self.fail(f"Golden file {golden_path.name} ({case_id}) failed:\n" + "\n".join(failures))
+            self.fail(
+                f"Golden file {golden_path.name} ({case_id}) failed:\n"
+                + "\n".join(failures)
+            )
 
 
 def _make_golden_test(golden_path):
@@ -178,7 +185,11 @@ class GoldenFileInventoryTest(TestCase):
             with open(gf) as f:
                 data = json.load(f)
             self.assertIn("case_id", data, f"{gf.name} missing case_id")
-            self.assertIn(data["case_id"], cases, f"{gf.name} references unknown case {data['case_id']}")
+            self.assertIn(
+                data["case_id"],
+                cases,
+                f"{gf.name} references unknown case {data['case_id']}",
+            )
 
     def test_priority_1_coverage(self):
         """Check Priority 1 analysis types have golden files."""
@@ -216,4 +227,6 @@ class GoldenFileInventoryTest(TestCase):
             covered.add(data.get("analysis_id", ""))
 
         missing = priority_1 - covered
-        self.assertEqual(missing, set(), f"Priority 1 analyses without golden files: {missing}")
+        self.assertEqual(
+            missing, set(), f"Priority 1 analyses without golden files: {missing}"
+        )

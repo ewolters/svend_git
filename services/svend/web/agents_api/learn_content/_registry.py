@@ -16,8 +16,18 @@ from .advanced_statistics import (
     RESPONSE_SURFACE,
 )
 from .capstone import CAPSTONE_OVERVIEW, CAPSTONE_PROJECT
-from .case_studies import CASE_AB_TEST, CASE_CLINICAL_TRIAL, CASE_MANUFACTURING, CASE_OBSERVATIONAL
-from .causal_inference import AB_TESTING_CAUSAL, CAUSAL_THINKING, CONFOUNDING, NATURAL_EXPERIMENTS
+from .case_studies import (
+    CASE_AB_TEST,
+    CASE_CLINICAL_TRIAL,
+    CASE_MANUFACTURING,
+    CASE_OBSERVATIONAL,
+)
+from .causal_inference import (
+    AB_TESTING_CAUSAL,
+    CAUSAL_THINKING,
+    CONFOUNDING,
+    NATURAL_EXPERIMENTS,
+)
 from .critical_evaluation import (
     META_ANALYSIS_LITERACY,
     READING_PAPERS,

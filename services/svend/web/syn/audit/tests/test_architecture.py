@@ -96,7 +96,10 @@ class LayerBoundaryTest(SimpleTestCase):
     def test_syn_no_feature_imports(self):
         violations = _check_arch_layer_boundaries(WEB_ROOT)
         if violations:
-            detail = "\n".join(f"  {v['file']}:{v['line']} imports {v['import']}" for v in violations[:10])
+            detail = "\n".join(
+                f"  {v['file']}:{v['line']} imports {v['import']}"
+                for v in violations[:10]
+            )
             self.fail(f"syn/ imports from feature apps:\n{detail}")
 
     def test_feature_apps_list_complete(self):
@@ -111,7 +114,9 @@ class GrowthBoundaryTest(SimpleTestCase):
         oversized = _check_arch_file_sizes(WEB_ROOT)
         failures = [f for f in oversized if f["severity"] == "fail"]
         if failures:
-            detail = "\n".join(f"  {f['file']}: {f['lines']} lines" for f in failures[:10])
+            detail = "\n".join(
+                f"  {f['file']}: {f['lines']} lines" for f in failures[:10]
+            )
             self.fail(f"Files exceed {_ARCH_FILE_SIZE_FAIL} lines:\n{detail}")
 
     def test_threshold_constants(self):
@@ -184,7 +189,10 @@ class CoreLayerTest(SimpleTestCase):
     def test_no_core_feature_imports(self):
         violations = _check_arch_core_layer(WEB_ROOT)
         if violations:
-            detail = "\n".join(f"  {v['file']}:{v['line']} imports {v['import']}" for v in violations[:10])
+            detail = "\n".join(
+                f"  {v['file']}:{v['line']} imports {v['import']}"
+                for v in violations[:10]
+            )
             self.fail(f"core/ imports from feature apps:\n{detail}")
 
     def test_exempt_list_documented(self):
@@ -222,7 +230,9 @@ class TestPlacementTest(SimpleTestCase):
         """syn/ tests are all in tests/ directories."""
         violations = _check_arch_test_placement(WEB_ROOT)
         syn_violations = [v for v in violations if v.startswith("syn/")]
-        self.assertEqual(syn_violations, [], f"syn/ tests outside tests/ dirs: {syn_violations}")
+        self.assertEqual(
+            syn_violations, [], f"syn/ tests outside tests/ dirs: {syn_violations}"
+        )
 
 
 class TestInitTest(SimpleTestCase):
@@ -239,7 +249,10 @@ class TestCaseInProdTest(SimpleTestCase):
     def test_no_testcase_in_prod(self):
         violations = _check_arch_testcase_in_prod(WEB_ROOT)
         if violations:
-            detail = "\n".join(f"  {v['file']}:{v['line']} class {v['class']}({v['base']})" for v in violations[:10])
+            detail = "\n".join(
+                f"  {v['file']}:{v['line']} class {v['class']}({v['base']})"
+                for v in violations[:10]
+            )
             self.fail(f"TestCase subclasses in non-test files:\n{detail}")
 
 

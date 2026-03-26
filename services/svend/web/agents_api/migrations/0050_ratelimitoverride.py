@@ -8,23 +8,45 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0049_trainingrecord_competency_level'),
+        ("agents_api", "0049_trainingrecord_competency_level"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='RateLimitOverride',
+            name="RateLimitOverride",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('tier', models.CharField(max_length=20, unique=True)),
-                ('daily_llm_limit', models.PositiveIntegerField(help_text='Max LLM requests/day')),
-                ('daily_query_limit', models.PositiveIntegerField(help_text='Max query requests/day')),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('updated_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("tier", models.CharField(max_length=20, unique=True)),
+                (
+                    "daily_llm_limit",
+                    models.PositiveIntegerField(help_text="Max LLM requests/day"),
+                ),
+                (
+                    "daily_query_limit",
+                    models.PositiveIntegerField(help_text="Max query requests/day"),
+                ),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "updated_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'agents_api_ratelimitoverride',
+                "db_table": "agents_api_ratelimitoverride",
             },
         ),
     ]

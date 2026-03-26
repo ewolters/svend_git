@@ -91,7 +91,9 @@ def save_synara(workbench_id: str, synara: Synara = None, user=None) -> bool:
         project.save(update_fields=["synara_state", "updated_at"])
         return True
 
-    logger.warning(f"No project found for workbench_id={workbench_id}, state not persisted")
+    logger.warning(
+        f"No project found for workbench_id={workbench_id}, state not persisted"
+    )
     return False
 
 
@@ -103,7 +105,10 @@ def _require_project(workbench_id: str, user=None):
     """
     project = _resolve_project(workbench_id, user=user)
     if not project:
-        return None, JsonResponse({"error": "No project loaded. Create or select a project first."}, status=400)
+        return None, JsonResponse(
+            {"error": "No project loaded. Create or select a project first."},
+            status=400,
+        )
     return project, None
 
 
@@ -313,7 +318,9 @@ def add_evidence(request, workbench_id: str):
         {
             "success": True,
             "update": result.to_dict(),
-            "expansion_signal": result.expansion_signal.to_dict() if result.expansion_signal else None,
+            "expansion_signal": (
+                result.expansion_signal.to_dict() if result.expansion_signal else None
+            ),
         }
     )
 
@@ -368,7 +375,11 @@ def delete_link(request, workbench_id: str):
     synara = get_synara(workbench_id, user=request.user)
 
     original_len = len(synara.graph.links)
-    synara.graph.links = [lnk for lnk in synara.graph.links if not (lnk.from_id == from_id and lnk.to_id == to_id)]
+    synara.graph.links = [
+        lnk
+        for lnk in synara.graph.links
+        if not (lnk.from_id == from_id and lnk.to_id == to_id)
+    ]
 
     if len(synara.graph.links) == original_len:
         return JsonResponse({"error": "Link not found"}, status=404)
@@ -447,7 +458,9 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
 
     if success:
         if not save_synara(workbench_id, synara, user=request.user):
-            return JsonResponse({"error": "Failed to persist expansion resolution."}, status=500)
+            return JsonResponse(
+                {"error": "Failed to persist expansion resolution."}, status=500
+            )
         return JsonResponse(
             {
                 "success": True,
@@ -677,7 +690,9 @@ def llm_generate_hypotheses(request, workbench_id: str, signal_id: str):
         )
 
     if not save_synara(workbench_id, synara, user=request.user):
-        return JsonResponse({"error": "Failed to persist generated hypotheses."}, status=500)
+        return JsonResponse(
+            {"error": "Failed to persist generated hypotheses."}, status=500
+        )
 
     return JsonResponse(
         {
@@ -737,7 +752,9 @@ def llm_interpret_evidence(request, workbench_id: str):
         return JsonResponse(
             {
                 "error": "LLM unavailable",
-                "fallback_prompt": interface.generate_evidence_interpretation_prompt(evidence, update_result),
+                "fallback_prompt": interface.generate_evidence_interpretation_prompt(
+                    evidence, update_result
+                ),
             },
             status=503,
         )
@@ -1023,7 +1040,9 @@ def add_formal_hypothesis(request, workbench_id: str):
     )
 
     if not save_synara(workbench_id, synara, user=request.user):
-        return JsonResponse({"error": "Failed to persist formal hypothesis."}, status=500)
+        return JsonResponse(
+            {"error": "Failed to persist formal hypothesis."}, status=500
+        )
 
     return JsonResponse(
         {
@@ -1103,7 +1122,9 @@ def evaluate_workbench_hypothesis(request, workbench_id: str, hypothesis_id: str
 
     if result:
         if not save_synara(workbench_id, synara, user=request.user):
-            return JsonResponse({"error": "Failed to persist evaluation results."}, status=500)
+            return JsonResponse(
+                {"error": "Failed to persist evaluation results."}, status=500
+            )
 
     return JsonResponse(
         {

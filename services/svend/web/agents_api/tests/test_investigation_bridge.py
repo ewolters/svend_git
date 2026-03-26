@@ -26,7 +26,12 @@ from agents_api.investigation_bridge import (
     load_synara,
     save_synara,
 )
-from core.models import Investigation, InvestigationMembership, InvestigationToolLink, MeasurementSystem
+from core.models import (
+    Investigation,
+    InvestigationMembership,
+    InvestigationToolLink,
+    MeasurementSystem,
+)
 
 
 def _make_user(email="test@example.com"):
@@ -48,7 +53,9 @@ def _make_investigation(user, **kwargs):
 
 def _make_tool_output(user):
     """Create a MeasurementSystem as a generic tool output for linking."""
-    return MeasurementSystem.objects.create(name="Test Gage", system_type="variable", owner=user)
+    return MeasurementSystem.objects.create(
+        name="Test Gage", system_type="variable", owner=user
+    )
 
 
 class ConnectToolInformationTest(TestCase):
@@ -129,7 +136,9 @@ class ConnectToolInferenceTest(TestCase):
         h_ids = list(synara.to_dict()["graph"]["hypotheses"].keys())
 
         # Now connect SPC inference
-        spc_output = MeasurementSystem.objects.create(name="SPC Output", system_type="variable", owner=self.user)
+        spc_output = MeasurementSystem.objects.create(
+            name="SPC Output", system_type="variable", owner=self.user
+        )
         spec = InferenceSpec(
             event_description="SPC X-bar: 3 points above UCL",
             supports=h_ids[:1],
@@ -270,7 +279,9 @@ class PermissionTest(TestCase):
     def test_member_allowed(self):
         """Investigation member can connect tools."""
         inv = _make_investigation(self.owner, status="active")
-        InvestigationMembership.objects.create(investigation=inv, user=self.member, role="contributor")
+        InvestigationMembership.objects.create(
+            investigation=inv, user=self.member, role="contributor"
+        )
         tool_output = _make_tool_output(self.member)
         spec = HypothesisSpec(description="Member test")
         result = connect_tool(
@@ -330,11 +341,15 @@ class IdempotentLinkTest(TestCase):
             user=self.user,
             spec=spec2,
         )
-        self.assertEqual(InvestigationToolLink.objects.filter(investigation=self.inv).count(), 1)
+        self.assertEqual(
+            InvestigationToolLink.objects.filter(investigation=self.inv).count(), 1
+        )
 
     def test_different_tools_create_separate_links(self):
         """Different tool outputs create separate links."""
-        tool2 = MeasurementSystem.objects.create(name="Second Gage", system_type="variable", owner=self.user)
+        tool2 = MeasurementSystem.objects.create(
+            name="Second Gage", system_type="variable", owner=self.user
+        )
         spec = HypothesisSpec(description="Tool 1")
         connect_tool(
             investigation_id=str(self.inv.id),
@@ -351,7 +366,9 @@ class IdempotentLinkTest(TestCase):
             user=self.user,
             spec=spec2,
         )
-        self.assertEqual(InvestigationToolLink.objects.filter(investigation=self.inv).count(), 2)
+        self.assertEqual(
+            InvestigationToolLink.objects.filter(investigation=self.inv).count(), 2
+        )
 
 
 class LoadSaveSynaraTest(TestCase):

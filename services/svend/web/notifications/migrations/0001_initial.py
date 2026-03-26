@@ -17,22 +17,67 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Notification',
+            name="Notification",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('notification_type', models.CharField(choices=[('capa_status', 'CAPA Status Change'), ('ncr_overdue', 'NCR Overdue'), ('ncr_assigned', 'NCR Assigned'), ('approval_request', 'Approval Request'), ('esig_request', 'E-Signature Request'), ('spc_alarm', 'SPC Alarm'), ('review_due', 'Management Review Due'), ('doc_review', 'Document Review Reminder'), ('training_due', 'Training Due'), ('training_expired', 'Training Expired'), ('audit_scheduled', 'Audit Scheduled'), ('action_due', 'Action Item Due'), ('assignment', 'Assignment Change'), ('system', 'System Notification')], db_index=True, max_length=30)),
-                ('title', models.CharField(max_length=300)),
-                ('message', models.TextField(blank=True, default='')),
-                ('entity_type', models.CharField(blank=True, default='', max_length=30)),
-                ('entity_id', models.UUIDField(blank=True, null=True)),
-                ('is_read', models.BooleanField(db_index=True, default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('recipient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notifications', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "notification_type",
+                    models.CharField(
+                        choices=[
+                            ("capa_status", "CAPA Status Change"),
+                            ("ncr_overdue", "NCR Overdue"),
+                            ("ncr_assigned", "NCR Assigned"),
+                            ("approval_request", "Approval Request"),
+                            ("esig_request", "E-Signature Request"),
+                            ("spc_alarm", "SPC Alarm"),
+                            ("review_due", "Management Review Due"),
+                            ("doc_review", "Document Review Reminder"),
+                            ("training_due", "Training Due"),
+                            ("training_expired", "Training Expired"),
+                            ("audit_scheduled", "Audit Scheduled"),
+                            ("action_due", "Action Item Due"),
+                            ("assignment", "Assignment Change"),
+                            ("system", "System Notification"),
+                        ],
+                        db_index=True,
+                        max_length=30,
+                    ),
+                ),
+                ("title", models.CharField(max_length=300)),
+                ("message", models.TextField(blank=True, default="")),
+                (
+                    "entity_type",
+                    models.CharField(blank=True, default="", max_length=30),
+                ),
+                ("entity_id", models.UUIDField(blank=True, null=True)),
+                ("is_read", models.BooleanField(db_index=True, default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                (
+                    "recipient",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="notifications",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'notifications',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['recipient', 'is_read', '-created_at'], name='ntf_recipient_unread')],
+                "db_table": "notifications",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["recipient", "is_read", "-created_at"],
+                        name="ntf_recipient_unread",
+                    )
+                ],
             },
         ),
     ]

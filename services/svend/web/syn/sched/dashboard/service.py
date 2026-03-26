@@ -90,7 +90,9 @@ class DashboardConfig:
     queue_depth_critical: int = 900
     dlq_warning: int = 50
     dlq_critical: int = 100
-    throttle_warning_levels: set[str] = field(default_factory=lambda: {"MODERATE", "HEAVY"})
+    throttle_warning_levels: set[str] = field(
+        default_factory=lambda: {"MODERATE", "HEAVY"}
+    )
     throttle_critical_levels: set[str] = field(default_factory=lambda: {"CRITICAL"})
     worker_unhealthy_warning: int = 1
     circuit_open_warning: int = 1
@@ -177,7 +179,9 @@ class DashboardService:
         # Metrics history
         self._metrics_history: list[DashboardMetrics] = []
         self._max_history_size = int(
-            self._config.history_retention_hours * 60 / self._config.history_resolution_minutes
+            self._config.history_retention_hours
+            * 60
+            / self._config.history_resolution_minutes
         )
 
     def set_scheduler(self, scheduler: Any) -> None:
@@ -276,14 +280,20 @@ class DashboardService:
             },
             "health": {
                 "scheduler": "running" if metrics.scheduler_running else "stopped",
-                "backpressure": "active" if metrics.backpressure_running else "inactive",
+                "backpressure": (
+                    "active" if metrics.backpressure_running else "inactive"
+                ),
                 "workers": f"{metrics.workers_healthy}/{metrics.workers_healthy + metrics.workers_unhealthy} healthy",
                 "circuits": f"{metrics.circuits_open}/{metrics.circuits_total} open",
                 "throttle_level": metrics.throttle.current_level,
             },
             "alerts": {
-                "critical": sum(1 for a in alerts if a.severity == AlertSeverity.CRITICAL),
-                "warning": sum(1 for a in alerts if a.severity == AlertSeverity.WARNING),
+                "critical": sum(
+                    1 for a in alerts if a.severity == AlertSeverity.CRITICAL
+                ),
+                "warning": sum(
+                    1 for a in alerts if a.severity == AlertSeverity.WARNING
+                ),
                 "total": len(alerts),
             },
             "dlq": {
@@ -396,7 +406,10 @@ class DashboardService:
                 "denied": t.decisions_denied,
                 "deny_rate": f"{t.decisions_denied / max(1, t.decisions_total):.1%}",
             },
-            "time_at_level": {level: self._format_duration(seconds) for level, seconds in t.time_at_level.items()},
+            "time_at_level": {
+                level: self._format_duration(seconds)
+                for level, seconds in t.time_at_level.items()
+            },
         }
 
     def get_schedule_status(self) -> dict[str, Any]:
@@ -519,7 +532,9 @@ class DashboardService:
                     "success_rate": f"{t.success_rate:.1%}",
                     "avg_duration": f"{t.avg_duration_ms:.0f}ms",
                     "p95_duration": f"{t.p95_duration_ms:.0f}ms",
-                    "last_run": t.last_execution.isoformat() if t.last_execution else None,
+                    "last_run": (
+                        t.last_execution.isoformat() if t.last_execution else None
+                    ),
                 }
             )
 
@@ -634,7 +649,11 @@ class DashboardService:
 
         # Circuit breaker alerts
         if metrics.circuits_open >= self._config.circuit_open_warning:
-            severity = AlertSeverity.CRITICAL if metrics.circuits_open >= 3 else AlertSeverity.WARNING
+            severity = (
+                AlertSeverity.CRITICAL
+                if metrics.circuits_open >= 3
+                else AlertSeverity.WARNING
+            )
             new_alerts["circuits_open"] = Alert(
                 id="circuits_open",
                 severity=severity,
@@ -662,7 +681,9 @@ class DashboardService:
             # Remove cleared alerts
             cleared = set(self._active_alerts.keys()) - set(new_alerts.keys())
             for alert_id in cleared:
-                logger.info(f"[DASHBOARD] Alert cleared: {self._active_alerts[alert_id].title}")
+                logger.info(
+                    f"[DASHBOARD] Alert cleared: {self._active_alerts[alert_id].title}"
+                )
                 del self._active_alerts[alert_id]
 
     def get_active_alerts(self) -> list[Alert]:
@@ -761,17 +782,23 @@ class DashboardService:
             # Queue metrics
             for q in metrics.queues:
                 lines.append(f'synara_queue_depth{{queue="{q.queue_name}"}} {q.depth}')
-                lines.append(f'synara_queue_throughput{{queue="{q.queue_name}"}} {q.throughput_per_minute}')
+                lines.append(
+                    f'synara_queue_throughput{{queue="{q.queue_name}"}} {q.throughput_per_minute}'
+                )
 
             # Task summary
             lines.append(f"synara_tasks_pending {metrics.total_pending_tasks}")
             lines.append(f"synara_tasks_running {metrics.total_running_tasks}")
-            lines.append(f"synara_tasks_completed_today {metrics.total_completed_today}")
+            lines.append(
+                f"synara_tasks_completed_today {metrics.total_completed_today}"
+            )
             lines.append(f"synara_tasks_failed_today {metrics.total_failed_today}")
 
             # Throttle
             lines.append(f"synara_throttle_level {metrics.throttle.level_value}")
-            lines.append(f"synara_throttle_emergency {1 if metrics.throttle.is_emergency else 0}")
+            lines.append(
+                f"synara_throttle_emergency {1 if metrics.throttle.is_emergency else 0}"
+            )
 
             # DLQ
             lines.append(f"synara_dlq_pending {metrics.dlq.pending_entries}")

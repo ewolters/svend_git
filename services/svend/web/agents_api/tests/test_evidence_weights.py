@@ -70,7 +70,9 @@ class ToolSourceRanksTest(TestCase):
         """Layer 1 tools that produce evidence have correct ranks."""
         self.assertEqual(TOOL_SOURCE_RANKS["spc"], SourceRank.CONTROLLED_OBSERVATION)
         self.assertEqual(TOOL_SOURCE_RANKS["dsw"], SourceRank.STATISTICAL_TEST)
-        self.assertEqual(TOOL_SOURCE_RANKS["doe_results"], SourceRank.DESIGNED_EXPERIMENT)
+        self.assertEqual(
+            TOOL_SOURCE_RANKS["doe_results"], SourceRank.DESIGNED_EXPERIMENT
+        )
         self.assertEqual(TOOL_SOURCE_RANKS["ml"], SourceRank.SIMULATION)
         self.assertEqual(TOOL_SOURCE_RANKS["forecast"], SourceRank.SIMULATION)
 
@@ -142,12 +144,16 @@ class ToolFunctionsTest(TestCase):
     def test_inference_tools(self):
         """Inference tools: produce evidence that updates posteriors."""
         for tool in ("spc", "dsw", "doe_results", "ml", "forecast"):
-            self.assertEqual(TOOL_FUNCTIONS[tool], "inference", f"{tool} should be inference")
+            self.assertEqual(
+                TOOL_FUNCTIONS[tool], "inference", f"{tool} should be inference"
+            )
 
     def test_information_tools(self):
         """Information tools: build graph structure (hypotheses, links)."""
         for tool in ("rca", "ishikawa", "ce_matrix", "fmea"):
-            self.assertEqual(TOOL_FUNCTIONS[tool], "information", f"{tool} should be information")
+            self.assertEqual(
+                TOOL_FUNCTIONS[tool], "information", f"{tool} should be information"
+            )
 
     def test_intent_tools(self):
         """Intent tools: prescribe experiments."""
@@ -355,7 +361,9 @@ class ComputeEvidenceWeightTest(TestCase):
         """Tools with None rank return 0.0 (not clamped)."""
         for tool in ("triage", "doe_design", "a3", "vsm", "report"):
             result = compute_evidence_weight(tool)
-            self.assertEqual(result, 0.0, f"{tool} should return 0.0 (produces no evidence)")
+            self.assertEqual(
+                result, 0.0, f"{tool} should return 0.0 (produces no evidence)"
+            )
 
     def test_unknown_tool_returns_zero(self):
         """Unknown tool not in registry returns 0.0."""

@@ -9,31 +9,106 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0069_afe_authorization_for_expenditure'),
+        ("agents_api", "0069_afe_authorization_for_expenditure"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ProjectTemplate',
+            name="ProjectTemplate",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=300)),
-                ('description', models.TextField(blank=True)),
-                ('project_class', models.CharField(choices=[('kaizen', 'Kaizen Event'), ('project', 'Extended Project')], default='project', max_length=20)),
-                ('project_type', models.CharField(choices=[('material', 'Material Savings'), ('labor', 'Labor Savings'), ('quality', 'Quality Improvement'), ('throughput', 'Throughput Improvement'), ('energy', 'Energy Reduction'), ('safety', 'Safety Improvement'), ('other', 'Other')], default='material', max_length=20)),
-                ('opportunity', models.CharField(choices=[('carryover', 'Carryover from Prior Year'), ('budgeted_new', 'Budgeted New'), ('contingency', 'Contingency'), ('unplanned', 'Unplanned/Reactive')], default='budgeted_new', max_length=20)),
-                ('calculation_method', models.CharField(blank=True, max_length=30)),
-                ('checklist_ids', models.JSONField(blank=True, default=list, help_text='List of Checklist UUIDs to auto-attach when creating project from template')),
-                ('default_actions', models.JSONField(blank=True, default=list, help_text='[{"title": str, "description": str, "sort_order": int, "source_type": "template"}]')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='project_templates', to=settings.AUTH_USER_MODEL)),
-                ('site', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='project_templates', to='agents_api.site')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("name", models.CharField(max_length=300)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "project_class",
+                    models.CharField(
+                        choices=[
+                            ("kaizen", "Kaizen Event"),
+                            ("project", "Extended Project"),
+                        ],
+                        default="project",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "project_type",
+                    models.CharField(
+                        choices=[
+                            ("material", "Material Savings"),
+                            ("labor", "Labor Savings"),
+                            ("quality", "Quality Improvement"),
+                            ("throughput", "Throughput Improvement"),
+                            ("energy", "Energy Reduction"),
+                            ("safety", "Safety Improvement"),
+                            ("other", "Other"),
+                        ],
+                        default="material",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "opportunity",
+                    models.CharField(
+                        choices=[
+                            ("carryover", "Carryover from Prior Year"),
+                            ("budgeted_new", "Budgeted New"),
+                            ("contingency", "Contingency"),
+                            ("unplanned", "Unplanned/Reactive"),
+                        ],
+                        default="budgeted_new",
+                        max_length=20,
+                    ),
+                ),
+                ("calculation_method", models.CharField(blank=True, max_length=30)),
+                (
+                    "checklist_ids",
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        help_text="List of Checklist UUIDs to auto-attach when creating project from template",
+                    ),
+                ),
+                (
+                    "default_actions",
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        help_text='[{"title": str, "description": str, "sort_order": int, "source_type": "template"}]',
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="project_templates",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "site",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="project_templates",
+                        to="agents_api.site",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'project_templates',
-                'ordering': ['name'],
+                "db_table": "project_templates",
+                "ordering": ["name"],
             },
         ),
     ]

@@ -42,7 +42,9 @@ def _err_msg(resp):
 
 def _make_user(email, tier=Tier.TEAM, **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password="testpass123!", **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123!", **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -62,7 +64,9 @@ class Bug01A3ActionFieldTest(TestCase):
         from core.models import Project
 
         self.project = Project.objects.create(user=self.user, title="A3 Project")
-        self.report = A3Report.objects.create(owner=self.user, project=self.project, title="Test A3")
+        self.report = A3Report.objects.create(
+            owner=self.user, project=self.project, title="Test A3"
+        )
         self.client.force_login(self.user)
 
     def test_list_a3_actions_returns_200(self):
@@ -87,7 +91,9 @@ class Bug01A3ActionFieldTest(TestCase):
         self.assertIn(resp.status_code, [403, 404, 500])
         # Key assertion: other user does NOT get the action items
         if resp.status_code == 200:
-            self.fail("Other user should not access A3 actions belonging to another user")
+            self.fail(
+                "Other user should not access A3 actions belonging to another user"
+            )
 
 
 # =============================================================================
@@ -126,7 +132,11 @@ class Bug02WhiteboardAccessTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(resp.json()["is_owner"])
         # Should be auto-joined as participant
-        self.assertTrue(BoardParticipant.objects.filter(board=self.board, user=self.stranger).exists())
+        self.assertTrue(
+            BoardParticipant.objects.filter(
+                board=self.board, user=self.stranger
+            ).exists()
+        )
 
     def test_update_requires_participation(self):
         """update_board correctly requires prior participation."""
@@ -235,7 +245,9 @@ class Bug05CAPATransitionTypeTest(TestCase):
         self.user = _make_user("capa_type@test.com")
 
     def test_text_field_required_empty(self):
-        capa = CAPAReport(owner=self.user, title="Test", description="Test", status="draft")
+        capa = CAPAReport(
+            owner=self.user, title="Test", description="Test", status="draft"
+        )
         capa.save()
         # containment requires containment_action (text field)
         ok, msg = capa.can_transition("containment")
@@ -349,7 +361,9 @@ class Bug07InviteCodeAtomicTest(TestCase):
     def setUp(self):
         from accounts.models import InviteCode
 
-        self.code = InviteCode.objects.create(code="TEST-ATOM", max_uses=1, is_active=True)
+        self.code = InviteCode.objects.create(
+            code="TEST-ATOM", max_uses=1, is_active=True
+        )
         self.user1 = _make_user("inv1@test.com")
         self.user2 = _make_user("inv2@test.com")
 
@@ -389,7 +403,9 @@ class Bug08FMEAQueryTest(TestCase):
         self.client.force_login(self.user)
         # Create 3 FMEAs with rows
         for i in range(3):
-            fmea = FMEA.objects.create(owner=self.user, title=f"FMEA {i}", fmea_type="process")
+            fmea = FMEA.objects.create(
+                owner=self.user, title=f"FMEA {i}", fmea_type="process"
+            )
             for j in range(2):
                 FMEARow.objects.create(
                     fmea=fmea,
@@ -419,7 +435,9 @@ class Bug08FMEAQueryTest(TestCase):
         """
         # Create 3 more FMEAs to prove queries don't scale linearly
         for i in range(3):
-            fmea = FMEA.objects.create(owner=self.user, title=f"Extra FMEA {i}", fmea_type="process")
+            fmea = FMEA.objects.create(
+                owner=self.user, title=f"Extra FMEA {i}", fmea_type="process"
+            )
             FMEARow.objects.create(
                 fmea=fmea,
                 process_step="S",

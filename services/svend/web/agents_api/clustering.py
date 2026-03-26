@@ -94,8 +94,13 @@ def collect_response_matrix():
 
     # Build matrices
     users = [User.objects.get(id=uid) for uid, _ in complete_users]
-    likert_matrix = np.array([[data[f"likert_{d}"] for d in LIKERT_DIMS] for _, data in complete_users], dtype=float)
-    categorical_matrix = np.array([[data[f"cat_{d}"] for d in FORCED_CHOICE_DIMS] for _, data in complete_users])
+    likert_matrix = np.array(
+        [[data[f"likert_{d}"] for d in LIKERT_DIMS] for _, data in complete_users],
+        dtype=float,
+    )
+    categorical_matrix = np.array(
+        [[data[f"cat_{d}"] for d in FORCED_CHOICE_DIMS] for _, data in complete_users]
+    )
 
     feature_vectors = [
         {
@@ -161,7 +166,9 @@ def run_clustering(payload=None, context=None):
 
     payload: {} (no args needed — processes all users)
     """
-    users, likert_matrix, categorical_matrix, feature_vectors = collect_response_matrix()
+    users, likert_matrix, categorical_matrix, feature_vectors = (
+        collect_response_matrix()
+    )
 
     n_users = len(users)
     if n_users < MIN_USERS_FOR_CLUSTERING:
@@ -177,7 +184,9 @@ def run_clustering(payload=None, context=None):
 
     # Combine into single matrix for k-prototypes (object dtype to hold mixed)
     combined = np.column_stack([likert_matrix, categorical_matrix])
-    categorical_indices = list(range(len(LIKERT_DIMS), len(LIKERT_DIMS) + len(FORCED_CHOICE_DIMS)))
+    categorical_indices = list(
+        range(len(LIKERT_DIMS), len(LIKERT_DIMS) + len(FORCED_CHOICE_DIMS))
+    )
 
     # Find optimal k
     optimal_k = find_optimal_k(likert_matrix, categorical_matrix, categorical_indices)
@@ -199,7 +208,9 @@ def run_clustering(payload=None, context=None):
             # centroids is split: numerical part accessible via index
             try:
                 num_centroid = np.array(centroids[c, : len(LIKERT_DIMS)], dtype=float)
-                distances[str(c)] = float(np.sum((likert_matrix[i] - num_centroid) ** 2))
+                distances[str(c)] = float(
+                    np.sum((likert_matrix[i] - num_centroid) ** 2)
+                )
             except (IndexError, TypeError, ValueError):
                 distances[str(c)] = 0.0
 

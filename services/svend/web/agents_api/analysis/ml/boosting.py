@@ -35,7 +35,9 @@ def _run_boosting(df, analysis_id, config, user):
     features = config.get("features", [])
 
     if not target or not features:
-        result["summary"] = "Error: target and features are required for boosting models."
+        result["summary"] = (
+            "Error: target and features are required for boosting models."
+        )
         return result
 
     X = df[features].dropna()
@@ -63,14 +65,23 @@ def _run_boosting(df, analysis_id, config, user):
         if task_type == "auto":
             task_type = (
                 "classification"
-                if (y.nunique() <= 20 and (y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10))
+                if (
+                    y.nunique() <= 20
+                    and (
+                        y.dtype == object
+                        or y.dtype.name == "category"
+                        or y.nunique() <= 10
+                    )
+                )
                 else "regression"
             )
 
         # Encode target
         label_map = None
         y_work = y.copy()
-        if task_type == "classification" and (y_work.dtype == object or y_work.dtype.name == "category"):
+        if task_type == "classification" and (
+            y_work.dtype == object or y_work.dtype.name == "category"
+        ):
             from sklearn.preprocessing import LabelEncoder
 
             le = LabelEncoder()
@@ -85,10 +96,16 @@ def _run_boosting(df, analysis_id, config, user):
 
         # 3-way split for conformal prediction
         if task_type == "classification":
-            X_train, X_cal, X_test, y_train, y_cal, y_test = _stratified_split_3way(X_enc, y_work)
+            X_train, X_cal, X_test, y_train, y_cal, y_test = _stratified_split_3way(
+                X_enc, y_work
+            )
         else:
-            X_train, X_temp, y_train, y_temp = train_test_split(X_enc, y_work, test_size=0.30, random_state=42)
-            X_cal, X_test, y_cal, y_test = train_test_split(X_temp, y_temp, test_size=0.50, random_state=42)
+            X_train, X_temp, y_train, y_temp = train_test_split(
+                X_enc, y_work, test_size=0.30, random_state=42
+            )
+            X_cal, X_test, y_cal, y_test = train_test_split(
+                X_temp, y_temp, test_size=0.50, random_state=42
+            )
 
         with GPUTrainingContext() as gpu:
             params = {
@@ -179,19 +196,21 @@ def _run_boosting(df, analysis_id, config, user):
                 y_lo, y_hi = cf.predict_interval(y_pred, alpha=0.10)
                 covered = np.sum((y_test.values >= y_lo) & (y_test.values <= y_hi))
                 emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
-                result["summary"] += (
-                    f"\n\nConformal 90% interval: ±{qhat_90:.4f} (empirical coverage: {emp_coverage:.1%}, n_cal={cf.n_cal})"
-                )
+                result[
+                    "summary"
+                ] += f"\n\nConformal 90% interval: ±{qhat_90:.4f} (empirical coverage: {emp_coverage:.1%}, n_cal={cf.n_cal})"
             else:
                 if hasattr(model, "predict_proba"):
                     proba_test = model.predict_proba(X_test)
                     pred_sets, meta = cf.predict_sets(proba_test, alpha=0.10)
-                    covered = sum(1 for i, ps in enumerate(pred_sets) if int(y_test.iloc[i]) in ps)
+                    covered = sum(
+                        1 for i, ps in enumerate(pred_sets) if int(y_test.iloc[i]) in ps
+                    )
                     emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
                     avg_ss = float(np.mean([len(ps) for ps in pred_sets]))
-                    result["summary"] += (
-                        f"\n\nConformal 90% prediction sets: avg size={avg_ss:.2f}, coverage={emp_coverage:.1%}, n_cal={cf.n_cal}"
-                    )
+                    result[
+                        "summary"
+                    ] += f"\n\nConformal 90% prediction sets: avg size={avg_ss:.2f}, coverage={emp_coverage:.1%}, n_cal={cf.n_cal}"
 
             result["statistics"] = result.get("statistics", {})
             result["statistics"]["conformal"] = conformal_state
@@ -237,13 +256,22 @@ def _run_boosting(df, analysis_id, config, user):
         if task_type == "auto":
             task_type = (
                 "classification"
-                if (y.nunique() <= 20 and (y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10))
+                if (
+                    y.nunique() <= 20
+                    and (
+                        y.dtype == object
+                        or y.dtype.name == "category"
+                        or y.nunique() <= 10
+                    )
+                )
                 else "regression"
             )
 
         label_map = None
         y_work = y.copy()
-        if task_type == "classification" and (y_work.dtype == object or y_work.dtype.name == "category"):
+        if task_type == "classification" and (
+            y_work.dtype == object or y_work.dtype.name == "category"
+        ):
             from sklearn.preprocessing import LabelEncoder
 
             le = LabelEncoder()
@@ -257,10 +285,16 @@ def _run_boosting(df, analysis_id, config, user):
 
         # 3-way split for conformal prediction
         if task_type == "classification":
-            X_train, X_cal, X_test, y_train, y_cal, y_test = _stratified_split_3way(X_enc, y_work)
+            X_train, X_cal, X_test, y_train, y_cal, y_test = _stratified_split_3way(
+                X_enc, y_work
+            )
         else:
-            X_train, X_temp, y_train, y_temp = train_test_split(X_enc, y_work, test_size=0.30, random_state=42)
-            X_cal, X_test, y_cal, y_test = train_test_split(X_temp, y_temp, test_size=0.50, random_state=42)
+            X_train, X_temp, y_train, y_temp = train_test_split(
+                X_enc, y_work, test_size=0.30, random_state=42
+            )
+            X_cal, X_test, y_cal, y_test = train_test_split(
+                X_temp, y_temp, test_size=0.50, random_state=42
+            )
 
         with GPUTrainingContext() as gpu:
             params = {
@@ -338,19 +372,21 @@ def _run_boosting(df, analysis_id, config, user):
                 y_lo, y_hi = cf.predict_interval(y_pred, alpha=0.10)
                 covered = np.sum((y_test.values >= y_lo) & (y_test.values <= y_hi))
                 emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
-                result["summary"] += (
-                    f"\n\nConformal 90% interval: ±{qhat_90:.4f} (empirical coverage: {emp_coverage:.1%}, n_cal={cf.n_cal})"
-                )
+                result[
+                    "summary"
+                ] += f"\n\nConformal 90% interval: ±{qhat_90:.4f} (empirical coverage: {emp_coverage:.1%}, n_cal={cf.n_cal})"
             else:
                 if hasattr(model, "predict_proba"):
                     proba_test = model.predict_proba(X_test)
                     pred_sets, meta = cf.predict_sets(proba_test, alpha=0.10)
-                    covered = sum(1 for i, ps in enumerate(pred_sets) if int(y_test.iloc[i]) in ps)
+                    covered = sum(
+                        1 for i, ps in enumerate(pred_sets) if int(y_test.iloc[i]) in ps
+                    )
                     emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
                     avg_ss = float(np.mean([len(ps) for ps in pred_sets]))
-                    result["summary"] += (
-                        f"\n\nConformal 90% prediction sets: avg size={avg_ss:.2f}, coverage={emp_coverage:.1%}, n_cal={cf.n_cal}"
-                    )
+                    result[
+                        "summary"
+                    ] += f"\n\nConformal 90% prediction sets: avg size={avg_ss:.2f}, coverage={emp_coverage:.1%}, n_cal={cf.n_cal}"
 
             result["statistics"] = result.get("statistics", {})
             result["statistics"]["conformal"] = conformal_state

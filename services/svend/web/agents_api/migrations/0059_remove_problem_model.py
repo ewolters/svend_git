@@ -6,11 +6,11 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0058_add_ishikawa_and_ce_matrix'),
+        ("agents_api", "0058_add_ishikawa_and_ce_matrix"),
     ]
 
     operations = [
         migrations.DeleteModel(
-            name='Problem',
+            name="Problem",
         ),
     ]

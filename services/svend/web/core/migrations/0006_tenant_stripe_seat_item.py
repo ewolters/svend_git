@@ -6,13 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0005_org_invitation'),
+        ("core", "0005_org_invitation"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='tenant',
-            name='stripe_seat_item_id',
-            field=models.CharField(blank=True, help_text='Stripe subscription item ID for the seat line item (si_xxx)', max_length=255),
+            model_name="tenant",
+            name="stripe_seat_item_id",
+            field=models.CharField(
+                blank=True,
+                help_text="Stripe subscription item ID for the seat line item (si_xxx)",
+                max_length=255,
+            ),
         ),
     ]

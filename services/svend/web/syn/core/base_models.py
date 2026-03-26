@@ -115,7 +115,12 @@ class SynaraEntity(models.Model):
     # PRIMARY KEY
     # =========================================================================
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, help_text="Primary key (UUID v4)")
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text="Primary key (UUID v4)",
+    )
 
     # =========================================================================
     # CORRELATION TRACKING (CTG-001 §5)
@@ -130,7 +135,10 @@ class SynaraEntity(models.Model):
     )
 
     parent_correlation_id = models.UUIDField(
-        null=True, blank=True, db_index=True, help_text="Parent entity correlation ID for causal chain (CTG-001 §5)"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Parent entity correlation ID for causal chain (CTG-001 §5)",
     )
 
     # =========================================================================
@@ -148,31 +156,56 @@ class SynaraEntity(models.Model):
     # AUDIT TIMESTAMPS (AUD-001)
     # =========================================================================
 
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="Record creation timestamp (AUD-001)")
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="Record creation timestamp (AUD-001)",
+    )
 
-    updated_at = models.DateTimeField(auto_now=True, help_text="Last modification timestamp (AUD-001)")
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="Last modification timestamp (AUD-001)"
+    )
 
-    created_by = models.CharField(max_length=255, blank=True, default="", help_text="User ID who created this record")
+    created_by = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="User ID who created this record",
+    )
 
     updated_by = models.CharField(
-        max_length=255, blank=True, default="", help_text="User ID who last modified this record"
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="User ID who last modified this record",
     )
 
     # =========================================================================
     # SOFT DELETE (DAT-001 §9)
     # =========================================================================
 
-    is_deleted = models.BooleanField(default=False, db_index=True, help_text="Soft delete flag (DAT-001 §9)")
+    is_deleted = models.BooleanField(
+        default=False, db_index=True, help_text="Soft delete flag (DAT-001 §9)"
+    )
 
-    deleted_at = models.DateTimeField(null=True, blank=True, help_text="Deletion timestamp (DAT-001 §9)")
+    deleted_at = models.DateTimeField(
+        null=True, blank=True, help_text="Deletion timestamp (DAT-001 §9)"
+    )
 
-    deleted_by = models.CharField(max_length=255, blank=True, default="", help_text="User ID who deleted this record")
+    deleted_by = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="User ID who deleted this record",
+    )
 
     # =========================================================================
     # EXTENSIBILITY (MOD-001 §10)
     # =========================================================================
 
-    metadata = models.JSONField(default=dict, blank=True, help_text="Extensible metadata (MOD-001 §10)")
+    metadata = models.JSONField(
+        default=dict, blank=True, help_text="Extensible metadata (MOD-001 §10)"
+    )
 
     # =========================================================================
     # MANAGERS
@@ -226,7 +259,9 @@ class SynaraEntity(models.Model):
             if action in synara_meta.emit_events:
                 self._emit_event(action)
 
-    def delete(self, using=None, keep_parents=False, hard_delete=False, deleted_by: str = ""):
+    def delete(
+        self, using=None, keep_parents=False, hard_delete=False, deleted_by: str = ""
+    ):
         """
         Soft delete by default. Use hard_delete=True for permanent deletion.
 
@@ -238,7 +273,9 @@ class SynaraEntity(models.Model):
             self.is_deleted = True
             self.deleted_at = timezone.now()
             self.deleted_by = deleted_by
-            self.save(update_fields=["is_deleted", "deleted_at", "deleted_by", "updated_at"])
+            self.save(
+                update_fields=["is_deleted", "deleted_at", "deleted_by", "updated_at"]
+            )
 
             # Emit deleted event if configured
             synara_meta = self._get_synara_meta()
@@ -258,7 +295,15 @@ class SynaraEntity(models.Model):
         self.deleted_at = None
         self.deleted_by = ""
         self.updated_by = restored_by
-        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by", "updated_by", "updated_at"])
+        self.save(
+            update_fields=[
+                "is_deleted",
+                "deleted_at",
+                "deleted_by",
+                "updated_by",
+                "updated_at",
+            ]
+        )
 
         # Emit restored event
         synara_meta = self._get_synara_meta()
@@ -300,7 +345,11 @@ class SynaraEntity(models.Model):
                 event_name=event_name,
                 payload=event_payload,
                 correlation_id=str(self.correlation_id),
-                parent_correlation_id=str(self.parent_correlation_id) if self.parent_correlation_id else None,
+                parent_correlation_id=(
+                    str(self.parent_correlation_id)
+                    if self.parent_correlation_id
+                    else None
+                ),
             )
 
             logger.debug(
@@ -334,7 +383,9 @@ class SynaraEntity(models.Model):
             "entity_id": str(self.id),
             "entity_type": self.__class__.__name__,
             "correlation_id": str(self.correlation_id),
-            "parent_correlation_id": str(self.parent_correlation_id) if self.parent_correlation_id else None,
+            "parent_correlation_id": (
+                str(self.parent_correlation_id) if self.parent_correlation_id else None
+            ),
             # Handle global entities (tenant_id=None) properly - don't convert to "None" string
             "tenant_id": str(self.tenant_id) if self.tenant_id else None,
             "action": action,
@@ -380,7 +431,8 @@ class SynaraEntity(models.Model):
                 parent_correlation_id=self.correlation_id,
                 child_correlation_id=child_correlation_id,
                 causal_type=causal_type,
-                event_name=event_name or f"{self._get_synara_meta().event_domain}.linked",
+                event_name=event_name
+                or f"{self._get_synara_meta().event_domain}.linked",
                 metadata=metadata or {},
             )
         except ImportError:
@@ -435,7 +487,9 @@ class SynaraEntity(models.Model):
         data = {
             "id": str(self.id),
             "correlation_id": str(self.correlation_id),
-            "parent_correlation_id": str(self.parent_correlation_id) if self.parent_correlation_id else None,
+            "parent_correlation_id": (
+                str(self.parent_correlation_id) if self.parent_correlation_id else None
+            ),
             "tenant_id": str(self.tenant_id),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
@@ -469,7 +523,9 @@ class SynaraRegistryManager(models.Manager):
 
     def for_tenant(self, tenant_id: UUID):
         """Filter for specific tenant."""
-        return self.get_queryset().filter(models.Q(tenant_id=tenant_id) | models.Q(tenant_id__isnull=True))
+        return self.get_queryset().filter(
+            models.Q(tenant_id=tenant_id) | models.Q(tenant_id__isnull=True)
+        )
 
 
 class SynaraRegistry(models.Model):
@@ -507,37 +563,62 @@ class SynaraRegistry(models.Model):
     # REGISTRY IDENTIFICATION
     # =========================================================================
 
-    code = models.CharField(max_length=100, db_index=True, help_text="Unique code (e.g., 'submitted', 'approved')")
+    code = models.CharField(
+        max_length=100,
+        db_index=True,
+        help_text="Unique code (e.g., 'submitted', 'approved')",
+    )
 
     label = models.CharField(max_length=255, help_text="Display label for UI")
 
-    description = models.TextField(blank=True, default="", help_text="Detailed description")
+    description = models.TextField(
+        blank=True, default="", help_text="Detailed description"
+    )
 
     # =========================================================================
     # DISPLAY & ORDERING
     # =========================================================================
 
-    display_order = models.PositiveIntegerField(default=0, db_index=True, help_text="UI display order (lower = first)")
-
-    icon = models.CharField(
-        max_length=50, blank=True, default="", help_text="Icon name for UI (e.g., 'check', 'clock')"
+    display_order = models.PositiveIntegerField(
+        default=0, db_index=True, help_text="UI display order (lower = first)"
     )
 
-    color = models.CharField(max_length=7, blank=True, default="", help_text="Hex color for UI (e.g., '#4CAF50')")
+    icon = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="Icon name for UI (e.g., 'check', 'clock')",
+    )
+
+    color = models.CharField(
+        max_length=7,
+        blank=True,
+        default="",
+        help_text="Hex color for UI (e.g., '#4CAF50')",
+    )
 
     # =========================================================================
     # TENANT ISOLATION
     # =========================================================================
 
-    tenant_id = models.UUIDField(null=True, blank=True, db_index=True, help_text="Tenant ID (null for global entries)")
+    tenant_id = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Tenant ID (null for global entries)",
+    )
 
     # =========================================================================
     # LIFECYCLE
     # =========================================================================
 
-    is_active = models.BooleanField(default=True, db_index=True, help_text="Active entries appear in dropdowns")
+    is_active = models.BooleanField(
+        default=True, db_index=True, help_text="Active entries appear in dropdowns"
+    )
 
-    is_system = models.BooleanField(default=False, help_text="System entries cannot be deleted by users")
+    is_system = models.BooleanField(
+        default=False, help_text="System entries cannot be deleted by users"
+    )
 
     # =========================================================================
     # AUDIT
@@ -550,7 +631,9 @@ class SynaraRegistry(models.Model):
     # EXTENSIBILITY
     # =========================================================================
 
-    metadata = models.JSONField(default=dict, blank=True, help_text="Additional configuration")
+    metadata = models.JSONField(
+        default=dict, blank=True, help_text="Additional configuration"
+    )
 
     # =========================================================================
     # MANAGERS
@@ -613,7 +696,9 @@ class SynaraRegistry(models.Model):
         """
         qs = cls.objects.all()
         if tenant_id:
-            qs = qs.filter(models.Q(tenant_id=tenant_id) | models.Q(tenant_id__isnull=True))
+            qs = qs.filter(
+                models.Q(tenant_id=tenant_id) | models.Q(tenant_id__isnull=True)
+            )
         return list(qs.values_list("code", "label"))
 
     def to_dict(self) -> dict[str, Any]:
@@ -675,7 +760,10 @@ class SynaraImmutableLog(models.Model):
     # =========================================================================
 
     correlation_id = models.UUIDField(
-        default=uuid.uuid4, db_index=True, editable=False, help_text="Correlation ID for tracing"
+        default=uuid.uuid4,
+        db_index=True,
+        editable=False,
+        help_text="Correlation ID for tracing",
     )
 
     parent_correlation_id = models.UUIDField(
@@ -687,50 +775,75 @@ class SynaraImmutableLog(models.Model):
     # =========================================================================
 
     tenant_id = models.UUIDField(
-        db_index=True, null=True, blank=True, help_text="Tenant ID (SEC-001 §5.2). Null for system-wide logs."
+        db_index=True,
+        null=True,
+        blank=True,
+        help_text="Tenant ID (SEC-001 §5.2). Null for system-wide logs.",
     )
 
     # =========================================================================
     # AUDIT CONTEXT
     # =========================================================================
 
-    event_name = models.CharField(max_length=255, db_index=True, help_text="Event name (EVT-001 format)")
+    event_name = models.CharField(
+        max_length=255, db_index=True, help_text="Event name (EVT-001 format)"
+    )
 
-    actor = models.CharField(max_length=255, default="system", help_text="User or system that performed the action")
+    actor = models.CharField(
+        max_length=255,
+        default="system",
+        help_text="User or system that performed the action",
+    )
 
-    actor_ip = models.GenericIPAddressField(null=True, blank=True, help_text="IP address of actor")
+    actor_ip = models.GenericIPAddressField(
+        null=True, blank=True, help_text="IP address of actor"
+    )
 
     # =========================================================================
     # PAYLOAD
     # =========================================================================
 
-    before_snapshot = models.JSONField(default=dict, blank=True, help_text="State before change")
+    before_snapshot = models.JSONField(
+        default=dict, blank=True, help_text="State before change"
+    )
 
-    after_snapshot = models.JSONField(default=dict, blank=True, help_text="State after change")
+    after_snapshot = models.JSONField(
+        default=dict, blank=True, help_text="State after change"
+    )
 
     changes = models.JSONField(default=dict, blank=True, help_text="Delta of changes")
 
     reason = models.TextField(blank=True, default="", help_text="Reason for change")
 
-    metadata = models.JSONField(default=dict, blank=True, help_text="Additional context")
+    metadata = models.JSONField(
+        default=dict, blank=True, help_text="Additional context"
+    )
 
     # =========================================================================
     # INTEGRITY (21 CFR Part 11)
     # =========================================================================
 
     entry_hash = models.CharField(
-        max_length=64, db_index=True, editable=False, help_text="SHA-256 hash of entry content"
+        max_length=64,
+        db_index=True,
+        editable=False,
+        help_text="SHA-256 hash of entry content",
     )
 
     previous_hash = models.CharField(
-        max_length=64, blank=True, default="", help_text="Hash of previous entry (chain link)"
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Hash of previous entry (chain link)",
     )
 
     # =========================================================================
     # TIMESTAMP
     # =========================================================================
 
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="Immutable creation timestamp")
+    created_at = models.DateTimeField(
+        auto_now_add=True, db_index=True, help_text="Immutable creation timestamp"
+    )
 
     class Meta:
         abstract = True
@@ -771,7 +884,11 @@ class SynaraImmutableLog(models.Model):
         Links this entry to the previous entry in the chain.
         """
         # Get previous entry for this tenant
-        previous = self.__class__.objects.filter(tenant_id=self.tenant_id).order_by("-created_at").first()
+        previous = (
+            self.__class__.objects.filter(tenant_id=self.tenant_id)
+            .order_by("-created_at")
+            .first()
+        )
 
         if previous:
             self.previous_hash = previous.entry_hash
@@ -787,7 +904,9 @@ class SynaraImmutableLog(models.Model):
         """
         data = {
             "correlation_id": str(self.correlation_id),
-            "parent_correlation_id": str(self.parent_correlation_id) if self.parent_correlation_id else "",
+            "parent_correlation_id": (
+                str(self.parent_correlation_id) if self.parent_correlation_id else ""
+            ),
             "tenant_id": str(self.tenant_id),
             "event_name": self.event_name,
             "actor": self.actor,

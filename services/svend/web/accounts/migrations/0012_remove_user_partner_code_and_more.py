@@ -6,21 +6,31 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0011_user_partner_fields'),
+        ("accounts", "0011_user_partner_fields"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='user',
-            name='partner_code',
+            model_name="user",
+            name="partner_code",
         ),
         migrations.RemoveField(
-            model_name='user',
-            name='partner_discount_ends_at',
+            model_name="user",
+            name="partner_discount_ends_at",
         ),
         migrations.AlterField(
-            model_name='user',
-            name='tier',
-            field=models.CharField(choices=[('free', 'Free'), ('founder', 'Founder ($19/month)'), ('pro', 'Professional ($49/month)'), ('team', 'Team ($99/month)'), ('enterprise', 'Enterprise ($299/month)')], default='free', max_length=12),
+            model_name="user",
+            name="tier",
+            field=models.CharField(
+                choices=[
+                    ("free", "Free"),
+                    ("founder", "Founder ($19/month)"),
+                    ("pro", "Professional ($49/month)"),
+                    ("team", "Team ($99/month)"),
+                    ("enterprise", "Enterprise ($299/month)"),
+                ],
+                default="free",
+                max_length=12,
+            ),
         ),
     ]

@@ -26,7 +26,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.TEAM):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123")
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123"
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -35,9 +37,14 @@ def _make_user(email, tier=Tier.TEAM):
 def _make_active_investigation(user):
     """Create an active investigation with a hypothesis."""
     inv = Investigation.objects.create(
-        title="Layer 1 Bridge Test", description="Testing Layer 1 integration", owner=user, status="active"
+        title="Layer 1 Bridge Test",
+        description="Testing Layer 1 integration",
+        owner=user,
+        status="active",
     )
-    tool = MeasurementSystem.objects.create(name="Layer 1 Test Gage", system_type="variable", owner=user)
+    tool = MeasurementSystem.objects.create(
+        name="Layer 1 Test Gage", system_type="variable", owner=user
+    )
     spec = HypothesisSpec(description="Layer 1 test hypothesis", prior=0.5)
     connect_tool(
         investigation_id=str(inv.id),
@@ -87,7 +94,11 @@ class DOEDesignBridgeTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(InvestigationToolLink.objects.filter(investigation=self.inv, tool_type="doe_design").exists())
+        self.assertTrue(
+            InvestigationToolLink.objects.filter(
+                investigation=self.inv, tool_type="doe_design"
+            ).exists()
+        )
 
 
 @SECURE_OFF
@@ -281,7 +292,11 @@ class ForecastBridgeTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(InvestigationToolLink.objects.filter(investigation=self.inv, tool_type="forecast").exists())
+        self.assertTrue(
+            InvestigationToolLink.objects.filter(
+                investigation=self.inv, tool_type="forecast"
+            ).exists()
+        )
 
 
 @SECURE_OFF

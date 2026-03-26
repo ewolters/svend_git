@@ -39,7 +39,9 @@ def _kde_density(x, grid, bandwidth=None):
 
         bw = bandwidth or "silverman"
         try:
-            kde = gaussian_kde(x, bw_method=float(bw) if isinstance(bw, (int, float)) else bw)
+            kde = gaussian_kde(
+                x, bw_method=float(bw) if isinstance(bw, (int, float)) else bw
+            )
             density = kde(grid)
         except Exception:
             kde = gaussian_kde(x, bw_method="silverman")
@@ -266,7 +268,9 @@ def _d_narrative(title, body, next_steps, chart_guidance):
     if chart_guidance:
         parts.append(f"<p><strong>In the chart:</strong> {chart_guidance}</p>")
     if next_steps:
-        parts.append(f'<div class="dsw-next"><strong>Next &rarr;</strong> {next_steps}</div>')
+        parts.append(
+            f'<div class="dsw-next"><strong>Next &rarr;</strong> {next_steps}</div>'
+        )
     return "\n".join(parts)
 
 

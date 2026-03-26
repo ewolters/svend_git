@@ -26,18 +26,26 @@ def run_d_sig(df, config):
     """
     result = {"plots": [], "summary": "", "guide_observation": ""}
 
-    variable = config.get("variable") or config.get("measurement") or config.get("profile")
+    variable = (
+        config.get("variable") or config.get("measurement") or config.get("profile")
+    )
     time_col = config.get("time_col") or config.get("time")
     group_col = config.get("group") or config.get("factor")
 
     if not variable or variable not in df.columns:
-        result["summary"] = "<<COLOR:danger>>Please select a valid profile variable.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Please select a valid profile variable.<</COLOR>>"
+        )
         return result
     if not time_col or time_col not in df.columns:
-        result["summary"] = "<<COLOR:danger>>Please select a valid time/sequence column.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Please select a valid time/sequence column.<</COLOR>>"
+        )
         return result
     if not group_col or group_col not in df.columns:
-        result["summary"] = "<<COLOR:danger>>Please select a valid group column.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Please select a valid group column.<</COLOR>>"
+        )
         return result
 
     work = df[[variable, time_col, group_col]].dropna()
@@ -52,7 +60,9 @@ def run_d_sig(df, config):
 
     groups = work[group_col].unique()
     if len(groups) < 2:
-        result["summary"] = "<<COLOR:danger>>Need at least 2 groups for signature comparison.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Need at least 2 groups for signature comparison.<</COLOR>>"
+        )
         return result
 
     # Build per-group profiles sorted by time
@@ -67,7 +77,9 @@ def run_d_sig(df, config):
         }
 
     if len(group_profiles) < 2:
-        result["summary"] = "<<COLOR:danger>>Not enough groups with ≥5 observations.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Not enough groups with ≥5 observations.<</COLOR>>"
+        )
         return result
 
     group_names = list(group_profiles.keys())
@@ -111,7 +123,9 @@ def run_d_sig(df, config):
                 # Use local value distribution comparison
                 all_vals = np.concatenate([ref_window, g_window])
                 local_grid = np.linspace(
-                    all_vals.min() - 0.1 * (np.ptp(all_vals) or 1), all_vals.max() + 0.1 * (np.ptp(all_vals) or 1), 100
+                    all_vals.min() - 0.1 * (np.ptp(all_vals) or 1),
+                    all_vals.max() + 0.1 * (np.ptp(all_vals) or 1),
+                    100,
                 )
                 ref_dens = _kde_density(ref_window, local_grid)
                 g_dens = _kde_density(g_window, local_grid)
@@ -128,7 +142,9 @@ def run_d_sig(df, config):
         }
 
     # Sort by mean JSD
-    sorted_groups = sorted(test_groups, key=lambda g: group_divergences[g]["mean_jsd"], reverse=True)
+    sorted_groups = sorted(
+        test_groups, key=lambda g: group_divergences[g]["mean_jsd"], reverse=True
+    )
 
     # --- Plot 1: Profile overlay ---
     profile_traces = []
@@ -157,7 +173,12 @@ def run_d_sig(df, config):
         {
             "title": "Process Signatures",
             "data": profile_traces,
-            "layout": {"height": 340, "xaxis": {"title": time_col}, "yaxis": {"title": variable}, "showlegend": True},
+            "layout": {
+                "height": 340,
+                "xaxis": {"title": time_col},
+                "yaxis": {"title": variable},
+                "showlegend": True,
+            },
         }
     )
 
@@ -193,7 +214,9 @@ def run_d_sig(df, config):
     bar_names = [g for g in sorted_groups]
     bar_means = [group_divergences[g]["mean_jsd"] for g in sorted_groups]
     bar_maxes = [group_divergences[g]["max_jsd"] for g in sorted_groups]
-    bar_colors_mean = [SVEND_COLORS[i % len(SVEND_COLORS)] for i in range(len(sorted_groups))]
+    bar_colors_mean = [
+        SVEND_COLORS[i % len(SVEND_COLORS)] for i in range(len(sorted_groups))
+    ]
 
     result["plots"].append(
         {
@@ -218,7 +241,12 @@ def run_d_sig(df, config):
                     "textposition": "outside",
                 },
             ],
-            "layout": {"height": 300, "barmode": "group", "yaxis": {"title": "JSD (bits)"}, "showlegend": True},
+            "layout": {
+                "height": 300,
+                "barmode": "group",
+                "yaxis": {"title": "JSD (bits)"},
+                "showlegend": True,
+            },
         }
     )
 
@@ -233,9 +261,7 @@ def run_d_sig(df, config):
     summary += f"  {'-' * 58}\n"
     for g in sorted_groups:
         d = group_divergences[g]
-        summary += (
-            f"  {g:<15} {d['mean_jsd']:>10.4f} {d['max_jsd']:>10.4f} {d['peak_time']:>10.1f} {d['rmse']:>10.3f}\n"
-        )
+        summary += f"  {g:<15} {d['mean_jsd']:>10.4f} {d['max_jsd']:>10.4f} {d['peak_time']:>10.1f} {d['rmse']:>10.3f}\n"
 
     most_div = sorted_groups[0] if sorted_groups else None
     if most_div:

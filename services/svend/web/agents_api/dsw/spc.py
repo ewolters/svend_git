@@ -83,7 +83,9 @@ def _spc_nelson_rules(data, cl, ucl, lcl):
             window = data[i - 7 : i + 1]
             if all(v > one_sigma_up or v < one_sigma_dn for v in window):
                 ooc_indices.update(range(i - 7, i + 1))
-                violations.append(f"Rule 8: 8 beyond 1σ (mixture) at {i - 7 + 1}-{i + 1}")
+                violations.append(
+                    f"Rule 8: 8 beyond 1σ (mixture) at {i - 7 + 1}-{i + 1}"
+                )
                 break
 
     return list(sorted(ooc_indices)), violations
@@ -142,7 +144,10 @@ def _spc_build_point_rules(data, cl, ucl, lcl, ooc_indices):
     # Rule 5: 2 of 3 beyond 2σ
     for i in range(2, n):
         w = data[i - 2 : i + 1]
-        if sum(1 for v in w if v > two_sigma_up) >= 2 or sum(1 for v in w if v < two_sigma_dn) >= 2:
+        if (
+            sum(1 for v in w if v > two_sigma_up) >= 2
+            or sum(1 for v in w if v < two_sigma_dn) >= 2
+        ):
             for j in range(i - 2, i + 1):
                 if j in ooc_set and "Rule 5: 2/3 beyond 2\u03c3" not in rules[j]:
                     rules[j].append("Rule 5: 2/3 beyond 2\u03c3")
@@ -150,7 +155,10 @@ def _spc_build_point_rules(data, cl, ucl, lcl, ooc_indices):
     # Rule 6: 4 of 5 beyond 1σ
     for i in range(4, n):
         w = data[i - 4 : i + 1]
-        if sum(1 for v in w if v > one_sigma_up) >= 4 or sum(1 for v in w if v < one_sigma_dn) >= 4:
+        if (
+            sum(1 for v in w if v > one_sigma_up) >= 4
+            or sum(1 for v in w if v < one_sigma_dn) >= 4
+        ):
             for j in range(i - 4, i + 1):
                 if j in ooc_set and "Rule 6: 4/5 beyond 1\u03c3" not in rules[j]:
                     rules[j].append("Rule 6: 4/5 beyond 1\u03c3")
@@ -188,9 +196,19 @@ def _spc_add_ooc_markers(plot_data, data, ooc_indices, point_rules=None):
         main_trace = plot_data[0]
         if "customdata" not in main_trace:
             main_trace["customdata"] = [
-                [i, "; ".join(point_rules.get(i, [])) if point_rules and i in ooc_set else ""] for i in range(n)
+                [
+                    i,
+                    (
+                        "; ".join(point_rules.get(i, []))
+                        if point_rules and i in ooc_set
+                        else ""
+                    ),
+                ]
+                for i in range(n)
             ]
-            main_trace["hovertemplate"] = "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra></extra>"
+            main_trace["hovertemplate"] = (
+                "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra></extra>"
+            )
 
     if not ooc_indices:
         return
@@ -202,16 +220,27 @@ def _spc_add_ooc_markers(plot_data, data, ooc_indices, point_rules=None):
         "y": ooc_y,
         "mode": "markers",
         "name": "Out of Control",
-        "marker": {"color": "#d94a4a", "size": 9, "symbol": "diamond", "line": {"color": "#fff", "width": 1}},
+        "marker": {
+            "color": "#d94a4a",
+            "size": 9,
+            "symbol": "diamond",
+            "line": {"color": "#fff", "width": 1},
+        },
         "showlegend": True,
     }
     # Add customdata for click-to-inspect
     if point_rules is not None:
-        trace["customdata"] = [[i, "; ".join(point_rules.get(i, []))] for i in ooc_indices]
-        trace["hovertemplate"] = "Obs #%{customdata[0]}<br>Value: %{y:.4f}<br>%{customdata[1]}<extra>OOC</extra>"
+        trace["customdata"] = [
+            [i, "; ".join(point_rules.get(i, []))] for i in ooc_indices
+        ]
+        trace["hovertemplate"] = (
+            "Obs #%{customdata[0]}<br>Value: %{y:.4f}<br>%{customdata[1]}<extra>OOC</extra>"
+        )
     else:
         trace["customdata"] = [[i, ""] for i in ooc_indices]
-        trace["hovertemplate"] = "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra>OOC</extra>"
+        trace["hovertemplate"] = (
+            "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra>OOC</extra>"
+        )
     plot_data.append(trace)
 
 
@@ -252,9 +281,19 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": data.tolist(),
                 "mode": "lines+markers",
                 "name": "Value",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "size": 5,
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
             },
-            {"type": "scatter", "y": [x_bar] * n, "mode": "lines", "name": "CL", "line": {"color": "#00b894"}},
+            {
+                "type": "scatter",
+                "y": [x_bar] * n,
+                "mode": "lines",
+                "name": "CL",
+                "line": {"color": "#00b894"},
+            },
             {
                 "type": "scatter",
                 "y": [ucl] * n,
@@ -292,9 +331,19 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": mr.tolist(),
                 "mode": "lines+markers",
                 "name": "MR",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "size": 5,
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
             },
-            {"type": "scatter", "y": [mr_bar] * (n - 1), "mode": "lines", "name": "CL", "line": {"color": "#00b894"}},
+            {
+                "type": "scatter",
+                "y": [mr_bar] * (n - 1),
+                "mode": "lines",
+                "name": "CL",
+                "line": {"color": "#00b894"},
+            },
             {
                 "type": "scatter",
                 "y": [mr_ucl] * (n - 1),
@@ -308,7 +357,10 @@ def run_spc_analysis(df, analysis_id, config):
             {
                 "title": "MR Chart (Moving Range)",
                 "data": mr_chart_data,
-                "layout": {"height": 290, "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+                "layout": {
+                    "height": 290,
+                    "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}},
+                },
                 "interactive": {"type": "spc_inspect"},
             }
         )
@@ -316,13 +368,20 @@ def run_spc_analysis(df, analysis_id, config):
         ooc = len(ooc_indices)
         violations_text = ""
         if rule_violations:
-            violations_text = "\n\nNelson Rule Violations:\n" + "\n".join(f"  {v}" for v in rule_violations)
+            violations_text = "\n\nNelson Rule Violations:\n" + "\n".join(
+                f"  {v}" for v in rule_violations
+            )
         result["summary"] = (
             f"I-MR Chart Analysis\n\nMean: {x_bar:.4f}\nUCL: {ucl:.4f}\nLCL: {lcl:.4f}\nMR-bar: {mr_bar:.4f}\n\nOut-of-control points: {ooc}{violations_text}"
         )
 
-        result["guide_observation"] = f"Control chart shows {ooc} out-of-control points." + (
-            " Process appears stable." if ooc == 0 else " Investigation recommended."
+        result["guide_observation"] = (
+            f"Control chart shows {ooc} out-of-control points."
+            + (
+                " Process appears stable."
+                if ooc == 0
+                else " Investigation recommended."
+            )
         )
         result["statistics"] = {
             "grand_mean": float(x_bar),
@@ -341,7 +400,9 @@ def run_spc_analysis(df, analysis_id, config):
             _cc_next = "Process is stable &mdash; capability analysis is valid."
         else:
             _rule_summary = (
-                "; ".join(rule_violations[:3]) if rule_violations else f"{ooc} points outside control limits"
+                "; ".join(rule_violations[:3])
+                if rule_violations
+                else f"{ooc} points outside control limits"
             )
             _cc_verdict = f"Process is out of control &mdash; {ooc} signal{'s' if ooc > 1 else ''} detected"
             _cc_body = f"Found: {_rule_summary}."
@@ -392,7 +453,9 @@ def run_spc_analysis(df, analysis_id, config):
             d2 = 1.128  # d2 constant for n=2 (moving range of 2)
             sigma_within = mr_bar / d2 if mr_bar > 0 else std
             cp = (usl - lsl) / (6 * sigma_within)
-            cpk = min((usl - mean) / (3 * sigma_within), (mean - lsl) / (3 * sigma_within))
+            cpk = min(
+                (usl - mean) / (3 * sigma_within), (mean - lsl) / (3 * sigma_within)
+            )
             if target is not None:
                 cpm = (usl - lsl) / (6 * np.sqrt(std**2 + (mean - target) ** 2))
 
@@ -403,7 +466,11 @@ def run_spc_analysis(df, analysis_id, config):
             ppm_above = float(sp_stats.norm.cdf(-z_upper) * 1e6)
             ppm_total = ppm_below + ppm_above
             yield_pct = (1 - ppm_total / 1e6) * 100
-            sigma_level = float(sp_stats.norm.ppf(1 - ppm_total / 1e6) + 1.5) if ppm_total < 1e6 else 0
+            sigma_level = (
+                float(sp_stats.norm.ppf(1 - ppm_total / 1e6) + 1.5)
+                if ppm_total < 1e6
+                else 0
+            )
 
         elif lsl is not None and std > 0:
             cpk = (mean - lsl) / (3 * std)
@@ -451,7 +518,9 @@ def run_spc_analysis(df, analysis_id, config):
             if cpk >= 1.33:
                 summary += f"\nProcess is capable (Cpk = {cpk:.3f} >= 1.33)"
             elif cpk >= 1.0:
-                summary += f"\nProcess is marginally capable (1.0 <= Cpk = {cpk:.3f} < 1.33)"
+                summary += (
+                    f"\nProcess is marginally capable (1.0 <= Cpk = {cpk:.3f} < 1.33)"
+                )
             else:
                 summary += f"\nProcess is NOT capable (Cpk = {cpk:.3f} < 1.0)"
             result["guide_observation"] = f"Process capability Cpk = {cpk:.2f}. " + (
@@ -472,7 +541,9 @@ def run_spc_analysis(df, analysis_id, config):
         }
 
         # ── Plot 1: Histogram with normal curve ─────────────────────
-        x_range = np.linspace(float(np.min(data)) - 2 * std, float(np.max(data)) + 2 * std, 300)
+        x_range = np.linspace(
+            float(np.min(data)) - 2 * std, float(np.max(data)) + 2 * std, 300
+        )
         pdf_vals = sp_stats.norm.pdf(x_range, mean, std)
 
         hist_traces = [
@@ -481,7 +552,10 @@ def run_spc_analysis(df, analysis_id, config):
                 "x": data.tolist(),
                 "name": "Observed",
                 "histnorm": "probability density",
-                "marker": {"color": "rgba(74, 159, 110, 0.35)", "line": {"color": "#4a9f6e", "width": 1}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.35)",
+                    "line": {"color": "#4a9f6e", "width": 1},
+                },
             },
             {
                 "type": "scatter",
@@ -598,7 +672,12 @@ def run_spc_analysis(df, analysis_id, config):
                     "shapes": shapes_h,
                     "annotations": annotations_h,
                     "showlegend": True,
-                    "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
+                    "legend": {
+                        "x": 1,
+                        "xanchor": "right",
+                        "y": 1,
+                        "bgcolor": "rgba(0,0,0,0)",
+                    },
                     "margin": {"t": 40, "r": 20},
                     "xaxis": {"title": measurement},
                     "yaxis": {"title": "Density"},
@@ -621,7 +700,10 @@ def run_spc_analysis(df, analysis_id, config):
                     "base": [lsl],
                     "orientation": "h",
                     "name": "Spec Range",
-                    "marker": {"color": "rgba(232, 87, 71, 0.15)", "line": {"color": "#e85747", "width": 1.5}},
+                    "marker": {
+                        "color": "rgba(232, 87, 71, 0.15)",
+                        "line": {"color": "#e85747", "width": 1.5},
+                    },
                     "width": [0.5],
                 },
                 # Process spread (±3σ)
@@ -632,7 +714,10 @@ def run_spc_analysis(df, analysis_id, config):
                     "base": [spread_lo],
                     "orientation": "h",
                     "name": "Process ±3\u03c3",
-                    "marker": {"color": "rgba(74, 159, 110, 0.25)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                    "marker": {
+                        "color": "rgba(74, 159, 110, 0.25)",
+                        "line": {"color": "#4a9f6e", "width": 1.5},
+                    },
                     "width": [0.3],
                 },
             ]
@@ -733,9 +818,17 @@ def run_spc_analysis(df, analysis_id, config):
                         "shapes": spread_shapes,
                         "annotations": spread_annot,
                         "showlegend": True,
-                        "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
+                        "legend": {
+                            "x": 1,
+                            "xanchor": "right",
+                            "y": 1,
+                            "bgcolor": "rgba(0,0,0,0)",
+                        },
                         "xaxis": {
-                            "range": [min(lsl, spread_lo) - pad, max(usl, spread_hi) + pad],
+                            "range": [
+                                min(lsl, spread_lo) - pad,
+                                max(usl, spread_hi) + pad,
+                            ],
                             "title": measurement,
                         },
                         "yaxis": {"visible": False, "range": [-0.5, 0.5]},
@@ -753,7 +846,9 @@ def run_spc_analysis(df, analysis_id, config):
         # Shapiro-Wilk test (limited to 5000 samples)
         sw_data = data[:5000] if n > 5000 else data
         sw_stat, sw_p = sp_stats.shapiro(sw_data)
-        normality_note = f"Shapiro-Wilk p = {sw_p:.4f}" + (" (normal)" if sw_p >= 0.05 else " (non-normal)")
+        normality_note = f"Shapiro-Wilk p = {sw_p:.4f}" + (
+            " (normal)" if sw_p >= 0.05 else " (non-normal)"
+        )
 
         result["plots"].append(
             {
@@ -802,14 +897,20 @@ def run_spc_analysis(df, analysis_id, config):
         # Narrative
         if cpk is not None:
             _tol_pct = (
-                ((6 * std) / (usl - lsl) * 100) if lsl is not None and usl is not None and (usl - lsl) > 0 else None
+                ((6 * std) / (usl - lsl) * 100)
+                if lsl is not None and usl is not None and (usl - lsl) > 0
+                else None
             )
             if cpk >= 1.33:
                 _cap_verdict = f"Process is capable (Cpk = {cpk:.3f})"
-                _cap_next = "Process is capable. Monitor with control charts to maintain."
+                _cap_next = (
+                    "Process is capable. Monitor with control charts to maintain."
+                )
             elif cpk >= 1.0:
                 _centering = (
-                    "centering (adjust mean)" if cp is not None and cp > cpk + 0.1 else "spread (reduce variation)"
+                    "centering (adjust mean)"
+                    if cp is not None and cp > cpk + 0.1
+                    else "spread (reduce variation)"
                 )
                 _cap_verdict = f"Process is marginally capable (Cpk = {cpk:.3f})"
                 _cap_next = f"Process is marginal. The dominant issue is {_centering}."
@@ -818,7 +919,9 @@ def run_spc_analysis(df, analysis_id, config):
                 _cap_next = "Process is not capable. Run a Gage R&R to confirm measurement isn't inflating variation, then investigate root causes with multi-vari or DOE."
             _cap_body = f"Cpk = {cpk:.3f}"
             if _tol_pct is not None:
-                _cap_body += f" &mdash; the process uses {_tol_pct:.0f}% of the tolerance"
+                _cap_body += (
+                    f" &mdash; the process uses {_tol_pct:.0f}% of the tolerance"
+                )
             _cap_body += f". Estimated <strong>{ppm_total:,.0f}</strong> defects per million ({yield_pct:.2f}% yield)."
             if cp is not None and ppk is not None and cpk < ppk - 0.05:
                 _cap_body += " Short-term capability exceeds long-term &mdash; the process has shifts or drifts not captured in subgroups."
@@ -839,7 +942,9 @@ def run_spc_analysis(df, analysis_id, config):
             groups = df.groupby(subgroup_col)[measurement].apply(list).values
         else:
             # Create subgroups from sequential data
-            groups = [data[i : i + subgroup_size] for i in range(0, len(data), subgroup_size)]
+            groups = [
+                data[i : i + subgroup_size] for i in range(0, len(data), subgroup_size)
+            ]
             groups = [g for g in groups if len(g) == subgroup_size]
 
         groups = np.array([g for g in groups if len(g) >= 2])
@@ -852,11 +957,61 @@ def run_spc_analysis(df, analysis_id, config):
         r_bar = np.mean(ranges)
 
         # Control chart constants (for subgroup size 2-10)
-        d2_table = {2: 1.128, 3: 1.693, 4: 2.059, 5: 2.326, 6: 2.534, 7: 2.704, 8: 2.847, 9: 2.970, 10: 3.078}
-        d3_table = {2: 0.853, 3: 0.888, 4: 0.880, 5: 0.864, 6: 0.848, 7: 0.833, 8: 0.820, 9: 0.808, 10: 0.797}
-        A2_table = {2: 1.880, 3: 1.023, 4: 0.729, 5: 0.577, 6: 0.483, 7: 0.419, 8: 0.373, 9: 0.337, 10: 0.308}
-        D3_table = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0.076, 8: 0.136, 9: 0.184, 10: 0.223}
-        D4_table = {2: 3.267, 3: 2.574, 4: 2.282, 5: 2.114, 6: 2.004, 7: 1.924, 8: 1.864, 9: 1.816, 10: 1.777}
+        d2_table = {
+            2: 1.128,
+            3: 1.693,
+            4: 2.059,
+            5: 2.326,
+            6: 2.534,
+            7: 2.704,
+            8: 2.847,
+            9: 2.970,
+            10: 3.078,
+        }
+        d3_table = {
+            2: 0.853,
+            3: 0.888,
+            4: 0.880,
+            5: 0.864,
+            6: 0.848,
+            7: 0.833,
+            8: 0.820,
+            9: 0.808,
+            10: 0.797,
+        }
+        A2_table = {
+            2: 1.880,
+            3: 1.023,
+            4: 0.729,
+            5: 0.577,
+            6: 0.483,
+            7: 0.419,
+            8: 0.373,
+            9: 0.337,
+            10: 0.308,
+        }
+        D3_table = {
+            2: 0,
+            3: 0,
+            4: 0,
+            5: 0,
+            6: 0,
+            7: 0.076,
+            8: 0.136,
+            9: 0.184,
+            10: 0.223,
+        }
+        D4_table = {
+            2: 3.267,
+            3: 2.574,
+            4: 2.282,
+            5: 2.114,
+            6: 2.004,
+            7: 1.924,
+            8: 1.864,
+            9: 1.816,
+            10: 1.777,
+        }
 
         n = min(subgroup_size, 10)
         A2 = A2_table.get(n, 0.577)
@@ -872,8 +1027,12 @@ def run_spc_analysis(df, analysis_id, config):
         r_lcl = D3 * r_bar
 
         # Nelson rules for X-bar
-        xbar_ooc, xbar_violations = _spc_nelson_rules(x_bars, x_double_bar, xbar_ucl, xbar_lcl)
-        xbar_point_rules = _spc_build_point_rules(x_bars, x_double_bar, xbar_ucl, xbar_lcl, xbar_ooc)
+        xbar_ooc, xbar_violations = _spc_nelson_rules(
+            x_bars, x_double_bar, xbar_ucl, xbar_lcl
+        )
+        xbar_point_rules = _spc_build_point_rules(
+            x_bars, x_double_bar, xbar_ucl, xbar_lcl, xbar_ooc
+        )
         # Nelson rules for R
         r_ooc, r_violations = _spc_nelson_rules(ranges, r_bar, r_ucl, r_lcl)
         r_point_rules = _spc_build_point_rules(ranges, r_bar, r_ucl, r_lcl, r_ooc)
@@ -885,7 +1044,11 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": x_bars.tolist(),
                 "mode": "lines+markers",
                 "name": "X̄",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "size": 5,
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
             },
             {
                 "type": "scatter",
@@ -909,7 +1072,9 @@ def run_spc_analysis(df, analysis_id, config):
                 "line": {"color": "#d63031", "dash": "dash"},
             },
         ]
-        _spc_add_ooc_markers(xbar_chart_data, x_bars, xbar_ooc, point_rules=xbar_point_rules)
+        _spc_add_ooc_markers(
+            xbar_chart_data, x_bars, xbar_ooc, point_rules=xbar_point_rules
+        )
         result["plots"].append(
             {
                 "title": "Xbar Chart",
@@ -917,7 +1082,10 @@ def run_spc_analysis(df, analysis_id, config):
                 "layout": {
                     "height": 290,
                     "showlegend": True,
-                    "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                    "xaxis": {
+                        "title": "Subgroup",
+                        "rangeslider": {"visible": True, "thickness": 0.12},
+                    },
                 },
                 "interactive": {"type": "spc_inspect"},
             }
@@ -930,7 +1098,11 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": ranges.tolist(),
                 "mode": "lines+markers",
                 "name": "R",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "size": 5,
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
             },
             {
                 "type": "scatter",
@@ -961,7 +1133,10 @@ def run_spc_analysis(df, analysis_id, config):
                 "data": r_chart_data,
                 "layout": {
                     "height": 290,
-                    "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                    "xaxis": {
+                        "title": "Subgroup",
+                        "rangeslider": {"visible": True, "thickness": 0.12},
+                    },
                 },
                 "interactive": {"type": "spc_inspect"},
             }
@@ -1030,7 +1205,9 @@ def run_spc_analysis(df, analysis_id, config):
         if subgroup_col:
             groups = df.groupby(subgroup_col)[measurement].apply(list).values
         else:
-            groups = [data[i : i + subgroup_size] for i in range(0, len(data), subgroup_size)]
+            groups = [
+                data[i : i + subgroup_size] for i in range(0, len(data), subgroup_size)
+            ]
             groups = [g for g in groups if len(g) == subgroup_size]
 
         groups = np.array([g for g in groups if len(g) >= 2])
@@ -1043,9 +1220,39 @@ def run_spc_analysis(df, analysis_id, config):
         s_bar = np.mean(stds)
 
         # Control chart constants for S chart
-        B3_table = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0.030, 7: 0.118, 8: 0.185, 9: 0.239, 10: 0.284}
-        B4_table = {2: 3.267, 3: 2.568, 4: 2.266, 5: 2.089, 6: 1.970, 7: 1.882, 8: 1.815, 9: 1.761, 10: 1.716}
-        A3_table = {2: 2.659, 3: 1.954, 4: 1.628, 5: 1.427, 6: 1.287, 7: 1.182, 8: 1.099, 9: 1.032, 10: 0.975}
+        B3_table = {
+            2: 0,
+            3: 0,
+            4: 0,
+            5: 0,
+            6: 0.030,
+            7: 0.118,
+            8: 0.185,
+            9: 0.239,
+            10: 0.284,
+        }
+        B4_table = {
+            2: 3.267,
+            3: 2.568,
+            4: 2.266,
+            5: 2.089,
+            6: 1.970,
+            7: 1.882,
+            8: 1.815,
+            9: 1.761,
+            10: 1.716,
+        }
+        A3_table = {
+            2: 2.659,
+            3: 1.954,
+            4: 1.628,
+            5: 1.427,
+            6: 1.287,
+            7: 1.182,
+            8: 1.099,
+            9: 1.032,
+            10: 0.975,
+        }
 
         n = min(subgroup_size, 10)
         A3 = A3_table.get(n, 1.427)
@@ -1058,8 +1265,12 @@ def run_spc_analysis(df, analysis_id, config):
         s_lcl = B3 * s_bar
 
         # Nelson rules for X-bar and S
-        xbar_ooc, xbar_violations = _spc_nelson_rules(x_bars, x_double_bar, xbar_ucl, xbar_lcl)
-        xbar_point_rules = _spc_build_point_rules(x_bars, x_double_bar, xbar_ucl, xbar_lcl, xbar_ooc)
+        xbar_ooc, xbar_violations = _spc_nelson_rules(
+            x_bars, x_double_bar, xbar_ucl, xbar_lcl
+        )
+        xbar_point_rules = _spc_build_point_rules(
+            x_bars, x_double_bar, xbar_ucl, xbar_lcl, xbar_ooc
+        )
         s_ooc, s_violations = _spc_nelson_rules(stds, s_bar, s_ucl, s_lcl)
         s_point_rules = _spc_build_point_rules(stds, s_bar, s_ucl, s_lcl, s_ooc)
 
@@ -1070,7 +1281,10 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": x_bars.tolist(),
                 "mode": "lines+markers",
                 "name": "X̄",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
             },
             {
                 "type": "scatter",
@@ -1094,7 +1308,9 @@ def run_spc_analysis(df, analysis_id, config):
                 "line": {"color": "#d63031", "dash": "dash"},
             },
         ]
-        _spc_add_ooc_markers(xbar_chart_data, x_bars, xbar_ooc, point_rules=xbar_point_rules)
+        _spc_add_ooc_markers(
+            xbar_chart_data, x_bars, xbar_ooc, point_rules=xbar_point_rules
+        )
         result["plots"].append(
             {
                 "title": "Xbar Chart",
@@ -1102,7 +1318,10 @@ def run_spc_analysis(df, analysis_id, config):
                 "layout": {
                     "height": 290,
                     "showlegend": True,
-                    "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                    "xaxis": {
+                        "title": "Subgroup",
+                        "rangeslider": {"visible": True, "thickness": 0.12},
+                    },
                 },
                 "interactive": {"type": "spc_inspect"},
             }
@@ -1115,7 +1334,10 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": stds.tolist(),
                 "mode": "lines+markers",
                 "name": "S",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
             },
             {
                 "type": "scatter",
@@ -1146,7 +1368,10 @@ def run_spc_analysis(df, analysis_id, config):
                 "data": s_chart_data,
                 "layout": {
                     "height": 290,
-                    "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                    "xaxis": {
+                        "title": "Subgroup",
+                        "rangeslider": {"visible": True, "thickness": 0.12},
+                    },
                 },
                 "interactive": {"type": "spc_inspect"},
             }
@@ -1231,9 +1456,19 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": p.tolist(),
                 "mode": "lines+markers",
                 "name": "p",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "size": 5,
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
             },
-            {"type": "scatter", "y": [p_bar] * k, "mode": "lines", "name": "p̄", "line": {"color": "#00b894"}},
+            {
+                "type": "scatter",
+                "y": [p_bar] * k,
+                "mode": "lines",
+                "name": "p̄",
+                "line": {"color": "#00b894"},
+            },
             {
                 "type": "scatter",
                 "y": ucl.tolist(),
@@ -1269,7 +1504,11 @@ def run_spc_analysis(df, analysis_id, config):
         )
         result["guide_observation"] = (
             f"P chart: {len(ooc_indices)} out-of-control points. p\u0304 = {p_bar * 100:.2f}%."
-            + (" Process is stable." if len(ooc_indices) == 0 else " Investigation recommended.")
+            + (
+                " Process is stable."
+                if len(ooc_indices) == 0
+                else " Investigation recommended."
+            )
         )
         result["statistics"] = {
             "p_bar": float(p_bar),
@@ -1283,7 +1522,9 @@ def run_spc_analysis(df, analysis_id, config):
             body = f"All {k} samples fall within control limits. The average defective rate is {p_bar * 100:.2f}%."
             nxt = "Monitor ongoing. If p\u0304 is too high, investigate systemic causes rather than individual points."
         else:
-            verdict = f"P Chart — {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+            verdict = (
+                f"P Chart — {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+            )
             body = (
                 f"{n_ooc} of {k} samples ({n_ooc / k * 100:.1f}%) exceed control limits. "
                 f"Average defective rate p\u0304 = {p_bar * 100:.2f}%. Investigate these subgroups for assignable causes."
@@ -1323,9 +1564,19 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": d.tolist(),
                 "mode": "lines+markers",
                 "name": "np",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "size": 5,
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
             },
-            {"type": "scatter", "y": [np_bar] * k, "mode": "lines", "name": "n̄p", "line": {"color": "#00b894"}},
+            {
+                "type": "scatter",
+                "y": [np_bar] * k,
+                "mode": "lines",
+                "name": "n̄p",
+                "line": {"color": "#00b894"},
+            },
             {
                 "type": "scatter",
                 "y": [ucl] * k,
@@ -1367,13 +1618,19 @@ def run_spc_analysis(df, analysis_id, config):
         )
 
         n_ooc = len(np_ooc)
-        viol_note = f" Nelson rule violations: {', '.join(np_violations[:3])}." if np_violations else ""
+        viol_note = (
+            f" Nelson rule violations: {', '.join(np_violations[:3])}."
+            if np_violations
+            else ""
+        )
         if n_ooc == 0:
             verdict = f"NP Chart — Process in control (n\u0304p = {np_bar:.1f})"
             body = f"All {k} samples within limits. Average {np_bar:.1f} defectives per sample of {n}.{viol_note}"
             nxt = "Continue monitoring. To reduce defective count, investigate the process, not individual samples."
         else:
-            verdict = f"NP Chart — {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+            verdict = (
+                f"NP Chart — {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+            )
             body = (
                 f"{n_ooc} of {k} samples exceed limits. Average defectives n\u0304p = {np_bar:.1f} "
                 f"(p\u0304 = {p_bar * 100:.2f}%).{viol_note}"
@@ -1410,9 +1667,19 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": c.tolist(),
                 "mode": "lines+markers",
                 "name": "c",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "size": 5,
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
             },
-            {"type": "scatter", "y": [c_bar] * k, "mode": "lines", "name": "c̄", "line": {"color": "#00b894"}},
+            {
+                "type": "scatter",
+                "y": [c_bar] * k,
+                "mode": "lines",
+                "name": "c̄",
+                "line": {"color": "#00b894"},
+            },
             {
                 "type": "scatter",
                 "y": [ucl] * k,
@@ -1454,15 +1721,19 @@ def run_spc_analysis(df, analysis_id, config):
         )
 
         n_ooc = len(c_ooc)
-        viol_note = f" Nelson rule violations: {', '.join(c_violations[:3])}." if c_violations else ""
+        viol_note = (
+            f" Nelson rule violations: {', '.join(c_violations[:3])}."
+            if c_violations
+            else ""
+        )
         if n_ooc == 0:
             verdict = f"C Chart — Process in control (c\u0304 = {c_bar:.1f})"
-            body = (
-                f"All {k} samples within Poisson-based limits. Average defect count c\u0304 = {c_bar:.1f}.{viol_note}"
-            )
+            body = f"All {k} samples within Poisson-based limits. Average defect count c\u0304 = {c_bar:.1f}.{viol_note}"
             nxt = "Stable process. To reduce defect count, apply Pareto analysis to identify top defect categories."
         else:
-            verdict = f"C Chart — {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+            verdict = (
+                f"C Chart — {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+            )
             body = (
                 f"{n_ooc} of {k} samples exceed limits. Average defects c\u0304 = {c_bar:.1f}.{viol_note} "
                 f"The process is unstable — address special causes before process improvement."
@@ -1502,9 +1773,19 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": u.tolist(),
                 "mode": "lines+markers",
                 "name": "u",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "size": 5,
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
             },
-            {"type": "scatter", "y": [u_bar] * k, "mode": "lines", "name": "ū", "line": {"color": "#00b894"}},
+            {
+                "type": "scatter",
+                "y": [u_bar] * k,
+                "mode": "lines",
+                "name": "ū",
+                "line": {"color": "#00b894"},
+            },
             {
                 "type": "scatter",
                 "y": ucl.tolist(),
@@ -1545,7 +1826,9 @@ def run_spc_analysis(df, analysis_id, config):
             body = f"All {k} samples within variable control limits. Average defect rate \u016b = {u_bar:.4f} per unit."
             nxt = "Stable process. Variable limits account for differing inspection sizes — focus on reducing the overall rate."
         else:
-            verdict = f"U Chart — {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+            verdict = (
+                f"U Chart — {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+            )
             body = (
                 f"{n_ooc} of {k} samples ({n_ooc / k * 100:.1f}%) exceed control limits. "
                 f"Average defect rate \u016b = {u_bar:.4f}. Investigate these subgroups for assignable causes."
@@ -1643,7 +1926,9 @@ def run_spc_analysis(df, analysis_id, config):
                         "line": {"color": "#fff", "width": 1},
                     },
                     "showlegend": True,
-                    "customdata": [[int(i), "Upward shift signal"] for i in signals_pos],
+                    "customdata": [
+                        [int(i), "Upward shift signal"] for i in signals_pos
+                    ],
                     "hovertemplate": "Obs #%{customdata[0]}<br>CUSUM+: %{y:.4f}<br>%{customdata[1]}<extra>Signal (up)</extra>",
                 }
             )
@@ -1663,7 +1948,9 @@ def run_spc_analysis(df, analysis_id, config):
                         "line": {"color": "#fff", "width": 1},
                     },
                     "showlegend": True,
-                    "customdata": [[int(i), "Downward shift signal"] for i in signals_neg],
+                    "customdata": [
+                        [int(i), "Downward shift signal"] for i in signals_neg
+                    ],
                     "hovertemplate": "Obs #%{customdata[0]}<br>CUSUM-: %{y:.4f}<br>%{customdata[1]}<extra>Signal (down)</extra>",
                 }
             )
@@ -1688,8 +1975,13 @@ def run_spc_analysis(df, analysis_id, config):
         _n_up = len(signals_pos)
         _n_dn = len(signals_neg)
         _cusum_total = _n_up + _n_dn
-        result["guide_observation"] = f"CUSUM chart: {_cusum_total} shift signal{'s' if _cusum_total != 1 else ''}." + (
-            " Process appears stable." if _cusum_total == 0 else " Investigation recommended."
+        result["guide_observation"] = (
+            f"CUSUM chart: {_cusum_total} shift signal{'s' if _cusum_total != 1 else ''}."
+            + (
+                " Process appears stable."
+                if _cusum_total == 0
+                else " Investigation recommended."
+            )
         )
         result["statistics"] = {
             "target": float(target),
@@ -1766,8 +2058,12 @@ def run_spc_analysis(df, analysis_id, config):
 
         # Control limits (they vary with time, approaching steady state)
         factor = lambda_param / (2 - lambda_param)
-        ucl = target + L * sigma * np.sqrt(factor * (1 - (1 - lambda_param) ** (2 * np.arange(1, n + 1))))
-        lcl = target - L * sigma * np.sqrt(factor * (1 - (1 - lambda_param) ** (2 * np.arange(1, n + 1))))
+        ucl = target + L * sigma * np.sqrt(
+            factor * (1 - (1 - lambda_param) ** (2 * np.arange(1, n + 1)))
+        )
+        lcl = target - L * sigma * np.sqrt(
+            factor * (1 - (1 - lambda_param) ** (2 * np.arange(1, n + 1)))
+        )
 
         # Steady-state limits
         ucl_ss = target + L * sigma * np.sqrt(factor)
@@ -1782,10 +2078,20 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": ewma.tolist(),
                 "mode": "lines+markers",
                 "name": "EWMA",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "size": 5,
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
                 "line": {"color": "#4a9f6e"},
             },
-            {"type": "scatter", "y": [target] * n, "mode": "lines", "name": "Target", "line": {"color": "#00b894"}},
+            {
+                "type": "scatter",
+                "y": [target] * n,
+                "mode": "lines",
+                "name": "Target",
+                "line": {"color": "#00b894"},
+            },
             {
                 "type": "scatter",
                 "y": ucl.tolist(),
@@ -1823,7 +2129,11 @@ def run_spc_analysis(df, analysis_id, config):
         _ewma_n_ooc = len(ewma_ooc)
         result["guide_observation"] = (
             f"EWMA chart: {_ewma_n_ooc} out-of-control point{'s' if _ewma_n_ooc != 1 else ''}."
-            + (" Process appears stable." if _ewma_n_ooc == 0 else " Investigation recommended.")
+            + (
+                " Process appears stable."
+                if _ewma_n_ooc == 0
+                else " Investigation recommended."
+            )
         )
         result["statistics"] = {
             "target": float(target),
@@ -1899,9 +2209,19 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": p.tolist(),
                 "mode": "lines+markers",
                 "name": "p",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "size": 5,
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
             },
-            {"type": "scatter", "y": [p_bar] * k, "mode": "lines", "name": "p̄", "line": {"color": "#00b894"}},
+            {
+                "type": "scatter",
+                "y": [p_bar] * k,
+                "mode": "lines",
+                "name": "p̄",
+                "line": {"color": "#00b894"},
+            },
             {
                 "type": "scatter",
                 "y": ucl.tolist(),
@@ -1932,7 +2252,11 @@ def run_spc_analysis(df, analysis_id, config):
             }
         )
 
-        disp = "Overdispersion" if sigma_z > 1 else "Underdispersion" if sigma_z < 1 else "None"
+        disp = (
+            "Overdispersion"
+            if sigma_z > 1
+            else "Underdispersion" if sigma_z < 1 else "None"
+        )
         result["summary"] = (
             f"Laney P' Chart Analysis\n\np̄: {p_bar:.4f} ({p_bar * 100:.2f}%)\nσz: {sigma_z:.4f} ({disp})\nSamples: {k}\n\nOut-of-control points: {len(ooc_indices)}\n\nNote: σz > 1 indicates overdispersion — standard P chart would give too many false alarms."
         )
@@ -1940,13 +2264,21 @@ def run_spc_analysis(df, analysis_id, config):
         _lp_n_ooc = len(ooc_indices)
         result["guide_observation"] = (
             f"Laney P' chart: {_lp_n_ooc} out-of-control points. \u03c3z = {sigma_z:.3f} ({disp})."
-            + (" Process is stable." if _lp_n_ooc == 0 else " Investigation recommended.")
+            + (
+                " Process is stable."
+                if _lp_n_ooc == 0
+                else " Investigation recommended."
+            )
         )
         if _lp_n_ooc == 0:
             result["narrative"] = _narrative(
                 f"Laney P' \u2014 Process in control (p\u0304 = {p_bar * 100:.2f}%, \u03c3z = {sigma_z:.3f})",
                 f"All {k} samples within overdispersion-adjusted limits. {disp} detected (\u03c3z = {sigma_z:.3f})."
-                + (" Standard P chart limits would be too tight." if sigma_z > 1 else ""),
+                + (
+                    " Standard P chart limits would be too tight."
+                    if sigma_z > 1
+                    else ""
+                ),
                 next_steps="Stable process. Laney adjustment accounts for extra-binomial variation that inflates false alarms on standard P charts.",
                 chart_guidance="The adjusted limits (P') are wider than standard P chart limits when \u03c3z > 1, reducing false alarms.",
             )
@@ -1991,9 +2323,19 @@ def run_spc_analysis(df, analysis_id, config):
                 "y": u.tolist(),
                 "mode": "lines+markers",
                 "name": "u",
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.4)",
+                    "size": 5,
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
             },
-            {"type": "scatter", "y": [u_bar] * k, "mode": "lines", "name": "ū", "line": {"color": "#00b894"}},
+            {
+                "type": "scatter",
+                "y": [u_bar] * k,
+                "mode": "lines",
+                "name": "ū",
+                "line": {"color": "#00b894"},
+            },
             {
                 "type": "scatter",
                 "y": ucl.tolist(),
@@ -2024,7 +2366,11 @@ def run_spc_analysis(df, analysis_id, config):
             }
         )
 
-        disp = "Overdispersion" if sigma_z > 1 else "Underdispersion" if sigma_z < 1 else "None"
+        disp = (
+            "Overdispersion"
+            if sigma_z > 1
+            else "Underdispersion" if sigma_z < 1 else "None"
+        )
         result["summary"] = (
             f"Laney U' Chart Analysis\n\nū: {u_bar:.4f}\nσz: {sigma_z:.4f} ({disp})\nSamples: {k}\n\nOut-of-control points: {len(ooc_indices)}\n\nNote: σz > 1 indicates overdispersion — standard U chart would give too many false alarms."
         )
@@ -2032,7 +2378,11 @@ def run_spc_analysis(df, analysis_id, config):
         _lu_n_ooc = len(ooc_indices)
         result["guide_observation"] = (
             f"Laney U' chart: {_lu_n_ooc} out-of-control points. \u03c3z = {sigma_z:.3f} ({disp})."
-            + (" Process is stable." if _lu_n_ooc == 0 else " Investigation recommended.")
+            + (
+                " Process is stable."
+                if _lu_n_ooc == 0
+                else " Investigation recommended."
+            )
         )
         if _lu_n_ooc == 0:
             result["narrative"] = _narrative(
@@ -2062,7 +2412,9 @@ def run_spc_analysis(df, analysis_id, config):
         if subgroup_col:
             groups = df.groupby(subgroup_col)[measurement].apply(list).values
         else:
-            groups = [data[i : i + subgroup_size] for i in range(0, len(data), subgroup_size)]
+            groups = [
+                data[i : i + subgroup_size] for i in range(0, len(data), subgroup_size)
+            ]
             groups = [g for g in groups if len(g) == subgroup_size]
 
         groups = [np.array(g) for g in groups if len(g) >= 2]
@@ -2091,15 +2443,23 @@ def run_spc_analysis(df, analysis_id, config):
         if lsl is not None and usl is not None:
             # Within capability
             cp_within = (usl - lsl) / (6 * sigma_within)
-            cpk_within = min((usl - grand_mean) / (3 * sigma_within), (grand_mean - lsl) / (3 * sigma_within))
+            cpk_within = min(
+                (usl - grand_mean) / (3 * sigma_within),
+                (grand_mean - lsl) / (3 * sigma_within),
+            )
 
             # B/W capability
             cp_bw = (usl - lsl) / (6 * sigma_bw)
-            cpk_bw = min((usl - grand_mean) / (3 * sigma_bw), (grand_mean - lsl) / (3 * sigma_bw))
+            cpk_bw = min(
+                (usl - grand_mean) / (3 * sigma_bw), (grand_mean - lsl) / (3 * sigma_bw)
+            )
 
             # Overall capability
             pp = (usl - lsl) / (6 * sigma_total)
-            ppk = min((usl - grand_mean) / (3 * sigma_total), (grand_mean - lsl) / (3 * sigma_total))
+            ppk = min(
+                (usl - grand_mean) / (3 * sigma_total),
+                (grand_mean - lsl) / (3 * sigma_total),
+            )
 
             summary += f"\nWithin Capability:\n  Cp: {cp_within:.3f}\n  Cpk: {cpk_within:.3f}\n\nBetween/Within Capability:\n  Cp (B/W): {cp_bw:.3f}\n  Cpk (B/W): {cpk_bw:.3f}\n\nOverall Capability:\n  Pp: {pp:.3f}\n  Ppk: {ppk:.3f}"
 
@@ -2117,7 +2477,9 @@ def run_spc_analysis(df, analysis_id, config):
         lcl_xbar = grand_mean - 3 * sigma_bw / np.sqrt(n_avg)
 
         # Flag out-of-control points
-        ooc_xbar = [i for i, m in enumerate(group_means) if m > ucl_xbar or m < lcl_xbar]
+        ooc_xbar = [
+            i for i, m in enumerate(group_means) if m > ucl_xbar or m < lcl_xbar
+        ]
 
         xbar_traces = [
             {
@@ -2172,7 +2534,10 @@ def run_spc_analysis(df, analysis_id, config):
                 "data": xbar_traces,
                 "layout": {
                     "height": 320,
-                    "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                    "xaxis": {
+                        "title": "Subgroup",
+                        "rangeslider": {"visible": True, "thickness": 0.12},
+                    },
                     "yaxis": {"title": measurement},
                     "showlegend": True,
                     "legend": {
@@ -2193,8 +2558,28 @@ def run_spc_analysis(df, analysis_id, config):
         r_bar = np.mean(group_ranges)
         # d3/D3/D4 constants for subgroup size (approximation for variable n)
         n_int = int(round(n_avg))
-        d2_table = {2: 1.128, 3: 1.693, 4: 2.059, 5: 2.326, 6: 2.534, 7: 2.704, 8: 2.847, 9: 2.970, 10: 3.078}
-        d3_table = {2: 0.853, 3: 0.888, 4: 0.880, 5: 0.864, 6: 0.848, 7: 0.833, 8: 0.820, 9: 0.808, 10: 0.797}
+        d2_table = {
+            2: 1.128,
+            3: 1.693,
+            4: 2.059,
+            5: 2.326,
+            6: 2.534,
+            7: 2.704,
+            8: 2.847,
+            9: 2.970,
+            10: 3.078,
+        }
+        d3_table = {
+            2: 0.853,
+            3: 0.888,
+            4: 0.880,
+            5: 0.864,
+            6: 0.848,
+            7: 0.833,
+            8: 0.820,
+            9: 0.808,
+            10: 0.797,
+        }
         d2 = d2_table.get(n_int, 2.326)
         d3 = d3_table.get(n_int, 0.864)
         D3 = max(0, 1 - 3 * d3 / d2)
@@ -2257,7 +2642,10 @@ def run_spc_analysis(df, analysis_id, config):
                 "data": r_traces,
                 "layout": {
                     "height": 320,
-                    "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                    "xaxis": {
+                        "title": "Subgroup",
+                        "rangeslider": {"visible": True, "thickness": 0.12},
+                    },
                     "yaxis": {"title": "Range"},
                     "showlegend": True,
                     "legend": {
@@ -2406,7 +2794,9 @@ def run_spc_analysis(df, analysis_id, config):
                         "type": "bar",
                         "x": ["Within", "Between", "B/W Combined", "Overall"],
                         "y": [sigma_within, sigma_between, sigma_bw, sigma_total],
-                        "marker": {"color": ["#4a9f6e", "#4a90d9", "#e89547", "#d94a4a"]},
+                        "marker": {
+                            "color": ["#4a9f6e", "#4a90d9", "#e89547", "#d94a4a"]
+                        },
                         "text": [
                             f"{sigma_within:.4f}",
                             f"{sigma_between:.4f}",
@@ -2444,7 +2834,10 @@ def run_spc_analysis(df, analysis_id, config):
                         "labels": donut_labels,
                         "values": donut_vals,
                         "hole": 0.45,
-                        "marker": {"colors": donut_colors, "line": {"color": "rgba(0,0,0,0.3)", "width": 1}},
+                        "marker": {
+                            "colors": donut_colors,
+                            "line": {"color": "rgba(0,0,0,0.3)", "width": 1},
+                        },
                         "textinfo": "label+percent",
                         "textfont": {"size": 12, "color": "#e0e0e0"},
                         "hoverinfo": "label+percent+value",
@@ -2474,7 +2867,10 @@ def run_spc_analysis(df, analysis_id, config):
                 "type": "histogram",
                 "x": data.tolist(),
                 "name": "Data",
-                "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.3)",
+                    "line": {"color": "#4a9f6e", "width": 1},
+                },
                 "histnorm": "probability density",
             },
             {
@@ -2531,7 +2927,14 @@ def run_spc_analysis(df, analysis_id, config):
                 }
             )
             dist_layout["annotations"].append(
-                {"x": lsl, "y": 1.05, "yref": "paper", "text": "LSL", "showarrow": False, "font": {"color": "#e85747"}}
+                {
+                    "x": lsl,
+                    "y": 1.05,
+                    "yref": "paper",
+                    "text": "LSL",
+                    "showarrow": False,
+                    "font": {"color": "#e85747"},
+                }
             )
         if usl is not None:
             dist_layout["shapes"].append(
@@ -2546,7 +2949,14 @@ def run_spc_analysis(df, analysis_id, config):
                 }
             )
             dist_layout["annotations"].append(
-                {"x": usl, "y": 1.05, "yref": "paper", "text": "USL", "showarrow": False, "font": {"color": "#e85747"}}
+                {
+                    "x": usl,
+                    "y": 1.05,
+                    "yref": "paper",
+                    "text": "USL",
+                    "showarrow": False,
+                    "font": {"color": "#e85747"},
+                }
             )
 
         result["plots"].append(
@@ -2615,7 +3025,11 @@ def run_spc_analysis(df, analysis_id, config):
                                 "x1": 1.5,
                                 "y0": 1.33,
                                 "y1": 1.33,
-                                "line": {"color": "rgba(74,159,110,0.5)", "dash": "dash", "width": 1.5},
+                                "line": {
+                                    "color": "rgba(74,159,110,0.5)",
+                                    "dash": "dash",
+                                    "width": 1.5,
+                                },
                             },
                             {
                                 "type": "line",
@@ -2623,7 +3037,11 @@ def run_spc_analysis(df, analysis_id, config):
                                 "x1": 1.5,
                                 "y0": 1.0,
                                 "y1": 1.0,
-                                "line": {"color": "rgba(232,87,71,0.5)", "dash": "dot", "width": 1.5},
+                                "line": {
+                                    "color": "rgba(232,87,71,0.5)",
+                                    "dash": "dot",
+                                    "width": 1.5,
+                                },
                             },
                         ],
                         "annotations": [
@@ -2652,7 +3070,9 @@ def run_spc_analysis(df, analysis_id, config):
         # ---- Plot 8: Normal Probability Plot ----
         sorted_data = np.sort(data)
         n_pts = len(sorted_data)
-        theoretical_q = sp_stats.norm.ppf((np.arange(1, n_pts + 1) - 0.375) / (n_pts + 0.25))
+        theoretical_q = sp_stats.norm.ppf(
+            (np.arange(1, n_pts + 1) - 0.375) / (n_pts + 0.25)
+        )
 
         result["plots"].append(
             {
@@ -2730,7 +3150,9 @@ def run_spc_analysis(df, analysis_id, config):
                 "params": (shape_ln, 0, scale_ln),
                 "dist": sp_stats.lognorm,
                 "args": (shape_ln, 0, scale_ln),
-                "ks": sp_stats.kstest(pos_data, "lognorm", args=(shape_ln, 0, scale_ln)),
+                "ks": sp_stats.kstest(
+                    pos_data, "lognorm", args=(shape_ln, 0, scale_ln)
+                ),
             }
 
         # Weibull (needs positive data)
@@ -2740,7 +3162,9 @@ def run_spc_analysis(df, analysis_id, config):
                 "params": (shape_w, 0, scale_w),
                 "dist": sp_stats.weibull_min,
                 "args": (shape_w, 0, scale_w),
-                "ks": sp_stats.kstest(pos_data, "weibull_min", args=(shape_w, 0, scale_w)),
+                "ks": sp_stats.kstest(
+                    pos_data, "weibull_min", args=(shape_w, 0, scale_w)
+                ),
             }
 
         # Exponential (needs positive data)
@@ -2759,9 +3183,13 @@ def run_spc_analysis(df, analysis_id, config):
         best_dist = best["dist"]
         best_args = best["args"]
 
-        summary = f"Non-Normal Capability Analysis\n\nBest Fit Distribution: {best_name}\n\n"
+        summary = (
+            f"Non-Normal Capability Analysis\n\nBest Fit Distribution: {best_name}\n\n"
+        )
         summary += "Distribution Fit Comparison (Anderson-Darling / KS test):\n"
-        summary += f"  {'Distribution':<15} {'KS Stat':>10} {'p-value':>10} {'Fit':>6}\n"
+        summary += (
+            f"  {'Distribution':<15} {'KS Stat':>10} {'p-value':>10} {'Fit':>6}\n"
+        )
         summary += f"  {'-' * 45}\n"
         for name, info in fits.items():
             marker = " <--" if name == best_name else ""
@@ -2803,7 +3231,10 @@ def run_spc_analysis(df, analysis_id, config):
                 "type": "histogram",
                 "x": data.tolist(),
                 "name": "Data",
-                "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.3)",
+                    "line": {"color": "#4a9f6e", "width": 1},
+                },
                 "histnorm": "probability density",
             },
             {
@@ -2830,7 +3261,14 @@ def run_spc_analysis(df, analysis_id, config):
                 }
             )
             layout["annotations"].append(
-                {"x": lsl, "y": 1.05, "yref": "paper", "text": "LSL", "showarrow": False, "font": {"color": "#e85747"}}
+                {
+                    "x": lsl,
+                    "y": 1.05,
+                    "yref": "paper",
+                    "text": "LSL",
+                    "showarrow": False,
+                    "font": {"color": "#e85747"},
+                }
             )
         if usl is not None:
             layout["shapes"].append(
@@ -2845,11 +3283,22 @@ def run_spc_analysis(df, analysis_id, config):
                 }
             )
             layout["annotations"].append(
-                {"x": usl, "y": 1.05, "yref": "paper", "text": "USL", "showarrow": False, "font": {"color": "#e85747"}}
+                {
+                    "x": usl,
+                    "y": 1.05,
+                    "yref": "paper",
+                    "text": "USL",
+                    "showarrow": False,
+                    "font": {"color": "#e85747"},
+                }
             )
 
         result["plots"].append(
-            {"title": f"Non-Normal Capability ({best_name} Fit)", "data": hist_data, "layout": layout}
+            {
+                "title": f"Non-Normal Capability ({best_name} Fit)",
+                "data": hist_data,
+                "layout": layout,
+            }
         )
 
         # Probability plot for best fit
@@ -2987,8 +3436,13 @@ def run_spc_analysis(df, analysis_id, config):
         )
 
         _ma_n_ooc = len(ma_ooc)
-        result["guide_observation"] = f"MA chart (span={span}): {_ma_n_ooc} out-of-control points." + (
-            " Process appears stable." if _ma_n_ooc == 0 else " Investigation recommended."
+        result["guide_observation"] = (
+            f"MA chart (span={span}): {_ma_n_ooc} out-of-control points."
+            + (
+                " Process appears stable."
+                if _ma_n_ooc == 0
+                else " Investigation recommended."
+            )
         )
         if _ma_n_ooc == 0:
             result["narrative"] = _narrative(
@@ -3184,7 +3638,9 @@ def run_spc_analysis(df, analysis_id, config):
                         "symbol": "diamond",
                         "line": {"color": "white", "width": 1.5},
                     },
-                    "customdata": [[i, "Zone signal: cumulative score \u22658"] for i in signals],
+                    "customdata": [
+                        [i, "Zone signal: cumulative score \u22658"] for i in signals
+                    ],
                     "hovertemplate": "Obs #%{customdata[0]}<br>Value: %{y:.4f}<br>%{customdata[1]}<extra>Signal</extra>",
                 }
             )
@@ -3255,7 +3711,10 @@ def run_spc_analysis(df, analysis_id, config):
                     "height": 240,
                     "showlegend": True,
                     "yaxis": {"title": "Score"},
-                    "xaxis": {"title": "Sample", "rangeslider": {"visible": True, "thickness": 0.12}},
+                    "xaxis": {
+                        "title": "Sample",
+                        "rangeslider": {"visible": True, "thickness": 0.12},
+                    },
                 },
             }
         )
@@ -3284,7 +3743,9 @@ def run_spc_analysis(df, analysis_id, config):
         n, p = X.shape
 
         if n < 10 or p < 2:
-            result["summary"] = "MEWMA requires at least 2 variables and 10 observations."
+            result["summary"] = (
+                "MEWMA requires at least 2 variables and 10 observations."
+            )
             return result
 
         # Mean vector and covariance
@@ -3304,7 +3765,9 @@ def run_spc_analysis(df, analysis_id, config):
         # T2 statistic for each MEWMA vector
         t2_values = []
         for i in range(n):
-            factor = (lambda_param / (2 - lambda_param)) * (1 - (1 - lambda_param) ** (2 * (i + 1)))
+            factor = (lambda_param / (2 - lambda_param)) * (
+                1 - (1 - lambda_param) ** (2 * (i + 1))
+            )
             Sigma_Z = factor * Sigma
             try:
                 Sigma_Z_inv = np.linalg.inv(Sigma_Z)
@@ -3347,7 +3810,10 @@ def run_spc_analysis(df, analysis_id, config):
                     "height": 290,
                     "showlegend": True,
                     "yaxis": {"title": "T² Statistic"},
-                    "xaxis": {"title": "Observation", "rangeslider": {"visible": True, "thickness": 0.12}},
+                    "xaxis": {
+                        "title": "Observation",
+                        "rangeslider": {"visible": True, "thickness": 0.12},
+                    },
                 },
                 "interactive": {"type": "spc_inspect"},
             }
@@ -3367,8 +3833,19 @@ def run_spc_analysis(df, analysis_id, config):
             result["plots"].append(
                 {
                     "title": f"Variable Contribution at First OOC (obs {first_ooc})",
-                    "data": [{"type": "bar", "x": vars_list, "y": pct_contrib, "marker": {"color": "#4a9f6e"}}],
-                    "layout": {"height": 250, "yaxis": {"title": "% Contribution"}, "xaxis": {"title": "Variable"}},
+                    "data": [
+                        {
+                            "type": "bar",
+                            "x": vars_list,
+                            "y": pct_contrib,
+                            "marker": {"color": "#4a9f6e"},
+                        }
+                    ],
+                    "layout": {
+                        "height": 250,
+                        "yaxis": {"title": "% Contribution"},
+                        "xaxis": {"title": "Variable"},
+                    },
                 }
             )
 
@@ -3467,7 +3944,9 @@ def run_spc_analysis(df, analysis_id, config):
                         "line": {"color": "#4a9f6e"},
                         "marker": {"color": colors, "size": 6},
                         "name": var,
-                        "customdata": [[i, "OOC" if i in ooc_indices else ""] for i in range(n)],
+                        "customdata": [
+                            [i, "OOC" if i in ooc_indices else ""] for i in range(n)
+                        ],
                         "hovertemplate": "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra></extra>",
                     },
                     {
@@ -3497,7 +3976,10 @@ def run_spc_analysis(df, analysis_id, config):
                 ],
                 "layout": {
                     "height": 390,
-                    "xaxis": {"title": "Observation", "rangeslider": {"visible": True, "thickness": 0.12}},
+                    "xaxis": {
+                        "title": "Observation",
+                        "rangeslider": {"visible": True, "thickness": 0.12},
+                    },
                     "yaxis": {"title": y_label},
                 },
                 "interactive": {"type": "spc_inspect"},
@@ -3512,7 +3994,9 @@ def run_spc_analysis(df, analysis_id, config):
         summary += f"LCL: {lcl:.4f}\n"
         summary += f"Out-of-control: {len(ooc_indices)}\n"
         if ooc_indices:
-            summary += f"OOC observations: {', '.join(str(i + 1) for i in ooc_indices)}\n"
+            summary += (
+                f"OOC observations: {', '.join(str(i + 1) for i in ooc_indices)}\n"
+            )
         if chart_type == "t":
             summary += f"\nWeibull shape: {shape:.3f} (1.0 = exponential)\n"
             summary += f"Weibull scale: {scale:.3f}\n"
@@ -3532,7 +4016,11 @@ def run_spc_analysis(df, analysis_id, config):
         }
 
         # Narrative
-        _gt_label = "G Chart (count between events)" if chart_type == "g" else "T Chart (time between events)"
+        _gt_label = (
+            "G Chart (count between events)"
+            if chart_type == "g"
+            else "T Chart (time between events)"
+        )
         _gt_n_ooc = len(ooc_indices)
         if _gt_n_ooc == 0:
             _gt_verdict = f"{_gt_label} — process in control"
@@ -3543,9 +4031,11 @@ def run_spc_analysis(df, analysis_id, config):
         result["narrative"] = _narrative(
             _gt_verdict,
             _gt_body,
-            next_steps="Investigate OOC points for assignable causes. A cluster of short intervals suggests a worsening event rate."
-            if _gt_n_ooc > 0
-            else "Continue monitoring. Consider adding process improvement to reduce the baseline event rate.",
+            next_steps=(
+                "Investigate OOC points for assignable causes. A cluster of short intervals suggests a worsening event rate."
+                if _gt_n_ooc > 0
+                else "Continue monitoring. Consider adding process improvement to reduce the baseline event rate."
+            ),
             chart_guidance="Points above UCL indicate unusually long gaps between events (improvement). Points below LCL indicate unusually short gaps (deterioration).",
         )
 
@@ -3565,7 +4055,9 @@ def run_spc_analysis(df, analysis_id, config):
         subgroup_size_gv = int(config.get("subgroup_size", 5))
 
         if not variables_gv or len(variables_gv) < 2:
-            result["summary"] = "Need at least 2 variables for generalized variance chart."
+            result["summary"] = (
+                "Need at least 2 variables for generalized variance chart."
+            )
             return result
 
         data_gv = df[variables_gv + ([subgroup_col] if subgroup_col else [])].dropna()
@@ -3573,8 +4065,16 @@ def run_spc_analysis(df, analysis_id, config):
 
         # Create subgroups
         if subgroup_col:
-            subgroups = [grp[variables_gv].values for _, grp in data_gv.groupby(subgroup_col) if len(grp) >= 2]
-            subgroup_labels = [str(name) for name, grp in data_gv.groupby(subgroup_col) if len(grp) >= 2]
+            subgroups = [
+                grp[variables_gv].values
+                for _, grp in data_gv.groupby(subgroup_col)
+                if len(grp) >= 2
+            ]
+            subgroup_labels = [
+                str(name)
+                for name, grp in data_gv.groupby(subgroup_col)
+                if len(grp) >= 2
+            ]
         else:
             n_obs = len(data_gv)
             subgroups = [
@@ -3584,7 +4084,9 @@ def run_spc_analysis(df, analysis_id, config):
             subgroup_labels = [str(i + 1) for i in range(len(subgroups))]
 
         if len(subgroups) < 3:
-            result["summary"] = "Need at least 3 subgroups for generalized variance chart."
+            result["summary"] = (
+                "Need at least 3 subgroups for generalized variance chart."
+            )
             return result
 
         # Compute |S_i| for each subgroup
@@ -3695,7 +4197,10 @@ def run_spc_analysis(df, analysis_id, config):
                 "data": chart_traces,
                 "layout": {
                     "height": 440,
-                    "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                    "xaxis": {
+                        "title": "Subgroup",
+                        "rangeslider": {"visible": True, "thickness": 0.12},
+                    },
                     "yaxis": {"title": "|S| (Determinant)"},
                 },
             }
@@ -3704,14 +4209,18 @@ def run_spc_analysis(df, analysis_id, config):
         summary_gv = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary_gv += "<<COLOR:title>>GENERALIZED VARIANCE CHART<</COLOR>>\n"
         summary_gv += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary_gv += f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(variables_gv)}\n"
+        summary_gv += (
+            f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(variables_gv)}\n"
+        )
         summary_gv += f"<<COLOR:highlight>>Subgroups:<</COLOR>> {len(subgroups)}  (avg size = {n_avg})\n\n"
         summary_gv += "<<COLOR:text>>Control Limits:<</COLOR>>\n"
         summary_gv += f"  UCL = {ucl_gv:.6f}\n"
         summary_gv += f"  CL  = {cl_gv:.6f}\n"
         summary_gv += f"  LCL = {lcl_gv:.6f}\n\n"
         if ooc_gv:
-            summary_gv += f"<<COLOR:warning>>Out-of-control points: {len(ooc_gv)}<</COLOR>>\n"
+            summary_gv += (
+                f"<<COLOR:warning>>Out-of-control points: {len(ooc_gv)}<</COLOR>>\n"
+            )
             for idx_ooc in ooc_gv:
                 summary_gv += f"  Subgroup {subgroup_labels[idx_ooc]}: |S| = {det_values[idx_ooc]:.6f}\n"
         else:
@@ -3742,9 +4251,11 @@ def run_spc_analysis(df, analysis_id, config):
         result["narrative"] = _narrative(
             _gv_verdict,
             _gv_body,
-            next_steps="Pair with a Hotelling T² chart to distinguish mean shifts from variability shifts."
-            if _gv_n_ooc > 0
-            else "Continue monitoring. Process variability is stable across all measured dimensions.",
+            next_steps=(
+                "Pair with a Hotelling T² chart to distinguish mean shifts from variability shifts."
+                if _gv_n_ooc > 0
+                else "Continue monitoring. Process variability is stable across all measured dimensions."
+            ),
             chart_guidance="Each point is the determinant |S| of the subgroup covariance matrix. Higher values mean more joint spread.",
         )
 
@@ -3765,12 +4276,18 @@ def run_spc_analysis(df, analysis_id, config):
         n = len(data)
         alpha_conf = float(config.get("alpha", 0.05))  # False alarm rate
         cal_fraction = float(config.get("calibration_fraction", 0.5))
-        spike_threshold = float(config.get("spike_threshold", 2.0))  # Multiple of median width for spike detection
-        chart_type = config.get("chart_type", "individuals")  # individuals, subgroup_mean, subgroup_range
+        spike_threshold = float(
+            config.get("spike_threshold", 2.0)
+        )  # Multiple of median width for spike detection
+        chart_type = config.get(
+            "chart_type", "individuals"
+        )  # individuals, subgroup_mean, subgroup_range
         subgroup_size = int(config.get("subgroup_size", 5))
 
         if n < 20:
-            result["summary"] = "Need at least 20 observations for conformal control chart (calibration + monitoring)."
+            result["summary"] = (
+                "Need at least 20 observations for conformal control chart (calibration + monitoring)."
+            )
             return result
 
         # Phase I / Phase II split
@@ -3782,13 +4299,19 @@ def run_spc_analysis(df, analysis_id, config):
         if chart_type == "subgroup_mean" and n_cal >= subgroup_size * 2:
             # Subgroup means
             n_sg_cal = n_cal // subgroup_size
-            cal_subgroups = [cal_data[i * subgroup_size : (i + 1) * subgroup_size] for i in range(n_sg_cal)]
+            cal_subgroups = [
+                cal_data[i * subgroup_size : (i + 1) * subgroup_size]
+                for i in range(n_sg_cal)
+            ]
             cal_values = np.array([np.mean(sg) for sg in cal_subgroups])
             center = np.median(cal_values)
 
             n_sg_mon = n_mon // subgroup_size
             mon_values = np.array(
-                [np.mean(mon_data[i * subgroup_size : (i + 1) * subgroup_size]) for i in range(n_sg_mon)]
+                [
+                    np.mean(mon_data[i * subgroup_size : (i + 1) * subgroup_size])
+                    for i in range(n_sg_mon)
+                ]
             )
             x_labels = [f"SG {i + 1}" for i in range(n_sg_cal + n_sg_mon)]
             all_values = np.concatenate([cal_values, mon_values])
@@ -3796,13 +4319,19 @@ def run_spc_analysis(df, analysis_id, config):
         elif chart_type == "subgroup_range" and n_cal >= subgroup_size * 2:
             # Subgroup ranges
             n_sg_cal = n_cal // subgroup_size
-            cal_subgroups = [cal_data[i * subgroup_size : (i + 1) * subgroup_size] for i in range(n_sg_cal)]
+            cal_subgroups = [
+                cal_data[i * subgroup_size : (i + 1) * subgroup_size]
+                for i in range(n_sg_cal)
+            ]
             cal_values = np.array([np.ptp(sg) for sg in cal_subgroups])
             center = np.median(cal_values)
 
             n_sg_mon = n_mon // subgroup_size
             mon_values = np.array(
-                [np.ptp(mon_data[i * subgroup_size : (i + 1) * subgroup_size]) for i in range(n_sg_mon)]
+                [
+                    np.ptp(mon_data[i * subgroup_size : (i + 1) * subgroup_size])
+                    for i in range(n_sg_mon)
+                ]
             )
             x_labels = [f"SG {i + 1}" for i in range(n_sg_cal + n_sg_mon)]
             all_values = np.concatenate([cal_values, mon_values])
@@ -3849,7 +4378,11 @@ def run_spc_analysis(df, analysis_id, config):
         for i in range(n):
             if i < window:
                 # Use calibration statistics for early points
-                local_std = np.std(data[: max(i + 1, 2)], ddof=1) if i > 0 else np.std(cal_data, ddof=1)
+                local_std = (
+                    np.std(data[: max(i + 1, 2)], ddof=1)
+                    if i > 0
+                    else np.std(cal_data, ddof=1)
+                )
                 local_center = np.median(data[: max(i + 1, 2)])
             else:
                 local_window = data[i - window : i]
@@ -3858,7 +4391,9 @@ def run_spc_analysis(df, analysis_id, config):
 
             # Normalized score: accounts for local variability
             adaptive_widths[i] = (
-                q * max(local_std / np.std(cal_data, ddof=1), 0.5) if np.std(cal_data, ddof=1) > 0 else q
+                q * max(local_std / np.std(cal_data, ddof=1), 0.5)
+                if np.std(cal_data, ddof=1) > 0
+                else q
             )
             adaptive_lower[i] = local_center - adaptive_widths[i]
             adaptive_upper[i] = local_center + adaptive_widths[i]
@@ -3887,12 +4422,16 @@ def run_spc_analysis(df, analysis_id, config):
         summary_cc += f"<<COLOR:highlight>>N:<</COLOR>> {n} ({n_cal} calibration + {n_mon} monitoring)\n"
         summary_cc += f"<<COLOR:highlight>>Significance level:<</COLOR>> α = {alpha_conf} (guaranteed ≤ {alpha_conf * 100:.0f}% false alarm rate)\n\n"
 
-        summary_cc += "<<COLOR:text>>Conformal Control Limits (distribution-free):<</COLOR>>\n"
+        summary_cc += (
+            "<<COLOR:text>>Conformal Control Limits (distribution-free):<</COLOR>>\n"
+        )
         summary_cc += f"  Center (median): {center:.4f}\n"
         summary_cc += f"  Conformal threshold (q): {q:.4f}\n"
         summary_cc += f"  Prediction interval: [{pi_lower:.4f}, {pi_upper:.4f}]\n\n"
 
-        summary_cc += "<<COLOR:text>>Traditional Shewhart Limits (for comparison):<</COLOR>>\n"
+        summary_cc += (
+            "<<COLOR:text>>Traditional Shewhart Limits (for comparison):<</COLOR>>\n"
+        )
         summary_cc += f"  Mean ± 3σ: [{shewhart_lcl:.4f}, {shewhart_ucl:.4f}]\n\n"
 
         # Compare the two approaches
@@ -3903,9 +4442,7 @@ def run_spc_analysis(df, analysis_id, config):
         elif conformal_width > shewhart_width * 1.1:
             summary_cc += "<<COLOR:text>>Conformal limits are wider than Shewhart — data may be non-normal (heavy tails). This is the correct adjustment.<</COLOR>>\n\n"
         else:
-            summary_cc += (
-                "<<COLOR:text>>Conformal and Shewhart limits are similar — data is approximately normal.<</COLOR>>\n\n"
-            )
+            summary_cc += "<<COLOR:text>>Conformal and Shewhart limits are similar — data is approximately normal.<</COLOR>>\n\n"
 
         if n_ooc > 0:
             summary_cc += f"<<COLOR:warning>>⚠ {n_ooc} out-of-control point(s) in monitoring phase<</COLOR>>\n"
@@ -3913,11 +4450,15 @@ def run_spc_analysis(df, analysis_id, config):
                 for idx in ooc_indices:
                     summary_cc += f"  Observation {n_cal + idx}: value = {mon_values[idx]:.4f}, score = {mon_scores[idx]:.4f} > q = {q:.4f}\n"
         else:
-            summary_cc += "<<COLOR:good>>No out-of-control points in monitoring phase<</COLOR>>\n"
+            summary_cc += (
+                "<<COLOR:good>>No out-of-control points in monitoring phase<</COLOR>>\n"
+            )
 
         if len(spike_indices_mon) > 0:
             summary_cc += f"\n<<COLOR:warning>>⚠ {len(spike_indices_mon)} uncertainty spike(s) detected — leading indicators of instability<</COLOR>>\n"
-            summary_cc += f"  Spike threshold: {spike_threshold}× median interval width\n"
+            summary_cc += (
+                f"  Spike threshold: {spike_threshold}× median interval width\n"
+            )
             if len(spike_indices_mon) <= 10:
                 for idx in spike_indices_mon:
                     summary_cc += f"  Observation {idx}: width = {adaptive_widths[idx]:.4f} ({adaptive_widths[idx] / median_width:.1f}× normal)\n"
@@ -3927,13 +4468,17 @@ def run_spc_analysis(df, analysis_id, config):
         summary_cc += "\n<<COLOR:text>>Key advantages:<</COLOR>>\n"
         summary_cc += "  • Distribution-free: no normality assumption required\n"
         summary_cc += f"  • Guaranteed false alarm rate ≤ α = {alpha_conf}\n"
-        summary_cc += "  • Uncertainty spikes provide early warning before limits are breached\n"
+        summary_cc += (
+            "  • Uncertainty spikes provide early warning before limits are breached\n"
+        )
         summary_cc += "  • Adaptive intervals respond to changing process conditions\n"
 
         result["summary"] = summary_cc
 
         # Plot 1: Conformal control chart (main)
-        n_cal_plot = len(cal_values)  # subgroup count for subgroup charts, n_cal for individuals
+        n_cal_plot = len(
+            cal_values
+        )  # subgroup count for subgroup charts, n_cal for individuals
         n_total = len(all_values)
         point_colors = []
         for i in range(n_total):
@@ -4008,9 +4553,15 @@ def run_spc_analysis(df, analysis_id, config):
                             "type": "line",
                             "x0": n_cal_plot,
                             "x1": n_cal_plot,
-                            "y0": float(np.min(all_values)) - 0.1 * float(np.ptp(all_values)),
-                            "y1": float(np.max(all_values)) + 0.1 * float(np.ptp(all_values)),
-                            "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5},
+                            "y0": float(np.min(all_values))
+                            - 0.1 * float(np.ptp(all_values)),
+                            "y1": float(np.max(all_values))
+                            + 0.1 * float(np.ptp(all_values)),
+                            "line": {
+                                "color": "#e8c547",
+                                "dash": "dashdot",
+                                "width": 1.5,
+                            },
                         }
                     ],
                     "annotations": [
@@ -4055,7 +4606,11 @@ def run_spc_analysis(df, analysis_id, config):
                         {
                             "type": "scatter",
                             "x": spike_indices_mon.tolist(),
-                            "y": data[spike_indices_mon].tolist() if len(spike_indices_mon) > 0 else [],
+                            "y": (
+                                data[spike_indices_mon].tolist()
+                                if len(spike_indices_mon) > 0
+                                else []
+                            ),
                             "mode": "markers",
                             "marker": {
                                 "size": 10,
@@ -4161,11 +4716,15 @@ def run_spc_analysis(df, analysis_id, config):
         # Narrative
         _cc_n_spikes = len(spike_indices_mon)
         if n_ooc == 0 and _cc_n_spikes == 0:
-            _cc_verdict = "Conformal Control Chart — process in control (distribution-free)"
+            _cc_verdict = (
+                "Conformal Control Chart — process in control (distribution-free)"
+            )
             _cc_body = f"No out-of-control points or uncertainty spikes in {n_mon} monitoring observations. Guaranteed false alarm rate = {alpha_conf * 100:.1f}% without normality assumption."
         else:
             _cc_verdict = f"Conformal Control Chart — {n_ooc} OOC" + (
-                f", {_cc_n_spikes} uncertainty spike{'s' if _cc_n_spikes > 1 else ''}" if _cc_n_spikes > 0 else ""
+                f", {_cc_n_spikes} uncertainty spike{'s' if _cc_n_spikes > 1 else ''}"
+                if _cc_n_spikes > 0
+                else ""
             )
             _cc_body = (
                 f"{n_ooc} out-of-control points detected in {n_mon} monitoring observations (calibrated on {n_cal} points). "
@@ -4178,9 +4737,11 @@ def run_spc_analysis(df, analysis_id, config):
         result["narrative"] = _narrative(
             _cc_verdict,
             _cc_body,
-            next_steps="Investigate OOC points for assignable causes. Uncertainty spikes often precede full OOC events."
-            if n_ooc > 0 or _cc_n_spikes > 0
-            else "Process is stable under distribution-free monitoring.",
+            next_steps=(
+                "Investigate OOC points for assignable causes. Uncertainty spikes often precede full OOC events."
+                if n_ooc > 0 or _cc_n_spikes > 0
+                else "Process is stable under distribution-free monitoring."
+            ),
             chart_guidance="Blue band = adaptive prediction interval. Yellow triangles = uncertainty spikes (interval widening). Red points = out-of-control observations exceeding the conformal threshold.",
         )
 
@@ -4198,21 +4759,27 @@ def run_spc_analysis(df, analysis_id, config):
 
         alpha_conf = float(config.get("alpha", 0.05))
         cal_fraction = float(config.get("calibration_fraction", 0.5))
-        model_type = config.get("model", "isolation_forest")  # isolation_forest, mahalanobis
+        model_type = config.get(
+            "model", "isolation_forest"
+        )  # isolation_forest, mahalanobis
 
         # Get numeric columns
         variables = config.get("variables", [])
         if not variables:
             variables = df.select_dtypes(include="number").columns.tolist()
         if len(variables) < 2:
-            result["summary"] = "Conformal monitoring requires at least 2 numeric variables for multivariate analysis."
+            result["summary"] = (
+                "Conformal monitoring requires at least 2 numeric variables for multivariate analysis."
+            )
             return result
 
         X = df[variables].dropna().values
         n = len(X)
 
         if n < 30:
-            result["summary"] = "Need at least 30 observations for conformal multivariate monitoring."
+            result["summary"] = (
+                "Need at least 30 observations for conformal multivariate monitoring."
+            )
             return result
 
         # Phase I / Phase II split
@@ -4224,7 +4791,11 @@ def run_spc_analysis(df, analysis_id, config):
         # Standardize using calibration data
         scaler = StandardScaler()
         X_cal_scaled = scaler.fit_transform(X_cal)
-        X_mon_scaled = scaler.transform(X_mon) if n_mon > 0 else np.array([]).reshape(0, len(variables))
+        X_mon_scaled = (
+            scaler.transform(X_mon)
+            if n_mon > 0
+            else np.array([]).reshape(0, len(variables))
+        )
 
         # Compute nonconformity scores
         if model_type == "mahalanobis":
@@ -4236,9 +4807,19 @@ def run_spc_analysis(df, analysis_id, config):
                 cov_inv = np.linalg.pinv(cov_cal)
             mean_cal = np.mean(X_cal_scaled, axis=0)
 
-            cal_scores = np.array([np.sqrt((x - mean_cal) @ cov_inv @ (x - mean_cal)) for x in X_cal_scaled])
+            cal_scores = np.array(
+                [
+                    np.sqrt((x - mean_cal) @ cov_inv @ (x - mean_cal))
+                    for x in X_cal_scaled
+                ]
+            )
             mon_scores = (
-                np.array([np.sqrt((x - mean_cal) @ cov_inv @ (x - mean_cal)) for x in X_mon_scaled])
+                np.array(
+                    [
+                        np.sqrt((x - mean_cal) @ cov_inv @ (x - mean_cal))
+                        for x in X_mon_scaled
+                    ]
+                )
                 if n_mon > 0
                 else np.array([])
             )
@@ -4250,7 +4831,9 @@ def run_spc_analysis(df, analysis_id, config):
 
             # Score = -decision_function (higher = more anomalous)
             cal_scores = -iso.decision_function(X_cal_scaled)
-            mon_scores = -iso.decision_function(X_mon_scaled) if n_mon > 0 else np.array([])
+            mon_scores = (
+                -iso.decision_function(X_mon_scaled) if n_mon > 0 else np.array([])
+            )
             model_label = "Isolation Forest"
 
         all_scores = np.concatenate([cal_scores, mon_scores])
@@ -4258,9 +4841,13 @@ def run_spc_analysis(df, analysis_id, config):
         # Conformal p-values for monitoring observations
         # p-value = (# calibration scores >= current score + 1) / (n_cal + 1)
         np.sort(cal_scores)
-        cal_p_values = np.array([(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in cal_scores])
+        cal_p_values = np.array(
+            [(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in cal_scores]
+        )
         mon_p_values = (
-            np.array([(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in mon_scores]) if n_mon > 0 else np.array([])
+            np.array([(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in mon_scores])
+            if n_mon > 0
+            else np.array([])
         )
         all_p_values = np.concatenate([cal_p_values, mon_p_values])
 
@@ -4286,28 +4873,34 @@ def run_spc_analysis(df, analysis_id, config):
 
         # Summary
         summary_cm = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary_cm += "<<COLOR:title>>CONFORMAL P-VALUE CHART (Multivariate Monitor)<</COLOR>>\n"
+        summary_cm += (
+            "<<COLOR:title>>CONFORMAL P-VALUE CHART (Multivariate Monitor)<</COLOR>>\n"
+        )
         summary_cm += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary_cm += "<<COLOR:dim>>Burger et al. (2025) — Distribution-free anomaly detection<</COLOR>>\n\n"
         summary_cm += f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(variables)} ({len(variables)} dimensions)\n"
         summary_cm += f"<<COLOR:highlight>>N:<</COLOR>> {n} ({n_cal} calibration + {n_mon} monitoring)\n"
         summary_cm += f"<<COLOR:highlight>>Anomaly model:<</COLOR>> {model_label}\n"
-        summary_cm += f"<<COLOR:highlight>>Significance level:<</COLOR>> α = {alpha_conf}\n\n"
+        summary_cm += (
+            f"<<COLOR:highlight>>Significance level:<</COLOR>> α = {alpha_conf}\n\n"
+        )
 
-        summary_cm += "<<COLOR:text>>Conformal P-Value Distribution (monitoring):<</COLOR>>\n"
+        summary_cm += (
+            "<<COLOR:text>>Conformal P-Value Distribution (monitoring):<</COLOR>>\n"
+        )
         if n_mon > 0:
             summary_cm += f"  Mean p-value: {np.mean(mon_p_values):.4f}\n"
+            summary_cm += f"  Min p-value: {np.min(mon_p_values):.4f} at observation {n_cal + int(np.argmin(mon_p_values))}\n"
             summary_cm += (
-                f"  Min p-value: {np.min(mon_p_values):.4f} at observation {n_cal + int(np.argmin(mon_p_values))}\n"
+                f"  % below α: {np.mean(mon_p_values < alpha_conf) * 100:.1f}%\n\n"
             )
-            summary_cm += f"  % below α: {np.mean(mon_p_values < alpha_conf) * 100:.1f}%\n\n"
 
         if n_anomalies > 0:
-            summary_cm += (
-                f"<<COLOR:warning>>⚠ {n_anomalies} anomalous observation(s) detected (p < {alpha_conf})<</COLOR>>\n"
-            )
+            summary_cm += f"<<COLOR:warning>>⚠ {n_anomalies} anomalous observation(s) detected (p < {alpha_conf})<</COLOR>>\n"
             if contributions:
-                summary_cm += "\n  <<COLOR:text>>Top contributing variables:<</COLOR>>\n"
+                summary_cm += (
+                    "\n  <<COLOR:text>>Top contributing variables:<</COLOR>>\n"
+                )
                 for idx, var, z in contributions:
                     summary_cm += f"    Obs {n_cal + idx}: driven by '{var}' (z = {z:.2f}σ from calibration mean)\n"
         else:
@@ -4317,7 +4910,9 @@ def run_spc_analysis(df, analysis_id, config):
         summary_cm += f"  • Monitors {len(variables)} variables simultaneously\n"
         summary_cm += "  • No distributional assumptions on joint variable behavior\n"
         summary_cm += f"  • Guaranteed false alarm rate ≤ α = {alpha_conf}\n"
-        summary_cm += "  • Intuitive p-value scale (0 = most anomalous, 1 = most normal)\n"
+        summary_cm += (
+            "  • Intuitive p-value scale (0 = most anomalous, 1 = most normal)\n"
+        )
 
         result["summary"] = summary_cm
 
@@ -4363,7 +4958,11 @@ def run_spc_analysis(df, analysis_id, config):
                             "x1": n_cal,
                             "y0": 0,
                             "y1": 1,
-                            "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5},
+                            "line": {
+                                "color": "#e8c547",
+                                "dash": "dashdot",
+                                "width": 1.5,
+                            },
                         },
                         {
                             "type": "rect",
@@ -4389,7 +4988,10 @@ def run_spc_analysis(df, analysis_id, config):
         )
 
         # Plot 2: Anomaly scores over time
-        score_colors_2 = ["#e85747" if (i >= n_cal and all_p_values[i] < alpha_conf) else "#4a9f6e" for i in range(n)]
+        score_colors_2 = [
+            "#e85747" if (i >= n_cal and all_p_values[i] < alpha_conf) else "#4a9f6e"
+            for i in range(n)
+        ]
         result["plots"].append(
             {
                 "title": f"Nonconformity Scores ({model_label})",
@@ -4437,7 +5039,11 @@ def run_spc_analysis(df, analysis_id, config):
                             "z": z_matrix.T.tolist(),
                             "x": [f"{n_cal + i}" for i in range(n_mon)],
                             "y": variables,
-                            "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#e85747"]],
+                            "colorscale": [
+                                [0, "#4a9f6e"],
+                                [0.5, "#e8c547"],
+                                [1, "#e85747"],
+                            ],
                             "colorbar": {"title": "|z|"},
                         }
                     ],
@@ -4468,7 +5074,9 @@ def run_spc_analysis(df, analysis_id, config):
 
         # Narrative
         if n_anomalies == 0:
-            _cm_verdict = f"Conformal Monitor — no anomalies ({len(variables)} variables)"
+            _cm_verdict = (
+                f"Conformal Monitor — no anomalies ({len(variables)} variables)"
+            )
             _cm_body = f"All {n_mon} monitoring observations are within normal bounds across {len(variables)} variables using {model_label}. False alarm rate controlled at {alpha_conf * 100:.1f}%."
         else:
             _cm_top_var = ""
@@ -4482,9 +5090,11 @@ def run_spc_analysis(df, analysis_id, config):
         result["narrative"] = _narrative(
             _cm_verdict,
             _cm_body,
-            next_steps="Check the variable contribution heatmap to identify which dimensions are driving anomalies."
-            if n_anomalies > 0
-            else "Process is multivariate-stable. Continue monitoring.",
+            next_steps=(
+                "Check the variable contribution heatmap to identify which dimensions are driving anomalies."
+                if n_anomalies > 0
+                else "Process is multivariate-stable. Continue monitoring."
+            ),
             chart_guidance="The p-value chart shows conformal p-values per observation — points below the red line are anomalous. The heatmap reveals which variables contribute most to each flagged observation.",
         )
 
@@ -4514,7 +5124,9 @@ def run_spc_analysis(df, analysis_id, config):
         n = len(data)
 
         if n < window * 2:
-            result["summary"] = f"Error: Need at least {window * 2} observations for window={window}."
+            result["summary"] = (
+                f"Error: Need at least {window * 2} observations for window={window}."
+            )
             return result
 
         # Compute rolling Shannon entropy on binned data
@@ -4553,8 +5165,12 @@ def run_spc_analysis(df, analysis_id, config):
         summary += "<<COLOR:title>>ENTROPY SPC (INFORMATION-THEORETIC CONTROL CHART)<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:text>>Variable:<</COLOR>> {col}\n"
-        summary += f"<<COLOR:text>>Window:<</COLOR>> {window}    Bins: {n_bins}    N: {n}\n\n"
-        summary += "<<COLOR:accent>>\u2500\u2500 Entropy Statistics \u2500\u2500<</COLOR>>\n"
+        summary += (
+            f"<<COLOR:text>>Window:<</COLOR>> {window}    Bins: {n_bins}    N: {n}\n\n"
+        )
+        summary += (
+            "<<COLOR:accent>>\u2500\u2500 Entropy Statistics \u2500\u2500<</COLOR>>\n"
+        )
         summary += f"  Baseline mean: {h_mean:.4f} bits\n"
         summary += f"  UCL: {ucl:.4f}    LCL: {lcl:.4f}\n"
         summary += f"  OOC points: {len(ooc_idx)} ({ooc_pct:.1f}%)\n"
@@ -4574,20 +5190,20 @@ def run_spc_analysis(df, analysis_id, config):
             "n_drops": len(drops),
         }
 
-        _es_status = "in control" if not ooc_idx else f"{len(ooc_idx)} out-of-control signals"
+        _es_status = (
+            "in control" if not ooc_idx else f"{len(ooc_idx)} out-of-control signals"
+        )
         _es_detail = ""
         if spikes and drops:
             _es_detail = " Both entropy spikes (distributional spreading) and drops (narrowing) detected."
         elif spikes:
-            _es_detail = (
-                " Entropy spikes indicate distributional spreading \u2014 possible bimodality or increased variation."
-            )
+            _es_detail = " Entropy spikes indicate distributional spreading \u2014 possible bimodality or increased variation."
         elif drops:
-            _es_detail = (
-                " Entropy drops indicate distribution narrowing \u2014 possible mode collapse or reduced variation."
-            )
+            _es_detail = " Entropy drops indicate distribution narrowing \u2014 possible mode collapse or reduced variation."
 
-        result["guide_observation"] = f"Entropy SPC: {_es_status}. Mean entropy = {h_mean:.3f} bits."
+        result["guide_observation"] = (
+            f"Entropy SPC: {_es_status}. Mean entropy = {h_mean:.3f} bits."
+        )
         result["narrative"] = _narrative(
             f"Entropy SPC \u2014 {_es_status}",
             f"Rolling Shannon entropy (window={window}, {n_bins} bins) has baseline mean {h_mean:.4f} bits. "
@@ -4599,7 +5215,9 @@ def run_spc_analysis(df, analysis_id, config):
         )
 
         # Plot: entropy control chart
-        h_colors = ["#dc5050" if i in ooc_idx else "#4a9f6e" for i in range(len(entropies))]
+        h_colors = [
+            "#dc5050" if i in ooc_idx else "#4a9f6e" for i in range(len(entropies))
+        ]
         result["plots"].append(
             {
                 "title": f"Entropy Control Chart ({col})",
@@ -4616,7 +5234,10 @@ def run_spc_analysis(df, analysis_id, config):
                 ],
                 "layout": {
                     "height": 290,
-                    "xaxis": {"title": "Observation", "rangeslider": {"visible": True, "thickness": 0.12}},
+                    "xaxis": {
+                        "title": "Observation",
+                        "rangeslider": {"visible": True, "thickness": 0.12},
+                    },
                     "yaxis": {"title": "Shannon Entropy (bits)"},
                     "shapes": [
                         {
@@ -4652,7 +5273,9 @@ def run_spc_analysis(df, analysis_id, config):
         # Degradation-Aware Capability — Cpk as a function of time/usage
         from scipy import stats as sp_stats
 
-        meas_col = config.get("var") or config.get("measurement") or config.get("column")
+        meas_col = (
+            config.get("var") or config.get("measurement") or config.get("column")
+        )
         time_col = config.get("time_column") or config.get("time")
         usl = config.get("usl")
         lsl = config.get("lsl")
@@ -4756,7 +5379,9 @@ def run_spc_analysis(df, analysis_id, config):
 
         _dc_cross = ""
         if crossover is not None:
-            _dc_cross = f" At this rate, Cpk drops below {target_cpk} at t = {crossover:.0f}."
+            _dc_cross = (
+                f" At this rate, Cpk drops below {target_cpk} at t = {crossover:.0f}."
+            )
         result["narrative"] = _narrative(
             f"Degradation Capability \u2014 Cpk is {'degrading' if degrading else 'stable'}",
             f"Rolling Cpk starts at {cpk_start:.3f} and {'decays to' if degrading else 'remains near'} {cpk_end:.3f} "
@@ -4767,7 +5392,11 @@ def run_spc_analysis(df, analysis_id, config):
                 else ""
             ),
             next_steps="If degrading, schedule tool changes or maintenance before Cpk crosses the target. "
-            + (f"Recommended action point: t = {crossover:.0f} to maintain Cpk > {target_cpk}." if crossover else ""),
+            + (
+                f"Recommended action point: t = {crossover:.0f} to maintain Cpk > {target_cpk}."
+                if crossover
+                else ""
+            ),
             chart_guidance="The rolling Cpk curve shows capability over time. The trend line reveals whether the process is degrading. "
             "The dashed red line is the target Cpk.",
         )
@@ -4782,7 +5411,13 @@ def run_spc_analysis(df, analysis_id, config):
                         "x": t_arr.tolist(),
                         "y": cpk_arr.tolist(),
                         "mode": "markers",
-                        "marker": {"size": 5, "color": ["#dc5050" if c < target_cpk else "#4a9f6e" for c in cpk_arr]},
+                        "marker": {
+                            "size": 5,
+                            "color": [
+                                "#dc5050" if c < target_cpk else "#4a9f6e"
+                                for c in cpk_arr
+                            ],
+                        },
                         "name": "Rolling Cpk",
                     },
                     {
@@ -4796,7 +5431,10 @@ def run_spc_analysis(df, analysis_id, config):
                 ],
                 "layout": {
                     "height": 290,
-                    "xaxis": {"title": "Time / Sequence", "rangeslider": {"visible": True, "thickness": 0.12}},
+                    "xaxis": {
+                        "title": "Time / Sequence",
+                        "rangeslider": {"visible": True, "thickness": 0.12},
+                    },
                     "yaxis": {"title": "Cpk"},
                     "shapes": [
                         {

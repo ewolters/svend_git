@@ -7,14 +7,20 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0009_whiteboard_models'),
-        ('core', '0003_add_synara_state'),
+        ("agents_api", "0009_whiteboard_models"),
+        ("core", "0003_add_synara_state"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='board',
-            name='project',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='boards', to='core.project'),
+            model_name="board",
+            name="project",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="boards",
+                to="core.project",
+            ),
         ),
     ]

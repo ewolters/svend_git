@@ -6,13 +6,35 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('notifications', '0002_notificationtoken'),
+        ("notifications", "0002_notificationtoken"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='notification',
-            name='notification_type',
-            field=models.CharField(choices=[('capa_status', 'CAPA Status Change'), ('ncr_overdue', 'NCR Overdue'), ('ncr_assigned', 'NCR Assigned'), ('approval_request', 'Approval Request'), ('esig_request', 'E-Signature Request'), ('spc_alarm', 'SPC Alarm'), ('review_due', 'Management Review Due'), ('doc_review', 'Document Review Reminder'), ('training_due', 'Training Due'), ('training_expired', 'Training Expired'), ('audit_scheduled', 'Audit Scheduled'), ('action_due', 'Action Item Due'), ('assignment', 'Assignment Change'), ('system', 'System Notification'), ('incident_created', 'Incident Created'), ('incident_escalated', 'Incident Escalated'), ('incident_resolved', 'Incident Resolved')], db_index=True, max_length=30),
+            model_name="notification",
+            name="notification_type",
+            field=models.CharField(
+                choices=[
+                    ("capa_status", "CAPA Status Change"),
+                    ("ncr_overdue", "NCR Overdue"),
+                    ("ncr_assigned", "NCR Assigned"),
+                    ("approval_request", "Approval Request"),
+                    ("esig_request", "E-Signature Request"),
+                    ("spc_alarm", "SPC Alarm"),
+                    ("review_due", "Management Review Due"),
+                    ("doc_review", "Document Review Reminder"),
+                    ("training_due", "Training Due"),
+                    ("training_expired", "Training Expired"),
+                    ("audit_scheduled", "Audit Scheduled"),
+                    ("action_due", "Action Item Due"),
+                    ("assignment", "Assignment Change"),
+                    ("system", "System Notification"),
+                    ("incident_created", "Incident Created"),
+                    ("incident_escalated", "Incident Escalated"),
+                    ("incident_resolved", "Incident Resolved"),
+                ],
+                db_index=True,
+                max_length=30,
+            ),
         ),
     ]

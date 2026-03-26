@@ -44,7 +44,9 @@ class DataExportRequestModelTests(TestCase):
     """Tests for the DataExportRequest model."""
 
     def setUp(self):
-        self.user = User.objects.create_user(username="exportuser", email="export@test.com", password="testpass123!")
+        self.user = User.objects.create_user(
+            username="exportuser", email="export@test.com", password="testpass123!"
+        )
 
     def test_create_request(self):
         req = DataExportRequest.objects.create(user=self.user)
@@ -96,8 +98,12 @@ class DataExportViewTests(TestCase):
     """Tests for data export API views."""
 
     def setUp(self):
-        self.user = User.objects.create_user(username="viewuser", email="view@test.com", password="testpass123!")
-        self.other = User.objects.create_user(username="otheruser", email="other@test.com", password="testpass123!")
+        self.user = User.objects.create_user(
+            username="viewuser", email="view@test.com", password="testpass123!"
+        )
+        self.other = User.objects.create_user(
+            username="otheruser", email="other@test.com", password="testpass123!"
+        )
         self.client.login(username="viewuser", password="testpass123!")
 
     def test_create_export(self):
@@ -170,7 +176,9 @@ class DataExportViewTests(TestCase):
         self.assertEqual(res.status_code, 400)
 
     def test_download_expired_export(self):
-        export_req = DataExportRequest.objects.create(user=self.user, status=DataExportRequest.Status.EXPIRED)
+        export_req = DataExportRequest.objects.create(
+            user=self.user, status=DataExportRequest.Status.EXPIRED
+        )
         res = _get(self.client, f"/api/privacy/exports/{export_req.id}/?download=true")
         self.assertEqual(res.status_code, 410)
 
@@ -187,7 +195,9 @@ class DataExportViewTests(TestCase):
                 completed_at=timezone.now(),
                 expires_at=timezone.now() + timedelta(days=7),
             )
-            res = _get(self.client, f"/api/privacy/exports/{export_req.id}/?download=true")
+            res = _get(
+                self.client, f"/api/privacy/exports/{export_req.id}/?download=true"
+            )
             self.assertEqual(res.status_code, 200)
             self.assertIn("attachment", res.get("Content-Disposition", ""))
         finally:
@@ -205,9 +215,13 @@ class CancelExportTests(TestCase):
     """Tests for cancelling data export requests."""
 
     def setUp(self):
-        self.user = User.objects.create_user(username="canceluser", email="cancel@test.com", password="testpass123!")
+        self.user = User.objects.create_user(
+            username="canceluser", email="cancel@test.com", password="testpass123!"
+        )
         self.other = User.objects.create_user(
-            username="cancelother", email="cancelother@test.com", password="testpass123!"
+            username="cancelother",
+            email="cancelother@test.com",
+            password="testpass123!",
         )
         self.client.login(username="canceluser", password="testpass123!")
 
@@ -250,8 +264,12 @@ class CancelExportTests(TestCase):
 @SECURE_OFF
 class GenerateExportTaskTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="taskuser", email="task@test.com", password="testpass123!")
-        self.other = User.objects.create_user(username="taskother", email="taskother@test.com", password="testpass123!")
+        self.user = User.objects.create_user(
+            username="taskuser", email="task@test.com", password="testpass123!"
+        )
+        self.other = User.objects.create_user(
+            username="taskother", email="taskother@test.com", password="testpass123!"
+        )
 
     def _run_export(self, user=None):
         user = user or self.user
@@ -358,7 +376,9 @@ class GenerateExportTaskTests(TestCase):
 @SECURE_OFF
 class ExportCleanupTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="cleanuser", email="clean@test.com", password="testpass123!")
+        self.user = User.objects.create_user(
+            username="cleanuser", email="clean@test.com", password="testpass123!"
+        )
 
     def test_expired_exports_cleaned(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
@@ -416,7 +436,9 @@ class ExportCleanupTests(TestCase):
 class PIIInventoryTest(TestCase):
     def test_all_user_fk_models_documented(self):
         """Verify key user-FK models appear in the export output."""
-        user = User.objects.create_user(username="piiuser", email="pii@test.com", password="testpass123!")
+        user = User.objects.create_user(
+            username="piiuser", email="pii@test.com", password="testpass123!"
+        )
         export_req = DataExportRequest.objects.create(user=user)
 
         from accounts.privacy_tasks import generate_export
@@ -451,7 +473,9 @@ class PIIInventoryTest(TestCase):
 @SECURE_OFF
 class DataCorrectionTest(TestCase):
     def test_profile_update(self):
-        user = User.objects.create_user(username="corruser", email="corr@test.com", password="testpass123!")
+        user = User.objects.create_user(
+            username="corruser", email="corr@test.com", password="testpass123!"
+        )
         self.client.login(username="corruser", password="testpass123!")
         res = self.client.patch(
             "/api/auth/profile/",

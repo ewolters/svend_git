@@ -35,7 +35,9 @@ def run_chi2(df, config):
             f"'{col_var}' has {contingency.shape[1]} unique value(s).\n\n"
             "Both variables must have at least 2 distinct values."
         )
-        result["guide_observation"] = f"Chi-square test not applicable: {row_var} or {col_var} has fewer than 2 levels."
+        result["guide_observation"] = (
+            f"Chi-square test not applicable: {row_var} or {col_var} has fewer than 2 levels."
+        )
         return result
     chi2, pval, dof, expected = stats.chi2_contingency(contingency)
 
@@ -51,7 +53,9 @@ def run_chi2(df, config):
     # Cramér's V effect size
     n_obs = contingency.values.sum()
     min_dim = min(contingency.shape[0], contingency.shape[1]) - 1
-    cramers_v = np.sqrt(chi2 / (n_obs * min_dim)) if (n_obs > 0 and min_dim > 0) else 0.0
+    cramers_v = (
+        np.sqrt(chi2 / (n_obs * min_dim)) if (n_obs > 0 and min_dim > 0) else 0.0
+    )
     v_label, v_meaningful = _effect_magnitude(cramers_v, "cramers_v")
 
     summary += "<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
@@ -69,14 +73,20 @@ def run_chi2(df, config):
         if min(_a, _b, _c, _d) > 0:
             _or = (_a * _d) / (_b * _c)
             _log_se = np.sqrt(1 / _a + 1 / _b + 1 / _c + 1 / _d)
-            _or_lo, _or_hi = np.exp(np.log(_or) - 1.96 * _log_se), np.exp(np.log(_or) + 1.96 * _log_se)
+            _or_lo, _or_hi = np.exp(np.log(_or) - 1.96 * _log_se), np.exp(
+                np.log(_or) + 1.96 * _log_se
+            )
             summary += f"  Odds Ratio: {_or:.3f}, 95% CI [{_or_lo:.3f}, {_or_hi:.3f}]\n"
     summary += "\n"
 
     if pval < 0.05:
-        summary += "<<COLOR:good>>Variables are significantly associated (p < 0.05)<</COLOR>>"
+        summary += (
+            "<<COLOR:good>>Variables are significantly associated (p < 0.05)<</COLOR>>"
+        )
     else:
-        summary += "<<COLOR:text>>No significant association found (p >= 0.05)<</COLOR>>"
+        summary += (
+            "<<COLOR:text>>No significant association found (p >= 0.05)<</COLOR>>"
+        )
 
     summary += _practical_block(
         "Cramér's V",
@@ -87,7 +97,9 @@ def run_chi2(df, config):
     )
 
     result["summary"] = summary
-    obs_parts = [f"Chi-square test: χ²={chi2:.4f}, p={pval:.4f}, Cramér's V={cramers_v:.3f} ({v_label})"]
+    obs_parts = [
+        f"Chi-square test: χ²={chi2:.4f}, p={pval:.4f}, Cramér's V={cramers_v:.3f} ({v_label})"
+    ]
     if pval < 0.05 and v_meaningful:
         obs_parts.append(f"'{row_var}' and '{col_var}' are meaningfully associated.")
     elif pval < 0.05:
@@ -154,14 +166,16 @@ def run_chi2(df, config):
                 "level": "error",
                 "title": f"{_low_expected} cells ({_pct_low:.0f}%) have expected count < 5",
                 "detail": "Chi-square approximation is unreliable. Consider Fisher's exact test or collapsing categories.",
-                "action": {
-                    "label": "Run Fisher Exact",
-                    "type": "stats",
-                    "analysis": "fisher_exact",
-                    "config": {"row_var": row_var, "col_var": col_var},
-                }
-                if contingency.shape == (2, 2)
-                else None,
+                "action": (
+                    {
+                        "label": "Run Fisher Exact",
+                        "type": "stats",
+                        "analysis": "fisher_exact",
+                        "config": {"row_var": row_var, "col_var": col_var},
+                    }
+                    if contingency.shape == (2, 2)
+                    else None
+                ),
             }
         )
     elif _low_expected > 0:
@@ -198,10 +212,16 @@ def run_chi2(df, config):
 
     # --- Bayesian Insurance ---
     try:
-        _shadow = _bayesian_shadow("chi2", contingency=contingency.values, chi2_stat=chi2, dof=dof, n_obs=n_obs)
+        _shadow = _bayesian_shadow(
+            "chi2", contingency=contingency.values, chi2_stat=chi2, dof=dof, n_obs=n_obs
+        )
         if _shadow:
             result["bayesian_shadow"] = _shadow
-        _grade = _evidence_grade(pval, bf10=_shadow.get("bf10") if _shadow else None, effect_magnitude=v_label)
+        _grade = _evidence_grade(
+            pval,
+            bf10=_shadow.get("bf10") if _shadow else None,
+            effect_magnitude=v_label,
+        )
         if _grade:
             result["evidence_grade"] = _grade
     except Exception:
@@ -246,7 +266,9 @@ def run_prop_2sample(df, config):
     data = df[[var, group_var]].dropna()
     groups = sorted(data[group_var].unique().tolist(), key=str)
     if len(groups) != 2:
-        result["summary"] = f"Two-proportion test requires exactly 2 groups. Found {len(groups)}."
+        result["summary"] = (
+            f"Two-proportion test requires exactly 2 groups. Found {len(groups)}."
+        )
         return result
 
     g1 = data[data[group_var] == groups[0]][var]
@@ -257,14 +279,26 @@ def run_prop_2sample(df, config):
         x1 = int((g1.astype(str) == str(event)).sum())
         x2 = int((g2.astype(str) == str(event)).sum())
     else:
-        x1 = int((g1 == 1).sum()) if g1.dtype in ["int64", "float64"] else int(g1.value_counts().iloc[0])
-        x2 = int((g2 == 1).sum()) if g2.dtype in ["int64", "float64"] else int(g2.value_counts().iloc[0])
+        x1 = (
+            int((g1 == 1).sum())
+            if g1.dtype in ["int64", "float64"]
+            else int(g1.value_counts().iloc[0])
+        )
+        x2 = (
+            int((g2 == 1).sum())
+            if g2.dtype in ["int64", "float64"]
+            else int(g2.value_counts().iloc[0])
+        )
 
     p1 = x1 / n1 if n1 > 0 else 0
     p2 = x2 / n2 if n2 > 0 else 0
     p_pooled = (x1 + x2) / (n1 + n2) if (n1 + n2) > 0 else 0
 
-    se_pooled = np.sqrt(p_pooled * (1 - p_pooled) * (1 / n1 + 1 / n2)) if (n1 > 0 and n2 > 0) else 1
+    se_pooled = (
+        np.sqrt(p_pooled * (1 - p_pooled) * (1 / n1 + 1 / n2))
+        if (n1 > 0 and n2 > 0)
+        else 1
+    )
     z_stat = (p1 - p2) / se_pooled if se_pooled > 0 else 0
 
     if alt == "greater":
@@ -276,7 +310,9 @@ def run_prop_2sample(df, config):
 
     # Difference CI (unpooled SE)
     z_crit = stats.norm.ppf(1 - alpha / 2)
-    se_diff = np.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2) if (n1 > 0 and n2 > 0) else 0
+    se_diff = (
+        np.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2) if (n1 > 0 and n2 > 0) else 0
+    )
     diff = p1 - p2
     ci_lo = diff - z_crit * se_diff
     ci_hi = diff + z_crit * se_diff
@@ -299,7 +335,9 @@ def run_prop_2sample(df, config):
     summary += f"  p-value: {p_val:.4f}\n\n"
 
     if p_val < alpha:
-        summary += f"<<COLOR:good>>Proportions differ significantly (p < {alpha})<</COLOR>>"
+        summary += (
+            f"<<COLOR:good>>Proportions differ significantly (p < {alpha})<</COLOR>>"
+        )
     else:
         summary += f"<<COLOR:text>>No significant difference in proportions (p ≥ {alpha})<</COLOR>>"
 
@@ -320,7 +358,10 @@ def run_prop_2sample(df, config):
             ],
             "layout": {
                 "title": "Proportions by Group",
-                "yaxis": {"title": "Proportion", "range": [0, max(p1, p2) * 1.3 + 0.05]},
+                "yaxis": {
+                    "title": "Proportion",
+                    "range": [0, max(p1, p2) * 1.3 + 0.05],
+                },
             },
         }
     )
@@ -346,7 +387,12 @@ def run_prop_2sample(df, config):
             ],
             "layout": {
                 "title": f"Difference in Proportions ({100 * (1 - alpha):.0f}% CI)",
-                "xaxis": {"title": "p₁ − p₂", "zeroline": True, "zerolinecolor": "#e89547", "zerolinewidth": 2},
+                "xaxis": {
+                    "title": "p₁ − p₂",
+                    "zeroline": True,
+                    "zerolinecolor": "#e89547",
+                    "zerolinewidth": 2,
+                },
                 "shapes": [
                     {
                         "type": "line",
@@ -362,8 +408,9 @@ def run_prop_2sample(df, config):
         }
     )
 
-    result["guide_observation"] = f"2-prop Z-test: p₁={p1:.4f} vs p₂={p2:.4f}, Z={z_stat:.3f}, p={p_val:.4f}. " + (
-        "Significant." if p_val < alpha else "Not significant."
+    result["guide_observation"] = (
+        f"2-prop Z-test: p₁={p1:.4f} vs p₂={p2:.4f}, Z={z_stat:.3f}, p={p_val:.4f}. "
+        + ("Significant." if p_val < alpha else "Not significant.")
     )
     result["statistics"] = {
         "n1": n1,
@@ -484,7 +531,11 @@ def run_fisher_exact(df, config):
                     "marker": {"color": "#4a90d9"},
                 },
             ],
-            "layout": {"title": "Contingency Table", "barmode": "stack", "yaxis": {"title": "Count"}},
+            "layout": {
+                "title": "Contingency Table",
+                "barmode": "stack",
+                "yaxis": {"title": "Count"},
+            },
         }
     )
 
@@ -526,8 +577,9 @@ def run_fisher_exact(df, config):
             }
         )
 
-    result["guide_observation"] = f"Fisher's exact: OR={odds_ratio:.3f}, p={p_val:.4f}. " + (
-        "Significant association." if p_val < alpha else "No association."
+    result["guide_observation"] = (
+        f"Fisher's exact: OR={odds_ratio:.3f}, p={p_val:.4f}. "
+        + ("Significant association." if p_val < alpha else "No association.")
     )
     result["statistics"] = {
         "odds_ratio": float(odds_ratio),
@@ -579,7 +631,9 @@ def run_poisson_2sample(df, config):
         data_clean = df[[response_col, factor_col]].dropna()
         levels = sorted(data_clean[factor_col].unique().tolist(), key=str)
         if len(levels) != 2:
-            result["summary"] = f"Two-sample Poisson test requires exactly 2 groups. Found {len(levels)}."
+            result["summary"] = (
+                f"Two-sample Poisson test requires exactly 2 groups. Found {len(levels)}."
+            )
             return result
         g1 = data_clean[data_clean[factor_col] == levels[0]][response_col]
         g2 = data_clean[data_clean[factor_col] == levels[1]][response_col]
@@ -648,7 +702,9 @@ def run_poisson_2sample(df, config):
     if p_val < alpha:
         summary += f"<<COLOR:good>>Rates differ significantly (p < {alpha})<</COLOR>>"
     else:
-        summary += f"<<COLOR:text>>No significant difference in rates (p ≥ {alpha})<</COLOR>>"
+        summary += (
+            f"<<COLOR:text>>No significant difference in rates (p ≥ {alpha})<</COLOR>>"
+        )
 
     result["summary"] = summary
 
@@ -715,7 +771,9 @@ def run_poisson_2sample(df, config):
         + ("Rates differ." if p_val < alpha else "Not significant.")
     )
     if p_val < alpha:
-        verdict = f"Rates differ significantly (ratio = {rate_ratio:.3f}, p = {p_val:.4f})"
+        verdict = (
+            f"Rates differ significantly (ratio = {rate_ratio:.3f}, p = {p_val:.4f})"
+        )
         body = f"Rate 1 = {r1:.4f} vs Rate 2 = {r2:.4f}. The rates are significantly different."
     else:
         verdict = f"No significant difference in rates (p = {p_val:.4f})"
@@ -766,7 +824,9 @@ def run_bootstrap_ci(df, config):
     summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
     summary += f"<<COLOR:highlight>>Statistic:<</COLOR>> {statistic}\n"
     summary += f"<<COLOR:highlight>>Bootstrap samples:<</COLOR>> {n_bootstrap}\n"
-    summary += f"<<COLOR:highlight>>Confidence level:<</COLOR>> {conf_level * 100:.0f}%\n\n"
+    summary += (
+        f"<<COLOR:highlight>>Confidence level:<</COLOR>> {conf_level * 100:.0f}%\n\n"
+    )
 
     np.random.seed(42)
 
@@ -795,6 +855,7 @@ def run_bootstrap_ci(df, config):
 
             def stat_func(x):
                 return np.std(x, ddof=1)
+
         elif statistic == "trimmed_mean":
             from scipy.stats import trim_mean
 
@@ -802,6 +863,7 @@ def run_bootstrap_ci(df, config):
 
             def stat_func(x):
                 return trim_mean(x, 0.1)
+
         else:
             observed = np.mean(data)
             stat_func = np.mean
@@ -834,14 +896,18 @@ def run_bootstrap_ci(df, config):
 
     jackknife_stats = np.array(jackknife_stats)
     jack_mean = np.mean(jackknife_stats)
-    a = np.sum((jack_mean - jackknife_stats) ** 3) / (6 * (np.sum((jack_mean - jackknife_stats) ** 2)) ** 1.5 + 1e-10)
+    a = np.sum((jack_mean - jackknife_stats) ** 3) / (
+        6 * (np.sum((jack_mean - jackknife_stats) ** 2)) ** 1.5 + 1e-10
+    )
 
     # BCa quantiles
     z_alpha_low = stats.norm.ppf(alpha / 2)
     z_alpha_high = stats.norm.ppf(1 - alpha / 2)
 
     bca_low_q = stats.norm.cdf(z0 + (z0 + z_alpha_low) / (1 - a * (z0 + z_alpha_low)))
-    bca_high_q = stats.norm.cdf(z0 + (z0 + z_alpha_high) / (1 - a * (z0 + z_alpha_high)))
+    bca_high_q = stats.norm.cdf(
+        z0 + (z0 + z_alpha_high) / (1 - a * (z0 + z_alpha_high))
+    )
 
     bca_lower = np.percentile(boot_stats, bca_low_q * 100)
     bca_upper = np.percentile(boot_stats, bca_high_q * 100)
@@ -907,7 +973,11 @@ def run_bootstrap_ci(df, config):
     # Outlier check — outliers can dominate bootstrap resamples
     _out = _check_outliers(data, label=var)
     if _out:
-        _out["detail"] += " Outliers can dominate bootstrap resamples, inflating or deflating the CI."
+        _out[
+            "detail"
+        ] += (
+            " Outliers can dominate bootstrap resamples, inflating or deflating the CI."
+        )
         diagnostics.append(_out)
     # Compare bootstrap CI with parametric CI (for mean statistic)
     if statistic == "mean" and n >= 3:
@@ -955,7 +1025,10 @@ def run_bootstrap_ci(df, config):
                 {
                     "type": "histogram",
                     "x": boot_stats.tolist(),
-                    "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                    "marker": {
+                        "color": "rgba(74, 159, 110, 0.4)",
+                        "line": {"color": "#4a9f6e", "width": 1},
+                    },
                 },
                 {
                     "type": "scatter",
@@ -974,7 +1047,11 @@ def run_bootstrap_ci(df, config):
                     "name": "CI bounds",
                 },
             ],
-            "layout": {"height": 250, "xaxis": {"title": statistic.title()}, "yaxis": {"title": "Frequency"}},
+            "layout": {
+                "height": 250,
+                "xaxis": {"title": statistic.title()},
+                "yaxis": {"title": "Frequency"},
+            },
         }
     )
 

@@ -6,48 +6,48 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0012_remove_user_partner_code_and_more'),
+        ("accounts", "0012_remove_user_partner_code_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='subscription',
-            name='cancel_at_period_end',
-            field=models.BooleanField(db_column='cancel_at_period_end', default=False),
+            model_name="subscription",
+            name="cancel_at_period_end",
+            field=models.BooleanField(db_column="cancel_at_period_end", default=False),
         ),
         migrations.RenameField(
-            model_name='subscription',
-            old_name='cancel_at_period_end',
-            new_name='is_cancel_at_period_end',
+            model_name="subscription",
+            old_name="cancel_at_period_end",
+            new_name="is_cancel_at_period_end",
         ),
         migrations.AlterField(
-            model_name='user',
-            name='email_opted_out',
-            field=models.BooleanField(db_column='email_opted_out', default=False),
+            model_name="user",
+            name="email_opted_out",
+            field=models.BooleanField(db_column="email_opted_out", default=False),
         ),
         migrations.RenameField(
-            model_name='user',
-            old_name='email_opted_out',
-            new_name='is_email_opted_out',
+            model_name="user",
+            old_name="email_opted_out",
+            new_name="is_email_opted_out",
         ),
         migrations.AlterField(
-            model_name='user',
-            name='email_verified',
-            field=models.BooleanField(db_column='email_verified', default=False),
+            model_name="user",
+            name="email_verified",
+            field=models.BooleanField(db_column="email_verified", default=False),
         ),
         migrations.RenameField(
-            model_name='user',
-            old_name='email_verified',
-            new_name='is_email_verified',
+            model_name="user",
+            old_name="email_verified",
+            new_name="is_email_verified",
         ),
         migrations.AlterField(
-            model_name='user',
-            name='subscription_active',
-            field=models.BooleanField(db_column='subscription_active', default=False),
+            model_name="user",
+            name="subscription_active",
+            field=models.BooleanField(db_column="subscription_active", default=False),
         ),
         migrations.RenameField(
-            model_name='user',
-            old_name='subscription_active',
-            new_name='is_subscription_active',
+            model_name="user",
+            old_name="subscription_active",
+            new_name="is_subscription_active",
         ),
     ]

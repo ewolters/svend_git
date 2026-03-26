@@ -135,7 +135,9 @@ def get_xmatrix_data(request):
         so_agg = so_meta.get("aggregation", "sum")
         so_unit = so_meta.get("unit", so.target_unit or "$")
 
-        linked_annual = [a for a in annual if str(a.strategic_objective_id) == str(so.id)]
+        linked_annual = [
+            a for a in annual if str(a.strategic_objective_id) == str(so.id)
+        ]
         linked_project_ids = set()
         for ao in linked_annual:
             for link in annual_project_links:
@@ -172,9 +174,15 @@ def get_xmatrix_data(request):
         else:
             # Default: sum dollar savings
             linked_target = sum(
-                float(project_map[pid].annual_savings_target) for pid in linked_project_ids if pid in project_map
+                float(project_map[pid].annual_savings_target)
+                for pid in linked_project_ids
+                if pid in project_map
             )
-            linked_ytd = sum(float(project_map[pid].ytd_savings) for pid in linked_project_ids if pid in project_map)
+            linked_ytd = sum(
+                float(project_map[pid].ytd_savings)
+                for pid in linked_project_ids
+                if pid in project_map
+            )
             rollup_by_strategic.append(
                 {
                     "id": str(so.id),
@@ -214,7 +222,11 @@ def get_xmatrix_data(request):
 
         if agg == "sum":
             # Sum dollar savings across correlated projects
-            agg_value = sum(float(project_map[pid].ytd_savings) for pid in correlated_pids if pid in project_map)
+            agg_value = sum(
+                float(project_map[pid].ytd_savings)
+                for pid in correlated_pids
+                if pid in project_map
+            )
             rollup_entry["aggregated_value"] = round(agg_value, 2)
 
         elif agg == "weighted_avg":
@@ -232,7 +244,9 @@ def get_xmatrix_data(request):
                         total_weighted += float(actual) * float(volume)
                         total_volume += float(volume)
             if total_volume > 0:
-                rollup_entry["aggregated_value"] = round(total_weighted / total_volume, 4)
+                rollup_entry["aggregated_value"] = round(
+                    total_weighted / total_volume, 4
+                )
                 rollup_entry["total_volume"] = round(total_volume, 2)
             else:
                 rollup_entry["aggregated_value"] = None
@@ -248,7 +262,9 @@ def get_xmatrix_data(request):
         kpi_rollup.append(rollup_entry)
 
     # Expose metric catalog to frontend for dropdown rendering
-    metric_catalog = {k: {ck: cv for ck, cv in v.items()} for k, v in HoshinKPI.METRIC_CATALOG.items()}
+    metric_catalog = {
+        k: {ck: cv for ck, cv in v.items()} for k, v in HoshinKPI.METRIC_CATALOG.items()
+    }
 
     return JsonResponse(
         {
@@ -439,7 +455,9 @@ def update_correlation(request):
 
     valid_pairs = ["strategic_annual", "annual_project", "project_kpi", "kpi_strategic"]
     if pair_type not in valid_pairs:
-        return JsonResponse({"error": f"Invalid pair_type. Must be one of {valid_pairs}"}, status=400)
+        return JsonResponse(
+            {"error": f"Invalid pair_type. Must be one of {valid_pairs}"}, status=400
+        )
 
     # Delete if strength is null/empty
     if not strength:
@@ -453,7 +471,9 @@ def update_correlation(request):
 
     valid_strengths = ["strong", "moderate", "weak"]
     if strength not in valid_strengths:
-        return JsonResponse({"error": f"Invalid strength. Must be one of {valid_strengths}"}, status=400)
+        return JsonResponse(
+            {"error": f"Invalid strength. Must be one of {valid_strengths}"}, status=400
+        )
 
     fiscal_year = data.get("fiscal_year", date.today().year)
 
@@ -533,7 +553,9 @@ def list_create_strategic_objectives(request):
         status=data.get("status", "draft"),
         sort_order=data.get("sort_order", 0),
     )
-    return JsonResponse({"success": True, "strategic_objective": obj.to_dict()}, status=201)
+    return JsonResponse(
+        {"success": True, "strategic_objective": obj.to_dict()}, status=201
+    )
 
 
 @require_feature("hoshin_kanri")
@@ -640,7 +662,9 @@ def list_create_annual_objectives(request):
         status=data.get("status", "on_track"),
         sort_order=data.get("sort_order", 0),
     )
-    return JsonResponse({"success": True, "annual_objective": obj.to_dict()}, status=201)
+    return JsonResponse(
+        {"success": True, "annual_objective": obj.to_dict()}, status=201
+    )
 
 
 @require_feature("hoshin_kanri")
@@ -675,10 +699,16 @@ def update_delete_annual_objective(request, obj_id):
     if "actual_value" in data:
         obj.actual_value = _decimal_or_none(data["actual_value"])
     if "site_id" in data:
-        obj.site = get_object_or_404(Site, id=data["site_id"], tenant=tenant) if data["site_id"] else None
+        obj.site = (
+            get_object_or_404(Site, id=data["site_id"], tenant=tenant)
+            if data["site_id"]
+            else None
+        )
     if "strategic_objective_id" in data:
         obj.strategic_objective = (
-            get_object_or_404(StrategicObjective, id=data["strategic_objective_id"], tenant=tenant)
+            get_object_or_404(
+                StrategicObjective, id=data["strategic_objective_id"], tenant=tenant
+            )
             if data["strategic_objective_id"]
             else None
         )
@@ -746,7 +776,9 @@ def list_create_kpis(request):
         direction=meta.get("direction", data.get("direction", "up")),
         aggregation=meta.get("aggregation", data.get("aggregation", "sum")),
         derived_from=derived_from,
-        derived_field=meta.get("derived_field", data.get("derived_field", "ytd_savings")),
+        derived_field=meta.get(
+            "derived_field", data.get("derived_field", "ytd_savings")
+        ),
         calculator_result_type=metric_type,
         calculator_field=meta.get("calculator_field", data.get("calculator_field", "")),
         sort_order=data.get("sort_order", 0),
@@ -777,7 +809,9 @@ def update_delete_kpi(request, kpi_id):
     # If metric_type changed, re-derive all catalog fields
     if "metric_type" in data:
         metric_type = data["metric_type"]
-        meta = HoshinKPI.METRIC_CATALOG.get(metric_type, HoshinKPI.METRIC_CATALOG["manual"])
+        meta = HoshinKPI.METRIC_CATALOG.get(
+            metric_type, HoshinKPI.METRIC_CATALOG["manual"]
+        )
         obj.calculator_result_type = metric_type
         obj.unit = meta.get("unit", "")
         obj.direction = meta.get("direction", "up")
@@ -798,7 +832,9 @@ def update_delete_kpi(request, kpi_id):
         obj.actual_value = _decimal_or_none(data["actual_value"])
     if "derived_from_id" in data:
         obj.derived_from = (
-            get_object_or_404(HoshinProject, id=data["derived_from_id"]) if data["derived_from_id"] else None
+            get_object_or_404(HoshinProject, id=data["derived_from_id"])
+            if data["derived_from_id"]
+            else None
         )
     obj.save()
     return JsonResponse({"success": True, "kpi": obj.to_dict()})
@@ -921,7 +957,9 @@ def rollover_fiscal_year(request):
     to_year = int(to_year)
 
     if to_year <= from_year:
-        return JsonResponse({"error": "to_year must be greater than from_year"}, status=400)
+        return JsonResponse(
+            {"error": "to_year must be greater than from_year"}, status=400
+        )
 
     # Idempotency check
     existing = AnnualObjective.objects.filter(
@@ -930,7 +968,9 @@ def rollover_fiscal_year(request):
     ).count()
     if existing > 0:
         return JsonResponse(
-            {"error": f"FY{to_year} already has {existing} annual objectives. Rollover aborted."},
+            {
+                "error": f"FY{to_year} already has {existing} annual objectives. Rollover aborted."
+            },
             status=400,
         )
 
@@ -955,7 +995,10 @@ def rollover_fiscal_year(request):
         # Clone annual objectives
         for ao in source_annuals:
             # Skip if parent strategic objective is achieved/deferred
-            if ao.strategic_objective and ao.strategic_objective.status in ("achieved", "deferred"):
+            if ao.strategic_objective and ao.strategic_objective.status in (
+                "achieved",
+                "deferred",
+            ):
                 continue
 
             old_id = ao.id

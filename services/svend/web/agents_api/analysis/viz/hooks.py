@@ -106,7 +106,9 @@ def bubble_sizes(df, config):
     if color_var and color_var in df.columns:
         for i, group in enumerate(df[color_var].dropna().unique()):
             sub = df.loc[df[color_var] == group]
-            sizes = ((sub[size_var].fillna(s_min).astype(float) - s_min) / s_range * 35 + 5).tolist()
+            sizes = (
+                (sub[size_var].fillna(s_min).astype(float) - s_min) / s_range * 35 + 5
+            ).tolist()
             traces.append(
                 {
                     "type": "scatter",
@@ -123,7 +125,9 @@ def bubble_sizes(df, config):
                 }
             )
     else:
-        sizes = ((df[size_var].fillna(s_min).astype(float) - s_min) / s_range * 35 + 5).tolist()
+        sizes = (
+            (df[size_var].fillna(s_min).astype(float) - s_min) / s_range * 35 + 5
+        ).tolist()
         traces.append(
             {
                 "type": "scatter",
@@ -190,7 +194,10 @@ def pareto_compute(df, config):
                     "type": "bar",
                     "x": [str(c) for c in counts.index],
                     "y": counts.values.tolist(),
-                    "marker": {"color": "rgba(74, 159, 110, 0.7)", "line": {"color": "#4a9f6e", "width": 1}},
+                    "marker": {
+                        "color": "rgba(74, 159, 110, 0.7)",
+                        "line": {"color": "#4a9f6e", "width": 1},
+                    },
                     "name": "Count",
                 },
                 {
@@ -208,7 +215,12 @@ def pareto_compute(df, config):
                 "height": 350,
                 "xaxis": {"title": category},
                 "yaxis": {"title": "Count"},
-                "yaxis2": {"title": "Cumulative %", "overlaying": "y", "side": "right", "range": [0, 105]},
+                "yaxis2": {
+                    "title": "Cumulative %",
+                    "overlaying": "y",
+                    "side": "right",
+                    "range": [0, 105],
+                },
                 "showlegend": True,
             },
         }
@@ -313,7 +325,9 @@ def dotplot_compute(df, config):
             if len(vals) == 0:
                 continue
             rng = float(np.ptp(vals)) if np.ptp(vals) > 0 else 1.0
-            bin_width = rng / max(min(int(np.sqrt(len(vals))), 30), 5) if len(vals) > 1 else rng
+            bin_width = (
+                rng / max(min(int(np.sqrt(len(vals))), 30), 5) if len(vals) > 1 else rng
+            )
             if bin_width == 0:
                 bin_width = 1.0
             binned = np.round(vals / bin_width) * bin_width
@@ -352,7 +366,9 @@ def dotplot_compute(df, config):
         vals = np.sort(df[var].dropna().values)
         if len(vals) > 0:
             rng = float(np.ptp(vals)) if np.ptp(vals) > 0 else 1.0
-            bin_width = rng / max(min(int(np.sqrt(len(vals))), 30), 5) if len(vals) > 1 else rng
+            bin_width = (
+                rng / max(min(int(np.sqrt(len(vals))), 30), 5) if len(vals) > 1 else rng
+            )
             if bin_width == 0:
                 bin_width = 1.0
             binned = np.round(vals / bin_width) * bin_width
@@ -375,7 +391,11 @@ def dotplot_compute(df, config):
                             "name": var,
                         }
                     ],
-                    "layout": {"height": 300, "xaxis": {"title": var}, "yaxis": {"title": "Count"}},
+                    "layout": {
+                        "height": 300,
+                        "xaxis": {"title": var},
+                        "yaxis": {"title": "Count"},
+                    },
                 }
             )
 
@@ -490,7 +510,11 @@ def individual_value_compute(df, config):
             {
                 "title": f"Individual Value Plot: {var}",
                 "data": traces,
-                "layout": {"height": 350, "xaxis": {"showticklabels": False}, "yaxis": {"title": var}},
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"showticklabels": False},
+                    "yaxis": {"title": var},
+                },
             }
         )
 
@@ -563,7 +587,12 @@ def interval_compute(df, config):
         {
             "title": f"Interval Plot: {var} by {groupby} ({conf * 100:.0f}% CI)",
             "data": traces,
-            "layout": {"height": 350, "xaxis": {"title": groupby}, "yaxis": {"title": var}, "showlegend": True},
+            "layout": {
+                "height": 350,
+                "xaxis": {"title": groupby},
+                "yaxis": {"title": var},
+                "showlegend": True,
+            },
         }
     )
     return {"result": result}
@@ -605,12 +634,20 @@ def contour_compute(df, config):
                     "x": x.tolist(),
                     "y": y.tolist(),
                     "mode": "markers",
-                    "marker": {"color": "#fff", "size": 4, "line": {"color": "#333", "width": 1}},
+                    "marker": {
+                        "color": "#fff",
+                        "size": 4,
+                        "line": {"color": "#333", "width": 1},
+                    },
                     "name": "Data",
                     "showlegend": False,
                 },
             ],
-            "layout": {"height": 400, "xaxis": {"title": x_var}, "yaxis": {"title": y_var}},
+            "layout": {
+                "height": 400,
+                "xaxis": {"title": x_var},
+                "yaxis": {"title": y_var},
+            },
         }
     )
     return {"result": result}

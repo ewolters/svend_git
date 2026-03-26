@@ -55,7 +55,10 @@ class QuestionDimension(models.Model):
     dimension_number = models.PositiveSmallIntegerField(
         help_text="1-36 for Harada, 1-12 for CI Readiness",
     )
-    name = models.CharField(max_length=100, help_text="e.g., 'Preparation', 'Process vs. Person Attribution'")
+    name = models.CharField(
+        max_length=100,
+        help_text="e.g., 'Preparation', 'Process vs. Person Attribution'",
+    )
     description = models.TextField(blank=True, default="")
     category = models.CharField(max_length=20, choices=Category.choices)
     response_type = models.CharField(max_length=20, choices=ResponseType.choices)
@@ -92,11 +95,15 @@ class Scenario(models.Model):
         max_length=20,
         help_text="Short ID for tracking (e.g., 'd1_s1', 'd1_s2')",
     )
-    situation = models.TextField(help_text="The scenario description presented to the user")
+    situation = models.TextField(
+        help_text="The scenario description presented to the user"
+    )
 
     # 4 archetype options
     option_a = models.TextField(help_text="Archetype A response")
-    option_a_label = models.CharField(max_length=50, help_text="Short label for clustering (e.g., 'system_thinker')")
+    option_a_label = models.CharField(
+        max_length=50, help_text="Short label for clustering (e.g., 'system_thinker')"
+    )
     option_b = models.TextField()
     option_b_label = models.CharField(max_length=50)
     option_c = models.TextField()
@@ -222,11 +229,17 @@ class HaradaGoal(models.Model):
     horizon = models.CharField(max_length=20, choices=Horizon.choices)
     title = models.CharField(max_length=300)
     description = models.TextField(blank=True, default="")
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.ACTIVE
+    )
 
     # Service to others (Harada principle)
-    service_at_home = models.TextField(blank=True, default="", help_text="How this goal serves others at home")
-    service_at_work = models.TextField(blank=True, default="", help_text="How this goal serves others at work")
+    service_at_home = models.TextField(
+        blank=True, default="", help_text="How this goal serves others at home"
+    )
+    service_at_work = models.TextField(
+        blank=True, default="", help_text="How this goal serves others at work"
+    )
 
     # Four perspectives (tangible/intangible × self/others)
     perspectives = models.JSONField(
@@ -365,7 +378,12 @@ class DailyDiary(models.Model):
         related_name="daily_diaries",
     )
     date = models.DateField()
-    daily_phrase = models.CharField(max_length=200, blank=True, default="", help_text="Motivational phrase for the day")
+    daily_phrase = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text="Motivational phrase for the day",
+    )
 
     # Time-blocked plan (JSON: [{"time": "06:00", "plan": "...", "reflection": "..."}, ...])
     time_blocks = models.JSONField(default=list, blank=True)
@@ -388,9 +406,15 @@ class DailyDiary(models.Model):
     score_routines = models.PositiveSmallIntegerField(null=True, blank=True)
 
     # Reflections
-    challenges = models.TextField(blank=True, default="", help_text="Challenges and positive takeaways")
-    what_differently = models.TextField(blank=True, default="", help_text="What would you have done differently?")
-    notes = models.TextField(blank=True, default="", help_text="Additional notes / future actions")
+    challenges = models.TextField(
+        blank=True, default="", help_text="Challenges and positive takeaways"
+    )
+    what_differently = models.TextField(
+        blank=True, default="", help_text="What would you have done differently?"
+    )
+    notes = models.TextField(
+        blank=True, default="", help_text="Additional notes / future actions"
+    )
 
     # Scores
     score_comments = models.JSONField(
@@ -449,10 +473,14 @@ class ArchetypeAssignment(models.Model):
         on_delete=models.CASCADE,
         related_name="archetype_assignments",
     )
-    session_id = models.UUIDField(help_text="Which questionnaire session produced this assignment")
+    session_id = models.UUIDField(
+        help_text="Which questionnaire session produced this assignment"
+    )
     instrument_version = models.PositiveSmallIntegerField()
 
-    cluster_id = models.PositiveSmallIntegerField(help_text="Cluster number (0-indexed)")
+    cluster_id = models.PositiveSmallIntegerField(
+        help_text="Cluster number (0-indexed)"
+    )
     cluster_label = models.CharField(
         max_length=100,
         blank=True,

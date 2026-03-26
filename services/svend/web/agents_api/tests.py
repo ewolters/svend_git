@@ -16,7 +16,9 @@ class WorkflowAPITest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
         self.client.force_authenticate(user=self.user)
 
     def test_list_workflows_empty(self):
@@ -39,7 +41,13 @@ class WorkflowAPITest(TestCase):
             "/api/workflows/",
             {
                 "name": "Test Workflow",
-                "steps": [{"type": "researcher", "name": "Research Step", "query": "test query"}],
+                "steps": [
+                    {
+                        "type": "researcher",
+                        "name": "Research Step",
+                        "query": "test query",
+                    }
+                ],
             },
             format="json",
         )
@@ -49,14 +57,20 @@ class WorkflowAPITest(TestCase):
         self.assertIn(response.status_code, [200, 201])
         data = response.json()
         # Check for various response formats
-        self.assertTrue("name" in data or "success" in data or "id" in data, f"Expected workflow data, got: {data}")
+        self.assertTrue(
+            "name" in data or "success" in data or "id" in data,
+            f"Expected workflow data, got: {data}",
+        )
 
     def test_get_workflow(self):
         """Should get a specific workflow."""
         # Create first
         create_response = self.client.post(
             "/api/workflows/",
-            {"name": "Test Workflow", "steps": [{"type": "researcher", "name": "Research", "query": "test"}]},
+            {
+                "name": "Test Workflow",
+                "steps": [{"type": "researcher", "name": "Research", "query": "test"}],
+            },
             format="json",
         )
 
@@ -78,7 +92,10 @@ class WorkflowAPITest(TestCase):
         # Create first
         create_response = self.client.post(
             "/api/workflows/",
-            {"name": "Original Name", "steps": [{"type": "researcher", "name": "Step 1", "query": "q1"}]},
+            {
+                "name": "Original Name",
+                "steps": [{"type": "researcher", "name": "Step 1", "query": "q1"}],
+            },
             format="json",
         )
 
@@ -110,7 +127,10 @@ class WorkflowAPITest(TestCase):
         # Create first
         create_response = self.client.post(
             "/api/workflows/",
-            {"name": "To Delete", "steps": [{"type": "researcher", "name": "Step", "query": "q"}]},
+            {
+                "name": "To Delete",
+                "steps": [{"type": "researcher", "name": "Step", "query": "q"}],
+            },
             format="json",
         )
 
@@ -137,7 +157,9 @@ class TriageAPITest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
         self.client.force_authenticate(user=self.user)
 
     def test_preview_endpoint(self):
@@ -160,7 +182,9 @@ class DSWAPITest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
         self.client.force_authenticate(user=self.user)
         self.client.login(username="testuser", password="testpass123")
 
@@ -172,9 +196,13 @@ class DSWAPITest(TestCase):
 
     def test_create_session(self):
         """Should create a new DSW session or be not implemented."""
-        response = self.client.post("/api/dsw/", {"name": "Test Analysis"}, format="json")
+        response = self.client.post(
+            "/api/dsw/", {"name": "Test Analysis"}, format="json"
+        )
         # DSW may not be fully implemented - accept various responses
-        self.assertIn(response.status_code, [200, 201, 404, 405], "DSW endpoint response")
+        self.assertIn(
+            response.status_code, [200, 201, 404, 405], "DSW endpoint response"
+        )
 
 
 class AgentExecutionTest(TestCase):
@@ -323,7 +351,9 @@ class KernelHypothesisRegionTest(unittest.TestCase):
             description="Night shift defects",
             domain_conditions={"shift": "night", "machine": "CNC-3"},
         )
-        score = h.matches_context({"shift": "night", "machine": "CNC-3", "operator": "John"})
+        score = h.matches_context(
+            {"shift": "night", "machine": "CNC-3", "operator": "John"}
+        )
         self.assertAlmostEqual(score, 1.0)
 
     def test_matches_context_partial(self):
@@ -621,7 +651,9 @@ class BeliefEnginePropagationTest(unittest.TestCase):
 
         engine = BeliefEngine()
         graph = CausalGraph()
-        graph.add_hypothesis(HypothesisRegion(id="A", description="Root", posterior=0.8))
+        graph.add_hypothesis(
+            HypothesisRegion(id="A", description="Root", posterior=0.8)
+        )
         graph.add_hypothesis(HypothesisRegion(id="B", description="Mid", posterior=0.3))
         graph.add_link(CausalLink(from_id="A", to_id="B", strength=0.7))
 
@@ -636,7 +668,9 @@ class BeliefEnginePropagationTest(unittest.TestCase):
 
         engine = BeliefEngine()
         graph = CausalGraph()
-        graph.add_hypothesis(HypothesisRegion(id="A", description="Leaf", posterior=0.8))
+        graph.add_hypothesis(
+            HypothesisRegion(id="A", description="Leaf", posterior=0.8)
+        )
 
         changes = engine.propagate_belief(graph, "A")
         self.assertEqual(changes, {})
@@ -966,7 +1000,14 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_overgeneralization_nested_quantifiers(self):
         """Nested quantifiers => overgeneralization."""
-        from .synara.dsl import Comparison, ComparisonOp, Literal, Quantified, Quantifier, Variable
+        from .synara.dsl import (
+            Comparison,
+            ComparisonOp,
+            Literal,
+            Quantified,
+            Quantifier,
+            Variable,
+        )
         from .synara.logic_engine import FallacyType, LogicEngine
 
         ast = Quantified(
@@ -1002,12 +1043,16 @@ class FallacyDetectionTest(unittest.TestCase):
             op=LogicalOp.AND,
             operands=[
                 Implication(
-                    antecedent=Comparison(Variable("rain"), ComparisonOp.GT, Literal(0)),
+                    antecedent=Comparison(
+                        Variable("rain"), ComparisonOp.GT, Literal(0)
+                    ),
                     consequent=Comparison(Variable("wet"), ComparisonOp.EQ, Literal(1)),
                 ),
                 Implication(
                     antecedent=Comparison(Variable("wet"), ComparisonOp.EQ, Literal(1)),
-                    consequent=Comparison(Variable("slippery"), ComparisonOp.EQ, Literal(1)),
+                    consequent=Comparison(
+                        Variable("slippery"), ComparisonOp.EQ, Literal(1)
+                    ),
                 ),
             ],
         )
@@ -1036,12 +1081,16 @@ class FallacyDetectionTest(unittest.TestCase):
             op=LogicalOp.AND,
             operands=[
                 Implication(
-                    antecedent=Comparison(Variable("rain"), ComparisonOp.GT, Literal(0)),
+                    antecedent=Comparison(
+                        Variable("rain"), ComparisonOp.GT, Literal(0)
+                    ),
                     consequent=Comparison(Variable("wet"), ComparisonOp.EQ, Literal(1)),
                 ),
                 LogicalExpr(
                     op=LogicalOp.NOT,
-                    operands=[Comparison(Variable("rain"), ComparisonOp.GT, Literal(0))],
+                    operands=[
+                        Comparison(Variable("rain"), ComparisonOp.GT, Literal(0))
+                    ],
                 ),
             ],
         )
@@ -1054,7 +1103,14 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_collect_nodes(self):
         """_collect_nodes finds all nodes of a given type."""
-        from .synara.dsl import Comparison, ComparisonOp, Literal, LogicalExpr, LogicalOp, Variable
+        from .synara.dsl import (
+            Comparison,
+            ComparisonOp,
+            Literal,
+            LogicalExpr,
+            LogicalOp,
+            Variable,
+        )
 
         ast = LogicalExpr(
             op=LogicalOp.AND,

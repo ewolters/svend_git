@@ -68,7 +68,9 @@ def _run_exploratory(analysis_id, df, config):
             if missing > 0:
                 summary += f"  (<<COLOR:warning>>{missing} missing<</COLOR>>)"
             summary += f"\n  Mean: {mean:.4f}    Std Dev: {std:.4f}    CV: {cv:.1f}%\n"
-            summary += f"  Median: {median:.4f}    IQR: {iqr:.4f}    [{q1:.4f}, {q3:.4f}]\n"
+            summary += (
+                f"  Median: {median:.4f}    IQR: {iqr:.4f}    [{q1:.4f}, {q3:.4f}]\n"
+            )
             summary += f"  Min: {col.min():.4f}    Max: {col.max():.4f}    Range: {col.max() - col.min():.4f}\n"
             summary += f"  Skewness: {skew:.3f}    Kurtosis: {kurt:.3f}\n"
 
@@ -95,8 +97,9 @@ def _run_exploratory(analysis_id, df, config):
             obs_parts.append(f"{var}: μ={mean:.3f}, σ={std:.3f}, n={n}")
 
         result["summary"] = summary
-        result["guide_observation"] = f"Descriptive statistics for {len(vars_to_analyze)} variable(s). " + "; ".join(
-            obs_parts[:5]
+        result["guide_observation"] = (
+            f"Descriptive statistics for {len(vars_to_analyze)} variable(s). "
+            + "; ".join(obs_parts[:5])
         )
 
         # Add histogram for each variable
@@ -144,7 +147,9 @@ def _run_exploratory(analysis_id, df, config):
         # Cramér's V effect size
         n_obs = contingency.values.sum()
         min_dim = min(contingency.shape[0], contingency.shape[1]) - 1
-        cramers_v = np.sqrt(chi2 / (n_obs * min_dim)) if (n_obs > 0 and min_dim > 0) else 0.0
+        cramers_v = (
+            np.sqrt(chi2 / (n_obs * min_dim)) if (n_obs > 0 and min_dim > 0) else 0.0
+        )
         v_label, v_meaningful = _effect_magnitude(cramers_v, "cramers_v")
 
         summary += "<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
@@ -162,14 +167,20 @@ def _run_exploratory(analysis_id, df, config):
             if min(_a, _b, _c, _d) > 0:
                 _or = (_a * _d) / (_b * _c)
                 _log_se = np.sqrt(1 / _a + 1 / _b + 1 / _c + 1 / _d)
-                _or_lo, _or_hi = np.exp(np.log(_or) - 1.96 * _log_se), np.exp(np.log(_or) + 1.96 * _log_se)
-                summary += f"  Odds Ratio: {_or:.3f}, 95% CI [{_or_lo:.3f}, {_or_hi:.3f}]\n"
+                _or_lo, _or_hi = np.exp(np.log(_or) - 1.96 * _log_se), np.exp(
+                    np.log(_or) + 1.96 * _log_se
+                )
+                summary += (
+                    f"  Odds Ratio: {_or:.3f}, 95% CI [{_or_lo:.3f}, {_or_hi:.3f}]\n"
+                )
         summary += "\n"
 
         if pval < 0.05:
             summary += "<<COLOR:good>>Variables are significantly associated (p < 0.05)<</COLOR>>"
         else:
-            summary += "<<COLOR:text>>No significant association found (p >= 0.05)<</COLOR>>"
+            summary += (
+                "<<COLOR:text>>No significant association found (p >= 0.05)<</COLOR>>"
+            )
 
         summary += _practical_block(
             "Cramér's V",
@@ -180,9 +191,13 @@ def _run_exploratory(analysis_id, df, config):
         )
 
         result["summary"] = summary
-        obs_parts = [f"Chi-square test: χ²={chi2:.4f}, p={pval:.4f}, Cramér's V={cramers_v:.3f} ({v_label})"]
+        obs_parts = [
+            f"Chi-square test: χ²={chi2:.4f}, p={pval:.4f}, Cramér's V={cramers_v:.3f} ({v_label})"
+        ]
         if pval < 0.05 and v_meaningful:
-            obs_parts.append(f"'{row_var}' and '{col_var}' are meaningfully associated.")
+            obs_parts.append(
+                f"'{row_var}' and '{col_var}' are meaningfully associated."
+            )
         elif pval < 0.05:
             obs_parts.append("Significant but weak association.")
         else:
@@ -201,7 +216,9 @@ def _run_exploratory(analysis_id, df, config):
             body = f"Cram&eacute;r's V = {cramers_v:.3f} ({v_label}). The most notable pattern: <strong>{max_row_label}</strong> is {max_direction}-represented in <strong>{max_col_label}</strong> relative to what independence would predict."
             nexts = "Examine the cells with the largest residuals to understand the pattern driving the association."
         elif pval < 0.05:
-            verdict = f"Weak but significant association between {row_var} and {col_var}"
+            verdict = (
+                f"Weak but significant association between {row_var} and {col_var}"
+            )
             body = f"The variables are statistically associated (p = {pval:.4f}), but the effect is {v_label} (V = {cramers_v:.3f}). Largest departure: {max_row_label} &times; {max_col_label}."
             nexts = "The association is real but may not be strong enough to act on."
         else:
@@ -247,14 +264,16 @@ def _run_exploratory(analysis_id, df, config):
                     "level": "error",
                     "title": f"{_low_expected} cells ({_pct_low:.0f}%) have expected count < 5",
                     "detail": "Chi-square approximation is unreliable. Consider Fisher's exact test or collapsing categories.",
-                    "action": {
-                        "label": "Run Fisher Exact",
-                        "type": "stats",
-                        "analysis": "fisher_exact",
-                        "config": {"row_var": row_var, "col_var": col_var},
-                    }
-                    if contingency.shape == (2, 2)
-                    else None,
+                    "action": (
+                        {
+                            "label": "Run Fisher Exact",
+                            "type": "stats",
+                            "analysis": "fisher_exact",
+                            "config": {"row_var": row_var, "col_var": col_var},
+                        }
+                        if contingency.shape == (2, 2)
+                        else None
+                    ),
                 }
             )
         elif _low_expected > 0:
@@ -291,10 +310,20 @@ def _run_exploratory(analysis_id, df, config):
 
         # --- Bayesian Insurance ---
         try:
-            _shadow = _bayesian_shadow("chi2", contingency=contingency.values, chi2_stat=chi2, dof=dof, n_obs=n_obs)
+            _shadow = _bayesian_shadow(
+                "chi2",
+                contingency=contingency.values,
+                chi2_stat=chi2,
+                dof=dof,
+                n_obs=n_obs,
+            )
             if _shadow:
                 result["bayesian_shadow"] = _shadow
-            _grade = _evidence_grade(pval, bf10=_shadow.get("bf10") if _shadow else None, effect_magnitude=v_label)
+            _grade = _evidence_grade(
+                pval,
+                bf10=_shadow.get("bf10") if _shadow else None,
+                effect_magnitude=v_label,
+            )
             if _grade:
                 result["evidence_grade"] = _grade
         except Exception:
@@ -337,7 +366,11 @@ def _run_exploratory(analysis_id, df, config):
             x = int((col.astype(str) == str(event)).sum())
         else:
             # If binary 0/1, count 1s
-            x = int((col == 1).sum()) if col.dtype in ["int64", "float64"] else int(col.value_counts().iloc[0])
+            x = (
+                int((col == 1).sum())
+                if col.dtype in ["int64", "float64"]
+                else int(col.value_counts().iloc[0])
+            )
         p_hat = x / n if n > 0 else 0
 
         # Z-test
@@ -355,7 +388,9 @@ def _run_exploratory(analysis_id, df, config):
         z_crit = stats.norm.ppf(1 - alpha / 2)
         denom = 1 + z_crit**2 / n
         center = (p_hat + z_crit**2 / (2 * n)) / denom
-        margin = z_crit * np.sqrt((p_hat * (1 - p_hat) + z_crit**2 / (4 * n)) / n) / denom
+        margin = (
+            z_crit * np.sqrt((p_hat * (1 - p_hat) + z_crit**2 / (4 * n)) / n) / denom
+        )
         ci_lo, ci_hi = max(0, center - margin), min(1, center + margin)
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
@@ -373,7 +408,9 @@ def _run_exploratory(analysis_id, df, config):
         summary += "<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  Z-statistic: {z_stat:.4f}\n"
         summary += f"  p-value: {p_val:.4f}\n"
-        summary += f"  {100 * (1 - alpha):.0f}% CI (Wilson): ({ci_lo:.4f}, {ci_hi:.4f})\n\n"
+        summary += (
+            f"  {100 * (1 - alpha):.0f}% CI (Wilson): ({ci_lo:.4f}, {ci_hi:.4f})\n\n"
+        )
 
         if p_val < alpha:
             summary += f"<<COLOR:good>>Proportion differs significantly from {p0} (p < {alpha})<</COLOR>>"
@@ -403,7 +440,10 @@ def _run_exploratory(analysis_id, df, config):
                 ],
                 "layout": {
                     "title": "Observed Proportion vs Hypothesized",
-                    "yaxis": {"title": "Proportion", "range": [0, min(1.05, max(ci_hi + 0.1, p0 + 0.2))]},
+                    "yaxis": {
+                        "title": "Proportion",
+                        "range": [0, min(1.05, max(ci_hi + 0.1, p0 + 0.2))],
+                    },
                     "shapes": [
                         {
                             "type": "line",
@@ -428,8 +468,9 @@ def _run_exploratory(analysis_id, df, config):
             }
         )
 
-        result["guide_observation"] = f"1-prop Z-test: p̂={p_hat:.4f}, Z={z_stat:.3f}, p={p_val:.4f}. " + (
-            "Significant." if p_val < alpha else "Not significant."
+        result["guide_observation"] = (
+            f"1-prop Z-test: p̂={p_hat:.4f}, Z={z_stat:.3f}, p={p_val:.4f}. "
+            + ("Significant." if p_val < alpha else "Not significant.")
         )
         result["statistics"] = {
             "n": n,
@@ -445,14 +486,14 @@ def _run_exploratory(analysis_id, df, config):
 
         # Narrative
         if p_val < alpha:
-            verdict = f"Proportion differs from {p0} (p\u0302 = {p_hat:.4f}, p = {p_val:.4f})"
+            verdict = (
+                f"Proportion differs from {p0} (p\u0302 = {p_hat:.4f}, p = {p_val:.4f})"
+            )
             body = (
                 f"The observed proportion {p_hat:.4f} ({x}/{n}) is significantly different from the hypothesized value of {p0}. "
                 f"Wilson {100 * (1 - alpha):.0f}% CI: ({ci_lo:.4f}, {ci_hi:.4f})."
             )
-            nxt = (
-                "Investigate why the proportion deviates from the target. If it's a defect rate, identify root causes."
-            )
+            nxt = "Investigate why the proportion deviates from the target. If it's a defect rate, identify root causes."
         else:
             verdict = f"Proportion consistent with {p0} (p\u0302 = {p_hat:.4f}, p = {p_val:.4f})"
             body = (
@@ -472,7 +513,9 @@ def _run_exploratory(analysis_id, df, config):
             _shadow = _bayesian_shadow("proportion", x=x, n=n, p0=p0)
             if _shadow:
                 result["bayesian_shadow"] = _shadow
-            _grade = _evidence_grade(p_val, bf10=_shadow.get("bf10") if _shadow else None)
+            _grade = _evidence_grade(
+                p_val, bf10=_shadow.get("bf10") if _shadow else None
+            )
             if _grade:
                 result["evidence_grade"] = _grade
         except Exception:
@@ -484,7 +527,9 @@ def _run_exploratory(analysis_id, df, config):
         Tests H₀: p₁ = p₂. Reports pooled Z, individual CIs, and difference CI.
         """
         var = config.get("var") or config.get("var1")
-        group_var = config.get("group_var") or config.get("var2") or config.get("factor")
+        group_var = (
+            config.get("group_var") or config.get("var2") or config.get("factor")
+        )
         event = config.get("event")
         alt = config.get("alternative", "two-sided")
         alpha = 1 - float(config.get("conf", 95)) / 100
@@ -492,7 +537,9 @@ def _run_exploratory(analysis_id, df, config):
         data = df[[var, group_var]].dropna()
         groups = sorted(data[group_var].unique().tolist(), key=str)
         if len(groups) != 2:
-            result["summary"] = f"Two-proportion test requires exactly 2 groups. Found {len(groups)}."
+            result["summary"] = (
+                f"Two-proportion test requires exactly 2 groups. Found {len(groups)}."
+            )
             return result
 
         g1 = data[data[group_var] == groups[0]][var]
@@ -503,14 +550,26 @@ def _run_exploratory(analysis_id, df, config):
             x1 = int((g1.astype(str) == str(event)).sum())
             x2 = int((g2.astype(str) == str(event)).sum())
         else:
-            x1 = int((g1 == 1).sum()) if g1.dtype in ["int64", "float64"] else int(g1.value_counts().iloc[0])
-            x2 = int((g2 == 1).sum()) if g2.dtype in ["int64", "float64"] else int(g2.value_counts().iloc[0])
+            x1 = (
+                int((g1 == 1).sum())
+                if g1.dtype in ["int64", "float64"]
+                else int(g1.value_counts().iloc[0])
+            )
+            x2 = (
+                int((g2 == 1).sum())
+                if g2.dtype in ["int64", "float64"]
+                else int(g2.value_counts().iloc[0])
+            )
 
         p1 = x1 / n1 if n1 > 0 else 0
         p2 = x2 / n2 if n2 > 0 else 0
         p_pooled = (x1 + x2) / (n1 + n2) if (n1 + n2) > 0 else 0
 
-        se_pooled = np.sqrt(p_pooled * (1 - p_pooled) * (1 / n1 + 1 / n2)) if (n1 > 0 and n2 > 0) else 1
+        se_pooled = (
+            np.sqrt(p_pooled * (1 - p_pooled) * (1 / n1 + 1 / n2))
+            if (n1 > 0 and n2 > 0)
+            else 1
+        )
         z_stat = (p1 - p2) / se_pooled if se_pooled > 0 else 0
 
         if alt == "greater":
@@ -522,7 +581,11 @@ def _run_exploratory(analysis_id, df, config):
 
         # Difference CI (unpooled SE)
         z_crit = stats.norm.ppf(1 - alpha / 2)
-        se_diff = np.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2) if (n1 > 0 and n2 > 0) else 0
+        se_diff = (
+            np.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
+            if (n1 > 0 and n2 > 0)
+            else 0
+        )
         diff = p1 - p2
         ci_lo = diff - z_crit * se_diff
         ci_hi = diff + z_crit * se_diff
@@ -566,7 +629,10 @@ def _run_exploratory(analysis_id, df, config):
                 ],
                 "layout": {
                     "title": "Proportions by Group",
-                    "yaxis": {"title": "Proportion", "range": [0, max(p1, p2) * 1.3 + 0.05]},
+                    "yaxis": {
+                        "title": "Proportion",
+                        "range": [0, max(p1, p2) * 1.3 + 0.05],
+                    },
                 },
             }
         )
@@ -592,7 +658,12 @@ def _run_exploratory(analysis_id, df, config):
                 ],
                 "layout": {
                     "title": f"Difference in Proportions ({100 * (1 - alpha):.0f}% CI)",
-                    "xaxis": {"title": "p₁ − p₂", "zeroline": True, "zerolinecolor": "#e89547", "zerolinewidth": 2},
+                    "xaxis": {
+                        "title": "p₁ − p₂",
+                        "zeroline": True,
+                        "zerolinecolor": "#e89547",
+                        "zerolinewidth": 2,
+                    },
                     "shapes": [
                         {
                             "type": "line",
@@ -608,8 +679,9 @@ def _run_exploratory(analysis_id, df, config):
             }
         )
 
-        result["guide_observation"] = f"2-prop Z-test: p₁={p1:.4f} vs p₂={p2:.4f}, Z={z_stat:.3f}, p={p_val:.4f}. " + (
-            "Significant." if p_val < alpha else "Not significant."
+        result["guide_observation"] = (
+            f"2-prop Z-test: p₁={p1:.4f} vs p₂={p2:.4f}, Z={z_stat:.3f}, p={p_val:.4f}. "
+            + ("Significant." if p_val < alpha else "Not significant.")
         )
         result["statistics"] = {
             "n1": n1,
@@ -700,7 +772,9 @@ def _run_exploratory(analysis_id, df, config):
         if p_val < alpha:
             summary += f"<<COLOR:good>>Significant association (p < {alpha}). Odds ratio ≠ 1.<</COLOR>>"
         else:
-            summary += f"<<COLOR:text>>No significant association (p ≥ {alpha})<</COLOR>>"
+            summary += (
+                f"<<COLOR:text>>No significant association (p ≥ {alpha})<</COLOR>>"
+            )
 
         result["summary"] = summary
 
@@ -725,7 +799,11 @@ def _run_exploratory(analysis_id, df, config):
                         "marker": {"color": "#4a90d9"},
                     },
                 ],
-                "layout": {"title": "Contingency Table", "barmode": "stack", "yaxis": {"title": "Count"}},
+                "layout": {
+                    "title": "Contingency Table",
+                    "barmode": "stack",
+                    "yaxis": {"title": "Count"},
+                },
             }
         )
 
@@ -767,8 +845,9 @@ def _run_exploratory(analysis_id, df, config):
                 }
             )
 
-        result["guide_observation"] = f"Fisher's exact: OR={odds_ratio:.3f}, p={p_val:.4f}. " + (
-            "Significant association." if p_val < alpha else "No association."
+        result["guide_observation"] = (
+            f"Fisher's exact: OR={odds_ratio:.3f}, p={p_val:.4f}. "
+            + ("Significant association." if p_val < alpha else "No association.")
         )
         result["statistics"] = {
             "odds_ratio": float(odds_ratio),
@@ -780,7 +859,9 @@ def _run_exploratory(analysis_id, df, config):
         }
 
         if p_val < alpha:
-            verdict = f"Significant association (OR = {odds_ratio:.2f}, p = {p_val:.4f})"
+            verdict = (
+                f"Significant association (OR = {odds_ratio:.2f}, p = {p_val:.4f})"
+            )
             _dir = "higher" if odds_ratio > 1 else "lower"
             body = f"The odds of {ct.index[0]} are <strong>{odds_ratio:.2f}x</strong> {_dir} in {ct.columns[0]} vs {ct.columns[1]}. CI: ({or_ci_lo:.2f}, {or_ci_hi:.2f})."
             nxt = "Investigate what drives the association. Consider confounders that may explain the relationship."
@@ -827,7 +908,9 @@ def _run_exploratory(analysis_id, df, config):
         z_crit = stats.norm.ppf(1 - alpha / 2)
         if total_count > 0:
             ci_lo = stats.chi2.ppf(alpha / 2, 2 * total_count) / (2 * exposure)
-            ci_hi = stats.chi2.ppf(1 - alpha / 2, 2 * (total_count + 1)) / (2 * exposure)
+            ci_hi = stats.chi2.ppf(1 - alpha / 2, 2 * (total_count + 1)) / (
+                2 * exposure
+            )
         else:
             ci_lo = 0
             ci_hi = stats.chi2.ppf(1 - alpha / 2, 2) / (2 * exposure)
@@ -844,7 +927,9 @@ def _run_exploratory(analysis_id, df, config):
         summary += f"  Expected count (under H₀): {expected_count:.1f}\n\n"
         summary += "<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  p-value (exact): {p_val:.4f}\n"
-        summary += f"  {100 * (1 - alpha):.0f}% CI for rate: ({ci_lo:.4f}, {ci_hi:.4f})\n\n"
+        summary += (
+            f"  {100 * (1 - alpha):.0f}% CI for rate: ({ci_lo:.4f}, {ci_hi:.4f})\n\n"
+        )
 
         if p_val < alpha:
             summary += f"<<COLOR:good>>Rate differs significantly from {rate0} (p < {alpha})<</COLOR>>"
@@ -910,7 +995,10 @@ def _run_exploratory(analysis_id, df, config):
                         "y": pmf_vals,
                         "name": f"Poisson(λ={expected_count:.1f})",
                         "marker": {
-                            "color": ["#d94a4a" if k == int(total_count) else "#4a9f6e" for k in x_range],
+                            "color": [
+                                "#d94a4a" if k == int(total_count) else "#4a9f6e"
+                                for k in x_range
+                            ],
                             "opacity": 0.7,
                         },
                     }
@@ -969,7 +1057,9 @@ def _run_exploratory(analysis_id, df, config):
             data_clean = df[[response_col, factor_col]].dropna()
             levels = sorted(data_clean[factor_col].unique().tolist(), key=str)
             if len(levels) != 2:
-                result["summary"] = f"Two-sample Poisson test requires exactly 2 groups. Found {len(levels)}."
+                result["summary"] = (
+                    f"Two-sample Poisson test requires exactly 2 groups. Found {len(levels)}."
+                )
                 return result
             g1 = data_clean[data_clean[factor_col] == levels[0]][response_col]
             g2 = data_clean[data_clean[factor_col] == levels[1]][response_col]
@@ -1028,15 +1118,21 @@ def _run_exploratory(analysis_id, df, config):
         summary += f"  {'─' * 52}\n"
         summary += f"  {label1:<20} {c1:>8.0f} {e1:>10.1f} {r1:>10.4f}\n"
         summary += f"  {label2:<20} {c2:>8.0f} {e2:>10.1f} {r2:>10.4f}\n\n"
-        summary += f"<<COLOR:accent>>── Rate Ratio (r₁/r₂) ──<</COLOR>> {rate_ratio:.4f}\n"
+        summary += (
+            f"<<COLOR:accent>>── Rate Ratio (r₁/r₂) ──<</COLOR>> {rate_ratio:.4f}\n"
+        )
         summary += f"<<COLOR:text>>{conf_pct:.0f}% CI for ratio:<</COLOR>> ({rr_lo:.4f}, {rr_hi:.4f})\n"
-        summary += f"<<COLOR:accent>>── Rate Difference (r₁ − r₂) ──<</COLOR>> {diff:.4f}\n"
+        summary += (
+            f"<<COLOR:accent>>── Rate Difference (r₁ − r₂) ──<</COLOR>> {diff:.4f}\n"
+        )
         summary += f"<<COLOR:text>>{conf_pct:.0f}% CI for difference:<</COLOR>> ({diff_lo:.4f}, {diff_hi:.4f})\n\n"
         summary += "<<COLOR:accent>>── Exact Conditional Test ──<</COLOR>>\n"
         summary += f"  p-value: {p_val:.4f}\n\n"
 
         if p_val < alpha:
-            summary += f"<<COLOR:good>>Rates differ significantly (p < {alpha})<</COLOR>>"
+            summary += (
+                f"<<COLOR:good>>Rates differ significantly (p < {alpha})<</COLOR>>"
+            )
         else:
             summary += f"<<COLOR:text>>No significant difference in rates (p ≥ {alpha})<</COLOR>>"
 
@@ -1109,9 +1205,7 @@ def _run_exploratory(analysis_id, df, config):
             body = f"Rate 1 = {r1:.4f} vs Rate 2 = {r2:.4f}. The rates are significantly different."
         else:
             verdict = f"No significant difference in rates (p = {p_val:.4f})"
-            body = (
-                f"Rate 1 = {r1:.4f} vs Rate 2 = {r2:.4f} (ratio = {rate_ratio:.3f}). Cannot conclude the rates differ."
-            )
+            body = f"Rate 1 = {r1:.4f} vs Rate 2 = {r2:.4f} (ratio = {rate_ratio:.3f}). Cannot conclude the rates differ."
         result["narrative"] = _narrative(
             verdict,
             body,
@@ -1182,6 +1276,7 @@ def _run_exploratory(analysis_id, df, config):
 
                 def stat_func(x):
                     return np.std(x, ddof=1)
+
             elif statistic == "trimmed_mean":
                 from scipy.stats import trim_mean
 
@@ -1189,6 +1284,7 @@ def _run_exploratory(analysis_id, df, config):
 
                 def stat_func(x):
                     return trim_mean(x, 0.1)
+
             else:
                 observed = np.mean(data)
                 stat_func = np.mean
@@ -1229,8 +1325,12 @@ def _run_exploratory(analysis_id, df, config):
         z_alpha_low = stats.norm.ppf(alpha / 2)
         z_alpha_high = stats.norm.ppf(1 - alpha / 2)
 
-        bca_low_q = stats.norm.cdf(z0 + (z0 + z_alpha_low) / (1 - a * (z0 + z_alpha_low)))
-        bca_high_q = stats.norm.cdf(z0 + (z0 + z_alpha_high) / (1 - a * (z0 + z_alpha_high)))
+        bca_low_q = stats.norm.cdf(
+            z0 + (z0 + z_alpha_low) / (1 - a * (z0 + z_alpha_low))
+        )
+        bca_high_q = stats.norm.cdf(
+            z0 + (z0 + z_alpha_high) / (1 - a * (z0 + z_alpha_high))
+        )
 
         bca_lower = np.percentile(boot_stats, bca_low_q * 100)
         bca_upper = np.percentile(boot_stats, bca_high_q * 100)
@@ -1296,7 +1396,9 @@ def _run_exploratory(analysis_id, df, config):
         # Outlier check — outliers can dominate bootstrap resamples
         _out = _check_outliers(data, label=var)
         if _out:
-            _out["detail"] += " Outliers can dominate bootstrap resamples, inflating or deflating the CI."
+            _out[
+                "detail"
+            ] += " Outliers can dominate bootstrap resamples, inflating or deflating the CI."
             diagnostics.append(_out)
         # Compare bootstrap CI with parametric CI (for mean statistic)
         if statistic == "mean" and n >= 3:
@@ -1344,7 +1446,10 @@ def _run_exploratory(analysis_id, df, config):
                     {
                         "type": "histogram",
                         "x": boot_stats.tolist(),
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                     },
                     {
                         "type": "scatter",
@@ -1359,11 +1464,19 @@ def _run_exploratory(analysis_id, df, config):
                         "x": [bca_lower, bca_upper],
                         "y": [0, 0],
                         "mode": "markers",
-                        "marker": {"color": "#e85747", "size": 12, "symbol": "triangle-up"},
+                        "marker": {
+                            "color": "#e85747",
+                            "size": 12,
+                            "symbol": "triangle-up",
+                        },
                         "name": "CI bounds",
                     },
                 ],
-                "layout": {"height": 250, "xaxis": {"title": statistic.title()}, "yaxis": {"title": "Frequency"}},
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": statistic.title()},
+                    "yaxis": {"title": "Frequency"},
+                },
             }
         )
 
@@ -1403,14 +1516,18 @@ def _run_exploratory(analysis_id, df, config):
         lambdas = [-2, -1, -0.5, 0, 0.5, 1, 2]
         lambda_names = ["1/x²", "1/x", "1/√x", "ln(x)", "√x", "x (none)", "x²"]
 
-        summary += "<<COLOR:accent>>── Common Transformations (Log-Likelihood) ──<</COLOR>>\n"
+        summary += (
+            "<<COLOR:accent>>── Common Transformations (Log-Likelihood) ──<</COLOR>>\n"
+        )
         for lam, name in zip(lambdas, lambda_names):
             if lam == 0:
                 trans = np.log(data_shifted)
             else:
                 trans = (data_shifted**lam - 1) / lam
             # Calculate log-likelihood
-            ll = -len(data) / 2 * np.log(np.var(trans)) + (lam - 1) * np.sum(np.log(data_shifted))
+            ll = -len(data) / 2 * np.log(np.var(trans)) + (lam - 1) * np.sum(
+                np.log(data_shifted)
+            )
             summary += f"  λ = {lam:>5} ({name:<8}): LL = {ll:.2f}\n"
 
         summary += "\n<<COLOR:success>>OPTIMAL TRANSFORMATION:<</COLOR>>\n"
@@ -1441,7 +1558,9 @@ def _run_exploratory(analysis_id, df, config):
         summary += f"  Transformed: p = {p_after:.4f} {'(normal)' if p_after > 0.05 else '(non-normal)'}\n"
 
         result["summary"] = summary
-        result["guide_observation"] = f"Box-Cox optimal λ = {optimal_lambda:.3f}. {suggestion}."
+        result["guide_observation"] = (
+            f"Box-Cox optimal λ = {optimal_lambda:.3f}. {suggestion}."
+        )
         result["narrative"] = _narrative(
             f"Box-Cox: optimal \u03bb = {optimal_lambda:.3f}",
             f"{suggestion}. The Box-Cox transformation finds the power that best normalizes the data.",
@@ -1463,7 +1582,10 @@ def _run_exploratory(analysis_id, df, config):
                     {
                         "type": "histogram",
                         "x": data.tolist(),
-                        "marker": {"color": "rgba(232, 87, 71, 0.4)", "line": {"color": "#e85747", "width": 1}},
+                        "marker": {
+                            "color": "rgba(232, 87, 71, 0.4)",
+                            "line": {"color": "#e85747", "width": 1},
+                        },
                     }
                 ],
                 "layout": {"height": 200, "xaxis": {"title": var}},
@@ -1477,7 +1599,10 @@ def _run_exploratory(analysis_id, df, config):
                     {
                         "type": "histogram",
                         "x": transformed.tolist(),
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                     }
                 ],
                 "layout": {"height": 200, "xaxis": {"title": f"Box-Cox({var})"}},
@@ -1485,14 +1610,18 @@ def _run_exploratory(analysis_id, df, config):
         )
 
         # Lambda vs log-likelihood profile
-        lambda_range = np.linspace(max(-3, optimal_lambda - 2), min(3, optimal_lambda + 2), 50)
+        lambda_range = np.linspace(
+            max(-3, optimal_lambda - 2), min(3, optimal_lambda + 2), 50
+        )
         log_likelihoods = []
         for lam in lambda_range:
             if abs(lam) < 1e-10:
                 trans = np.log(data_shifted)
             else:
                 trans = (data_shifted**lam - 1) / lam
-            ll = -len(data) / 2 * np.log(np.var(trans)) + (lam - 1) * np.sum(np.log(data_shifted))
+            ll = -len(data) / 2 * np.log(np.var(trans)) + (lam - 1) * np.sum(
+                np.log(data_shifted)
+            )
             log_likelihoods.append(float(ll))
         result["plots"].append(
             {
@@ -1515,7 +1644,11 @@ def _run_exploratory(analysis_id, df, config):
                         "name": f"Optimal λ = {optimal_lambda:.3f}",
                     },
                 ],
-                "layout": {"height": 250, "xaxis": {"title": "Lambda (λ)"}, "yaxis": {"title": "Log-Likelihood"}},
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Lambda (λ)"},
+                    "yaxis": {"title": "Log-Likelihood"},
+                },
             }
         )
 
@@ -1560,7 +1693,10 @@ def _run_exploratory(analysis_id, df, config):
                 # Expected runs and standard deviation
                 n1, n2 = n_above, n_below
                 expected_runs = (2 * n1 * n2) / (n1 + n2) + 1
-                std_runs = np.sqrt((2 * n1 * n2 * (2 * n1 * n2 - n1 - n2)) / ((n1 + n2) ** 2 * (n1 + n2 - 1)))
+                std_runs = np.sqrt(
+                    (2 * n1 * n2 * (2 * n1 * n2 - n1 - n2))
+                    / ((n1 + n2) ** 2 * (n1 + n2 - 1))
+                )
 
                 z_score = (runs - expected_runs) / std_runs if std_runs > 0 else 0
                 p_clustering = stats.norm.cdf(z_score)  # Too few runs = clustering
@@ -1577,9 +1713,15 @@ def _run_exploratory(analysis_id, df, config):
                         current_run = 1
 
                 cluster_flag = (
-                    "<<COLOR:danger>>Yes<</COLOR>>" if p_clustering < 0.05 else "<<COLOR:success>>No<</COLOR>>"
+                    "<<COLOR:danger>>Yes<</COLOR>>"
+                    if p_clustering < 0.05
+                    else "<<COLOR:success>>No<</COLOR>>"
                 )
-                mixture_flag = "<<COLOR:danger>>Yes<</COLOR>>" if p_mixtures < 0.05 else "<<COLOR:success>>No<</COLOR>>"
+                mixture_flag = (
+                    "<<COLOR:danger>>Yes<</COLOR>>"
+                    if p_mixtures < 0.05
+                    else "<<COLOR:success>>No<</COLOR>>"
+                )
 
                 summary = f"""<<COLOR:title>>RUN CHART<</COLOR>>
 {"=" * 50}
@@ -1604,7 +1746,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 runs = 0
 
             result["summary"] = summary
-            result["guide_observation"] = f"Run chart: {n} obs, median={median_val:.4g}, {runs} runs."
+            result["guide_observation"] = (
+                f"Run chart: {n} obs, median={median_val:.4g}, {runs} runs."
+            )
             result["narrative"] = _narrative(
                 f"Run Chart: {n} observations, {runs} runs",
                 f"Median = {median_val:.4g}. A run chart monitors process behavior over time without requiring control limits.",
@@ -1673,14 +1817,26 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
                 # Critical value from t-distribution
                 t_crit = stats.t.ppf(1 - alpha / (2 * n), n - 2)
-                G_crit = ((n - 1) / np.sqrt(n)) * np.sqrt(t_crit**2 / (n - 2 + t_crit**2))
+                G_crit = ((n - 1) / np.sqrt(n)) * np.sqrt(
+                    t_crit**2 / (n - 2 + t_crit**2)
+                )
 
                 # Two-sided p-value (approximation)
                 _t_stat = G * np.sqrt(n) / np.sqrt(n - 1)  # noqa: F841
                 p_val = (
                     min(
                         1.0,
-                        2 * n * (1 - stats.t.cdf(np.sqrt((n * (n - 2) * G**2) / (n - 1 - G**2 * (n - 1) / n)), n - 2)),
+                        2
+                        * n
+                        * (
+                            1
+                            - stats.t.cdf(
+                                np.sqrt(
+                                    (n * (n - 2) * G**2) / (n - 1 - G**2 * (n - 1) / n)
+                                ),
+                                n - 2,
+                            )
+                        ),
                     )
                     if G**2 < n * (n - 1) / n
                     else 0.0
@@ -1757,7 +1913,11 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                             "level": "info",
                             "title": "Investigate outlier impact",
                             "detail": f"Value {suspect:.4g} was flagged as an outlier. Determine if it is a data entry error, measurement artifact, or genuine extreme observation before removing it.",
-                            "action": {"label": "Investigate Impact", "type": "stats", "analysis": "robust_regression"},
+                            "action": {
+                                "label": "Investigate Impact",
+                                "type": "stats",
+                                "analysis": "robust_regression",
+                            },
                         }
                     )
                     # Masking warning
@@ -1794,7 +1954,11 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                                 "name": f"Mean = {mean_val:.4g}",
                             },
                         ],
-                        "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": var}},
+                        "layout": {
+                            "height": 300,
+                            "xaxis": {"title": "Observation"},
+                            "yaxis": {"title": var},
+                        },
                     }
                 )
 
@@ -1810,7 +1974,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         n = len(data)
 
         if n < 10:
-            result["summary"] = "Johnson transformation requires at least 10 observations."
+            result["summary"] = (
+                "Johnson transformation requires at least 10 observations."
+            )
         else:
             summary = f"<<COLOR:title>>JOHNSON TRANSFORMATION<</COLOR>>\n{'=' * 50}\n"
             summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
@@ -1824,8 +1990,14 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 params_su = stats.johnsonsu.fit(data)
                 transformed_su = stats.johnsonsu.cdf(data, *params_su)
                 transformed_su = stats.norm.ppf(np.clip(transformed_su, 0.001, 0.999))
-                _, p_su = stats.shapiro(transformed_su[: min(5000, len(transformed_su))])
-                families["SU"] = {"params": params_su, "p_value": float(p_su), "transformed": transformed_su}
+                _, p_su = stats.shapiro(
+                    transformed_su[: min(5000, len(transformed_su))]
+                )
+                families["SU"] = {
+                    "params": params_su,
+                    "p_value": float(p_su),
+                    "transformed": transformed_su,
+                }
             except Exception:
                 pass
 
@@ -1834,8 +2006,14 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 params_sb = stats.johnsonsb.fit(data)
                 transformed_sb = stats.johnsonsb.cdf(data, *params_sb)
                 transformed_sb = stats.norm.ppf(np.clip(transformed_sb, 0.001, 0.999))
-                _, p_sb = stats.shapiro(transformed_sb[: min(5000, len(transformed_sb))])
-                families["SB"] = {"params": params_sb, "p_value": float(p_sb), "transformed": transformed_sb}
+                _, p_sb = stats.shapiro(
+                    transformed_sb[: min(5000, len(transformed_sb))]
+                )
+                families["SB"] = {
+                    "params": params_sb,
+                    "p_value": float(p_sb),
+                    "transformed": transformed_sb,
+                }
             except Exception:
                 pass
 
@@ -1843,8 +2021,14 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             try:
                 if np.all(data > 0):
                     transformed_sl = np.log(data)
-                    _, p_sl = stats.shapiro(transformed_sl[: min(5000, len(transformed_sl))])
-                    families["SL"] = {"params": None, "p_value": float(p_sl), "transformed": transformed_sl}
+                    _, p_sl = stats.shapiro(
+                        transformed_sl[: min(5000, len(transformed_sl))]
+                    )
+                    families["SL"] = {
+                        "params": None,
+                        "p_value": float(p_sl),
+                        "transformed": transformed_sl,
+                    }
             except Exception:
                 pass
 
@@ -1859,18 +2043,24 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 best = families[best_family]
 
                 summary += "<<COLOR:accent>>Family Results:<</COLOR>>\n"
-                for fam_name, fam_data in sorted(families.items(), key=lambda x: -x[1]["p_value"]):
+                for fam_name, fam_data in sorted(
+                    families.items(), key=lambda x: -x[1]["p_value"]
+                ):
                     marker = " ← Best" if fam_name == best_family else ""
                     p = fam_data["p_value"]
                     status = (
-                        "<<COLOR:success>>normal<</COLOR>>" if p > 0.05 else "<<COLOR:warning>>non-normal<</COLOR>>"
+                        "<<COLOR:success>>normal<</COLOR>>"
+                        if p > 0.05
+                        else "<<COLOR:warning>>non-normal<</COLOR>>"
                     )
                     summary += f"  Johnson {fam_name}: Shapiro-Wilk p = {p:.4f} ({status}){marker}\n"
 
                 summary += f"\n<<COLOR:success>>Best transformation: Johnson {best_family}<</COLOR>>\n"
 
                 result["summary"] = summary
-                result["guide_observation"] = f"Johnson transform: best family={best_family}, p={best['p_value']:.4f}."
+                result["guide_observation"] = (
+                    f"Johnson transform: best family={best_family}, p={best['p_value']:.4f}."
+                )
                 result["statistics"] = {
                     "best_family": best_family,
                     "p_original": float(p_orig),
@@ -1890,7 +2080,10 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                             {
                                 "type": "histogram",
                                 "x": data.tolist(),
-                                "marker": {"color": "rgba(232,87,71,0.4)", "line": {"color": "#e85747", "width": 1}},
+                                "marker": {
+                                    "color": "rgba(232,87,71,0.4)",
+                                    "line": {"color": "#e85747", "width": 1},
+                                },
                             }
                         ],
                         "layout": {"height": 200, "xaxis": {"title": var}},
@@ -1903,10 +2096,16 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                             {
                                 "type": "histogram",
                                 "x": best["transformed"].tolist(),
-                                "marker": {"color": "rgba(74,159,110,0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                                "marker": {
+                                    "color": "rgba(74,159,110,0.4)",
+                                    "line": {"color": "#4a9f6e", "width": 1},
+                                },
                             }
                         ],
-                        "layout": {"height": 200, "xaxis": {"title": f"Johnson {best_family}({var})"}},
+                        "layout": {
+                            "height": 200,
+                            "xaxis": {"title": f"Johnson {best_family}({var})"},
+                        },
                     }
                 )
             else:
@@ -1932,7 +2131,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>Sample size:<</COLOR>> {n}\n"
         summary += f"<<COLOR:highlight>>Coverage:<</COLOR>> {proportion * 100:.0f}% of population\n"
-        summary += f"<<COLOR:highlight>>Confidence:<</COLOR>> {confidence * 100:.0f}%\n\n"
+        summary += (
+            f"<<COLOR:highlight>>Confidence:<</COLOR>> {confidence * 100:.0f}%\n\n"
+        )
 
         mean = np.mean(data)
         std = np.std(data, ddof=1)
@@ -1974,7 +2175,11 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             # Probability that at least proportion of population is between order statistics
             prob = 0
             for j in range(r, n - r + 2):
-                prob += comb(n, j, exact=True) * (proportion ** (j)) * ((1 - proportion) ** (n - j))
+                prob += (
+                    comb(n, j, exact=True)
+                    * (proportion ** (j))
+                    * ((1 - proportion) ** (n - j))
+                )
             if prob >= confidence:
                 r_found = r
                 break
@@ -1984,7 +2189,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             tol_lower_np = sorted_data[r_found - 1]
             tol_upper_np = sorted_data[n - r_found]
             summary += "<<COLOR:accent>>Non-Parametric Tolerance Interval:<</COLOR>>\n"
-            summary += f"  Uses order statistics X({r_found}) and X({n - r_found + 1})\n"
+            summary += (
+                f"  Uses order statistics X({r_found}) and X({n - r_found + 1})\n"
+            )
             summary += f"  Interval: ({tol_lower_np:.4f}, {tol_upper_np:.4f})\n\n"
         else:
             tol_lower_np = np.min(data)
@@ -2034,7 +2241,10 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     {
                         "type": "histogram",
                         "x": data.tolist(),
-                        "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.3)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                         "name": "Data",
                     },
                 ],
@@ -2110,7 +2320,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         groups = sorted(data[group_var].unique().tolist(), key=str)
 
         if len(groups) != 2:
-            result["summary"] = f"Hotelling's T² requires exactly 2 groups. Found {len(groups)}: {groups}"
+            result["summary"] = (
+                f"Hotelling's T² requires exactly 2 groups. Found {len(groups)}: {groups}"
+            )
             return result
 
         g1_data = data[data[group_var] == groups[0]][responses].values
@@ -2148,7 +2360,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         summary += f"{'Variable':<20} {str(groups[0]):>12} {str(groups[1]):>12} {'Difference':>12}\n"
         summary += f"{'─' * 58}\n"
         for i, var in enumerate(responses):
-            summary += f"{var:<20} {mean1[i]:>12.4f} {mean2[i]:>12.4f} {diff[i]:>12.4f}\n"
+            summary += (
+                f"{var:<20} {mean1[i]:>12.4f} {mean2[i]:>12.4f} {diff[i]:>12.4f}\n"
+            )
 
         summary += "\n<<COLOR:accent>>── Test Statistics ──<</COLOR>>\n"
         summary += f"  Hotelling's T²: {T2:.4f}\n"
@@ -2157,9 +2371,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
         if p_value < alpha:
             summary += f"<<COLOR:good>>Mean vectors differ significantly (p < {alpha})<</COLOR>>\n"
-            summary += (
-                "<<COLOR:text>>The groups have different multivariate profiles across the response variables.<</COLOR>>"
-            )
+            summary += "<<COLOR:text>>The groups have different multivariate profiles across the response variables.<</COLOR>>"
         else:
             summary += f"<<COLOR:text>>No significant difference in mean vectors (p >= {alpha})<</COLOR>>"
 
@@ -2168,7 +2380,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         # Radar/profile plot of group means
         traces = []
         for idx, grp in enumerate(groups):
-            grp_means = [float(mean1[i]) if idx == 0 else float(mean2[i]) for i in range(p)]
+            grp_means = [
+                float(mean1[i]) if idx == 0 else float(mean2[i]) for i in range(p)
+            ]
             colors = ["#4a9f6e", "#47a5e8"]
             traces.append(
                 {
@@ -2219,8 +2433,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             }
         )
 
-        result["guide_observation"] = f"Hotelling's T² = {T2:.2f}, F = {F_stat:.2f}, p = {p_value:.4f}. " + (
-            "Groups differ." if p_value < alpha else "No difference."
+        result["guide_observation"] = (
+            f"Hotelling's T² = {T2:.2f}, F = {F_stat:.2f}, p = {p_value:.4f}. "
+            + ("Groups differ." if p_value < alpha else "No difference.")
         )
         result["statistics"] = {
             "T2": T2,
@@ -2291,7 +2506,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             eigenvalues = np.sort(eigenvalues)[::-1]
             eigenvalues = eigenvalues[eigenvalues > 0]
         except np.linalg.LinAlgError:
-            result["summary"] = "MANOVA: Error matrix is singular. Check for collinear responses or insufficient data."
+            result["summary"] = (
+                "MANOVA: Error matrix is singular. Check for collinear responses or insufficient data."
+            )
             return result
 
         s = min(p, k - 1)
@@ -2308,11 +2525,17 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         elif p == 2 or k == 3:
             wilks_sqrt = np.sqrt(wilks) if wilks > 0 else 0
             r = df_e - (p - k + 2) / 2
-            F_wilks = ((1 - wilks_sqrt) / wilks_sqrt) * (r / df_h) if wilks_sqrt > 0 else 0
+            F_wilks = (
+                ((1 - wilks_sqrt) / wilks_sqrt) * (r / df_h) if wilks_sqrt > 0 else 0
+            )
             df1_w, df2_w = df_h, 2 * (r - 1) if r > 1 else 1
         else:
             # General case: Chi-square approximation
-            t = np.sqrt((p**2 * (k - 1) ** 2 - 4) / (p**2 + (k - 1) ** 2 - 5)) if (p**2 + (k - 1) ** 2 - 5) > 0 else 1
+            t = (
+                np.sqrt((p**2 * (k - 1) ** 2 - 4) / (p**2 + (k - 1) ** 2 - 5))
+                if (p**2 + (k - 1) ** 2 - 5) > 0
+                else 1
+            )
             df1_w = p * (k - 1)
             ms = N - 1 - (p + k) / 2
             df2_w = ms * t - df1_w / 2 + 1
@@ -2325,8 +2548,14 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         pillai = float(np.sum(eigenvalues / (1 + eigenvalues)))
         df1_p = s * max(p, k - 1)
         df2_p = s * (N - k - p + s)
-        F_pillai = (pillai / s) * (df2_p / (max(p, k - 1))) / (1 - pillai / s) if (1 - pillai / s) > 0 else 0
-        p_pillai = float(1 - stats.f.cdf(max(F_pillai, 0), max(df1_p, 1), max(df2_p, 1)))
+        F_pillai = (
+            (pillai / s) * (df2_p / (max(p, k - 1))) / (1 - pillai / s)
+            if (1 - pillai / s) > 0
+            else 0
+        )
+        p_pillai = float(
+            1 - stats.f.cdf(max(F_pillai, 0), max(df1_p, 1), max(df2_p, 1))
+        )
 
         # 3. Hotelling-Lawley Trace
         hl_trace = float(np.sum(eigenvalues))
@@ -2353,7 +2582,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         header = f"{'Variable':<20}" + "".join(f"{str(g):>12}" for g in groups)
         summary += header + "\n" + "─" * len(header) + "\n"
         for i, var in enumerate(responses):
-            row = f"{var:<20}" + "".join(f"{group_means[g]['mean'][i]:>12.4f}" for g in groups)
+            row = f"{var:<20}" + "".join(
+                f"{group_means[g]['mean'][i]:>12.4f}" for g in groups
+            )
             summary += row + "\n"
         summary += "\n"
 
@@ -2369,11 +2600,11 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         ]
         for name, val, f_val, p_val in tests:
             sig = "<<COLOR:good>>*<</COLOR>>" if p_val < alpha else ""
-            summary += f"{name:<25} {val:>10.4f} {f_val:>10.4f} {p_val:>10.4f} {sig:>5}\n"
+            summary += (
+                f"{name:<25} {val:>10.4f} {f_val:>10.4f} {p_val:>10.4f} {sig:>5}\n"
+            )
 
-        summary += (
-            f"\n<<COLOR:accent>>── Eigenvalues of H·E⁻¹ ──<</COLOR>> {', '.join(f'{e:.4f}' for e in eigenvalues)}\n\n"
-        )
+        summary += f"\n<<COLOR:accent>>── Eigenvalues of H·E⁻¹ ──<</COLOR>> {', '.join(f'{e:.4f}' for e in eigenvalues)}\n\n"
 
         # Overall interpretation (use Pillai's — most robust)
         if p_pillai < alpha:
@@ -2387,7 +2618,16 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         # Group centroid plot (first 2 responses, or first 2 discriminant functions)
         if p >= 2:
             traces = []
-            colors = ["#4a9f6e", "#47a5e8", "#e89547", "#9f4a4a", "#6c5ce7", "#e84393", "#00b894", "#fdcb6e"]
+            colors = [
+                "#4a9f6e",
+                "#47a5e8",
+                "#e89547",
+                "#9f4a4a",
+                "#6c5ce7",
+                "#e84393",
+                "#00b894",
+                "#fdcb6e",
+            ]
             for i, grp in enumerate(groups):
                 grp_data = data[data[factor] == grp]
                 traces.append(
@@ -2397,7 +2637,11 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                         "y": grp_data[responses[1]].tolist(),
                         "mode": "markers",
                         "name": str(grp),
-                        "marker": {"color": colors[i % len(colors)], "size": 6, "opacity": 0.6},
+                        "marker": {
+                            "color": colors[i % len(colors)],
+                            "size": 6,
+                            "opacity": 0.6,
+                        },
                     }
                 )
                 # Centroid
@@ -2420,13 +2664,26 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 {
                     "title": f"Group Centroids — {responses[0]} vs {responses[1]}",
                     "data": traces,
-                    "layout": {"height": 350, "xaxis": {"title": responses[0]}, "yaxis": {"title": responses[1]}},
+                    "layout": {
+                        "height": 350,
+                        "xaxis": {"title": responses[0]},
+                        "yaxis": {"title": responses[1]},
+                    },
                 }
             )
 
         # Per-response box plots by group
         box_traces_m = []
-        m_colors = ["#4a9f6e", "#47a5e8", "#e89547", "#9f4a4a", "#6c5ce7", "#e84393", "#00b894", "#fdcb6e"]
+        m_colors = [
+            "#4a9f6e",
+            "#47a5e8",
+            "#e89547",
+            "#9f4a4a",
+            "#6c5ce7",
+            "#e84393",
+            "#00b894",
+            "#fdcb6e",
+        ]
         for gi, grp in enumerate(groups):
             grp_d = data[data[factor] == grp]
             for vi, var in enumerate(responses):
@@ -2464,11 +2721,16 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                         "x": responses,
                         "y": responses,
                         "type": "heatmap",
-                        "colorscale": [[0, "#d94a4a"], [0.5, "#f0f4f0"], [1, "#2c5f2d"]],
+                        "colorscale": [
+                            [0, "#d94a4a"],
+                            [0.5, "#f0f4f0"],
+                            [1, "#2c5f2d"],
+                        ],
                         "zmin": -1,
                         "zmax": 1,
                         "text": [
-                            [f"{corr_mat[i][j]:.3f}" for j in range(len(responses))] for i in range(len(responses))
+                            [f"{corr_mat[i][j]:.3f}" for j in range(len(responses))]
+                            for i in range(len(responses))
                         ],
                         "texttemplate": "%{text}",
                         "showscale": True,
@@ -2480,7 +2742,11 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
         result["guide_observation"] = (
             f"MANOVA: Wilks' Λ = {wilks:.4f}, p = {p_wilks:.4f}; Pillai's V = {pillai:.4f}, p = {p_pillai:.4f}. "
-            + ("Multivariate effect detected." if p_pillai < alpha else "No multivariate effect.")
+            + (
+                "Multivariate effect detected."
+                if p_pillai < alpha
+                else "No multivariate effect."
+            )
         )
         result["statistics"] = {
             "wilks_lambda": wilks,
@@ -2504,7 +2770,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         # Narrative
         _mv_sig = p_pillai < alpha
         _mv_eta2 = float(pillai)  # Pillai's trace approximates multivariate η²
-        _mv_mag = "large" if _mv_eta2 > 0.25 else ("medium" if _mv_eta2 > 0.10 else "small")
+        _mv_mag = (
+            "large" if _mv_eta2 > 0.25 else ("medium" if _mv_eta2 > 0.10 else "small")
+        )
         result["narrative"] = _narrative(
             f"MANOVA — {'Significant' if _mv_sig else 'No significant'} multivariate effect (Pillai's V = {pillai:.4f})",
             f"Testing {p} response variables across {k} groups (N = {N}). "
@@ -2513,9 +2781,11 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 if _mv_sig
                 else f"No evidence of group differences across the response variables jointly (Wilks' Λ = {wilks:.4f}, p = {p_wilks:.4f})."
             ),
-            next_steps="Run univariate ANOVAs per response with Bonferroni correction to identify which variables differ."
-            if _mv_sig
-            else "Check individual ANOVAs — marginal effects may exist that the joint test misses.",
+            next_steps=(
+                "Run univariate ANOVAs per response with Bonferroni correction to identify which variables differ."
+                if _mv_sig
+                else "Check individual ANOVAs — marginal effects may exist that the joint test misses."
+            ),
             chart_guidance="The scatter plot shows group separation in the first two response dimensions. Non-overlapping clusters confirm a multivariate effect.",
         )
 
@@ -2550,7 +2820,11 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 fixed_effects[name] = {"coef": float(val), "se": se, "p_value": pval}
 
             # Variance components
-            var_random = float(fit.cov_re.iloc[0, 0]) if hasattr(fit.cov_re, "iloc") else float(fit.cov_re)
+            var_random = (
+                float(fit.cov_re.iloc[0, 0])
+                if hasattr(fit.cov_re, "iloc")
+                else float(fit.cov_re)
+            )
             var_residual = float(fit.scale)
             var_total = var_random + var_residual
             icc = var_random / var_total if var_total > 0 else 0
@@ -2564,30 +2838,34 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
             summary += f"<<COLOR:highlight>>Response:<</COLOR>> {response}\n"
             summary += f"<<COLOR:highlight>>Fixed factor:<</COLOR>> {fixed_factor} ({len(fixed_levels)} levels)\n"
-            summary += (
-                f"<<COLOR:highlight>>Random factor (nesting):<</COLOR>> {random_factor} ({len(random_levels)} levels)\n"
-            )
+            summary += f"<<COLOR:highlight>>Random factor (nesting):<</COLOR>> {random_factor} ({len(random_levels)} levels)\n"
             summary += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
             summary += "<<COLOR:accent>>── Fixed Effects ──<</COLOR>>\n"
             summary += f"{'Term':<30} {'Coef':>8} {'SE':>8} {'p-value':>8} {'Sig':>5}\n"
             summary += f"{'─' * 62}\n"
             for name, fe in fixed_effects.items():
-                sig = "<<COLOR:good>>*<</COLOR>>" if fe["p_value"] is not None and fe["p_value"] < alpha else ""
+                sig = (
+                    "<<COLOR:good>>*<</COLOR>>"
+                    if fe["p_value"] is not None and fe["p_value"] < alpha
+                    else ""
+                )
                 p_str = f"{fe['p_value']:.4f}" if fe["p_value"] is not None else "N/A"
                 se_str = f"{fe['se']:.4f}" if fe["se"] is not None else "N/A"
-                summary += f"{name:<30} {fe['coef']:>8.4f} {se_str:>8} {p_str:>8} {sig:>5}\n"
+                summary += (
+                    f"{name:<30} {fe['coef']:>8.4f} {se_str:>8} {p_str:>8} {sig:>5}\n"
+                )
 
             summary += "\n<<COLOR:accent>>── Variance Components ──<</COLOR>>\n"
             summary += f"  {random_factor} (random): {var_random:.4f} ({icc * 100:.1f}% of total)\n"
-            summary += f"  Residual: {var_residual:.4f} ({(1 - icc) * 100:.1f}% of total)\n"
+            summary += (
+                f"  Residual: {var_residual:.4f} ({(1 - icc) * 100:.1f}% of total)\n"
+            )
             summary += f"  Total: {var_total:.4f}\n"
             summary += f"  ICC (Intraclass Correlation): {icc:.4f}\n\n"
 
             if icc > 0.1:
-                summary += (
-                    f"<<COLOR:good>>ICC = {icc:.3f} — substantial variation attributed to {random_factor}.<</COLOR>>\n"
-                )
+                summary += f"<<COLOR:good>>ICC = {icc:.3f} — substantial variation attributed to {random_factor}.<</COLOR>>\n"
                 summary += f"<<COLOR:text>>The nesting structure accounts for {icc * 100:.1f}% of the variance. Ignoring it would inflate Type I error.<</COLOR>>\n"
             else:
                 summary += f"<<COLOR:text>>ICC = {icc:.3f} — low variation from {random_factor}. A standard ANOVA may suffice.<</COLOR>>\n"
@@ -2626,7 +2904,11 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 {
                     "title": f"Nested ANOVA: {response} by {fixed_factor} (nested in {random_factor})",
                     "data": traces,
-                    "layout": {"height": 300, "yaxis": {"title": response}, "xaxis": {"title": fixed_factor}},
+                    "layout": {
+                        "height": 300,
+                        "yaxis": {"title": response},
+                        "xaxis": {"title": fixed_factor},
+                    },
                 }
             )
 
@@ -2668,7 +2950,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
             sorted_resid = np.sort(resid_vals.values)
             n_qq = len(sorted_resid)
-            theoretical_q = [float(qstats.norm.ppf((i + 0.5) / n_qq)) for i in range(n_qq)]
+            theoretical_q = [
+                float(qstats.norm.ppf((i + 0.5) / n_qq)) for i in range(n_qq)
+            ]
             result["plots"].append(
                 {
                     "title": "Normal Q-Q Plot of Residuals",
@@ -2684,8 +2968,10 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                         {
                             "x": [theoretical_q[0], theoretical_q[-1]],
                             "y": [
-                                theoretical_q[0] * np.std(sorted_resid) + np.mean(sorted_resid),
-                                theoretical_q[-1] * np.std(sorted_resid) + np.mean(sorted_resid),
+                                theoretical_q[0] * np.std(sorted_resid)
+                                + np.mean(sorted_resid),
+                                theoretical_q[-1] * np.std(sorted_resid)
+                                + np.mean(sorted_resid),
                             ],
                             "mode": "lines",
                             "line": {"color": "#e89547", "dash": "dash"},
@@ -2702,7 +2988,11 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
             result["guide_observation"] = (
                 f"Nested ANOVA: ICC = {icc:.3f} ({icc * 100:.1f}% variance from {random_factor}). "
-                + ("Fixed effect significant." if sig_fixed else "Fixed effect not significant.")
+                + (
+                    "Fixed effect significant."
+                    if sig_fixed
+                    else "Fixed effect not significant."
+                )
             )
             if sig_fixed:
                 result["narrative"] = _narrative(
@@ -2727,7 +3017,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             }
 
         except ImportError:
-            result["summary"] = "Nested ANOVA requires statsmodels. Install with: pip install statsmodels"
+            result["summary"] = (
+                "Nested ANOVA requires statsmodels. Install with: pip install statsmodels"
+            )
         except Exception as e:
             result["summary"] = f"Nested ANOVA error: {str(e)}"
 
@@ -2807,7 +3099,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 df1 = p * df_h
                 df2 = r * t - 2 * u
                 if df2 > 0:
-                    f_wilks = ((1 - wilks ** (1 / t)) / (wilks ** (1 / t))) * (df2 / df1)
+                    f_wilks = ((1 - wilks ** (1 / t)) / (wilks ** (1 / t))) * (
+                        df2 / df1
+                    )
                     from scipy import stats as fstats
 
                     p_wilks = 1 - fstats.f.cdf(f_wilks, df1, df2)
@@ -2819,14 +3113,24 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 p_wilks = None
 
             summary_text = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-            summary_text += "<<COLOR:title>>MULTIVARIATE ANALYSIS OF VARIANCE (MANOVA)<</COLOR>>\n"
+            summary_text += (
+                "<<COLOR:title>>MULTIVARIATE ANALYSIS OF VARIANCE (MANOVA)<</COLOR>>\n"
+            )
             summary_text += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-            summary_text += f"<<COLOR:highlight>>Responses:<</COLOR>> {', '.join(responses)}\n"
-            summary_text += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({k} groups)\n"
+            summary_text += (
+                f"<<COLOR:highlight>>Responses:<</COLOR>> {', '.join(responses)}\n"
+            )
+            summary_text += (
+                f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({k} groups)\n"
+            )
             summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
-            summary_text += "<<COLOR:accent>>── Multivariate Test Statistics ──<</COLOR>>\n"
-            summary_text += f"{'Test':<25} {'Value':>10} {'Approx F':>10} {'p-value':>10}\n"
+            summary_text += (
+                "<<COLOR:accent>>── Multivariate Test Statistics ──<</COLOR>>\n"
+            )
+            summary_text += (
+                f"{'Test':<25} {'Value':>10} {'Approx F':>10} {'p-value':>10}\n"
+            )
             summary_text += f"{'─' * 57}\n"
             pillai_label = "Pillai's Trace"
             summary_text += f"{pillai_label:<25} {pillai:>10.4f} {'':>10} {'':>10}\n"
@@ -2834,12 +3138,16 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             wilks_p_str = f"{p_wilks:.4f}" if p_wilks is not None else "N/A"
             wilks_label = "Wilks' Lambda"
             summary_text += f"{wilks_label:<25} {wilks:>10.4f} {wilks_f_str:>10} {wilks_p_str:>10}\n"
-            summary_text += f"{'Hotelling-Lawley':<25} {hotelling:>10.4f} {'':>10} {'':>10}\n"
+            summary_text += (
+                f"{'Hotelling-Lawley':<25} {hotelling:>10.4f} {'':>10} {'':>10}\n"
+            )
             roy_label = "Roy's Greatest Root"
             summary_text += f"{roy_label:<25} {roy:>10.4f} {'':>10} {'':>10}\n\n"
 
             # Univariate ANOVAs
-            summary_text += "<<COLOR:accent>>── Univariate ANOVA per Response ──<</COLOR>>\n"
+            summary_text += (
+                "<<COLOR:accent>>── Univariate ANOVA per Response ──<</COLOR>>\n"
+            )
             summary_text += f"{'Response':<20} {'F':>10} {'p-value':>10} {'Sig':>5}\n"
             summary_text += f"{'─' * 47}\n"
             from scipy import stats as fstats
@@ -2868,12 +3176,20 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                             {
                                 "x": [str(g) for g in groups],
                                 "y": means,
-                                "error_y": {"type": "data", "array": sds, "visible": True},
+                                "error_y": {
+                                    "type": "data",
+                                    "array": sds,
+                                    "visible": True,
+                                },
                                 "type": "bar",
                                 "marker": {"color": "#4a90d9"},
                             }
                         ],
-                        "layout": {"height": 250, "yaxis": {"title": resp}, "xaxis": {"title": factor}},
+                        "layout": {
+                            "height": 250,
+                            "yaxis": {"title": resp},
+                            "xaxis": {"title": factor},
+                        },
                     }
                 )
 
@@ -2900,15 +3216,21 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 result["narrative"] = _narrative(
                     f"MANOVA — {'Significant' if _mv2_sig else 'No significant'} multivariate effect",
                     f"Testing {', '.join(responses)} jointly by {factor} ({k} groups, N = {N}). "
-                    + (f"Wilks' Λ = {wilks:.4f}" + (f" (p = {p_wilks:.4f})" if p_wilks else "") + ". ")
+                    + (
+                        f"Wilks' Λ = {wilks:.4f}"
+                        + (f" (p = {p_wilks:.4f})" if p_wilks else "")
+                        + ". "
+                    )
                     + (
                         "The factor significantly affects the responses jointly."
                         if _mv2_sig
                         else "No evidence of a joint multivariate effect."
                     ),
-                    next_steps="Examine the per-response bar charts to see which variables drive the group separation."
-                    if _mv2_sig
-                    else None,
+                    next_steps=(
+                        "Examine the per-response bar charts to see which variables drive the group separation."
+                        if _mv2_sig
+                        else None
+                    ),
                     chart_guidance="Bar charts show group means ± SD for each response. Large non-overlapping error bars suggest meaningful differences.",
                 )
             except Exception:
@@ -2966,8 +3288,12 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             summary_text += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
             summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {n}\n"
             summary_text += f"<<COLOR:highlight>>Method:<</COLOR>> {method_desc}\n\n"
-            summary_text += f"<<COLOR:highlight>>Confidence:<</COLOR>> {conf * 100:.0f}%\n"
-            summary_text += f"<<COLOR:highlight>>Coverage:<</COLOR>> {coverage * 100:.0f}%\n\n"
+            summary_text += (
+                f"<<COLOR:highlight>>Confidence:<</COLOR>> {conf * 100:.0f}%\n"
+            )
+            summary_text += (
+                f"<<COLOR:highlight>>Coverage:<</COLOR>> {coverage * 100:.0f}%\n\n"
+            )
             summary_text += f"<<COLOR:accent>>── Tolerance Interval ──<</COLOR>> [{lower:.4f}, {upper:.4f}]\n"
             summary_text += f"<<COLOR:text>>Mean:<</COLOR>> {xbar:.4f}\n"
             summary_text += f"<<COLOR:text>>Std Dev:<</COLOR>> {s:.4f}\n\n"
@@ -3001,7 +3327,11 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                                 "x1": lower,
                                 "y0": 0,
                                 "y1": max(hist_vals) * 1.1,
-                                "line": {"color": "#d94a4a", "width": 2, "dash": "dash"},
+                                "line": {
+                                    "color": "#d94a4a",
+                                    "width": 2,
+                                    "dash": "dash",
+                                },
                             },
                             {
                                 "type": "line",
@@ -3009,7 +3339,11 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                                 "x1": upper,
                                 "y0": 0,
                                 "y1": max(hist_vals) * 1.1,
-                                "line": {"color": "#d94a4a", "width": 2, "dash": "dash"},
+                                "line": {
+                                    "color": "#d94a4a",
+                                    "width": 2,
+                                    "dash": "dash",
+                                },
                             },
                             {
                                 "type": "line",
@@ -3109,7 +3443,12 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 for i in range(len(numeric_cols)):
                     for j in range(i + 1, len(numeric_cols)):
                         pairs.append(
-                            (numeric_cols[i], numeric_cols[j], abs(corr_matrix.iloc[i, j]), corr_matrix.iloc[i, j])
+                            (
+                                numeric_cols[i],
+                                numeric_cols[j],
+                                abs(corr_matrix.iloc[i, j]),
+                                corr_matrix.iloc[i, j],
+                            )
                         )
                 pairs.sort(key=lambda x: x[2], reverse=True)
                 top_pairs = pairs[:10]
@@ -3154,7 +3493,10 @@ Top Correlations:
                                 "colorscale": "RdBu_r",
                                 "zmin": -1,
                                 "zmax": 1,
-                                "text": [[f"{v:.2f}" for v in row] for row in corr_matrix.values],
+                                "text": [
+                                    [f"{v:.2f}" for v in row]
+                                    for row in corr_matrix.values
+                                ],
                                 "texttemplate": "%{text}",
                                 "hovertemplate": "%{x} vs %{y}: %{z:.3f}<extra></extra>",
                             }
@@ -3224,7 +3566,11 @@ Top Correlations:
             if len(numeric_cols) >= 2:
                 _corr = df[numeric_cols].corr()
                 _tri = _corr.where(np.triu(np.ones(_corr.shape, dtype=bool), k=1))
-                _max_pair = _tri.stack().abs().idxmax() if _tri.stack().abs().max() > 0.5 else None
+                _max_pair = (
+                    _tri.stack().abs().idxmax()
+                    if _tri.stack().abs().max() > 0.5
+                    else None
+                )
                 if _max_pair:
                     _dp_top_corr = f" Strongest correlation: <strong>{_max_pair[0]}</strong> ↔ <strong>{_max_pair[1]}</strong> (r = {_corr.loc[_max_pair[0], _max_pair[1]]:.3f})."
             result["narrative"] = _narrative(
@@ -3260,7 +3606,9 @@ Top Correlations:
                             f"  <<COLOR:accent>>{col}<</COLOR>>  N={len(vals)}  Mean={vals.mean():.4g}  StDev={vals.std():.4g}  Min={vals.min():.4g}  Max={vals.max():.4g}  Missing={miss_p:.1f}%"
                         )
                     else:
-                        col_lines.append(f"  <<COLOR:warning>>{col}<</COLOR>>  (all missing)")
+                        col_lines.append(
+                            f"  <<COLOR:warning>>{col}<</COLOR>>  (all missing)"
+                        )
                 else:
                     uniq = df[col].nunique()
                     top = df[col].mode().iloc[0] if len(df[col].mode()) > 0 else "-"
@@ -3293,7 +3641,10 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                                 "colorscale": "RdBu_r",
                                 "zmin": -1,
                                 "zmax": 1,
-                                "text": [[f"{v:.2f}" for v in row] for row in corr_matrix.values],
+                                "text": [
+                                    [f"{v:.2f}" for v in row]
+                                    for row in corr_matrix.values
+                                ],
                                 "texttemplate": "%{text}",
                                 "hovertemplate": "%{x} vs %{y}: %{z:.3f}<extra></extra>",
                             }
@@ -3381,7 +3732,9 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
             selected = [c for c in selected if c in numeric_cols]
 
             if not selected:
-                result["summary"] = "No numeric columns selected or available for Graphical Summary."
+                result["summary"] = (
+                    "No numeric columns selected or available for Graphical Summary."
+                )
             else:
                 all_summaries = []
                 for col in selected:
@@ -3390,7 +3743,9 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                     n_star = int(df[col].isnull().sum())
 
                     if n < 3:
-                        all_summaries.append(f"<<COLOR:title>>{col}<</COLOR>>: insufficient data (N={n})")
+                        all_summaries.append(
+                            f"<<COLOR:title>>{col}<</COLOR>>: insufficient data (N={n})"
+                        )
                         continue
 
                     # Descriptive stats
@@ -3428,7 +3783,9 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                     )
 
                     # CI for mean (t-interval)
-                    ci_mean = sp_stats.t.interval(conf_level, df=n - 1, loc=mean_val, scale=se)
+                    ci_mean = sp_stats.t.interval(
+                        conf_level, df=n - 1, loc=mean_val, scale=se
+                    )
 
                     # CI for median (nonparametric sign-test inversion)
                     alpha = 1 - conf_level
@@ -3440,8 +3797,14 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                             j = k_idx
                             break
                     sorted_vals = np.sort(vals)
-                    ci_median_lo = float(sorted_vals[j]) if j < n else float(sorted_vals[0])
-                    ci_median_hi = float(sorted_vals[n - 1 - j]) if (n - 1 - j) >= 0 else float(sorted_vals[-1])
+                    ci_median_lo = (
+                        float(sorted_vals[j]) if j < n else float(sorted_vals[0])
+                    )
+                    ci_median_hi = (
+                        float(sorted_vals[n - 1 - j])
+                        if (n - 1 - j) >= 0
+                        else float(sorted_vals[-1])
+                    )
 
                     # CI for StDev (chi-square)
                     chi2_lo = sp_stats.chi2.ppf((1 + conf_level) / 2, n - 1)
@@ -3501,7 +3864,10 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                         go.Histogram(
                             x=vals.tolist(),
                             nbinsx=nbins,
-                            marker=dict(color="rgba(74,144,217,0.6)", line=dict(color="rgba(74,144,217,1)", width=1)),
+                            marker=dict(
+                                color="rgba(74,144,217,0.6)",
+                                line=dict(color="rgba(74,144,217,1)", width=1),
+                            ),
                             name="Data",
                             showlegend=False,
                         ),
@@ -3510,7 +3876,9 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                     )
 
                     # Normal PDF overlay scaled to histogram
-                    x_fit = np.linspace(min_val - 0.5 * std_val, max_val + 0.5 * std_val, 200)
+                    x_fit = np.linspace(
+                        min_val - 0.5 * std_val, max_val + 0.5 * std_val, 200
+                    )
                     y_fit = sp_stats.norm.pdf(x_fit, mean_val, std_val) * n * bin_width
                     fig.add_trace(
                         go.Scatter(
@@ -3548,7 +3916,11 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                             mode="lines+markers",
                             marker=dict(
                                 size=[8, 12, 8],
-                                color=["rgba(232,71,71,0.8)", "rgba(232,71,71,1)", "rgba(232,71,71,0.8)"],
+                                color=[
+                                    "rgba(232,71,71,0.8)",
+                                    "rgba(232,71,71,1)",
+                                    "rgba(232,71,71,0.8)",
+                                ],
                                 symbol=["line-ns", "diamond", "line-ns"],
                             ),
                             line=dict(color="rgba(232,71,71,0.8)", width=2),
@@ -3566,7 +3938,11 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                             mode="lines+markers",
                             marker=dict(
                                 size=[8, 12, 8],
-                                color=["rgba(74,144,217,0.8)", "rgba(74,144,217,1)", "rgba(74,144,217,0.8)"],
+                                color=[
+                                    "rgba(74,144,217,0.8)",
+                                    "rgba(74,144,217,1)",
+                                    "rgba(74,144,217,0.8)",
+                                ],
                                 symbol=["line-ns", "diamond", "line-ns"],
                             ),
                             line=dict(color="rgba(74,144,217,0.8)", width=2),
@@ -3582,7 +3958,12 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
 
                     # Convert to JSON-serializable dict
                     fig_dict = fig.to_dict()
-                    result["plots"].append({"data": [t for t in fig_dict["data"]], "layout": fig_dict["layout"]})
+                    result["plots"].append(
+                        {
+                            "data": [t for t in fig_dict["data"]],
+                            "layout": fig_dict["layout"],
+                        }
+                    )
 
                     # HTML table for this variable
                     tbl = f"""<table class='result-table'>
@@ -3617,7 +3998,9 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
         except Exception as e:
             import traceback
 
-            result["summary"] = f"Graphical Summary error: {str(e)}\n{traceback.format_exc()}"
+            result["summary"] = (
+                f"Graphical Summary error: {str(e)}\n{traceback.format_exc()}"
+            )
 
     # ── Missing Data Analysis ─────────────────────────────────────────────
     elif analysis_id == "missing_data_analysis":
@@ -3633,7 +4016,9 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
 
             # Missing patterns
             miss_indicator = df.isnull().astype(int)
-            pattern_strs = miss_indicator.apply(lambda r: "".join(str(v) for v in r), axis=1)
+            pattern_strs = miss_indicator.apply(
+                lambda r: "".join(str(v) for v in r), axis=1
+            )
             pattern_counts = pattern_strs.value_counts()
             n_patterns = len(pattern_counts)
 
@@ -3642,7 +4027,9 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
             for pat, cnt in pattern_counts.head(15).items():
                 cols_missing = [df.columns[i] for i, v in enumerate(pat) if v == "1"]
                 desc = ", ".join(cols_missing) if cols_missing else "(complete)"
-                pattern_rows.append(f"  {cnt:>6} rows ({cnt / n_rows * 100:.1f}%): {desc}")
+                pattern_rows.append(
+                    f"  {cnt:>6} rows ({cnt / n_rows * 100:.1f}%): {desc}"
+                )
             pattern_text = "\n".join(pattern_rows)
 
             # Little's MCAR test approximation
@@ -3671,7 +4058,9 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                         dof = int(mask.sum() - 1)
                         p_val = float(1 - chi2.cdf(chi2_stat, dof))
                         conclusion = (
-                            "Data appears MCAR (p >= 0.05)" if p_val >= 0.05 else "Data may NOT be MCAR (p < 0.05)"
+                            "Data appears MCAR (p >= 0.05)"
+                            if p_val >= 0.05
+                            else "Data may NOT be MCAR (p < 0.05)"
                         )
                         mcar_text = f"""
 MCAR Test (Chi-squared approximation):
@@ -3689,19 +4078,31 @@ MCAR Test (Chi-squared approximation):
                 idx_list = cols_with_missing.index.tolist()
                 for i in range(len(idx_list)):
                     for j in range(i + 1, len(idx_list)):
-                        pairs.append((idx_list[i], idx_list[j], miss_corr.loc[idx_list[i], idx_list[j]]))
+                        pairs.append(
+                            (
+                                idx_list[i],
+                                idx_list[j],
+                                miss_corr.loc[idx_list[i], idx_list[j]],
+                            )
+                        )
                 pairs.sort(key=lambda x: abs(x[2]), reverse=True)
                 if pairs:
                     lines = [f"  {a} <-> {b}: {v:+.3f}" for a, b, v in pairs[:5]]
-                    miss_corr_text = "\nMissing Correlation (top pairs):\n" + "\n".join(lines)
+                    miss_corr_text = "\nMissing Correlation (top pairs):\n" + "\n".join(
+                        lines
+                    )
 
             summary_lines = ["MISSING DATA ANALYSIS", "=" * 50]
             summary_lines.append(f"Dataset: {n_rows} rows x {n_cols} columns")
             summary_lines.append(
                 f"Total missing: {int(miss_count.sum())} / {n_rows * n_cols} ({miss_count.sum() / (n_rows * n_cols) * 100:.1f}%)"
             )
-            summary_lines.append(f"Complete rows: {complete_rows} / {n_rows} ({complete_rows / n_rows * 100:.1f}%)")
-            summary_lines.append(f"\nColumns with missing data ({len(cols_with_missing)}):")
+            summary_lines.append(
+                f"Complete rows: {complete_rows} / {n_rows} ({complete_rows / n_rows * 100:.1f}%)"
+            )
+            summary_lines.append(
+                f"\nColumns with missing data ({len(cols_with_missing)}):"
+            )
             for col, cnt in cols_with_missing.items():
                 summary_lines.append(f"  {col:<30} {cnt:>6} ({miss_pct[col]:.1f}%)")
             summary_lines.append(f"\nMissing Patterns ({n_patterns} unique):")
@@ -3730,7 +4131,10 @@ MCAR Test (Chi-squared approximation):
                                 "z": z_data,
                                 "x": df.columns.tolist(),
                                 "y": y_labels,
-                                "colorscale": [[0, "rgba(74,144,217,0.15)"], [1, "rgba(232,71,71,0.7)"]],
+                                "colorscale": [
+                                    [0, "rgba(74,144,217,0.15)"],
+                                    [1, "rgba(232,71,71,0.7)"],
+                                ],
                                 "showscale": False,
                                 "hovertemplate": "%{x}: %{z}<extra>0=present, 1=missing</extra>",
                             }
@@ -3771,9 +4175,17 @@ MCAR Test (Chi-squared approximation):
             # Narrative
             _md_total = int(miss_count.sum())
             _md_pct = _md_total / (n_rows * n_cols) * 100 if n_rows * n_cols > 0 else 0
-            _md_worst = cols_with_missing.index[0] if len(cols_with_missing) > 0 else "N/A"
-            _md_worst_pct = float(miss_pct[_md_worst]) if len(cols_with_missing) > 0 else 0
-            _md_severity = "minimal" if _md_pct < 5 else ("moderate" if _md_pct < 20 else "substantial")
+            _md_worst = (
+                cols_with_missing.index[0] if len(cols_with_missing) > 0 else "N/A"
+            )
+            _md_worst_pct = (
+                float(miss_pct[_md_worst]) if len(cols_with_missing) > 0 else 0
+            )
+            _md_severity = (
+                "minimal"
+                if _md_pct < 5
+                else ("moderate" if _md_pct < 20 else "substantial")
+            )
             result["narrative"] = _narrative(
                 f"Missing Data — {_md_severity} ({_md_pct:.1f}% of cells)",
                 f"{_md_total:,} missing cells across {len(cols_with_missing)} columns in {n_patterns} unique patterns. "
@@ -3800,7 +4212,11 @@ MCAR Test (Chi-squared approximation):
 
             if not columns:
                 columns = df.select_dtypes(include=[np.number]).columns.tolist()
-            columns = [c for c in columns if c in df.columns and pd.api.types.is_numeric_dtype(df[c])]
+            columns = [
+                c
+                for c in columns
+                if c in df.columns and pd.api.types.is_numeric_dtype(df[c])
+            ]
 
             if not columns:
                 result["summary"] = "No numeric columns found for outlier analysis."
@@ -3826,7 +4242,11 @@ MCAR Test (Chi-squared approximation):
                     consensus += mask.astype(int).values
 
                 if "zscore" in methods:
-                    z = np.abs((df[col] - vals.mean()) / vals.std()) if vals.std() > 0 else pd.Series(0, index=df.index)
+                    z = (
+                        np.abs((df[col] - vals.mean()) / vals.std())
+                        if vals.std() > 0
+                        else pd.Series(0, index=df.index)
+                    )
                     mask = z > z_thresh
                     col_results["Z-score"] = {
                         "count": int(mask.sum()),
@@ -3859,7 +4279,9 @@ MCAR Test (Chi-squared approximation):
                             cov = np.cov(sub.T)
                             cov_inv = np.linalg.inv(cov + np.eye(len(columns)) * 1e-6)
                             mean = sub.mean().values
-                            dists = sub.apply(lambda r: mah_dist(r.values, mean, cov_inv), axis=1)
+                            dists = sub.apply(
+                                lambda r: mah_dist(r.values, mean, cov_inv), axis=1
+                            )
                             from scipy.stats import chi2 as chi2_dist
 
                             threshold = chi2_dist.ppf(0.975, df=len(columns))
@@ -3870,7 +4292,11 @@ MCAR Test (Chi-squared approximation):
                                 "threshold": f"chi2(p=0.975, df={len(columns)})",
                             }
                     except Exception:
-                        col_results["Mahalanobis"] = {"count": 0, "pct": 0, "error": "Could not compute"}
+                        col_results["Mahalanobis"] = {
+                            "count": 0,
+                            "pct": 0,
+                            "error": "Could not compute",
+                        }
 
                 all_results[col] = col_results
 
@@ -3883,16 +4309,28 @@ MCAR Test (Chi-squared approximation):
             for col, methods_res in all_results.items():
                 summary_lines.append(f"{col}:")
                 for method, info in methods_res.items():
-                    summary_lines.append(f"  {method:<18} {info['count']:>5} outliers ({info['pct']}%)")
+                    summary_lines.append(
+                        f"  {method:<18} {info['count']:>5} outliers ({info['pct']}%)"
+                    )
                 summary_lines.append("")
 
             # Consensus
-            n_methods_used = len([m for m in methods if m != "mahalanobis" or len(columns) >= 2])
+            n_methods_used = len(
+                [m for m in methods if m != "mahalanobis" or len(columns) >= 2]
+            )
             if n_methods_used >= 2:
-                int((consensus >= n_methods_used * len(columns)).sum()) if n_methods_used > 0 else 0
-                flagged_majority = int((consensus >= max(1, n_methods_used * len(columns) // 2)).sum())
+                (
+                    int((consensus >= n_methods_used * len(columns)).sum())
+                    if n_methods_used > 0
+                    else 0
+                )
+                flagged_majority = int(
+                    (consensus >= max(1, n_methods_used * len(columns) // 2)).sum()
+                )
                 summary_lines.append("Consensus:")
-                summary_lines.append(f"  Flagged by majority of methods: {flagged_majority} rows")
+                summary_lines.append(
+                    f"  Flagged by majority of methods: {flagged_majority} rows"
+                )
 
             result["summary"] = "\n".join(summary_lines)
 
@@ -3916,24 +4354,46 @@ MCAR Test (Chi-squared approximation):
                                 "y": vals,
                                 "name": col,
                                 "boxpoints": "outliers",
-                                "marker": {"color": "rgba(74,144,217,0.6)", "outliercolor": "rgba(232,71,71,0.8)"},
+                                "marker": {
+                                    "color": "rgba(74,144,217,0.6)",
+                                    "outliercolor": "rgba(232,71,71,0.8)",
+                                },
                                 "line": {"color": "rgba(74,144,217,0.8)"},
                             }
                         ],
-                        "layout": {"title": f"Outlier Detection: {col}", "height": 300, "yaxis": {"title": col}},
+                        "layout": {
+                            "title": f"Outlier Detection: {col}",
+                            "height": 300,
+                            "yaxis": {"title": col},
+                        },
                     }
                 )
 
-            result["guide_observation"] = f"Outlier analysis on {len(columns)} columns with {len(methods)} methods."
+            result["guide_observation"] = (
+                f"Outlier analysis on {len(columns)} columns with {len(methods)} methods."
+            )
 
             # Narrative
-            _oa_total = sum(info["count"] for col_res in all_results.values() for info in col_res.values())
+            _oa_total = sum(
+                info["count"]
+                for col_res in all_results.values()
+                for info in col_res.values()
+            )
             _oa_worst_col = (
-                max(all_results.keys(), key=lambda c: max(info["count"] for info in all_results[c].values()))
+                max(
+                    all_results.keys(),
+                    key=lambda c: max(
+                        info["count"] for info in all_results[c].values()
+                    ),
+                )
                 if all_results
                 else ""
             )
-            _oa_worst_n = max(info["count"] for info in all_results[_oa_worst_col].values()) if _oa_worst_col else 0
+            _oa_worst_n = (
+                max(info["count"] for info in all_results[_oa_worst_col].values())
+                if _oa_worst_col
+                else 0
+            )
             result["narrative"] = _narrative(
                 f"Outlier Analysis — {len(columns)} columns, {len(methods)} method{'s' if len(methods) > 1 else ''}",
                 (
@@ -3962,7 +4422,11 @@ MCAR Test (Chi-squared approximation):
 
             duplicated_mask = df.duplicated(subset=check_cols, keep=False)
             n_dup_rows = int(duplicated_mask.sum())
-            n_dup_groups = int(df[duplicated_mask].groupby(check_cols).ngroups) if n_dup_rows > 0 else 0
+            n_dup_groups = (
+                int(df[duplicated_mask].groupby(check_cols).ngroups)
+                if n_dup_rows > 0
+                else 0
+            )
             first_dup_mask = df.duplicated(subset=check_cols, keep="first")
             n_extra = int(first_dup_mask.sum())
 
@@ -3972,14 +4436,18 @@ MCAR Test (Chi-squared approximation):
             )
             summary_lines.append(f"Total rows: {len(df)}")
             summary_lines.append(f"Unique rows: {len(df) - n_extra}")
-            summary_lines.append(f"Duplicate rows: {n_dup_rows} ({n_dup_rows / len(df) * 100:.1f}%)")
+            summary_lines.append(
+                f"Duplicate rows: {n_dup_rows} ({n_dup_rows / len(df) * 100:.1f}%)"
+            )
             summary_lines.append(f"Duplicate groups: {n_dup_groups}")
             summary_lines.append(f"Extra copies (removable): {n_extra}")
 
             # Show top duplicate groups
             if n_dup_rows > 0:
                 dup_df = df[duplicated_mask].copy()
-                group_sizes = dup_df.groupby(check_cols).size().sort_values(ascending=False)
+                group_sizes = (
+                    dup_df.groupby(check_cols).size().sort_values(ascending=False)
+                )
                 summary_lines.append("\nLargest duplicate groups:")
                 for i, (vals, cnt) in enumerate(group_sizes.head(10).items()):
                     if isinstance(vals, tuple):
@@ -4003,7 +4471,9 @@ MCAR Test (Chi-squared approximation):
                         table_html += f"<td>{row[c]}</td>"
                     table_html += f"<td>{idx}</td></tr>"
                 table_html += "</table>"
-                result["tables"] = [{"title": "Sample Duplicate Rows", "html": table_html}]
+                result["tables"] = [
+                    {"title": "Sample Duplicate Rows", "html": table_html}
+                ]
 
             # Plot: duplicate group size histogram
             if n_dup_groups > 0:
@@ -4011,7 +4481,11 @@ MCAR Test (Chi-squared approximation):
                 result["plots"].append(
                     {
                         "data": [
-                            {"type": "histogram", "x": group_sizes_list, "marker": {"color": "rgba(232,149,71,0.6)"}}
+                            {
+                                "type": "histogram",
+                                "x": group_sizes_list,
+                                "marker": {"color": "rgba(232,149,71,0.6)"},
+                            }
                         ],
                         "layout": {
                             "title": "Duplicate Group Sizes",
@@ -4030,19 +4504,25 @@ MCAR Test (Chi-squared approximation):
             _da_pct = n_dup_rows / len(df) * 100 if len(df) > 0 else 0
             if n_dup_rows == 0:
                 _da_verdict = "No duplicates found"
-                _da_body = f"All {len(df):,} rows are unique across the checked columns."
+                _da_body = (
+                    f"All {len(df):,} rows are unique across the checked columns."
+                )
             else:
                 _da_verdict = f"{n_dup_rows:,} duplicate rows ({_da_pct:.1f}%)"
                 _da_body = f"{n_dup_groups} duplicate groups found. {n_extra} rows are extra copies that could be removed, leaving {len(df) - n_extra:,} unique rows."
             result["narrative"] = _narrative(
                 f"Duplicate Analysis — {_da_verdict}",
                 _da_body,
-                next_steps="Verify duplicates are true repeats (not valid repeat measurements) before removing."
-                if n_dup_rows > 0
-                else None,
-                chart_guidance="The histogram shows how many copies exist per duplicate group."
-                if n_dup_rows > 0
-                else None,
+                next_steps=(
+                    "Verify duplicates are true repeats (not valid repeat measurements) before removing."
+                    if n_dup_rows > 0
+                    else None
+                ),
+                chart_guidance=(
+                    "The histogram shows how many copies exist per duplicate group."
+                    if n_dup_rows > 0
+                    else None
+                ),
             )
 
         except Exception as e:
@@ -4059,18 +4539,30 @@ MCAR Test (Chi-squared approximation):
                 se_col = config.get("se_col", "")
                 study_col = config.get("study_col", "")
                 if not all([effect_col, se_col, study_col]):
-                    result["summary"] = "Please specify effect size, SE, and study label columns."
+                    result["summary"] = (
+                        "Please specify effect size, SE, and study label columns."
+                    )
                     return result
                 effects = df[effect_col].dropna().values.astype(float)
                 ses = df[se_col].dropna().values.astype(float)
                 studies = df[study_col].values[: len(effects)]
             else:
                 # Raw mode: compute Cohen's d
-                m1c, s1c, n1c = config.get("mean1_col", ""), config.get("sd1_col", ""), config.get("n1_col", "")
-                m2c, s2c, n2c = config.get("mean2_col", ""), config.get("sd2_col", ""), config.get("n2_col", "")
+                m1c, s1c, n1c = (
+                    config.get("mean1_col", ""),
+                    config.get("sd1_col", ""),
+                    config.get("n1_col", ""),
+                )
+                m2c, s2c, n2c = (
+                    config.get("mean2_col", ""),
+                    config.get("sd2_col", ""),
+                    config.get("n2_col", ""),
+                )
                 study_col = config.get("study_col", "")
                 if not all([m1c, s1c, n1c, m2c, s2c, n2c]):
-                    result["summary"] = "Please specify all 6 raw data columns (mean, SD, n for each group)."
+                    result["summary"] = (
+                        "Please specify all 6 raw data columns (mean, SD, n for each group)."
+                    )
                     return result
                 m1 = df[m1c].values.astype(float)
                 s1 = df[s1c].values.astype(float)
@@ -4081,7 +4573,11 @@ MCAR Test (Chi-squared approximation):
                 sp = np.sqrt(((n1 - 1) * s1**2 + (n2 - 1) * s2**2) / (n1 + n2 - 2))
                 effects = (m1 - m2) / sp
                 ses = np.sqrt(1 / n1 + 1 / n2 + effects**2 / (2 * (n1 + n2)))
-                studies = df[study_col].values[: len(effects)] if study_col else np.arange(1, len(effects) + 1)
+                studies = (
+                    df[study_col].values[: len(effects)]
+                    if study_col
+                    else np.arange(1, len(effects) + 1)
+                )
 
             k = len(effects)
             if k < 2:
@@ -4124,10 +4620,14 @@ MCAR Test (Chi-squared approximation):
             re_p = float(2 * (1 - norm_dist.cdf(abs(re_z))))
 
             interpretation = (
-                "Low heterogeneity" if I2 < 25 else ("Moderate heterogeneity" if I2 < 75 else "High heterogeneity")
+                "Low heterogeneity"
+                if I2 < 25
+                else ("Moderate heterogeneity" if I2 < 75 else "High heterogeneity")
             )
             if I2 < 40:
-                interpretation += " — fixed and random effects models give similar results."
+                interpretation += (
+                    " — fixed and random effects models give similar results."
+                )
             else:
                 interpretation += " — random effects model is more appropriate."
 
@@ -4162,9 +4662,7 @@ Interpretation:
                 w_fe_pct = w[i] / np.sum(w) * 100
                 w_re_pct = w_re[i] / np.sum(w_re) * 100
                 table_html += f"<tr><td>{studies[i]}</td><td>{effects[i]:.4f}</td><td>{ses[i]:.4f}</td>"
-                table_html += (
-                    f"<td>[{ci_lo:.4f}, {ci_hi:.4f}]</td><td>{w_fe_pct:.1f}%</td><td>{w_re_pct:.1f}%</td></tr>"
-                )
+                table_html += f"<td>[{ci_lo:.4f}, {ci_hi:.4f}]</td><td>{w_fe_pct:.1f}%</td><td>{w_re_pct:.1f}%</td></tr>"
             table_html += f"<tr style='font-weight:bold;border-top:2px solid #666;'><td>Fixed Effects</td><td>{fe_est:.4f}</td><td>{fe_se:.4f}</td><td>[{fe_ci_lo:.4f}, {fe_ci_hi:.4f}]</td><td>100%</td><td>-</td></tr>"
             table_html += f"<tr style='font-weight:bold;'><td>Random Effects</td><td>{re_est:.4f}</td><td>{re_se:.4f}</td><td>[{re_ci_lo:.4f}, {re_ci_hi:.4f}]</td><td>-</td><td>100%</td></tr>"
             table_html += "</table>"
@@ -4185,7 +4683,10 @@ Interpretation:
                     "mode": "markers",
                     "name": "Studies",
                     "marker": {
-                        "size": [max(4, min(16, float(w_re[i] / np.max(w_re) * 16))) for i in range(k)],
+                        "size": [
+                            max(4, min(16, float(w_re[i] / np.max(w_re) * 16)))
+                            for i in range(k)
+                        ],
                         "color": "rgba(74,144,217,0.8)",
                     },
                     "error_x": {
@@ -4257,7 +4758,11 @@ Interpretation:
                         # Funnel lines
                         {
                             "type": "scatter",
-                            "x": [re_est - 1.96 * max(ses), re_est, re_est + 1.96 * max(ses)],
+                            "x": [
+                                re_est - 1.96 * max(ses),
+                                re_est,
+                                re_est + 1.96 * max(ses),
+                            ],
                             "y": [max(ses), 0, max(ses)],
                             "mode": "lines",
                             "line": {"color": "gray", "dash": "dash"},
@@ -4288,10 +4793,16 @@ Interpretation:
             )
 
             # Narrative
-            _ma_sig = "statistically significant" if re_p < 0.05 else "not statistically significant"
+            _ma_sig = (
+                "statistically significant"
+                if re_p < 0.05
+                else "not statistically significant"
+            )
             _ma_het = "low" if I2 < 25 else ("moderate" if I2 < 75 else "high")
             _ma_model = (
-                "Fixed effects may suffice." if I2 < 25 else "Random effects model is preferred due to heterogeneity."
+                "Fixed effects may suffice."
+                if I2 < 25
+                else "Random effects model is preferred due to heterogeneity."
             )
             result["narrative"] = _narrative(
                 f"Meta-Analysis — {k} studies, pooled effect = {re_est:.4f} (RE)",
@@ -4410,7 +4921,12 @@ Interpretation:
                 if effect_type == "odds_ratio":
                     if b * c > 0:
                         es = (a * dd) / (b * c)
-                        se_ln = np.sqrt(1 / max(a, 0.5) + 1 / max(b, 0.5) + 1 / max(c, 0.5) + 1 / max(dd, 0.5))
+                        se_ln = np.sqrt(
+                            1 / max(a, 0.5)
+                            + 1 / max(b, 0.5)
+                            + 1 / max(c, 0.5)
+                            + 1 / max(dd, 0.5)
+                        )
                     else:
                         es, se_ln = 0, 0
                     name = "Odds Ratio"
@@ -4418,7 +4934,12 @@ Interpretation:
                     r1 = a / (a + b) if (a + b) > 0 else 0
                     r2 = c / (c + dd) if (c + dd) > 0 else 0
                     es = r1 / r2 if r2 > 0 else 0
-                    se_ln = np.sqrt(1 / max(a, 0.5) - 1 / max(a + b, 1) + 1 / max(c, 0.5) - 1 / max(c + dd, 1))
+                    se_ln = np.sqrt(
+                        1 / max(a, 0.5)
+                        - 1 / max(a + b, 1)
+                        + 1 / max(c, 0.5)
+                        - 1 / max(c + dd, 1)
+                    )
                     name = "Risk Ratio"
 
                 ci_lo = es * np.exp(-1.96 * se_ln) if es > 0 else 0
@@ -4573,7 +5094,12 @@ Interpretation:
                 cdf_vals = dist_obj.cdf(sorted_x, *params)
                 cdf_vals = np.clip(cdf_vals, 1e-15, 1 - 1e-15)
                 ad_stat = (
-                    -n - np.sum((2 * np.arange(1, n + 1) - 1) * (np.log(cdf_vals) + np.log(1 - cdf_vals[::-1]))) / n
+                    -n
+                    - np.sum(
+                        (2 * np.arange(1, n + 1) - 1)
+                        * (np.log(cdf_vals) + np.log(1 - cdf_vals[::-1]))
+                    )
+                    / n
                 )
                 # KS test
                 ks_stat, ks_pval = stats.kstest(x, dist_name, args=params)
@@ -4582,7 +5108,9 @@ Interpretation:
                         "dist_name": dist_name,
                         "display_name": display_name,
                         "params": params,
-                        "param_names": dist_obj.shapes.split(", ") if dist_obj.shapes else [],
+                        "param_names": (
+                            dist_obj.shapes.split(", ") if dist_obj.shapes else []
+                        ),
                         "ll": ll,
                         "aic": aic,
                         "bic": bic,
@@ -4607,7 +5135,9 @@ Interpretation:
         summary += "<<COLOR:title>>DISTRIBUTION FITTING<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var} (n = {n})\n"
-        summary += f"<<COLOR:highlight>>Distributions tested:<</COLOR>> {len(fit_results)}\n\n"
+        summary += (
+            f"<<COLOR:highlight>>Distributions tested:<</COLOR>> {len(fit_results)}\n\n"
+        )
         summary += "<<COLOR:accent>>── AIC/BIC Ranking (lower = better) ──<</COLOR>>\n"
         summary += f"  {'Rank':<5} {'Distribution':<22} {'AIC':>10} {'BIC':>10} {'KS p':>8} {'AD':>8}\n"
         summary += f"  {'-' * 65}\n"
@@ -4621,7 +5151,9 @@ Interpretation:
         for i, fr in enumerate(fit_results[:3]):
             dist_obj = getattr(stats, fr["dist_name"])
             param_names = list(fr["param_names"]) + ["loc", "scale"]
-            param_str = ", ".join(f"{name}={val:.4f}" for name, val in zip(param_names, fr["params"]))
+            param_str = ", ".join(
+                f"{name}={val:.4f}" for name, val in zip(param_names, fr["params"])
+            )
             summary += f"  {fr['display_name']}: {param_str}\n"
 
         result["summary"] = summary
@@ -4632,7 +5164,10 @@ Interpretation:
         hist_trace = {
             "type": "histogram",
             "x": x.tolist(),
-            "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.3)",
+                "line": {"color": "#4a9f6e", "width": 1},
+            },
             "name": "Data",
         }
         pdf_colors = ["#d94a4a", "#47a5e8", "#e89547"]
@@ -4654,7 +5189,12 @@ Interpretation:
             {
                 "title": f"Distribution Fit: {var}",
                 "data": [hist_trace] + pdf_traces,
-                "layout": {"height": 320, "xaxis": {"title": var}, "yaxis": {"title": "Count"}, "barmode": "overlay"},
+                "layout": {
+                    "height": 320,
+                    "xaxis": {"title": var},
+                    "yaxis": {"title": "Count"},
+                    "barmode": "overlay",
+                },
             }
         )
 
@@ -4705,9 +5245,7 @@ Interpretation:
         if best["dist_name"] == "norm":
             _shape_desc = "symmetric, bell-shaped"
         elif best["dist_name"] == "lognorm":
-            _shape_desc = (
-                "right-skewed with a long upper tail — common in cycle times, financial data, and natural phenomena"
-            )
+            _shape_desc = "right-skewed with a long upper tail — common in cycle times, financial data, and natural phenomena"
         elif best["dist_name"] == "weibull_min":
             shape_param = best["params"][0]
             if shape_param < 1:
@@ -4717,7 +5255,9 @@ Interpretation:
             else:
                 _shape_desc = f"increasing failure rate (wear-out pattern, shape = {shape_param:.2f})"
         elif best["dist_name"] == "gamma":
-            _shape_desc = "right-skewed, flexible shape — common in wait times and queuing"
+            _shape_desc = (
+                "right-skewed, flexible shape — common in wait times and queuing"
+            )
         elif best["dist_name"] == "expon":
             _shape_desc = "memoryless / constant hazard rate — common in reliability"
         elif best["dist_name"] == "logistic":
@@ -4725,14 +5265,22 @@ Interpretation:
         elif best["dist_name"] == "beta":
             _shape_desc = "bounded on [0,1] — common for proportions and probabilities"
         elif best["dist_name"] == "rayleigh":
-            _shape_desc = "right-skewed, useful for magnitudes (e.g., wind speed, vibration)"
+            _shape_desc = (
+                "right-skewed, useful for magnitudes (e.g., wind speed, vibration)"
+            )
         elif best["dist_name"] == "invgauss":
-            _shape_desc = "right-skewed with heavy upper tail — common in first-passage times"
+            _shape_desc = (
+                "right-skewed with heavy upper tail — common in first-passage times"
+            )
         else:
             _shape_desc = "see probability plot for shape assessment"
 
         _aic_delta = fit_results[1]["aic"] - best["aic"] if len(fit_results) > 1 else 0
-        _aic_strength = "decisively" if _aic_delta > 10 else ("substantially" if _aic_delta > 4 else "marginally")
+        _aic_strength = (
+            "decisively"
+            if _aic_delta > 10
+            else ("substantially" if _aic_delta > 4 else "marginally")
+        )
 
         result["guide_observation"] = (
             f"Best fit: {best['display_name']} (AIC = {best['aic']:.1f}). {_shape_desc.capitalize()}."
@@ -4844,7 +5392,9 @@ Interpretation:
             gmm.fit(data)
             bic = gmm.bic(data)
             aic = gmm.aic(data)
-            results_k.append({"k": k, "bic": float(bic), "aic": float(aic), "model": gmm})
+            results_k.append(
+                {"k": k, "bic": float(bic), "aic": float(aic), "model": gmm}
+            )
 
         best_k_idx = int(np.argmin([r["bic"] for r in results_k]))
         best = results_k[best_k_idx]
@@ -4878,9 +5428,7 @@ Interpretation:
         else:
             summary += f"<<COLOR:warning>>Data is best described as {k_best} overlapping populations:<</COLOR>>\n\n"
             for j, c in enumerate(components):
-                summary += (
-                    f"  Component {j + 1}: \u03bc={c['mean']:.4f}, \u03c3={c['std']:.4f}, weight={c['weight']:.1%}\n"
-                )
+                summary += f"  Component {j + 1}: \u03bc={c['mean']:.4f}, \u03c3={c['std']:.4f}, weight={c['weight']:.1%}\n"
 
         summary += "\n<<COLOR:accent>>\u2500\u2500 Model Comparison (BIC) \u2500\u2500<</COLOR>>\n"
         for r in results_k:
@@ -4905,9 +5453,16 @@ Interpretation:
                 next_steps="If you suspect stratification, check whether grouping by a categorical variable (shift, supplier, machine) reveals separation.",
             )
         else:
-            _mm_desc = "; ".join(f"one at {c['mean']:.3f} ({c['weight']:.0%})" for c in components)
-            result["guide_observation"] = f"Mixture model: {k_best} populations detected \u2014 {_mm_desc}."
-            _mm_gap = max(abs(components[i + 1]["mean"] - components[i]["mean"]) for i in range(len(components) - 1))
+            _mm_desc = "; ".join(
+                f"one at {c['mean']:.3f} ({c['weight']:.0%})" for c in components
+            )
+            result["guide_observation"] = (
+                f"Mixture model: {k_best} populations detected \u2014 {_mm_desc}."
+            )
+            _mm_gap = max(
+                abs(components[i + 1]["mean"] - components[i]["mean"])
+                for i in range(len(components) - 1)
+            )
             result["narrative"] = _narrative(
                 f"Mixture Model \u2014 {k_best} populations detected",
                 f"BIC selects k={k_best}: the data is best described as {k_best} overlapping Gaussians. "
@@ -4924,14 +5479,19 @@ Interpretation:
 
         # Plot: histogram with overlaid component densities
         x_plot = np.linspace(
-            float(data.min()) - 2 * components[-1]["std"], float(data.max()) + 2 * components[-1]["std"], 300
+            float(data.min()) - 2 * components[-1]["std"],
+            float(data.max()) + 2 * components[-1]["std"],
+            300,
         )
         plot_data_list = [
             {
                 "type": "histogram",
                 "x": data.ravel().tolist(),
                 "nbinsx": min(50, n // 3),
-                "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.3)",
+                    "line": {"color": "#4a9f6e", "width": 1},
+                },
                 "name": "Data",
                 "yaxis": "y2",
             },
@@ -4947,7 +5507,11 @@ Interpretation:
                         "type": "scatter",
                         "x": x_plot.tolist(),
                         "y": dens.tolist(),
-                        "line": {"color": colors[j % len(colors)], "width": 2, "dash": "dash"},
+                        "line": {
+                            "color": colors[j % len(colors)],
+                            "width": 2,
+                            "dash": "dash",
+                        },
                         "name": f"Component {j + 1} ({c['weight']:.0%})",
                     }
                 )
@@ -4969,7 +5533,12 @@ Interpretation:
                     "height": 320,
                     "xaxis": {"title": col},
                     "yaxis": {"title": "Density", "side": "left"},
-                    "yaxis2": {"overlaying": "y", "side": "right", "showgrid": False, "title": "Count"},
+                    "yaxis2": {
+                        "overlaying": "y",
+                        "side": "right",
+                        "showgrid": False,
+                        "title": "Count",
+                    },
                     "barmode": "overlay",
                 },
             }
@@ -4985,11 +5554,21 @@ Interpretation:
                         "x": [r["k"] for r in results_k],
                         "y": [r["bic"] for r in results_k],
                         "mode": "lines+markers",
-                        "marker": {"size": 8, "color": ["#4a9f6e" if r["k"] == k_best else "#999" for r in results_k]},
+                        "marker": {
+                            "size": 8,
+                            "color": [
+                                "#4a9f6e" if r["k"] == k_best else "#999"
+                                for r in results_k
+                            ],
+                        },
                         "line": {"color": "#4a90d9"},
                     }
                 ],
-                "layout": {"height": 220, "xaxis": {"title": "k (components)", "dtick": 1}, "yaxis": {"title": "BIC"}},
+                "layout": {
+                    "height": 220,
+                    "xaxis": {"title": "k (components)", "dtick": 1},
+                    "yaxis": {"title": "BIC"},
+                },
             }
         )
 
@@ -5031,7 +5610,9 @@ Interpretation:
         B = np.log(beta / (1 - alpha))  # lower boundary (accept H0)
 
         # Cumulative log-likelihood ratio
-        ll_ratio = np.cumsum((data - mu0) * delta / sigma**2 - delta**2 / (2 * sigma**2))
+        ll_ratio = np.cumsum(
+            (data - mu0) * delta / sigma**2 - delta**2 / (2 * sigma**2)
+        )
 
         # Find decision point
         decision_idx = None
@@ -5056,7 +5637,9 @@ Interpretation:
         summary += f"<<COLOR:text>>H\u2081:<</COLOR>> \u03bc = {mu1:.4f} (shift = {delta:.4f})\n"
         summary += f"<<COLOR:text>>\u03c3:<</COLOR>> {sigma:.4f}\n"
         summary += f"<<COLOR:text>>\u03b1:<</COLOR>> {alpha}    \u03b2: {beta}\n\n"
-        summary += "<<COLOR:accent>>\u2500\u2500 Decision Boundaries \u2500\u2500<</COLOR>>\n"
+        summary += (
+            "<<COLOR:accent>>\u2500\u2500 Decision Boundaries \u2500\u2500<</COLOR>>\n"
+        )
         summary += f"  Upper (reject H\u2080): {A:.3f}\n"
         summary += f"  Lower (accept H\u2080): {B:.3f}\n\n"
         summary += "<<COLOR:accent>>\u2500\u2500 Result \u2500\u2500<</COLOR>>\n"
@@ -5074,7 +5657,9 @@ Interpretation:
             "lower_boundary": float(B),
             "final_llr": float(ll_ratio[min(decision_idx or n - 1, n - 1)]),
         }
-        result["guide_observation"] = f"SPRT: {decision} after {samples_used} samples (of {n})."
+        result["guide_observation"] = (
+            f"SPRT: {decision} after {samples_used} samples (of {n})."
+        )
 
         _sprt_savings = (
             f" Saved {n - samples_used} inspections ({(n - samples_used) / n * 100:.0f}%) vs fixed-sample testing."
@@ -5209,7 +5794,9 @@ Interpretation:
         ll_gauss = float(
             np.sum(
                 sp_stats.multivariate_normal.logpdf(
-                    np.column_stack([z_u, z_v]), mean=[0, 0], cov=[[1, rho_gauss], [rho_gauss, 1]]
+                    np.column_stack([z_u, z_v]),
+                    mean=[0, 0],
+                    cov=[[1, rho_gauss], [rho_gauss, 1]],
                 )
                 - sp_stats.norm.logpdf(z_u)
                 - sp_stats.norm.logpdf(z_v)
@@ -5226,7 +5813,13 @@ Interpretation:
         try:
             t = theta_clayton
             term = np.clip(u ** (-t) + v ** (-t) - 1, 1e-15, None)
-            ll_clayton = float(np.sum(np.log(1 + t) + (-1 - t) * (np.log(u) + np.log(v)) + (-1 / t - 2) * np.log(term)))
+            ll_clayton = float(
+                np.sum(
+                    np.log(1 + t)
+                    + (-1 - t) * (np.log(u) + np.log(v))
+                    + (-1 / t - 2) * np.log(term)
+                )
+            )
         except Exception:
             ll_clayton = -np.inf
 
@@ -5263,7 +5856,9 @@ Interpretation:
             t = theta_frank
             if abs(t) > 0.01:
                 num = -t * (np.exp(-t) - 1) * np.exp(-t * (u + v))
-                den = ((np.exp(-t * u) - 1) * (np.exp(-t * v) - 1) + (np.exp(-t) - 1)) ** 2
+                den = (
+                    (np.exp(-t * u) - 1) * (np.exp(-t * v) - 1) + (np.exp(-t) - 1)
+                ) ** 2
                 ll_frank = float(np.sum(np.log(np.clip(num / den, 1e-300, None))))
             else:
                 ll_frank = 0.0
@@ -5272,7 +5867,13 @@ Interpretation:
 
         # Compare by AIC (each copula has 1 parameter)
         copulas = [
-            {"name": "Gaussian", "param": rho_gauss, "param_name": "\u03c1", "ll": ll_gauss, "aic": -2 * ll_gauss + 2},
+            {
+                "name": "Gaussian",
+                "param": rho_gauss,
+                "param_name": "\u03c1",
+                "ll": ll_gauss,
+                "aic": -2 * ll_gauss + 2,
+            },
             {
                 "name": "Clayton",
                 "param": theta_clayton,
@@ -5280,7 +5881,13 @@ Interpretation:
                 "ll": ll_clayton,
                 "aic": -2 * ll_clayton + 2,
             },
-            {"name": "Frank", "param": theta_frank, "param_name": "\u03b8", "ll": ll_frank, "aic": -2 * ll_frank + 2},
+            {
+                "name": "Frank",
+                "param": theta_frank,
+                "param_name": "\u03b8",
+                "ll": ll_frank,
+                "aic": -2 * ll_frank + 2,
+            },
         ]
         copulas.sort(key=lambda c: c["aic"])
         best_cop = copulas[0]
@@ -5294,13 +5901,9 @@ Interpretation:
         if best_cop["name"] == "Clayton":
             tail_note = f"Clayton copula has lower-tail dependence = {lower_tail:.3f} \u2014 variables are more correlated in the low/defect region."
         elif best_cop["name"] == "Gaussian":
-            tail_note = (
-                "Gaussian copula has no tail dependence \u2014 correlation is symmetric across the distribution."
-            )
+            tail_note = "Gaussian copula has no tail dependence \u2014 correlation is symmetric across the distribution."
         elif best_cop["name"] == "Frank":
-            tail_note = (
-                "Frank copula has no tail dependence \u2014 dependency is symmetric and concentrated in the middle."
-            )
+            tail_note = "Frank copula has no tail dependence \u2014 dependency is symmetric and concentrated in the middle."
 
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>COPULA DEPENDENCY MODELING<</COLOR>>\n"
@@ -5376,7 +5979,11 @@ Interpretation:
                         "marker": {"size": 4, "color": "#4a9f6e", "opacity": 0.5},
                     }
                 ],
-                "layout": {"height": 280, "xaxis": {"title": var1}, "yaxis": {"title": var2}},
+                "layout": {
+                    "height": 280,
+                    "xaxis": {"title": var1},
+                    "yaxis": {"title": var2},
+                },
             }
         )
 

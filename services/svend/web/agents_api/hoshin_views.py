@@ -159,9 +159,21 @@ def update_site(request, site_id):
 
     data = json.loads(request.body)
 
-    for field in ["name", "code", "business_unit", "plant_manager", "ci_leader", "controller", "address"]:
+    for field in [
+        "name",
+        "code",
+        "business_unit",
+        "plant_manager",
+        "ci_leader",
+        "controller",
+        "address",
+    ]:
         if field in data:
-            setattr(site, field, data[field].strip() if isinstance(data[field], str) else data[field])
+            setattr(
+                site,
+                field,
+                data[field].strip() if isinstance(data[field], str) else data[field],
+            )
     if "is_active" in data:
         site.is_active = bool(data["is_active"])
     site.save()
@@ -180,7 +192,9 @@ def delete_site(request, site_id):
     site = get_object_or_404(Site, id=site_id, tenant=tenant)
 
     if not _is_site_admin(request.user, site, tenant):
-        return JsonResponse({"error": "Site admin permission required to delete"}, status=403)
+        return JsonResponse(
+            {"error": "Site admin permission required to delete"}, status=403
+        )
 
     project_count = site.hoshin_projects.count()
     site.delete()
@@ -314,7 +328,9 @@ def get_hoshin_project(request, hoshin_id):
 
     data = hoshin.to_dict()
     data["savings_summary"] = aggregate_monthly_savings(hoshin.monthly_actuals or [])
-    data["action_items"] = [a.to_dict() for a in ActionItem.objects.filter(project=hoshin.project)]
+    data["action_items"] = [
+        a.to_dict() for a in ActionItem.objects.filter(project=hoshin.project)
+    ]
 
     return JsonResponse({"project": data})
 
@@ -366,7 +382,10 @@ def update_hoshin_project(request, hoshin_id):
         else:
             # Prevent orphaning project from tenant scope (BUG-09)
             return JsonResponse(
-                {"error": "Cannot remove site — project would be orphaned from tenant scope"}, status=400
+                {
+                    "error": "Cannot remove site — project would be orphaned from tenant scope"
+                },
+                status=400,
             )
 
     hoshin.save()
@@ -379,7 +398,14 @@ def update_hoshin_project(request, hoshin_id):
             logger.exception("Failed to sync charter commitments for %s", hoshin.id)
 
     # Also update core.Project fields if provided
-    core_fields = ["title", "champion_name", "leader_name", "team_members", "methodology", "goal_metric"]
+    core_fields = [
+        "title",
+        "champion_name",
+        "leader_name",
+        "team_members",
+        "methodology",
+        "goal_metric",
+    ]
     core_changed = False
     for field in core_fields:
         if field in data:
@@ -565,7 +591,10 @@ def update_monthly_actual(request, hoshin_id, month):
 
     # Store custom {{field}} variables
     if "custom_vars" in data and isinstance(data["custom_vars"], dict):
-        entry["custom_vars"] = {k: float(v) if v is not None else None for k, v in data["custom_vars"].items()}
+        entry["custom_vars"] = {
+            k: float(v) if v is not None else None
+            for k, v in data["custom_vars"].items()
+        }
 
     # Calculate savings if we have the data
     baseline = entry.get("baseline")
@@ -663,7 +692,9 @@ def create_from_proposals(request):
         )
         # Drop if VSM belongs to a different tenant (or has no project link)
         if vsm:
-            vsm_tenant = getattr(vsm.project, "tenant_id", None) if vsm.project else None
+            vsm_tenant = (
+                getattr(vsm.project, "tenant_id", None) if vsm.project else None
+            )
             if vsm_tenant and vsm_tenant != tenant.id:
                 vsm = None
 
@@ -824,7 +855,15 @@ def update_action_item(request, action_id):
 
     data = json.loads(request.body)
     date_fields = {"start_date", "end_date", "due_date"}
-    for field in ["title", "description", "owner_name", "status", "start_date", "end_date", "due_date"]:
+    for field in [
+        "title",
+        "description",
+        "owner_name",
+        "status",
+        "start_date",
+        "end_date",
+        "due_date",
+    ]:
         if field in data:
             val = data[field]
             if field in date_fields and isinstance(val, str) and val:
@@ -988,7 +1027,9 @@ def hoshin_dashboard(request):
             "total_target": round(total_target, 2),
             "total_ytd": round(total_ytd, 2),
             "variance": round(total_ytd - total_target, 2),
-            "variance_pct": round((total_ytd / total_target * 100) if total_target else 0, 1),
+            "variance_pct": round(
+                (total_ytd / total_target * 100) if total_target else 0, 1
+            ),
             "project_count": projects.count(),
             "by_site": list(site_data.values()),
             "by_type": list(type_data.values()),
@@ -999,7 +1040,9 @@ def hoshin_dashboard(request):
                 "projects_unlinked": projects_unlinked,
                 "annual_objectives_count": annual_objs.count(),
                 "objectives_on_track": annual_objs.filter(status="on_track").count(),
-                "objectives_at_risk": annual_objs.filter(status__in=["at_risk", "behind"]).count(),
+                "objectives_at_risk": annual_objs.filter(
+                    status__in=["at_risk", "behind"]
+                ).count(),
             },
         }
     )
@@ -1047,7 +1090,9 @@ def alignment_analysis(request, site_id):
     kpis = HoshinKPI.objects.filter(tenant=tenant, fiscal_year=fiscal_year)
 
     # Correlations tell us what's linked
-    correlations = XMatrixCorrelation.objects.filter(tenant=tenant, fiscal_year=fiscal_year)
+    correlations = XMatrixCorrelation.objects.filter(
+        tenant=tenant, fiscal_year=fiscal_year
+    )
     annual_project_links = set()  # annual objective IDs linked to projects
     project_linked_ids = set()  # project IDs linked to annual objectives
     strategic_annual_links = set()  # strategic objective IDs linked to annual
@@ -1067,7 +1112,9 @@ def alignment_analysis(request, site_id):
 
     # Find gaps
     objectives_without_projects = [
-        {"id": str(o.id), "title": o.title} for o in annual_objs if str(o.id) not in annual_project_links
+        {"id": str(o.id), "title": o.title}
+        for o in annual_objs
+        if str(o.id) not in annual_project_links
     ]
 
     projects_without_objectives = [
@@ -1079,16 +1126,24 @@ def alignment_analysis(request, site_id):
     projects_without_kpis = [
         {"id": str(p.id), "title": p.project.title}
         for p in projects.select_related("project")
-        if p.hoshin_status in ("active", "budgeted") and str(p.id) not in project_kpi_links
+        if p.hoshin_status in ("active", "budgeted")
+        and str(p.id) not in project_kpi_links
     ]
 
     strategic_without_annual = [
-        {"id": str(s.id), "title": s.title} for s in strategic_objs if str(s.id) not in strategic_annual_links
+        {"id": str(s.id), "title": s.title}
+        for s in strategic_objs
+        if str(s.id) not in strategic_annual_links
     ]
 
     # Compute alignment score
     total_entities = annual_objs.count() + projects.count() + strategic_objs.count()
-    linked = len(annual_project_links) + len(project_linked_ids) + len(strategic_annual_links) + len(project_kpi_links)
+    linked = (
+        len(annual_project_links)
+        + len(project_linked_ids)
+        + len(strategic_annual_links)
+        + len(project_kpi_links)
+    )
     alignment_score = round(linked / max(total_entities, 1), 2)
 
     # Build recommendations
@@ -1098,13 +1153,17 @@ def alignment_analysis(request, site_id):
             f"{len(objectives_without_projects)} annual objective(s) have no linked improvement projects"
         )
     if projects_without_objectives:
-        recommendations.append(f"{len(projects_without_objectives)} project(s) are not linked to any annual objective")
+        recommendations.append(
+            f"{len(projects_without_objectives)} project(s) are not linked to any annual objective"
+        )
     if projects_without_kpis:
         recommendations.append(
             f"{len(projects_without_kpis)} active project(s) have no KPI measurement — consider adding KPIs"
         )
     if strategic_without_annual:
-        recommendations.append(f"{len(strategic_without_annual)} strategic objective(s) have no annual breakdowns")
+        recommendations.append(
+            f"{len(strategic_without_annual)} strategic objective(s) have no annual breakdowns"
+        )
 
     return JsonResponse(
         {
@@ -1177,7 +1236,9 @@ def grant_site_access(request, site_id):
         tenant=tenant,
         is_active=True,
     ).exists():
-        return JsonResponse({"error": "User is not a member of this organization"}, status=400)
+        return JsonResponse(
+            {"error": "User is not a member of this organization"}, status=400
+        )
 
     access, created = SiteAccess.objects.update_or_create(
         site=site,
@@ -1306,7 +1367,9 @@ def hoshin_calendar_view(request):
             mt = sum(proj["months"][m - 1]["target"] for proj in site_entry["projects"])
             ma = sum(proj["months"][m - 1]["actual"] for proj in site_entry["projects"])
             pct = round(ma / mt * 100, 1) if mt else 0
-            site_months.append({"month": m, "target": round(mt, 2), "actual": round(ma, 2), "pct": pct})
+            site_months.append(
+                {"month": m, "target": round(mt, 2), "actual": round(ma, 2), "pct": pct}
+            )
         site_entry["months"] = site_months
         site_entry["target"] = round(site_entry["target"], 2)
         site_entry["ytd"] = round(site_entry["ytd"], 2)
@@ -1372,7 +1435,14 @@ def test_formula(request):
             variables[k] = 0
 
     # Add defaults for legacy built-in names if not already provided
-    defaults = {"baseline": 0, "actual": 0, "volume": 1, "sales": 0, "rate": 1, "variance": 0}
+    defaults = {
+        "baseline": 0,
+        "actual": 0,
+        "volume": 1,
+        "sales": 0,
+        "rate": 1,
+        "variance": 0,
+    }
     for k, v in defaults.items():
         if k not in variables:
             variables[k] = v
@@ -1436,7 +1506,9 @@ def list_create_employees(request):
         return JsonResponse({"error": "name and email are required"}, status=400)
 
     if Employee.objects.filter(tenant=tenant, email=email).exists():
-        return JsonResponse({"error": "Employee with this email already exists"}, status=409)
+        return JsonResponse(
+            {"error": "Employee with this email already exists"}, status=409
+        )
 
     emp = Employee.objects.create(
         tenant=tenant,
@@ -1499,13 +1571,17 @@ def employee_availability(request, emp_id):
     start = request.GET.get("start")
     end = request.GET.get("end")
     if not start or not end:
-        return JsonResponse({"error": "start and end query params required"}, status=400)
+        return JsonResponse(
+            {"error": "start and end query params required"}, status=400
+        )
 
     try:
         start_date = date.fromisoformat(start)
         end_date = date.fromisoformat(end)
     except ValueError:
-        return JsonResponse({"error": "Invalid date format (use YYYY-MM-DD)"}, status=400)
+        return JsonResponse(
+            {"error": "Invalid date format (use YYYY-MM-DD)"}, status=400
+        )
 
     conflicts = ResourceCommitment.check_availability(emp, start_date, end_date)
     return JsonResponse(
@@ -1540,7 +1616,9 @@ def list_create_commitments(request):
         employee_id = request.GET.get("employee")
         if employee_id:
             qs = qs.filter(employee_id=employee_id)
-        return JsonResponse([c.to_dict() for c in qs.order_by("-created_at")], safe=False)
+        return JsonResponse(
+            [c.to_dict() for c in qs.order_by("-created_at")], safe=False
+        )
 
     # POST
     try:
@@ -1551,7 +1629,9 @@ def list_create_commitments(request):
     employee_id = data.get("employee_id")
     project_id = data.get("project_id")
     if not employee_id or not project_id:
-        return JsonResponse({"error": "employee_id and project_id required"}, status=400)
+        return JsonResponse(
+            {"error": "employee_id and project_id required"}, status=400
+        )
 
     emp = get_object_or_404(Employee, pk=employee_id, tenant=tenant)
     project = get_object_or_404(HoshinProject, pk=project_id, site__tenant=tenant)
@@ -1560,7 +1640,9 @@ def list_create_commitments(request):
         start_date = date.fromisoformat(data["start_date"])
         end_date = date.fromisoformat(data["end_date"])
     except (KeyError, ValueError):
-        return JsonResponse({"error": "start_date and end_date required (YYYY-MM-DD)"}, status=400)
+        return JsonResponse(
+            {"error": "start_date and end_date required (YYYY-MM-DD)"}, status=400
+        )
 
     # Check availability
     conflicts = ResourceCommitment.check_availability(emp, start_date, end_date)
@@ -1642,7 +1724,10 @@ def commitment_detail(request, commitment_id):
     commitment.save()
 
     # Notify requester on confirm/decline (NTF-001 / QMS-002)
-    if commitment.status in ("confirmed", "declined") and old_status != commitment.status:
+    if (
+        commitment.status in ("confirmed", "declined")
+        and old_status != commitment.status
+    ):
         try:
             from agents_api.commitment_notifications import notify_commitment_response
 
@@ -1866,7 +1951,11 @@ def hoshin_calendar_facilitators(request):
 
         current = scan_start
         while current < scan_end:
-            day_hours = sum(float(c.hours_per_day) for c in comms if c.start_date <= current < c.end_date)
+            day_hours = sum(
+                float(c.hours_per_day)
+                for c in comms
+                if c.start_date <= current < c.end_date
+            )
             if day_hours > 8:
                 over_committed_dates.append(current.isoformat())
             current += _td(days=1)
@@ -1877,7 +1966,9 @@ def hoshin_calendar_facilitators(request):
                 "commitments": [c.to_dict() for c in comms],
                 "over_committed": len(over_committed_dates) > 0,
                 "over_committed_days": len(over_committed_dates),
-                "over_committed_dates": over_committed_dates[:30],  # Cap for response size
+                "over_committed_dates": over_committed_dates[
+                    :30
+                ],  # Cap for response size
             }
         )
 

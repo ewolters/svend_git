@@ -49,13 +49,21 @@ class ComplianceCheckSymbolsTest(SimpleTestCase):
         for name, (fn, category) in ALL_CHECKS.items():
             with self.subTest(check=name):
                 self.assertTrue(callable(fn), f"{name} not callable")
-                self.assertTrue(hasattr(fn, "soc2_controls"), f"{name} missing soc2_controls")
+                self.assertTrue(
+                    hasattr(fn, "soc2_controls"), f"{name} missing soc2_controls"
+                )
 
     def test_all_checks_are_registered(self):
         """All critical checks present in ALL_CHECKS registry."""
         from syn.audit.compliance import ALL_CHECKS
 
-        critical = ["audit_integrity", "security_config", "change_management", "architecture", "caching"]
+        critical = [
+            "audit_integrity",
+            "security_config",
+            "change_management",
+            "architecture",
+            "caching",
+        ]
         for name in critical:
             self.assertIn(name, ALL_CHECKS, f"Critical check '{name}' not registered")
 
@@ -66,7 +74,9 @@ class ComplianceCheckSymbolsTest(SimpleTestCase):
         for name, (fn, _) in ALL_CHECKS.items():
             with self.subTest(check=name):
                 self.assertTrue(callable(fn))
-                self.assertTrue(hasattr(fn, "soc2_controls"), f"{name} missing soc2_controls")
+                self.assertTrue(
+                    hasattr(fn, "soc2_controls"), f"{name} missing soc2_controls"
+                )
 
     def test_run_check_is_callable(self):
         """run_check is callable and accepts check_name parameter."""
@@ -296,7 +306,11 @@ class StandardsParserSymbolsTest(SimpleTestCase):
 
     def test_support_functions_exist(self):
         """Standards parser support functions are callable and produce output."""
-        from syn.audit.standards import parse_all_sla_definitions, parse_standard_titles, run_standards_checks
+        from syn.audit.standards import (
+            parse_all_sla_definitions,
+            parse_standard_titles,
+            run_standards_checks,
+        )
 
         self.assertTrue(callable(parse_standard_titles))
         self.assertTrue(callable(parse_all_sla_definitions))
@@ -327,29 +341,42 @@ class AuditEventSymbolsTest(SimpleTestCase):
         """All 16+ build_*_payload functions produce dict payloads."""
         from syn.audit import events
 
-        builders = [n for n in dir(events) if n.startswith("build_") and n.endswith("_payload")]
+        builders = [
+            n for n in dir(events) if n.startswith("build_") and n.endswith("_payload")
+        ]
         self.assertGreaterEqual(len(builders), 16)
         # Verify at least one builder produces a dict with expected structure
-        payload = events.build_chain_verified_payload(tenant_id="t-test", total_entries=5, is_valid=True)
+        payload = events.build_chain_verified_payload(
+            tenant_id="t-test", total_entries=5, is_valid=True
+        )
         self.assertIsInstance(payload, dict)
         self.assertIn("tenant_id", payload)
 
     def test_event_builders_exist(self):
         """All event builders produce dict payloads with expected keys."""
-        from syn.audit.events import build_chain_verified_payload, build_trail_queried_payload
+        from syn.audit.events import (
+            build_chain_verified_payload,
+            build_trail_queried_payload,
+        )
 
-        payload = build_chain_verified_payload(tenant_id="t-test", total_entries=10, is_valid=True)
+        payload = build_chain_verified_payload(
+            tenant_id="t-test", total_entries=10, is_valid=True
+        )
         self.assertIsInstance(payload, dict)
         self.assertIn("tenant_id", payload)
 
-        payload2 = build_trail_queried_payload(tenant_id="t-test", actor="admin", query_params={}, results_count=5)
+        payload2 = build_trail_queried_payload(
+            tenant_id="t-test", actor="admin", query_params={}, results_count=5
+        )
         self.assertIsInstance(payload2, dict)
 
     def test_event_builders_are_callable(self):
         """All build_*_payload functions are callable and return dicts."""
         from syn.audit import events
 
-        builders = [n for n in dir(events) if n.startswith("build_") and n.endswith("_payload")]
+        builders = [
+            n for n in dir(events) if n.startswith("build_") and n.endswith("_payload")
+        ]
         for name in builders[:5]:
             with self.subTest(builder=name):
                 fn = getattr(events, name)
@@ -359,10 +386,16 @@ class AuditEventSymbolsTest(SimpleTestCase):
         """All builders follow build_*_payload naming and are in events module."""
         from syn.audit import events
 
-        builders = [n for n in dir(events) if n.startswith("build_") and n.endswith("_payload")]
+        builders = [
+            n for n in dir(events) if n.startswith("build_") and n.endswith("_payload")
+        ]
         for name in builders:
-            self.assertTrue(name.startswith("build_"), f"{name} doesn't start with build_")
-            self.assertTrue(name.endswith("_payload"), f"{name} doesn't end with _payload")
+            self.assertTrue(
+                name.startswith("build_"), f"{name} doesn't start with build_"
+            )
+            self.assertTrue(
+                name.endswith("_payload"), f"{name} doesn't end with _payload"
+            )
         self.assertGreaterEqual(len(builders), 16)
 
     def test_redact_event_payload_strips_sensitive(self):
@@ -397,7 +430,9 @@ class AuditEventSymbolsTest(SimpleTestCase):
         """build_chain_verified_payload returns dict with required keys."""
         from syn.audit.events import build_chain_verified_payload
 
-        payload = build_chain_verified_payload(tenant_id="t-001", total_entries=100, is_valid=True)
+        payload = build_chain_verified_payload(
+            tenant_id="t-001", total_entries=100, is_valid=True
+        )
         self.assertIsInstance(payload, dict)
         self.assertEqual(payload["tenant_id"], "t-001")
         self.assertEqual(payload["total_entries"], 100)
@@ -408,7 +443,10 @@ class AuditEventSymbolsTest(SimpleTestCase):
         from syn.audit.events import build_trail_queried_payload
 
         payload = build_trail_queried_payload(
-            tenant_id="t-001", actor="admin", query_params={"limit": 50}, results_count=42
+            tenant_id="t-001",
+            actor="admin",
+            query_params={"limit": 50},
+            results_count=42,
         )
         self.assertEqual(payload["actor"], "admin")
         self.assertEqual(payload["results_count"], 42)
@@ -418,7 +456,11 @@ class AuditEventSymbolsTest(SimpleTestCase):
         from syn.audit.events import build_retention_policy_payload
 
         payload = build_retention_policy_payload(
-            tenant_id="t-001", policy_name="90-day", entries_archived=500, entries_deleted=10, retention_days=90
+            tenant_id="t-001",
+            policy_name="90-day",
+            entries_archived=500,
+            entries_deleted=10,
+            retention_days=90,
         )
         self.assertEqual(payload["entries_archived"], 500)
         self.assertEqual(payload["retention_days"], 90)
@@ -442,7 +484,11 @@ class AuditSignalSymbolsTest(SimpleTestCase):
             on_syslog_entry_created,
         )
 
-        for fn in [on_syslog_entry_created, on_integrity_violation_saved, on_drift_violation_saved]:
+        for fn in [
+            on_syslog_entry_created,
+            on_integrity_violation_saved,
+            on_drift_violation_saved,
+        ]:
             with self.subTest(handler=fn.__name__):
                 sig = inspect.signature(fn)
                 self.assertIn("sender", list(sig.parameters.keys()))
@@ -457,7 +503,11 @@ class AuditSignalSymbolsTest(SimpleTestCase):
             on_syslog_entry_created,
         )
 
-        for fn in [on_syslog_entry_created, on_integrity_violation_saved, on_drift_violation_saved]:
+        for fn in [
+            on_syslog_entry_created,
+            on_integrity_violation_saved,
+            on_drift_violation_saved,
+        ]:
             with self.subTest(handler=fn.__name__):
                 sig = inspect.signature(fn)
                 self.assertIn("sender", list(sig.parameters.keys()))
@@ -486,7 +536,12 @@ class ErrorTypeSymbolsTest(SimpleTestCase):
 
     def test_error_enums_exist(self):
         """All error enums are importable and have expected members."""
-        from syn.err.types import CircuitBreakerState, ErrorSeverity, RecoveryMode, RetryStrategy
+        from syn.err.types import (
+            CircuitBreakerState,
+            ErrorSeverity,
+            RecoveryMode,
+            RetryStrategy,
+        )
 
         self.assertGreaterEqual(len(list(ErrorSeverity)), 3)
         self.assertIn("CLOSED", [m.name for m in CircuitBreakerState])
@@ -497,7 +552,12 @@ class ErrorTypeSymbolsTest(SimpleTestCase):
         """Error enums are proper Python enum classes with iterable members."""
         import enum
 
-        from syn.err.types import CircuitBreakerState, ErrorSeverity, RecoveryMode, SystemLayer
+        from syn.err.types import (
+            CircuitBreakerState,
+            ErrorSeverity,
+            RecoveryMode,
+            SystemLayer,
+        )
 
         for cls in [ErrorSeverity, CircuitBreakerState, RecoveryMode, SystemLayer]:
             with self.subTest(enum=cls.__name__):
@@ -512,7 +572,9 @@ class ErrorTypeSymbolsTest(SimpleTestCase):
         self.assertTrue(hasattr(cfg, "max_attempts") or hasattr(cfg, "max_retries"))
 
         cb_cfg = CircuitBreakerConfig()
-        self.assertTrue(hasattr(cb_cfg, "failure_threshold") or hasattr(cb_cfg, "threshold"))
+        self.assertTrue(
+            hasattr(cb_cfg, "failure_threshold") or hasattr(cb_cfg, "threshold")
+        )
 
     def test_error_severity_has_critical(self):
         """ErrorSeverity has CRITICAL and at least 3 levels."""
@@ -555,7 +617,11 @@ class ErrorTypeSymbolsTest(SimpleTestCase):
         """ErrorContext instantiation preserves correlation_id and operation."""
         from syn.err.types import ErrorContext, SystemLayer
 
-        layer = SystemLayer.APPLICATION if hasattr(SystemLayer, "APPLICATION") else list(SystemLayer)[0]
+        layer = (
+            SystemLayer.APPLICATION
+            if hasattr(SystemLayer, "APPLICATION")
+            else list(SystemLayer)[0]
+        )
         ctx = ErrorContext(correlation_id="test-123", operation="test_op", layer=layer)
         self.assertEqual(ctx.correlation_id, "test-123")
         self.assertEqual(ctx.operation, "test_op")
@@ -765,9 +831,21 @@ class SchedulerModelSymbolsTest(SimpleTestCase):
 
     def test_scheduler_models_exist(self):
         """All scheduler models have expected _meta fields."""
-        from syn.sched.models import CircuitBreakerState, CognitiveTask, DeadLetterEntry, Schedule, TaskExecution
+        from syn.sched.models import (
+            CircuitBreakerState,
+            CognitiveTask,
+            DeadLetterEntry,
+            Schedule,
+            TaskExecution,
+        )
 
-        for cls in [CognitiveTask, TaskExecution, DeadLetterEntry, Schedule, CircuitBreakerState]:
+        for cls in [
+            CognitiveTask,
+            TaskExecution,
+            DeadLetterEntry,
+            Schedule,
+            CircuitBreakerState,
+        ]:
             with self.subTest(model=cls.__name__):
                 self.assertTrue(issubclass(cls, models.Model))
                 field_names = [f.name for f in cls._meta.get_fields()]
@@ -821,7 +899,12 @@ class SchedulerCoreSymbolsTest(SimpleTestCase):
 
     def test_core_components_exist(self):
         """Core scheduler components: task decorator registers a handler."""
-        from syn.sched.core import CognitiveScheduler, CognitiveWorker, TaskRegistry, task
+        from syn.sched.core import (
+            CognitiveScheduler,
+            CognitiveWorker,
+            TaskRegistry,
+            task,
+        )
 
         # task() decorator registers and returns a callable handler
         @task("test.governance.core_exist_check")
@@ -851,7 +934,9 @@ class SchedulerCoreSymbolsTest(SimpleTestCase):
         from syn.sched.core import TaskRegistry
 
         self.assertTrue(
-            hasattr(TaskRegistry, "__getitem__") or hasattr(TaskRegistry, "get") or isinstance(TaskRegistry, type),
+            hasattr(TaskRegistry, "__getitem__")
+            or hasattr(TaskRegistry, "get")
+            or isinstance(TaskRegistry, type),
         )
 
     def test_task_decorator_registers_handler(self):

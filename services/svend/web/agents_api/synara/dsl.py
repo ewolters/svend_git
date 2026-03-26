@@ -387,7 +387,9 @@ class DSLParser:
         consequent = self._parse_logical_expr()
         return Implication(antecedent=antecedent, consequent=consequent)
 
-    def _parse_logical_expr_or_implication(self) -> LogicalExpr | Implication | Comparison:
+    def _parse_logical_expr_or_implication(
+        self,
+    ) -> LogicalExpr | Implication | Comparison:
         """Parse either logical expression or implication."""
         if self._current() and self._current().lower() == "if":
             return self._parse_implication()
@@ -587,7 +589,9 @@ def _format_formal(node: Expression) -> str:
     elif isinstance(node, Literal):
         return str(node.value)
     elif isinstance(node, Comparison):
-        return f"{_format_formal(node.left)} {node.op.value} {_format_formal(node.right)}"
+        return (
+            f"{_format_formal(node.left)} {node.op.value} {_format_formal(node.right)}"
+        )
     elif isinstance(node, LogicalExpr):
         if node.op == LogicalOp.NOT:
             return f"¬({_format_formal(node.operands[0])})"
@@ -595,7 +599,9 @@ def _format_formal(node: Expression) -> str:
         sep = f" {op_map.get(node.op, node.op.value)} "
         return f"({sep.join(_format_formal(o) for o in node.operands)})"
     elif isinstance(node, Implication):
-        return f"({_format_formal(node.antecedent)} → {_format_formal(node.consequent)})"
+        return (
+            f"({_format_formal(node.antecedent)} → {_format_formal(node.consequent)})"
+        )
     elif isinstance(node, Quantified):
         quant_map = {
             Quantifier.ALWAYS: "∀",
@@ -629,7 +635,9 @@ def _format_code(node: Expression) -> str:
             ComparisonOp.EQ: "==",
             ComparisonOp.NEQ: "!=",
         }
-        return f"({_format_code(node.left)} {op_map[node.op]} {_format_code(node.right)})"
+        return (
+            f"({_format_code(node.left)} {op_map[node.op]} {_format_code(node.right)})"
+        )
     elif isinstance(node, LogicalExpr):
         if node.op == LogicalOp.NOT:
             return f"not {_format_code(node.operands[0])}"
@@ -637,7 +645,9 @@ def _format_code(node: Expression) -> str:
         sep = f" {op_map.get(node.op, node.op.value)} "
         return f"({sep.join(_format_code(o) for o in node.operands)})"
     elif isinstance(node, Implication):
-        return f"(not {_format_code(node.antecedent)} or {_format_code(node.consequent)})"
+        return (
+            f"(not {_format_code(node.antecedent)} or {_format_code(node.consequent)})"
+        )
     elif isinstance(node, Quantified):
         quant_map = {
             Quantifier.ALWAYS: "all",

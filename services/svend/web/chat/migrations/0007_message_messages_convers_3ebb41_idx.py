@@ -6,12 +6,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('chat', '0006_encrypt_existing_data'),
+        ("chat", "0006_encrypt_existing_data"),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='message',
-            index=models.Index(fields=['conversation', 'created_at'], name='messages_convers_3ebb41_idx'),
+            model_name="message",
+            index=models.Index(
+                fields=["conversation", "created_at"],
+                name="messages_convers_3ebb41_idx",
+            ),
         ),
     ]

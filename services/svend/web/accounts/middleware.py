@@ -50,16 +50,18 @@ class SubscriptionMiddleware:
         user = request.user
 
         # Check subscription status
-        request.subscription_active = (hasattr(user, "subscription") and user.subscription.is_active) or is_paid_tier(
-            user.tier
-        )
+        request.subscription_active = (
+            hasattr(user, "subscription") and user.subscription.is_active
+        ) or is_paid_tier(user.tier)
 
         # Check query limits
         request.can_query = user.can_query()
 
         # Update last active (throttled to avoid DB write on every request)
         now = timezone.now()
-        if user.last_active_at is None or (now - user.last_active_at) > timedelta(minutes=5):
+        if user.last_active_at is None or (now - user.last_active_at) > timedelta(
+            minutes=5
+        ):
             user.last_active_at = now
             user.save(update_fields=["last_active_at"])
 
@@ -87,7 +89,9 @@ class QueryLimitMiddleware:
         if request.method != "POST":
             return self.get_response(request)
 
-        is_protected = any(request.path.startswith(path) for path in self.PROTECTED_PATHS)
+        is_protected = any(
+            request.path.startswith(path) for path in self.PROTECTED_PATHS
+        )
 
         if not is_protected:
             return self.get_response(request)
@@ -176,7 +180,11 @@ class SiteVisitMiddleware:
             return response
 
         # Skip staff users — don't pollute analytics with our own traffic
-        if hasattr(request, "user") and request.user.is_authenticated and request.user.is_staff:
+        if (
+            hasattr(request, "user")
+            and request.user.is_authenticated
+            and request.user.is_staff
+        ):
             return response
 
         try:
@@ -184,7 +192,9 @@ class SiteVisitMiddleware:
 
             ua = request.META.get("HTTP_USER_AGENT", "")
             referrer = request.META.get("HTTP_REFERER", "")
-            ip = request.META.get("HTTP_CF_CONNECTING_IP", "") or request.META.get("REMOTE_ADDR", "")
+            ip = request.META.get("HTTP_CF_CONNECTING_IP", "") or request.META.get(
+                "REMOTE_ADDR", ""
+            )
             ip_hash = hashlib.sha256(ip.encode()).hexdigest() if ip else ""
 
             ref_domain = ""
@@ -194,7 +204,9 @@ class SiteVisitMiddleware:
                 except Exception:
                     pass
 
-            is_bot = bool(not ua.strip() or BOT_PATTERN.search(ua) or _STALE_MOBILE_RE.search(ua))
+            is_bot = bool(
+                not ua.strip() or BOT_PATTERN.search(ua) or _STALE_MOBILE_RE.search(ua)
+            )
 
             # Cloudflare adds CF-IPCountry header (2-letter ISO code)
             country = request.META.get("HTTP_CF_IPCOUNTRY", "")

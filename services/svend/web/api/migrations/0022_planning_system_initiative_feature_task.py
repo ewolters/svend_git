@@ -9,86 +9,292 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0021_plan_link_crs'),
+        ("api", "0021_plan_link_crs"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Initiative',
+            name="Initiative",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('short_id', models.CharField(db_index=True, editable=False, help_text='Human-readable ID: INIT-001, INIT-002, ...', max_length=10, unique=True)),
-                ('title', models.CharField(max_length=200)),
-                ('description', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('planned', 'Planned'), ('active', 'Active'), ('completed', 'Completed'), ('on_hold', 'On Hold')], db_index=True, default='planned', max_length=15)),
-                ('target_quarter', models.CharField(blank=True, help_text='Target quarter: Q1-2026, Q2-2026, etc.', max_length=7)),
-                ('sort_order', models.IntegerField(default=0)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "short_id",
+                    models.CharField(
+                        db_index=True,
+                        editable=False,
+                        help_text="Human-readable ID: INIT-001, INIT-002, ...",
+                        max_length=10,
+                        unique=True,
+                    ),
+                ),
+                ("title", models.CharField(max_length=200)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("planned", "Planned"),
+                            ("active", "Active"),
+                            ("completed", "Completed"),
+                            ("on_hold", "On Hold"),
+                        ],
+                        db_index=True,
+                        default="planned",
+                        max_length=15,
+                    ),
+                ),
+                (
+                    "target_quarter",
+                    models.CharField(
+                        blank=True,
+                        help_text="Target quarter: Q1-2026, Q2-2026, etc.",
+                        max_length=7,
+                    ),
+                ),
+                ("sort_order", models.IntegerField(default=0)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'db_table': 'planning_initiatives',
-                'ordering': ['sort_order', '-created_at'],
+                "db_table": "planning_initiatives",
+                "ordering": ["sort_order", "-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Feature',
+            name="Feature",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('short_id', models.CharField(db_index=True, editable=False, help_text='Human-readable ID: FEAT-001, FEAT-002, ...', max_length=10, unique=True)),
-                ('title', models.CharField(max_length=200)),
-                ('description', models.TextField(blank=True)),
-                ('acceptance_criteria', models.TextField(blank=True, help_text='What must be true for this feature to be complete')),
-                ('status', models.CharField(choices=[('backlog', 'Backlog'), ('planned', 'Planned'), ('in_progress', 'In Progress'), ('blocked', 'Blocked'), ('completed', 'Completed'), ('deferred', 'Deferred'), ('cancelled', 'Cancelled')], db_index=True, default='backlog', max_length=15)),
-                ('priority', models.CharField(choices=[('critical', 'Critical'), ('high', 'High'), ('medium', 'Medium'), ('low', 'Low')], db_index=True, default='medium', max_length=10)),
-                ('iso_clause', models.CharField(blank=True, db_index=True, help_text='ISO 9001 clause (e.g., §7.5, §10.2)', max_length=20)),
-                ('standards', models.JSONField(blank=True, default=list, help_text="Standards this implements: ['SIG-001', 'QMS-001']")),
-                ('roadmap_item_id', models.UUIDField(blank=True, db_index=True, help_text='Public RoadmapItem UUID', null=True)),
-                ('change_request_ids', models.JSONField(blank=True, default=list, help_text='ChangeRequest UUIDs linked to this feature')),
-                ('legacy_id', models.CharField(blank=True, db_index=True, help_text='ID from master plan (e.g., E3-001)', max_length=20)),
-                ('started_at', models.DateTimeField(blank=True, null=True)),
-                ('completed_at', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('depends_on', models.ManyToManyField(blank=True, related_name='blocks', to='api.feature')),
-                ('initiative', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='features', to='api.initiative')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "short_id",
+                    models.CharField(
+                        db_index=True,
+                        editable=False,
+                        help_text="Human-readable ID: FEAT-001, FEAT-002, ...",
+                        max_length=10,
+                        unique=True,
+                    ),
+                ),
+                ("title", models.CharField(max_length=200)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "acceptance_criteria",
+                    models.TextField(
+                        blank=True,
+                        help_text="What must be true for this feature to be complete",
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("backlog", "Backlog"),
+                            ("planned", "Planned"),
+                            ("in_progress", "In Progress"),
+                            ("blocked", "Blocked"),
+                            ("completed", "Completed"),
+                            ("deferred", "Deferred"),
+                            ("cancelled", "Cancelled"),
+                        ],
+                        db_index=True,
+                        default="backlog",
+                        max_length=15,
+                    ),
+                ),
+                (
+                    "priority",
+                    models.CharField(
+                        choices=[
+                            ("critical", "Critical"),
+                            ("high", "High"),
+                            ("medium", "Medium"),
+                            ("low", "Low"),
+                        ],
+                        db_index=True,
+                        default="medium",
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "iso_clause",
+                    models.CharField(
+                        blank=True,
+                        db_index=True,
+                        help_text="ISO 9001 clause (e.g., §7.5, §10.2)",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "standards",
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        help_text="Standards this implements: ['SIG-001', 'QMS-001']",
+                    ),
+                ),
+                (
+                    "roadmap_item_id",
+                    models.UUIDField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Public RoadmapItem UUID",
+                        null=True,
+                    ),
+                ),
+                (
+                    "change_request_ids",
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        help_text="ChangeRequest UUIDs linked to this feature",
+                    ),
+                ),
+                (
+                    "legacy_id",
+                    models.CharField(
+                        blank=True,
+                        db_index=True,
+                        help_text="ID from master plan (e.g., E3-001)",
+                        max_length=20,
+                    ),
+                ),
+                ("started_at", models.DateTimeField(blank=True, null=True)),
+                ("completed_at", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "depends_on",
+                    models.ManyToManyField(
+                        blank=True, related_name="blocks", to="api.feature"
+                    ),
+                ),
+                (
+                    "initiative",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="features",
+                        to="api.initiative",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'planning_features',
-                'ordering': ['initiative', 'priority', '-created_at'],
+                "db_table": "planning_features",
+                "ordering": ["initiative", "priority", "-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='PlanTask',
+            name="PlanTask",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('short_id', models.CharField(db_index=True, editable=False, help_text='Human-readable ID: TASK-001, TASK-002, ...', max_length=10, unique=True)),
-                ('title', models.CharField(max_length=200)),
-                ('description', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('todo', 'To Do'), ('in_progress', 'In Progress'), ('in_review', 'In Review'), ('completed', 'Completed'), ('cancelled', 'Cancelled')], db_index=True, default='todo', max_length=15)),
-                ('task_type', models.CharField(choices=[('model', 'Model/Migration'), ('api', 'API Endpoint'), ('view', 'View/Template'), ('standard', 'Standard (documentation)'), ('test', 'Test'), ('integration', 'Integration')], db_index=True, default='model', max_length=15)),
-                ('sort_order', models.IntegerField(default=0)),
-                ('change_request_id', models.UUIDField(blank=True, db_index=True, help_text='ChangeRequest UUID (created when work begins)', null=True)),
-                ('completed_at', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('feature', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tasks', to='api.feature')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "short_id",
+                    models.CharField(
+                        db_index=True,
+                        editable=False,
+                        help_text="Human-readable ID: TASK-001, TASK-002, ...",
+                        max_length=10,
+                        unique=True,
+                    ),
+                ),
+                ("title", models.CharField(max_length=200)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("todo", "To Do"),
+                            ("in_progress", "In Progress"),
+                            ("in_review", "In Review"),
+                            ("completed", "Completed"),
+                            ("cancelled", "Cancelled"),
+                        ],
+                        db_index=True,
+                        default="todo",
+                        max_length=15,
+                    ),
+                ),
+                (
+                    "task_type",
+                    models.CharField(
+                        choices=[
+                            ("model", "Model/Migration"),
+                            ("api", "API Endpoint"),
+                            ("view", "View/Template"),
+                            ("standard", "Standard (documentation)"),
+                            ("test", "Test"),
+                            ("integration", "Integration"),
+                        ],
+                        db_index=True,
+                        default="model",
+                        max_length=15,
+                    ),
+                ),
+                ("sort_order", models.IntegerField(default=0)),
+                (
+                    "change_request_id",
+                    models.UUIDField(
+                        blank=True,
+                        db_index=True,
+                        help_text="ChangeRequest UUID (created when work begins)",
+                        null=True,
+                    ),
+                ),
+                ("completed_at", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "feature",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="tasks",
+                        to="api.feature",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'planning_tasks',
-                'ordering': ['feature', 'sort_order', '-created_at'],
+                "db_table": "planning_tasks",
+                "ordering": ["feature", "sort_order", "-created_at"],
             },
         ),
         migrations.AddIndex(
-            model_name='feature',
-            index=models.Index(fields=['initiative', 'status'], name='planning_fe_initiat_d5f295_idx'),
+            model_name="feature",
+            index=models.Index(
+                fields=["initiative", "status"], name="planning_fe_initiat_d5f295_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='feature',
-            index=models.Index(fields=['iso_clause'], name='planning_fe_iso_cla_a3e1a3_idx'),
+            model_name="feature",
+            index=models.Index(
+                fields=["iso_clause"], name="planning_fe_iso_cla_a3e1a3_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='plantask',
-            index=models.Index(fields=['feature', 'status'], name='planning_ta_feature_79c9a9_idx'),
+            model_name="plantask",
+            index=models.Index(
+                fields=["feature", "status"], name="planning_ta_feature_79c9a9_idx"
+            ),
         ),
     ]

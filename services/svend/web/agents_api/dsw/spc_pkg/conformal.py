@@ -22,12 +22,18 @@ def run_conformal_control(df, config):
     n = len(data)
     alpha_conf = float(config.get("alpha", 0.05))  # False alarm rate
     cal_fraction = float(config.get("calibration_fraction", 0.5))
-    spike_threshold = float(config.get("spike_threshold", 2.0))  # Multiple of median width for spike detection
-    chart_type = config.get("chart_type", "individuals")  # individuals, subgroup_mean, subgroup_range
+    spike_threshold = float(
+        config.get("spike_threshold", 2.0)
+    )  # Multiple of median width for spike detection
+    chart_type = config.get(
+        "chart_type", "individuals"
+    )  # individuals, subgroup_mean, subgroup_range
     subgroup_size = int(config.get("subgroup_size", 5))
 
     if n < 20:
-        result["summary"] = "Need at least 20 observations for conformal control chart (calibration + monitoring)."
+        result["summary"] = (
+            "Need at least 20 observations for conformal control chart (calibration + monitoring)."
+        )
         return result
 
     # Phase I / Phase II split
@@ -39,24 +45,40 @@ def run_conformal_control(df, config):
     if chart_type == "subgroup_mean" and n_cal >= subgroup_size * 2:
         # Subgroup means
         n_sg_cal = n_cal // subgroup_size
-        cal_subgroups = [cal_data[i * subgroup_size : (i + 1) * subgroup_size] for i in range(n_sg_cal)]
+        cal_subgroups = [
+            cal_data[i * subgroup_size : (i + 1) * subgroup_size]
+            for i in range(n_sg_cal)
+        ]
         cal_values = np.array([np.mean(sg) for sg in cal_subgroups])
         center = np.median(cal_values)
 
         n_sg_mon = n_mon // subgroup_size
-        mon_values = np.array([np.mean(mon_data[i * subgroup_size : (i + 1) * subgroup_size]) for i in range(n_sg_mon)])
+        mon_values = np.array(
+            [
+                np.mean(mon_data[i * subgroup_size : (i + 1) * subgroup_size])
+                for i in range(n_sg_mon)
+            ]
+        )
         x_labels = [f"SG {i + 1}" for i in range(n_sg_cal + n_sg_mon)]
         all_values = np.concatenate([cal_values, mon_values])
         chart_label = f"Subgroup Mean (n={subgroup_size})"
     elif chart_type == "subgroup_range" and n_cal >= subgroup_size * 2:
         # Subgroup ranges
         n_sg_cal = n_cal // subgroup_size
-        cal_subgroups = [cal_data[i * subgroup_size : (i + 1) * subgroup_size] for i in range(n_sg_cal)]
+        cal_subgroups = [
+            cal_data[i * subgroup_size : (i + 1) * subgroup_size]
+            for i in range(n_sg_cal)
+        ]
         cal_values = np.array([np.ptp(sg) for sg in cal_subgroups])
         center = np.median(cal_values)
 
         n_sg_mon = n_mon // subgroup_size
-        mon_values = np.array([np.ptp(mon_data[i * subgroup_size : (i + 1) * subgroup_size]) for i in range(n_sg_mon)])
+        mon_values = np.array(
+            [
+                np.ptp(mon_data[i * subgroup_size : (i + 1) * subgroup_size])
+                for i in range(n_sg_mon)
+            ]
+        )
         x_labels = [f"SG {i + 1}" for i in range(n_sg_cal + n_sg_mon)]
         all_values = np.concatenate([cal_values, mon_values])
         chart_label = f"Subgroup Range (n={subgroup_size})"
@@ -99,14 +121,22 @@ def run_conformal_control(df, config):
 
     for i in range(n):
         if i < window:
-            local_std = np.std(data[: max(i + 1, 2)], ddof=1) if i > 0 else np.std(cal_data, ddof=1)
+            local_std = (
+                np.std(data[: max(i + 1, 2)], ddof=1)
+                if i > 0
+                else np.std(cal_data, ddof=1)
+            )
             local_center = np.median(data[: max(i + 1, 2)])
         else:
             local_window = data[i - window : i]
             local_std = np.std(local_window, ddof=1)
             local_center = np.median(local_window)
 
-        adaptive_widths[i] = q * max(local_std / np.std(cal_data, ddof=1), 0.5) if np.std(cal_data, ddof=1) > 0 else q
+        adaptive_widths[i] = (
+            q * max(local_std / np.std(cal_data, ddof=1), 0.5)
+            if np.std(cal_data, ddof=1) > 0
+            else q
+        )
         adaptive_lower[i] = local_center - adaptive_widths[i]
         adaptive_upper[i] = local_center + adaptive_widths[i]
 
@@ -132,12 +162,16 @@ def run_conformal_control(df, config):
     summary_cc += f"<<COLOR:highlight>>N:<</COLOR>> {n} ({n_cal} calibration + {n_mon} monitoring)\n"
     summary_cc += f"<<COLOR:highlight>>Significance level:<</COLOR>> \u03b1 = {alpha_conf} (guaranteed \u2264 {alpha_conf * 100:.0f}% false alarm rate)\n\n"
 
-    summary_cc += "<<COLOR:text>>Conformal Control Limits (distribution-free):<</COLOR>>\n"
+    summary_cc += (
+        "<<COLOR:text>>Conformal Control Limits (distribution-free):<</COLOR>>\n"
+    )
     summary_cc += f"  Center (median): {center:.4f}\n"
     summary_cc += f"  Conformal threshold (q): {q:.4f}\n"
     summary_cc += f"  Prediction interval: [{pi_lower:.4f}, {pi_upper:.4f}]\n\n"
 
-    summary_cc += "<<COLOR:text>>Traditional Shewhart Limits (for comparison):<</COLOR>>\n"
+    summary_cc += (
+        "<<COLOR:text>>Traditional Shewhart Limits (for comparison):<</COLOR>>\n"
+    )
     summary_cc += f"  Mean \u00b1 3\u03c3: [{shewhart_lcl:.4f}, {shewhart_ucl:.4f}]\n\n"
 
     # Compare the two approaches
@@ -148,9 +182,7 @@ def run_conformal_control(df, config):
     elif conformal_width > shewhart_width * 1.1:
         summary_cc += "<<COLOR:text>>Conformal limits are wider than Shewhart \u2014 data may be non-normal (heavy tails). This is the correct adjustment.<</COLOR>>\n\n"
     else:
-        summary_cc += (
-            "<<COLOR:text>>Conformal and Shewhart limits are similar \u2014 data is approximately normal.<</COLOR>>\n\n"
-        )
+        summary_cc += "<<COLOR:text>>Conformal and Shewhart limits are similar \u2014 data is approximately normal.<</COLOR>>\n\n"
 
     if n_ooc > 0:
         summary_cc += f"<<COLOR:warning>>\u26a0 {n_ooc} out-of-control point(s) in monitoring phase<</COLOR>>\n"
@@ -158,11 +190,15 @@ def run_conformal_control(df, config):
             for idx in ooc_indices:
                 summary_cc += f"  Observation {n_cal + idx}: value = {mon_values[idx]:.4f}, score = {mon_scores[idx]:.4f} > q = {q:.4f}\n"
     else:
-        summary_cc += "<<COLOR:good>>No out-of-control points in monitoring phase<</COLOR>>\n"
+        summary_cc += (
+            "<<COLOR:good>>No out-of-control points in monitoring phase<</COLOR>>\n"
+        )
 
     if len(spike_indices_mon) > 0:
         summary_cc += f"\n<<COLOR:warning>>\u26a0 {len(spike_indices_mon)} uncertainty spike(s) detected \u2014 leading indicators of instability<</COLOR>>\n"
-        summary_cc += f"  Spike threshold: {spike_threshold}\u00d7 median interval width\n"
+        summary_cc += (
+            f"  Spike threshold: {spike_threshold}\u00d7 median interval width\n"
+        )
         if len(spike_indices_mon) <= 10:
             for idx in spike_indices_mon:
                 summary_cc += f"  Observation {idx}: width = {adaptive_widths[idx]:.4f} ({adaptive_widths[idx] / median_width:.1f}\u00d7 normal)\n"
@@ -172,7 +208,9 @@ def run_conformal_control(df, config):
     summary_cc += "\n<<COLOR:text>>Key advantages:<</COLOR>>\n"
     summary_cc += "  \u2022 Distribution-free: no normality assumption required\n"
     summary_cc += f"  \u2022 Guaranteed false alarm rate \u2264 \u03b1 = {alpha_conf}\n"
-    summary_cc += "  \u2022 Uncertainty spikes provide early warning before limits are breached\n"
+    summary_cc += (
+        "  \u2022 Uncertainty spikes provide early warning before limits are breached\n"
+    )
     summary_cc += "  \u2022 Adaptive intervals respond to changing process conditions\n"
 
     result["summary"] = summary_cc
@@ -253,8 +291,10 @@ def run_conformal_control(df, config):
                         "type": "line",
                         "x0": n_cal_plot,
                         "x1": n_cal_plot,
-                        "y0": float(np.min(all_values)) - 0.1 * float(np.ptp(all_values)),
-                        "y1": float(np.max(all_values)) + 0.1 * float(np.ptp(all_values)),
+                        "y0": float(np.min(all_values))
+                        - 0.1 * float(np.ptp(all_values)),
+                        "y1": float(np.max(all_values))
+                        + 0.1 * float(np.ptp(all_values)),
                         "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5},
                     }
                 ],
@@ -300,7 +340,11 @@ def run_conformal_control(df, config):
                     {
                         "type": "scatter",
                         "x": spike_indices_mon.tolist(),
-                        "y": data[spike_indices_mon].tolist() if len(spike_indices_mon) > 0 else [],
+                        "y": (
+                            data[spike_indices_mon].tolist()
+                            if len(spike_indices_mon) > 0
+                            else []
+                        ),
                         "mode": "markers",
                         "marker": {
                             "size": 10,
@@ -406,11 +450,15 @@ def run_conformal_control(df, config):
     # Narrative
     _cc_n_spikes = len(spike_indices_mon)
     if n_ooc == 0 and _cc_n_spikes == 0:
-        _cc_verdict = "Conformal Control Chart \u2014 process in control (distribution-free)"
+        _cc_verdict = (
+            "Conformal Control Chart \u2014 process in control (distribution-free)"
+        )
         _cc_body = f"No out-of-control points or uncertainty spikes in {n_mon} monitoring observations. Guaranteed false alarm rate = {alpha_conf * 100:.1f}% without normality assumption."
     else:
         _cc_verdict = f"Conformal Control Chart \u2014 {n_ooc} OOC" + (
-            f", {_cc_n_spikes} uncertainty spike{'s' if _cc_n_spikes > 1 else ''}" if _cc_n_spikes > 0 else ""
+            f", {_cc_n_spikes} uncertainty spike{'s' if _cc_n_spikes > 1 else ''}"
+            if _cc_n_spikes > 0
+            else ""
         )
         _cc_body = (
             f"{n_ooc} out-of-control points detected in {n_mon} monitoring observations (calibrated on {n_cal} points). "
@@ -423,9 +471,11 @@ def run_conformal_control(df, config):
     result["narrative"] = _narrative(
         _cc_verdict,
         _cc_body,
-        next_steps="Investigate OOC points for assignable causes. Uncertainty spikes often precede full OOC events."
-        if n_ooc > 0 or _cc_n_spikes > 0
-        else "Process is stable under distribution-free monitoring.",
+        next_steps=(
+            "Investigate OOC points for assignable causes. Uncertainty spikes often precede full OOC events."
+            if n_ooc > 0 or _cc_n_spikes > 0
+            else "Process is stable under distribution-free monitoring."
+        ),
         chart_guidance="Blue band = adaptive prediction interval. Yellow triangles = uncertainty spikes (interval widening). Red points = out-of-control observations exceeding the conformal threshold.",
     )
 
@@ -438,21 +488,27 @@ def run_conformal_monitor(df, config):
 
     alpha_conf = float(config.get("alpha", 0.05))
     cal_fraction = float(config.get("calibration_fraction", 0.5))
-    model_type = config.get("model", "isolation_forest")  # isolation_forest, mahalanobis
+    model_type = config.get(
+        "model", "isolation_forest"
+    )  # isolation_forest, mahalanobis
 
     # Get numeric columns
     variables = config.get("variables", [])
     if not variables:
         variables = df.select_dtypes(include="number").columns.tolist()
     if len(variables) < 2:
-        result["summary"] = "Conformal monitoring requires at least 2 numeric variables for multivariate analysis."
+        result["summary"] = (
+            "Conformal monitoring requires at least 2 numeric variables for multivariate analysis."
+        )
         return result
 
     X = df[variables].dropna().values
     n = len(X)
 
     if n < 30:
-        result["summary"] = "Need at least 30 observations for conformal multivariate monitoring."
+        result["summary"] = (
+            "Need at least 30 observations for conformal multivariate monitoring."
+        )
         return result
 
     # Phase I / Phase II split
@@ -464,7 +520,11 @@ def run_conformal_monitor(df, config):
     # Standardize using calibration data
     scaler = StandardScaler()
     X_cal_scaled = scaler.fit_transform(X_cal)
-    X_mon_scaled = scaler.transform(X_mon) if n_mon > 0 else np.array([]).reshape(0, len(variables))
+    X_mon_scaled = (
+        scaler.transform(X_mon)
+        if n_mon > 0
+        else np.array([]).reshape(0, len(variables))
+    )
 
     # Compute nonconformity scores
     if model_type == "mahalanobis":
@@ -476,9 +536,16 @@ def run_conformal_monitor(df, config):
             cov_inv = np.linalg.pinv(cov_cal)
         mean_cal = np.mean(X_cal_scaled, axis=0)
 
-        cal_scores = np.array([np.sqrt((x - mean_cal) @ cov_inv @ (x - mean_cal)) for x in X_cal_scaled])
+        cal_scores = np.array(
+            [np.sqrt((x - mean_cal) @ cov_inv @ (x - mean_cal)) for x in X_cal_scaled]
+        )
         mon_scores = (
-            np.array([np.sqrt((x - mean_cal) @ cov_inv @ (x - mean_cal)) for x in X_mon_scaled])
+            np.array(
+                [
+                    np.sqrt((x - mean_cal) @ cov_inv @ (x - mean_cal))
+                    for x in X_mon_scaled
+                ]
+            )
             if n_mon > 0
             else np.array([])
         )
@@ -497,9 +564,13 @@ def run_conformal_monitor(df, config):
 
     # Conformal p-values for monitoring observations
     np.sort(cal_scores)
-    cal_p_values = np.array([(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in cal_scores])
+    cal_p_values = np.array(
+        [(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in cal_scores]
+    )
     mon_p_values = (
-        np.array([(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in mon_scores]) if n_mon > 0 else np.array([])
+        np.array([(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in mon_scores])
+        if n_mon > 0
+        else np.array([])
     )
     all_p_values = np.concatenate([cal_p_values, mon_p_values])
 
@@ -525,26 +596,30 @@ def run_conformal_monitor(df, config):
 
     # Summary
     summary_cm = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
-    summary_cm += "<<COLOR:title>>CONFORMAL P-VALUE CHART (Multivariate Monitor)<</COLOR>>\n"
+    summary_cm += (
+        "<<COLOR:title>>CONFORMAL P-VALUE CHART (Multivariate Monitor)<</COLOR>>\n"
+    )
     summary_cm += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
     summary_cm += "<<COLOR:dim>>Burger et al. (2025) \u2014 Distribution-free anomaly detection<</COLOR>>\n\n"
     summary_cm += f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(variables)} ({len(variables)} dimensions)\n"
     summary_cm += f"<<COLOR:highlight>>N:<</COLOR>> {n} ({n_cal} calibration + {n_mon} monitoring)\n"
     summary_cm += f"<<COLOR:highlight>>Anomaly model:<</COLOR>> {model_label}\n"
-    summary_cm += f"<<COLOR:highlight>>Significance level:<</COLOR>> \u03b1 = {alpha_conf}\n\n"
+    summary_cm += (
+        f"<<COLOR:highlight>>Significance level:<</COLOR>> \u03b1 = {alpha_conf}\n\n"
+    )
 
-    summary_cm += "<<COLOR:text>>Conformal P-Value Distribution (monitoring):<</COLOR>>\n"
+    summary_cm += (
+        "<<COLOR:text>>Conformal P-Value Distribution (monitoring):<</COLOR>>\n"
+    )
     if n_mon > 0:
         summary_cm += f"  Mean p-value: {np.mean(mon_p_values):.4f}\n"
+        summary_cm += f"  Min p-value: {np.min(mon_p_values):.4f} at observation {n_cal + int(np.argmin(mon_p_values))}\n"
         summary_cm += (
-            f"  Min p-value: {np.min(mon_p_values):.4f} at observation {n_cal + int(np.argmin(mon_p_values))}\n"
+            f"  % below \u03b1: {np.mean(mon_p_values < alpha_conf) * 100:.1f}%\n\n"
         )
-        summary_cm += f"  % below \u03b1: {np.mean(mon_p_values < alpha_conf) * 100:.1f}%\n\n"
 
     if n_anomalies > 0:
-        summary_cm += (
-            f"<<COLOR:warning>>\u26a0 {n_anomalies} anomalous observation(s) detected (p < {alpha_conf})<</COLOR>>\n"
-        )
+        summary_cm += f"<<COLOR:warning>>\u26a0 {n_anomalies} anomalous observation(s) detected (p < {alpha_conf})<</COLOR>>\n"
         if contributions:
             summary_cm += "\n  <<COLOR:text>>Top contributing variables:<</COLOR>>\n"
             for idx, var, z in contributions:
@@ -556,7 +631,9 @@ def run_conformal_monitor(df, config):
     summary_cm += f"  \u2022 Monitors {len(variables)} variables simultaneously\n"
     summary_cm += "  \u2022 No distributional assumptions on joint variable behavior\n"
     summary_cm += f"  \u2022 Guaranteed false alarm rate \u2264 \u03b1 = {alpha_conf}\n"
-    summary_cm += "  \u2022 Intuitive p-value scale (0 = most anomalous, 1 = most normal)\n"
+    summary_cm += (
+        "  \u2022 Intuitive p-value scale (0 = most anomalous, 1 = most normal)\n"
+    )
 
     result["summary"] = summary_cm
 
@@ -628,7 +705,10 @@ def run_conformal_monitor(df, config):
     )
 
     # Plot 2: Anomaly scores over time
-    score_colors_2 = ["#e85747" if (i >= n_cal and all_p_values[i] < alpha_conf) else "#4a9f6e" for i in range(n)]
+    score_colors_2 = [
+        "#e85747" if (i >= n_cal and all_p_values[i] < alpha_conf) else "#4a9f6e"
+        for i in range(n)
+    ]
     result["plots"].append(
         {
             "title": f"Nonconformity Scores ({model_label})",
@@ -675,7 +755,11 @@ def run_conformal_monitor(df, config):
                         "z": z_matrix.T.tolist(),
                         "x": [f"{n_cal + i}" for i in range(n_mon)],
                         "y": variables,
-                        "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#e85747"]],
+                        "colorscale": [
+                            [0, "#4a9f6e"],
+                            [0.5, "#e8c547"],
+                            [1, "#e85747"],
+                        ],
                         "colorbar": {"title": "|z|"},
                     }
                 ],
@@ -706,7 +790,9 @@ def run_conformal_monitor(df, config):
 
     # Narrative
     if n_anomalies == 0:
-        _cm_verdict = f"Conformal Monitor \u2014 no anomalies ({len(variables)} variables)"
+        _cm_verdict = (
+            f"Conformal Monitor \u2014 no anomalies ({len(variables)} variables)"
+        )
         _cm_body = f"All {n_mon} monitoring observations are within normal bounds across {len(variables)} variables using {model_label}. False alarm rate controlled at {alpha_conf * 100:.1f}%."
     else:
         _cm_top_var = ""
@@ -720,9 +806,11 @@ def run_conformal_monitor(df, config):
     result["narrative"] = _narrative(
         _cm_verdict,
         _cm_body,
-        next_steps="Check the variable contribution heatmap to identify which dimensions are driving anomalies."
-        if n_anomalies > 0
-        else "Process is multivariate-stable. Continue monitoring.",
+        next_steps=(
+            "Check the variable contribution heatmap to identify which dimensions are driving anomalies."
+            if n_anomalies > 0
+            else "Process is multivariate-stable. Continue monitoring."
+        ),
         chart_guidance="The p-value chart shows conformal p-values per observation \u2014 points below the red line are anomalous. The heatmap reveals which variables contribute most to each flagged observation.",
     )
 
@@ -745,7 +833,9 @@ def run_entropy_spc(df, config):
     n = len(data)
 
     if n < window * 2:
-        result["summary"] = f"Error: Need at least {window * 2} observations for window={window}."
+        result["summary"] = (
+            f"Error: Need at least {window * 2} observations for window={window}."
+        )
         return result
 
     # Compute rolling Shannon entropy on binned data
@@ -781,11 +871,17 @@ def run_entropy_spc(df, config):
     spikes = [i for i, h in enumerate(entropies) if h > ucl]
 
     summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
-    summary += "<<COLOR:title>>ENTROPY SPC (INFORMATION-THEORETIC CONTROL CHART)<</COLOR>>\n"
+    summary += (
+        "<<COLOR:title>>ENTROPY SPC (INFORMATION-THEORETIC CONTROL CHART)<</COLOR>>\n"
+    )
     summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:text>>Variable:<</COLOR>> {col}\n"
-    summary += f"<<COLOR:text>>Window:<</COLOR>> {window}    Bins: {n_bins}    N: {n}\n\n"
-    summary += "<<COLOR:accent>>\u2500\u2500 Entropy Statistics \u2500\u2500<</COLOR>>\n"
+    summary += (
+        f"<<COLOR:text>>Window:<</COLOR>> {window}    Bins: {n_bins}    N: {n}\n\n"
+    )
+    summary += (
+        "<<COLOR:accent>>\u2500\u2500 Entropy Statistics \u2500\u2500<</COLOR>>\n"
+    )
     summary += f"  Baseline mean: {h_mean:.4f} bits\n"
     summary += f"  UCL: {ucl:.4f}    LCL: {lcl:.4f}\n"
     summary += f"  OOC points: {len(ooc_idx)} ({ooc_pct:.1f}%)\n"
@@ -805,20 +901,20 @@ def run_entropy_spc(df, config):
         "n_drops": len(drops),
     }
 
-    _es_status = "in control" if not ooc_idx else f"{len(ooc_idx)} out-of-control signals"
+    _es_status = (
+        "in control" if not ooc_idx else f"{len(ooc_idx)} out-of-control signals"
+    )
     _es_detail = ""
     if spikes and drops:
         _es_detail = " Both entropy spikes (distributional spreading) and drops (narrowing) detected."
     elif spikes:
-        _es_detail = (
-            " Entropy spikes indicate distributional spreading \u2014 possible bimodality or increased variation."
-        )
+        _es_detail = " Entropy spikes indicate distributional spreading \u2014 possible bimodality or increased variation."
     elif drops:
-        _es_detail = (
-            " Entropy drops indicate distribution narrowing \u2014 possible mode collapse or reduced variation."
-        )
+        _es_detail = " Entropy drops indicate distribution narrowing \u2014 possible mode collapse or reduced variation."
 
-    result["guide_observation"] = f"Entropy SPC: {_es_status}. Mean entropy = {h_mean:.3f} bits."
+    result["guide_observation"] = (
+        f"Entropy SPC: {_es_status}. Mean entropy = {h_mean:.3f} bits."
+    )
     result["narrative"] = _narrative(
         f"Entropy SPC \u2014 {_es_status}",
         f"Rolling Shannon entropy (window={window}, {n_bins} bins) has baseline mean {h_mean:.4f} bits. "
@@ -847,7 +943,10 @@ def run_entropy_spc(df, config):
             ],
             "layout": {
                 "height": 290,
-                "xaxis": {"title": "Observation", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "xaxis": {
+                    "title": "Observation",
+                    "rangeslider": {"visible": True, "thickness": 0.12},
+                },
                 "yaxis": {"title": "Shannon Entropy (bits)"},
                 "shapes": [
                     {

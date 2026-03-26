@@ -45,19 +45,19 @@ class Command(BaseCommand):
             note=options["note"],
         )
 
-        self.stdout.write(self.style.SUCCESS(f"\nGenerated {len(codes)} invite code(s):\n"))
+        self.stdout.write(
+            self.style.SUCCESS(f"\nGenerated {len(codes)} invite code(s):\n")
+        )
         for code in codes:
             self.stdout.write(f"  {code.code}")
             if code.note:
                 self.stdout.write(f"  (note: {code.note})")
             self.stdout.write("")
 
-        self.stdout.write(self.style.NOTICE(
-            f"\nEach code can be used {options['uses']} time(s)."
-        ))
-        self.stdout.write(self.style.NOTICE(
-            "Share these with your alpha testers!"
-        ))
+        self.stdout.write(
+            self.style.NOTICE(f"\nEach code can be used {options['uses']} time(s).")
+        )
+        self.stdout.write(self.style.NOTICE("Share these with your alpha testers!"))
 
     def list_codes(self):
         """List all existing invite codes."""

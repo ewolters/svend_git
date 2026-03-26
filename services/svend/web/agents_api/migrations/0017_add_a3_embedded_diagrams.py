@@ -6,13 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0016_remove_certificate'),
+        ("agents_api", "0016_remove_certificate"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='a3report',
-            name='embedded_diagrams',
-            field=models.JSONField(blank=True, default=dict, help_text='Embedded SVG diagrams: {section: [{id, svg, board_name, room_code}]}'),
+            model_name="a3report",
+            name="embedded_diagrams",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text="Embedded SVG diagrams: {section: [{id, svg, board_name, room_code}]}",
+            ),
         ),
     ]

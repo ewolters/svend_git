@@ -57,7 +57,9 @@ def create_tool_evidence(
     if not project:
         logger.warning(
             "create_tool_evidence called without project: %s:%s:%s",
-            source_tool, source_id, source_field,
+            source_tool,
+            source_id,
+            source_field,
         )
         return None, None
 
@@ -81,7 +83,9 @@ def create_tool_evidence(
             updated = True
         if updated:
             existing.save(update_fields=["summary", "details", "updated_at"])
-            logger.info("Updated existing evidence %s for %s", existing.id, source_description)
+            logger.info(
+                "Updated existing evidence %s for %s", existing.id, source_description
+            )
         return existing, None
 
     evidence = Evidence.objects.create(
@@ -114,12 +118,15 @@ def create_tool_evidence(
             hypothesis.apply_evidence(link)
             logger.info(
                 "Linked evidence %s to hypothesis %s (LR=%.2f)",
-                evidence.id, hypothesis_id, likelihood_ratio,
+                evidence.id,
+                hypothesis_id,
+                likelihood_ratio,
             )
         except Hypothesis.DoesNotExist:
             logger.warning(
                 "Hypothesis %s not found for project %s — evidence created without link",
-                hypothesis_id, project.id,
+                hypothesis_id,
+                project.id,
             )
 
     return evidence, link

@@ -8,34 +8,49 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('syn_log', '0001_initial'),
+        ("syn_log", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='RequestMetric',
+            name="RequestMetric",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('bucket_start', models.DateTimeField(db_index=True)),
-                ('bucket_minutes', models.PositiveSmallIntegerField(default=5)),
-                ('method', models.CharField(max_length=10)),
-                ('path_pattern', models.CharField(db_index=True, max_length=255)),
-                ('status_class', models.CharField(max_length=3)),
-                ('request_count', models.PositiveIntegerField(default=0)),
-                ('error_count', models.PositiveIntegerField(default=0)),
-                ('total_duration_ms', models.FloatField(default=0.0)),
-                ('min_duration_ms', models.FloatField(default=0.0)),
-                ('max_duration_ms', models.FloatField(default=0.0)),
-                ('duration_samples', models.JSONField(default=list)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("bucket_start", models.DateTimeField(db_index=True)),
+                ("bucket_minutes", models.PositiveSmallIntegerField(default=5)),
+                ("method", models.CharField(max_length=10)),
+                ("path_pattern", models.CharField(db_index=True, max_length=255)),
+                ("status_class", models.CharField(max_length=3)),
+                ("request_count", models.PositiveIntegerField(default=0)),
+                ("error_count", models.PositiveIntegerField(default=0)),
+                ("total_duration_ms", models.FloatField(default=0.0)),
+                ("min_duration_ms", models.FloatField(default=0.0)),
+                ("max_duration_ms", models.FloatField(default=0.0)),
+                ("duration_samples", models.JSONField(default=list)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Request Metric',
-                'verbose_name_plural': 'Request Metrics',
-                'db_table': 'syn_request_metric',
-                'ordering': ['-bucket_start'],
-                'indexes': [models.Index(fields=['bucket_start', 'path_pattern'], name='reqmetric_bucket_path')],
-                'unique_together': {('bucket_start', 'method', 'path_pattern', 'status_class')},
+                "verbose_name": "Request Metric",
+                "verbose_name_plural": "Request Metrics",
+                "db_table": "syn_request_metric",
+                "ordering": ["-bucket_start"],
+                "indexes": [
+                    models.Index(
+                        fields=["bucket_start", "path_pattern"],
+                        name="reqmetric_bucket_path",
+                    )
+                ],
+                "unique_together": {
+                    ("bucket_start", "method", "path_pattern", "status_class")
+                },
             },
         ),
     ]

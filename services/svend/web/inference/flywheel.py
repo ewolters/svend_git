@@ -392,7 +392,9 @@ class FlywheelService:
             **self.stats,
             "synara_success_rate": self.stats["synara_success"] / total,
             "escalation_rate": self.stats["opus_escalations"] / total,
-            "opus_success_rate": (self.stats["opus_success"] / max(1, self.stats["opus_escalations"])),
+            "opus_success_rate": (
+                self.stats["opus_success"] / max(1, self.stats["opus_escalations"])
+            ),
         }
 
     def analyze_patterns(self) -> dict[str, Any]:
@@ -432,7 +434,9 @@ class FlywheelService:
             return {
                 "domain_failures": list(domain_failures),
                 "error_patterns": list(error_patterns),
-                "suggestions": self._generate_suggestions(domain_failures, error_patterns),
+                "suggestions": self._generate_suggestions(
+                    domain_failures, error_patterns
+                ),
             }
 
         except Exception as e:
@@ -447,7 +451,9 @@ class FlywheelService:
             domain = df.get("domain", "unknown")
             count = df.get("count", 0)
             if count > 10:
-                suggestions.append(f"Consider adding more tools for '{domain}' domain ({count} failures)")
+                suggestions.append(
+                    f"Consider adding more tools for '{domain}' domain ({count} failures)"
+                )
 
         return suggestions
 

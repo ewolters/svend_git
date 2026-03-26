@@ -6,9 +6,9 @@ After=network.target
 Type=exec
 User=eric
 Group=eric
-WorkingDirectory=%h/kjerne/services/svend/web
-Environment="PATH=%h/.local/bin:/usr/local/bin:/usr/bin"
-ExecStart=%h/kjerne/services/svend/web/ops/start_prod.sh
+WorkingDirectory=/home/eric/kjerne/services/svend/web
+Environment="PATH=/home/eric/.local/bin:/usr/local/bin:/usr/bin"
+ExecStart=/home/eric/kjerne/services/svend/web/ops/start_prod.sh
 ExecReload=/bin/kill -s HUP $MAINPID
 Restart=always
 RestartSec=5

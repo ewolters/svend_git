@@ -10,57 +10,192 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0045_qmsfieldchange'),
-        ('core', '0010_project_changelog'),
-        ('files', '0002_alter_userfile_file'),
+        ("agents_api", "0045_qmsfieldchange"),
+        ("core", "0010_project_changelog"),
+        ("files", "0002_alter_userfile_file"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ISODocument',
+            name="ISODocument",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('document_type', models.CharField(help_text="Key into ISO_DOCUMENT_TYPES (e.g. 'procedure', 'work_instruction')", max_length=30)),
-                ('title', models.CharField(max_length=300)),
-                ('document_number', models.CharField(blank=True, max_length=50)),
-                ('status', models.CharField(choices=[('draft', 'Draft'), ('in_progress', 'In Progress'), ('review', 'Under Review'), ('final', 'Final')], default='draft', max_length=20)),
-                ('version', models.CharField(default='1.0', max_length=20)),
-                ('iso_clause', models.CharField(blank=True, max_length=20)),
-                ('metadata', models.JSONField(blank=True, default=dict, help_text='Flexible metadata: effective_date, prepared_by, review_cycle, etc.')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('controlled_document', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='source_iso_document', to='agents_api.controlleddocument')),
-                ('files', models.ManyToManyField(blank=True, related_name='iso_documents', to='files.userfile')),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='iso_documents', to=settings.AUTH_USER_MODEL)),
-                ('project', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='iso_documents', to='core.project')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "document_type",
+                    models.CharField(
+                        help_text="Key into ISO_DOCUMENT_TYPES (e.g. 'procedure', 'work_instruction')",
+                        max_length=30,
+                    ),
+                ),
+                ("title", models.CharField(max_length=300)),
+                ("document_number", models.CharField(blank=True, max_length=50)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Draft"),
+                            ("in_progress", "In Progress"),
+                            ("review", "Under Review"),
+                            ("final", "Final"),
+                        ],
+                        default="draft",
+                        max_length=20,
+                    ),
+                ),
+                ("version", models.CharField(default="1.0", max_length=20)),
+                ("iso_clause", models.CharField(blank=True, max_length=20)),
+                (
+                    "metadata",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="Flexible metadata: effective_date, prepared_by, review_cycle, etc.",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "controlled_document",
+                    models.OneToOneField(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="source_iso_document",
+                        to="agents_api.controlleddocument",
+                    ),
+                ),
+                (
+                    "files",
+                    models.ManyToManyField(
+                        blank=True, related_name="iso_documents", to="files.userfile"
+                    ),
+                ),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="iso_documents",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "project",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="iso_documents",
+                        to="core.project",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'iso_authored_documents',
-                'ordering': ['-updated_at'],
+                "db_table": "iso_authored_documents",
+                "ordering": ["-updated_at"],
             },
         ),
         migrations.CreateModel(
-            name='ISOSection',
+            name="ISOSection",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('sort_order', models.IntegerField(default=0)),
-                ('section_type', models.CharField(choices=[('heading', 'Heading'), ('paragraph', 'Paragraph'), ('definition', 'Definition'), ('reference', 'Reference'), ('image', 'Image'), ('table', 'Table'), ('checklist', 'Checklist'), ('signature_block', 'Signature Block')], default='paragraph', max_length=20)),
-                ('section_key', models.CharField(blank=True, help_text='Key from document type registry (blank for user-added sections)', max_length=50)),
-                ('title', models.CharField(blank=True, max_length=300)),
-                ('content', models.TextField(blank=True, help_text='Text content for paragraph/heading sections')),
-                ('structured_data', models.JSONField(blank=True, default=dict, help_text='Type-specific data: table rows, checklist items, definition pairs, etc.')),
-                ('image_caption', models.CharField(blank=True, max_length=500)),
-                ('embedded_media', models.JSONField(blank=True, default=list, help_text='Whiteboard exports: [{"file_id": "...", "board_name": "...", "room_code": "...", "format": "svg"|"png"}]')),
-                ('numbering', models.CharField(blank=True, help_text='e.g. 4.1, 4.1.2', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('document', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sections', to='agents_api.isodocument')),
-                ('image', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='iso_section_images', to='files.userfile')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("sort_order", models.IntegerField(default=0)),
+                (
+                    "section_type",
+                    models.CharField(
+                        choices=[
+                            ("heading", "Heading"),
+                            ("paragraph", "Paragraph"),
+                            ("definition", "Definition"),
+                            ("reference", "Reference"),
+                            ("image", "Image"),
+                            ("table", "Table"),
+                            ("checklist", "Checklist"),
+                            ("signature_block", "Signature Block"),
+                        ],
+                        default="paragraph",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "section_key",
+                    models.CharField(
+                        blank=True,
+                        help_text="Key from document type registry (blank for user-added sections)",
+                        max_length=50,
+                    ),
+                ),
+                ("title", models.CharField(blank=True, max_length=300)),
+                (
+                    "content",
+                    models.TextField(
+                        blank=True,
+                        help_text="Text content for paragraph/heading sections",
+                    ),
+                ),
+                (
+                    "structured_data",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="Type-specific data: table rows, checklist items, definition pairs, etc.",
+                    ),
+                ),
+                ("image_caption", models.CharField(blank=True, max_length=500)),
+                (
+                    "embedded_media",
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        help_text='Whiteboard exports: [{"file_id": "...", "board_name": "...", "room_code": "...", "format": "svg"|"png"}]',
+                    ),
+                ),
+                (
+                    "numbering",
+                    models.CharField(
+                        blank=True, help_text="e.g. 4.1, 4.1.2", max_length=20
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "document",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="sections",
+                        to="agents_api.isodocument",
+                    ),
+                ),
+                (
+                    "image",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="iso_section_images",
+                        to="files.userfile",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'iso_authored_sections',
-                'ordering': ['sort_order'],
+                "db_table": "iso_authored_sections",
+                "ordering": ["sort_order"],
             },
         ),
     ]

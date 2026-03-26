@@ -264,7 +264,9 @@ def critique(request):
         for i, step in enumerate(chain, 1):
             chain_lines.append(f"{i}. Claim: {step.get('claim', '')[:2000]}")
             if step.get("response"):
-                chain_lines.append(f"   Your critique: {step.get('response', '')[:2000]}")
+                chain_lines.append(
+                    f"   Your critique: {step.get('response', '')[:2000]}"
+                )
         context += "<causal_chain>\n" + "\n".join(chain_lines) + "\n</causal_chain>\n"
         context += "\nNow they're proposing the next step in the chain:"
     else:
@@ -317,10 +319,14 @@ def evaluate_chain(request):
     countermeasure = data.get("proposed_countermeasure", "").strip()[:2000]
 
     if not event or not chain or not root_cause:
-        return JsonResponse({"error": "Event, chain, and root cause required"}, status=400)
+        return JsonResponse(
+            {"error": "Event, chain, and root cause required"}, status=400
+        )
 
     # Build evaluation prompt with XML-delimited user data
-    chain_text = "\n".join([f"{i + 1}. {step.get('claim', '')[:2000]}" for i, step in enumerate(chain)])
+    chain_text = "\n".join(
+        [f"{i + 1}. {step.get('claim', '')[:2000]}" for i, step in enumerate(chain)]
+    )
 
     prompt = f"""Evaluate this complete root cause analysis:
 
@@ -385,7 +391,9 @@ def critique_countermeasure(request):
     countermeasure = data.get("countermeasure", "").strip()[:2000]
 
     if not event or not root_cause or not countermeasure:
-        return JsonResponse({"error": "Event, root cause, and countermeasure required"}, status=400)
+        return JsonResponse(
+            {"error": "Event, root cause, and countermeasure required"}, status=400
+        )
 
     prompt = f"""Evaluate this proposed countermeasure:
 
@@ -477,7 +485,9 @@ def guided_questions(request):
     if not chain:
         return JsonResponse({"error": "At least one chain step required"}, status=400)
 
-    chain_text = "\n".join([f"{i + 1}. {step.get('claim', '')[:2000]}" for i, step in enumerate(chain)])
+    chain_text = "\n".join(
+        [f"{i + 1}. {step.get('claim', '')[:2000]}" for i, step in enumerate(chain)]
+    )
 
     prompt = f"""<incident>{event}</incident>
 
@@ -490,7 +500,12 @@ def guided_questions(request):
 
     prompt += "\n\nGenerate 3-5 targeted follow-up questions that would deepen this investigation. Return as JSON."
 
-    result = _rca_llm_call(request, GUIDED_QUESTIONING_PROMPT, [{"role": "user", "content": prompt}], max_tokens=600)
+    result = _rca_llm_call(
+        request,
+        GUIDED_QUESTIONING_PROMPT,
+        [{"role": "user", "content": prompt}],
+        max_tokens=600,
+    )
     if isinstance(result, JsonResponse):
         return result
 
@@ -624,7 +639,9 @@ def cluster_root_causes(request):
                         "title": m[0].title,
                         "root_cause": m[0].root_cause,
                         "status": m[0].status,
-                        "similarity_to_centroid": round(cosine_similarity(centroid, m[1]), 3),
+                        "similarity_to_centroid": round(
+                            cosine_similarity(centroid, m[1]), 3
+                        ),
                     }
                     for m in members
                 ],
@@ -722,7 +739,9 @@ def get_session(request, session_id):
     """Get a single RCA session."""
     try:
         session = qms_queryset(RCASession, request.user)[0].get(id=session_id)
-        action_items = ActionItem.objects.filter(source_type="rca", source_id=session.id)
+        action_items = ActionItem.objects.filter(
+            source_type="rca", source_id=session.id
+        )
         result = {
             "session": session.to_dict(),
             "action_items": [i.to_dict() for i in action_items],
@@ -876,7 +895,12 @@ def link_to_a3(request, session_id):
     # Optionally populate A3 root cause field
     if data.get("populate_root_cause", False) and session.root_cause:
         # Build a formatted summary of the RCA
-        chain_summary = "\n".join([f"{i + 1}. {step.get('claim', '')}" for i, step in enumerate(session.chain)])
+        chain_summary = "\n".join(
+            [
+                f"{i + 1}. {step.get('claim', '')}"
+                for i, step in enumerate(session.chain)
+            ]
+        )
 
         rca_content = f"**Event:** {session.event}\n\n"
         rca_content += f"**Causal Chain:**\n{chain_summary}\n\n"
@@ -893,7 +917,11 @@ def link_to_a3(request, session_id):
         a3.save()
 
     return JsonResponse(
-        {"success": True, "session": session.to_dict(), "a3_updated": data.get("populate_root_cause", False)}
+        {
+            "success": True,
+            "session": session.to_dict(),
+            "a3_updated": data.get("populate_root_cause", False),
+        }
     )
 
 
@@ -945,9 +973,7 @@ def find_similar(request):
         .filter(
             embedding__isnull=False,
         )
-        .exclude(
-            status="draft"  # Don't show draft sessions as similar
-        )
+        .exclude(status="draft")  # Don't show draft sessions as similar
     )
 
     # Build embedding list for in-memory search
@@ -1026,7 +1052,9 @@ def reindex_embeddings(request):
 @require_http_methods(["GET"])
 def list_rca_actions(request, session_id):
     """List action items linked to an RCA session."""
-    session = get_object_or_404(qms_queryset(RCASession, request.user)[0], id=session_id)
+    session = get_object_or_404(
+        qms_queryset(RCASession, request.user)[0], id=session_id
+    )
     items = ActionItem.objects.filter(source_type="rca", source_id=session.id)
     return JsonResponse({"action_items": [i.to_dict() for i in items]})
 
@@ -1035,10 +1063,14 @@ def list_rca_actions(request, session_id):
 @require_http_methods(["POST"])
 def create_rca_action(request, session_id):
     """Create a tracked action item from an RCA session."""
-    session = get_object_or_404(qms_queryset(RCASession, request.user)[0], id=session_id)
+    session = get_object_or_404(
+        qms_queryset(RCASession, request.user)[0], id=session_id
+    )
 
     if not session.project:
-        return JsonResponse({"error": "RCA session must be linked to a project first"}, status=400)
+        return JsonResponse(
+            {"error": "RCA session must be linked to a project first"}, status=400
+        )
 
     data = json.loads(request.body)
     title = data.get("title", "").strip()

@@ -1,4 +1,5 @@
 """Gunicorn WSGI server configuration."""
+
 import multiprocessing
 
 # Bind to localhost (Cloudflare Tunnel will handle external)

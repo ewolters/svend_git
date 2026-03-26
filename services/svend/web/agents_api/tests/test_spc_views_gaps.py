@@ -75,8 +75,20 @@ def _make_gage_rr_dataset():
         filename="gage_rr.csv",
         row_count=len(parts),
         columns=[
-            spc.ColumnInfo(name="Part", dtype="text", sample_values=parts[:5], null_count=0, unique_count=3),
-            spc.ColumnInfo(name="Operator", dtype="text", sample_values=operators[:5], null_count=0, unique_count=2),
+            spc.ColumnInfo(
+                name="Part",
+                dtype="text",
+                sample_values=parts[:5],
+                null_count=0,
+                unique_count=3,
+            ),
+            spc.ColumnInfo(
+                name="Operator",
+                dtype="text",
+                sample_values=operators[:5],
+                null_count=0,
+                unique_count=2,
+            ),
             spc.ColumnInfo(
                 name="Measurement",
                 dtype="numeric",
@@ -142,7 +154,9 @@ class SPCUploadTest(TestCase):
         self.assertEqual(res.status_code, 400)
 
     def test_upload_unsupported_type_returns_400(self):
-        uploaded = SimpleUploadedFile("data.json", b'{"a": 1}', content_type="application/json")
+        uploaded = SimpleUploadedFile(
+            "data.json", b'{"a": 1}', content_type="application/json"
+        )
 
         res = self.client.post("/api/spc/upload/", {"file": uploaded})
         self.assertEqual(res.status_code, 400)
@@ -300,9 +314,48 @@ class SPCGageRRCacheTest(TestCase):
         """Inline gage R&R without problem_id should still succeed."""
         res = self._post(
             {
-                "parts": ["P1", "P1", "P1", "P1", "P2", "P2", "P2", "P2", "P3", "P3", "P3", "P3"],
-                "operators": ["A", "A", "B", "B", "A", "A", "B", "B", "A", "A", "B", "B"],
-                "measurements": [1.0, 1.1, 1.05, 1.08, 2.0, 2.05, 2.02, 2.01, 3.0, 3.1, 3.05, 3.02],
+                "parts": [
+                    "P1",
+                    "P1",
+                    "P1",
+                    "P1",
+                    "P2",
+                    "P2",
+                    "P2",
+                    "P2",
+                    "P3",
+                    "P3",
+                    "P3",
+                    "P3",
+                ],
+                "operators": [
+                    "A",
+                    "A",
+                    "B",
+                    "B",
+                    "A",
+                    "A",
+                    "B",
+                    "B",
+                    "A",
+                    "A",
+                    "B",
+                    "B",
+                ],
+                "measurements": [
+                    1.0,
+                    1.1,
+                    1.05,
+                    1.08,
+                    2.0,
+                    2.05,
+                    2.02,
+                    2.01,
+                    3.0,
+                    3.1,
+                    3.05,
+                    3.02,
+                ],
             }
         )
         self.assertEqual(res.status_code, 200)

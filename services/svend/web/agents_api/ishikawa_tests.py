@@ -52,7 +52,9 @@ class IshikawaCRUDTests(TestCase):
         """POST /api/ishikawa/sessions/create/ creates a diagram."""
         resp = self.client.post(
             API + "create/",
-            data=json.dumps({"effect": "High defect rate on Line 3", "title": "Line 3 Analysis"}),
+            data=json.dumps(
+                {"effect": "High defect rate on Line 3", "title": "Line 3 Analysis"}
+            ),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 201)
@@ -72,7 +74,10 @@ class IshikawaCRUDTests(TestCase):
         branches = resp.json()["diagram"]["branches"]
         self.assertEqual(len(branches), 6)
         categories = [b["category"] for b in branches]
-        self.assertEqual(categories, ["Man", "Machine", "Method", "Material", "Measurement", "Mother Nature"])
+        self.assertEqual(
+            categories,
+            ["Man", "Machine", "Method", "Material", "Measurement", "Mother Nature"],
+        )
         # Each should have empty causes
         for b in branches:
             self.assertEqual(b["causes"], [])
@@ -285,7 +290,9 @@ class IshikawaEvidenceTests(TestCase):
         )
 
         diagram = IshikawaDiagram.objects.get(id=diagram_id)
-        evidence = Evidence.objects.filter(project=diagram.project, source_description__startswith="ishikawa:")
+        evidence = Evidence.objects.filter(
+            project=diagram.project, source_description__startswith="ishikawa:"
+        )
         self.assertEqual(evidence.count(), 2)
 
     def test_no_evidence_when_draft(self):
@@ -308,5 +315,7 @@ class IshikawaEvidenceTests(TestCase):
         )
 
         diagram = IshikawaDiagram.objects.get(id=diagram_id)
-        evidence = Evidence.objects.filter(project=diagram.project, source_description__startswith="ishikawa:")
+        evidence = Evidence.objects.filter(
+            project=diagram.project, source_description__startswith="ishikawa:"
+        )
         self.assertEqual(evidence.count(), 0)

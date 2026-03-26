@@ -10,25 +10,48 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0043_add_plant_simulation'),
+        ("agents_api", "0043_add_plant_simulation"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='TrainingRecordChange',
+            name="TrainingRecordChange",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('field_name', models.CharField(max_length=50)),
-                ('old_value', models.TextField(blank=True)),
-                ('new_value', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('changed_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
-                ('record', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='changes', to='agents_api.trainingrecord')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("field_name", models.CharField(max_length=50)),
+                ("old_value", models.TextField(blank=True)),
+                ("new_value", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "changed_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "record",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="changes",
+                        to="agents_api.trainingrecord",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'iso_training_record_changes',
-                'ordering': ['created_at'],
+                "db_table": "iso_training_record_changes",
+                "ordering": ["created_at"],
             },
         ),
     ]

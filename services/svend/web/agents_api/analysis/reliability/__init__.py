@@ -31,7 +31,9 @@ def run_reliability_analysis(df, analysis_id, config):
         # Probability plot data (Weibull)
         sorted_t = np.sort(failed)
         n = len(sorted_t)
-        median_ranks = (np.arange(1, n + 1) - 0.3) / (n + 0.4)  # Bernard's approximation
+        median_ranks = (np.arange(1, n + 1) - 0.3) / (
+            n + 0.4
+        )  # Bernard's approximation
 
         # Theoretical line
         t_range = np.linspace(sorted_t[0] * 0.8, sorted_t[-1] * 1.2, 200)
@@ -53,7 +55,11 @@ def run_reliability_analysis(df, analysis_id, config):
                     {
                         "type": "scatter",
                         "x": np.log(t_range[cdf_fit > 0]).tolist(),
-                        "y": np.log(-np.log(1 - cdf_fit[cdf_fit > 0])).tolist() if np.any(cdf_fit > 0) else [],
+                        "y": (
+                            np.log(-np.log(1 - cdf_fit[cdf_fit > 0])).tolist()
+                            if np.any(cdf_fit > 0)
+                            else []
+                        ),
                         "mode": "lines",
                         "name": f"Weibull (β={shape:.2f}, η={scale:.1f})",
                         "line": {"color": "#d94a4a", "width": 2},
@@ -109,7 +115,9 @@ def run_reliability_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["guide_observation"] = f"Weibull β={shape:.2f}. " + (
-            "Infant mortality pattern." if shape < 1 else "Wear-out pattern." if shape > 1 else "Random failures."
+            "Infant mortality pattern."
+            if shape < 1
+            else "Wear-out pattern." if shape > 1 else "Random failures."
         )
         result["statistics"] = {
             "shape": float(shape),
@@ -124,7 +132,11 @@ def run_reliability_analysis(df, analysis_id, config):
         _wb_phase = (
             "infant mortality (decreasing failure rate)"
             if shape < 1
-            else ("random failures (constant rate)" if abs(shape - 1) < 0.1 else "wear-out (increasing failure rate)")
+            else (
+                "random failures (constant rate)"
+                if abs(shape - 1) < 0.1
+                else "wear-out (increasing failure rate)"
+            )
         )
         result["narrative"] = _narrative(
             f"Weibull Analysis — \u03b2 = {shape:.3f} ({_wb_phase})",
@@ -167,7 +179,9 @@ def run_reliability_analysis(df, analysis_id, config):
                     {
                         "type": "scatter",
                         "x": np.log(t_range[cdf_fit > 0]).tolist(),
-                        "y": sp_stats.norm.ppf(np.clip(cdf_fit[cdf_fit > 0], 1e-10, 1 - 1e-10)).tolist(),
+                        "y": sp_stats.norm.ppf(
+                            np.clip(cdf_fit[cdf_fit > 0], 1e-10, 1 - 1e-10)
+                        ).tolist(),
                         "mode": "lines",
                         "name": f"Lognormal (μ={mu:.2f}, σ={sigma:.2f})",
                         "line": {"color": "#d94a4a", "width": 2},
@@ -218,7 +232,11 @@ def run_reliability_analysis(df, analysis_id, config):
         )
 
         # Narrative
-        _ln_skew = "highly right-skewed" if sigma > 1 else ("moderately skewed" if sigma > 0.5 else "near-symmetric")
+        _ln_skew = (
+            "highly right-skewed"
+            if sigma > 1
+            else ("moderately skewed" if sigma > 0.5 else "near-symmetric")
+        )
         result["narrative"] = _narrative(
             f"Lognormal Analysis — B10 = {b10:.2f}, median = {b50:.2f}",
             f"\u03bc = {mu:.4f}, \u03c3 = {sigma:.4f}. Mean life = {mean_life:.2f}. Distribution is {_ln_skew} (log-std = {sigma:.3f}). "
@@ -441,7 +459,12 @@ def run_reliability_analysis(df, analysis_id, config):
                         "y": km_ci_upper,
                         "mode": "lines",
                         "name": "95% CI",
-                        "line": {"color": "#4a9f6e", "width": 1, "dash": "dot", "shape": "hv"},
+                        "line": {
+                            "color": "#4a9f6e",
+                            "width": 1,
+                            "dash": "dot",
+                            "shape": "hv",
+                        },
                         "showlegend": False,
                     },
                     {
@@ -450,7 +473,12 @@ def run_reliability_analysis(df, analysis_id, config):
                         "y": km_ci_lower,
                         "mode": "lines",
                         "name": "95% CI",
-                        "line": {"color": "#4a9f6e", "width": 1, "dash": "dot", "shape": "hv"},
+                        "line": {
+                            "color": "#4a9f6e",
+                            "width": 1,
+                            "dash": "dot",
+                            "shape": "hv",
+                        },
                         "fill": "tonexty",
                         "fillcolor": "rgba(74, 159, 110, 0.15)",
                     },
@@ -523,7 +551,9 @@ def run_reliability_analysis(df, analysis_id, config):
             for failures in range(6):
                 # Sum of binomial terms
                 sum(
-                    comb(n_required + failures, k) * (1 - target_rel) ** k * target_rel ** (n_required + failures - k)
+                    comb(n_required + failures, k)
+                    * (1 - target_rel) ** k
+                    * target_rel ** (n_required + failures - k)
                     for k in range(failures + 1)
                 )
                 n_for_f = n_required + failures
@@ -531,7 +561,10 @@ def run_reliability_analysis(df, analysis_id, config):
                 n_adj = n_for_f
                 while True:
                     cum = sum(
-                        comb(n_adj, k) * (1 - target_rel) ** k * target_rel ** (n_adj - k) for k in range(failures + 1)
+                        comb(n_adj, k)
+                        * (1 - target_rel) ** k
+                        * target_rel ** (n_adj - k)
+                        for k in range(failures + 1)
                     )
                     if 1 - cum >= confidence:
                         break
@@ -549,7 +582,16 @@ def run_reliability_analysis(df, analysis_id, config):
                             "type": "bar",
                             "x": [f"{r['failures']} failures" for r in results_table],
                             "y": [r["sample_size"] for r in results_table],
-                            "marker": {"color": ["#4a9f6e", "#4a90d9", "#e89547", "#d94a4a", "#9f4a4a", "#7a6a9a"]},
+                            "marker": {
+                                "color": [
+                                    "#4a9f6e",
+                                    "#4a90d9",
+                                    "#e89547",
+                                    "#d94a4a",
+                                    "#9f4a4a",
+                                    "#7a6a9a",
+                                ]
+                            },
                             "text": [str(r["sample_size"]) for r in results_table],
                             "textposition": "outside",
                         }
@@ -560,7 +602,9 @@ def run_reliability_analysis(df, analysis_id, config):
 
             summary = f"Reliability Demonstration Test Plan\n\nTarget Reliability: {target_rel * 100:.1f}%\nConfidence Level: {confidence * 100:.1f}%\nTest Duration: {test_duration}\nDistribution: Exponential\n\nRequired Sample Sizes:\n"
             for r in results_table:
-                summary += f"  {r['failures']} allowed failures: n = {r['sample_size']}\n"
+                summary += (
+                    f"  {r['failures']} allowed failures: n = {r['sample_size']}\n"
+                )
             summary += f"\nZero-failure plan: Test {n_required} units for {test_duration} each with 0 failures."
 
             result["summary"] = summary
@@ -569,10 +613,12 @@ def run_reliability_analysis(df, analysis_id, config):
             )
             result["narrative"] = _narrative(
                 f"Reliability Test Plan — n = {n_required} (zero failures)",
-                f"To demonstrate {target_rel * 100:.1f}% reliability at {confidence * 100:.0f}% confidence, test {n_required} units for {test_duration} each with zero failures allowed. "
-                f"Allowing 1 failure increases n to {results_table[1]['sample_size']}."
-                if len(results_table) > 1
-                else "",
+                (
+                    f"To demonstrate {target_rel * 100:.1f}% reliability at {confidence * 100:.0f}% confidence, test {n_required} units for {test_duration} each with zero failures allowed. "
+                    f"Allowing 1 failure increases n to {results_table[1]['sample_size']}."
+                    if len(results_table) > 1
+                    else ""
+                ),
                 next_steps="Fewer failures allowed = smaller sample but stricter pass criteria. Consider the cost trade-off.",
                 chart_guidance="The bar chart shows how sample size increases as you allow more failures while maintaining the same confidence.",
             )
@@ -581,7 +627,9 @@ def run_reliability_analysis(df, analysis_id, config):
             beta = float(config.get("beta", 2.0))
             # For Weibull with shape beta
             n_required = int(np.ceil(np.log(1 - confidence) / np.log(target_rel)))
-            (test_duration / test_duration) ** beta  # acceleration factor placeholder (ratio = 1 if test = use)
+            (
+                test_duration / test_duration
+            ) ** beta  # acceleration factor placeholder (ratio = 1 if test = use)
 
             result["plots"].append(
                 {
@@ -694,7 +742,9 @@ def run_reliability_analysis(df, analysis_id, config):
         ranked = sorted(distributions.items(), key=lambda x: x[1]["ks_p"], reverse=True)
 
         summary = f"Distribution Identification\n\nSample size: {n}\n\n"
-        summary += f"{'Distribution':<15} {'Parameters':<25} {'KS Stat':>10} {'p-value':>10}\n"
+        summary += (
+            f"{'Distribution':<15} {'Parameters':<25} {'KS Stat':>10} {'p-value':>10}\n"
+        )
         summary += f"{'-' * 65}\n"
         for i, (name, info) in enumerate(ranked):
             marker = " <-- Best" if i == 0 else ""
@@ -736,7 +786,8 @@ def run_reliability_analysis(df, analysis_id, config):
 
             result["plots"].append(
                 {
-                    "title": f"Probability Plot — {name}" + (" (Best)" if idx == 0 else ""),
+                    "title": f"Probability Plot — {name}"
+                    + (" (Best)" if idx == 0 else ""),
                     "data": [
                         {
                             "type": "scatter",
@@ -771,7 +822,10 @@ def run_reliability_analysis(df, analysis_id, config):
                 "type": "histogram",
                 "x": times.tolist(),
                 "name": "Data",
-                "marker": {"color": "rgba(74,159,110,0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+                "marker": {
+                    "color": "rgba(74,159,110,0.3)",
+                    "line": {"color": "#4a9f6e", "width": 1},
+                },
                 "histnorm": "probability density",
             }
         ]
@@ -827,10 +881,19 @@ def run_reliability_analysis(df, analysis_id, config):
             if len(t_at_stress) < 3:
                 continue
             shape, _, scale = sp_stats.weibull_min.fit(t_at_stress, floc=0)
-            stress_results.append({"stress": float(stress), "shape": shape, "scale": scale, "n": len(t_at_stress)})
+            stress_results.append(
+                {
+                    "stress": float(stress),
+                    "shape": shape,
+                    "scale": scale,
+                    "n": len(t_at_stress),
+                }
+            )
 
         if len(stress_results) < 2:
-            result["summary"] = "Error: Not enough data at each stress level (need 3+ per level)."
+            result["summary"] = (
+                "Error: Not enough data at each stress level (need 3+ per level)."
+            )
             return result
 
         # Common shape assumption (average)
@@ -886,7 +949,9 @@ def run_reliability_analysis(df, analysis_id, config):
 
         # Narrative
         _alt_r2 = r_value**2
-        _alt_fit = "strong" if _alt_r2 > 0.9 else ("adequate" if _alt_r2 > 0.7 else "weak")
+        _alt_fit = (
+            "strong" if _alt_r2 > 0.9 else ("adequate" if _alt_r2 > 0.7 else "weak")
+        )
         result["narrative"] = _narrative(
             f"Accelerated Life Testing — MTTF at use = {mttf_use:.1f}",
             f"{'Arrhenius' if model_type == 'arrhenius' else 'Inverse Power Law'} model with {_alt_fit} fit (R\u00b2 = {_alt_r2:.4f}). "
@@ -896,7 +961,9 @@ def run_reliability_analysis(df, analysis_id, config):
         )
 
         # Life vs Stress plot
-        x_plot = np.linspace(min(x_transform) * 0.9, max(max(x_transform), x_use) * 1.1, 100)
+        x_plot = np.linspace(
+            min(x_transform) * 0.9, max(max(x_transform), x_use) * 1.1, 100
+        )
         y_plot = np.exp(intercept + slope * x_plot)
 
         result["plots"].append(
@@ -1035,9 +1102,17 @@ def run_reliability_analysis(df, analysis_id, config):
         _rs_trend = (
             "deteriorating (failure rate increasing)"
             if beta_crow > 1
-            else ("improving (reliability growth)" if beta_crow < 1 else "stable (constant failure rate)")
+            else (
+                "improving (reliability growth)"
+                if beta_crow < 1
+                else "stable (constant failure rate)"
+            )
         )
-        _rs_sig = "statistically significant" if laplace_p < 0.05 else "not statistically significant"
+        _rs_sig = (
+            "statistically significant"
+            if laplace_p < 0.05
+            else "not statistically significant"
+        )
         result["narrative"] = _narrative(
             f"Repairable Systems — {_rs_trend}",
             f"Crow-AMSAA power law: \u03b2 = {beta_crow:.4f}, \u03b8 = {theta_crow:.2f}. {total_events} events across {n_systems} system{'s' if n_systems > 1 else ''} over {T:.1f} time units. "
@@ -1099,7 +1174,11 @@ def run_reliability_analysis(df, analysis_id, config):
                         "line": {"color": "#e89547", "width": 2},
                     },
                 ],
-                "layout": {"height": 340, "xaxis": {"title": "Time"}, "yaxis": {"title": "Failure Rate"}},
+                "layout": {
+                    "height": 340,
+                    "xaxis": {"title": "Time"},
+                    "yaxis": {"title": "Failure Rate"},
+                },
             }
         )
 
@@ -1123,7 +1202,9 @@ def run_reliability_analysis(df, analysis_id, config):
         cdf = sp_stats.weibull_min.cdf(t_range, shape, 0, scale)
 
         # Projected returns
-        projected_in_warranty = fleet_size * sp_stats.weibull_min.cdf(warranty_period, shape, 0, scale)
+        projected_in_warranty = fleet_size * sp_stats.weibull_min.cdf(
+            warranty_period, shape, 0, scale
+        )
 
         # Monthly projection
         months = int(warranty_period / 30)
@@ -1131,9 +1212,13 @@ def run_reliability_analysis(df, analysis_id, config):
         for m in range(months + 1):
             t = m * 30
             cum_returns = fleet_size * sp_stats.weibull_min.cdf(t, shape, 0, scale)
-            monthly_returns.append({"month": m, "cumulative": cum_returns, "incremental": 0})
+            monthly_returns.append(
+                {"month": m, "cumulative": cum_returns, "incremental": 0}
+            )
         for i in range(1, len(monthly_returns)):
-            monthly_returns[i]["incremental"] = monthly_returns[i]["cumulative"] - monthly_returns[i - 1]["cumulative"]
+            monthly_returns[i]["incremental"] = (
+                monthly_returns[i]["cumulative"] - monthly_returns[i - 1]["cumulative"]
+            )
 
         summary = "Warranty Prediction\n\n"
         summary += f"Observed Returns: {n_returns}\n"
@@ -1156,7 +1241,11 @@ def run_reliability_analysis(df, analysis_id, config):
         )
 
         # Narrative
-        _wr_phase = "infant mortality" if shape < 1 else ("random" if abs(shape - 1) < 0.1 else "wear-out")
+        _wr_phase = (
+            "infant mortality"
+            if shape < 1
+            else ("random" if abs(shape - 1) < 0.1 else "wear-out")
+        )
         result["narrative"] = _narrative(
             f"Warranty Prediction — {projected_in_warranty:.0f} returns ({_wr_pct:.2f}%)",
             f"Based on {n_returns} observed returns, projecting {projected_in_warranty:.0f} total returns within the {warranty_period:.0f}-day warranty for a fleet of {fleet_size:,}. "
@@ -1210,7 +1299,11 @@ def run_reliability_analysis(df, analysis_id, config):
                         "marker": {"color": "#4a90d9"},
                     }
                 ],
-                "layout": {"height": 340, "xaxis": {"title": "Month"}, "yaxis": {"title": "Returns"}},
+                "layout": {
+                    "height": 340,
+                    "xaxis": {"title": "Month"},
+                    "yaxis": {"title": "Returns"},
+                },
             }
         )
 
@@ -1229,7 +1322,12 @@ def run_reliability_analysis(df, analysis_id, config):
 
             # Event types: 0 = censored, others are failure modes
             unique_events = sorted(
-                [e for e in np.unique(events) if e != 0 and str(e) != "0" and str(e).lower() != "censored"], key=str
+                [
+                    e
+                    for e in np.unique(events)
+                    if e != 0 and str(e) != "0" and str(e).lower() != "censored"
+                ],
+                key=str,
             )
             n_events = len(unique_events)
 
@@ -1291,17 +1389,25 @@ def run_reliability_analysis(df, analysis_id, config):
             summary_text += "<<COLOR:title>>COMPETING RISKS ANALYSIS<</COLOR>>\n"
             summary_text += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
             summary_text += f"<<COLOR:highlight>>Time variable:<</COLOR>> {time_col}\n"
-            summary_text += f"<<COLOR:highlight>>Event variable:<</COLOR>> {event_col}\n"
+            summary_text += (
+                f"<<COLOR:highlight>>Event variable:<</COLOR>> {event_col}\n"
+            )
             summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n"
-            summary_text += f"<<COLOR:highlight>>Failure modes:<</COLOR>> {n_events}\n\n"
+            summary_text += (
+                f"<<COLOR:highlight>>Failure modes:<</COLOR>> {n_events}\n\n"
+            )
 
-            summary_text += "<<COLOR:text>>Cumulative Incidence at Final Time:<</COLOR>>\n"
+            summary_text += (
+                "<<COLOR:text>>Cumulative Incidence at Final Time:<</COLOR>>\n"
+            )
             summary_text += f"{'Failure Mode':<20} {'Events':>8} {'CIF (final)':>12}\n"
             summary_text += f"{'─' * 42}\n"
             for event_type in unique_events:
                 n_events_type = int(np.sum(events == event_type))
                 final_cif = cifs[str(event_type)]["values"][-1]
-                summary_text += f"{str(event_type):<20} {n_events_type:>8} {final_cif:>12.4f}\n"
+                summary_text += (
+                    f"{str(event_type):<20} {n_events_type:>8} {final_cif:>12.4f}\n"
+                )
 
             n_censored = int(
                 np.sum(
@@ -1310,7 +1416,9 @@ def run_reliability_analysis(df, analysis_id, config):
                     | (np.array([str(e).lower() for e in events]) == "censored")
                 )
             )
-            summary_text += f"\n<<COLOR:text>>Censored observations:<</COLOR>> {n_censored}"
+            summary_text += (
+                f"\n<<COLOR:text>>Censored observations:<</COLOR>> {n_censored}"
+            )
 
             result["summary"] = summary_text
 
@@ -1325,7 +1433,11 @@ def run_reliability_analysis(df, analysis_id, config):
                         "y": cif["values"],
                         "mode": "lines",
                         "name": f"CIF: {event_type}",
-                        "line": {"color": colors[ei % len(colors)], "width": 2, "shape": "hv"},
+                        "line": {
+                            "color": colors[ei % len(colors)],
+                            "width": 2,
+                            "shape": "hv",
+                        },
                     }
                 )
 
@@ -1360,7 +1472,11 @@ def run_reliability_analysis(df, analysis_id, config):
                 {
                     "title": "Stacked Cumulative Incidence",
                     "data": stacked_traces,
-                    "layout": {"height": 340, "xaxis": {"title": time_col}, "yaxis": {"title": "Cumulative Incidence"}},
+                    "layout": {
+                        "height": 340,
+                        "xaxis": {"title": time_col},
+                        "yaxis": {"title": "Cumulative Incidence"},
+                    },
                 }
             )
 
@@ -1368,17 +1484,28 @@ def run_reliability_analysis(df, analysis_id, config):
                 "n": N,
                 "n_censored": n_censored,
                 "n_failure_modes": n_events,
-                "cif_final": {str(et): cifs[str(et)]["values"][-1] for et in unique_events},
-                "event_counts": {str(et): int(np.sum(events == et)) for et in unique_events},
+                "cif_final": {
+                    str(et): cifs[str(et)]["values"][-1] for et in unique_events
+                },
+                "event_counts": {
+                    str(et): int(np.sum(events == et)) for et in unique_events
+                },
             }
             result["guide_observation"] = (
                 f"Competing risks: {n_events} failure modes. "
-                + ", ".join([f"{et}: CIF={cifs[str(et)]['values'][-1]:.3f}" for et in unique_events])
+                + ", ".join(
+                    [
+                        f"{et}: CIF={cifs[str(et)]['values'][-1]:.3f}"
+                        for et in unique_events
+                    ]
+                )
                 + "."
             )
 
             # Narrative
-            _cr_dominant = max(unique_events, key=lambda et: cifs[str(et)]["values"][-1])
+            _cr_dominant = max(
+                unique_events, key=lambda et: cifs[str(et)]["values"][-1]
+            )
             _cr_dom_cif = cifs[str(_cr_dominant)]["values"][-1]
             result["narrative"] = _narrative(
                 f"Competing Risks — {n_events} failure modes",

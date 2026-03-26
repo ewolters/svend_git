@@ -11,9 +11,21 @@ urlpatterns = [
     path("", iso_doc_views.document_list_create, name="iso_doc_list"),
     path("<uuid:doc_id>/", iso_doc_views.document_detail, name="iso_doc_detail"),
     # Section CRUD
-    path("<uuid:doc_id>/sections/", iso_doc_views.section_create, name="iso_doc_section_create"),
-    path("<uuid:doc_id>/sections/reorder/", iso_doc_views.section_reorder, name="iso_doc_section_reorder"),
-    path("<uuid:doc_id>/sections/<uuid:sec_id>/", iso_doc_views.section_detail, name="iso_doc_section_detail"),
+    path(
+        "<uuid:doc_id>/sections/",
+        iso_doc_views.section_create,
+        name="iso_doc_section_create",
+    ),
+    path(
+        "<uuid:doc_id>/sections/reorder/",
+        iso_doc_views.section_reorder,
+        name="iso_doc_section_reorder",
+    ),
+    path(
+        "<uuid:doc_id>/sections/<uuid:sec_id>/",
+        iso_doc_views.section_detail,
+        name="iso_doc_section_detail",
+    ),
     # Media
     path(
         "<uuid:doc_id>/sections/<uuid:sec_id>/embed-whiteboard/",
@@ -21,8 +33,18 @@ urlpatterns = [
         name="iso_doc_embed_wb",
     ),
     # Export
-    path("<uuid:doc_id>/export/pdf/", iso_doc_views.export_pdf, name="iso_doc_export_pdf"),
-    path("<uuid:doc_id>/export/docx/", iso_doc_views.export_docx, name="iso_doc_export_docx"),
+    path(
+        "<uuid:doc_id>/export/pdf/", iso_doc_views.export_pdf, name="iso_doc_export_pdf"
+    ),
+    path(
+        "<uuid:doc_id>/export/docx/",
+        iso_doc_views.export_docx,
+        name="iso_doc_export_docx",
+    ),
     # Publish to Document Control
-    path("<uuid:doc_id>/publish/", iso_doc_views.publish_to_doc_control, name="iso_doc_publish"),
+    path(
+        "<uuid:doc_id>/publish/",
+        iso_doc_views.publish_to_doc_control,
+        name="iso_doc_publish",
+    ),
 ]

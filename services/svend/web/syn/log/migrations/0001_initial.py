@@ -12,148 +12,859 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='LogStream',
+            name="LogStream",
             fields=[
-                ('parent_correlation_id', models.UUIDField(blank=True, db_index=True, help_text='Parent entity correlation ID for causal chain (CTG-001 §5)', null=True)),
-                ('created_by', models.CharField(blank=True, default='', help_text='User ID who created this record', max_length=255)),
-                ('updated_by', models.CharField(blank=True, default='', help_text='User ID who last modified this record', max_length=255)),
-                ('is_deleted', models.BooleanField(db_index=True, default=False, help_text='Soft delete flag (DAT-001 §9)')),
-                ('deleted_at', models.DateTimeField(blank=True, help_text='Deletion timestamp (DAT-001 §9)', null=True)),
-                ('deleted_by', models.CharField(blank=True, default='', help_text='User ID who deleted this record', max_length=255)),
-                ('metadata', models.JSONField(blank=True, default=dict, help_text='Extensible metadata (MOD-001 §10)')),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, help_text='Unique log stream identifier', primary_key=True, serialize=False)),
-                ('correlation_id', models.UUIDField(db_index=True, default=uuid.uuid4, editable=False, help_text='Correlation ID for causal trace graph (CTG-001 §5)')),
-                ('name', models.CharField(db_index=True, help_text="Unique stream name (e.g., 'application', 'security', 'audit')", max_length=100, unique=True)),
-                ('description', models.TextField(blank=True, help_text='Human-readable description of this log stream')),
-                ('tenant_id', models.UUIDField(blank=True, db_index=True, help_text='Tenant identifier for multi-tenant isolation (SEC-001 §5.2)', null=True)),
-                ('retention_days', models.PositiveIntegerField(default=90, help_text='Number of days to retain logs in hot storage', validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(3650)])),
-                ('archive_days', models.PositiveIntegerField(default=365, help_text='Number of days to retain logs in archive storage', validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(3650)])),
-                ('min_level', models.CharField(choices=[('DEBUG', 'Debug'), ('INFO', 'Info'), ('WARNING', 'Warning'), ('ERROR', 'Error'), ('CRITICAL', 'Critical')], default='INFO', help_text='Minimum log level to capture for this stream', max_length=10)),
-                ('is_aggregation_enabled', models.BooleanField(default=True, help_text='Whether to compute aggregated metrics for this stream')),
-                ('aggregation_sink', models.CharField(blank=True, choices=[('elk', 'Elasticsearch/Logstash/Kibana'), ('datadog', 'Datadog'), ('splunk', 'Splunk'), ('cloudwatch', 'AWS CloudWatch')], help_text='External aggregation sink for this stream', max_length=20, null=True)),
-                ('is_siem_enabled', models.BooleanField(default=False, help_text='Whether to forward logs to SIEM (SEC-002 §8)')),
-                ('is_active', models.BooleanField(db_index=True, default=True, help_text='Whether this stream is actively accepting logs')),
-                ('created_at', models.DateTimeField(auto_now_add=True, help_text='When this stream was created')),
-                ('updated_at', models.DateTimeField(auto_now=True, help_text='When this stream was last updated')),
+                (
+                    "parent_correlation_id",
+                    models.UUIDField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Parent entity correlation ID for causal chain (CTG-001 §5)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="User ID who created this record",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "updated_by",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="User ID who last modified this record",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "is_deleted",
+                    models.BooleanField(
+                        db_index=True,
+                        default=False,
+                        help_text="Soft delete flag (DAT-001 §9)",
+                    ),
+                ),
+                (
+                    "deleted_at",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="Deletion timestamp (DAT-001 §9)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "deleted_by",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="User ID who deleted this record",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "metadata",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="Extensible metadata (MOD-001 §10)",
+                    ),
+                ),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        help_text="Unique log stream identifier",
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "correlation_id",
+                    models.UUIDField(
+                        db_index=True,
+                        default=uuid.uuid4,
+                        editable=False,
+                        help_text="Correlation ID for causal trace graph (CTG-001 §5)",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        db_index=True,
+                        help_text="Unique stream name (e.g., 'application', 'security', 'audit')",
+                        max_length=100,
+                        unique=True,
+                    ),
+                ),
+                (
+                    "description",
+                    models.TextField(
+                        blank=True,
+                        help_text="Human-readable description of this log stream",
+                    ),
+                ),
+                (
+                    "tenant_id",
+                    models.UUIDField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "retention_days",
+                    models.PositiveIntegerField(
+                        default=90,
+                        help_text="Number of days to retain logs in hot storage",
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(3650),
+                        ],
+                    ),
+                ),
+                (
+                    "archive_days",
+                    models.PositiveIntegerField(
+                        default=365,
+                        help_text="Number of days to retain logs in archive storage",
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(3650),
+                        ],
+                    ),
+                ),
+                (
+                    "min_level",
+                    models.CharField(
+                        choices=[
+                            ("DEBUG", "Debug"),
+                            ("INFO", "Info"),
+                            ("WARNING", "Warning"),
+                            ("ERROR", "Error"),
+                            ("CRITICAL", "Critical"),
+                        ],
+                        default="INFO",
+                        help_text="Minimum log level to capture for this stream",
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "is_aggregation_enabled",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Whether to compute aggregated metrics for this stream",
+                    ),
+                ),
+                (
+                    "aggregation_sink",
+                    models.CharField(
+                        blank=True,
+                        choices=[
+                            ("elk", "Elasticsearch/Logstash/Kibana"),
+                            ("datadog", "Datadog"),
+                            ("splunk", "Splunk"),
+                            ("cloudwatch", "AWS CloudWatch"),
+                        ],
+                        help_text="External aggregation sink for this stream",
+                        max_length=20,
+                        null=True,
+                    ),
+                ),
+                (
+                    "is_siem_enabled",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Whether to forward logs to SIEM (SEC-002 §8)",
+                    ),
+                ),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        db_index=True,
+                        default=True,
+                        help_text="Whether this stream is actively accepting logs",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, help_text="When this stream was created"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(
+                        auto_now=True, help_text="When this stream was last updated"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Log Stream',
-                'verbose_name_plural': 'Log Streams',
-                'db_table': 'syn_log_stream',
-                'ordering': ['name'],
-                'abstract': False,
-                'indexes': [models.Index(fields=['tenant_id', 'is_active'], name='logstream_tenant_active')],
+                "verbose_name": "Log Stream",
+                "verbose_name_plural": "Log Streams",
+                "db_table": "syn_log_stream",
+                "ordering": ["name"],
+                "abstract": False,
+                "indexes": [
+                    models.Index(
+                        fields=["tenant_id", "is_active"],
+                        name="logstream_tenant_active",
+                    )
+                ],
             },
         ),
         migrations.CreateModel(
-            name='LogMetric',
+            name="LogMetric",
             fields=[
-                ('parent_correlation_id', models.UUIDField(blank=True, db_index=True, help_text='Parent entity correlation ID for causal chain (CTG-001 §5)', null=True)),
-                ('updated_at', models.DateTimeField(auto_now=True, help_text='Last modification timestamp (AUD-001)')),
-                ('created_by', models.CharField(blank=True, default='', help_text='User ID who created this record', max_length=255)),
-                ('updated_by', models.CharField(blank=True, default='', help_text='User ID who last modified this record', max_length=255)),
-                ('is_deleted', models.BooleanField(db_index=True, default=False, help_text='Soft delete flag (DAT-001 §9)')),
-                ('deleted_at', models.DateTimeField(blank=True, help_text='Deletion timestamp (DAT-001 §9)', null=True)),
-                ('deleted_by', models.CharField(blank=True, default='', help_text='User ID who deleted this record', max_length=255)),
-                ('metadata', models.JSONField(blank=True, default=dict, help_text='Extensible metadata (MOD-001 §10)')),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, help_text='Unique metric identifier', primary_key=True, serialize=False)),
-                ('correlation_id', models.UUIDField(db_index=True, default=uuid.uuid4, editable=False, help_text='Correlation ID for causal trace graph (CTG-001 §5)')),
-                ('bucket_start', models.DateTimeField(db_index=True, help_text='Start of the aggregation bucket')),
-                ('bucket_duration_minutes', models.PositiveSmallIntegerField(default=5, help_text='Duration of the bucket in minutes', validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(60)])),
-                ('tenant_id', models.UUIDField(blank=True, db_index=True, help_text='Tenant identifier for multi-tenant isolation (SEC-001 §5.2)', null=True)),
-                ('logger', models.CharField(blank=True, db_index=True, help_text='Logger name (if aggregating per logger)', max_length=255, null=True)),
-                ('level', models.CharField(choices=[('DEBUG', 'Debug'), ('INFO', 'Info'), ('WARNING', 'Warning'), ('ERROR', 'Error'), ('CRITICAL', 'Critical')], db_index=True, help_text='Log level for this metric bucket', max_length=10)),
-                ('count', models.PositiveIntegerField(default=0, help_text='Total log entries in this bucket')),
-                ('error_count', models.PositiveIntegerField(default=0, help_text='Error-level log entries in this bucket')),
-                ('created_at', models.DateTimeField(auto_now_add=True, help_text='When this metric was created')),
-                ('stream', models.ForeignKey(help_text='Log stream for this metric', on_delete=django.db.models.deletion.CASCADE, related_name='metrics', to='syn_log.logstream')),
+                (
+                    "parent_correlation_id",
+                    models.UUIDField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Parent entity correlation ID for causal chain (CTG-001 §5)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(
+                        auto_now=True, help_text="Last modification timestamp (AUD-001)"
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="User ID who created this record",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "updated_by",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="User ID who last modified this record",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "is_deleted",
+                    models.BooleanField(
+                        db_index=True,
+                        default=False,
+                        help_text="Soft delete flag (DAT-001 §9)",
+                    ),
+                ),
+                (
+                    "deleted_at",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="Deletion timestamp (DAT-001 §9)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "deleted_by",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="User ID who deleted this record",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "metadata",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="Extensible metadata (MOD-001 §10)",
+                    ),
+                ),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        help_text="Unique metric identifier",
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "correlation_id",
+                    models.UUIDField(
+                        db_index=True,
+                        default=uuid.uuid4,
+                        editable=False,
+                        help_text="Correlation ID for causal trace graph (CTG-001 §5)",
+                    ),
+                ),
+                (
+                    "bucket_start",
+                    models.DateTimeField(
+                        db_index=True, help_text="Start of the aggregation bucket"
+                    ),
+                ),
+                (
+                    "bucket_duration_minutes",
+                    models.PositiveSmallIntegerField(
+                        default=5,
+                        help_text="Duration of the bucket in minutes",
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(60),
+                        ],
+                    ),
+                ),
+                (
+                    "tenant_id",
+                    models.UUIDField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "logger",
+                    models.CharField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Logger name (if aggregating per logger)",
+                        max_length=255,
+                        null=True,
+                    ),
+                ),
+                (
+                    "level",
+                    models.CharField(
+                        choices=[
+                            ("DEBUG", "Debug"),
+                            ("INFO", "Info"),
+                            ("WARNING", "Warning"),
+                            ("ERROR", "Error"),
+                            ("CRITICAL", "Critical"),
+                        ],
+                        db_index=True,
+                        help_text="Log level for this metric bucket",
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "count",
+                    models.PositiveIntegerField(
+                        default=0, help_text="Total log entries in this bucket"
+                    ),
+                ),
+                (
+                    "error_count",
+                    models.PositiveIntegerField(
+                        default=0, help_text="Error-level log entries in this bucket"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, help_text="When this metric was created"
+                    ),
+                ),
+                (
+                    "stream",
+                    models.ForeignKey(
+                        help_text="Log stream for this metric",
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="metrics",
+                        to="syn_log.logstream",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Log Metric',
-                'verbose_name_plural': 'Log Metrics',
-                'db_table': 'syn_log_metric',
-                'ordering': ['-bucket_start'],
-                'abstract': False,
-                'indexes': [models.Index(fields=['stream', 'bucket_start'], name='logmetric_stream_bucket'), models.Index(fields=['tenant_id', 'bucket_start'], name='logmetric_tenant_bucket'), models.Index(fields=['logger', 'level', 'bucket_start'], name='logmetric_logger_level')],
-                'unique_together': {('stream', 'tenant_id', 'logger', 'level', 'bucket_start')},
+                "verbose_name": "Log Metric",
+                "verbose_name_plural": "Log Metrics",
+                "db_table": "syn_log_metric",
+                "ordering": ["-bucket_start"],
+                "abstract": False,
+                "indexes": [
+                    models.Index(
+                        fields=["stream", "bucket_start"],
+                        name="logmetric_stream_bucket",
+                    ),
+                    models.Index(
+                        fields=["tenant_id", "bucket_start"],
+                        name="logmetric_tenant_bucket",
+                    ),
+                    models.Index(
+                        fields=["logger", "level", "bucket_start"],
+                        name="logmetric_logger_level",
+                    ),
+                ],
+                "unique_together": {
+                    ("stream", "tenant_id", "logger", "level", "bucket_start")
+                },
             },
         ),
         migrations.CreateModel(
-            name='LogEntry',
+            name="LogEntry",
             fields=[
-                ('parent_correlation_id', models.UUIDField(blank=True, db_index=True, help_text='Parent entity correlation ID', null=True)),
-                ('event_name', models.CharField(db_index=True, help_text='Event name (EVT-001 format)', max_length=255)),
-                ('actor', models.CharField(default='system', help_text='User or system that performed the action', max_length=255)),
-                ('actor_ip', models.GenericIPAddressField(blank=True, help_text='IP address of actor', null=True)),
-                ('before_snapshot', models.JSONField(blank=True, default=dict, help_text='State before change')),
-                ('after_snapshot', models.JSONField(blank=True, default=dict, help_text='State after change')),
-                ('changes', models.JSONField(blank=True, default=dict, help_text='Delta of changes')),
-                ('reason', models.TextField(blank=True, default='', help_text='Reason for change')),
-                ('entry_hash', models.CharField(db_index=True, editable=False, help_text='SHA-256 hash of entry content', max_length=64)),
-                ('previous_hash', models.CharField(blank=True, default='', help_text='Hash of previous entry (chain link)', max_length=64)),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True, help_text='Immutable creation timestamp')),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, help_text='Unique log entry identifier', primary_key=True, serialize=False)),
-                ('timestamp', models.DateTimeField(db_index=True, default=django.utils.timezone.now, help_text='Log event timestamp (UTC)')),
-                ('level', models.CharField(choices=[('DEBUG', 'Debug'), ('INFO', 'Info'), ('WARNING', 'Warning'), ('ERROR', 'Error'), ('CRITICAL', 'Critical')], db_index=True, help_text='Log severity level', max_length=10)),
-                ('level_numeric', models.SmallIntegerField(db_index=True, help_text='Numeric log level for range queries (10=DEBUG, 50=CRITICAL)')),
-                ('logger', models.CharField(db_index=True, help_text="Logger name (module path, e.g., 'syn.cortex.publisher')", max_length=255)),
-                ('message', models.TextField(help_text='Human-readable log message')),
-                ('correlation_id', models.UUIDField(db_index=True, help_text='Request/operation correlation ID (CTG-001 §5)')),
-                ('tenant_id', models.UUIDField(blank=True, db_index=True, help_text='Tenant identifier for multi-tenant isolation (SEC-001 §5.2)', null=True)),
-                ('context', models.JSONField(blank=True, default=dict, help_text='Structured context (user_id, operation, request_id, etc.)')),
-                ('metadata', models.JSONField(blank=True, default=dict, help_text='System metadata (hostname, process_id, thread_id, etc.)')),
-                ('exception', models.JSONField(blank=True, help_text='Exception details for error logs (type, message, traceback)', null=True)),
-                ('layer', models.SmallIntegerField(blank=True, db_index=True, help_text='SBL-001 biological layer (1-10)', null=True, validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(10)])),
-                ('source', models.CharField(choices=[('application', 'Application'), ('reflex', 'Reflex'), ('primitive', 'Primitive'), ('middleware', 'Middleware'), ('handler', 'Handler')], db_index=True, default='application', help_text='Log source (application, reflex, primitive)', max_length=20)),
-                ('is_archived', models.BooleanField(db_index=True, default=False, help_text='Archived to cold storage')),
-                ('stream', models.ForeignKey(help_text='Parent log stream', on_delete=django.db.models.deletion.PROTECT, related_name='entries', to='syn_log.logstream')),
+                (
+                    "parent_correlation_id",
+                    models.UUIDField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Parent entity correlation ID",
+                        null=True,
+                    ),
+                ),
+                (
+                    "event_name",
+                    models.CharField(
+                        db_index=True,
+                        help_text="Event name (EVT-001 format)",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "actor",
+                    models.CharField(
+                        default="system",
+                        help_text="User or system that performed the action",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "actor_ip",
+                    models.GenericIPAddressField(
+                        blank=True, help_text="IP address of actor", null=True
+                    ),
+                ),
+                (
+                    "before_snapshot",
+                    models.JSONField(
+                        blank=True, default=dict, help_text="State before change"
+                    ),
+                ),
+                (
+                    "after_snapshot",
+                    models.JSONField(
+                        blank=True, default=dict, help_text="State after change"
+                    ),
+                ),
+                (
+                    "changes",
+                    models.JSONField(
+                        blank=True, default=dict, help_text="Delta of changes"
+                    ),
+                ),
+                (
+                    "reason",
+                    models.TextField(
+                        blank=True, default="", help_text="Reason for change"
+                    ),
+                ),
+                (
+                    "entry_hash",
+                    models.CharField(
+                        db_index=True,
+                        editable=False,
+                        help_text="SHA-256 hash of entry content",
+                        max_length=64,
+                    ),
+                ),
+                (
+                    "previous_hash",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="Hash of previous entry (chain link)",
+                        max_length=64,
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True,
+                        db_index=True,
+                        help_text="Immutable creation timestamp",
+                    ),
+                ),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        help_text="Unique log entry identifier",
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "timestamp",
+                    models.DateTimeField(
+                        db_index=True,
+                        default=django.utils.timezone.now,
+                        help_text="Log event timestamp (UTC)",
+                    ),
+                ),
+                (
+                    "level",
+                    models.CharField(
+                        choices=[
+                            ("DEBUG", "Debug"),
+                            ("INFO", "Info"),
+                            ("WARNING", "Warning"),
+                            ("ERROR", "Error"),
+                            ("CRITICAL", "Critical"),
+                        ],
+                        db_index=True,
+                        help_text="Log severity level",
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "level_numeric",
+                    models.SmallIntegerField(
+                        db_index=True,
+                        help_text="Numeric log level for range queries (10=DEBUG, 50=CRITICAL)",
+                    ),
+                ),
+                (
+                    "logger",
+                    models.CharField(
+                        db_index=True,
+                        help_text="Logger name (module path, e.g., 'syn.cortex.publisher')",
+                        max_length=255,
+                    ),
+                ),
+                ("message", models.TextField(help_text="Human-readable log message")),
+                (
+                    "correlation_id",
+                    models.UUIDField(
+                        db_index=True,
+                        help_text="Request/operation correlation ID (CTG-001 §5)",
+                    ),
+                ),
+                (
+                    "tenant_id",
+                    models.UUIDField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "context",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="Structured context (user_id, operation, request_id, etc.)",
+                    ),
+                ),
+                (
+                    "metadata",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="System metadata (hostname, process_id, thread_id, etc.)",
+                    ),
+                ),
+                (
+                    "exception",
+                    models.JSONField(
+                        blank=True,
+                        help_text="Exception details for error logs (type, message, traceback)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "layer",
+                    models.SmallIntegerField(
+                        blank=True,
+                        db_index=True,
+                        help_text="SBL-001 biological layer (1-10)",
+                        null=True,
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(10),
+                        ],
+                    ),
+                ),
+                (
+                    "source",
+                    models.CharField(
+                        choices=[
+                            ("application", "Application"),
+                            ("reflex", "Reflex"),
+                            ("primitive", "Primitive"),
+                            ("middleware", "Middleware"),
+                            ("handler", "Handler"),
+                        ],
+                        db_index=True,
+                        default="application",
+                        help_text="Log source (application, reflex, primitive)",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "is_archived",
+                    models.BooleanField(
+                        db_index=True,
+                        default=False,
+                        help_text="Archived to cold storage",
+                    ),
+                ),
+                (
+                    "stream",
+                    models.ForeignKey(
+                        help_text="Parent log stream",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="entries",
+                        to="syn_log.logstream",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Log Entry',
-                'verbose_name_plural': 'Log Entries',
-                'db_table': 'syn_log_entry',
-                'ordering': ['-timestamp'],
-                'abstract': False,
-                'indexes': [models.Index(fields=['tenant_id', 'timestamp'], name='idx_log_tenant_time'), models.Index(fields=['correlation_id', 'timestamp'], name='idx_log_correlation_time'), models.Index(fields=['level', 'timestamp'], name='idx_log_level_time'), models.Index(fields=['logger', 'level', 'timestamp'], name='idx_log_logger_level_time'), models.Index(fields=['stream', 'timestamp'], name='idx_log_stream_time')],
+                "verbose_name": "Log Entry",
+                "verbose_name_plural": "Log Entries",
+                "db_table": "syn_log_entry",
+                "ordering": ["-timestamp"],
+                "abstract": False,
+                "indexes": [
+                    models.Index(
+                        fields=["tenant_id", "timestamp"], name="idx_log_tenant_time"
+                    ),
+                    models.Index(
+                        fields=["correlation_id", "timestamp"],
+                        name="idx_log_correlation_time",
+                    ),
+                    models.Index(
+                        fields=["level", "timestamp"], name="idx_log_level_time"
+                    ),
+                    models.Index(
+                        fields=["logger", "level", "timestamp"],
+                        name="idx_log_logger_level_time",
+                    ),
+                    models.Index(
+                        fields=["stream", "timestamp"], name="idx_log_stream_time"
+                    ),
+                ],
             },
         ),
         migrations.CreateModel(
-            name='LogAlert',
+            name="LogAlert",
             fields=[
-                ('parent_correlation_id', models.UUIDField(blank=True, db_index=True, help_text='Parent entity correlation ID for causal chain (CTG-001 §5)', null=True)),
-                ('created_by', models.CharField(blank=True, default='', help_text='User ID who created this record', max_length=255)),
-                ('updated_by', models.CharField(blank=True, default='', help_text='User ID who last modified this record', max_length=255)),
-                ('is_deleted', models.BooleanField(db_index=True, default=False, help_text='Soft delete flag (DAT-001 §9)')),
-                ('deleted_at', models.DateTimeField(blank=True, help_text='Deletion timestamp (DAT-001 §9)', null=True)),
-                ('deleted_by', models.CharField(blank=True, default='', help_text='User ID who deleted this record', max_length=255)),
-                ('metadata', models.JSONField(blank=True, default=dict, help_text='Extensible metadata (MOD-001 §10)')),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, help_text='Unique alert configuration identifier', primary_key=True, serialize=False)),
-                ('correlation_id', models.UUIDField(db_index=True, default=uuid.uuid4, editable=False, help_text='Correlation ID for causal trace graph (CTG-001 §5)')),
-                ('name', models.CharField(db_index=True, help_text='Alert configuration name', max_length=100)),
-                ('level', models.CharField(choices=[('WARNING', 'Warning'), ('ERROR', 'Error'), ('CRITICAL', 'Critical')], default='ERROR', help_text='Log level to trigger alert', max_length=10)),
-                ('threshold_count', models.PositiveIntegerField(default=10, help_text='Number of matching logs to trigger alert', validators=[django.core.validators.MinValueValidator(1)])),
-                ('threshold_window_minutes', models.PositiveIntegerField(default=5, help_text='Time window for threshold evaluation (minutes)', validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(1440)])),
-                ('reflex_event', models.CharField(default='log.alert.triggered', help_text='Reflex event to emit when triggered', max_length=100)),
-                ('cooldown_minutes', models.PositiveIntegerField(default=15, help_text='Cooldown period between alerts (minutes)', validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(1440)])),
-                ('is_enabled', models.BooleanField(db_index=True, default=True, help_text='Whether this alert is active')),
-                ('tenant_id', models.UUIDField(blank=True, db_index=True, help_text='Tenant identifier for multi-tenant isolation (SEC-001 §5.2)', null=True)),
-                ('last_triggered_at', models.DateTimeField(blank=True, help_text='When this alert was last triggered', null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True, help_text='When this alert was created')),
-                ('updated_at', models.DateTimeField(auto_now=True, help_text='When this alert was last updated')),
-                ('stream', models.ForeignKey(help_text='Log stream to monitor', on_delete=django.db.models.deletion.CASCADE, related_name='alerts', to='syn_log.logstream')),
+                (
+                    "parent_correlation_id",
+                    models.UUIDField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Parent entity correlation ID for causal chain (CTG-001 §5)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="User ID who created this record",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "updated_by",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="User ID who last modified this record",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "is_deleted",
+                    models.BooleanField(
+                        db_index=True,
+                        default=False,
+                        help_text="Soft delete flag (DAT-001 §9)",
+                    ),
+                ),
+                (
+                    "deleted_at",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="Deletion timestamp (DAT-001 §9)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "deleted_by",
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        help_text="User ID who deleted this record",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "metadata",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="Extensible metadata (MOD-001 §10)",
+                    ),
+                ),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        help_text="Unique alert configuration identifier",
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "correlation_id",
+                    models.UUIDField(
+                        db_index=True,
+                        default=uuid.uuid4,
+                        editable=False,
+                        help_text="Correlation ID for causal trace graph (CTG-001 §5)",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        db_index=True,
+                        help_text="Alert configuration name",
+                        max_length=100,
+                    ),
+                ),
+                (
+                    "level",
+                    models.CharField(
+                        choices=[
+                            ("WARNING", "Warning"),
+                            ("ERROR", "Error"),
+                            ("CRITICAL", "Critical"),
+                        ],
+                        default="ERROR",
+                        help_text="Log level to trigger alert",
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "threshold_count",
+                    models.PositiveIntegerField(
+                        default=10,
+                        help_text="Number of matching logs to trigger alert",
+                        validators=[django.core.validators.MinValueValidator(1)],
+                    ),
+                ),
+                (
+                    "threshold_window_minutes",
+                    models.PositiveIntegerField(
+                        default=5,
+                        help_text="Time window for threshold evaluation (minutes)",
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(1440),
+                        ],
+                    ),
+                ),
+                (
+                    "reflex_event",
+                    models.CharField(
+                        default="log.alert.triggered",
+                        help_text="Reflex event to emit when triggered",
+                        max_length=100,
+                    ),
+                ),
+                (
+                    "cooldown_minutes",
+                    models.PositiveIntegerField(
+                        default=15,
+                        help_text="Cooldown period between alerts (minutes)",
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(1440),
+                        ],
+                    ),
+                ),
+                (
+                    "is_enabled",
+                    models.BooleanField(
+                        db_index=True,
+                        default=True,
+                        help_text="Whether this alert is active",
+                    ),
+                ),
+                (
+                    "tenant_id",
+                    models.UUIDField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "last_triggered_at",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="When this alert was last triggered",
+                        null=True,
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, help_text="When this alert was created"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(
+                        auto_now=True, help_text="When this alert was last updated"
+                    ),
+                ),
+                (
+                    "stream",
+                    models.ForeignKey(
+                        help_text="Log stream to monitor",
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="alerts",
+                        to="syn_log.logstream",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Log Alert',
-                'verbose_name_plural': 'Log Alerts',
-                'db_table': 'syn_log_alert',
-                'ordering': ['name'],
-                'abstract': False,
-                'indexes': [models.Index(fields=['stream', 'is_enabled'], name='logalert_stream_enabled'), models.Index(fields=['tenant_id', 'is_enabled'], name='logalert_tenant_enabled')],
+                "verbose_name": "Log Alert",
+                "verbose_name_plural": "Log Alerts",
+                "db_table": "syn_log_alert",
+                "ordering": ["name"],
+                "abstract": False,
+                "indexes": [
+                    models.Index(
+                        fields=["stream", "is_enabled"], name="logalert_stream_enabled"
+                    ),
+                    models.Index(
+                        fields=["tenant_id", "is_enabled"],
+                        name="logalert_tenant_enabled",
+                    ),
+                ],
             },
         ),
     ]

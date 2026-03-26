@@ -28,14 +28,21 @@ def backfill_parent_vsm(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0031_savedmodel_project_training_config'),
+        ("agents_api", "0031_savedmodel_project_training_config"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='valuestreammap',
-            name='parent_vsm',
-            field=models.ForeignKey(blank=True, help_text='Current-state VSM this future state was derived from', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='future_states', to='agents_api.valuestreammap'),
+            model_name="valuestreammap",
+            name="parent_vsm",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Current-state VSM this future state was derived from",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="future_states",
+                to="agents_api.valuestreammap",
+            ),
         ),
         migrations.RunPython(backfill_parent_vsm, migrations.RunPython.noop),
     ]

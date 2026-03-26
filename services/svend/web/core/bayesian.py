@@ -246,7 +246,9 @@ class BayesianUpdater:
             current_prob = self.odds_to_probability(odds)
             current_prob = max(self.min_prob, min(self.max_prob, current_prob))
 
-        log_odds_change = math.log(cumulative_adjusted_lr) if cumulative_adjusted_lr > 0 else 0
+        log_odds_change = (
+            math.log(cumulative_adjusted_lr) if cumulative_adjusted_lr > 0 else 0
+        )
 
         return BayesianUpdate(
             prior_probability=prior,
@@ -276,7 +278,11 @@ class BayesianUpdater:
 
         for link in evidence_links:
             lr = getattr(link, "likelihood_ratio", 1.0)
-            confidence = getattr(link.evidence, "confidence", 1.0) if hasattr(link, "evidence") else 1.0
+            confidence = (
+                getattr(link.evidence, "confidence", 1.0)
+                if hasattr(link, "evidence")
+                else 1.0
+            )
             adjusted_lr = self.adjust_likelihood_ratio(lr, confidence)
             odds *= adjusted_lr
 

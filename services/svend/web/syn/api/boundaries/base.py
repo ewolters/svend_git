@@ -174,7 +174,9 @@ class SerializerBoundary:
     @property
     def model_name(self) -> str:
         """Get model name from serializer Meta."""
-        if hasattr(self.serializer_cls, "Meta") and hasattr(self.serializer_cls.Meta, "model"):
+        if hasattr(self.serializer_cls, "Meta") and hasattr(
+            self.serializer_cls.Meta, "model"
+        ):
             return self.serializer_cls.Meta.model.__name__
         return self.serializer_cls.__name__.replace("Serializer", "")
 
@@ -203,7 +205,9 @@ class SerializerBoundary:
         Raises:
             BoundaryValidationError: If validation fails
         """
-        logger.debug(f"[BOUNDARY] Validating {self.operation} on {self.model_name} (contract: {self.io_contract_code})")
+        logger.debug(
+            f"[BOUNDARY] Validating {self.operation} on {self.model_name} (contract: {self.io_contract_code})"
+        )
 
         try:
             # Step 1: DRF serializer validation (SER-001)
@@ -266,7 +270,9 @@ class SerializerBoundary:
             GovernanceEscalatedError: If governance escalates
             PersistenceError: If database operation fails
         """
-        logger.info(f"[BOUNDARY] Executing {self.operation} on {self.model_name} (tenant: {self.context.tenant_id})")
+        logger.info(
+            f"[BOUNDARY] Executing {self.operation} on {self.model_name} (tenant: {self.context.tenant_id})"
+        )
 
         # Step 1: Validate
         validated_data = self.validate(data)
@@ -305,7 +311,9 @@ class SerializerBoundary:
         # Step 6: Write audit log
         self._write_audit_log("success", result)
 
-        logger.info(f"[BOUNDARY] Successfully executed {self.operation} on {self.model_name}")
+        logger.info(
+            f"[BOUNDARY] Successfully executed {self.operation} on {self.model_name}"
+        )
 
         return result
 
@@ -390,7 +398,9 @@ class SerializerBoundary:
     # Governance Integration (SRX-001 §8)
     # =========================================================================
 
-    def _execute_governance_preflight(self, validated_data: dict[str, Any]) -> dict[str, Any]:
+    def _execute_governance_preflight(
+        self, validated_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Execute governance preflight checks per CGS-1001.
 
@@ -434,7 +444,9 @@ class SerializerBoundary:
 
         except ImportError:
             # Governance not available - default to ALLOW
-            logger.debug("[BOUNDARY] Governance engine not available, defaulting to ALLOW")
+            logger.debug(
+                "[BOUNDARY] Governance engine not available, defaulting to ALLOW"
+            )
             return {"decision": "ALLOW"}
         except Exception as e:
             logger.warning(f"[BOUNDARY] Governance evaluation error: {e}")
@@ -510,10 +522,14 @@ class SerializerBoundary:
             )
 
         # Add tenant_id to validated_data if model supports it
-        if hasattr(self.serializer_cls, "Meta") and hasattr(self.serializer_cls.Meta, "model"):
+        if hasattr(self.serializer_cls, "Meta") and hasattr(
+            self.serializer_cls.Meta, "model"
+        ):
             model = self.serializer_cls.Meta.model
             if hasattr(model, "tenant_id"):
-                self._serializer.validated_data["tenant_id"] = str(self.context.tenant_id)
+                self._serializer.validated_data["tenant_id"] = str(
+                    self.context.tenant_id
+                )
 
         # Perform save
         instance = self._serializer.save()
@@ -545,7 +561,9 @@ class SerializerBoundary:
             logger.debug(f"[BOUNDARY] Emitted event: {event_name}")
 
         except ImportError:
-            logger.debug(f"[BOUNDARY] Event system not available, skipping: {event_name}")
+            logger.debug(
+                f"[BOUNDARY] Event system not available, skipping: {event_name}"
+            )
         except Exception as e:
             logger.warning(f"[BOUNDARY] Event emission error: {e}")
 
@@ -632,11 +650,16 @@ class SerializerBoundary:
 
             # Create audit entry
             SysLogEntry.objects.create(
-                tenant_id=str(self.context.tenant_id) if self.context.tenant_id else None,
+                tenant_id=(
+                    str(self.context.tenant_id) if self.context.tenant_id else None
+                ),
                 correlation_id=self.context.correlation_id,
                 event_name=f"io.boundary.{self.operation}",
                 actor=str(self.context.user_id) if self.context.user_id else "system",
-                payload={**payload, "boundary_action": f"Boundary {self.operation} on {self.model_name}"},
+                payload={
+                    **payload,
+                    "boundary_action": f"Boundary {self.operation} on {self.model_name}",
+                },
             )
 
             logger.debug(f"[BOUNDARY] Wrote audit log for {self.operation}")

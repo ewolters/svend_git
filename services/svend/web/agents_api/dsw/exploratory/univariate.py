@@ -91,8 +91,9 @@ def run_descriptive(df, config):
         obs_parts.append(f"{var}: μ={mean:.3f}, σ={std:.3f}, n={n}")
 
     result["summary"] = summary
-    result["guide_observation"] = f"Descriptive statistics for {len(vars_to_analyze)} variable(s). " + "; ".join(
-        obs_parts[:5]
+    result["guide_observation"] = (
+        f"Descriptive statistics for {len(vars_to_analyze)} variable(s). "
+        + "; ".join(obs_parts[:5])
     )
 
     # Add histogram for each variable
@@ -142,7 +143,11 @@ def run_prop_1sample(df, config):
         x = int((col.astype(str) == str(event)).sum())
     else:
         # If binary 0/1, count 1s
-        x = int((col == 1).sum()) if col.dtype in ["int64", "float64"] else int(col.value_counts().iloc[0])
+        x = (
+            int((col == 1).sum())
+            if col.dtype in ["int64", "float64"]
+            else int(col.value_counts().iloc[0])
+        )
     p_hat = x / n if n > 0 else 0
 
     # Z-test
@@ -170,9 +175,7 @@ def run_prop_1sample(df, config):
     if event is not None and str(event) != "":
         summary += f"<<COLOR:highlight>>Event:<</COLOR>> {event}\n"
     summary += f"<<COLOR:highlight>>H₀:<</COLOR>> p = {p0}\n"
-    summary += (
-        f"<<COLOR:highlight>>H₁:<</COLOR>> p {'≠' if alt == 'two-sided' else '>' if alt == 'greater' else '<'} {p0}\n\n"
-    )
+    summary += f"<<COLOR:highlight>>H₁:<</COLOR>> p {'≠' if alt == 'two-sided' else '>' if alt == 'greater' else '<'} {p0}\n\n"
     summary += "<<COLOR:accent>>── Sample Results ──<</COLOR>>\n"
     summary += f"  N: {n}\n"
     summary += f"  Successes: {x}\n"
@@ -185,7 +188,9 @@ def run_prop_1sample(df, config):
     if p_val < alpha:
         summary += f"<<COLOR:good>>Proportion differs significantly from {p0} (p < {alpha})<</COLOR>>"
     else:
-        summary += f"<<COLOR:text>>No significant difference from {p0} (p ≥ {alpha})<</COLOR>>"
+        summary += (
+            f"<<COLOR:text>>No significant difference from {p0} (p ≥ {alpha})<</COLOR>>"
+        )
 
     result["summary"] = summary
 
@@ -210,7 +215,10 @@ def run_prop_1sample(df, config):
             ],
             "layout": {
                 "title": "Observed Proportion vs Hypothesized",
-                "yaxis": {"title": "Proportion", "range": [0, min(1.05, max(ci_hi + 0.1, p0 + 0.2))]},
+                "yaxis": {
+                    "title": "Proportion",
+                    "range": [0, min(1.05, max(ci_hi + 0.1, p0 + 0.2))],
+                },
                 "shapes": [
                     {
                         "type": "line",
@@ -235,8 +243,9 @@ def run_prop_1sample(df, config):
         }
     )
 
-    result["guide_observation"] = f"1-prop Z-test: p̂={p_hat:.4f}, Z={z_stat:.3f}, p={p_val:.4f}. " + (
-        "Significant." if p_val < alpha else "Not significant."
+    result["guide_observation"] = (
+        f"1-prop Z-test: p̂={p_hat:.4f}, Z={z_stat:.3f}, p={p_val:.4f}. "
+        + ("Significant." if p_val < alpha else "Not significant.")
     )
     result["statistics"] = {
         "n": n,
@@ -252,14 +261,18 @@ def run_prop_1sample(df, config):
 
     # Narrative
     if p_val < alpha:
-        verdict = f"Proportion differs from {p0} (p\u0302 = {p_hat:.4f}, p = {p_val:.4f})"
+        verdict = (
+            f"Proportion differs from {p0} (p\u0302 = {p_hat:.4f}, p = {p_val:.4f})"
+        )
         body = (
             f"The observed proportion {p_hat:.4f} ({x}/{n}) is significantly different from the hypothesized value of {p0}. "
             f"Wilson {100 * (1 - alpha):.0f}% CI: ({ci_lo:.4f}, {ci_hi:.4f})."
         )
         nxt = "Investigate why the proportion deviates from the target. If it's a defect rate, identify root causes."
     else:
-        verdict = f"Proportion consistent with {p0} (p\u0302 = {p_hat:.4f}, p = {p_val:.4f})"
+        verdict = (
+            f"Proportion consistent with {p0} (p\u0302 = {p_hat:.4f}, p = {p_val:.4f})"
+        )
         body = (
             f"The observed proportion {p_hat:.4f} ({x}/{n}) is not significantly different from {p0}. "
             f"Wilson {100 * (1 - alpha):.0f}% CI: ({ci_lo:.4f}, {ci_hi:.4f}) includes the hypothesized value."
@@ -403,7 +416,10 @@ def run_poisson_1sample(df, config):
                     "y": pmf_vals,
                     "name": f"Poisson(λ={expected_count:.1f})",
                     "marker": {
-                        "color": ["#d94a4a" if k == int(total_count) else "#4a9f6e" for k in x_range],
+                        "color": [
+                            "#d94a4a" if k == int(total_count) else "#4a9f6e"
+                            for k in x_range
+                        ],
                         "opacity": 0.7,
                     },
                 }
@@ -483,14 +499,18 @@ def run_box_cox(df, config):
     lambdas = [-2, -1, -0.5, 0, 0.5, 1, 2]
     lambda_names = ["1/x²", "1/x", "1/√x", "ln(x)", "√x", "x (none)", "x²"]
 
-    summary += "<<COLOR:accent>>── Common Transformations (Log-Likelihood) ──<</COLOR>>\n"
+    summary += (
+        "<<COLOR:accent>>── Common Transformations (Log-Likelihood) ──<</COLOR>>\n"
+    )
     for lam, name in zip(lambdas, lambda_names):
         if lam == 0:
             trans = np.log(data_shifted)
         else:
             trans = (data_shifted**lam - 1) / lam
         # Calculate log-likelihood
-        ll = -len(data) / 2 * np.log(np.var(trans)) + (lam - 1) * np.sum(np.log(data_shifted))
+        ll = -len(data) / 2 * np.log(np.var(trans)) + (lam - 1) * np.sum(
+            np.log(data_shifted)
+        )
         summary += f"  λ = {lam:>5} ({name:<8}): LL = {ll:.2f}\n"
 
     summary += "\n<<COLOR:success>>OPTIMAL TRANSFORMATION:<</COLOR>>\n"
@@ -521,7 +541,9 @@ def run_box_cox(df, config):
     summary += f"  Transformed: p = {p_after:.4f} {'(normal)' if p_after > 0.05 else '(non-normal)'}\n"
 
     result["summary"] = summary
-    result["guide_observation"] = f"Box-Cox optimal λ = {optimal_lambda:.3f}. {suggestion}."
+    result["guide_observation"] = (
+        f"Box-Cox optimal λ = {optimal_lambda:.3f}. {suggestion}."
+    )
     result["narrative"] = _narrative(
         f"Box-Cox: optimal \u03bb = {optimal_lambda:.3f}",
         f"{suggestion}. The Box-Cox transformation finds the power that best normalizes the data.",
@@ -543,7 +565,10 @@ def run_box_cox(df, config):
                 {
                     "type": "histogram",
                     "x": data.tolist(),
-                    "marker": {"color": "rgba(232, 87, 71, 0.4)", "line": {"color": "#e85747", "width": 1}},
+                    "marker": {
+                        "color": "rgba(232, 87, 71, 0.4)",
+                        "line": {"color": "#e85747", "width": 1},
+                    },
                 }
             ],
             "layout": {"height": 200, "xaxis": {"title": var}},
@@ -557,7 +582,10 @@ def run_box_cox(df, config):
                 {
                     "type": "histogram",
                     "x": transformed.tolist(),
-                    "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                    "marker": {
+                        "color": "rgba(74, 159, 110, 0.4)",
+                        "line": {"color": "#4a9f6e", "width": 1},
+                    },
                 }
             ],
             "layout": {"height": 200, "xaxis": {"title": f"Box-Cox({var})"}},
@@ -565,14 +593,18 @@ def run_box_cox(df, config):
     )
 
     # Lambda vs log-likelihood profile
-    lambda_range = np.linspace(max(-3, optimal_lambda - 2), min(3, optimal_lambda + 2), 50)
+    lambda_range = np.linspace(
+        max(-3, optimal_lambda - 2), min(3, optimal_lambda + 2), 50
+    )
     log_likelihoods = []
     for lam in lambda_range:
         if abs(lam) < 1e-10:
             trans = np.log(data_shifted)
         else:
             trans = (data_shifted**lam - 1) / lam
-        ll = -len(data) / 2 * np.log(np.var(trans)) + (lam - 1) * np.sum(np.log(data_shifted))
+        ll = -len(data) / 2 * np.log(np.var(trans)) + (lam - 1) * np.sum(
+            np.log(data_shifted)
+        )
         log_likelihoods.append(float(ll))
     result["plots"].append(
         {
@@ -595,7 +627,11 @@ def run_box_cox(df, config):
                     "name": f"Optimal λ = {optimal_lambda:.3f}",
                 },
             ],
-            "layout": {"height": 250, "xaxis": {"title": "Lambda (λ)"}, "yaxis": {"title": "Log-Likelihood"}},
+            "layout": {
+                "height": 250,
+                "xaxis": {"title": "Lambda (λ)"},
+                "yaxis": {"title": "Log-Likelihood"},
+            },
         }
     )
 
@@ -630,7 +666,11 @@ def run_johnson_transform(df, config):
             transformed_su = stats.johnsonsu.cdf(data, *params_su)
             transformed_su = stats.norm.ppf(np.clip(transformed_su, 0.001, 0.999))
             _, p_su = stats.shapiro(transformed_su[: min(5000, len(transformed_su))])
-            families["SU"] = {"params": params_su, "p_value": float(p_su), "transformed": transformed_su}
+            families["SU"] = {
+                "params": params_su,
+                "p_value": float(p_su),
+                "transformed": transformed_su,
+            }
         except Exception:
             pass
 
@@ -640,7 +680,11 @@ def run_johnson_transform(df, config):
             transformed_sb = stats.johnsonsb.cdf(data, *params_sb)
             transformed_sb = stats.norm.ppf(np.clip(transformed_sb, 0.001, 0.999))
             _, p_sb = stats.shapiro(transformed_sb[: min(5000, len(transformed_sb))])
-            families["SB"] = {"params": params_sb, "p_value": float(p_sb), "transformed": transformed_sb}
+            families["SB"] = {
+                "params": params_sb,
+                "p_value": float(p_sb),
+                "transformed": transformed_sb,
+            }
         except Exception:
             pass
 
@@ -648,8 +692,14 @@ def run_johnson_transform(df, config):
         try:
             if np.all(data > 0):
                 transformed_sl = np.log(data)
-                _, p_sl = stats.shapiro(transformed_sl[: min(5000, len(transformed_sl))])
-                families["SL"] = {"params": None, "p_value": float(p_sl), "transformed": transformed_sl}
+                _, p_sl = stats.shapiro(
+                    transformed_sl[: min(5000, len(transformed_sl))]
+                )
+                families["SL"] = {
+                    "params": None,
+                    "p_value": float(p_sl),
+                    "transformed": transformed_sl,
+                }
         except Exception:
             pass
 
@@ -664,16 +714,24 @@ def run_johnson_transform(df, config):
             best = families[best_family]
 
             summary += "<<COLOR:accent>>Family Results:<</COLOR>>\n"
-            for fam_name, fam_data in sorted(families.items(), key=lambda x: -x[1]["p_value"]):
+            for fam_name, fam_data in sorted(
+                families.items(), key=lambda x: -x[1]["p_value"]
+            ):
                 marker = " ← Best" if fam_name == best_family else ""
                 p = fam_data["p_value"]
-                status = "<<COLOR:success>>normal<</COLOR>>" if p > 0.05 else "<<COLOR:warning>>non-normal<</COLOR>>"
+                status = (
+                    "<<COLOR:success>>normal<</COLOR>>"
+                    if p > 0.05
+                    else "<<COLOR:warning>>non-normal<</COLOR>>"
+                )
                 summary += f"  Johnson {fam_name}: Shapiro-Wilk p = {p:.4f} ({status}){marker}\n"
 
             summary += f"\n<<COLOR:success>>Best transformation: Johnson {best_family}<</COLOR>>\n"
 
             result["summary"] = summary
-            result["guide_observation"] = f"Johnson transform: best family={best_family}, p={best['p_value']:.4f}."
+            result["guide_observation"] = (
+                f"Johnson transform: best family={best_family}, p={best['p_value']:.4f}."
+            )
             result["statistics"] = {
                 "best_family": best_family,
                 "p_original": float(p_orig),
@@ -693,7 +751,10 @@ def run_johnson_transform(df, config):
                         {
                             "type": "histogram",
                             "x": data.tolist(),
-                            "marker": {"color": "rgba(232,87,71,0.4)", "line": {"color": "#e85747", "width": 1}},
+                            "marker": {
+                                "color": "rgba(232,87,71,0.4)",
+                                "line": {"color": "#e85747", "width": 1},
+                            },
                         }
                     ],
                     "layout": {"height": 200, "xaxis": {"title": var}},
@@ -706,10 +767,16 @@ def run_johnson_transform(df, config):
                         {
                             "type": "histogram",
                             "x": best["transformed"].tolist(),
-                            "marker": {"color": "rgba(74,159,110,0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                            "marker": {
+                                "color": "rgba(74,159,110,0.4)",
+                                "line": {"color": "#4a9f6e", "width": 1},
+                            },
                         }
                     ],
-                    "layout": {"height": 200, "xaxis": {"title": f"Johnson {best_family}({var})"}},
+                    "layout": {
+                        "height": 200,
+                        "xaxis": {"title": f"Johnson {best_family}({var})"},
+                    },
                 }
             )
         else:
@@ -756,7 +823,17 @@ def run_grubbs_test(df, config):
             _p_val = (
                 min(
                     1.0,
-                    2 * n * (1 - stats.t.cdf(np.sqrt((n * (n - 2) * G**2) / (n - 1 - G**2 * (n - 1) / n)), n - 2)),
+                    2
+                    * n
+                    * (
+                        1
+                        - stats.t.cdf(
+                            np.sqrt(
+                                (n * (n - 2) * G**2) / (n - 1 - G**2 * (n - 1) / n)
+                            ),
+                            n - 2,
+                        )
+                    ),
                 )
                 if G**2 < n * (n - 1) / n
                 else 0.0
@@ -833,7 +910,11 @@ def run_grubbs_test(df, config):
                         "level": "info",
                         "title": "Investigate outlier impact",
                         "detail": f"Value {suspect:.4g} was flagged as an outlier. Determine if it is a data entry error, measurement artifact, or genuine extreme observation before removing it.",
-                        "action": {"label": "Investigate Impact", "type": "stats", "analysis": "robust_regression"},
+                        "action": {
+                            "label": "Investigate Impact",
+                            "type": "stats",
+                            "analysis": "robust_regression",
+                        },
                     }
                 )
                 # Masking warning
@@ -870,7 +951,11 @@ def run_grubbs_test(df, config):
                             "name": f"Mean = {mean_val:.4g}",
                         },
                     ],
-                    "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": var}},
+                    "layout": {
+                        "height": 300,
+                        "xaxis": {"title": "Observation"},
+                        "yaxis": {"title": var},
+                    },
                 }
             )
 
@@ -938,7 +1023,14 @@ def run_distribution_fit(df, config):
             sorted_x = np.sort(x)
             cdf_vals = dist_obj.cdf(sorted_x, *params)
             cdf_vals = np.clip(cdf_vals, 1e-15, 1 - 1e-15)
-            ad_stat = -n - np.sum((2 * np.arange(1, n + 1) - 1) * (np.log(cdf_vals) + np.log(1 - cdf_vals[::-1]))) / n
+            ad_stat = (
+                -n
+                - np.sum(
+                    (2 * np.arange(1, n + 1) - 1)
+                    * (np.log(cdf_vals) + np.log(1 - cdf_vals[::-1]))
+                )
+                / n
+            )
             # KS test
             ks_stat, ks_pval = stats.kstest(x, dist_name, args=params)
             fit_results.append(
@@ -946,7 +1038,9 @@ def run_distribution_fit(df, config):
                     "dist_name": dist_name,
                     "display_name": display_name,
                     "params": params,
-                    "param_names": dist_obj.shapes.split(", ") if dist_obj.shapes else [],
+                    "param_names": (
+                        dist_obj.shapes.split(", ") if dist_obj.shapes else []
+                    ),
                     "ll": ll,
                     "aic": aic,
                     "bic": bic,
@@ -971,7 +1065,9 @@ def run_distribution_fit(df, config):
     summary += "<<COLOR:title>>DISTRIBUTION FITTING<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var} (n = {n})\n"
-    summary += f"<<COLOR:highlight>>Distributions tested:<</COLOR>> {len(fit_results)}\n\n"
+    summary += (
+        f"<<COLOR:highlight>>Distributions tested:<</COLOR>> {len(fit_results)}\n\n"
+    )
     summary += "<<COLOR:accent>>── AIC/BIC Ranking (lower = better) ──<</COLOR>>\n"
     summary += f"  {'Rank':<5} {'Distribution':<22} {'AIC':>10} {'BIC':>10} {'KS p':>8} {'AD':>8}\n"
     summary += f"  {'-' * 65}\n"
@@ -985,7 +1081,9 @@ def run_distribution_fit(df, config):
     for i, fr in enumerate(fit_results[:3]):
         dist_obj = getattr(stats, fr["dist_name"])
         param_names = list(fr["param_names"]) + ["loc", "scale"]
-        param_str = ", ".join(f"{name}={val:.4f}" for name, val in zip(param_names, fr["params"]))
+        param_str = ", ".join(
+            f"{name}={val:.4f}" for name, val in zip(param_names, fr["params"])
+        )
         summary += f"  {fr['display_name']}: {param_str}\n"
 
     result["summary"] = summary
@@ -996,7 +1094,10 @@ def run_distribution_fit(df, config):
     hist_trace = {
         "type": "histogram",
         "x": x.tolist(),
-        "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+        "marker": {
+            "color": "rgba(74, 159, 110, 0.3)",
+            "line": {"color": "#4a9f6e", "width": 1},
+        },
         "name": "Data",
     }
     pdf_colors = ["#d94a4a", "#47a5e8", "#e89547"]
@@ -1018,7 +1119,12 @@ def run_distribution_fit(df, config):
         {
             "title": f"Distribution Fit: {var}",
             "data": [hist_trace] + pdf_traces,
-            "layout": {"height": 320, "xaxis": {"title": var}, "yaxis": {"title": "Count"}, "barmode": "overlay"},
+            "layout": {
+                "height": 320,
+                "xaxis": {"title": var},
+                "yaxis": {"title": "Count"},
+                "barmode": "overlay",
+            },
         }
     )
 
@@ -1069,9 +1175,7 @@ def run_distribution_fit(df, config):
     if best["dist_name"] == "norm":
         _shape_desc = "symmetric, bell-shaped"
     elif best["dist_name"] == "lognorm":
-        _shape_desc = (
-            "right-skewed with a long upper tail — common in cycle times, financial data, and natural phenomena"
-        )
+        _shape_desc = "right-skewed with a long upper tail — common in cycle times, financial data, and natural phenomena"
     elif best["dist_name"] == "weibull_min":
         shape_param = best["params"][0]
         if shape_param < 1:
@@ -1079,7 +1183,9 @@ def run_distribution_fit(df, config):
         elif abs(shape_param - 1) < 0.1:
             _shape_desc = "constant failure rate (random / exponential-like)"
         else:
-            _shape_desc = f"increasing failure rate (wear-out pattern, shape = {shape_param:.2f})"
+            _shape_desc = (
+                f"increasing failure rate (wear-out pattern, shape = {shape_param:.2f})"
+            )
     elif best["dist_name"] == "gamma":
         _shape_desc = "right-skewed, flexible shape — common in wait times and queuing"
     elif best["dist_name"] == "expon":
@@ -1089,14 +1195,22 @@ def run_distribution_fit(df, config):
     elif best["dist_name"] == "beta":
         _shape_desc = "bounded on [0,1] — common for proportions and probabilities"
     elif best["dist_name"] == "rayleigh":
-        _shape_desc = "right-skewed, useful for magnitudes (e.g., wind speed, vibration)"
+        _shape_desc = (
+            "right-skewed, useful for magnitudes (e.g., wind speed, vibration)"
+        )
     elif best["dist_name"] == "invgauss":
-        _shape_desc = "right-skewed with heavy upper tail — common in first-passage times"
+        _shape_desc = (
+            "right-skewed with heavy upper tail — common in first-passage times"
+        )
     else:
         _shape_desc = "see probability plot for shape assessment"
 
     _aic_delta = fit_results[1]["aic"] - best["aic"] if len(fit_results) > 1 else 0
-    _aic_strength = "decisively" if _aic_delta > 10 else ("substantially" if _aic_delta > 4 else "marginally")
+    _aic_strength = (
+        "decisively"
+        if _aic_delta > 10
+        else ("substantially" if _aic_delta > 4 else "marginally")
+    )
 
     result["guide_observation"] = (
         f"Best fit: {best['display_name']} (AIC = {best['aic']:.1f}). {_shape_desc.capitalize()}."
@@ -1242,14 +1356,20 @@ def run_mixture_model(df, config):
     summary += f"<<COLOR:text>>Best k:<</COLOR>> {k_best} components (by BIC)\n\n"
 
     if k_best == 1:
-        summary += "<<COLOR:success>>Data is consistent with a single population.<</COLOR>>\n"
-        summary += f"  Mean: {components[0]['mean']:.4f}    Std: {components[0]['std']:.4f}\n"
+        summary += (
+            "<<COLOR:success>>Data is consistent with a single population.<</COLOR>>\n"
+        )
+        summary += (
+            f"  Mean: {components[0]['mean']:.4f}    Std: {components[0]['std']:.4f}\n"
+        )
     else:
         summary += f"<<COLOR:warning>>Data is best described as {k_best} overlapping populations:<</COLOR>>\n\n"
         for j, c in enumerate(components):
             summary += f"  Component {j + 1}: \u03bc={c['mean']:.4f}, \u03c3={c['std']:.4f}, weight={c['weight']:.1%}\n"
 
-    summary += "\n<<COLOR:accent>>\u2500\u2500 Model Comparison (BIC) \u2500\u2500<</COLOR>>\n"
+    summary += (
+        "\n<<COLOR:accent>>\u2500\u2500 Model Comparison (BIC) \u2500\u2500<</COLOR>>\n"
+    )
     for r in results_k:
         marker = " \u2190 best" if r["k"] == k_best else ""
         summary += f"  k={r['k']}: BIC={r['bic']:.1f}{marker}\n"
@@ -1272,9 +1392,16 @@ def run_mixture_model(df, config):
             next_steps="If you suspect stratification, check whether grouping by a categorical variable (shift, supplier, machine) reveals separation.",
         )
     else:
-        _mm_desc = "; ".join(f"one at {c['mean']:.3f} ({c['weight']:.0%})" for c in components)
-        result["guide_observation"] = f"Mixture model: {k_best} populations detected \u2014 {_mm_desc}."
-        _mm_gap = max(abs(components[i + 1]["mean"] - components[i]["mean"]) for i in range(len(components) - 1))
+        _mm_desc = "; ".join(
+            f"one at {c['mean']:.3f} ({c['weight']:.0%})" for c in components
+        )
+        result["guide_observation"] = (
+            f"Mixture model: {k_best} populations detected \u2014 {_mm_desc}."
+        )
+        _mm_gap = max(
+            abs(components[i + 1]["mean"] - components[i]["mean"])
+            for i in range(len(components) - 1)
+        )
         result["narrative"] = _narrative(
             f"Mixture Model \u2014 {k_best} populations detected",
             f"BIC selects k={k_best}: the data is best described as {k_best} overlapping Gaussians. "
@@ -1291,14 +1418,19 @@ def run_mixture_model(df, config):
 
     # Plot: histogram with overlaid component densities
     x_plot = np.linspace(
-        float(data.min()) - 2 * components[-1]["std"], float(data.max()) + 2 * components[-1]["std"], 300
+        float(data.min()) - 2 * components[-1]["std"],
+        float(data.max()) + 2 * components[-1]["std"],
+        300,
     )
     plot_data_list = [
         {
             "type": "histogram",
             "x": data.ravel().tolist(),
             "nbinsx": min(50, n // 3),
-            "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.3)",
+                "line": {"color": "#4a9f6e", "width": 1},
+            },
             "name": "Data",
             "yaxis": "y2",
         },
@@ -1314,7 +1446,11 @@ def run_mixture_model(df, config):
                     "type": "scatter",
                     "x": x_plot.tolist(),
                     "y": dens.tolist(),
-                    "line": {"color": colors[j % len(colors)], "width": 2, "dash": "dash"},
+                    "line": {
+                        "color": colors[j % len(colors)],
+                        "width": 2,
+                        "dash": "dash",
+                    },
                     "name": f"Component {j + 1} ({c['weight']:.0%})",
                 }
             )
@@ -1336,7 +1472,12 @@ def run_mixture_model(df, config):
                 "height": 320,
                 "xaxis": {"title": col},
                 "yaxis": {"title": "Density", "side": "left"},
-                "yaxis2": {"overlaying": "y", "side": "right", "showgrid": False, "title": "Count"},
+                "yaxis2": {
+                    "overlaying": "y",
+                    "side": "right",
+                    "showgrid": False,
+                    "title": "Count",
+                },
                 "barmode": "overlay",
             },
         }
@@ -1352,11 +1493,20 @@ def run_mixture_model(df, config):
                     "x": [r["k"] for r in results_k],
                     "y": [r["bic"] for r in results_k],
                     "mode": "lines+markers",
-                    "marker": {"size": 8, "color": ["#4a9f6e" if r["k"] == k_best else "#999" for r in results_k]},
+                    "marker": {
+                        "size": 8,
+                        "color": [
+                            "#4a9f6e" if r["k"] == k_best else "#999" for r in results_k
+                        ],
+                    },
                     "line": {"color": "#4a90d9"},
                 }
             ],
-            "layout": {"height": 220, "xaxis": {"title": "k (components)", "dtick": 1}, "yaxis": {"title": "BIC"}},
+            "layout": {
+                "height": 220,
+                "xaxis": {"title": "k (components)", "dtick": 1},
+                "yaxis": {"title": "BIC"},
+            },
         }
     )
 

@@ -74,10 +74,22 @@ class WorkerPoolConfig:
         if not self.worker_configs:
             # Set defaults without importing platform-specific modules
             self.worker_configs = {
-                "cpu_bound": {"min_workers": 1, "max_workers": 4, "memory_limit_mb": 1024},
-                "io_bound": {"min_workers": 2, "max_workers": 16, "memory_limit_mb": 256},
+                "cpu_bound": {
+                    "min_workers": 1,
+                    "max_workers": 4,
+                    "memory_limit_mb": 1024,
+                },
+                "io_bound": {
+                    "min_workers": 2,
+                    "max_workers": 16,
+                    "memory_limit_mb": 256,
+                },
                 "mixed": {"min_workers": 1, "max_workers": 8, "memory_limit_mb": 512},
-                "lightweight": {"min_workers": 1, "max_workers": 4, "memory_limit_mb": 128},
+                "lightweight": {
+                    "min_workers": 1,
+                    "max_workers": 4,
+                    "memory_limit_mb": 128,
+                },
             }
 
     def to_dict(self) -> dict[str, Any]:
@@ -129,7 +141,9 @@ class SchedulerConfig:
     enable_schedule_processing: bool = True
 
     # Circuit breaker defaults
-    circuit_breaker_config: CircuitBreakerConfig = field(default_factory=CircuitBreakerConfig)
+    circuit_breaker_config: CircuitBreakerConfig = field(
+        default_factory=CircuitBreakerConfig
+    )
 
     # Default retry config
     default_retry_config: RetryConfig = field(default_factory=RetryConfig)
@@ -206,8 +220,13 @@ class SchedulerConfig:
         """Get backpressure configuration (lazy import, cached)."""
         from syn.sched.backpressure.controller import BackpressureConfig
 
-        if not hasattr(self, "_backpressure_instance") or self._backpressure_instance is None:
-            self._backpressure_instance = BackpressureConfig(**(self._backpressure or {}))
+        if (
+            not hasattr(self, "_backpressure_instance")
+            or self._backpressure_instance is None
+        ):
+            self._backpressure_instance = BackpressureConfig(
+                **(self._backpressure or {})
+            )
         return self._backpressure_instance
 
     def get_temporal_config(self) -> TemporalControllerConfig:
@@ -280,13 +299,19 @@ class SchedulerConfig:
 
         # Feature flags
         if "SYNARA_SCHED_ENABLE_BACKPRESSURE" in os.environ:
-            config.enable_backpressure = os.environ["SYNARA_SCHED_ENABLE_BACKPRESSURE"].lower() == "true"
+            config.enable_backpressure = (
+                os.environ["SYNARA_SCHED_ENABLE_BACKPRESSURE"].lower() == "true"
+            )
 
         if "SYNARA_SCHED_ENABLE_TEMPORAL" in os.environ:
-            config.enable_temporal_reflexes = os.environ["SYNARA_SCHED_ENABLE_TEMPORAL"].lower() == "true"
+            config.enable_temporal_reflexes = (
+                os.environ["SYNARA_SCHED_ENABLE_TEMPORAL"].lower() == "true"
+            )
 
         if "SYNARA_SCHED_CELERY_SHADOW" in os.environ:
-            config.celery_shadow_mode = os.environ["SYNARA_SCHED_CELERY_SHADOW"].lower() == "true"
+            config.celery_shadow_mode = (
+                os.environ["SYNARA_SCHED_CELERY_SHADOW"].lower() == "true"
+            )
 
         return config
 

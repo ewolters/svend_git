@@ -60,7 +60,6 @@ class Settings(BaseSettings):
     # Rate limiting
     rate_limit_per_minute: int = 20
 
-
     # Pipeline selection (Synara = alpha-ready with 93% accuracy, MoE = requires training)
     use_synara: bool = Field(
         default=True,

@@ -17,53 +17,108 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Conversation',
+            name="Conversation",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(blank=True, max_length=255)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='conversations', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("title", models.CharField(blank=True, max_length=255)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="conversations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'conversations',
-                'ordering': ['-updated_at'],
+                "db_table": "conversations",
+                "ordering": ["-updated_at"],
             },
         ),
         migrations.CreateModel(
-            name='Message',
+            name="Message",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('role', models.CharField(choices=[('user', 'User'), ('assistant', 'Assistant'), ('system', 'System')], max_length=10)),
-                ('content', models.TextField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('domain', models.CharField(blank=True, max_length=50)),
-                ('difficulty', models.FloatField(blank=True, null=True)),
-                ('verified', models.BooleanField(null=True)),
-                ('verification_confidence', models.FloatField(blank=True, null=True)),
-                ('blocked', models.BooleanField(default=False)),
-                ('block_reason', models.CharField(blank=True, max_length=255)),
-                ('reasoning_trace', models.JSONField(blank=True, null=True)),
-                ('tool_calls', models.JSONField(blank=True, null=True)),
-                ('inference_time_ms', models.IntegerField(blank=True, null=True)),
-                ('conversation', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='messages', to='chat.conversation')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[
+                            ("user", "User"),
+                            ("assistant", "Assistant"),
+                            ("system", "System"),
+                        ],
+                        max_length=10,
+                    ),
+                ),
+                ("content", models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("domain", models.CharField(blank=True, max_length=50)),
+                ("difficulty", models.FloatField(blank=True, null=True)),
+                ("verified", models.BooleanField(null=True)),
+                ("verification_confidence", models.FloatField(blank=True, null=True)),
+                ("blocked", models.BooleanField(default=False)),
+                ("block_reason", models.CharField(blank=True, max_length=255)),
+                ("reasoning_trace", models.JSONField(blank=True, null=True)),
+                ("tool_calls", models.JSONField(blank=True, null=True)),
+                ("inference_time_ms", models.IntegerField(blank=True, null=True)),
+                (
+                    "conversation",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="messages",
+                        to="chat.conversation",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'messages',
-                'ordering': ['created_at'],
+                "db_table": "messages",
+                "ordering": ["created_at"],
             },
         ),
         migrations.CreateModel(
-            name='SharedConversation',
+            name="SharedConversation",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('expires_at', models.DateTimeField(blank=True, null=True)),
-                ('view_count', models.IntegerField(default=0)),
-                ('conversation', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='share', to='chat.conversation')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("expires_at", models.DateTimeField(blank=True, null=True)),
+                ("view_count", models.IntegerField(default=0)),
+                (
+                    "conversation",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="share",
+                        to="chat.conversation",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'shared_conversations',
+                "db_table": "shared_conversations",
             },
         ),
     ]

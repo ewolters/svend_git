@@ -8,78 +8,78 @@ import core.encryption
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('chat', '0004_eventlog'),
+        ("chat", "0004_eventlog"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='message',
-            name='content',
+            model_name="message",
+            name="content",
             field=core.encryption.EncryptedTextField(),
         ),
         migrations.AlterField(
-            model_name='message',
-            name='reasoning_trace',
+            model_name="message",
+            name="reasoning_trace",
             field=core.encryption.EncryptedJSONField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='message',
-            name='tool_calls',
+            model_name="message",
+            name="tool_calls",
             field=core.encryption.EncryptedJSONField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='tracelog',
-            name='input_text',
+            model_name="tracelog",
+            name="input_text",
             field=core.encryption.EncryptedTextField(),
         ),
         migrations.AlterField(
-            model_name='tracelog',
-            name='lm_prompt',
+            model_name="tracelog",
+            name="lm_prompt",
             field=core.encryption.EncryptedTextField(blank=True),
         ),
         migrations.AlterField(
-            model_name='tracelog',
-            name='lm_raw_output',
+            model_name="tracelog",
+            name="lm_raw_output",
             field=core.encryption.EncryptedTextField(blank=True),
         ),
         migrations.AlterField(
-            model_name='tracelog',
-            name='reasoner_raw_output',
+            model_name="tracelog",
+            name="reasoner_raw_output",
             field=core.encryption.EncryptedTextField(blank=True),
         ),
         migrations.AlterField(
-            model_name='tracelog',
-            name='reasoning_trace',
+            model_name="tracelog",
+            name="reasoning_trace",
             field=core.encryption.EncryptedJSONField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='tracelog',
-            name='response',
+            model_name="tracelog",
+            name="response",
             field=core.encryption.EncryptedTextField(blank=True),
         ),
         migrations.AlterField(
-            model_name='tracelog',
-            name='tool_calls',
+            model_name="tracelog",
+            name="tool_calls",
             field=core.encryption.EncryptedJSONField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='trainingcandidate',
-            name='corrected_response',
+            model_name="trainingcandidate",
+            name="corrected_response",
             field=core.encryption.EncryptedTextField(blank=True),
         ),
         migrations.AlterField(
-            model_name='trainingcandidate',
-            name='input_text',
+            model_name="trainingcandidate",
+            name="input_text",
             field=core.encryption.EncryptedTextField(),
         ),
         migrations.AlterField(
-            model_name='trainingcandidate',
-            name='model_response',
+            model_name="trainingcandidate",
+            name="model_response",
             field=core.encryption.EncryptedTextField(blank=True),
         ),
         migrations.AlterField(
-            model_name='trainingcandidate',
-            name='reasoning_trace',
+            model_name="trainingcandidate",
+            name="reasoning_trace",
             field=core.encryption.EncryptedJSONField(blank=True, null=True),
         ),
     ]

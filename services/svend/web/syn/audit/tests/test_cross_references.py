@@ -39,7 +39,9 @@ PROSE_SECTION_RE = re.compile(
 )
 
 # Code compliance comment pattern
-CODE_COMPLIANCE_RE = re.compile(r"#\s*Compliance:\s*([A-Z]{2,5}-\d{3})\s+§(\d+(?:\.\d+)*)")
+CODE_COMPLIANCE_RE = re.compile(
+    r"#\s*Compliance:\s*([A-Z]{2,5}-\d{3})\s+§(\d+(?:\.\d+)*)"
+)
 
 
 def _get_all_standards():
@@ -308,7 +310,9 @@ class ComplianceHeaderTest(SimpleTestCase):
                     # Only flag if it's a Kjerne standard dep
                     std_match = CODE_RE.search(line)
                     if std_match and std_match.group() in _get_all_standards():
-                        self.fail(f"{path.name}: uses '>=' instead of '≥' in Compliance header. Line: {line.strip()}")
+                        self.fail(
+                            f"{path.name}: uses '>=' instead of '≥' in Compliance header. Line: {line.strip()}"
+                        )
 
 
 class NoDependencyCyclesTest(SimpleTestCase):
@@ -355,7 +359,11 @@ class NoDependencyCyclesTest(SimpleTestCase):
         content = (STANDARDS_DIR / "DOC-001.md").read_text()
         deps = _extract_compliance_deps(content)
         kjerne_deps = [d for d in deps if d in all_standards]
-        self.assertEqual(kjerne_deps, [], f"DOC-001 should be the root with no Kjerne deps, but has: {kjerne_deps}")
+        self.assertEqual(
+            kjerne_deps,
+            [],
+            f"DOC-001 should be the root with no Kjerne deps, but has: {kjerne_deps}",
+        )
 
 
 class ProseReferenceTest(SimpleTestCase):
@@ -375,10 +383,12 @@ class ProseReferenceTest(SimpleTestCase):
                 self.assertEqual(
                     len(matches),
                     0,
-                    f"{path.name}: prose-style ref found: 'section {matches[0][0]} of {matches[0][1]}'. "
-                    f"Use '{matches[0][1]} §{matches[0][0]}' instead (XRF-001 §7.2)."
-                    if matches
-                    else "",
+                    (
+                        f"{path.name}: prose-style ref found: 'section {matches[0][0]} of {matches[0][1]}'. "
+                        f"Use '{matches[0][1]} §{matches[0][0]}' instead (XRF-001 §7.2)."
+                        if matches
+                        else ""
+                    ),
                 )
 
 
@@ -405,7 +415,9 @@ class EmDashConsistencyTest(SimpleTestCase):
                 std_match = CODE_RE.search(line)
                 if std_match and std_match.group() in _get_all_standards():
                     if " -- " in line or " --" in line.rstrip():
-                        self.fail(f"{path.name}: uses '--' instead of '—' in Compliance header. Line: {line.strip()}")
+                        self.fail(
+                            f"{path.name}: uses '--' instead of '—' in Compliance header. Line: {line.strip()}"
+                        )
 
 
 class CodeComplianceCommentTest(SimpleTestCase):
@@ -420,7 +432,9 @@ class CodeComplianceCommentTest(SimpleTestCase):
             WEB_DIR / "syn" / "audit" / "standards.py",
             WEB_DIR / "syn" / "audit" / "utils.py",
         ]
-        re.compile(r"#.*compliance:.*(?:aud|sec|api|dat|err|log|chg|cmp)", re.IGNORECASE)
+        re.compile(
+            r"#.*compliance:.*(?:aud|sec|api|dat|err|log|chg|cmp)", re.IGNORECASE
+        )
         good_format = CODE_COMPLIANCE_RE
 
         for fpath in key_files:

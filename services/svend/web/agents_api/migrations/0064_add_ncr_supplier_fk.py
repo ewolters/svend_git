@@ -7,13 +7,19 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0063_add_ncr_approved_at'),
+        ("agents_api", "0063_add_ncr_approved_at"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='nonconformancerecord',
-            name='supplier',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='ncrs', to='agents_api.supplierrecord'),
+            model_name="nonconformancerecord",
+            name="supplier",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="ncrs",
+                to="agents_api.supplierrecord",
+            ),
         ),
     ]

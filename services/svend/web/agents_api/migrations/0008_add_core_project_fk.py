@@ -7,14 +7,21 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0007_cacheentry'),
-        ('core', '0002_add_dataset_and_experiment_design'),
+        ("agents_api", "0007_cacheentry"),
+        ("core", "0002_add_dataset_and_experiment_design"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='problem',
-            name='core_project',
-            field=models.ForeignKey(blank=True, help_text='Canonical core.Project (Phase 1 migration — dual-write)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='legacy_problems', to='core.project'),
+            model_name="problem",
+            name="core_project",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Canonical core.Project (Phase 1 migration — dual-write)",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="legacy_problems",
+                to="core.project",
+            ),
         ),
     ]

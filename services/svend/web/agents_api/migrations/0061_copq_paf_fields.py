@@ -6,18 +6,40 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0060_qms_attachment'),
+        ("agents_api", "0060_qms_attachment"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='capareport',
-            name='copq_category',
-            field=models.CharField(blank=True, choices=[('scrap', 'Scrap'), ('rework', 'Rework'), ('warranty', 'Warranty'), ('inspection', 'Inspection'), ('sorting', 'Sorting'), ('other', 'Other')], help_text='Direct cost category', max_length=30),
+            model_name="capareport",
+            name="copq_category",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("scrap", "Scrap"),
+                    ("rework", "Rework"),
+                    ("warranty", "Warranty"),
+                    ("inspection", "Inspection"),
+                    ("sorting", "Sorting"),
+                    ("other", "Other"),
+                ],
+                help_text="Direct cost category",
+                max_length=30,
+            ),
         ),
         migrations.AddField(
-            model_name='capareport',
-            name='copq_paf_class',
-            field=models.CharField(blank=True, choices=[('prevention', 'Prevention'), ('appraisal', 'Appraisal'), ('internal_failure', 'Internal Failure'), ('external_failure', 'External Failure')], help_text='PAF model classification', max_length=20),
+            model_name="capareport",
+            name="copq_paf_class",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("prevention", "Prevention"),
+                    ("appraisal", "Appraisal"),
+                    ("internal_failure", "Internal Failure"),
+                    ("external_failure", "External Failure"),
+                ],
+                help_text="PAF model classification",
+                max_length=20,
+            ),
         ),
     ]

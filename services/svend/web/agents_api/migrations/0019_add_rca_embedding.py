@@ -6,13 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0018_rca_session'),
+        ("agents_api", "0018_rca_session"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='rcasession',
-            name='embedding',
-            field=models.BinaryField(blank=True, help_text='Embedding vector for similarity search', null=True),
+            model_name="rcasession",
+            name="embedding",
+            field=models.BinaryField(
+                blank=True,
+                help_text="Embedding vector for similarity search",
+                null=True,
+            ),
         ),
     ]

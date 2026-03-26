@@ -123,8 +123,12 @@ class QueueMetrics:
             "queued_by_queue": self.queued_by_queue,
             "avg_wait_time_ms": self.avg_wait_time_ms,
             "max_wait_time_ms": self.max_wait_time_ms,
-            "last_fetch_time": self.last_fetch_time.isoformat() if self.last_fetch_time else None,
-            "last_dispatch_time": self.last_dispatch_time.isoformat() if self.last_dispatch_time else None,
+            "last_fetch_time": (
+                self.last_fetch_time.isoformat() if self.last_fetch_time else None
+            ),
+            "last_dispatch_time": (
+                self.last_dispatch_time.isoformat() if self.last_dispatch_time else None
+            ),
         }
 
 
@@ -175,7 +179,9 @@ class ExecutionQueue:
         self._queue: list[QueuedTask] = []
 
         # Per-resource-class queues for affinity
-        self._queues_by_class: dict[ResourceClass, list[QueuedTask]] = {rc: [] for rc in ResourceClass}
+        self._queues_by_class: dict[ResourceClass, list[QueuedTask]] = {
+            rc: [] for rc in ResourceClass
+        }
 
         # Tracking sets
         self._task_ids: set[uuid.UUID] = set()
@@ -213,7 +219,9 @@ class ExecutionQueue:
             if task.tenant_id:
                 tenant_count = self._tasks_by_tenant.get(task.tenant_id, 0)
                 if tenant_count >= self._max_per_tenant:
-                    logger.warning(f"[QUEUE] Rejected task {task.task_id}: tenant limit")
+                    logger.warning(
+                        f"[QUEUE] Rejected task {task.task_id}: tenant limit"
+                    )
                     self._metrics.total_rejected += 1
                     return False
 
@@ -232,19 +240,29 @@ class ExecutionQueue:
             # Update tracking
             self._task_ids.add(task.task_id)
             if task.tenant_id:
-                self._tasks_by_tenant[task.tenant_id] = self._tasks_by_tenant.get(task.tenant_id, 0) + 1
+                self._tasks_by_tenant[task.tenant_id] = (
+                    self._tasks_by_tenant.get(task.tenant_id, 0) + 1
+                )
 
             # Update metrics
             self._metrics.total_queued += 1
             rc_key = task.resource_class.value
-            self._metrics.queued_by_resource_class[rc_key] = self._metrics.queued_by_resource_class.get(rc_key, 0) + 1
+            self._metrics.queued_by_resource_class[rc_key] = (
+                self._metrics.queued_by_resource_class.get(rc_key, 0) + 1
+            )
             if task.tenant_id:
                 tenant_key = str(task.tenant_id)
-                self._metrics.queued_by_tenant[tenant_key] = self._metrics.queued_by_tenant.get(tenant_key, 0) + 1
+                self._metrics.queued_by_tenant[tenant_key] = (
+                    self._metrics.queued_by_tenant.get(tenant_key, 0) + 1
+                )
             queue_key = task.queue
-            self._metrics.queued_by_queue[queue_key] = self._metrics.queued_by_queue.get(queue_key, 0) + 1
+            self._metrics.queued_by_queue[queue_key] = (
+                self._metrics.queued_by_queue.get(queue_key, 0) + 1
+            )
 
-            logger.debug(f"[QUEUE] Enqueued task {task.task_id} ({task.resource_class.value})")
+            logger.debug(
+                f"[QUEUE] Enqueued task {task.task_id} ({task.resource_class.value})"
+            )
             return True
 
     def get_next(
@@ -287,7 +305,9 @@ class ExecutionQueue:
                 if self._circuit_breaker_check:
                     cb_service = task.metadata.get("circuit_breaker")
                     if cb_service and self._is_circuit_open(cb_service):
-                        logger.debug(f"[QUEUE] Skipping task {task.task_id}: circuit open")
+                        logger.debug(
+                            f"[QUEUE] Skipping task {task.task_id}: circuit open"
+                        )
                         # Re-queue with delay
                         heapq.heappush(source_queue, task)
                         continue
@@ -295,7 +315,9 @@ class ExecutionQueue:
                 # Remove from tracking
                 self._task_ids.discard(task.task_id)
                 if task.tenant_id:
-                    self._tasks_by_tenant[task.tenant_id] = max(0, self._tasks_by_tenant.get(task.tenant_id, 1) - 1)
+                    self._tasks_by_tenant[task.tenant_id] = max(
+                        0, self._tasks_by_tenant.get(task.tenant_id, 1) - 1
+                    )
 
                 # Also remove from main queue if using class-specific queue
                 if resource_class:
@@ -310,8 +332,12 @@ class ExecutionQueue:
                 self._wait_times.append(wait_time_ms)
                 if len(self._wait_times) > 1000:
                     self._wait_times = self._wait_times[-1000:]
-                self._metrics.avg_wait_time_ms = sum(self._wait_times) / len(self._wait_times)
-                self._metrics.max_wait_time_ms = max(self._metrics.max_wait_time_ms, wait_time_ms)
+                self._metrics.avg_wait_time_ms = sum(self._wait_times) / len(
+                    self._wait_times
+                )
+                self._metrics.max_wait_time_ms = max(
+                    self._metrics.max_wait_time_ms, wait_time_ms
+                )
 
                 logger.debug(f"[QUEUE] Dispatching task {task.task_id}")
                 return task

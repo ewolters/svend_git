@@ -36,14 +36,20 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.TEAM):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123")
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123"
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
 
 
 def _make_investigation(user, **kwargs):
-    defaults = {"title": "API test investigation", "description": "Testing views", "owner": user}
+    defaults = {
+        "title": "API test investigation",
+        "description": "Testing views",
+        "owner": user,
+    }
     defaults.update(kwargs)
     return Investigation.objects.create(**defaults)
 
@@ -90,7 +96,9 @@ class ListCreateTest(TestCase):
         )
         inv = Investigation.objects.get(title="Membership Test")
         self.assertTrue(
-            InvestigationMembership.objects.filter(investigation=inv, user=self.user, role="owner").exists()
+            InvestigationMembership.objects.filter(
+                investigation=inv, user=self.user, role="owner"
+            ).exists()
         )
 
     def test_create_requires_title(self):
@@ -113,7 +121,9 @@ class ListCreateTest(TestCase):
         """GET returns investigations where user is a member."""
         other = _make_user("other@test.com")
         inv = _make_investigation(other, title="Shared Investigation")
-        InvestigationMembership.objects.create(investigation=inv, user=self.user, role="contributor")
+        InvestigationMembership.objects.create(
+            investigation=inv, user=self.user, role="contributor"
+        )
         resp = self.client.get("/api/investigations/")
         titles = [i["title"] for i in resp.json()["investigations"]]
         self.assertIn("Shared Investigation", titles)
@@ -164,7 +174,9 @@ class DetailTest(TestCase):
     def test_delete_non_owner_rejected(self):
         """DELETE by non-owner member returns 403."""
         member = _make_user("member@test.com")
-        InvestigationMembership.objects.create(investigation=self.inv, user=member, role="contributor")
+        InvestigationMembership.objects.create(
+            investigation=self.inv, user=member, role="contributor"
+        )
         client = _authed_client(member)
         resp = client.delete(f"/api/investigations/{self.inv.id}/")
         self.assertEqual(resp.status_code, 403)
@@ -287,7 +299,9 @@ class MemberTest(TestCase):
 
     def test_list_members(self):
         """GET members returns list."""
-        InvestigationMembership.objects.create(investigation=self.inv, user=self.owner, role="owner")
+        InvestigationMembership.objects.create(
+            investigation=self.inv, user=self.owner, role="owner"
+        )
         resp = self.client.get(f"/api/investigations/{self.inv.id}/members/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.json()["members"]), 1)
@@ -300,22 +314,34 @@ class MemberTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 201)
-        self.assertTrue(InvestigationMembership.objects.filter(investigation=self.inv, user=self.member).exists())
+        self.assertTrue(
+            InvestigationMembership.objects.filter(
+                investigation=self.inv, user=self.member
+            ).exists()
+        )
 
     def test_remove_member(self):
         """DELETE removes a member."""
-        InvestigationMembership.objects.create(investigation=self.inv, user=self.member, role="contributor")
+        InvestigationMembership.objects.create(
+            investigation=self.inv, user=self.member, role="contributor"
+        )
         resp = self.client.delete(
             f"/api/investigations/{self.inv.id}/members/",
             {"user_id": str(self.member.id)},
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertFalse(InvestigationMembership.objects.filter(investigation=self.inv, user=self.member).exists())
+        self.assertFalse(
+            InvestigationMembership.objects.filter(
+                investigation=self.inv, user=self.member
+            ).exists()
+        )
 
     def test_non_owner_cannot_add(self):
         """Non-owner POST to members returns 403."""
-        InvestigationMembership.objects.create(investigation=self.inv, user=self.member, role="contributor")
+        InvestigationMembership.objects.create(
+            investigation=self.inv, user=self.member, role="contributor"
+        )
         client = _authed_client(self.member)
         other = _make_user("other2@test.com")
         resp = client.post(
@@ -349,7 +375,9 @@ class GraphTest(TestCase):
         from agents_api.investigation_bridge import HypothesisSpec, connect_tool
 
         inv = _make_investigation(self.user, status="active")
-        tool = MeasurementSystem.objects.create(name="Test Gage", system_type="variable", owner=self.user)
+        tool = MeasurementSystem.objects.create(
+            name="Test Gage", system_type="variable", owner=self.user
+        )
         spec = HypothesisSpec(description="Test hypothesis", prior=0.6)
         connect_tool(
             investigation_id=str(inv.id),
@@ -384,7 +412,9 @@ class ToolsTest(TestCase):
         from agents_api.investigation_bridge import HypothesisSpec, connect_tool
 
         inv = _make_investigation(self.user, status="active")
-        tool = MeasurementSystem.objects.create(name="Test Gage", system_type="variable", owner=self.user)
+        tool = MeasurementSystem.objects.create(
+            name="Test Gage", system_type="variable", owner=self.user
+        )
         spec = HypothesisSpec(description="Tool link test", prior=0.5)
         connect_tool(
             investigation_id=str(inv.id),

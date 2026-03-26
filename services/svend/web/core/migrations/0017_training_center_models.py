@@ -9,68 +9,192 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0016_notebook_models'),
+        ("core", "0016_notebook_models"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='TrainingCenter',
+            name="TrainingCenter",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=255)),
-                ('country', models.CharField(help_text='ISO 3166-1 alpha-2 code', max_length=2)),
-                ('contact_name', models.CharField(blank=True, default='', max_length=255)),
-                ('contact_email', models.EmailField(blank=True, default='', max_length=254)),
-                ('website', models.URLField(blank=True, default='')),
-                ('is_ilssi_partner', models.BooleanField(default=True)),
-                ('is_ngo', models.BooleanField(default=False, help_text='NGO/non-profit — eligible for NGO pricing')),
-                ('notes', models.TextField(blank=True, default='')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('instructor', models.ForeignKey(blank=True, help_text='Primary instructor — receives free Enterprise tier', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='training_centers', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                (
+                    "country",
+                    models.CharField(help_text="ISO 3166-1 alpha-2 code", max_length=2),
+                ),
+                (
+                    "contact_name",
+                    models.CharField(blank=True, default="", max_length=255),
+                ),
+                (
+                    "contact_email",
+                    models.EmailField(blank=True, default="", max_length=254),
+                ),
+                ("website", models.URLField(blank=True, default="")),
+                ("is_ilssi_partner", models.BooleanField(default=True)),
+                (
+                    "is_ngo",
+                    models.BooleanField(
+                        default=False,
+                        help_text="NGO/non-profit — eligible for NGO pricing",
+                    ),
+                ),
+                ("notes", models.TextField(blank=True, default="")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "instructor",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Primary instructor — receives free Enterprise tier",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="training_centers",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'core_training_center',
-                'ordering': ['name'],
+                "db_table": "core_training_center",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='TrainingProgram',
+            name="TrainingProgram",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(help_text="e.g., 'Lean Six Sigma Green Belt — SA Cohort 1'", max_length=300)),
-                ('description', models.TextField(blank=True, default='')),
-                ('status', models.CharField(choices=[('planned', 'Planned'), ('active', 'Active'), ('completed', 'Completed'), ('cancelled', 'Cancelled')], default='planned', max_length=20)),
-                ('start_date', models.DateField(blank=True, null=True)),
-                ('end_date', models.DateField(blank=True, null=True)),
-                ('region', models.CharField(default='us', help_text='Pricing region code (za, in, us, etc.)', max_length=10)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('center', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='programs', to='core.trainingcenter')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(
+                        help_text="e.g., 'Lean Six Sigma Green Belt — SA Cohort 1'",
+                        max_length=300,
+                    ),
+                ),
+                ("description", models.TextField(blank=True, default="")),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("planned", "Planned"),
+                            ("active", "Active"),
+                            ("completed", "Completed"),
+                            ("cancelled", "Cancelled"),
+                        ],
+                        default="planned",
+                        max_length=20,
+                    ),
+                ),
+                ("start_date", models.DateField(blank=True, null=True)),
+                ("end_date", models.DateField(blank=True, null=True)),
+                (
+                    "region",
+                    models.CharField(
+                        default="us",
+                        help_text="Pricing region code (za, in, us, etc.)",
+                        max_length=10,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "center",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="programs",
+                        to="core.trainingcenter",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'core_training_program',
-                'ordering': ['-start_date'],
+                "db_table": "core_training_program",
+                "ordering": ["-start_date"],
             },
         ),
         migrations.CreateModel(
-            name='StudentEnrollment',
+            name="StudentEnrollment",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('status', models.CharField(choices=[('enrolled', 'Enrolled'), ('graduated', 'Graduated'), ('converted', 'Converted'), ('expired', 'Expired'), ('withdrawn', 'Withdrawn')], default='enrolled', max_length=20)),
-                ('enrolled_at', models.DateTimeField(auto_now_add=True)),
-                ('graduated_at', models.DateTimeField(blank=True, null=True)),
-                ('conversion_deadline', models.DateTimeField(blank=True, help_text='30 days after graduation — must subscribe by this date for alumni rate', null=True)),
-                ('converted_at', models.DateTimeField(blank=True, null=True)),
-                ('created_by', models.ForeignKey(help_text='Staff member who created this enrollment', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='enrollments', to=settings.AUTH_USER_MODEL)),
-                ('program', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='enrollments', to='core.trainingprogram')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("enrolled", "Enrolled"),
+                            ("graduated", "Graduated"),
+                            ("converted", "Converted"),
+                            ("expired", "Expired"),
+                            ("withdrawn", "Withdrawn"),
+                        ],
+                        default="enrolled",
+                        max_length=20,
+                    ),
+                ),
+                ("enrolled_at", models.DateTimeField(auto_now_add=True)),
+                ("graduated_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "conversion_deadline",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="30 days after graduation — must subscribe by this date for alumni rate",
+                        null=True,
+                    ),
+                ),
+                ("converted_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        help_text="Staff member who created this enrollment",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="enrollments",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "program",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="enrollments",
+                        to="core.trainingprogram",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'core_student_enrollment',
-                'ordering': ['-enrolled_at'],
-                'unique_together': {('user', 'program')},
+                "db_table": "core_student_enrollment",
+                "ordering": ["-enrolled_at"],
+                "unique_together": {("user", "program")},
             },
         ),
     ]

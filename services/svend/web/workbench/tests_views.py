@@ -35,7 +35,9 @@ NOT_FOUND = [404, 500]
 
 def _make_user(email="wb@test.com", tier=Tier.TEAM, **kwargs):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123", **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123", **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -51,16 +53,22 @@ def _err_msg(resp):
 
 
 def _post(client, url, data=None, **kwargs):
-    return client.post(url, json.dumps(data or {}), content_type="application/json", **kwargs)
+    return client.post(
+        url, json.dumps(data or {}), content_type="application/json", **kwargs
+    )
 
 
 def _patch(client, url, data=None, **kwargs):
-    return client.patch(url, json.dumps(data or {}), content_type="application/json", **kwargs)
+    return client.patch(
+        url, json.dumps(data or {}), content_type="application/json", **kwargs
+    )
 
 
 def _delete(client, url, data=None, **kwargs):
     if data:
-        return client.delete(url, json.dumps(data), content_type="application/json", **kwargs)
+        return client.delete(
+            url, json.dumps(data), content_type="application/json", **kwargs
+        )
     return client.delete(url, **kwargs)
 
 
@@ -85,7 +93,11 @@ class WorkbenchLifecycleTest(TestCase):
     def test_create_list_get_update_delete_workbench(self):
         """Full workbench lifecycle: create -> list -> get -> update -> archive -> permanent delete."""
         # Create
-        resp = _post(self.client, f"{BASE}create/", {"title": "Yield Analysis", "description": "Checking yield"})
+        resp = _post(
+            self.client,
+            f"{BASE}create/",
+            {"title": "Yield Analysis", "description": "Checking yield"},
+        )
         self.assertEqual(resp.status_code, 201)
         wb_id = resp.json()["workbench"]["id"]
 
@@ -102,7 +114,11 @@ class WorkbenchLifecycleTest(TestCase):
         self.assertEqual(resp.json()["inquiry"], "Yield Analysis")
 
         # Update
-        resp = _patch(self.client, f"{BASE}{wb_id}/update/", {"title": "Updated Yield", "status": "completed"})
+        resp = _patch(
+            self.client,
+            f"{BASE}{wb_id}/update/",
+            {"title": "Updated Yield", "status": "completed"},
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
 
@@ -133,16 +149,22 @@ class WorkbenchLifecycleTest(TestCase):
         self.assertIn("Title", _err_msg(resp))
 
     def test_create_workbench_invalid_template(self):
-        resp = _post(self.client, f"{BASE}create/", {"title": "Test", "template": "nonexistent"})
+        resp = _post(
+            self.client, f"{BASE}create/", {"title": "Test", "template": "nonexistent"}
+        )
         self.assertEqual(resp.status_code, 400)
         self.assertIn("template", _err_msg(resp).lower())
 
     def test_create_workbench_invalid_json(self):
-        resp = self.client.post(f"{BASE}create/", "not json", content_type="application/json")
+        resp = self.client.post(
+            f"{BASE}create/", "not json", content_type="application/json"
+        )
         self.assertEqual(resp.status_code, 400)
 
     def test_create_dmaic_workbench_initializes_template(self):
-        resp = _post(self.client, f"{BASE}create/", {"title": "DMAIC Test", "template": "dmaic"})
+        resp = _post(
+            self.client, f"{BASE}create/", {"title": "DMAIC Test", "template": "dmaic"}
+        )
         self.assertEqual(resp.status_code, 201)
         data = resp.json()["workbench"]
         self.assertEqual(data["template"], "dmaic")
@@ -150,7 +172,9 @@ class WorkbenchLifecycleTest(TestCase):
         self.assertEqual(data["template_state"]["current_phase"], "define")
 
     def test_create_8d_workbench_initializes_template(self):
-        resp = _post(self.client, f"{BASE}create/", {"title": "8D Test", "template": "8d"})
+        resp = _post(
+            self.client, f"{BASE}create/", {"title": "8D Test", "template": "8d"}
+        )
         self.assertEqual(resp.status_code, 201)
         data = resp.json()["workbench"]
         self.assertEqual(data["template"], "8d")
@@ -198,7 +222,9 @@ class WorkbenchLifecycleTest(TestCase):
 
         # Add an artifact
         _post(
-            self.client, f"{BASE}{wb_id}/artifacts/", {"type": "note", "title": "My Note", "content": {"text": "hello"}}
+            self.client,
+            f"{BASE}{wb_id}/artifacts/",
+            {"type": "note", "title": "My Note", "content": {"text": "hello"}},
         )
 
         # Export
@@ -220,7 +246,9 @@ class WorkbenchLifecycleTest(TestCase):
         self.assertEqual(len(resp.json()["artifacts"]), 1)
 
     def test_import_invalid_json(self):
-        resp = self.client.post(f"{BASE}import/", "bad", content_type="application/json")
+        resp = self.client.post(
+            f"{BASE}import/", "bad", content_type="application/json"
+        )
         self.assertEqual(resp.status_code, 400)
 
     # -- artifacts --
@@ -318,13 +346,21 @@ class WorkbenchLifecycleTest(TestCase):
         wb_id = resp.json()["workbench"]["id"]
 
         # Create two artifacts
-        r1 = _post(self.client, f"{BASE}{wb_id}/artifacts/", {"type": "note", "content": {}})
-        r2 = _post(self.client, f"{BASE}{wb_id}/artifacts/", {"type": "note", "content": {}})
+        r1 = _post(
+            self.client, f"{BASE}{wb_id}/artifacts/", {"type": "note", "content": {}}
+        )
+        r2 = _post(
+            self.client, f"{BASE}{wb_id}/artifacts/", {"type": "note", "content": {}}
+        )
         a1 = r1.json()["artifact"]["id"]
         a2 = r2.json()["artifact"]["id"]
 
         # Connect
-        resp = _post(self.client, f"{BASE}{wb_id}/connect/", {"from": a1, "to": a2, "label": "causes"})
+        resp = _post(
+            self.client,
+            f"{BASE}{wb_id}/connect/",
+            {"from": a1, "to": a2, "label": "causes"},
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["success"])
 
@@ -335,7 +371,9 @@ class WorkbenchLifecycleTest(TestCase):
         self.assertEqual(conns[0]["from"], a1)
 
         # Disconnect
-        resp = _delete(self.client, f"{BASE}{wb_id}/disconnect/", {"from": a1, "to": a2})
+        resp = _delete(
+            self.client, f"{BASE}{wb_id}/disconnect/", {"from": a1, "to": a2}
+        )
         self.assertEqual(resp.status_code, 200)
 
         # Verify disconnected
@@ -352,11 +390,15 @@ class WorkbenchLifecycleTest(TestCase):
 
     def test_advance_dmaic_phase(self):
         """Create DMAIC workbench, advance through phases."""
-        resp = _post(self.client, f"{BASE}create/", {"title": "DMAIC", "template": "dmaic"})
+        resp = _post(
+            self.client, f"{BASE}create/", {"title": "DMAIC", "template": "dmaic"}
+        )
         wb_id = resp.json()["workbench"]["id"]
 
         # Advance: define -> measure
-        resp = _post(self.client, f"{BASE}{wb_id}/advance-phase/", {"notes": "Done defining"})
+        resp = _post(
+            self.client, f"{BASE}{wb_id}/advance-phase/", {"notes": "Done defining"}
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["current_phase"], "measure")
 
@@ -453,9 +495,13 @@ class WorkbenchLifecycleTest(TestCase):
         wb_id = resp.json()["workbench"]["id"]
 
         r1 = _post(
-            self.client, f"{BASE}{wb_id}/artifacts/", {"type": "note", "content": {}, "position": {"x": 10, "y": 20}}
+            self.client,
+            f"{BASE}{wb_id}/artifacts/",
+            {"type": "note", "content": {}, "position": {"x": 10, "y": 20}},
         )
-        r2 = _post(self.client, f"{BASE}{wb_id}/artifacts/", {"type": "note", "content": {}})
+        r2 = _post(
+            self.client, f"{BASE}{wb_id}/artifacts/", {"type": "note", "content": {}}
+        )
         a1 = r1.json()["artifact"]["id"]
         a2 = r2.json()["artifact"]["id"]
 
@@ -517,11 +563,19 @@ class KnowledgeGraphTest(TestCase):
     def test_node_add_list_remove(self):
         """Add nodes, list them, remove one."""
         # Add two nodes
-        resp = _post(self.client, self._g("nodes/add/"), {"type": "hypothesis", "label": "Temperature is key"})
+        resp = _post(
+            self.client,
+            self._g("nodes/add/"),
+            {"type": "hypothesis", "label": "Temperature is key"},
+        )
         self.assertEqual(resp.status_code, 200)
         n1_id = resp.json()["node"]["id"]
 
-        resp = _post(self.client, self._g("nodes/add/"), {"type": "cause", "label": "Equipment age"})
+        resp = _post(
+            self.client,
+            self._g("nodes/add/"),
+            {"type": "cause", "label": "Equipment age"},
+        )
         resp.json()["node"]["id"]  # n2 created successfully
 
         # List nodes
@@ -558,15 +612,24 @@ class KnowledgeGraphTest(TestCase):
 
     def test_edge_add_list(self):
         """Add edge between two nodes."""
-        r1 = _post(self.client, self._g("nodes/add/"), {"type": "cause", "label": "Heat"})
-        r2 = _post(self.client, self._g("nodes/add/"), {"type": "effect", "label": "Defects"})
+        r1 = _post(
+            self.client, self._g("nodes/add/"), {"type": "cause", "label": "Heat"}
+        )
+        r2 = _post(
+            self.client, self._g("nodes/add/"), {"type": "effect", "label": "Defects"}
+        )
         n1 = r1.json()["node"]["id"]
         n2 = r2.json()["node"]["id"]
 
         resp = _post(
             self.client,
             self._g("edges/add/"),
-            {"from_node": n1, "to_node": n2, "weight": 0.7, "mechanism": "Thermal stress"},
+            {
+                "from_node": n1,
+                "to_node": n2,
+                "weight": 0.7,
+                "mechanism": "Thermal stress",
+            },
         )
         self.assertEqual(resp.status_code, 200)
         edge = resp.json()["edge"]
@@ -578,12 +641,18 @@ class KnowledgeGraphTest(TestCase):
 
     def test_edge_add_nonexistent_node(self):
         self.client.get(self._g())
-        resp = _post(self.client, self._g("edges/add/"), {"from_node": "fake1", "to_node": "fake2"})
+        resp = _post(
+            self.client,
+            self._g("edges/add/"),
+            {"from_node": "fake1", "to_node": "fake2"},
+        )
         self.assertEqual(resp.status_code, 400)
 
     def test_edge_add_invalid_json(self):
         self.client.get(self._g())
-        resp = self.client.post(self._g("edges/add/"), "bad", content_type="application/json")
+        resp = self.client.post(
+            self._g("edges/add/"), "bad", content_type="application/json"
+        )
         self.assertEqual(resp.status_code, 400)
 
     def test_update_edge_weight(self):
@@ -592,7 +661,11 @@ class KnowledgeGraphTest(TestCase):
         n1 = r1.json()["node"]["id"]
         n2 = r2.json()["node"]["id"]
 
-        resp = _post(self.client, self._g("edges/add/"), {"from_node": n1, "to_node": n2, "weight": 0.5})
+        resp = _post(
+            self.client,
+            self._g("edges/add/"),
+            {"from_node": n1, "to_node": n2, "weight": 0.5},
+        )
         edge_id = resp.json()["edge"]["id"]
 
         resp = _post(self.client, self._g(f"edges/{edge_id}/weight/"), {"weight": 0.9})
@@ -612,7 +685,11 @@ class KnowledgeGraphTest(TestCase):
         n1 = r1.json()["node"]["id"]
         n2 = r2.json()["node"]["id"]
 
-        resp = _post(self.client, self._g("edges/add/"), {"from_node": n1, "to_node": n2, "weight": 0.5})
+        resp = _post(
+            self.client,
+            self._g("edges/add/"),
+            {"from_node": n1, "to_node": n2, "weight": 0.5},
+        )
         edge_id = resp.json()["edge"]["id"]
 
         resp = _post(
@@ -632,13 +709,19 @@ class KnowledgeGraphTest(TestCase):
 
     def test_apply_evidence_invalid_json(self):
         self.client.get(self._g())
-        resp = self.client.post(self._g("evidence/apply/"), "bad", content_type="application/json")
+        resp = self.client.post(
+            self._g("evidence/apply/"), "bad", content_type="application/json"
+        )
         self.assertEqual(resp.status_code, 400)
 
     def test_check_expansion_triggered(self):
         """Low likelihoods trigger expansion signal."""
         self.client.get(self._g())
-        resp = _post(self.client, self._g("expansion/check/"), {"likelihoods": {"edge_1": 0.05, "edge_2": 0.1}})
+        resp = _post(
+            self.client,
+            self._g("expansion/check/"),
+            {"likelihoods": {"edge_1": 0.05, "edge_2": 0.1}},
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["expansion_needed"])
         self.assertIn("signal", resp.json())
@@ -646,7 +729,11 @@ class KnowledgeGraphTest(TestCase):
     def test_check_expansion_not_triggered(self):
         """High likelihoods do not trigger expansion."""
         self.client.get(self._g())
-        resp = _post(self.client, self._g("expansion/check/"), {"likelihoods": {"edge_1": 0.5, "edge_2": 0.8}})
+        resp = _post(
+            self.client,
+            self._g("expansion/check/"),
+            {"likelihoods": {"edge_1": 0.5, "edge_2": 0.8}},
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(resp.json()["expansion_needed"])
 
@@ -655,7 +742,9 @@ class KnowledgeGraphTest(TestCase):
         self.client.get(self._g())
 
         # Trigger expansion
-        resp = _post(self.client, self._g("expansion/check/"), {"likelihoods": {"edge_1": 0.01}})
+        resp = _post(
+            self.client, self._g("expansion/check/"), {"likelihoods": {"edge_1": 0.01}}
+        )
         signal_id = resp.json()["signal"]["id"]
 
         # Get pending signals
@@ -667,7 +756,10 @@ class KnowledgeGraphTest(TestCase):
         resp = _post(
             self.client,
             self._g(f"expansions/{signal_id}/resolve/"),
-            {"resolution": "new_hypothesis", "new_node": {"type": "hypothesis", "label": "New cause discovered"}},
+            {
+                "resolution": "new_hypothesis",
+                "new_node": {"type": "hypothesis", "label": "New cause discovered"},
+            },
         )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["resolution"], "new_hypothesis")
@@ -680,16 +772,26 @@ class KnowledgeGraphTest(TestCase):
     def test_resolve_expansion_dismissed(self):
         """Resolve expansion as dismissed (no new node)."""
         self.client.get(self._g())
-        resp = _post(self.client, self._g("expansion/check/"), {"likelihoods": {"e": 0.01}})
+        resp = _post(
+            self.client, self._g("expansion/check/"), {"likelihoods": {"e": 0.01}}
+        )
         signal_id = resp.json()["signal"]["id"]
 
-        resp = _post(self.client, self._g(f"expansions/{signal_id}/resolve/"), {"resolution": "dismissed"})
+        resp = _post(
+            self.client,
+            self._g(f"expansions/{signal_id}/resolve/"),
+            {"resolution": "dismissed"},
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertIsNone(resp.json()["new_node"])
 
     def test_resolve_nonexistent_signal(self):
         self.client.get(self._g())
-        resp = _post(self.client, self._g("expansions/fake_signal/resolve/"), {"resolution": "dismissed"})
+        resp = _post(
+            self.client,
+            self._g("expansions/fake_signal/resolve/"),
+            {"resolution": "dismissed"},
+        )
         self.assertEqual(resp.status_code, 404)
 
     def test_causal_chain(self):
@@ -701,8 +803,16 @@ class KnowledgeGraphTest(TestCase):
         nb = rb.json()["node"]["id"]
         nc = rc.json()["node"]["id"]
 
-        _post(self.client, self._g("edges/add/"), {"from_node": na, "to_node": nb, "weight": 0.8})
-        _post(self.client, self._g("edges/add/"), {"from_node": nb, "to_node": nc, "weight": 0.6})
+        _post(
+            self.client,
+            self._g("edges/add/"),
+            {"from_node": na, "to_node": nb, "weight": 0.8},
+        )
+        _post(
+            self.client,
+            self._g("edges/add/"),
+            {"from_node": nb, "to_node": nc, "weight": 0.6},
+        )
 
         resp = self.client.get(self._g(f"chain/{na}/{nc}/"))
         self.assertEqual(resp.status_code, 200)
@@ -722,9 +832,17 @@ class KnowledgeGraphTest(TestCase):
 
     def test_upstream_causes(self):
         """Add A->B->C, get upstream of C."""
-        ra = _post(self.client, self._g("nodes/add/"), {"type": "cause", "label": "Root"})
-        rb = _post(self.client, self._g("nodes/add/"), {"type": "cause", "label": "Intermediate"})
-        rc = _post(self.client, self._g("nodes/add/"), {"type": "effect", "label": "Leaf"})
+        ra = _post(
+            self.client, self._g("nodes/add/"), {"type": "cause", "label": "Root"}
+        )
+        rb = _post(
+            self.client,
+            self._g("nodes/add/"),
+            {"type": "cause", "label": "Intermediate"},
+        )
+        rc = _post(
+            self.client, self._g("nodes/add/"), {"type": "effect", "label": "Leaf"}
+        )
         na = ra.json()["node"]["id"]
         nb = rb.json()["node"]["id"]
         nc = rc.json()["node"]["id"]
@@ -738,9 +856,15 @@ class KnowledgeGraphTest(TestCase):
 
     def test_upstream_causes_with_depth(self):
         """Upstream causes respect depth parameter."""
-        ra = _post(self.client, self._g("nodes/add/"), {"type": "cause", "label": "Root"})
-        rb = _post(self.client, self._g("nodes/add/"), {"type": "cause", "label": "Mid"})
-        rc = _post(self.client, self._g("nodes/add/"), {"type": "effect", "label": "Leaf"})
+        ra = _post(
+            self.client, self._g("nodes/add/"), {"type": "cause", "label": "Root"}
+        )
+        rb = _post(
+            self.client, self._g("nodes/add/"), {"type": "cause", "label": "Mid"}
+        )
+        rc = _post(
+            self.client, self._g("nodes/add/"), {"type": "effect", "label": "Leaf"}
+        )
         na = ra.json()["node"]["id"]
         nb = rb.json()["node"]["id"]
         nc = rc.json()["node"]["id"]
@@ -768,7 +892,11 @@ class KnowledgeGraphTest(TestCase):
 
     def test_epistemic_log(self):
         """Adding a node creates a log entry; verify log retrieval."""
-        _post(self.client, self._g("nodes/add/"), {"type": "hypothesis", "label": "Logged"})
+        _post(
+            self.client,
+            self._g("nodes/add/"),
+            {"type": "hypothesis", "label": "Logged"},
+        )
 
         resp = self.client.get(f"{BASE}{self.wb_id}/epistemic-log/")
         self.assertEqual(resp.status_code, 200)
@@ -777,7 +905,9 @@ class KnowledgeGraphTest(TestCase):
 
     def test_epistemic_log_filter_by_type(self):
         """Filter log by event type."""
-        _post(self.client, self._g("nodes/add/"), {"type": "hypothesis", "label": "Test"})
+        _post(
+            self.client, self._g("nodes/add/"), {"type": "hypothesis", "label": "Test"}
+        )
 
         resp = self.client.get(f"{BASE}{self.wb_id}/epistemic-log/?type=node_added")
         self.assertEqual(resp.status_code, 200)
@@ -787,7 +917,9 @@ class KnowledgeGraphTest(TestCase):
     def test_epistemic_log_limit(self):
         """Epistemic log respects limit parameter."""
         for i in range(5):
-            _post(self.client, self._g("nodes/add/"), {"type": "cause", "label": f"N{i}"})
+            _post(
+                self.client, self._g("nodes/add/"), {"type": "cause", "label": f"N{i}"}
+            )
 
         resp = self.client.get(f"{BASE}{self.wb_id}/epistemic-log/?limit=2")
         self.assertEqual(resp.status_code, 200)
@@ -795,7 +927,9 @@ class KnowledgeGraphTest(TestCase):
 
     def test_epistemic_log_mark_outcome(self):
         """Mark an epistemic log entry with outcome."""
-        _post(self.client, self._g("nodes/add/"), {"type": "hypothesis", "label": "Test"})
+        _post(
+            self.client, self._g("nodes/add/"), {"type": "hypothesis", "label": "Test"}
+        )
 
         resp = self.client.get(f"{BASE}{self.wb_id}/epistemic-log/")
         logs = resp.json()["logs"]
@@ -875,7 +1009,9 @@ class DSWSessionReloadTest(TestCase):
         f.name = filename
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        upload = SimpleUploadedFile(filename, content.encode("utf-8"), content_type="text/csv")
+        upload = SimpleUploadedFile(
+            filename, content.encode("utf-8"), content_type="text/csv"
+        )
         resp = self.client.post(f"{self.DSW_BASE}upload-data/", {"file": upload})
         return resp
 
@@ -899,7 +1035,11 @@ class DSWSessionReloadTest(TestCase):
         return resp.json()
 
     def _retrieve_data(self, data_id, filename="dataset"):
-        resp = _post(self.client, f"{self.DSW_BASE}retrieve-data/", {"data_id": data_id, "filename": filename})
+        resp = _post(
+            self.client,
+            f"{self.DSW_BASE}retrieve-data/",
+            {"data_id": data_id, "filename": filename},
+        )
         return resp
 
     # ----- Core round-trip tests -----
@@ -932,8 +1072,20 @@ class DSWSessionReloadTest(TestCase):
         """Save dataset metadata → reload → verify datasets array intact."""
         wb_id = self._create_workbench()
         datasets = [
-            {"name": "batch_data.csv", "data_id": "data_aaa111bbb222", "cache_key": "ck_1", "rows": 500, "cols": 8},
-            {"name": "validation.csv", "data_id": "data_ccc333ddd444", "cache_key": "ck_2", "rows": 100, "cols": 3},
+            {
+                "name": "batch_data.csv",
+                "data_id": "data_aaa111bbb222",
+                "cache_key": "ck_1",
+                "rows": 500,
+                "cols": 8,
+            },
+            {
+                "name": "validation.csv",
+                "data_id": "data_ccc333ddd444",
+                "cache_key": "ck_2",
+                "rows": 100,
+                "cols": 3,
+            },
         ]
         self._save_session(wb_id, {}, datasets=datasets)
 
@@ -958,7 +1110,9 @@ class DSWSessionReloadTest(TestCase):
         )
 
         loaded = self._load_session(wb_id)
-        self.assertEqual(loaded["conclusion"], "Temperature above 125°C causes yield degradation")
+        self.assertEqual(
+            loaded["conclusion"], "Temperature above 125°C causes yield degradation"
+        )
         self.assertEqual(loaded["conclusion_confidence"], "high")
 
     def test_save_and_reload_preserves_guide_observations(self):
@@ -978,20 +1132,30 @@ class DSWSessionReloadTest(TestCase):
                 "acknowledged": True,
             },
         ]
-        _patch(self.client, f"{BASE}{wb_id}/update/", {"guide_observations": observations})
+        _patch(
+            self.client, f"{BASE}{wb_id}/update/", {"guide_observations": observations}
+        )
 
         loaded = self._load_session(wb_id)
         self.assertEqual(len(loaded["guide_observations"]), 2)
-        self.assertEqual(loaded["guide_observations"][0]["observation"], "High variance in col3")
+        self.assertEqual(
+            loaded["guide_observations"][0]["observation"], "High variance in col3"
+        )
         self.assertTrue(loaded["guide_observations"][1]["acknowledged"])
 
     def test_save_and_reload_preserves_template_state(self):
         """DMAIC template state must survive save/load including phase history."""
-        resp = _post(self.client, f"{BASE}create/", {"title": "DMAIC Reload", "template": "dmaic"})
+        resp = _post(
+            self.client,
+            f"{BASE}create/",
+            {"title": "DMAIC Reload", "template": "dmaic"},
+        )
         wb_id = resp.json()["workbench"]["id"]
 
         # Advance to Measure phase
-        _post(self.client, f"{BASE}{wb_id}/advance-phase/", {"notes": "Define complete"})
+        _post(
+            self.client, f"{BASE}{wb_id}/advance-phase/", {"notes": "Define complete"}
+        )
 
         loaded = self._load_session(wb_id)
         self.assertEqual(loaded["template"], "dmaic")
@@ -1055,7 +1219,11 @@ class DSWSessionReloadTest(TestCase):
 
     def test_retrieve_invalid_data_id_rejected(self):
         """Path traversal attempts in data_id are rejected."""
-        resp = _post(self.client, f"{self.DSW_BASE}retrieve-data/", {"data_id": "../../../etc/passwd"})
+        resp = _post(
+            self.client,
+            f"{self.DSW_BASE}retrieve-data/",
+            {"data_id": "../../../etc/passwd"},
+        )
         self.assertEqual(resp.status_code, 400)
 
     # ----- Full user simulation: upload → save → reload → verify data -----
@@ -1078,7 +1246,11 @@ class DSWSessionReloadTest(TestCase):
             "data_file": "factory_data.csv",
             "cache_key": "ck_factory_001",
             "output_tabs": [
-                {"id": "out_1", "title": "Summary Stats", "html": "<div>Mean cycle time: 12.74</div>"},
+                {
+                    "id": "out_1",
+                    "title": "Summary Stats",
+                    "html": "<div>Mean cycle time: 12.74</div>",
+                },
             ],
             "project_id": "",
         }
@@ -1124,7 +1296,10 @@ class DSWSessionReloadTest(TestCase):
 
         # Verify guide observations restored
         self.assertEqual(len(loaded["guide_observations"]), 1)
-        self.assertEqual(loaded["guide_observations"][0]["observation"], "Machine B has higher defect rate")
+        self.assertEqual(
+            loaded["guide_observations"][0]["observation"],
+            "Machine B has higher defect rate",
+        )
 
         # Step 5: Re-fetch data (mimics the retrieve-data call in loadWorkbench)
         ret_resp = self._retrieve_data(data_id, "factory_data.csv")
@@ -1145,7 +1320,11 @@ class DSWSessionReloadTest(TestCase):
 
     def test_to_json_includes_all_fields(self):
         """to_json() must return every field the frontend needs for full restore."""
-        resp = _post(self.client, f"{BASE}create/", {"title": "Completeness Check", "template": "dmaic"})
+        resp = _post(
+            self.client,
+            f"{BASE}create/",
+            {"title": "Completeness Check", "template": "dmaic"},
+        )
         wb_id = resp.json()["workbench"]["id"]
 
         # Set all fields
@@ -1156,8 +1335,17 @@ class DSWSessionReloadTest(TestCase):
                 "description": "Checking all fields",
                 "status": "active",
                 "layout": {"data_id": "data_aaa111bbb222", "cache_key": "ck_1"},
-                "datasets": [{"name": "d.csv", "data_id": "data_aaa111bbb222", "rows": 10, "cols": 2}],
-                "guide_observations": [{"observation": "test", "suggestion": "test", "acknowledged": False}],
+                "datasets": [
+                    {
+                        "name": "d.csv",
+                        "data_id": "data_aaa111bbb222",
+                        "rows": 10,
+                        "cols": 2,
+                    }
+                ],
+                "guide_observations": [
+                    {"observation": "test", "suggestion": "test", "acknowledged": False}
+                ],
                 "conclusion": "All good",
                 "conclusion_confidence": "medium",
             },
@@ -1221,7 +1409,11 @@ class DSWSessionReloadTest(TestCase):
         art2_id = resp.json()["artifact"]["id"]
 
         # Connect them
-        _post(self.client, f"{BASE}{wb_id}/connect/", {"from": art1_id, "to": art2_id, "label": "supports"})
+        _post(
+            self.client,
+            f"{BASE}{wb_id}/connect/",
+            {"from": art1_id, "to": art2_id, "label": "supports"},
+        )
 
         # Reload
         loaded = self._load_session(wb_id)

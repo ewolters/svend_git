@@ -10,24 +10,65 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0025_fmea_fmearow_report'),
+        ("agents_api", "0025_fmea_fmearow_report"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SiteAccess',
+            name="SiteAccess",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('role', models.CharField(choices=[('viewer', 'Viewer'), ('member', 'Member'), ('admin', 'Admin')], default='member', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('granted_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('site', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='access_list', to='agents_api.site')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='site_access', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[
+                            ("viewer", "Viewer"),
+                            ("member", "Member"),
+                            ("admin", "Admin"),
+                        ],
+                        default="member",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "granted_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "site",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="access_list",
+                        to="agents_api.site",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="site_access",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'hoshin_site_access',
-                'unique_together': {('site', 'user')},
+                "db_table": "hoshin_site_access",
+                "unique_together": {("site", "user")},
             },
         ),
     ]

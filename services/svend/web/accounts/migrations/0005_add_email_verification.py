@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0004_user_is_founder_locked_alter_user_tier'),
+        ("accounts", "0004_user_is_founder_locked_alter_user_tier"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='email_verification_token',
+            model_name="user",
+            name="email_verification_token",
             field=models.CharField(blank=True, db_index=True, max_length=64),
         ),
         migrations.AddField(
-            model_name='user',
-            name='email_verified',
+            model_name="user",
+            name="email_verified",
             field=models.BooleanField(default=False),
         ),
     ]

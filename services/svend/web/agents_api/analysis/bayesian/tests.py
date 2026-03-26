@@ -30,7 +30,9 @@ def run_bayes_ttest(df, config, ci_level, z):
         group_names = list(groups.index)
         if len(group_names) < 2:
             result["summary"] = "Factor column must have at least 2 groups."
-            result["guide_observation"] = "Bayesian t-test: insufficient groups in factor column."
+            result["guide_observation"] = (
+                "Bayesian t-test: insufficient groups in factor column."
+            )
             return result
         if len(group_names) > 2:
             result["summary"] = (
@@ -52,7 +54,8 @@ def run_bayes_ttest(df, config, ci_level, z):
 
     # Effect size (Cohen's d)
     pooled_std = np.sqrt(
-        ((len(x1) - 1) * np.var(x1, ddof=1) + (len(x2) - 1) * np.var(x2, ddof=1)) / (len(x1) + len(x2) - 2)
+        ((len(x1) - 1) * np.var(x1, ddof=1) + (len(x2) - 1) * np.var(x2, ddof=1))
+        / (len(x1) + len(x2) - 2)
     )
     cohens_d = (np.mean(x1) - np.mean(x2)) / pooled_std if pooled_std > 0 else 0
 
@@ -83,15 +86,22 @@ def run_bayes_ttest(df, config, ci_level, z):
     bf10 = max(bf10, 1e-10)  # Numerical floor
 
     # Posterior on effect size (approximate)
-    se_d = np.sqrt((len(x1) + len(x2)) / (len(x1) * len(x2)) + cohens_d**2 / (2 * (len(x1) + len(x2))))
+    se_d = np.sqrt(
+        (len(x1) + len(x2)) / (len(x1) * len(x2))
+        + cohens_d**2 / (2 * (len(x1) + len(x2)))
+    )
     d_ci_low = cohens_d - z * se_d
     d_ci_high = cohens_d + z * se_d
 
     summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
     summary += "<<COLOR:title>>BAYESIAN T-TEST<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-    summary += f"<<COLOR:highlight>>{var1}<</COLOR>> (n={len(x1)}, μ={np.mean(x1):.3f})\n"
-    summary += f"<<COLOR:highlight>>{var2}<</COLOR>> (n={len(x2)}, μ={np.mean(x2):.3f})\n\n"
+    summary += (
+        f"<<COLOR:highlight>>{var1}<</COLOR>> (n={len(x1)}, μ={np.mean(x1):.3f})\n"
+    )
+    summary += (
+        f"<<COLOR:highlight>>{var2}<</COLOR>> (n={len(x2)}, μ={np.mean(x2):.3f})\n\n"
+    )
 
     summary += "<<COLOR:accent>>── Effect Size ──<</COLOR>>\n"
     summary += f"  Cohen's d: {cohens_d:.3f} [{d_ci_low:.3f}, {d_ci_high:.3f}]\n\n"
@@ -99,19 +109,32 @@ def run_bayes_ttest(df, config, ci_level, z):
     summary += f"  BF₁₀: {bf10:.2f}\n\n"
 
     if bf10 > 10:
-        summary += "<<COLOR:success>>Strong evidence for difference (BF₁₀ > 10)<</COLOR>>\n"
+        summary += (
+            "<<COLOR:success>>Strong evidence for difference (BF₁₀ > 10)<</COLOR>>\n"
+        )
     elif bf10 > 3:
-        summary += "<<COLOR:warning>>Moderate evidence for difference (BF₁₀ > 3)<</COLOR>>\n"
+        summary += (
+            "<<COLOR:warning>>Moderate evidence for difference (BF₁₀ > 3)<</COLOR>>\n"
+        )
     elif bf10 > 1:
         summary += "<<COLOR:text>>Weak evidence for difference (BF₁₀ < 3)<</COLOR>>\n"
     else:
         summary += "<<COLOR:text>>Evidence favors no difference (BF₁₀ < 1)<</COLOR>>\n"
 
     result["summary"] = summary
-    result["statistics"] = {"cohens_d": cohens_d, "bf10": bf10, "d_ci_low": d_ci_low, "d_ci_high": d_ci_high}
+    result["statistics"] = {
+        "cohens_d": cohens_d,
+        "bf10": bf10,
+        "d_ci_low": d_ci_low,
+        "d_ci_high": d_ci_high,
+    }
 
     # Guide observation
-    bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+    bf_label = (
+        "strong"
+        if bf10 > 10
+        else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+    )
     result["guide_observation"] = (
         f"Bayesian t-test: d={cohens_d:.3f}, BF₁₀={bf10:.2f} ({bf_label} evidence for difference)."
     )
@@ -120,7 +143,11 @@ def run_bayes_ttest(df, config, ci_level, z):
     _bt_mag = (
         "large"
         if abs(cohens_d) >= 0.8
-        else ("medium" if abs(cohens_d) >= 0.5 else ("small" if abs(cohens_d) >= 0.2 else "negligible"))
+        else (
+            "medium"
+            if abs(cohens_d) >= 0.5
+            else ("small" if abs(cohens_d) >= 0.2 else "negligible")
+        )
     )
     result["narrative"] = _narrative(
         f"Bayesian t-test — {bf_label} evidence, d = {cohens_d:.3f} ({_bt_mag})",
@@ -161,7 +188,11 @@ def run_bayes_ttest(df, config, ci_level, z):
                     "name": "No effect",
                 },
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Cohen's d"}, "yaxis": {"title": "Density"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Cohen's d"},
+                "yaxis": {"title": "Density"},
+            },
         }
     )
 
@@ -237,7 +268,9 @@ def run_bayes_ab(df, config, ci_level, z):
     summary += "<<COLOR:title>>BAYESIAN A/B TEST<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:highlight>>Group A ({g1}):<</COLOR>> {s1}/{n1} = {rate1:.1%}\n"
-    summary += f"<<COLOR:highlight>>Group B ({g2}):<</COLOR>> {s2}/{n2} = {rate2:.1%}\n\n"
+    summary += (
+        f"<<COLOR:highlight>>Group B ({g2}):<</COLOR>> {s2}/{n2} = {rate2:.1%}\n\n"
+    )
     summary += f"<<COLOR:text>>P({g1} > {g2}):<</COLOR>> {prob_better:.1%}\n"
     summary += f"<<COLOR:text>>Relative Lift:<</COLOR>> {lift:+.1%}\n\n"
 
@@ -251,7 +284,12 @@ def run_bayes_ab(df, config, ci_level, z):
         summary += "<<COLOR:text>>Inconclusive - need more data<</COLOR>>\n"
 
     result["summary"] = summary
-    result["statistics"] = {"prob_better": prob_better, "rate_a": rate1, "rate_b": rate2, "lift": lift}
+    result["statistics"] = {
+        "prob_better": prob_better,
+        "rate_a": rate1,
+        "rate_b": rate2,
+        "lift": lift,
+    }
 
     # Posterior distributions
     x = np.linspace(0, 1, 200)
@@ -278,7 +316,11 @@ def run_bayes_ab(df, config, ci_level, z):
                     "name": f"{g2}",
                 },
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Conversion Rate"}, "yaxis": {"title": "Density"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Conversion Rate"},
+                "yaxis": {"title": "Density"},
+            },
         }
     )
 
@@ -337,7 +379,9 @@ def run_bayes_correlation(df, config, ci_level, z):
         """Integrand for correlation BF under uniform prior on rho."""
         if abs(rho) >= 1:
             return 0.0
-        log_term = ((n - 2) / 2) * np.log(1 - rho**2) - ((n - 1) / 2) * np.log(1 - r * rho)
+        log_term = ((n - 2) / 2) * np.log(1 - rho**2) - ((n - 1) / 2) * np.log(
+            1 - r * rho
+        )
         return np.exp(log_term)
 
     bf_integral, _ = quad(_corr_bf_integrand, -1 + 1e-10, 1 - 1e-10)
@@ -368,13 +412,24 @@ def run_bayes_correlation(df, config, ci_level, z):
     elif bf10 > 1:
         summary += "  <<COLOR:text>>Weak evidence for association<</COLOR>>\n"
     else:
-        summary += "  <<COLOR:text>>Evidence favors no association (BF₁₀ < 1)<</COLOR>>\n"
+        summary += (
+            "  <<COLOR:text>>Evidence favors no association (BF₁₀ < 1)<</COLOR>>\n"
+        )
 
     result["summary"] = summary
-    result["statistics"] = {"r": r, "r_ci_low": r_low, "r_ci_high": r_high, "bf10": bf10}
+    result["statistics"] = {
+        "r": r,
+        "r_ci_low": r_low,
+        "r_ci_high": r_high,
+        "bf10": bf10,
+    }
 
     # Guide observation
-    bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+    bf_label = (
+        "strong"
+        if bf10 > 10
+        else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+    )
     result["guide_observation"] = (
         f"Bayesian correlation: r={r:.3f} ({strength} {direction}), BF₁₀={bf10:.2f} ({bf_label} evidence)."
     )
@@ -401,7 +456,11 @@ def run_bayes_correlation(df, config, ci_level, z):
                     "marker": {"color": "#4a9f6e", "size": 6, "opacity": 0.6},
                 }
             ],
-            "layout": {"height": 300, "xaxis": {"title": var1}, "yaxis": {"title": var2}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": var1},
+                "yaxis": {"title": var2},
+            },
         }
     )
 
@@ -467,7 +526,9 @@ def run_bayes_anova(df, config, ci_level, z):
     summary += "<<COLOR:title>>BAYESIAN ANOVA<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:highlight>>Response:<</COLOR>> {response}\n"
-    summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({len(group_names)} levels)\n\n"
+    summary += (
+        f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({len(group_names)} levels)\n\n"
+    )
 
     summary += "<<COLOR:accent>>── Group Statistics ──<</COLOR>>\n"
     for name in group_names:
@@ -485,15 +546,26 @@ def run_bayes_anova(df, config, ci_level, z):
     elif bf10 > 3:
         summary += "  <<COLOR:warning>>Moderate evidence for group differences (BF₁₀ > 3)<</COLOR>>\n"
     elif bf10 > 1:
-        summary += "  <<COLOR:text>>Weak evidence for group differences (BF₁₀ < 3)<</COLOR>>\n"
+        summary += (
+            "  <<COLOR:text>>Weak evidence for group differences (BF₁₀ < 3)<</COLOR>>\n"
+        )
     else:
         summary += "  <<COLOR:text>>Evidence favors no group differences (BF₁₀ < 1)<</COLOR>>\n"
 
     result["summary"] = summary
-    result["statistics"] = {"f_stat": f_stat, "eta_squared": eta_sq, "p_value": p_value, "bf10": bf10}
+    result["statistics"] = {
+        "f_stat": f_stat,
+        "eta_squared": eta_sq,
+        "p_value": p_value,
+        "bf10": bf10,
+    }
 
     # Guide observation
-    bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+    bf_label = (
+        "strong"
+        if bf10 > 10
+        else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+    )
     result["guide_observation"] = (
         f"Bayesian ANOVA: {factor} on {response}, F={f_stat:.3f}, η²={eta_sq:.3f}, BF₁₀={bf10:.2f} ({bf_label} evidence)."
     )
@@ -513,7 +585,12 @@ def run_bayes_anova(df, config, ci_level, z):
         {
             "title": f"{response} by {factor}",
             "data": [
-                {"type": "box", "y": groups[name], "name": str(name), "marker": {"color": "#4a9f6e"}}
+                {
+                    "type": "box",
+                    "y": groups[name],
+                    "name": str(name),
+                    "marker": {"color": "#4a9f6e"},
+                }
                 for name in group_names
             ],
             "layout": {"height": 350},
@@ -565,7 +642,12 @@ def run_bayes_proportion(df, config, ci_level, z):
         # Column-based mode: read from dataframe
         success_col = config.get("success")
         prior_type = config.get("prior", "uniform")
-        prior_map = {"uniform": (1, 1), "jeffreys": (0.5, 0.5), "optimistic": (8, 2), "pessimistic": (2, 8)}
+        prior_map = {
+            "uniform": (1, 1),
+            "jeffreys": (0.5, 0.5),
+            "optimistic": (8, 2),
+            "pessimistic": (2, 8),
+        }
         a_prior, b_prior = prior_map.get(prior_type, (1, 1))
         data = df[success_col].dropna()
         successes = int(data.sum())
@@ -577,7 +659,9 @@ def run_bayes_proportion(df, config, ci_level, z):
 
     # Posterior mean and CI
     post_mean = a_post / (a_post + b_post)
-    ci_low, ci_high = stats.beta.ppf([(1 - ci_level) / 2, (1 + ci_level) / 2], a_post, b_post)
+    ci_low, ci_high = stats.beta.ppf(
+        [(1 - ci_level) / 2, (1 + ci_level) / 2], a_post, b_post
+    )
 
     summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
     summary += "<<COLOR:title>>BAYESIAN PROPORTION ESTIMATION<</COLOR>>\n"
@@ -633,7 +717,11 @@ def run_bayes_proportion(df, config, ci_level, z):
                     "name": f"{int(ci_level * 100)}% CI",
                 },
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Proportion"}, "yaxis": {"title": "Density"}},
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Proportion"},
+                "yaxis": {"title": "Density"},
+            },
         }
     )
 
@@ -698,7 +786,11 @@ def run_bayes_chi2(df, config, ci_level, z):
     # Standardized residuals
     std_resid = (observed - expected) / np.sqrt(expected + 1e-10)
 
-    bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+    bf_label = (
+        "strong"
+        if bf10 > 10
+        else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+    )
 
     summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
     summary += "<<COLOR:title>>BAYESIAN CHI-SQUARE (CONTINGENCY TABLE)<</COLOR>>\n"
@@ -712,7 +804,9 @@ def run_bayes_chi2(df, config, ci_level, z):
     for i, row_label in enumerate(ct.index):
         row_str = "  ".join(f"{int(observed[i, j]):>6}" for j in range(ncol))
         summary += f"  {str(row_label):<15} {row_str}\n"
-    summary += "\n<<COLOR:accent>>\u2500\u2500 Largest Residuals \u2500\u2500<</COLOR>>\n"
+    summary += (
+        "\n<<COLOR:accent>>\u2500\u2500 Largest Residuals \u2500\u2500<</COLOR>>\n"
+    )
     flat_idx = np.argsort(np.abs(std_resid).ravel())[::-1][:5]
     for idx in flat_idx:
         ri, ci_idx = divmod(idx, ncol)
@@ -734,7 +828,11 @@ def run_bayes_chi2(df, config, ci_level, z):
     _bc_mag = (
         "large"
         if cramers_v >= 0.5
-        else ("medium" if cramers_v >= 0.3 else ("small" if cramers_v >= 0.1 else "negligible"))
+        else (
+            "medium"
+            if cramers_v >= 0.3
+            else ("small" if cramers_v >= 0.1 else "negligible")
+        )
     )
     result["narrative"] = _narrative(
         f"Bayesian \u03c7\u00b2 \u2014 {bf_label} evidence for association (V = {cramers_v:.3f}, {_bc_mag})",
@@ -841,7 +939,10 @@ def run_bayes_equivalence(df, config, ci_level, z):
     se_diff = float(np.sqrt(np.var(x1, ddof=1) / n1 + np.var(x2, ddof=1) / n2))
 
     if use_effect_size:
-        pooled_std = np.sqrt(((n1 - 1) * np.var(x1, ddof=1) + (n2 - 1) * np.var(x2, ddof=1)) / (n1 + n2 - 2))
+        pooled_std = np.sqrt(
+            ((n1 - 1) * np.var(x1, ddof=1) + (n2 - 1) * np.var(x2, ddof=1))
+            / (n1 + n2 - 2)
+        )
         if pooled_std > 0:
             effect = mean_diff / pooled_std
             se_effect = np.sqrt((n1 + n2) / (n1 * n2) + effect**2 / (2 * (n1 + n2)))
@@ -853,7 +954,10 @@ def run_bayes_equivalence(df, config, ci_level, z):
         label, _unit = "Difference", ""
 
     # Probabilities: P(effect in ROPE), P(effect < ROPE), P(effect > ROPE)
-    p_rope = float(stats.norm.cdf(rope_high, effect, se_effect) - stats.norm.cdf(rope_low, effect, se_effect))
+    p_rope = float(
+        stats.norm.cdf(rope_high, effect, se_effect)
+        - stats.norm.cdf(rope_low, effect, se_effect)
+    )
     p_below = float(stats.norm.cdf(rope_low, effect, se_effect))
     p_above = float(1 - stats.norm.cdf(rope_high, effect, se_effect))
 
@@ -883,13 +987,21 @@ def run_bayes_equivalence(df, config, ci_level, z):
     summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
     summary += "<<COLOR:title>>BAYESIAN EQUIVALENCE TEST (ROPE)<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
-    summary += f"<<COLOR:highlight>>{var1}<</COLOR>> (n={n1}, \u03bc={np.mean(x1):.4f})\n"
-    summary += f"<<COLOR:highlight>>{var2}<</COLOR>> (n={n2}, \u03bc={np.mean(x2):.4f})\n\n"
+    summary += (
+        f"<<COLOR:highlight>>{var1}<</COLOR>> (n={n1}, \u03bc={np.mean(x1):.4f})\n"
+    )
+    summary += (
+        f"<<COLOR:highlight>>{var2}<</COLOR>> (n={n2}, \u03bc={np.mean(x2):.4f})\n\n"
+    )
     summary += f"<<COLOR:text>>ROPE:<</COLOR>> [{rope_low}, {rope_high}] ({label})\n\n"
-    summary += f"<<COLOR:accent>>\u2500\u2500 Posterior on {label} \u2500\u2500<</COLOR>>\n"
+    summary += (
+        f"<<COLOR:accent>>\u2500\u2500 Posterior on {label} \u2500\u2500<</COLOR>>\n"
+    )
     summary += f"  Estimate: {effect:.4f}\n"
     summary += f"  95% HDI:  [{hdi_low:.4f}, {hdi_high:.4f}]\n\n"
-    summary += "<<COLOR:accent>>\u2500\u2500 ROPE Probabilities \u2500\u2500<</COLOR>>\n"
+    summary += (
+        "<<COLOR:accent>>\u2500\u2500 ROPE Probabilities \u2500\u2500<</COLOR>>\n"
+    )
     summary += f"  P(in ROPE):    {p_rope * 100:.1f}%\n"
     summary += f"  P(below ROPE): {p_below * 100:.1f}%\n"
     summary += f"  P(above ROPE): {p_above * 100:.1f}%\n\n"
@@ -908,12 +1020,18 @@ def run_bayes_equivalence(df, config, ci_level, z):
         "decision": decision,
         "kruschke": kruschke,
     }
-    result["guide_observation"] = f"Bayesian equivalence: {label}={effect:.3f}, P(in ROPE)={p_rope:.1%}. {decision}."
+    result["guide_observation"] = (
+        f"Bayesian equivalence: {label}={effect:.3f}, P(in ROPE)={p_rope:.1%}. {decision}."
+    )
 
     _be_mag = (
         "large"
         if abs(effect) >= 0.8
-        else ("medium" if abs(effect) >= 0.5 else ("small" if abs(effect) >= 0.2 else "negligible"))
+        else (
+            "medium"
+            if abs(effect) >= 0.5
+            else ("small" if abs(effect) >= 0.2 else "negligible")
+        )
     )
     result["narrative"] = _narrative(
         f"Bayesian Equivalence \u2014 {decision}, P(in ROPE) = {p_rope:.1%}",

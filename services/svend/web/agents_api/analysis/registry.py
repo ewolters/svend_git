@@ -108,28 +108,58 @@ ANALYSIS_REGISTRY = {
     # ── stats.py — hypothesis testing ───────────────────────────────────
     ("stats", "ttest"): _entry("stats", CAT_HYPOTHESIS, True, EFF_COHEN_D, SH_TTEST),
     ("stats", "ttest2"): _entry("stats", CAT_HYPOTHESIS, True, EFF_COHEN_D, SH_TTEST2),
-    ("stats", "paired_t"): _entry("stats", CAT_HYPOTHESIS, True, EFF_COHEN_D, SH_PAIRED),
+    ("stats", "paired_t"): _entry(
+        "stats", CAT_HYPOTHESIS, True, EFF_COHEN_D, SH_PAIRED
+    ),
     ("stats", "anova"): _entry("stats", CAT_HYPOTHESIS, True, EFF_ETA_SQ, SH_ANOVA),
     ("stats", "anova2"): _entry("stats", CAT_HYPOTHESIS, True, EFF_ETA_SQ, SH_ANOVA),
-    ("stats", "correlation"): _entry("stats", CAT_HYPOTHESIS, True, EFF_R, SH_CORRELATION),
+    ("stats", "correlation"): _entry(
+        "stats", CAT_HYPOTHESIS, True, EFF_R, SH_CORRELATION
+    ),
     ("stats", "chi2"): _entry("stats", CAT_HYPOTHESIS, True, EFF_CRAMERS_V, SH_CHI2),
-    ("stats", "prop_1sample"): _entry("stats", CAT_PROPORTION, True, EFF_COHENS_H, SH_PROPORTION),
-    ("stats", "prop_2sample"): _entry("stats", CAT_PROPORTION, True, EFF_COHENS_H, SH_PROPORTION),
-    ("stats", "fisher_exact"): _entry("stats", CAT_HYPOTHESIS, True, EFF_ODDS_RATIO, SH_CHI2),
-    ("stats", "poisson_1sample"): _entry("stats", CAT_HYPOTHESIS, True, effect_type=None, shadow_type=None),
-    ("stats", "poisson_2sample"): _entry("stats", CAT_HYPOTHESIS, True, effect_type=None, shadow_type=None),
-    ("stats", "variance_test"): _entry("stats", CAT_HYPOTHESIS, True, effect_type=None, shadow_type=SH_VARIANCE),
-    ("stats", "f_test"): _entry("stats", CAT_HYPOTHESIS, True, effect_type=None, shadow_type=SH_VARIANCE),
-    ("stats", "equivalence"): _entry("stats", CAT_HYPOTHESIS, True, EFF_COHEN_D, SH_TTEST),
+    ("stats", "prop_1sample"): _entry(
+        "stats", CAT_PROPORTION, True, EFF_COHENS_H, SH_PROPORTION
+    ),
+    ("stats", "prop_2sample"): _entry(
+        "stats", CAT_PROPORTION, True, EFF_COHENS_H, SH_PROPORTION
+    ),
+    ("stats", "fisher_exact"): _entry(
+        "stats", CAT_HYPOTHESIS, True, EFF_ODDS_RATIO, SH_CHI2
+    ),
+    ("stats", "poisson_1sample"): _entry(
+        "stats", CAT_HYPOTHESIS, True, effect_type=None, shadow_type=None
+    ),
+    ("stats", "poisson_2sample"): _entry(
+        "stats", CAT_HYPOTHESIS, True, effect_type=None, shadow_type=None
+    ),
+    ("stats", "variance_test"): _entry(
+        "stats", CAT_HYPOTHESIS, True, effect_type=None, shadow_type=SH_VARIANCE
+    ),
+    ("stats", "f_test"): _entry(
+        "stats", CAT_HYPOTHESIS, True, effect_type=None, shadow_type=SH_VARIANCE
+    ),
+    ("stats", "equivalence"): _entry(
+        "stats", CAT_HYPOTHESIS, True, EFF_COHEN_D, SH_TTEST
+    ),
     ("stats", "normality"): _entry("stats", CAT_EXPLORATORY, True),
     ("stats", "runs_test"): _entry("stats", CAT_HYPOTHESIS, True),
-    ("stats", "sign_test"): _entry("stats", CAT_NONPARAM, True, EFF_RANK_BISERIAL, SH_NONPARAMETRIC),
+    ("stats", "sign_test"): _entry(
+        "stats", CAT_NONPARAM, True, EFF_RANK_BISERIAL, SH_NONPARAMETRIC
+    ),
     # ── stats.py — regression ───────────────────────────────────────────
-    ("stats", "regression"): _entry("stats", CAT_REGRESSION, True, EFF_R2, SH_REGRESSION, what_if_tier=1),
+    ("stats", "regression"): _entry(
+        "stats", CAT_REGRESSION, True, EFF_R2, SH_REGRESSION, what_if_tier=1
+    ),
     ("stats", "logistic"): _entry("stats", CAT_REGRESSION, True, EFF_ODDS_RATIO),
-    ("stats", "nominal_logistic"): _entry("stats", CAT_REGRESSION, True, EFF_ODDS_RATIO),
-    ("stats", "ordinal_logistic"): _entry("stats", CAT_REGRESSION, True, EFF_ODDS_RATIO),
-    ("stats", "orthogonal_regression"): _entry("stats", CAT_REGRESSION, True, EFF_R2, SH_REGRESSION),
+    ("stats", "nominal_logistic"): _entry(
+        "stats", CAT_REGRESSION, True, EFF_ODDS_RATIO
+    ),
+    ("stats", "ordinal_logistic"): _entry(
+        "stats", CAT_REGRESSION, True, EFF_ODDS_RATIO
+    ),
+    ("stats", "orthogonal_regression"): _entry(
+        "stats", CAT_REGRESSION, True, EFF_R2, SH_REGRESSION
+    ),
     ("stats", "nonlinear_regression"): _entry("stats", CAT_REGRESSION, True, EFF_R2),
     ("stats", "poisson_regression"): _entry("stats", CAT_REGRESSION, True),
     ("stats", "robust_regression"): _entry("stats", CAT_REGRESSION, True, EFF_R2),
@@ -137,16 +167,28 @@ ANALYSIS_REGISTRY = {
     ("stats", "best_subsets"): _entry("stats", CAT_REGRESSION, True, EFF_R2),
     ("stats", "glm"): _entry("stats", CAT_REGRESSION, True),
     # ── stats.py — nonparametric ────────────────────────────────────────
-    ("stats", "mann_whitney"): _entry("stats", CAT_NONPARAM, True, EFF_RANK_BISERIAL, SH_NONPARAMETRIC),
-    ("stats", "kruskal"): _entry("stats", CAT_NONPARAM, True, EFF_ETA_SQ, SH_NONPARAMETRIC),
-    ("stats", "wilcoxon"): _entry("stats", CAT_NONPARAM, True, EFF_RANK_BISERIAL, SH_NONPARAMETRIC),
+    ("stats", "mann_whitney"): _entry(
+        "stats", CAT_NONPARAM, True, EFF_RANK_BISERIAL, SH_NONPARAMETRIC
+    ),
+    ("stats", "kruskal"): _entry(
+        "stats", CAT_NONPARAM, True, EFF_ETA_SQ, SH_NONPARAMETRIC
+    ),
+    ("stats", "wilcoxon"): _entry(
+        "stats", CAT_NONPARAM, True, EFF_RANK_BISERIAL, SH_NONPARAMETRIC
+    ),
     ("stats", "friedman"): _entry("stats", CAT_NONPARAM, True, EFF_COHENS_W),
     ("stats", "spearman"): _entry("stats", CAT_NONPARAM, True, EFF_R, SH_CORRELATION),
     ("stats", "mood_median"): _entry("stats", CAT_NONPARAM, True),
     # ── stats.py — ANOVA extensions ────────────────────────────────────
-    ("stats", "split_plot_anova"): _entry("stats", CAT_HYPOTHESIS, True, EFF_ETA_SQ, SH_ANOVA),
-    ("stats", "repeated_measures_anova"): _entry("stats", CAT_HYPOTHESIS, True, EFF_ETA_SQ, SH_ANOVA),
-    ("stats", "nested_anova"): _entry("stats", CAT_HYPOTHESIS, True, EFF_ETA_SQ, SH_ANOVA),
+    ("stats", "split_plot_anova"): _entry(
+        "stats", CAT_HYPOTHESIS, True, EFF_ETA_SQ, SH_ANOVA
+    ),
+    ("stats", "repeated_measures_anova"): _entry(
+        "stats", CAT_HYPOTHESIS, True, EFF_ETA_SQ, SH_ANOVA
+    ),
+    ("stats", "nested_anova"): _entry(
+        "stats", CAT_HYPOTHESIS, True, EFF_ETA_SQ, SH_ANOVA
+    ),
     ("stats", "anom"): _entry("stats", CAT_HYPOTHESIS, True),
     ("stats", "main_effects"): _entry("stats", CAT_HYPOTHESIS, True, EFF_ETA_SQ),
     ("stats", "interaction"): _entry("stats", CAT_HYPOTHESIS, True, EFF_ETA_SQ),
@@ -168,7 +210,9 @@ ANALYSIS_REGISTRY = {
     ("stats", "power_equivalence"): _entry("stats", CAT_POWER, False, what_if_tier=1),
     ("stats", "power_doe"): _entry("stats", CAT_POWER, False, what_if_tier=1),
     ("stats", "sample_size_ci"): _entry("stats", CAT_POWER, False, what_if_tier=1),
-    ("stats", "sample_size_tolerance"): _entry("stats", CAT_POWER, False, what_if_tier=1),
+    ("stats", "sample_size_tolerance"): _entry(
+        "stats", CAT_POWER, False, what_if_tier=1
+    ),
     # ── stats.py — time series ─────────────────────────────────────────
     ("stats", "arima"): _entry("stats", CAT_TIMESERIES, True),
     ("stats", "sarima"): _entry("stats", CAT_TIMESERIES, True),
@@ -197,7 +241,9 @@ ANALYSIS_REGISTRY = {
     ("stats", "manova"): _entry("stats", CAT_MULTIVARIATE, True, EFF_ETA_SQ),
     ("stats", "multi_vari"): _entry("stats", CAT_MULTIVARIATE, False),
     # ── stats.py — exploratory & diagnostics ───────────────────────────
-    ("stats", "descriptive"): _entry("stats", CAT_EXPLORATORY, False, has_narrative=False),
+    ("stats", "descriptive"): _entry(
+        "stats", CAT_EXPLORATORY, False, has_narrative=False
+    ),
     ("stats", "data_profile"): _entry("stats", CAT_EXPLORATORY, False),
     ("stats", "auto_profile"): _entry("stats", CAT_EXPLORATORY, False),
     ("stats", "graphical_summary"): _entry("stats", CAT_EXPLORATORY, False),
@@ -211,11 +257,19 @@ ANALYSIS_REGISTRY = {
     ("stats", "grubbs_test"): _entry("stats", CAT_EXPLORATORY, True),
     ("stats", "tolerance_interval"): _entry("stats", CAT_EXPLORATORY, False),
     # ── stats.py — acceptance sampling ─────────────────────────────────
-    ("stats", "acceptance_sampling"): _entry("stats", CAT_ACCEPTANCE, False, what_if_tier=1),
-    ("stats", "variable_acceptance_sampling"): _entry("stats", CAT_ACCEPTANCE, False, what_if_tier=1),
-    ("stats", "multiple_plan_comparison"): _entry("stats", CAT_ACCEPTANCE, False, what_if_tier=2),
+    ("stats", "acceptance_sampling"): _entry(
+        "stats", CAT_ACCEPTANCE, False, what_if_tier=1
+    ),
+    ("stats", "variable_acceptance_sampling"): _entry(
+        "stats", CAT_ACCEPTANCE, False, what_if_tier=1
+    ),
+    ("stats", "multiple_plan_comparison"): _entry(
+        "stats", CAT_ACCEPTANCE, False, what_if_tier=2
+    ),
     # ── stats.py — capability ──────────────────────────────────────────
-    ("stats", "capability_sixpack"): _entry("stats", CAT_CAPABILITY, False, what_if_tier=1),
+    ("stats", "capability_sixpack"): _entry(
+        "stats", CAT_CAPABILITY, False, what_if_tier=1
+    ),
     ("stats", "nonnormal_capability_np"): _entry("stats", CAT_CAPABILITY, False),
     ("stats", "attribute_capability"): _entry("stats", CAT_CAPABILITY, False),
     # ── stats.py — meta-analysis ───────────────────────────────────────
@@ -243,8 +297,12 @@ ANALYSIS_REGISTRY = {
     ("spc", "mewma"): _entry("spc", CAT_SPC, False),
     ("spc", "generalized_variance"): _entry("spc", CAT_SPC, False),
     ("spc", "capability"): _entry("spc", CAT_CAPABILITY, False, what_if_tier=1),
-    ("spc", "nonnormal_capability"): _entry("spc", CAT_CAPABILITY, False, has_narrative=False),
-    ("spc", "between_within"): _entry("spc", CAT_CAPABILITY, False, has_narrative=False),
+    ("spc", "nonnormal_capability"): _entry(
+        "spc", CAT_CAPABILITY, False, has_narrative=False
+    ),
+    ("spc", "between_within"): _entry(
+        "spc", CAT_CAPABILITY, False, has_narrative=False
+    ),
     ("spc", "conformal_control"): _entry("spc", CAT_SPC, False),
     ("spc", "conformal_monitor"): _entry("spc", CAT_SPC, False),
     ("spc", "entropy_spc"): _entry("spc", CAT_SPC, False),
@@ -272,35 +330,83 @@ ANALYSIS_REGISTRY = {
     ("ml", "correspondence_analysis"): _entry("ml", CAT_ML, False, has_narrative=False),
     ("ml", "item_analysis"): _entry("ml", CAT_ML, False, has_narrative=False),
     # ── bayesian.py ────────────────────────────────────────────────────
-    ("bayesian", "bayes_regression"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_ttest"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_ab"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_correlation"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_anova"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_changepoint"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_proportion"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_capability_prediction"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_equivalence"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_chi2"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_poisson"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_logistic"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_survival"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_meta"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_demo"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_spares"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_system"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_warranty"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_repairable"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_rul"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_alt"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_comprisk"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
-    ("bayesian", "bayes_ewma"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
+    ("bayesian", "bayes_regression"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_ttest"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_ab"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_correlation"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_anova"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_changepoint"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_proportion"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_capability_prediction"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_equivalence"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_chi2"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_poisson"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_logistic"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_survival"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_meta"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_demo"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_spares"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_system"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_warranty"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_repairable"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_rul"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_alt"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_comprisk"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
+    ("bayesian", "bayes_ewma"): _entry(
+        "bayesian", CAT_BAYESIAN, False, has_education=True
+    ),
     # ── reliability.py ─────────────────────────────────────────────────
     ("reliability", "weibull"): _entry("reliability", CAT_RELIABILITY, True),
     ("reliability", "lognormal"): _entry("reliability", CAT_RELIABILITY, True),
     ("reliability", "exponential"): _entry("reliability", CAT_RELIABILITY, True),
     ("reliability", "kaplan_meier"): _entry("reliability", CAT_RELIABILITY, True),
-    ("reliability", "reliability_test_plan"): _entry("reliability", CAT_RELIABILITY, False),
+    ("reliability", "reliability_test_plan"): _entry(
+        "reliability", CAT_RELIABILITY, False
+    ),
     ("reliability", "distribution_id"): _entry("reliability", CAT_RELIABILITY, True),
     ("reliability", "accelerated_life"): _entry("reliability", CAT_RELIABILITY, True),
     ("reliability", "repairable_systems"): _entry("reliability", CAT_RELIABILITY, True),
@@ -315,7 +421,9 @@ ANALYSIS_REGISTRY = {
     ("viz", "matrix"): _entry("viz", CAT_VIZ, False, has_narrative=False),
     ("viz", "timeseries"): _entry("viz", CAT_VIZ, False, has_narrative=False),
     ("viz", "probability"): _entry("viz", CAT_VIZ, False, has_narrative=False),
-    ("viz", "individual_value_plot"): _entry("viz", CAT_VIZ, False, has_narrative=False),
+    ("viz", "individual_value_plot"): _entry(
+        "viz", CAT_VIZ, False, has_narrative=False
+    ),
     ("viz", "interval_plot"): _entry("viz", CAT_VIZ, False, has_narrative=False),
     ("viz", "dotplot"): _entry("viz", CAT_VIZ, False, has_narrative=False),
     ("viz", "bubble"): _entry("viz", CAT_VIZ, False, has_narrative=False),
@@ -324,35 +432,65 @@ ANALYSIS_REGISTRY = {
     ("viz", "surface_3d"): _entry("viz", CAT_VIZ, False, has_narrative=False),
     ("viz", "contour_overlay"): _entry("viz", CAT_VIZ, False, has_narrative=False),
     ("viz", "mosaic"): _entry("viz", CAT_VIZ, False, has_narrative=False),
-    ("viz", "bayes_spc_capability"): _entry("viz", CAT_VIZ, False, has_narrative=False, has_education=True),
-    ("viz", "bayes_spc_changepoint"): _entry("viz", CAT_VIZ, False, has_narrative=False, has_education=True),
-    ("viz", "bayes_spc_control"): _entry("viz", CAT_VIZ, False, has_narrative=False, has_education=True),
-    ("viz", "bayes_spc_acceptance"): _entry("viz", CAT_VIZ, False, has_narrative=False, has_education=True),
+    ("viz", "bayes_spc_capability"): _entry(
+        "viz", CAT_VIZ, False, has_narrative=False, has_education=True
+    ),
+    ("viz", "bayes_spc_changepoint"): _entry(
+        "viz", CAT_VIZ, False, has_narrative=False, has_education=True
+    ),
+    ("viz", "bayes_spc_control"): _entry(
+        "viz", CAT_VIZ, False, has_narrative=False, has_education=True
+    ),
+    ("viz", "bayes_spc_acceptance"): _entry(
+        "viz", CAT_VIZ, False, has_narrative=False, has_education=True
+    ),
     # ── simulation.py ──────────────────────────────────────────────────
-    ("simulation", "tolerance_stackup"): _entry("simulation", CAT_SIMULATION, False, what_if_tier=1),
-    ("simulation", "variance_propagation"): _entry("simulation", CAT_SIMULATION, False, what_if_tier=1),
+    ("simulation", "tolerance_stackup"): _entry(
+        "simulation", CAT_SIMULATION, False, what_if_tier=1
+    ),
+    ("simulation", "variance_propagation"): _entry(
+        "simulation", CAT_SIMULATION, False, what_if_tier=1
+    ),
     # ── d_type.py ──────────────────────────────────────────────────────
     ("d_type", "d_chart"): _entry("d_type", CAT_DIMENSIONAL, False, has_education=True),
     ("d_type", "d_cpk"): _entry("d_type", CAT_DIMENSIONAL, False, has_education=True),
-    ("d_type", "d_nonnorm"): _entry("d_type", CAT_DIMENSIONAL, False, has_education=True),
+    ("d_type", "d_nonnorm"): _entry(
+        "d_type", CAT_DIMENSIONAL, False, has_education=True
+    ),
     ("d_type", "d_equiv"): _entry("d_type", CAT_DIMENSIONAL, True, has_education=True),
     ("d_type", "d_sig"): _entry("d_type", CAT_DIMENSIONAL, True, has_education=True),
     ("d_type", "d_multi"): _entry("d_type", CAT_DIMENSIONAL, False, has_education=True),
     # ── causal_discovery.py ────────────────────────────────────────────
     ("causal", "causal_pc"): _entry("causal", CAT_CAUSAL, False, has_narrative=False),
-    ("causal", "causal_lingam"): _entry("causal", CAT_CAUSAL, False, has_narrative=False),
+    ("causal", "causal_lingam"): _entry(
+        "causal", CAT_CAUSAL, False, has_narrative=False
+    ),
     # ── drift_detection.py ─────────────────────────────────────────────
     ("drift", "drift_report"): _entry("drift", CAT_DRIFT, True, has_narrative=False),
     # ── anytime_valid.py ───────────────────────────────────────────────
-    ("anytime", "anytime_ab"): _entry("anytime", CAT_ANYTIME, True, has_narrative=False),
-    ("anytime", "anytime_onesample"): _entry("anytime", CAT_ANYTIME, True, has_narrative=False),
+    ("anytime", "anytime_ab"): _entry(
+        "anytime", CAT_ANYTIME, True, has_narrative=False
+    ),
+    ("anytime", "anytime_onesample"): _entry(
+        "anytime", CAT_ANYTIME, True, has_narrative=False
+    ),
     # ── msa_bayes.py (single function, no analysis_id dispatch) ────────
-    ("bayes_msa", "bayes_msa"): _entry("bayes_msa", CAT_MSA, False, has_narrative=False),
+    ("bayes_msa", "bayes_msa"): _entry(
+        "bayes_msa", CAT_MSA, False, has_narrative=False
+    ),
     # ── quality_economics.py ───────────────────────────────────────────
-    ("quality_econ", "taguchi_loss"): _entry("quality_econ", CAT_QUALITY_ECON, False, has_narrative=False),
-    ("quality_econ", "process_decision"): _entry("quality_econ", CAT_QUALITY_ECON, False, has_narrative=False),
-    ("quality_econ", "lot_sentencing"): _entry("quality_econ", CAT_QUALITY_ECON, False, has_narrative=False),
-    ("quality_econ", "cost_of_quality"): _entry("quality_econ", CAT_QUALITY_ECON, False, has_narrative=False),
+    ("quality_econ", "taguchi_loss"): _entry(
+        "quality_econ", CAT_QUALITY_ECON, False, has_narrative=False
+    ),
+    ("quality_econ", "process_decision"): _entry(
+        "quality_econ", CAT_QUALITY_ECON, False, has_narrative=False
+    ),
+    ("quality_econ", "lot_sentencing"): _entry(
+        "quality_econ", CAT_QUALITY_ECON, False, has_narrative=False
+    ),
+    ("quality_econ", "cost_of_quality"): _entry(
+        "quality_econ", CAT_QUALITY_ECON, False, has_narrative=False
+    ),
     # ── pbs_engine.py ──────────────────────────────────────────────────
     ("pbs", "pbs_full"): _entry("pbs", CAT_PBS, False, has_education=True),
     ("pbs", "pbs_belief"): _entry("pbs", CAT_PBS, False, has_education=True),
@@ -400,13 +538,21 @@ def get_all_with_pvalue():
 
 def get_all_needing_shadow():
     """Return (type, id) pairs with shadow_type assigned but no current implementation."""
-    return [(t, a) for (t, a), e in ANALYSIS_REGISTRY.items() if e["shadow_type"] and not e.get("has_shadow_impl")]
+    return [
+        (t, a)
+        for (t, a), e in ANALYSIS_REGISTRY.items()
+        if e["shadow_type"] and not e.get("has_shadow_impl")
+    ]
 
 
 def get_what_if_analyses(tier=None):
     """Return analyses with what-if interactivity. Filter by tier (1 or 2)."""
     if tier:
-        return [(t, a) for (t, a), e in ANALYSIS_REGISTRY.items() if e["what_if_tier"] == tier]
+        return [
+            (t, a)
+            for (t, a), e in ANALYSIS_REGISTRY.items()
+            if e["what_if_tier"] == tier
+        ]
     return [(t, a) for (t, a), e in ANALYSIS_REGISTRY.items() if e["what_if_tier"] > 0]
 
 
@@ -416,10 +562,16 @@ def registry_stats():
     return {
         "total": total,
         "with_pvalue": len(get_all_with_pvalue()),
-        "with_education": sum(1 for e in ANALYSIS_REGISTRY.values() if e["has_education"]),
-        "with_narrative": sum(1 for e in ANALYSIS_REGISTRY.values() if e["has_narrative"]),
+        "with_education": sum(
+            1 for e in ANALYSIS_REGISTRY.values() if e["has_education"]
+        ),
+        "with_narrative": sum(
+            1 for e in ANALYSIS_REGISTRY.values() if e["has_narrative"]
+        ),
         "with_charts": sum(1 for e in ANALYSIS_REGISTRY.values() if e["has_charts"]),
         "what_if_tier1": len(get_what_if_analyses(1)),
         "what_if_tier2": len(get_what_if_analyses(2)),
-        "with_shadow_type": sum(1 for e in ANALYSIS_REGISTRY.values() if e["shadow_type"]),
+        "with_shadow_type": sum(
+            1 for e in ANALYSIS_REGISTRY.values() if e["shadow_type"]
+        ),
     }

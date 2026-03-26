@@ -12,27 +12,85 @@ import core.models.tenant
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0004_charter_structure'),
+        ("core", "0004_charter_structure"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='OrgInvitation',
+            name="OrgInvitation",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('email', models.EmailField(help_text='Email address of the invitee', max_length=254)),
-                ('role', models.CharField(choices=[('owner', 'Owner'), ('admin', 'Admin'), ('member', 'Member'), ('viewer', 'Viewer')], default='member', max_length=20)),
-                ('token', models.UUIDField(db_index=True, default=uuid.uuid4, unique=True)),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('expired', 'Expired'), ('cancelled', 'Cancelled')], default='pending', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('expires_at', models.DateTimeField(default=core.models.tenant._invite_expiry)),
-                ('invited_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='org_invitations_sent', to=settings.AUTH_USER_MODEL)),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='invitations', to='core.tenant')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "email",
+                    models.EmailField(
+                        help_text="Email address of the invitee", max_length=254
+                    ),
+                ),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[
+                            ("owner", "Owner"),
+                            ("admin", "Admin"),
+                            ("member", "Member"),
+                            ("viewer", "Viewer"),
+                        ],
+                        default="member",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "token",
+                    models.UUIDField(db_index=True, default=uuid.uuid4, unique=True),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("accepted", "Accepted"),
+                            ("expired", "Expired"),
+                            ("cancelled", "Cancelled"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "expires_at",
+                    models.DateTimeField(default=core.models.tenant._invite_expiry),
+                ),
+                (
+                    "invited_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="org_invitations_sent",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="invitations",
+                        to="core.tenant",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'core_org_invitation',
-                'ordering': ['-created_at'],
+                "db_table": "core_org_invitation",
+                "ordering": ["-created_at"],
             },
         ),
     ]

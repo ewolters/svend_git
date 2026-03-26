@@ -115,7 +115,9 @@ class DetectBreakingChangesTest(SimpleTestCase):
         diff = detect_breaking_changes(old, new)
 
         self.assertEqual(diff.version_change, VersionChangeType.MAJOR)
-        req_changes = [m for m in diff.modified_fields if m.change == "required_changed"]
+        req_changes = [
+            m for m in diff.modified_fields if m.change == "required_changed"
+        ]
         self.assertEqual(len(req_changes), 1)
         self.assertEqual(req_changes[0].old_value, False)
         self.assertEqual(req_changes[0].new_value, True)
@@ -144,7 +146,9 @@ class DetectBreakingChangesTest(SimpleTestCase):
         diff = detect_breaking_changes(old, new)
 
         self.assertEqual(diff.version_change, VersionChangeType.MAJOR)
-        constraint_changes = [m for m in diff.modified_fields if m.change == "constraint_changed"]
+        constraint_changes = [
+            m for m in diff.modified_fields if m.change == "constraint_changed"
+        ]
         self.assertTrue(any("minimum" in str(c.new_value) for c in constraint_changes))
 
     # -- constraint: max tightened ---------------------------------------------
@@ -155,14 +159,18 @@ class DetectBreakingChangesTest(SimpleTestCase):
         diff = detect_breaking_changes(old, new)
 
         self.assertEqual(diff.version_change, VersionChangeType.MAJOR)
-        constraint_changes = [m for m in diff.modified_fields if m.change == "constraint_changed"]
+        constraint_changes = [
+            m for m in diff.modified_fields if m.change == "constraint_changed"
+        ]
         self.assertTrue(any("maximum" in str(c.new_value) for c in constraint_changes))
 
     # -- enum removal ----------------------------------------------------------
 
     def test_enum_value_removal_is_major(self):
         old = self._schema(
-            properties={"status": {"type": "string", "enum": ["open", "closed", "pending"]}},
+            properties={
+                "status": {"type": "string", "enum": ["open", "closed", "pending"]}
+            },
         )
         new = self._schema(
             properties={"status": {"type": "string", "enum": ["open", "closed"]}},
@@ -170,7 +178,9 @@ class DetectBreakingChangesTest(SimpleTestCase):
         diff = detect_breaking_changes(old, new)
 
         self.assertEqual(diff.version_change, VersionChangeType.MAJOR)
-        enum_changes = [m for m in diff.modified_fields if m.change == "enum_values_removed"]
+        enum_changes = [
+            m for m in diff.modified_fields if m.change == "enum_values_removed"
+        ]
         self.assertEqual(len(enum_changes), 1)
 
     # -- enum addition ---------------------------------------------------------
@@ -180,7 +190,9 @@ class DetectBreakingChangesTest(SimpleTestCase):
             properties={"status": {"type": "string", "enum": ["open", "closed"]}},
         )
         new = self._schema(
-            properties={"status": {"type": "string", "enum": ["open", "closed", "pending"]}},
+            properties={
+                "status": {"type": "string", "enum": ["open", "closed", "pending"]}
+            },
         )
         diff = detect_breaking_changes(old, new)
 
@@ -329,7 +341,9 @@ class VersionCompatibilityTest(SimpleTestCase):
     def test_get_compatibility_minor_bump(self):
         v1 = SemanticVersion(1, 0, 0)
         v2 = SemanticVersion(1, 1, 0)
-        self.assertEqual(v1.get_compatibility(v2), VersionCompatibility.FORWARD_COMPATIBLE)
+        self.assertEqual(
+            v1.get_compatibility(v2), VersionCompatibility.FORWARD_COMPATIBLE
+        )
 
     def test_get_compatibility_patch_bump(self):
         v1 = SemanticVersion(1, 2, 0)

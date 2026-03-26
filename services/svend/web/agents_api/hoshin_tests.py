@@ -30,7 +30,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 def _make_enterprise_user(email, **kwargs):
     """Create an Enterprise-tier user with tenant + owner membership."""
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password="testpass123!", **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123!", **kwargs
+    )
     user.tier = Tier.ENTERPRISE
     user.save(update_fields=["tier"])
     return user
@@ -248,9 +250,13 @@ class SiteAccessControlTest(TestCase):
 
     def test_revoke_access(self):
         self.client.force_login(self.admin)
-        members = self.client.get(f"/api/hoshin/sites/{self.site_id}/members/").json()["members"]
+        members = self.client.get(f"/api/hoshin/sites/{self.site_id}/members/").json()[
+            "members"
+        ]
         viewer_access = next(m for m in members if m["role"] == "viewer")
-        res = self.client.delete(f"/api/hoshin/sites/{self.site_id}/members/{viewer_access['id']}/revoke/")
+        res = self.client.delete(
+            f"/api/hoshin/sites/{self.site_id}/members/{viewer_access['id']}/revoke/"
+        )
         self.assertEqual(res.status_code, 200)
         # Viewer can no longer see the site
         self.client.force_login(self.viewer)
@@ -397,7 +403,9 @@ class HoshinProjectCRUDTest(TestCase):
         res = self.client.delete(f"/api/hoshin/projects/{hp_id}/delete/")
         self.assertEqual(res.status_code, 200)
         # Verify gone
-        self.assertEqual(self.client.get(f"/api/hoshin/projects/{hp_id}/").status_code, 404)
+        self.assertEqual(
+            self.client.get(f"/api/hoshin/projects/{hp_id}/").status_code, 404
+        )
 
     def test_create_requires_title(self):
         res = _post(
@@ -710,7 +718,9 @@ class ActionItemTest(TestCase):
             f"/api/hoshin/projects/{self.hp_id}/actions/create/",
             {"title": "Task B", "depends_on_id": a_id},
         ).json()["action_item"]["id"]
-        item_b = self.client.get(f"/api/hoshin/projects/{self.hp_id}/actions/").json()["action_items"]
+        item_b = self.client.get(f"/api/hoshin/projects/{self.hp_id}/actions/").json()[
+            "action_items"
+        ]
         b = next(i for i in item_b if i["id"] == b_id)
         self.assertEqual(b["depends_on_id"], a_id)
 
@@ -867,7 +877,12 @@ class VSMProposalBatchTest(TestCase):
                 "vsm_id": self.vsm_id,
                 "site_id": self.site_id,
                 "proposals": [
-                    {"burst_id": "b1", "title": "Yes", "approved": True, "annual_savings_target": 10000},
+                    {
+                        "burst_id": "b1",
+                        "title": "Yes",
+                        "approved": True,
+                        "annual_savings_target": 10000,
+                    },
                     {"burst_id": "b2", "title": "No", "approved": False},
                 ],
             },
@@ -989,11 +1004,17 @@ class VSMPromotionTest(TestCase):
                 "y": 300,
             },
         )
-        future_snaps = self.client.get(f"/api/vsm/{self.future_id}/").json()["vsm"]["metric_snapshots"]
-        self.client.get(f"/api/vsm/{self.current_id}/").json()["vsm"]["metric_snapshots"]
+        future_snaps = self.client.get(f"/api/vsm/{self.future_id}/").json()["vsm"][
+            "metric_snapshots"
+        ]
+        self.client.get(f"/api/vsm/{self.current_id}/").json()["vsm"][
+            "metric_snapshots"
+        ]
 
         _post(self.client, f"/api/hoshin/vsm/{self.future_id}/promote/")
-        promoted_snaps = self.client.get(f"/api/vsm/{self.future_id}/").json()["vsm"]["metric_snapshots"]
+        promoted_snaps = self.client.get(f"/api/vsm/{self.future_id}/").json()["vsm"][
+            "metric_snapshots"
+        ]
 
         # Promoted should have at least as many snapshots as both combined
         self.assertGreaterEqual(
@@ -1308,7 +1329,9 @@ class FullVSMHoshinPipelineTest(TestCase):
         )
 
         # 4. Create future state
-        future_id = _post(self.client, f"/api/vsm/{vsm_id}/future-state/").json()["future_state"]["id"]
+        future_id = _post(self.client, f"/api/vsm/{vsm_id}/future-state/").json()[
+            "future_state"
+        ]["id"]
 
         # 5. Improve future: reduce changeover, add bursts
         _put(
@@ -1339,8 +1362,20 @@ class FullVSMHoshinPipelineTest(TestCase):
                 ],
                 "inventory": [{"id": "i1", "quantity": 1000, "days_of_supply": 0.5}],
                 "kaizen_bursts": [
-                    {"id": "k1", "text": "SMED filler changeover", "priority": "high", "x": 100, "y": 250},
-                    {"id": "k2", "text": "TPM program for sealer", "priority": "medium", "x": 300, "y": 250},
+                    {
+                        "id": "k1",
+                        "text": "SMED filler changeover",
+                        "priority": "high",
+                        "x": 100,
+                        "y": 250,
+                    },
+                    {
+                        "id": "k2",
+                        "text": "TPM program for sealer",
+                        "priority": "medium",
+                        "x": 300,
+                        "y": 250,
+                    },
                 ],
             },
         )
@@ -1417,7 +1452,9 @@ class FullVSMHoshinPipelineTest(TestCase):
 
         # 11. Verify savings written back to kaizen burst
         promoted_vsm = self.client.get(f"/api/vsm/{future_id}/").json()["vsm"]
-        k1_burst = next((b for b in promoted_vsm["kaizen_bursts"] if b["id"] == "k1"), None)
+        k1_burst = next(
+            (b for b in promoted_vsm["kaizen_bursts"] if b["id"] == "k1"), None
+        )
         self.assertIsNotNone(k1_burst)
         self.assertIn("realized_savings", k1_burst)
         self.assertGreater(k1_burst["realized_savings"], 0)

@@ -124,9 +124,13 @@ class BeliefEngine:
         behavior_negative = any(ind in behavior_lower for ind in negative_indicators)
 
         # Aligned directions = higher likelihood
-        if (event_positive and behavior_positive) or (event_negative and behavior_negative):
+        if (event_positive and behavior_positive) or (
+            event_negative and behavior_negative
+        ):
             return 0.7
-        elif (event_positive and behavior_negative) or (event_negative and behavior_positive):
+        elif (event_positive and behavior_negative) or (
+            event_negative and behavior_positive
+        ):
             return 0.3
         else:
             return 0.5
@@ -170,7 +174,9 @@ class BeliefEngine:
             numerator = likelihood * prior
             denominator = numerator + likelihood_neg * (1.0 - prior)
             if denominator > 0:
-                posteriors[h_id] = max(MIN_PROBABILITY, min(MAX_PROBABILITY, numerator / denominator))
+                posteriors[h_id] = max(
+                    MIN_PROBABILITY, min(MAX_PROBABILITY, numerator / denominator)
+                )
             else:
                 posteriors[h_id] = prior
 
@@ -216,7 +222,12 @@ class BeliefEngine:
 
             # Find the link
             link = next(
-                (lnk for lnk in graph.links if lnk.from_id == updated_h_id and lnk.to_id == downstream_id), None
+                (
+                    lnk
+                    for lnk in graph.links
+                    if lnk.from_id == updated_h_id and lnk.to_id == downstream_id
+                ),
+                None,
             )
             if not link:
                 continue
@@ -226,7 +237,9 @@ class BeliefEngine:
             influence = link.strength * hypothesis.posterior
 
             # Combine with other upstream influences
-            other_upstream = [uid for uid in graph.get_upstream(downstream_id) if uid != updated_h_id]
+            other_upstream = [
+                uid for uid in graph.get_upstream(downstream_id) if uid != updated_h_id
+            ]
 
             if other_upstream:
                 # Weighted combination of all upstream influences
@@ -234,13 +247,20 @@ class BeliefEngine:
                 for other_id in other_upstream:
                     other_h = graph.hypotheses.get(other_id)
                     other_link = next(
-                        (lnk for lnk in graph.links if lnk.from_id == other_id and lnk.to_id == downstream_id), None
+                        (
+                            lnk
+                            for lnk in graph.links
+                            if lnk.from_id == other_id and lnk.to_id == downstream_id
+                        ),
+                        None,
                     )
                     if other_h and other_link:
                         total_influence += other_link.strength * other_h.posterior
 
                 # Normalize
-                new_posterior = min(MAX_PROBABILITY, total_influence / (len(other_upstream) + 1))
+                new_posterior = min(
+                    MAX_PROBABILITY, total_influence / (len(other_upstream) + 1)
+                )
             else:
                 new_posterior = influence
 
@@ -274,7 +294,9 @@ class BeliefEngine:
             return None
 
         # Check if all likelihoods are below threshold
-        all_below_threshold = all(likelihood < self.expansion_threshold for likelihood in likelihoods.values())
+        all_below_threshold = all(
+            likelihood < self.expansion_threshold for likelihood in likelihoods.values()
+        )
 
         if not all_below_threshold:
             return None
@@ -286,7 +308,9 @@ class BeliefEngine:
             context=evidence.context,
             likelihoods=likelihoods,
             threshold=self.expansion_threshold,
-            message=(f"Evidence '{evidence.event}' contradicts all hypotheses. Causal surface may be incomplete."),
+            message=(
+                f"Evidence '{evidence.event}' contradicts all hypotheses. Causal surface may be incomplete."
+            ),
             possible_causes=self._suggest_possible_causes(evidence, likelihoods),
         )
 
@@ -327,4 +351,7 @@ class BeliefEngine:
         evidence: Evidence,
     ) -> dict[str, float]:
         """Compute likelihoods for all hypotheses in the graph."""
-        return {h_id: self.compute_likelihood(evidence, hypothesis) for h_id, hypothesis in graph.hypotheses.items()}
+        return {
+            h_id: self.compute_likelihood(evidence, hypothesis)
+            for h_id, hypothesis in graph.hypotheses.items()
+        }

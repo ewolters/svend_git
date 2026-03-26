@@ -21,7 +21,12 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
-from core.models import Investigation, InvestigationMembership, InvestigationToolLink, Project
+from core.models import (
+    Investigation,
+    InvestigationMembership,
+    InvestigationToolLink,
+    Project,
+)
 
 from .investigation_bridge import (
     export_investigation,
@@ -46,8 +51,12 @@ def _serialize_investigation(inv, include_graph=False):
         "status": inv.status,
         "version": inv.version,
         "owner_id": str(inv.owner_id),
-        "parent_version_id": str(inv.parent_version_id) if inv.parent_version_id else None,
-        "exported_to_project_id": str(inv.exported_to_project_id) if inv.exported_to_project_id else None,
+        "parent_version_id": (
+            str(inv.parent_version_id) if inv.parent_version_id else None
+        ),
+        "exported_to_project_id": (
+            str(inv.exported_to_project_id) if inv.exported_to_project_id else None
+        ),
         "created_at": inv.created_at.isoformat() if inv.created_at else None,
         "updated_at": inv.updated_at.isoformat() if inv.updated_at else None,
         "concluded_at": inv.concluded_at.isoformat() if inv.concluded_at else None,
@@ -118,9 +127,17 @@ def list_create_investigations(request):
     """
     if request.method == "GET":
         owned = Investigation.objects.filter(owner=request.user)
-        member_of = Investigation.objects.filter(members=request.user).exclude(owner=request.user)
+        member_of = Investigation.objects.filter(members=request.user).exclude(
+            owner=request.user
+        )
         investigations = list(owned) + list(member_of)
-        return JsonResponse({"investigations": [_serialize_investigation(inv) for inv in investigations]})
+        return JsonResponse(
+            {
+                "investigations": [
+                    _serialize_investigation(inv) for inv in investigations
+                ]
+            }
+        )
 
     # POST — create
     try:
@@ -168,16 +185,22 @@ def investigation_detail(request, investigation_id):
         return JsonResponse({"error": "Not a member of this investigation"}, status=403)
 
     if request.method == "GET":
-        return JsonResponse({"investigation": _serialize_investigation(inv, include_graph=True)})
+        return JsonResponse(
+            {"investigation": _serialize_investigation(inv, include_graph=True)}
+        )
 
     # DELETE
     if inv.status != Investigation.Status.OPEN:
         return JsonResponse(
-            {"error": f"Cannot delete investigation in '{inv.status}' state — must be 'open'"},
+            {
+                "error": f"Cannot delete investigation in '{inv.status}' state — must be 'open'"
+            },
             status=400,
         )
     if inv.owner != request.user:
-        return JsonResponse({"error": "Only the owner can delete an investigation"}, status=403)
+        return JsonResponse(
+            {"error": "Only the owner can delete an investigation"}, status=403
+        )
 
     inv_id = str(inv.id)
     inv.delete()
@@ -257,7 +280,9 @@ def reopen_investigation(request, investigation_id):
             "version": new_inv.version,
         },
     )
-    return JsonResponse({"investigation": _serialize_investigation(new_inv)}, status=201)
+    return JsonResponse(
+        {"investigation": _serialize_investigation(new_inv)}, status=201
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +349,9 @@ def manage_members(request, investigation_id):
         return JsonResponse({"error": "Not a member of this investigation"}, status=403)
 
     if request.method == "GET":
-        members = InvestigationMembership.objects.filter(investigation=inv).select_related("user")
+        members = InvestigationMembership.objects.filter(
+            investigation=inv
+        ).select_related("user")
         return JsonResponse({"members": [_serialize_member(m) for m in members]})
 
     # POST and DELETE require owner
@@ -358,10 +385,14 @@ def manage_members(request, investigation_id):
         if not created:
             membership.role = role
             membership.save(update_fields=["role"])
-        return JsonResponse({"member": _serialize_member(membership)}, status=201 if created else 200)
+        return JsonResponse(
+            {"member": _serialize_member(membership)}, status=201 if created else 200
+        )
 
     # DELETE
-    deleted, _ = InvestigationMembership.objects.filter(investigation=inv, user=target_user).delete()
+    deleted, _ = InvestigationMembership.objects.filter(
+        investigation=inv, user=target_user
+    ).delete()
     if not deleted:
         return JsonResponse({"error": "User is not a member"}, status=404)
     return JsonResponse({"removed": True, "user_id": str(user_id)})
@@ -416,7 +447,9 @@ def list_tools(request, investigation_id):
     except PermissionError:
         return JsonResponse({"error": "Not a member of this investigation"}, status=403)
 
-    links = InvestigationToolLink.objects.filter(investigation=inv).select_related("content_type")
+    links = InvestigationToolLink.objects.filter(investigation=inv).select_related(
+        "content_type"
+    )
     return JsonResponse(
         {
             "investigation_id": str(inv.id),

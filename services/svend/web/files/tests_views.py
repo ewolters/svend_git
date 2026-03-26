@@ -25,7 +25,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 def _make_user(email, tier=Tier.TEAM, **kwargs):
     """Create a user with given tier."""
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123", **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123", **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -40,7 +42,14 @@ def _err_msg(resp):
     return err
 
 
-def _upload_file(client, name="test.txt", content=b"hello world", content_type="text/plain", folder="", description=""):
+def _upload_file(
+    client,
+    name="test.txt",
+    content=b"hello world",
+    content_type="text/plain",
+    folder="",
+    description="",
+):
     """Upload a file via the API and return the response."""
     f = SimpleUploadedFile(name, content, content_type=content_type)
     data = {"file": f}
@@ -213,7 +222,11 @@ class FileDetailTest(TestCase):
         # PATCH -- update metadata
         resp = self.client.patch(
             f"/api/files/{file_id}/",
-            {"folder": "processed", "description": "Cleaned data", "tags": ["csv", "q1"]},
+            {
+                "folder": "processed",
+                "description": "Cleaned data",
+                "tags": ["csv", "q1"],
+            },
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
@@ -526,8 +539,12 @@ class FolderTest(TestCase):
 
     def test_list_files_filter_by_type(self):
         """List files filtered by file_type."""
-        _upload_file(self.client, name="pic.png", content=b"\x89PNG", content_type="image/png")
-        _upload_file(self.client, name="doc.txt", content=b"text", content_type="text/plain")
+        _upload_file(
+            self.client, name="pic.png", content=b"\x89PNG", content_type="image/png"
+        )
+        _upload_file(
+            self.client, name="doc.txt", content=b"text", content_type="text/plain"
+        )
 
         resp = self.client.get("/api/files/", {"type": "image"})
         self.assertEqual(resp.status_code, 200)

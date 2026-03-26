@@ -40,7 +40,9 @@ def _post(client, url, data=None):
 
 def _make_team_user(email, **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password=PASSWORD, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=PASSWORD, **kwargs
+    )
     user.tier = Tier.TEAM
     user.save(update_fields=["tier"])
     return user
@@ -48,7 +50,9 @@ def _make_team_user(email, **kwargs):
 
 def _make_free_user(email, **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password=PASSWORD, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=PASSWORD, **kwargs
+    )
     user.tier = Tier.FREE
     user.save(update_fields=["tier"])
     return user
@@ -166,7 +170,9 @@ class ESignatureCrudTest(TestCase):
         self.assertIn("reason", _err_msg(resp).lower())
 
     def test_reject_with_reason_succeeds(self):
-        resp = _sign(self.client, "ncr", self.ncr.id, "rejected", reason="Insufficient evidence")
+        resp = _sign(
+            self.client, "ncr", self.ncr.id, "rejected", reason="Insufficient evidence"
+        )
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.json()["reason"], "Insufficient evidence")
 
@@ -291,7 +297,9 @@ class ESignatureListTest(TestCase):
         ncr = _create_ncr(self.user)
         _sign(self.client, "ncr", ncr.id, "approved")
         _sign(self.client, "ncr", ncr.id, "reviewed")
-        resp = self.client.get(f"/api/iso/signatures/?document_type=ncr&document_id={ncr.id}")
+        resp = self.client.get(
+            f"/api/iso/signatures/?document_type=ncr&document_id={ncr.id}"
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.json()), 2)
 

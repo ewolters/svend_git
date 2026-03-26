@@ -264,7 +264,9 @@ class Command(BaseCommand):
                 result.add_result(duration)
             results["cache_get_hit"] = result.to_dict()
             if verbose:
-                self.stdout.write(f"  Cache get() [hit]: {result.avg_time * 1000:.2f}ms avg")
+                self.stdout.write(
+                    f"  Cache get() [hit]: {result.avg_time * 1000:.2f}ms avg"
+                )
 
             # Cache get (miss)
             result = BenchmarkResult("Cache get() [miss]")
@@ -275,7 +277,9 @@ class Command(BaseCommand):
                 result.add_result(duration)
             results["cache_get_miss"] = result.to_dict()
             if verbose:
-                self.stdout.write(f"  Cache get() [miss]: {result.avg_time * 1000:.2f}ms avg")
+                self.stdout.write(
+                    f"  Cache get() [miss]: {result.avg_time * 1000:.2f}ms avg"
+                )
 
             # Cache delete
             result = BenchmarkResult("Cache delete()")
@@ -287,7 +291,9 @@ class Command(BaseCommand):
                 result.add_result(duration)
             results["cache_delete"] = result.to_dict()
             if verbose:
-                self.stdout.write(f"  Cache delete(): {result.avg_time * 1000:.2f}ms avg")
+                self.stdout.write(
+                    f"  Cache delete(): {result.avg_time * 1000:.2f}ms avg"
+                )
 
             # Cleanup
             for i in range(iterations):
@@ -310,7 +316,9 @@ class Command(BaseCommand):
             self.stdout.write("-" * 60)
 
             # Table header
-            self.stdout.write(f"{'Operation':<30} {'Avg (ms)':<12} {'Median (ms)':<12} {'Ops/sec':<12}")
+            self.stdout.write(
+                f"{'Operation':<30} {'Avg (ms)':<12} {'Median (ms)':<12} {'Ops/sec':<12}"
+            )
             self.stdout.write("-" * 60)
 
             # Table rows

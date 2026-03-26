@@ -48,7 +48,16 @@ class NotificationType(models.TextChoices):
 
 
 # Fields that are immutable after creation (NTF-001 §4.4)
-_IMMUTABLE_FIELDS = frozenset(["recipient_id", "notification_type", "title", "message", "entity_type", "entity_id"])
+_IMMUTABLE_FIELDS = frozenset(
+    [
+        "recipient_id",
+        "notification_type",
+        "title",
+        "message",
+        "entity_type",
+        "entity_id",
+    ]
+)
 
 
 class Notification(models.Model):
@@ -64,7 +73,9 @@ class Notification(models.Model):
         related_name="notifications",
         db_index=True,
     )
-    notification_type = models.CharField(max_length=30, choices=NotificationType.choices, db_index=True)
+    notification_type = models.CharField(
+        max_length=30, choices=NotificationType.choices, db_index=True
+    )
     title = models.CharField(max_length=300)
     message = models.TextField(blank=True, default="")
     entity_type = models.CharField(max_length=30, blank=True, default="")
@@ -95,7 +106,9 @@ class Notification(models.Model):
             else:
                 for field in _IMMUTABLE_FIELDS:
                     if getattr(self, field) != getattr(existing, field):
-                        raise ValueError(f"Notification field '{field}' is immutable after creation")
+                        raise ValueError(
+                            f"Notification field '{field}' is immutable after creation"
+                        )
         super().save(**kwargs)
 
     def to_dict(self):

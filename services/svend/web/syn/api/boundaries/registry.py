@@ -382,13 +382,17 @@ class IOContractRegistry:
 
                     if hasattr(module, "register"):
                         module.register(cls)
-                        logger.debug(f"[REGISTRY] Discovered contracts from {module_name}")
+                        logger.debug(
+                            f"[REGISTRY] Discovered contracts from {module_name}"
+                        )
 
                 except ImportError:
                     # No io_contracts module in this app
                     pass
                 except Exception as e:
-                    logger.warning(f"[REGISTRY] Error discovering contracts from {app_config.name}: {e}")
+                    logger.warning(
+                        f"[REGISTRY] Error discovering contracts from {app_config.name}: {e}"
+                    )
 
         except Exception as e:
             logger.warning(f"[REGISTRY] Autodiscovery failed: {e}")
@@ -419,7 +423,11 @@ class IOContractRegistry:
                     "failure_domain": contract.failure_domain,
                     "idempotency_strategy": contract.idempotency_strategy,
                     "input_schema": contract.input_schema.model_json_schema(),
-                    "output_schema": (contract.output_schema.model_json_schema() if contract.output_schema else None),
+                    "output_schema": (
+                        contract.output_schema.model_json_schema()
+                        if contract.output_schema
+                        else None
+                    ),
                 }
                 for code, contract in cls._contracts.items()
             },

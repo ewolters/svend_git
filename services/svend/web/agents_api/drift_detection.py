@@ -88,8 +88,12 @@ def _run_drift_report(df, config, result):
     lines.append("<<COLOR:title>>CONCEPT DRIFT DIAGNOSTIC<</COLOR>>")
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
     lines.append(f"<<COLOR:highlight>>Total observations:<</COLOR>> {n}")
-    lines.append(f"<<COLOR:highlight>>Reference window:<</COLOR>> rows 0–{split_idx - 1} (n={split_idx})")
-    lines.append(f"<<COLOR:highlight>>Current window:<</COLOR>> rows {split_idx}–{n - 1} (n={n - split_idx})")
+    lines.append(
+        f"<<COLOR:highlight>>Reference window:<</COLOR>> rows 0–{split_idx - 1} (n={split_idx})"
+    )
+    lines.append(
+        f"<<COLOR:highlight>>Current window:<</COLOR>> rows {split_idx}–{n - 1} (n={n - split_idx})"
+    )
     lines.append(f"<<COLOR:highlight>>Features monitored:<</COLOR>> {len(features)}")
 
     any_drift = False
@@ -124,12 +128,18 @@ def _run_drift_report(df, config, result):
     # Sort by PSI descending
     psi_results.sort(key=lambda x: x["psi"], reverse=True)
 
-    lines.append(f"{'Feature':<20} {'PSI':>8} {'Severity':<10} {'Ref μ':>10} {'Cur μ':>10} {'Δμ':>10}")
+    lines.append(
+        f"{'Feature':<20} {'PSI':>8} {'Severity':<10} {'Ref μ':>10} {'Cur μ':>10} {'Δμ':>10}"
+    )
     lines.append(f"{'─' * 20} {'─' * 8} {'─' * 10} {'─' * 10} {'─' * 10} {'─' * 10}")
 
     for pr in psi_results:
         delta_mu = pr["cur_mean"] - pr["ref_mean"]
-        icon = "●" if pr["severity"] == "high" else "◐" if pr["severity"] == "moderate" else "○"
+        icon = (
+            "●"
+            if pr["severity"] == "high"
+            else "◐" if pr["severity"] == "moderate" else "○"
+        )
         lines.append(
             f"{icon} {pr['feature']:<18} {pr['psi']:>8.4f} {pr['severity']:<10} "
             f"{pr['ref_mean']:>10.3f} {pr['cur_mean']:>10.3f} {delta_mu:>+10.3f}"
@@ -172,12 +182,16 @@ def _run_drift_report(df, config, result):
 
     # PSI bar chart
     if psi_results:
-        result["plots"].append(_build_psi_bar(psi_results, "Data Drift — PSI per Feature"))
+        result["plots"].append(
+            _build_psi_bar(psi_results, "Data Drift — PSI per Feature")
+        )
 
     # ─── LANE B: Prediction Drift ───
     if prediction_col and prediction_col in df.columns:
         lines.append(f"\n<<COLOR:accent>>{'─' * 70}<</COLOR>>")
-        lines.append("<<COLOR:title>>LANE B — PREDICTION DRIFT (Model Output Distribution)<</COLOR>>")
+        lines.append(
+            "<<COLOR:title>>LANE B — PREDICTION DRIFT (Model Output Distribution)<</COLOR>>"
+        )
         lines.append(f"<<COLOR:accent>>{'─' * 70}<</COLOR>>\n")
 
         ref_preds = ref_df[prediction_col].dropna().values.astype(float)
@@ -186,8 +200,12 @@ def _run_drift_report(df, config, result):
         if len(ref_preds) >= 5 and len(cur_preds) >= 5:
             pred_psi, pred_bins = _compute_psi(ref_preds, cur_preds)
             pred_severity = _psi_severity(pred_psi)
-            lines.append(f"<<COLOR:highlight>>PSI on predictions:<</COLOR>> {pred_psi:.4f} ({pred_severity})")
-            lines.append(f"  Ref mean: {np.mean(ref_preds):.4f}, Cur mean: {np.mean(cur_preds):.4f}")
+            lines.append(
+                f"<<COLOR:highlight>>PSI on predictions:<</COLOR>> {pred_psi:.4f} ({pred_severity})"
+            )
+            lines.append(
+                f"  Ref mean: {np.mean(ref_preds):.4f}, Cur mean: {np.mean(cur_preds):.4f}"
+            )
 
             if pred_severity in ("high", "moderate"):
                 any_drift = True
@@ -214,27 +232,45 @@ def _run_drift_report(df, config, result):
                     {
                         "detector": "ADWIN",
                         "stream": "prediction",
-                        "severity": "high" if abs(pred_adwin["shift_magnitude"]) > 0.5 else "moderate",
+                        "severity": (
+                            "high"
+                            if abs(pred_adwin["shift_magnitude"]) > 0.5
+                            else "moderate"
+                        ),
                         "detail": f"change at obs {pred_adwin['change_idx']}, Δ={pred_adwin['shift_magnitude']:+.4f}",
                     }
                 )
             else:
-                lines.append("<<COLOR:good>>ADWIN: no significant prediction drift detected<</COLOR>>")
+                lines.append(
+                    "<<COLOR:good>>ADWIN: no significant prediction drift detected<</COLOR>>"
+                )
 
             # KDE comparison plot
             result["plots"].append(
                 _build_distribution_comparison(
-                    ref_preds, cur_preds, prediction_col, f"Prediction Drift — {prediction_col}"
+                    ref_preds,
+                    cur_preds,
+                    prediction_col,
+                    f"Prediction Drift — {prediction_col}",
                 )
             )
     else:
-        lines.append("\n<<COLOR:text>>LANE B (Prediction Drift): skipped — no prediction column specified<</COLOR>>")
+        lines.append(
+            "\n<<COLOR:text>>LANE B (Prediction Drift): skipped — no prediction column specified<</COLOR>>"
+        )
 
     # ─── LANE C: Error Drift ───
-    has_error = target and prediction_col and target in df.columns and prediction_col in df.columns
+    has_error = (
+        target
+        and prediction_col
+        and target in df.columns
+        and prediction_col in df.columns
+    )
     if has_error:
         lines.append(f"\n<<COLOR:accent>>{'─' * 70}<</COLOR>>")
-        lines.append("<<COLOR:title>>LANE C — ERROR DRIFT (Model Performance Over Time)<</COLOR>>")
+        lines.append(
+            "<<COLOR:title>>LANE C — ERROR DRIFT (Model Performance Over Time)<</COLOR>>"
+        )
         lines.append(f"<<COLOR:accent>>{'─' * 70}<</COLOR>>\n")
 
         actual = df[target].values.astype(float)
@@ -260,11 +296,15 @@ def _run_drift_report(df, config, result):
                 }
             )
         else:
-            lines.append("<<COLOR:good>>ADWIN on loss: no significant error drift<</COLOR>>")
+            lines.append(
+                "<<COLOR:good>>ADWIN on loss: no significant error drift<</COLOR>>"
+            )
 
         # Page-Hinkley on loss stream
         ph_up = _page_hinkley_detect(loss, direction="up", stream_name="squared_error")
-        ph_down = _page_hinkley_detect(loss, direction="down", stream_name="squared_error")
+        ph_down = _page_hinkley_detect(
+            loss, direction="down", stream_name="squared_error"
+        )
 
         for ph in [ph_up, ph_down]:
             if ph["detected"]:
@@ -284,7 +324,9 @@ def _run_drift_report(df, config, result):
                     }
                 )
             else:
-                lines.append(f"<<COLOR:good>>Page-Hinkley ({ph['direction']}): no sustained error shift<</COLOR>>")
+                lines.append(
+                    f"<<COLOR:good>>Page-Hinkley ({ph['direction']}): no sustained error shift<</COLOR>>"
+                )
 
         # Ref vs current error stats
         ref_loss = loss[:split_idx]
@@ -296,7 +338,9 @@ def _run_drift_report(df, config, result):
         lines.append(f"  Cur RMSE: {np.sqrt(np.mean(cur_loss)):.4f}")
 
         # Rolling loss plot
-        result["plots"].append(_build_rolling_loss_plot(loss, split_idx, loss_adwin, ph_up, ph_down))
+        result["plots"].append(
+            _build_rolling_loss_plot(loss, split_idx, loss_adwin, ph_up, ph_down)
+        )
     else:
         lines.append(
             "\n<<COLOR:text>>LANE C (Error Drift): skipped — need both target and prediction columns<</COLOR>>"
@@ -305,14 +349,20 @@ def _run_drift_report(df, config, result):
     # ─── DRIFT BANNERS ───
     if drift_banners:
         banner_lines = [f"\n<<COLOR:accent>>{'═' * 70}<</COLOR>>"]
-        banner_lines.append(f"<<COLOR:warning>>DRIFT DETECTED — {len(drift_banners)} signal(s)<</COLOR>>")
+        banner_lines.append(
+            f"<<COLOR:warning>>DRIFT DETECTED — {len(drift_banners)} signal(s)<</COLOR>>"
+        )
         banner_lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
         for db in drift_banners:
-            banner_lines.append(f"  [{db['detector']}] {db['stream']} — {db['severity'].upper()} — {db['detail']}")
+            banner_lines.append(
+                f"  [{db['detector']}] {db['stream']} — {db['severity'].upper()} — {db['detail']}"
+            )
         # Prepend banners to top of summary
         lines = banner_lines + ["\n"] + lines
     else:
-        no_drift = ["\n<<COLOR:good>>No significant drift detected across all lanes.<</COLOR>>\n"]
+        no_drift = [
+            "\n<<COLOR:good>>No significant drift detected across all lanes.<</COLOR>>\n"
+        ]
         lines = no_drift + lines
 
     result["summary"] = "\n".join(lines)
@@ -327,7 +377,8 @@ def _run_drift_report(df, config, result):
         "n_drift_signals": len(drift_banners),
         "drift_banners": drift_banners,
         "psi_per_feature": {
-            pr["feature"]: {"psi": round(pr["psi"], 4), "severity": pr["severity"]} for pr in psi_results
+            pr["feature"]: {"psi": round(pr["psi"], 4), "severity": pr["severity"]}
+            for pr in psi_results
         },
     }
 
@@ -339,9 +390,11 @@ def _run_drift_report(df, config, result):
         + (
             "Model may need retraining."
             if n_high > 0
-            else "Minor drift — monitor closely."
-            if n_mod > 0
-            else "No evidence of drift — model appears healthy."
+            else (
+                "Minor drift — monitor closely."
+                if n_mod > 0
+                else "No evidence of drift — model appears healthy."
+            )
         )
     )
 
@@ -426,7 +479,12 @@ def _adwin_detect(stream, delta=_ADWIN_DELTA, stream_name=""):
             "mean_after": round(mean_after_raw, 6),
             "shift_magnitude": round(mean_after_raw - mean_before_raw, 6),
             "window_length": n,
-            "epsilon": round(float(np.sqrt(0.5 / min(best_cut, n - best_cut) * np.log(4 * n / delta))), 6),
+            "epsilon": round(
+                float(
+                    np.sqrt(0.5 / min(best_cut, n - best_cut) * np.log(4 * n / delta))
+                ),
+                6,
+            ),
         }
     else:
         return {
@@ -443,7 +501,9 @@ def _adwin_detect(stream, delta=_ADWIN_DELTA, stream_name=""):
 # ===========================================================================
 # Page-Hinkley — Cumulative deviation detector
 # ===========================================================================
-def _page_hinkley_detect(stream, direction="up", ph_delta=_PH_DELTA, ph_lambda=_PH_LAMBDA, stream_name=""):
+def _page_hinkley_detect(
+    stream, direction="up", ph_delta=_PH_DELTA, ph_lambda=_PH_LAMBDA, stream_name=""
+):
     """
     Page-Hinkley test for sustained mean shift.
 
@@ -572,13 +632,19 @@ def _build_psi_bar(psi_results, title):
     names = [pr["feature"] for pr in psi_results]
     values = [pr["psi"] for pr in psi_results]
     colors = [
-        "rgba(208,96,96,0.7)"
-        if pr["severity"] == "high"
-        else "rgba(200,170,60,0.7)"
-        if pr["severity"] == "moderate"
-        else "rgba(150,150,150,0.5)"
-        if pr["severity"] == "low"
-        else "rgba(74,159,110,0.5)"
+        (
+            "rgba(208,96,96,0.7)"
+            if pr["severity"] == "high"
+            else (
+                "rgba(200,170,60,0.7)"
+                if pr["severity"] == "moderate"
+                else (
+                    "rgba(150,150,150,0.5)"
+                    if pr["severity"] == "low"
+                    else "rgba(74,159,110,0.5)"
+                )
+            )
+        )
         for pr in psi_results
     ]
 
@@ -606,7 +672,11 @@ def _build_psi_bar(psi_results, title):
                     "x1": _PSI_LOW,
                     "y0": -0.5,
                     "y1": len(names) - 0.5,
-                    "line": {"color": "rgba(200,170,60,0.4)", "dash": "dot", "width": 1},
+                    "line": {
+                        "color": "rgba(200,170,60,0.4)",
+                        "dash": "dot",
+                        "width": 1,
+                    },
                 },
                 {
                     "type": "line",

@@ -48,7 +48,9 @@ class StandardizeOutputTest(TestCase):
     def test_non_dict_input_returned_unchanged(self):
         from agents_api.dsw.standardize import standardize_output
 
-        self.assertEqual(standardize_output("not a dict", "stats", "ttest"), "not a dict")
+        self.assertEqual(
+            standardize_output("not a dict", "stats", "ttest"), "not a dict"
+        )
         self.assertIsNone(standardize_output(None, "stats", "ttest"))
 
     def test_metadata_tags_added(self):
@@ -118,7 +120,9 @@ class ValidateStatisticsBoundsTest(TestCase):
     def test_valid_values_unchanged(self):
         from agents_api.dsw.standardize import _validate_statistics_bounds
 
-        result = {"statistics": {"p_value": 0.05, "correlation": -0.7, "r_squared": 0.85}}
+        result = {
+            "statistics": {"p_value": 0.05, "correlation": -0.7, "r_squared": 0.85}
+        }
         _validate_statistics_bounds(result)
         self.assertAlmostEqual(result["statistics"]["p_value"], 0.05)
         self.assertAlmostEqual(result["statistics"]["correlation"], -0.7)

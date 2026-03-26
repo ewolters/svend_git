@@ -83,12 +83,32 @@ Signs a feature is noise:
         "config": {
             "dataset": "churn",
             "features": [
-                {"name": "tenure_months", "label": "Tenure (months)", "default_on": True},
-                {"name": "monthly_charges", "label": "Monthly Charges", "default_on": True},
-                {"name": "contract_type", "label": "Contract Type", "default_on": False},
+                {
+                    "name": "tenure_months",
+                    "label": "Tenure (months)",
+                    "default_on": True,
+                },
+                {
+                    "name": "monthly_charges",
+                    "label": "Monthly Charges",
+                    "default_on": True,
+                },
+                {
+                    "name": "contract_type",
+                    "label": "Contract Type",
+                    "default_on": False,
+                },
                 {"name": "tech_support", "label": "Tech Support", "default_on": False},
-                {"name": "num_tickets", "label": "Support Tickets", "default_on": False},
-                {"name": "senior_citizen", "label": "Senior Citizen", "default_on": False},
+                {
+                    "name": "num_tickets",
+                    "label": "Support Tickets",
+                    "default_on": False,
+                },
+                {
+                    "name": "senior_citizen",
+                    "label": "Senior Citizen",
+                    "default_on": False,
+                },
             ],
             "target": "churned",
             "threshold": 0.5,
@@ -303,7 +323,12 @@ A 3-cluster solution might be: "Price-sensitive short-term customers", "Loyal lo
         "config": {
             "dataset": "churn",
             "default_features": ["tenure_months", "monthly_charges"],
-            "all_features": ["tenure_months", "monthly_charges", "total_charges", "num_tickets"],
+            "all_features": [
+                "tenure_months",
+                "monthly_charges",
+                "total_charges",
+                "num_tickets",
+            ],
             "min_k": 2,
             "max_k": 8,
             "show_pca": True,
@@ -413,7 +438,13 @@ Plot training and test error vs training set size:
             "show_fold_visualization": True,
             "show_learning_curve": True,
             "show_bias_variance": True,
-            "complexity_levels": ["linear", "depth_3", "depth_5", "depth_10", "depth_20"],
+            "complexity_levels": [
+                "linear",
+                "depth_3",
+                "depth_5",
+                "depth_10",
+                "depth_20",
+            ],
         },
     },
     "key_takeaways": [
@@ -508,9 +539,25 @@ Adding features isn't always better. Irrelevant features:
     "interactive": {
         "type": "feature_transformer",
         "config": {
-            "available_transforms": ["log", "sqrt", "bin", "standardize", "square", "interaction"],
-            "features": ["tenure_months", "monthly_charges", "total_charges", "num_tickets"],
-            "categorical_features": ["contract_type", "internet_service", "tech_support"],
+            "available_transforms": [
+                "log",
+                "sqrt",
+                "bin",
+                "standardize",
+                "square",
+                "interaction",
+            ],
+            "features": [
+                "tenure_months",
+                "monthly_charges",
+                "total_charges",
+                "num_tickets",
+            ],
+            "categorical_features": [
+                "contract_type",
+                "internet_service",
+                "tech_support",
+            ],
             "encodings": ["one_hot", "ordinal", "target"],
             "show_distribution_before_after": True,
             "show_model_comparison": True,

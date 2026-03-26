@@ -90,7 +90,9 @@ class ComplianceCheckTest(TestCase):
         try:
             result = check_roadmap()
             self.assertEqual(result["status"], "fail")
-            self.assertTrue(any("past quarters" in i for i in result["details"]["issues"]))
+            self.assertTrue(
+                any("past quarters" in i for i in result["details"]["issues"])
+            )
         finally:
             item.delete()
 
@@ -107,7 +109,9 @@ class ComplianceCheckTest(TestCase):
             next_q = f"Q{q_num + 1}-{now.year}"
         RoadmapItem.objects.filter(quarter=next_q).delete()
         result = check_roadmap()
-        self.assertTrue(any("upcoming quarter" in i for i in result["details"]["issues"]))
+        self.assertTrue(
+            any("upcoming quarter" in i for i in result["details"]["issues"])
+        )
 
     def test_clean_roadmap_passes(self):
         from api.models import RoadmapItem

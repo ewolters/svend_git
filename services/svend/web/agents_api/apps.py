@@ -21,7 +21,16 @@ class AgentsApiConfig(AppConfig):
         import sys
 
         # Skip during migrations, shell, or other management commands
-        if any(cmd in sys.argv for cmd in ["migrate", "makemigrations", "collectstatic", "shell", "dbshell"]):
+        if any(
+            cmd in sys.argv
+            for cmd in [
+                "migrate",
+                "makemigrations",
+                "collectstatic",
+                "shell",
+                "dbshell",
+            ]
+        ):
             return
 
         # Preload in background thread to not block startup

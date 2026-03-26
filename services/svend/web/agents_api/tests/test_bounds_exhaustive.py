@@ -111,7 +111,12 @@ class StatsHypothesisExhaustiveTest(TestCase):
 
     def test_paired_t(self):
         a, b = _two_groups()
-        r = _run("stats", "paired_t", {"var1": "before", "var2": "after"}, {"before": a, "after": b})
+        r = _run(
+            "stats",
+            "paired_t",
+            {"var1": "before", "var2": "after"},
+            {"before": a, "after": b},
+        )
         _check_result(self, r, "paired_t")
 
     def test_anova(self):
@@ -135,12 +140,19 @@ class StatsHypothesisExhaustiveTest(TestCase):
     def test_fisher_exact(self):
         a = ["A"] * 10 + ["B"] * 10
         b = ["Y"] * 8 + ["N"] * 2 + ["Y"] * 3 + ["N"] * 7
-        r = _run("stats", "fisher_exact", {"var1": "treatment", "var2": "outcome"}, {"treatment": a, "outcome": b})
+        r = _run(
+            "stats",
+            "fisher_exact",
+            {"var1": "treatment", "var2": "outcome"},
+            {"treatment": a, "outcome": b},
+        )
         _check_result(self, r, "fisher_exact")
 
     def test_mann_whitney(self):
         v, g = _stacked_groups(50, 2)
-        r = _run("stats", "mann_whitney", {"var": "v", "group_var": "g"}, {"v": v, "g": g})
+        r = _run(
+            "stats", "mann_whitney", {"var": "v", "group_var": "g"}, {"v": v, "g": g}
+        )
         _check_result(self, r, "mann_whitney")
 
     def test_kruskal(self):
@@ -150,7 +162,12 @@ class StatsHypothesisExhaustiveTest(TestCase):
 
     def test_wilcoxon(self):
         a, b = _two_groups(40, 40)
-        r = _run("stats", "wilcoxon", {"var1": "before", "var2": "after"}, {"before": a, "after": b})
+        r = _run(
+            "stats",
+            "wilcoxon",
+            {"var1": "before", "var2": "after"},
+            {"before": a, "after": b},
+        )
         _check_result(self, r, "wilcoxon")
 
     def test_normality(self):
@@ -164,11 +181,21 @@ class StatsHypothesisExhaustiveTest(TestCase):
 
     def test_equivalence(self):
         v, g = _stacked_groups(50, 2)
-        r = _run("stats", "equivalence", {"var": "v", "group_var": "g", "margin": 5.0}, {"v": v, "g": g})
+        r = _run(
+            "stats",
+            "equivalence",
+            {"var": "v", "group_var": "g", "margin": 5.0},
+            {"v": v, "g": g},
+        )
         _check_result(self, r, "equivalence")
 
     def test_sign_test(self):
-        r = _run("stats", "sign_test", {"var": "x", "hypothesized_median": 50}, {"x": _normal()})
+        r = _run(
+            "stats",
+            "sign_test",
+            {"var": "x", "hypothesized_median": 50},
+            {"x": _normal()},
+        )
         _check_result(self, r, "sign_test")
 
     def test_runs_test(self):
@@ -183,14 +210,18 @@ class StatsHypothesisExhaustiveTest(TestCase):
 
     def test_mood_median(self):
         v, g = _stacked_groups(40, 3)
-        r = _run("stats", "mood_median", {"var": "v", "group_var": "g"}, {"v": v, "g": g})
+        r = _run(
+            "stats", "mood_median", {"var": "v", "group_var": "g"}, {"v": v, "g": g}
+        )
         _check_result(self, r, "mood_median")
 
     def test_friedman(self):
         a = _normal(30)
         b = _normal(30)
         c = _normal(30)
-        r = _run("stats", "friedman", {"vars": ["a", "b", "c"]}, {"a": a, "b": b, "c": c})
+        r = _run(
+            "stats", "friedman", {"vars": ["a", "b", "c"]}, {"a": a, "b": b, "c": c}
+        )
         _check_result(self, r, "friedman")
 
 
@@ -203,13 +234,23 @@ class StatsRegressionExhaustiveTest(TestCase):
     def test_regression(self):
         x = _normal(100, 0, 1)
         y = [2 * xi + RNG.normal(0, 0.5) for xi in x]
-        r = _run("stats", "regression", {"response": "y", "predictors": ["x"]}, {"x": x, "y": y})
+        r = _run(
+            "stats",
+            "regression",
+            {"response": "y", "predictors": ["x"]},
+            {"x": x, "y": y},
+        )
         _check_result(self, r, "regression")
 
     def test_logistic(self):
         x = _normal(100, 0, 1)
         y = [1 if xi > 0 else 0 for xi in x]
-        r = _run("stats", "logistic", {"response": "y", "predictors": ["x"]}, {"x": x, "y": y})
+        r = _run(
+            "stats",
+            "logistic",
+            {"response": "y", "predictors": ["x"]},
+            {"x": x, "y": y},
+        )
         _check_result(self, r, "logistic")
 
     def test_stepwise(self):
@@ -250,7 +291,12 @@ class StatsExploratoryExhaustiveTest(TestCase):
         _check_result(self, r, "box_cox")
 
     def test_tolerance_interval(self):
-        r = _run("stats", "tolerance_interval", {"var": "x", "proportion": 0.95, "conf": 0.95}, {"x": _normal()})
+        r = _run(
+            "stats",
+            "tolerance_interval",
+            {"var": "x", "proportion": 0.95, "conf": 0.95},
+            {"x": _normal()},
+        )
         _check_result(self, r, "tolerance_interval")
 
     def test_run_chart(self):
@@ -279,7 +325,9 @@ class StatsPostHocExhaustiveTest(TestCase):
 
     def test_dunnett(self):
         d = self._anova_data()
-        r = _run("stats", "dunnett", {"response": "v", "factor": "g", "control": "G0"}, d)
+        r = _run(
+            "stats", "dunnett", {"response": "v", "factor": "g", "control": "G0"}, d
+        )
         _check_result(self, r, "dunnett")
 
     def test_games_howell(self):
@@ -300,7 +348,9 @@ class StatsPowerExhaustiveTest(TestCase):
     """Power analyses complete without crash."""
 
     def test_power_z(self):
-        r = _run("stats", "power_z", {"effect_size": 0.5, "alpha": 0.05, "power": 0.8}, {})
+        r = _run(
+            "stats", "power_z", {"effect_size": 0.5, "alpha": 0.05, "power": 0.8}, {}
+        )
         _check_result(self, r, "power_z")
 
     def test_sample_size_ci(self):
@@ -316,7 +366,9 @@ class StatsTimeSeriesExhaustiveTest(TestCase):
 
     def test_decomposition(self):
         # Seasonal data — need at least 2 full periods
-        data = [50 + 10 * np.sin(2 * np.pi * i / 12) + RNG.normal(0, 2) for i in range(48)]
+        data = [
+            50 + 10 * np.sin(2 * np.pi * i / 12) + RNG.normal(0, 2) for i in range(48)
+        ]
         r = _run("stats", "decomposition", {"var": "x", "period": 12}, {"x": data})
         _check_result(self, r, "decomposition")
 
@@ -334,24 +386,41 @@ class SPCExhaustiveTest(TestCase):
     def test_xbar_r(self):
         data = _normal(100)
         subgroups = [f"S{i // 5}" for i in range(100)]
-        r = _run("spc", "xbar_r", {"measurement": "x", "subgroup": "sg"}, {"x": data, "sg": subgroups})
+        r = _run(
+            "spc",
+            "xbar_r",
+            {"measurement": "x", "subgroup": "sg"},
+            {"x": data, "sg": subgroups},
+        )
         _check_result(self, r, "xbar_r")
 
     def test_xbar_s(self):
         data = _normal(100)
         subgroups = [f"S{i // 10}" for i in range(100)]
-        r = _run("spc", "xbar_s", {"measurement": "x", "subgroup": "sg"}, {"x": data, "sg": subgroups})
+        r = _run(
+            "spc",
+            "xbar_s",
+            {"measurement": "x", "subgroup": "sg"},
+            {"x": data, "sg": subgroups},
+        )
         _check_result(self, r, "xbar_s")
 
     def test_p_chart(self):
         defectives = RNG.binomial(50, 0.05, 30).tolist()
         sizes = [50] * 30
-        r = _run("spc", "p_chart", {"defectives": "d", "sample_size": "n"}, {"d": defectives, "n": sizes})
+        r = _run(
+            "spc",
+            "p_chart",
+            {"defectives": "d", "sample_size": "n"},
+            {"d": defectives, "n": sizes},
+        )
         _check_result(self, r, "p_chart")
 
     def test_np_chart(self):
         defectives = RNG.binomial(50, 0.05, 30).tolist()
-        r = _run("spc", "np_chart", {"defectives": "d", "sample_size": 50}, {"d": defectives})
+        r = _run(
+            "spc", "np_chart", {"defectives": "d", "sample_size": 50}, {"d": defectives}
+        )
         _check_result(self, r, "np_chart")
 
     def test_c_chart(self):
@@ -362,7 +431,9 @@ class SPCExhaustiveTest(TestCase):
     def test_u_chart(self):
         defects = RNG.poisson(5, 30).tolist()
         units = [10] * 30
-        r = _run("spc", "u_chart", {"defects": "d", "units": "n"}, {"d": defects, "n": units})
+        r = _run(
+            "spc", "u_chart", {"defects": "d", "units": "n"}, {"d": defects, "n": units}
+        )
         _check_result(self, r, "u_chart")
 
     def test_cusum(self):
@@ -374,13 +445,23 @@ class SPCExhaustiveTest(TestCase):
         _check_result(self, r, "ewma")
 
     def test_capability(self):
-        r = _run("spc", "capability", {"measurement": "x", "lsl": 20, "usl": 80}, {"x": _normal(100)})
+        r = _run(
+            "spc",
+            "capability",
+            {"measurement": "x", "lsl": 20, "usl": 80},
+            {"x": _normal(100)},
+        )
         _check_result(self, r, "capability")
 
     def test_between_within(self):
         data = _normal(100)
         subgroups = [f"S{i // 5}" for i in range(100)]
-        r = _run("spc", "between_within", {"measurement": "x", "subgroup": "sg"}, {"x": data, "sg": subgroups})
+        r = _run(
+            "spc",
+            "between_within",
+            {"measurement": "x", "subgroup": "sg"},
+            {"x": data, "sg": subgroups},
+        )
         _check_result(self, r, "between_within")
 
 
@@ -392,12 +473,16 @@ class BayesianExhaustiveTest(TestCase):
 
     def test_bayes_ttest(self):
         a, b = _two_groups()
-        r = _run("bayesian", "bayes_ttest", {"var1": "a", "var2": "b"}, {"a": a, "b": b})
+        r = _run(
+            "bayesian", "bayes_ttest", {"var1": "a", "var2": "b"}, {"a": a, "b": b}
+        )
         _check_result(self, r, "bayes_ttest")
 
     def test_bayes_ab(self):
         groups = ["A"] * 50 + ["B"] * 50
-        converted = RNG.binomial(1, 0.5, 50).tolist() + RNG.binomial(1, 0.7, 50).tolist()
+        converted = (
+            RNG.binomial(1, 0.5, 50).tolist() + RNG.binomial(1, 0.7, 50).tolist()
+        )
         r = _run(
             "bayesian",
             "bayes_ab",
@@ -409,18 +494,33 @@ class BayesianExhaustiveTest(TestCase):
     def test_bayes_regression(self):
         x = _normal(80, 0, 1)
         y = [2 * xi + RNG.normal(0, 0.5) for xi in x]
-        r = _run("bayesian", "bayes_regression", {"response": "y", "predictors": ["x"]}, {"x": x, "y": y})
+        r = _run(
+            "bayesian",
+            "bayes_regression",
+            {"response": "y", "predictors": ["x"]},
+            {"x": x, "y": y},
+        )
         _check_result(self, r, "bayes_regression")
 
     def test_bayes_correlation(self):
         x = _normal(80, 0, 1)
         y = _normal(80, 0, 1)
-        r = _run("bayesian", "bayes_correlation", {"var1": "x", "var2": "y"}, {"x": x, "y": y})
+        r = _run(
+            "bayesian",
+            "bayes_correlation",
+            {"var1": "x", "var2": "y"},
+            {"x": x, "y": y},
+        )
         _check_result(self, r, "bayes_correlation")
 
     def test_bayes_anova(self):
         v, g = _stacked_groups(40, 3)
-        r = _run("bayesian", "bayes_anova", {"response": "v", "factor": "g"}, {"v": v, "g": g})
+        r = _run(
+            "bayesian",
+            "bayes_anova",
+            {"response": "v", "factor": "g"},
+            {"v": v, "g": g},
+        )
         _check_result(self, r, "bayes_anova")
 
     def test_bayes_proportion(self):
@@ -449,7 +549,12 @@ class ReliabilityExhaustiveTest(TestCase):
     def test_kaplan_meier(self):
         times = RNG.exponential(100, 60).tolist()
         events = RNG.binomial(1, 0.7, 60).tolist()
-        r = _run("reliability", "kaplan_meier", {"time": "t", "event": "e"}, {"t": times, "e": events})
+        r = _run(
+            "reliability",
+            "kaplan_meier",
+            {"time": "t", "event": "e"},
+            {"t": times, "e": events},
+        )
         _check_result(self, r, "kaplan_meier")
 
     def test_exponential(self):
@@ -472,20 +577,32 @@ class MLExhaustiveTest(TestCase):
     def test_clustering(self):
         x1 = _normal(60, 0, 1)
         x2 = _normal(60, 0, 1)
-        r = _run("ml", "clustering", {"features": ["x1", "x2"], "n_clusters": 3}, {"x1": x1, "x2": x2})
+        r = _run(
+            "ml",
+            "clustering",
+            {"features": ["x1", "x2"], "n_clusters": 3},
+            {"x1": x1, "x2": x2},
+        )
         _check_result(self, r, "clustering")
 
     def test_pca(self):
         x1 = _normal(60, 0, 1)
         x2 = _normal(60, 0, 1)
         x3 = _normal(60, 0, 1)
-        r = _run("ml", "pca", {"features": ["x1", "x2", "x3"]}, {"x1": x1, "x2": x2, "x3": x3})
+        r = _run(
+            "ml",
+            "pca",
+            {"features": ["x1", "x2", "x3"]},
+            {"x1": x1, "x2": x2, "x3": x3},
+        )
         _check_result(self, r, "pca")
 
     def test_isolation_forest(self):
         x1 = _normal(100, 0, 1)
         x2 = _normal(100, 0, 1)
-        r = _run("ml", "isolation_forest", {"features": ["x1", "x2"]}, {"x1": x1, "x2": x2})
+        r = _run(
+            "ml", "isolation_forest", {"features": ["x1", "x2"]}, {"x1": x1, "x2": x2}
+        )
         _check_result(self, r, "isolation_forest")
 
     def test_feature(self):

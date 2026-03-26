@@ -19,45 +19,103 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='UserQuota',
+            name="UserQuota",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('quota_bytes', models.BigIntegerField(default=104857600)),
-                ('used_bytes', models.BigIntegerField(default=0)),
-                ('max_files', models.IntegerField(default=1000)),
-                ('file_count', models.IntegerField(default=0)),
-                ('max_file_size_bytes', models.BigIntegerField(default=10485760)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='storage_quota', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("quota_bytes", models.BigIntegerField(default=104857600)),
+                ("used_bytes", models.BigIntegerField(default=0)),
+                ("max_files", models.IntegerField(default=1000)),
+                ("file_count", models.IntegerField(default=0)),
+                ("max_file_size_bytes", models.BigIntegerField(default=10485760)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="storage_quota",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'user_quotas',
+                "db_table": "user_quotas",
             },
         ),
         migrations.CreateModel(
-            name='UserFile',
+            name="UserFile",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('file', models.FileField(upload_to=files.models.user_file_path)),
-                ('original_name', models.CharField(max_length=255)),
-                ('file_type', models.CharField(choices=[('image', 'Image'), ('document', 'Document'), ('data', 'Data File'), ('code', 'Code'), ('other', 'Other')], default='other', max_length=20)),
-                ('mime_type', models.CharField(blank=True, max_length=100)),
-                ('size_bytes', models.BigIntegerField(default=0)),
-                ('checksum', models.CharField(blank=True, max_length=64)),
-                ('folder', models.CharField(blank=True, db_index=True, max_length=255)),
-                ('description', models.TextField(blank=True)),
-                ('tags', models.JSONField(blank=True, default=list)),
-                ('is_public', models.BooleanField(default=False)),
-                ('share_token', models.CharField(blank=True, db_index=True, max_length=32)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('accessed_at', models.DateTimeField(blank=True, null=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='files', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("file", models.FileField(upload_to=files.models.user_file_path)),
+                ("original_name", models.CharField(max_length=255)),
+                (
+                    "file_type",
+                    models.CharField(
+                        choices=[
+                            ("image", "Image"),
+                            ("document", "Document"),
+                            ("data", "Data File"),
+                            ("code", "Code"),
+                            ("other", "Other"),
+                        ],
+                        default="other",
+                        max_length=20,
+                    ),
+                ),
+                ("mime_type", models.CharField(blank=True, max_length=100)),
+                ("size_bytes", models.BigIntegerField(default=0)),
+                ("checksum", models.CharField(blank=True, max_length=64)),
+                ("folder", models.CharField(blank=True, db_index=True, max_length=255)),
+                ("description", models.TextField(blank=True)),
+                ("tags", models.JSONField(blank=True, default=list)),
+                ("is_public", models.BooleanField(default=False)),
+                (
+                    "share_token",
+                    models.CharField(blank=True, db_index=True, max_length=32),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("accessed_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="files",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'user_files',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['user', 'folder'], name='user_files_user_id_fc98bc_idx'), models.Index(fields=['user', 'file_type'], name='user_files_user_id_f996a4_idx'), models.Index(fields=['user', 'created_at'], name='user_files_user_id_662667_idx')],
+                "db_table": "user_files",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["user", "folder"], name="user_files_user_id_fc98bc_idx"
+                    ),
+                    models.Index(
+                        fields=["user", "file_type"],
+                        name="user_files_user_id_f996a4_idx",
+                    ),
+                    models.Index(
+                        fields=["user", "created_at"],
+                        name="user_files_user_id_662667_idx",
+                    ),
+                ],
             },
         ),
     ]

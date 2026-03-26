@@ -324,7 +324,9 @@ class CircuitBreakerTest(unittest.TestCase):
     def test_opens_after_failure_threshold(self):
         cb = CircuitBreaker(
             "test",
-            CircuitBreakerConfig(failure_threshold=3, monitored_categories=frozenset(ErrorCategory)),
+            CircuitBreakerConfig(
+                failure_threshold=3, monitored_categories=frozenset(ErrorCategory)
+            ),
         )
         for i in range(3):
             try:

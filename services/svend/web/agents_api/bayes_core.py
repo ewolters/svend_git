@@ -169,7 +169,9 @@ def predictive_posterior(x_new, mu_n, Lambda_n, L_n, alpha_n, beta_n):
     return loc, scale, df
 
 
-def marginal_log_likelihood(Lambda0, Lambda_n, L_0, L_n, alpha0, alpha_n, beta0, beta_n, n):
+def marginal_log_likelihood(
+    Lambda0, Lambda_n, L_0, L_n, alpha0, alpha_n, beta0, beta_n, n
+):
     """
     Log marginal likelihood ln p(y|M) for model comparison.
 

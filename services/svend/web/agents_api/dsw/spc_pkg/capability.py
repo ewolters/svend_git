@@ -54,7 +54,11 @@ def run_capability(df, config):
         ppm_above = float(sp_stats.norm.cdf(-z_upper) * 1e6)
         ppm_total = ppm_below + ppm_above
         yield_pct = (1 - ppm_total / 1e6) * 100
-        sigma_level = float(sp_stats.norm.ppf(1 - ppm_total / 1e6) + 1.5) if ppm_total < 1e6 else 0
+        sigma_level = (
+            float(sp_stats.norm.ppf(1 - ppm_total / 1e6) + 1.5)
+            if ppm_total < 1e6
+            else 0
+        )
 
     elif lsl is not None and std > 0:
         cpk = (mean - lsl) / (3 * std)
@@ -102,7 +106,9 @@ def run_capability(df, config):
         if cpk >= 1.33:
             summary += f"\nProcess is capable (Cpk = {cpk:.3f} >= 1.33)"
         elif cpk >= 1.0:
-            summary += f"\nProcess is marginally capable (1.0 <= Cpk = {cpk:.3f} < 1.33)"
+            summary += (
+                f"\nProcess is marginally capable (1.0 <= Cpk = {cpk:.3f} < 1.33)"
+            )
         else:
             summary += f"\nProcess is NOT capable (Cpk = {cpk:.3f} < 1.0)"
         result["guide_observation"] = f"Process capability Cpk = {cpk:.2f}. " + (
@@ -123,7 +129,9 @@ def run_capability(df, config):
     }
 
     # ── Plot 1: Histogram with normal curve ─────────────────────
-    x_range = np.linspace(float(np.min(data)) - 2 * std, float(np.max(data)) + 2 * std, 300)
+    x_range = np.linspace(
+        float(np.min(data)) - 2 * std, float(np.max(data)) + 2 * std, 300
+    )
     pdf_vals = sp_stats.norm.pdf(x_range, mean, std)
 
     hist_traces = [
@@ -132,7 +140,10 @@ def run_capability(df, config):
             "x": data.tolist(),
             "name": "Observed",
             "histnorm": "probability density",
-            "marker": {"color": "rgba(74, 159, 110, 0.35)", "line": {"color": "#4a9f6e", "width": 1}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.35)",
+                "line": {"color": "#4a9f6e", "width": 1},
+            },
         },
         {
             "type": "scatter",
@@ -249,7 +260,12 @@ def run_capability(df, config):
                 "shapes": shapes_h,
                 "annotations": annotations_h,
                 "showlegend": True,
-                "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
+                "legend": {
+                    "x": 1,
+                    "xanchor": "right",
+                    "y": 1,
+                    "bgcolor": "rgba(0,0,0,0)",
+                },
                 "margin": {"t": 40, "r": 20},
                 "xaxis": {"title": measurement},
                 "yaxis": {"title": "Density"},
@@ -272,7 +288,10 @@ def run_capability(df, config):
                 "base": [lsl],
                 "orientation": "h",
                 "name": "Spec Range",
-                "marker": {"color": "rgba(232, 87, 71, 0.15)", "line": {"color": "#e85747", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(232, 87, 71, 0.15)",
+                    "line": {"color": "#e85747", "width": 1.5},
+                },
                 "width": [0.5],
             },
             # Process spread (±3σ)
@@ -283,7 +302,10 @@ def run_capability(df, config):
                 "base": [spread_lo],
                 "orientation": "h",
                 "name": "Process \u00b13\u03c3",
-                "marker": {"color": "rgba(74, 159, 110, 0.25)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                "marker": {
+                    "color": "rgba(74, 159, 110, 0.25)",
+                    "line": {"color": "#4a9f6e", "width": 1.5},
+                },
                 "width": [0.3],
             },
         ]
@@ -384,7 +406,12 @@ def run_capability(df, config):
                     "shapes": spread_shapes,
                     "annotations": spread_annot,
                     "showlegend": True,
-                    "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
+                    "legend": {
+                        "x": 1,
+                        "xanchor": "right",
+                        "y": 1,
+                        "bgcolor": "rgba(0,0,0,0)",
+                    },
                     "xaxis": {
                         "range": [min(lsl, spread_lo) - pad, max(usl, spread_hi) + pad],
                         "title": measurement,
@@ -404,7 +431,9 @@ def run_capability(df, config):
     # Shapiro-Wilk test (limited to 5000 samples)
     sw_data = data[:5000] if n > 5000 else data
     sw_stat, sw_p = sp_stats.shapiro(sw_data)
-    normality_note = f"Shapiro-Wilk p = {sw_p:.4f}" + (" (normal)" if sw_p >= 0.05 else " (non-normal)")
+    normality_note = f"Shapiro-Wilk p = {sw_p:.4f}" + (
+        " (normal)" if sw_p >= 0.05 else " (non-normal)"
+    )
 
     result["plots"].append(
         {
@@ -452,12 +481,20 @@ def run_capability(df, config):
 
     # Narrative
     if cpk is not None:
-        _tol_pct = ((6 * std) / (usl - lsl) * 100) if lsl is not None and usl is not None and (usl - lsl) > 0 else None
+        _tol_pct = (
+            ((6 * std) / (usl - lsl) * 100)
+            if lsl is not None and usl is not None and (usl - lsl) > 0
+            else None
+        )
         if cpk >= 1.33:
             _cap_verdict = f"Process is capable (Cpk = {cpk:.3f})"
             _cap_next = "Process is capable. Monitor with control charts to maintain."
         elif cpk >= 1.0:
-            _centering = "centering (adjust mean)" if cp is not None and cp > cpk + 0.1 else "spread (reduce variation)"
+            _centering = (
+                "centering (adjust mean)"
+                if cp is not None and cp > cpk + 0.1
+                else "spread (reduce variation)"
+            )
             _cap_verdict = f"Process is marginally capable (Cpk = {cpk:.3f})"
             _cap_next = f"Process is marginal. The dominant issue is {_centering}."
         else:
@@ -544,7 +581,9 @@ def run_nonnormal_capability(df, config):
     best_dist = best["dist"]
     best_args = best["args"]
 
-    summary = f"Non-Normal Capability Analysis\n\nBest Fit Distribution: {best_name}\n\n"
+    summary = (
+        f"Non-Normal Capability Analysis\n\nBest Fit Distribution: {best_name}\n\n"
+    )
     summary += "Distribution Fit Comparison (Anderson-Darling / KS test):\n"
     summary += f"  {'Distribution':<15} {'KS Stat':>10} {'p-value':>10} {'Fit':>6}\n"
     summary += f"  {'-' * 45}\n"
@@ -586,7 +625,10 @@ def run_nonnormal_capability(df, config):
             "type": "histogram",
             "x": data.tolist(),
             "name": "Data",
-            "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.3)",
+                "line": {"color": "#4a9f6e", "width": 1},
+            },
             "histnorm": "probability density",
         },
         {
@@ -613,7 +655,14 @@ def run_nonnormal_capability(df, config):
             }
         )
         layout["annotations"].append(
-            {"x": lsl, "y": 1.05, "yref": "paper", "text": "LSL", "showarrow": False, "font": {"color": "#e85747"}}
+            {
+                "x": lsl,
+                "y": 1.05,
+                "yref": "paper",
+                "text": "LSL",
+                "showarrow": False,
+                "font": {"color": "#e85747"},
+            }
         )
     if usl is not None:
         layout["shapes"].append(
@@ -628,10 +677,23 @@ def run_nonnormal_capability(df, config):
             }
         )
         layout["annotations"].append(
-            {"x": usl, "y": 1.05, "yref": "paper", "text": "USL", "showarrow": False, "font": {"color": "#e85747"}}
+            {
+                "x": usl,
+                "y": 1.05,
+                "yref": "paper",
+                "text": "USL",
+                "showarrow": False,
+                "font": {"color": "#e85747"},
+            }
         )
 
-    result["plots"].append({"title": f"Non-Normal Capability ({best_name} Fit)", "data": hist_data, "layout": layout})
+    result["plots"].append(
+        {
+            "title": f"Non-Normal Capability ({best_name} Fit)",
+            "data": hist_data,
+            "layout": layout,
+        }
+    )
 
     # Probability plot for best fit
     sorted_d = np.sort(pos_data if best_name != "Normal" else data)
@@ -751,7 +813,9 @@ def run_degradation_capability(df, config):
         summary += f"LSL={lsl}"
     if usl is not None:
         summary += f"{', ' if lsl is not None else ''}USL={usl}"
-    summary += f"\n<<COLOR:text>>Window:<</COLOR>> {window}    Points: {len(cpk_values)}\n\n"
+    summary += (
+        f"\n<<COLOR:text>>Window:<</COLOR>> {window}    Points: {len(cpk_values)}\n\n"
+    )
     summary += "<<COLOR:accent>>\u2500\u2500 Cpk Trend \u2500\u2500<</COLOR>>\n"
     summary += f"  Starting Cpk: {cpk_start:.3f}\n"
     summary += f"  Ending Cpk:   {cpk_end:.3f}\n"
@@ -781,7 +845,9 @@ def run_degradation_capability(df, config):
 
     _dc_cross = ""
     if crossover is not None:
-        _dc_cross = f" At this rate, Cpk drops below {target_cpk} at t = {crossover:.0f}."
+        _dc_cross = (
+            f" At this rate, Cpk drops below {target_cpk} at t = {crossover:.0f}."
+        )
     result["narrative"] = _narrative(
         f"Degradation Capability \u2014 Cpk is {'degrading' if degrading else 'stable'}",
         f"Rolling Cpk starts at {cpk_start:.3f} and {'decays to' if degrading else 'remains near'} {cpk_end:.3f} "
@@ -792,7 +858,11 @@ def run_degradation_capability(df, config):
             else ""
         ),
         next_steps="If degrading, schedule tool changes or maintenance before Cpk crosses the target. "
-        + (f"Recommended action point: t = {crossover:.0f} to maintain Cpk > {target_cpk}." if crossover else ""),
+        + (
+            f"Recommended action point: t = {crossover:.0f} to maintain Cpk > {target_cpk}."
+            if crossover
+            else ""
+        ),
         chart_guidance="The rolling Cpk curve shows capability over time. The trend line reveals whether the process is degrading. "
         "The dashed red line is the target Cpk.",
     )
@@ -807,7 +877,12 @@ def run_degradation_capability(df, config):
                     "x": t_arr.tolist(),
                     "y": cpk_arr.tolist(),
                     "mode": "markers",
-                    "marker": {"size": 5, "color": ["#dc5050" if c < target_cpk else "#4a9f6e" for c in cpk_arr]},
+                    "marker": {
+                        "size": 5,
+                        "color": [
+                            "#dc5050" if c < target_cpk else "#4a9f6e" for c in cpk_arr
+                        ],
+                    },
                     "name": "Rolling Cpk",
                 },
                 {
@@ -821,7 +896,10 @@ def run_degradation_capability(df, config):
             ],
             "layout": {
                 "height": 290,
-                "xaxis": {"title": "Time / Sequence", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "xaxis": {
+                    "title": "Time / Sequence",
+                    "rangeslider": {"visible": True, "thickness": 0.12},
+                },
                 "yaxis": {"title": "Cpk"},
                 "shapes": [
                     {
@@ -860,7 +938,9 @@ def run_between_within(df, config):
     if subgroup_col:
         groups = df.groupby(subgroup_col)[measurement].apply(list).values
     else:
-        groups = [data[i : i + subgroup_size] for i in range(0, len(data), subgroup_size)]
+        groups = [
+            data[i : i + subgroup_size] for i in range(0, len(data), subgroup_size)
+        ]
         groups = [g for g in groups if len(g) == subgroup_size]
 
     groups = [np.array(g) for g in groups if len(g) >= 2]
@@ -889,15 +969,23 @@ def run_between_within(df, config):
     if lsl is not None and usl is not None:
         # Within capability
         cp_within = (usl - lsl) / (6 * sigma_within)
-        cpk_within = min((usl - grand_mean) / (3 * sigma_within), (grand_mean - lsl) / (3 * sigma_within))
+        cpk_within = min(
+            (usl - grand_mean) / (3 * sigma_within),
+            (grand_mean - lsl) / (3 * sigma_within),
+        )
 
         # B/W capability
         cp_bw = (usl - lsl) / (6 * sigma_bw)
-        cpk_bw = min((usl - grand_mean) / (3 * sigma_bw), (grand_mean - lsl) / (3 * sigma_bw))
+        cpk_bw = min(
+            (usl - grand_mean) / (3 * sigma_bw), (grand_mean - lsl) / (3 * sigma_bw)
+        )
 
         # Overall capability
         pp = (usl - lsl) / (6 * sigma_total)
-        ppk = min((usl - grand_mean) / (3 * sigma_total), (grand_mean - lsl) / (3 * sigma_total))
+        ppk = min(
+            (usl - grand_mean) / (3 * sigma_total),
+            (grand_mean - lsl) / (3 * sigma_total),
+        )
 
         summary += f"\nWithin Capability:\n  Cp: {cp_within:.3f}\n  Cpk: {cpk_within:.3f}\n\nBetween/Within Capability:\n  Cp (B/W): {cp_bw:.3f}\n  Cpk (B/W): {cpk_bw:.3f}\n\nOverall Capability:\n  Pp: {pp:.3f}\n  Ppk: {ppk:.3f}"
 
@@ -968,7 +1056,10 @@ def run_between_within(df, config):
             "data": xbar_traces,
             "layout": {
                 "height": 320,
-                "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "xaxis": {
+                    "title": "Subgroup",
+                    "rangeslider": {"visible": True, "thickness": 0.12},
+                },
                 "yaxis": {"title": measurement},
                 "showlegend": True,
                 "legend": {
@@ -989,8 +1080,28 @@ def run_between_within(df, config):
     r_bar = np.mean(group_ranges)
     # d3/D3/D4 constants for subgroup size (approximation for variable n)
     n_int = int(round(n_avg))
-    d2_table = {2: 1.128, 3: 1.693, 4: 2.059, 5: 2.326, 6: 2.534, 7: 2.704, 8: 2.847, 9: 2.970, 10: 3.078}
-    d3_table = {2: 0.853, 3: 0.888, 4: 0.880, 5: 0.864, 6: 0.848, 7: 0.833, 8: 0.820, 9: 0.808, 10: 0.797}
+    d2_table = {
+        2: 1.128,
+        3: 1.693,
+        4: 2.059,
+        5: 2.326,
+        6: 2.534,
+        7: 2.704,
+        8: 2.847,
+        9: 2.970,
+        10: 3.078,
+    }
+    d3_table = {
+        2: 0.853,
+        3: 0.888,
+        4: 0.880,
+        5: 0.864,
+        6: 0.848,
+        7: 0.833,
+        8: 0.820,
+        9: 0.808,
+        10: 0.797,
+    }
     d2 = d2_table.get(n_int, 2.326)
     d3 = d3_table.get(n_int, 0.864)
     D3 = max(0, 1 - 3 * d3 / d2)
@@ -1053,7 +1164,10 @@ def run_between_within(df, config):
             "data": r_traces,
             "layout": {
                 "height": 320,
-                "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "xaxis": {
+                    "title": "Subgroup",
+                    "rangeslider": {"visible": True, "thickness": 0.12},
+                },
                 "yaxis": {"title": "Range"},
                 "showlegend": True,
                 "legend": {
@@ -1240,7 +1354,10 @@ def run_between_within(df, config):
                     "labels": donut_labels,
                     "values": donut_vals,
                     "hole": 0.45,
-                    "marker": {"colors": donut_colors, "line": {"color": "rgba(0,0,0,0.3)", "width": 1}},
+                    "marker": {
+                        "colors": donut_colors,
+                        "line": {"color": "rgba(0,0,0,0.3)", "width": 1},
+                    },
                     "textinfo": "label+percent",
                     "textfont": {"size": 12, "color": "#e0e0e0"},
                     "hoverinfo": "label+percent+value",
@@ -1270,7 +1387,10 @@ def run_between_within(df, config):
             "type": "histogram",
             "x": data.tolist(),
             "name": "Data",
-            "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.3)",
+                "line": {"color": "#4a9f6e", "width": 1},
+            },
             "histnorm": "probability density",
         },
         {
@@ -1327,7 +1447,14 @@ def run_between_within(df, config):
             }
         )
         dist_layout["annotations"].append(
-            {"x": lsl, "y": 1.05, "yref": "paper", "text": "LSL", "showarrow": False, "font": {"color": "#e85747"}}
+            {
+                "x": lsl,
+                "y": 1.05,
+                "yref": "paper",
+                "text": "LSL",
+                "showarrow": False,
+                "font": {"color": "#e85747"},
+            }
         )
     if usl is not None:
         dist_layout["shapes"].append(
@@ -1342,7 +1469,14 @@ def run_between_within(df, config):
             }
         )
         dist_layout["annotations"].append(
-            {"x": usl, "y": 1.05, "yref": "paper", "text": "USL", "showarrow": False, "font": {"color": "#e85747"}}
+            {
+                "x": usl,
+                "y": 1.05,
+                "yref": "paper",
+                "text": "USL",
+                "showarrow": False,
+                "font": {"color": "#e85747"},
+            }
         )
 
     result["plots"].append(
@@ -1411,7 +1545,11 @@ def run_between_within(df, config):
                             "x1": 1.5,
                             "y0": 1.33,
                             "y1": 1.33,
-                            "line": {"color": "rgba(74,159,110,0.5)", "dash": "dash", "width": 1.5},
+                            "line": {
+                                "color": "rgba(74,159,110,0.5)",
+                                "dash": "dash",
+                                "width": 1.5,
+                            },
                         },
                         {
                             "type": "line",
@@ -1419,7 +1557,11 @@ def run_between_within(df, config):
                             "x1": 1.5,
                             "y0": 1.0,
                             "y1": 1.0,
-                            "line": {"color": "rgba(232,87,71,0.5)", "dash": "dot", "width": 1.5},
+                            "line": {
+                                "color": "rgba(232,87,71,0.5)",
+                                "dash": "dot",
+                                "width": 1.5,
+                            },
                         },
                     ],
                     "annotations": [
@@ -1448,7 +1590,9 @@ def run_between_within(df, config):
     # ---- Plot 8: Normal Probability Plot ----
     sorted_data = np.sort(data)
     n_pts = len(sorted_data)
-    theoretical_q = sp_stats.norm.ppf((np.arange(1, n_pts + 1) - 0.375) / (n_pts + 0.25))
+    theoretical_q = sp_stats.norm.ppf(
+        (np.arange(1, n_pts + 1) - 0.375) / (n_pts + 0.25)
+    )
 
     result["plots"].append(
         {

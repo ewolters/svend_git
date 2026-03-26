@@ -25,7 +25,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.TEAM):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123")
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123"
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -33,11 +35,22 @@ def _make_user(email, tier=Tier.TEAM):
 
 def _make_active_investigation(user):
     inv = Investigation.objects.create(
-        title="Layer 3 Bridge Test", description="Testing Layer 3 integration", owner=user, status="active"
+        title="Layer 3 Bridge Test",
+        description="Testing Layer 3 integration",
+        owner=user,
+        status="active",
     )
-    tool = MeasurementSystem.objects.create(name="Layer 3 Test Gage", system_type="variable", owner=user)
+    tool = MeasurementSystem.objects.create(
+        name="Layer 3 Test Gage", system_type="variable", owner=user
+    )
     spec = HypothesisSpec(description="Layer 3 test hypothesis", prior=0.5)
-    connect_tool(investigation_id=str(inv.id), tool_output=tool, tool_type="rca", user=user, spec=spec)
+    connect_tool(
+        investigation_id=str(inv.id),
+        tool_output=tool,
+        tool_type="rca",
+        user=user,
+        spec=spec,
+    )
     return inv
 
 
@@ -118,7 +131,11 @@ class NCRBridgeTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(InvestigationToolLink.objects.filter(investigation=self.inv, tool_type="ncr").exists())
+        self.assertTrue(
+            InvestigationToolLink.objects.filter(
+                investigation=self.inv, tool_type="ncr"
+            ).exists()
+        )
 
 
 @SECURE_OFF
@@ -156,7 +173,11 @@ class CAPABridgeTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(InvestigationToolLink.objects.filter(investigation=self.inv, tool_type="capa").exists())
+        self.assertTrue(
+            InvestigationToolLink.objects.filter(
+                investigation=self.inv, tool_type="capa"
+            ).exists()
+        )
 
 
 @SECURE_OFF

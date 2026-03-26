@@ -134,7 +134,9 @@ class QuestionnaireFlowTest(TestCase):
         self.assertIn("question_text", likert)
 
         # Check forced-choice dimension
-        fc = next(d for d in data["dimensions"] if d["response_type"] == "forced_choice")
+        fc = next(
+            d for d in data["dimensions"] if d["response_type"] == "forced_choice"
+        )
         self.assertIn("scenario_id", fc)
         self.assertIn("situation", fc)
         self.assertEqual(len(fc["options"]), 4)
@@ -144,11 +146,17 @@ class QuestionnaireFlowTest(TestCase):
         orders = set()
         for _ in range(20):
             res = self.client.get("/api/harada/questionnaire/?instrument=ci_readiness")
-            fc = next(d for d in res.json()["dimensions"] if d["response_type"] == "forced_choice")
+            fc = next(
+                d
+                for d in res.json()["dimensions"]
+                if d["response_type"] == "forced_choice"
+            )
             order = tuple(o["label"] for o in fc["options"])
             orders.add(order)
         # With 4! = 24 permutations and 20 draws, should see at least 2 different orders
-        self.assertGreater(len(orders), 1, "Options should be randomized across requests")
+        self.assertGreater(
+            len(orders), 1, "Options should be randomized across requests"
+        )
 
     def test_submit_and_retrieve_responses(self):
         """Submit responses and verify they are stored and retrievable."""
@@ -183,10 +191,14 @@ class QuestionnaireFlowTest(TestCase):
         self.assertEqual(res.json()["version"], 1)
 
         # Verify in DB
-        self.assertEqual(QuestionnaireResponse.objects.filter(user=self.user).count(), 2)
+        self.assertEqual(
+            QuestionnaireResponse.objects.filter(user=self.user).count(), 2
+        )
 
         # Retrieve history
-        res = self.client.get("/api/harada/questionnaire/history/?instrument=ci_readiness")
+        res = self.client.get(
+            "/api/harada/questionnaire/history/?instrument=ci_readiness"
+        )
         self.assertEqual(res.status_code, 200)
         history = res.json()["history"]
         self.assertEqual(len(history), 1)
@@ -256,8 +268,12 @@ class QuestionnaireFlowTest(TestCase):
         )
 
         res = self.client.get("/api/harada/questionnaire/?instrument=ci_readiness")
-        d11 = next((d for d in res.json()["dimensions"] if d["dimension_number"] == 11), None)
-        self.assertIn("investigate whether the measurement system", d11["question_text"])
+        d11 = next(
+            (d for d in res.json()["dimensions"] if d["dimension_number"] == 11), None
+        )
+        self.assertIn(
+            "investigate whether the measurement system", d11["question_text"]
+        )
 
     def test_q11_experience_gate_asks_when_unknown(self):
         """When experience not in profile, response includes experience_question."""
@@ -302,7 +318,9 @@ class QuestionnaireFlowTest(TestCase):
         """On retake, previously seen scenarios are avoided when alternatives exist."""
         # First take — record which scenario was used
         res = self.client.get("/api/harada/questionnaire/?instrument=ci_readiness")
-        fc = next(d for d in res.json()["dimensions"] if d["response_type"] == "forced_choice")
+        fc = next(
+            d for d in res.json()["dimensions"] if d["response_type"] == "forced_choice"
+        )
         first_scenario = fc["scenario_id"]
 
         # Submit first take
@@ -326,14 +344,20 @@ class QuestionnaireFlowTest(TestCase):
         seen_on_retake = set()
         for _ in range(10):
             res = self.client.get("/api/harada/questionnaire/?instrument=ci_readiness")
-            fc = next(d for d in res.json()["dimensions"] if d["response_type"] == "forced_choice")
+            fc = next(
+                d
+                for d in res.json()["dimensions"]
+                if d["response_type"] == "forced_choice"
+            )
             seen_on_retake.add(fc["scenario_id"])
 
         # Should have seen the OTHER scenario at least once
         self.assertGreater(len(seen_on_retake), 0)
         # With 2 scenarios and preference for unseen, the other should appear
         other_scenarios = seen_on_retake - {first_scenario}
-        self.assertTrue(len(other_scenarios) > 0, "Retake should prefer unseen scenarios")
+        self.assertTrue(
+            len(other_scenarios) > 0, "Retake should prefer unseen scenarios"
+        )
 
 
 # ===========================================================================
@@ -437,7 +461,12 @@ class Window64Test(TestCase):
         res = _post_json(
             self.client,
             "/api/harada/window/",
-            {"goal_number": 1, "position": 1, "text": "Send 5 outreach emails", "cell_type": "routine"},
+            {
+                "goal_number": 1,
+                "position": 1,
+                "text": "Send 5 outreach emails",
+                "cell_type": "routine",
+            },
         )
         self.assertEqual(res.status_code, 201)
         self.assertEqual(res.json()["cell_type"], "routine")
@@ -446,7 +475,12 @@ class Window64Test(TestCase):
         res = _post_json(
             self.client,
             "/api/harada/window/",
-            {"goal_number": 1, "position": 2, "text": "Set up student batch enrollment", "cell_type": "task"},
+            {
+                "goal_number": 1,
+                "position": 2,
+                "text": "Set up student batch enrollment",
+                "cell_type": "task",
+            },
         )
         self.assertEqual(res.status_code, 201)
 
@@ -461,7 +495,12 @@ class Window64Test(TestCase):
         _post_json(
             self.client,
             "/api/harada/window/",
-            {"goal_number": 1, "position": 3, "text": "Write standard", "cell_type": "task"},
+            {
+                "goal_number": 1,
+                "position": 3,
+                "text": "Write standard",
+                "cell_type": "task",
+            },
         )
         cell = Window64.objects.get(user=self.user, goal_number=1, position=3)
 
@@ -492,7 +531,11 @@ class RoutineTrackerTest(TestCase):
         self.client = _authed_client(self.user)
         # Create a routine
         self.routine = Window64.objects.create(
-            user=self.user, goal_number=1, position=1, cell_type="routine", text="5 emails daily"
+            user=self.user,
+            goal_number=1,
+            position=1,
+            cell_type="routine",
+            text="5 emails daily",
         )
 
     def test_check_routine(self):
@@ -506,7 +549,9 @@ class RoutineTrackerTest(TestCase):
         self.assertTrue(res.json()["is_completed"])
 
         # Verify in DB
-        self.assertTrue(RoutineCheck.objects.filter(user=self.user, date=date.today()).exists())
+        self.assertTrue(
+            RoutineCheck.objects.filter(user=self.user, date=date.today()).exists()
+        )
 
     def test_get_daily_checklist(self):
         """GET returns today's routines with completion status."""
@@ -528,7 +573,9 @@ class RoutineTrackerTest(TestCase):
             "/api/harada/routines/",
             {"window_cell_id": str(self.routine.id), "is_completed": False},
         )
-        self.assertEqual(RoutineCheck.objects.filter(user=self.user, date=date.today()).count(), 1)
+        self.assertEqual(
+            RoutineCheck.objects.filter(user=self.user, date=date.today()).count(), 1
+        )
         check = RoutineCheck.objects.get(user=self.user, date=date.today())
         self.assertFalse(check.is_completed)  # Updated to false
 
@@ -611,12 +658,18 @@ class DailyDiaryTest(TestCase):
         """Second POST to same date updates, doesn't duplicate."""
         _post_json(self.client, "/api/harada/diary/", {"daily_phrase": "v1"})
         _post_json(self.client, "/api/harada/diary/", {"daily_phrase": "v2"})
-        self.assertEqual(DailyDiary.objects.filter(user=self.user, date=date.today()).count(), 1)
-        self.assertEqual(DailyDiary.objects.get(user=self.user, date=date.today()).daily_phrase, "v2")
+        self.assertEqual(
+            DailyDiary.objects.filter(user=self.user, date=date.today()).count(), 1
+        )
+        self.assertEqual(
+            DailyDiary.objects.get(user=self.user, date=date.today()).daily_phrase, "v2"
+        )
 
     def test_list_recent_entries(self):
         """GET returns recent diary entries."""
-        DailyDiary.objects.create(user=self.user, date=date.today(), daily_phrase="Today")
+        DailyDiary.objects.create(
+            user=self.user, date=date.today(), daily_phrase="Today"
+        )
         res = self.client.get("/api/harada/diary/")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.json()["entries"]), 1)
@@ -723,7 +776,13 @@ class ClusteringPipelineTest(TestCase):
                 f"archA_{i}@test.com",
                 dims,
                 [5, 5, 4, 5, 5, 4, 5],
-                ["system_thinker", "nuanced_thinker", "prepare_thoroughly", "coach", "fatigue_aware"],
+                [
+                    "system_thinker",
+                    "nuanced_thinker",
+                    "prepare_thoroughly",
+                    "coach",
+                    "fatigue_aware",
+                ],
             )
 
         for i in range(6):
@@ -747,13 +806,19 @@ class ClusteringPipelineTest(TestCase):
 
         # Check that the two archetypes got different clusters
         a_clusters = set(
-            ArchetypeAssignment.objects.filter(user__email__startswith="archA_").values_list("cluster_id", flat=True)
+            ArchetypeAssignment.objects.filter(
+                user__email__startswith="archA_"
+            ).values_list("cluster_id", flat=True)
         )
         b_clusters = set(
-            ArchetypeAssignment.objects.filter(user__email__startswith="archB_").values_list("cluster_id", flat=True)
+            ArchetypeAssignment.objects.filter(
+                user__email__startswith="archB_"
+            ).values_list("cluster_id", flat=True)
         )
         # With clear separation, they should be in different clusters
-        self.assertNotEqual(a_clusters, b_clusters, "Distinct archetypes should cluster separately")
+        self.assertNotEqual(
+            a_clusters, b_clusters, "Distinct archetypes should cluster separately"
+        )
 
     def test_archetype_api(self):
         """GET /api/harada/archetype/ returns assignment."""

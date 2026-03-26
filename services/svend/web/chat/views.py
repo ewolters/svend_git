@@ -27,8 +27,10 @@ def shared_conversation(request, share_id):
         for msg in share.conversation.messages.all()
     ]
 
-    return JsonResponse({
-        "title": share.conversation.title,
-        "messages": messages,
-        "view_count": share.view_count,
-    })
+    return JsonResponse(
+        {
+            "title": share.conversation.title,
+            "messages": messages,
+            "view_count": share.view_count,
+        }
+    )

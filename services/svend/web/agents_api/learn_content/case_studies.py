@@ -293,8 +293,16 @@ Recommendation: Ship the change, but monitor metrics for the next month to confi
                 "n_rows": 1000,
                 "columns": [
                     {"name": "user_id", "type": "integer", "min": 1, "max": 1000},
-                    {"name": "variant", "type": "categorical", "categories": ["control", "treatment"]},
-                    {"name": "user_type", "type": "categorical", "categories": ["new", "returning"]},
+                    {
+                        "name": "variant",
+                        "type": "categorical",
+                        "categories": ["control", "treatment"],
+                    },
+                    {
+                        "name": "user_type",
+                        "type": "categorical",
+                        "categories": ["new", "returning"],
+                    },
                     {"name": "converted", "type": "binary", "p": 0.032},
                     {"name": "order_value", "type": "numeric", "mean": 85, "std": 30},
                 ],
@@ -397,7 +405,12 @@ CASE_MANUFACTURING = {
             "Set up ongoing monitoring with Western Electric rules",
         ],
         "dsw_type": "spc:capability",
-        "dsw_config": {"var": "diameter_mm", "lsl": 24.85, "usl": 25.15, "target": 25.0},
+        "dsw_config": {
+            "var": "diameter_mm",
+            "lsl": 24.85,
+            "usl": 25.15,
+            "target": 25.0,
+        },
     },
     "content": """
 ## Scenario: The Widget Problem
@@ -532,8 +545,17 @@ Current status:
                 "columns": [
                     {"name": "measurement_id", "type": "integer", "min": 1, "max": 300},
                     {"name": "day", "type": "integer", "min": 1, "max": 10},
-                    {"name": "machine", "type": "categorical", "categories": ["Machine_1", "Machine_2", "Machine_3"]},
-                    {"name": "diameter_mm", "type": "numeric", "mean": 10.002, "std": 0.012},
+                    {
+                        "name": "machine",
+                        "type": "categorical",
+                        "categories": ["Machine_1", "Machine_2", "Machine_3"],
+                    },
+                    {
+                        "name": "diameter_mm",
+                        "type": "numeric",
+                        "mean": 10.002,
+                        "std": 0.012,
+                    },
                 ],
                 "injections": [
                     {
@@ -690,7 +712,10 @@ CASE_OBSERVATIONAL = {
             "Write a one-paragraph calibrated conclusion",
         ],
         "dsw_type": "stats:regression",
-        "dsw_config": {"response": "diameter_mm", "predictors": ["weight_g", "roughness_ra"]},
+        "dsw_config": {
+            "response": "diameter_mm",
+            "predictors": ["weight_g", "roughness_ra"],
+        },
     },
     "content": """
 ## Scenario: The Coffee Longevity Study

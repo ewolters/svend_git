@@ -10,5 +10,7 @@ urlpatterns = [
     path("copq/", capa_views.copq_summary, name="capa_copq_summary"),
     path("recurrence/", capa_views.recurrence_report, name="capa_recurrence_report"),
     path("<uuid:capa_id>/", capa_views.capa_detail, name="capa_detail"),
-    path("<uuid:capa_id>/launch-rca/", capa_views.capa_launch_rca, name="capa_launch_rca"),
+    path(
+        "<uuid:capa_id>/launch-rca/", capa_views.capa_launch_rca, name="capa_launch_rca"
+    ),
 ]

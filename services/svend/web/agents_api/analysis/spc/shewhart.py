@@ -39,9 +39,19 @@ def run_imr(df, config):
             "y": data.tolist(),
             "mode": "lines+markers",
             "name": "Value",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "size": 5,
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
         },
-        {"type": "scatter", "y": [x_bar] * n, "mode": "lines", "name": "CL", "line": {"color": "#00b894"}},
+        {
+            "type": "scatter",
+            "y": [x_bar] * n,
+            "mode": "lines",
+            "name": "CL",
+            "line": {"color": "#00b894"},
+        },
         {
             "type": "scatter",
             "y": [ucl] * n,
@@ -79,9 +89,19 @@ def run_imr(df, config):
             "y": mr.tolist(),
             "mode": "lines+markers",
             "name": "MR",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "size": 5,
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
         },
-        {"type": "scatter", "y": [mr_bar] * (n - 1), "mode": "lines", "name": "CL", "line": {"color": "#00b894"}},
+        {
+            "type": "scatter",
+            "y": [mr_bar] * (n - 1),
+            "mode": "lines",
+            "name": "CL",
+            "line": {"color": "#00b894"},
+        },
         {
             "type": "scatter",
             "y": [mr_ucl] * (n - 1),
@@ -95,7 +115,10 @@ def run_imr(df, config):
         {
             "title": "MR Chart (Moving Range)",
             "data": mr_chart_data,
-            "layout": {"height": 290, "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+            "layout": {
+                "height": 290,
+                "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}},
+            },
             "interactive": {"type": "spc_inspect"},
         }
     )
@@ -103,13 +126,16 @@ def run_imr(df, config):
     ooc = len(ooc_indices)
     violations_text = ""
     if rule_violations:
-        violations_text = "\n\nNelson Rule Violations:\n" + "\n".join(f"  {v}" for v in rule_violations)
+        violations_text = "\n\nNelson Rule Violations:\n" + "\n".join(
+            f"  {v}" for v in rule_violations
+        )
     result["summary"] = (
         f"I-MR Chart Analysis\n\nMean: {x_bar:.4f}\nUCL: {ucl:.4f}\nLCL: {lcl:.4f}\nMR-bar: {mr_bar:.4f}\n\nOut-of-control points: {ooc}{violations_text}"
     )
 
-    result["guide_observation"] = f"Control chart shows {ooc} out-of-control points." + (
-        " Process appears stable." if ooc == 0 else " Investigation recommended."
+    result["guide_observation"] = (
+        f"Control chart shows {ooc} out-of-control points."
+        + (" Process appears stable." if ooc == 0 else " Investigation recommended.")
     )
     result["statistics"] = {
         "grand_mean": float(x_bar),
@@ -124,10 +150,16 @@ def run_imr(df, config):
     # Narrative
     if ooc == 0:
         _cc_verdict = "Process is in statistical control"
-        _cc_body = "No special cause variation detected. Process is stable and predictable."
+        _cc_body = (
+            "No special cause variation detected. Process is stable and predictable."
+        )
         _cc_next = "Process is stable &mdash; capability analysis is valid."
     else:
-        _rule_summary = "; ".join(rule_violations[:3]) if rule_violations else f"{ooc} points outside control limits"
+        _rule_summary = (
+            "; ".join(rule_violations[:3])
+            if rule_violations
+            else f"{ooc} points outside control limits"
+        )
         _cc_verdict = f"Process is out of control &mdash; {ooc} signal{'s' if ooc > 1 else ''} detected"
         _cc_body = f"Found: {_rule_summary}."
         _cc_next = "Investigate special causes at the flagged points. Check timestamps against process logs for assignable causes."
@@ -173,7 +205,9 @@ def run_xbar_r(df, config):
         groups = df.groupby(subgroup_col)[measurement].apply(list).values
     else:
         # Create subgroups from sequential data
-        groups = [data[i : i + subgroup_size] for i in range(0, len(data), subgroup_size)]
+        groups = [
+            data[i : i + subgroup_size] for i in range(0, len(data), subgroup_size)
+        ]
         groups = [g for g in groups if len(g) == subgroup_size]
 
     groups = np.array([g for g in groups if len(g) >= 2])
@@ -186,11 +220,51 @@ def run_xbar_r(df, config):
     r_bar = np.mean(ranges)
 
     # Control chart constants (for subgroup size 2-10)
-    _d2_table = {2: 1.128, 3: 1.693, 4: 2.059, 5: 2.326, 6: 2.534, 7: 2.704, 8: 2.847, 9: 2.970, 10: 3.078}
-    _d3_table = {2: 0.853, 3: 0.888, 4: 0.880, 5: 0.864, 6: 0.848, 7: 0.833, 8: 0.820, 9: 0.808, 10: 0.797}
-    A2_table = {2: 1.880, 3: 1.023, 4: 0.729, 5: 0.577, 6: 0.483, 7: 0.419, 8: 0.373, 9: 0.337, 10: 0.308}
+    _d2_table = {
+        2: 1.128,
+        3: 1.693,
+        4: 2.059,
+        5: 2.326,
+        6: 2.534,
+        7: 2.704,
+        8: 2.847,
+        9: 2.970,
+        10: 3.078,
+    }
+    _d3_table = {
+        2: 0.853,
+        3: 0.888,
+        4: 0.880,
+        5: 0.864,
+        6: 0.848,
+        7: 0.833,
+        8: 0.820,
+        9: 0.808,
+        10: 0.797,
+    }
+    A2_table = {
+        2: 1.880,
+        3: 1.023,
+        4: 0.729,
+        5: 0.577,
+        6: 0.483,
+        7: 0.419,
+        8: 0.373,
+        9: 0.337,
+        10: 0.308,
+    }
     D3_table = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0.076, 8: 0.136, 9: 0.184, 10: 0.223}
-    D4_table = {2: 3.267, 3: 2.574, 4: 2.282, 5: 2.114, 6: 2.004, 7: 1.924, 8: 1.864, 9: 1.816, 10: 1.777}
+    D4_table = {
+        2: 3.267,
+        3: 2.574,
+        4: 2.282,
+        5: 2.114,
+        6: 2.004,
+        7: 1.924,
+        8: 1.864,
+        9: 1.816,
+        10: 1.777,
+    }
 
     n = min(subgroup_size, 10)
     A2 = A2_table.get(n, 0.577)
@@ -206,8 +280,12 @@ def run_xbar_r(df, config):
     r_lcl = D3 * r_bar
 
     # Nelson rules for X-bar
-    xbar_ooc, xbar_violations = _spc_nelson_rules(x_bars, x_double_bar, xbar_ucl, xbar_lcl)
-    xbar_point_rules = _spc_build_point_rules(x_bars, x_double_bar, xbar_ucl, xbar_lcl, xbar_ooc)
+    xbar_ooc, xbar_violations = _spc_nelson_rules(
+        x_bars, x_double_bar, xbar_ucl, xbar_lcl
+    )
+    xbar_point_rules = _spc_build_point_rules(
+        x_bars, x_double_bar, xbar_ucl, xbar_lcl, xbar_ooc
+    )
     # Nelson rules for R
     r_ooc, r_violations = _spc_nelson_rules(ranges, r_bar, r_ucl, r_lcl)
     r_point_rules = _spc_build_point_rules(ranges, r_bar, r_ucl, r_lcl, r_ooc)
@@ -219,7 +297,11 @@ def run_xbar_r(df, config):
             "y": x_bars.tolist(),
             "mode": "lines+markers",
             "name": "X\u0304",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "size": 5,
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
         },
         {
             "type": "scatter",
@@ -243,7 +325,9 @@ def run_xbar_r(df, config):
             "line": {"color": "#d63031", "dash": "dash"},
         },
     ]
-    _spc_add_ooc_markers(xbar_chart_data, x_bars, xbar_ooc, point_rules=xbar_point_rules)
+    _spc_add_ooc_markers(
+        xbar_chart_data, x_bars, xbar_ooc, point_rules=xbar_point_rules
+    )
     result["plots"].append(
         {
             "title": "Xbar Chart",
@@ -251,7 +335,10 @@ def run_xbar_r(df, config):
             "layout": {
                 "height": 290,
                 "showlegend": True,
-                "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "xaxis": {
+                    "title": "Subgroup",
+                    "rangeslider": {"visible": True, "thickness": 0.12},
+                },
             },
             "interactive": {"type": "spc_inspect"},
         }
@@ -264,7 +351,11 @@ def run_xbar_r(df, config):
             "y": ranges.tolist(),
             "mode": "lines+markers",
             "name": "R",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "size": 5,
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
         },
         {
             "type": "scatter",
@@ -295,7 +386,10 @@ def run_xbar_r(df, config):
             "data": r_chart_data,
             "layout": {
                 "height": 290,
-                "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "xaxis": {
+                    "title": "Subgroup",
+                    "rangeslider": {"visible": True, "thickness": 0.12},
+                },
             },
             "interactive": {"type": "spc_inspect"},
         }
@@ -377,7 +471,9 @@ def run_xbar_s(df, config):
     if subgroup_col:
         groups = df.groupby(subgroup_col)[measurement].apply(list).values
     else:
-        groups = [data[i : i + subgroup_size] for i in range(0, len(data), subgroup_size)]
+        groups = [
+            data[i : i + subgroup_size] for i in range(0, len(data), subgroup_size)
+        ]
         groups = [g for g in groups if len(g) == subgroup_size]
 
     groups = np.array([g for g in groups if len(g) >= 2])
@@ -390,9 +486,39 @@ def run_xbar_s(df, config):
     s_bar = np.mean(stds)
 
     # Control chart constants for S chart
-    B3_table = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0.030, 7: 0.118, 8: 0.185, 9: 0.239, 10: 0.284}
-    B4_table = {2: 3.267, 3: 2.568, 4: 2.266, 5: 2.089, 6: 1.970, 7: 1.882, 8: 1.815, 9: 1.761, 10: 1.716}
-    A3_table = {2: 2.659, 3: 1.954, 4: 1.628, 5: 1.427, 6: 1.287, 7: 1.182, 8: 1.099, 9: 1.032, 10: 0.975}
+    B3_table = {
+        2: 0,
+        3: 0,
+        4: 0,
+        5: 0,
+        6: 0.030,
+        7: 0.118,
+        8: 0.185,
+        9: 0.239,
+        10: 0.284,
+    }
+    B4_table = {
+        2: 3.267,
+        3: 2.568,
+        4: 2.266,
+        5: 2.089,
+        6: 1.970,
+        7: 1.882,
+        8: 1.815,
+        9: 1.761,
+        10: 1.716,
+    }
+    A3_table = {
+        2: 2.659,
+        3: 1.954,
+        4: 1.628,
+        5: 1.427,
+        6: 1.287,
+        7: 1.182,
+        8: 1.099,
+        9: 1.032,
+        10: 0.975,
+    }
 
     n = min(subgroup_size, 10)
     A3 = A3_table.get(n, 1.427)
@@ -405,8 +531,12 @@ def run_xbar_s(df, config):
     s_lcl = B3 * s_bar
 
     # Nelson rules for X-bar and S
-    xbar_ooc, xbar_violations = _spc_nelson_rules(x_bars, x_double_bar, xbar_ucl, xbar_lcl)
-    xbar_point_rules = _spc_build_point_rules(x_bars, x_double_bar, xbar_ucl, xbar_lcl, xbar_ooc)
+    xbar_ooc, xbar_violations = _spc_nelson_rules(
+        x_bars, x_double_bar, xbar_ucl, xbar_lcl
+    )
+    xbar_point_rules = _spc_build_point_rules(
+        x_bars, x_double_bar, xbar_ucl, xbar_lcl, xbar_ooc
+    )
     s_ooc, s_violations = _spc_nelson_rules(stds, s_bar, s_ucl, s_lcl)
     s_point_rules = _spc_build_point_rules(stds, s_bar, s_ucl, s_lcl, s_ooc)
 
@@ -417,7 +547,10 @@ def run_xbar_s(df, config):
             "y": x_bars.tolist(),
             "mode": "lines+markers",
             "name": "X\u0304",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
         },
         {
             "type": "scatter",
@@ -441,7 +574,9 @@ def run_xbar_s(df, config):
             "line": {"color": "#d63031", "dash": "dash"},
         },
     ]
-    _spc_add_ooc_markers(xbar_chart_data, x_bars, xbar_ooc, point_rules=xbar_point_rules)
+    _spc_add_ooc_markers(
+        xbar_chart_data, x_bars, xbar_ooc, point_rules=xbar_point_rules
+    )
     result["plots"].append(
         {
             "title": "Xbar Chart",
@@ -449,7 +584,10 @@ def run_xbar_s(df, config):
             "layout": {
                 "height": 290,
                 "showlegend": True,
-                "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "xaxis": {
+                    "title": "Subgroup",
+                    "rangeslider": {"visible": True, "thickness": 0.12},
+                },
             },
             "interactive": {"type": "spc_inspect"},
         }
@@ -462,7 +600,10 @@ def run_xbar_s(df, config):
             "y": stds.tolist(),
             "mode": "lines+markers",
             "name": "S",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
         },
         {
             "type": "scatter",
@@ -493,7 +634,10 @@ def run_xbar_s(df, config):
             "data": s_chart_data,
             "layout": {
                 "height": 290,
-                "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "xaxis": {
+                    "title": "Subgroup",
+                    "rangeslider": {"visible": True, "thickness": 0.12},
+                },
             },
             "interactive": {"type": "spc_inspect"},
         }
@@ -583,9 +727,19 @@ def run_p_chart(df, config):
             "y": p.tolist(),
             "mode": "lines+markers",
             "name": "p",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "size": 5,
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
         },
-        {"type": "scatter", "y": [p_bar] * k, "mode": "lines", "name": "p\u0304", "line": {"color": "#00b894"}},
+        {
+            "type": "scatter",
+            "y": [p_bar] * k,
+            "mode": "lines",
+            "name": "p\u0304",
+            "line": {"color": "#00b894"},
+        },
         {
             "type": "scatter",
             "y": ucl.tolist(),
@@ -621,7 +775,11 @@ def run_p_chart(df, config):
     )
     result["guide_observation"] = (
         f"P chart: {len(ooc_indices)} out-of-control points. p\u0304 = {p_bar * 100:.2f}%."
-        + (" Process is stable." if len(ooc_indices) == 0 else " Investigation recommended.")
+        + (
+            " Process is stable."
+            if len(ooc_indices) == 0
+            else " Investigation recommended."
+        )
     )
     result["statistics"] = {
         "p_bar": float(p_bar),
@@ -635,7 +793,9 @@ def run_p_chart(df, config):
         body = f"All {k} samples fall within control limits. The average defective rate is {p_bar * 100:.2f}%."
         nxt = "Monitor ongoing. If p\u0304 is too high, investigate systemic causes rather than individual points."
     else:
-        verdict = f"P Chart \u2014 {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+        verdict = (
+            f"P Chart \u2014 {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+        )
         body = (
             f"{n_ooc} of {k} samples ({n_ooc / k * 100:.1f}%) exceed control limits. "
             f"Average defective rate p\u0304 = {p_bar * 100:.2f}%. Investigate these subgroups for assignable causes."
@@ -678,9 +838,19 @@ def run_np_chart(df, config):
             "y": d.tolist(),
             "mode": "lines+markers",
             "name": "np",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "size": 5,
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
         },
-        {"type": "scatter", "y": [np_bar] * k, "mode": "lines", "name": "n\u0304p", "line": {"color": "#00b894"}},
+        {
+            "type": "scatter",
+            "y": [np_bar] * k,
+            "mode": "lines",
+            "name": "n\u0304p",
+            "line": {"color": "#00b894"},
+        },
         {
             "type": "scatter",
             "y": [ucl] * k,
@@ -722,13 +892,19 @@ def run_np_chart(df, config):
     )
 
     n_ooc = len(np_ooc)
-    viol_note = f" Nelson rule violations: {', '.join(np_violations[:3])}." if np_violations else ""
+    viol_note = (
+        f" Nelson rule violations: {', '.join(np_violations[:3])}."
+        if np_violations
+        else ""
+    )
     if n_ooc == 0:
         verdict = f"NP Chart \u2014 Process in control (n\u0304p = {np_bar:.1f})"
         body = f"All {k} samples within limits. Average {np_bar:.1f} defectives per sample of {n}.{viol_note}"
         nxt = "Continue monitoring. To reduce defective count, investigate the process, not individual samples."
     else:
-        verdict = f"NP Chart \u2014 {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+        verdict = (
+            f"NP Chart \u2014 {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+        )
         body = (
             f"{n_ooc} of {k} samples exceed limits. Average defectives n\u0304p = {np_bar:.1f} "
             f"(p\u0304 = {p_bar * 100:.2f}%).{viol_note}"
@@ -768,9 +944,19 @@ def run_c_chart(df, config):
             "y": c.tolist(),
             "mode": "lines+markers",
             "name": "c",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "size": 5,
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
         },
-        {"type": "scatter", "y": [c_bar] * k, "mode": "lines", "name": "c\u0304", "line": {"color": "#00b894"}},
+        {
+            "type": "scatter",
+            "y": [c_bar] * k,
+            "mode": "lines",
+            "name": "c\u0304",
+            "line": {"color": "#00b894"},
+        },
         {
             "type": "scatter",
             "y": [ucl] * k,
@@ -812,13 +998,19 @@ def run_c_chart(df, config):
     )
 
     n_ooc = len(c_ooc)
-    viol_note = f" Nelson rule violations: {', '.join(c_violations[:3])}." if c_violations else ""
+    viol_note = (
+        f" Nelson rule violations: {', '.join(c_violations[:3])}."
+        if c_violations
+        else ""
+    )
     if n_ooc == 0:
         verdict = f"C Chart \u2014 Process in control (c\u0304 = {c_bar:.1f})"
         body = f"All {k} samples within Poisson-based limits. Average defect count c\u0304 = {c_bar:.1f}.{viol_note}"
         nxt = "Stable process. To reduce defect count, apply Pareto analysis to identify top defect categories."
     else:
-        verdict = f"C Chart \u2014 {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+        verdict = (
+            f"C Chart \u2014 {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+        )
         body = (
             f"{n_ooc} of {k} samples exceed limits. Average defects c\u0304 = {c_bar:.1f}.{viol_note} "
             f"The process is unstable \u2014 address special causes before process improvement."
@@ -861,9 +1053,19 @@ def run_u_chart(df, config):
             "y": u.tolist(),
             "mode": "lines+markers",
             "name": "u",
-            "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}},
+            "marker": {
+                "color": "rgba(74, 159, 110, 0.4)",
+                "size": 5,
+                "line": {"color": "#4a9f6e", "width": 1.5},
+            },
         },
-        {"type": "scatter", "y": [u_bar] * k, "mode": "lines", "name": "\u016b", "line": {"color": "#00b894"}},
+        {
+            "type": "scatter",
+            "y": [u_bar] * k,
+            "mode": "lines",
+            "name": "\u016b",
+            "line": {"color": "#00b894"},
+        },
         {
             "type": "scatter",
             "y": ucl.tolist(),
@@ -904,7 +1106,9 @@ def run_u_chart(df, config):
         body = f"All {k} samples within variable control limits. Average defect rate \u016b = {u_bar:.4f} per unit."
         nxt = "Stable process. Variable limits account for differing inspection sizes \u2014 focus on reducing the overall rate."
     else:
-        verdict = f"U Chart \u2014 {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+        verdict = (
+            f"U Chart \u2014 {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+        )
         body = (
             f"{n_ooc} of {k} samples ({n_ooc / k * 100:.1f}%) exceed control limits. "
             f"Average defect rate \u016b = {u_bar:.4f}. Investigate these subgroups for assignable causes."

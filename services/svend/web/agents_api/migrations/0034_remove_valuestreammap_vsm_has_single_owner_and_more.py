@@ -7,47 +7,65 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0033_vsm_enterprise_tenant'),
+        ("agents_api", "0033_vsm_enterprise_tenant"),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='valuestreammap',
-            name='vsm_has_single_owner',
+            model_name="valuestreammap",
+            name="vsm_has_single_owner",
         ),
         migrations.RemoveIndex(
-            model_name='valuestreammap',
-            name='value_strea_owner_i_8da449_idx',
+            model_name="valuestreammap",
+            name="value_strea_owner_i_8da449_idx",
         ),
         migrations.RemoveIndex(
-            model_name='valuestreammap',
-            name='value_strea_tenant__b3a696_idx',
+            model_name="valuestreammap",
+            name="value_strea_tenant__b3a696_idx",
         ),
         migrations.RemoveField(
-            model_name='valuestreammap',
-            name='created_by',
+            model_name="valuestreammap",
+            name="created_by",
         ),
         migrations.RemoveField(
-            model_name='valuestreammap',
-            name='parent_vsm',
+            model_name="valuestreammap",
+            name="parent_vsm",
         ),
         migrations.RemoveField(
-            model_name='valuestreammap',
-            name='tenant',
+            model_name="valuestreammap",
+            name="tenant",
         ),
         migrations.AlterField(
-            model_name='fmearow',
-            name='detection',
-            field=models.IntegerField(default=1, validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(10)]),
+            model_name="fmearow",
+            name="detection",
+            field=models.IntegerField(
+                default=1,
+                validators=[
+                    django.core.validators.MinValueValidator(1),
+                    django.core.validators.MaxValueValidator(10),
+                ],
+            ),
         ),
         migrations.AlterField(
-            model_name='fmearow',
-            name='occurrence',
-            field=models.IntegerField(default=1, validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(10)]),
+            model_name="fmearow",
+            name="occurrence",
+            field=models.IntegerField(
+                default=1,
+                validators=[
+                    django.core.validators.MinValueValidator(1),
+                    django.core.validators.MaxValueValidator(10),
+                ],
+            ),
         ),
         migrations.AlterField(
-            model_name='fmearow',
-            name='severity',
-            field=models.IntegerField(default=1, validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(10)]),
+            model_name="fmearow",
+            name="severity",
+            field=models.IntegerField(
+                default=1,
+                validators=[
+                    django.core.validators.MinValueValidator(1),
+                    django.core.validators.MaxValueValidator(10),
+                ],
+            ),
         ),
     ]

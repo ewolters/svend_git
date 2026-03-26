@@ -52,7 +52,9 @@ def _ishikawa_connect_investigation(request, investigation_id, diagram):
                 spec=specs,
             )
     except Exception:
-        logger.exception("Ishikawa investigation bridge error for diagram %s", diagram.id)
+        logger.exception(
+            "Ishikawa investigation bridge error for diagram %s", diagram.id
+        )
 
 
 # --- CRUD Endpoints ---
@@ -62,7 +64,9 @@ def _ishikawa_connect_investigation(request, investigation_id, diagram):
 @require_http_methods(["GET"])
 def list_diagrams(request):
     """List user's Ishikawa diagrams."""
-    diagrams = IshikawaDiagram.objects.filter(owner=request.user).order_by("-updated_at")[:50]
+    diagrams = IshikawaDiagram.objects.filter(owner=request.user).order_by(
+        "-updated_at"
+    )[:50]
     return JsonResponse({"diagrams": [d.to_dict() for d in diagrams]})
 
 

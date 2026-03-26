@@ -6,13 +6,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0022_archetype_assignment'),
+        ("core", "0022_archetype_assignment"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='window64',
-            name='goal_number',
-            field=models.PositiveSmallIntegerField(help_text='0 = mandala center (purpose), 1-8 = the 8 goals'),
+            model_name="window64",
+            name="goal_number",
+            field=models.PositiveSmallIntegerField(
+                help_text="0 = mandala center (purpose), 1-8 = the 8 goals"
+            ),
         ),
     ]

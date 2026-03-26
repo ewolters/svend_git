@@ -10,30 +10,64 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0041_doc_supplier_full'),
-        ('core', '0010_project_changelog'),
+        ("agents_api", "0041_doc_supplier_full"),
+        ("core", "0010_project_changelog"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='LearnSession',
+            name="LearnSession",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('module_id', models.CharField(max_length=64)),
-                ('section_id', models.CharField(max_length=64)),
-                ('state', models.JSONField(default=dict)),
-                ('steps_completed', models.JSONField(default=list)),
-                ('started_at', models.DateTimeField(auto_now_add=True)),
-                ('completed_at', models.DateTimeField(blank=True, null=True)),
-                ('project', models.ForeignKey(blank=True, help_text='Sandbox project for this learning session', null=True, on_delete=django.db.models.deletion.SET_NULL, to='core.project')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='learn_sessions', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("module_id", models.CharField(max_length=64)),
+                ("section_id", models.CharField(max_length=64)),
+                ("state", models.JSONField(default=dict)),
+                ("steps_completed", models.JSONField(default=list)),
+                ("started_at", models.DateTimeField(auto_now_add=True)),
+                ("completed_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "project",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Sandbox project for this learning session",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="core.project",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="learn_sessions",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'learn_session',
-                'ordering': ['-started_at'],
-                'indexes': [models.Index(fields=['user', 'module_id'], name='learn_sessi_user_id_d574a9_idx')],
-                'constraints': [models.UniqueConstraint(fields=('user', 'module_id', 'section_id'), name='unique_learn_session')],
+                "db_table": "learn_session",
+                "ordering": ["-started_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["user", "module_id"],
+                        name="learn_sessi_user_id_d574a9_idx",
+                    )
+                ],
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("user", "module_id", "section_id"),
+                        name="unique_learn_session",
+                    )
+                ],
             },
         ),
     ]

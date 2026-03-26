@@ -35,7 +35,10 @@ def run_matrix(df, config):
                     {
                         "type": "histogram",
                         "x": df[x_var].dropna().tolist(),
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1.5},
+                        },
                         "xaxis": f"x{col if col > 1 else ''}",
                         "yaxis": f"y{row if row > 1 else ''}",
                         "showlegend": False,
@@ -247,7 +250,11 @@ def run_mosaic(df, config):
                 "shapes": shapes,
                 "annotations": annotations,
                 "xaxis": {"range": [0, 1], "title": row_var, "showticklabels": False},
-                "yaxis": {"range": [-0.08, 1], "title": col_var, "showticklabels": False},
+                "yaxis": {
+                    "range": [-0.08, 1],
+                    "title": col_var,
+                    "showticklabels": False,
+                },
                 "showlegend": True,
             },
         }

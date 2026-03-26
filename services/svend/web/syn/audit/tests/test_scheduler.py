@@ -91,11 +91,21 @@ class TaskStateTest(unittest.TestCase):
     """SCH-001 §core_concepts: Task state machine."""
 
     def test_terminal_states(self):
-        for state in [TaskState.SUCCESS, TaskState.FAILURE, TaskState.CANCELLED, TaskState.DEAD_LETTERED]:
+        for state in [
+            TaskState.SUCCESS,
+            TaskState.FAILURE,
+            TaskState.CANCELLED,
+            TaskState.DEAD_LETTERED,
+        ]:
             self.assertTrue(state.is_terminal, f"{state} should be terminal")
 
     def test_non_terminal_states(self):
-        for state in [TaskState.PENDING, TaskState.SCHEDULED, TaskState.RUNNING, TaskState.RETRYING]:
+        for state in [
+            TaskState.PENDING,
+            TaskState.SCHEDULED,
+            TaskState.RUNNING,
+            TaskState.RETRYING,
+        ]:
             self.assertFalse(state.is_terminal, f"{state} should not be terminal")
 
     def test_active_states(self):
@@ -214,7 +224,9 @@ class SchedulerConfigTest(unittest.TestCase):
         self.assertFalse(config.enable_schedule_processing)
 
     def test_from_environment(self):
-        with unittest.mock.patch.dict(os.environ, {"SYNARA_SCHED_MAX_CASCADE_DEPTH": "10"}):
+        with unittest.mock.patch.dict(
+            os.environ, {"SYNARA_SCHED_MAX_CASCADE_DEPTH": "10"}
+        ):
             config = SchedulerConfig.from_environment()
             self.assertEqual(config.max_cascade_depth, 10)
 

@@ -5301,8 +5301,18 @@ function generateConfigForm(type, id) {
                     <label>Operator column:</label>
                     <select id="cfg-operator">${colOptions}</select>
                 </div>
+                <div class="aw-form-group">
+                    <label>Tolerance (USL \u2212 LSL):</label>
+                    <input type="number" id="cfg-tolerance" value="" step="any" min="0" placeholder="Optional">
+                </div>
+                <div class="aw-form-group" style="display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" id="cfg-compare_bayesian" style="width:auto;">
+                    <label for="cfg-compare_bayesian" style="margin:0;cursor:pointer;">Compare with Bayesian Gage R&R</label>
+                </div>
                 <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
                     <strong style="color:var(--aw-accent);">Gage R&R (Crossed):</strong> &lt;10% excellent, 10-30% marginal, &gt;30% unacceptable.
+                    %Tolerance = 6\u03C3<sub>GRR</sub> / tolerance \u00D7 100.
+                    Bayesian comparison adds posterior distributions and probability-based verdicts.
                 </div>
             `;
         }
@@ -8554,9 +8564,129 @@ async function executeAnalysis() {
         // Next steps suggestions
         showNextSteps(currentAnalysis.id, currentAnalysis.type);
 
+        // Bayesian comparison for Gage R&R
+        if (currentAnalysis.id === 'gage_rr' && config.compare_bayesian) {
+            await runBayesianGRRComparison(config, result);
+        }
+
+        // Save to Measurement System button for GRR results
+        if (['gage_rr', 'bayes_msa'].includes(currentAnalysis.id) && result.statistics) {
+            showSaveMeasurementSystem(result);
+        }
+
     } catch (err) {
         appendSession('error', `Error: ${safeStr(err, 'Unknown error')}`);
     }
+}
+
+// ── Bayesian GRR Comparison ──────────────────────────────────────────────
+
+async function runBayesianGRRComparison(config, anovaResult) {
+    appendSession('separator');
+    appendSession('cmd', 'Bayesian Gage R&R (Comparison)');
+
+    try {
+        const bayesConfig = {
+            measurement: config.measurement,
+            part: config.part,
+            operator: config.operator,
+        };
+
+        const response = await svendFetch('/api/analysis/run/', {
+            method: 'POST',
+            body: JSON.stringify({
+                type: 'bayes_msa',
+                analysis: 'bayes_msa',
+                config: bayesConfig,
+                data_id: currentData?.id,
+            }),
+        });
+
+        if (response.summary) {
+            const session = document.getElementById('session-output');
+            const div = document.createElement('div');
+            div.className = 'result';
+            if (response.summary.includes('<') || response.summary.includes('&')) {
+                div.innerHTML = response.summary;
+            } else {
+                div.textContent = response.summary;
+            }
+            session.appendChild(div);
+            session.scrollTop = session.scrollHeight;
+        }
+
+        if (response.plots && response.plots.length > 0) {
+            displayGraphs(response.plots);
+        }
+
+        // Comparison summary
+        if (anovaResult.statistics && response.statistics) {
+            const anova_grr = anovaResult.statistics.grr_percent || anovaResult.statistics.pct_grr;
+            const bayes_grr = response.statistics.pct_grr_mean;
+            const p_lt_10 = response.statistics.p_grr_lt_10;
+            const p_lt_30 = response.statistics.p_grr_lt_30;
+
+            if (anova_grr != null && bayes_grr != null) {
+                let html = `<div style="background:rgba(74,159,110,0.08);border:1px solid rgba(74,159,110,0.2);border-radius:6px;padding:12px;margin-top:8px;font-size:12px;">`;
+                html += `<strong style="color:var(--aw-accent);">Method Comparison</strong><br>`;
+                html += `ANOVA %GRR: <strong>${Number(anova_grr).toFixed(1)}%</strong> (point estimate)<br>`;
+                html += `Bayesian %GRR: <strong>${Number(bayes_grr).toFixed(1)}%</strong>`;
+                if (response.statistics.pct_grr_ci) {
+                    const ci = response.statistics.pct_grr_ci;
+                    html += ` [${Number(ci[0]).toFixed(1)}%, ${Number(ci[1]).toFixed(1)}%]`;
+                }
+                html += `<br>`;
+                if (p_lt_10 != null) html += `P(%GRR &lt; 10%): <strong>${(p_lt_10 * 100).toFixed(0)}%</strong> &mdash; `;
+                if (p_lt_30 != null) html += `P(%GRR &lt; 30%): <strong>${(p_lt_30 * 100).toFixed(0)}%</strong>`;
+                html += `</div>`;
+
+                const session = document.getElementById('session-output');
+                const wrap = document.createElement('div');
+                wrap.innerHTML = html;
+                session.appendChild(wrap);
+            }
+        }
+    } catch (err) {
+        appendSession('error', `Bayesian comparison failed: ${safeStr(err, 'Unknown error')}`);
+    }
+}
+
+// ── Save to Measurement System ──────────────────────────────────────────
+
+function showSaveMeasurementSystem(result) {
+    const session = document.getElementById('session-output');
+    const stats = result.statistics || {};
+
+    const btn = document.createElement('button');
+    btn.className = 'aw-btn';
+    btn.style.cssText = 'margin-top:8px;padding:6px 14px;font-size:12px;background:var(--aw-accent);color:white;border:none;border-radius:4px;cursor:pointer;';
+    btn.textContent = 'Save to Measurement System';
+    btn.dataset.loadingText = 'Saving\u2026';
+    btn.onclick = async function() {
+        const name = await svendPrompt('Measurement system name (e.g., "Keyence IM-8000 #3"):');
+        if (!name) return;
+
+        await withLoading(btn, async () => {
+            try {
+                const payload = {
+                    name: name,
+                    grr_percent: stats.grr_percent || stats.pct_grr || stats.pct_grr_mean,
+                    ndc: stats.ndc || stats.ndc_mean,
+                    study_type: stats.test === 'bayesian_gage_rr' ? 'GRR_BAYESIAN' : 'GRR_CROSSED',
+                };
+                const data = await svendFetch('/api/spc/measurement-systems/save-study/', {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                });
+                svToast(`Saved to ${data.system_name} \u2014 validity: ${(data.validity * 100).toFixed(0)}%`, 'success');
+                btn.style.display = 'none';
+            } catch (e) {
+                // svendFetch already toasted
+            }
+        });
+    };
+
+    session.appendChild(btn);
 }
 
 // ── DSW Output Block Renderers (INIT-009 / E9-004) ──────────────────────

@@ -29,7 +29,9 @@ def _put(client, url, data=None):
 
 def _make_team_user(email):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123!")
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123!"
+    )
     user.tier = Tier.TEAM
     user.save(update_fields=["tier"])
     return user
@@ -273,7 +275,11 @@ class FMEASPCCpkMappingTest(TestCase):
         ]
         for cpk, expected_occ in cases:
             result = _cpk_to_occurrence(cpk)
-            self.assertEqual(result, expected_occ, f"Cpk={cpk} should map to occurrence={expected_occ}, got {result}")
+            self.assertEqual(
+                result,
+                expected_occ,
+                f"Cpk={cpk} should map to occurrence={expected_occ}, got {result}",
+            )
 
     def test_cpk_endpoint_updates_occurrence(self):
         """POST spc-cpk-update/ updates occurrence from Cpk value."""
@@ -330,11 +336,17 @@ class FMEASPCCpkMappingTest(TestCase):
         row_id = resp.json()["row"]["id"]
 
         # Missing cpk
-        resp = _post(self.client, f"/api/fmea/{fmea_id}/rows/{row_id}/spc-cpk-update/", {})
+        resp = _post(
+            self.client, f"/api/fmea/{fmea_id}/rows/{row_id}/spc-cpk-update/", {}
+        )
         self.assertEqual(resp.status_code, 400)
 
         # Invalid cpk
-        resp = _post(self.client, f"/api/fmea/{fmea_id}/rows/{row_id}/spc-cpk-update/", {"cpk": "abc"})
+        resp = _post(
+            self.client,
+            f"/api/fmea/{fmea_id}/rows/{row_id}/spc-cpk-update/",
+            {"cpk": "abc"},
+        )
         self.assertEqual(resp.status_code, 400)
 
 
@@ -368,7 +380,9 @@ class RCAStateMachineTest(TestCase):
         sid = self._create_session()
 
         # draft → investigating
-        resp = _put(self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"})
+        resp = _put(
+            self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"}
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["session"]["status"], "investigating")
 
@@ -412,7 +426,9 @@ class RCAStateMachineTest(TestCase):
         """draft → closed is not allowed."""
         sid = self._create_session()
 
-        resp = _put(self.client, f"/api/rca/sessions/{sid}/update/", {"status": "closed"})
+        resp = _put(
+            self.client, f"/api/rca/sessions/{sid}/update/", {"status": "closed"}
+        )
         self.assertEqual(resp.status_code, 400)
         body = resp.json()
         err = body.get("error", body)
@@ -424,10 +440,16 @@ class RCAStateMachineTest(TestCase):
         sid = self._create_session()
 
         # draft → investigating
-        _put(self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"})
+        _put(
+            self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"}
+        )
 
         # investigating → root_cause_identified WITHOUT root_cause → 400
-        resp = _put(self.client, f"/api/rca/sessions/{sid}/update/", {"status": "root_cause_identified"})
+        resp = _put(
+            self.client,
+            f"/api/rca/sessions/{sid}/update/",
+            {"status": "root_cause_identified"},
+        )
         self.assertEqual(resp.status_code, 400)
         body = resp.json()
         err = body.get("error", body)
@@ -439,7 +461,9 @@ class RCAStateMachineTest(TestCase):
         sid = self._create_session()
 
         # Walk through full lifecycle
-        _put(self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"})
+        _put(
+            self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"}
+        )
         _put(
             self.client,
             f"/api/rca/sessions/{sid}/update/",
@@ -466,7 +490,9 @@ class RCAStateMachineTest(TestCase):
         )
 
         # Reopen without reason → 400
-        resp = _put(self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"})
+        resp = _put(
+            self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"}
+        )
         self.assertEqual(resp.status_code, 400)
         body = resp.json()
         err = body.get("error", body)

@@ -45,8 +45,12 @@ class Workbench(models.Model):
         related_name="workbenches",
     )
     # Basic info
-    title = models.CharField(max_length=255, help_text="The inquiry or question being investigated")
-    description = models.TextField(blank=True, help_text="Additional context about the inquiry")
+    title = models.CharField(
+        max_length=255, help_text="The inquiry or question being investigated"
+    )
+    description = models.TextField(
+        blank=True, help_text="Additional context about the inquiry"
+    )
     template = models.CharField(
         max_length=20,
         choices=Template.choices,
@@ -63,28 +67,42 @@ class Workbench(models.Model):
     # For Kaizen: current day, event dates
     # For 8D: current discipline
     template_state = models.JSONField(
-        default=dict, blank=True, help_text="Template-specific state (phases, days, disciplines)"
+        default=dict,
+        blank=True,
+        help_text="Template-specific state (phases, days, disciplines)",
     )
 
     # Artifact connections: [{from_id, to_id, label}]
     # Stored here rather than on artifacts for easier bulk operations
-    connections = models.JSONField(default=list, blank=True, help_text="Connections between artifacts")
+    connections = models.JSONField(
+        default=list, blank=True, help_text="Connections between artifacts"
+    )
 
     # Canvas layout: {artifact_id: {x, y, width, height, collapsed}}
     # Allows restoring exact visual state
-    layout = models.JSONField(default=dict, blank=True, help_text="Canvas layout positions for artifacts")
+    layout = models.JSONField(
+        default=dict, blank=True, help_text="Canvas layout positions for artifacts"
+    )
 
     # Datasets associated with this workbench
     # [{name, file_path, rows, cols, variables: [{name, dtype, role}]}]
-    datasets = models.JSONField(default=list, blank=True, help_text="Datasets loaded in this workbench")
+    datasets = models.JSONField(
+        default=list, blank=True, help_text="Datasets loaded in this workbench"
+    )
 
     # AI Guide observations
     # [{timestamp, observation, suggestion, acknowledged}]
-    guide_observations = models.JSONField(default=list, blank=True, help_text="AI Guide observations and suggestions")
+    guide_observations = models.JSONField(
+        default=list, blank=True, help_text="AI Guide observations and suggestions"
+    )
 
     # Conclusion / structured response (when complete)
-    conclusion = models.TextField(blank=True, help_text="The structured response / conclusion reached")
-    conclusion_confidence = models.CharField(max_length=20, blank=True, help_text="Confidence in the conclusion")
+    conclusion = models.TextField(
+        blank=True, help_text="The structured response / conclusion reached"
+    )
+    conclusion_confidence = models.CharField(
+        max_length=20, blank=True, help_text="Confidence in the conclusion"
+    )
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -160,7 +178,11 @@ class Workbench(models.Model):
             self.template_state = {
                 "current_phase": "define",
                 "phase_history": [
-                    {"phase": "define", "entered_at": datetime.now().isoformat(), "notes": "Started DMAIC project"}
+                    {
+                        "phase": "define",
+                        "entered_at": datetime.now().isoformat(),
+                        "notes": "Started DMAIC project",
+                    }
                 ],
                 "phase_artifacts": {
                     "define": [],
@@ -186,14 +208,42 @@ class Workbench(models.Model):
             self.template_state = {
                 "current_discipline": "d1",
                 "disciplines": {
-                    "d1": {"title": "Team Formation", "artifacts": [], "complete": False},
-                    "d2": {"title": "Problem Description", "artifacts": [], "complete": False},
-                    "d3": {"title": "Containment Actions", "artifacts": [], "complete": False},
-                    "d4": {"title": "Root Cause Analysis", "artifacts": [], "complete": False},
-                    "d5": {"title": "Corrective Actions", "artifacts": [], "complete": False},
-                    "d6": {"title": "Implementation", "artifacts": [], "complete": False},
+                    "d1": {
+                        "title": "Team Formation",
+                        "artifacts": [],
+                        "complete": False,
+                    },
+                    "d2": {
+                        "title": "Problem Description",
+                        "artifacts": [],
+                        "complete": False,
+                    },
+                    "d3": {
+                        "title": "Containment Actions",
+                        "artifacts": [],
+                        "complete": False,
+                    },
+                    "d4": {
+                        "title": "Root Cause Analysis",
+                        "artifacts": [],
+                        "complete": False,
+                    },
+                    "d5": {
+                        "title": "Corrective Actions",
+                        "artifacts": [],
+                        "complete": False,
+                    },
+                    "d6": {
+                        "title": "Implementation",
+                        "artifacts": [],
+                        "complete": False,
+                    },
                     "d7": {"title": "Prevention", "artifacts": [], "complete": False},
-                    "d8": {"title": "Congratulate Team", "artifacts": [], "complete": False},
+                    "d8": {
+                        "title": "Congratulate Team",
+                        "artifacts": [],
+                        "complete": False,
+                    },
                 },
             }
         elif self.template == self.Template.A3:
@@ -240,7 +290,9 @@ class Workbench(models.Model):
 
     def add_artifact(self, artifact_type: str, content: dict, **kwargs) -> "Artifact":
         """Add an artifact to this workbench."""
-        artifact = Artifact.objects.create(workbench=self, artifact_type=artifact_type, content=content, **kwargs)
+        artifact = Artifact.objects.create(
+            workbench=self, artifact_type=artifact_type, content=content, **kwargs
+        )
 
         # Auto-assign to template section if applicable
         self._assign_to_template(artifact)
@@ -350,25 +402,39 @@ class Artifact(models.Model):
         choices=ArtifactType.choices,
     )
     title = models.CharField(max_length=255, blank=True)
-    content = models.JSONField(default=dict, help_text="Type-specific content (data, results, text, etc.)")
+    content = models.JSONField(
+        default=dict, help_text="Type-specific content (data, results, text, etc.)"
+    )
 
     # Source tracking
     source = models.CharField(
-        max_length=50, blank=True, help_text="What created this: user, analyst, researcher, coder, etc."
+        max_length=50,
+        blank=True,
+        help_text="What created this: user, analyst, researcher, coder, etc.",
     )
     source_artifact_id = models.UUIDField(
-        null=True, blank=True, help_text="If derived from another artifact, link to source"
+        null=True,
+        blank=True,
+        help_text="If derived from another artifact, link to source",
     )
 
     # For hypothesis artifacts
-    probability = models.FloatField(null=True, blank=True, help_text="Probability estimate (for hypotheses)")
+    probability = models.FloatField(
+        null=True, blank=True, help_text="Probability estimate (for hypotheses)"
+    )
 
     # For evidence artifacts
-    supports_hypotheses = models.JSONField(default=list, blank=True, help_text="Hypothesis IDs this evidence supports")
-    weakens_hypotheses = models.JSONField(default=list, blank=True, help_text="Hypothesis IDs this evidence weakens")
+    supports_hypotheses = models.JSONField(
+        default=list, blank=True, help_text="Hypothesis IDs this evidence supports"
+    )
+    weakens_hypotheses = models.JSONField(
+        default=list, blank=True, help_text="Hypothesis IDs this evidence weakens"
+    )
 
     # For model artifacts
-    model_path = models.CharField(max_length=500, blank=True, help_text="Path to saved model file")
+    model_path = models.CharField(
+        max_length=500, blank=True, help_text="Path to saved model file"
+    )
 
     # Tags for filtering/grouping
     tags = models.JSONField(
@@ -500,16 +566,22 @@ class KnowledgeGraph(models.Model):
 
     # Graph state serialized
     # nodes: [{id, type, label, artifact_id?, metadata}]
-    nodes = models.JSONField(default=list, blank=True, help_text="Graph nodes (hypotheses, causes, effects)")
+    nodes = models.JSONField(
+        default=list, blank=True, help_text="Graph nodes (hypotheses, causes, effects)"
+    )
 
     # edges: [{id, from_node, to_node, weight, mechanism, evidence_ids, metadata}]
     # Weight = P(to | from), strength of causal relationship
-    edges = models.JSONField(default=list, blank=True, help_text="Causal edges with weights")
+    edges = models.JSONField(
+        default=list, blank=True, help_text="Causal edges with weights"
+    )
 
     # Expansion signals: when evidence doesn't fit any node
     # [{id, evidence, likelihoods, status, resolution}]
     expansion_signals = models.JSONField(
-        default=list, blank=True, help_text="Signals indicating incomplete causal surface"
+        default=list,
+        blank=True,
+        help_text="Signals indicating incomplete causal surface",
     )
 
     # Timestamps
@@ -527,7 +599,9 @@ class KnowledgeGraph(models.Model):
     # Node operations
     # =========================================================================
 
-    def add_node(self, node_type: str, label: str, artifact_id: str = None, metadata: dict = None) -> dict:
+    def add_node(
+        self, node_type: str, label: str, artifact_id: str = None, metadata: dict = None
+    ) -> dict:
         """Add a node to the graph."""
         node = {
             "id": str(uuid.uuid4())[:8],
@@ -548,7 +622,11 @@ class KnowledgeGraph(models.Model):
     def remove_node(self, node_id: str):
         """Remove a node and all connected edges."""
         self.nodes = [n for n in self.nodes if n["id"] != node_id]
-        self.edges = [e for e in self.edges if e["from_node"] != node_id and e["to_node"] != node_id]
+        self.edges = [
+            e
+            for e in self.edges
+            if e["from_node"] != node_id and e["to_node"] != node_id
+        ]
         self.save(update_fields=["nodes", "edges", "updated_at"])
 
     # =========================================================================
@@ -596,7 +674,9 @@ class KnowledgeGraph(models.Model):
         """Get all edges pointing to a node (causes of this effect)."""
         return [e for e in self.edges if e["to_node"] == node_id]
 
-    def update_edge_weight(self, edge_id: str, new_weight: float, evidence_id: str = None):
+    def update_edge_weight(
+        self, edge_id: str, new_weight: float, evidence_id: str = None
+    ):
         """Update edge weight based on new evidence."""
         for edge in self.edges:
             if edge["id"] == edge_id:
@@ -637,7 +717,9 @@ class KnowledgeGraph(models.Model):
                 if 0 < lr <= 1:
                     lr = 1 + lr  # Convert 0.5 -> 1.5, 1.0 -> 2.0
                 result = updater.update(prior=prior, likelihood_ratio=lr)
-                self.update_edge_weight(edge_id, result.posterior_probability, evidence_id)
+                self.update_edge_weight(
+                    edge_id, result.posterior_probability, evidence_id
+                )
 
         for edge_id, lr in weakens:
             edge = self.get_edge(edge_id)
@@ -647,7 +729,9 @@ class KnowledgeGraph(models.Model):
                 if 0 < lr <= 1:
                     lr = 1 - lr * 0.5  # Convert 0.5 -> 0.75, 1.0 -> 0.5
                 result = updater.update(prior=prior, likelihood_ratio=lr)
-                self.update_edge_weight(edge_id, result.posterior_probability, evidence_id)
+                self.update_edge_weight(
+                    edge_id, result.posterior_probability, evidence_id
+                )
 
     def check_expansion(self, evidence_likelihoods: dict[str, float]) -> dict:
         """
@@ -656,7 +740,9 @@ class KnowledgeGraph(models.Model):
         If max likelihood < threshold, signal expansion needed.
         Returns expansion signal if needed, None otherwise.
         """
-        max_likelihood = max(evidence_likelihoods.values()) if evidence_likelihoods else 0
+        max_likelihood = (
+            max(evidence_likelihoods.values()) if evidence_likelihoods else 0
+        )
 
         if max_likelihood < 0.2:  # Threshold for expansion
             signal = {
@@ -682,7 +768,9 @@ class KnowledgeGraph(models.Model):
         self._find_chains(from_node, to_node, [], chains)
         return chains
 
-    def _find_chains(self, current: str, target: str, path: list, chains: list, visited: set = None):
+    def _find_chains(
+        self, current: str, target: str, path: list, chains: list, visited: set = None
+    ):
         """Recursive helper for finding chains."""
         if visited is None:
             visited = set()
@@ -817,10 +905,17 @@ class EpistemicLog(models.Model):
         max_length=30,
         choices=EventType.choices,
     )
-    event_data = models.JSONField(default=dict, help_text="Event-specific data (before/after states, deltas, etc.)")
+    event_data = models.JSONField(
+        default=dict,
+        help_text="Event-specific data (before/after states, deltas, etc.)",
+    )
 
     # Context at time of event
-    context = models.JSONField(default=dict, blank=True, help_text="Snapshot of relevant context when event occurred")
+    context = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Snapshot of relevant context when event occurred",
+    )
 
     # Outcome tracking (for learning)
     has_led_to_insight = models.BooleanField(
@@ -838,7 +933,9 @@ class EpistemicLog(models.Model):
 
     # Source
     source = models.CharField(
-        max_length=50, default="system", help_text="What triggered this event: user, guide, analyst, system, etc."
+        max_length=50,
+        default="system",
+        help_text="What triggered this event: user, guide, analyst, system, etc.",
     )
 
     # Timestamp
@@ -880,7 +977,9 @@ class EpistemicLog(models.Model):
         )
 
     @classmethod
-    def log_hypothesis_created(cls, user, workbench, hypothesis_data: dict, source: str = "user"):
+    def log_hypothesis_created(
+        cls, user, workbench, hypothesis_data: dict, source: str = "user"
+    ):
         """Log hypothesis creation."""
         return cls.log(
             user=user,
@@ -891,7 +990,9 @@ class EpistemicLog(models.Model):
         )
 
     @classmethod
-    def log_evidence_added(cls, user, workbench, evidence_data: dict, source: str = "user"):
+    def log_evidence_added(
+        cls, user, workbench, evidence_data: dict, source: str = "user"
+    ):
         """Log evidence addition."""
         return cls.log(
             user=user,
@@ -903,7 +1004,13 @@ class EpistemicLog(models.Model):
 
     @classmethod
     def log_belief_update(
-        cls, user, knowledge_graph, edge_id: str, old_weight: float, new_weight: float, evidence_id: str = None
+        cls,
+        user,
+        knowledge_graph,
+        edge_id: str,
+        old_weight: float,
+        new_weight: float,
+        evidence_id: str = None,
     ):
         """Log belief update on an edge."""
         return cls.log(
@@ -931,7 +1038,9 @@ class EpistemicLog(models.Model):
             source="synara",
         )
 
-    def mark_outcome(self, has_led_to_insight: bool = None, has_led_to_dead_end: bool = None):
+    def mark_outcome(
+        self, has_led_to_insight: bool = None, has_led_to_dead_end: bool = None
+    ):
         """Mark the outcome of this event retrospectively."""
         if has_led_to_insight is not None:
             self.has_led_to_insight = has_led_to_insight

@@ -75,11 +75,19 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "y": features,
                         "mode": "markers",
                         "marker": {"color": "#4a9f6e", "size": 10},
-                        "error_x": {"type": "data", "array": (z * coef_std).tolist(), "color": "#4a9f6e"},
+                        "error_x": {
+                            "type": "data",
+                            "array": (z * coef_std).tolist(),
+                            "color": "#4a9f6e",
+                        },
                         "name": f"β ± {int(ci_level * 100)}% CI",
                     }
                 ],
-                "layout": {"height": max(300, len(features) * 30), "xaxis": {"zeroline": True}, "margin": {"l": 150}},
+                "layout": {
+                    "height": max(300, len(features) * 30),
+                    "xaxis": {"zeroline": True},
+                    "margin": {"l": 150},
+                },
             }
         )
 
@@ -137,11 +145,15 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         if mode == "factor" and factor_col and response_col:
             # Factor-split mode: one numeric column grouped by a categorical column
-            groups = df.groupby(factor_col)[response_col].apply(lambda s: s.dropna().values)
+            groups = df.groupby(factor_col)[response_col].apply(
+                lambda s: s.dropna().values
+            )
             group_names = list(groups.index)
             if len(group_names) < 2:
                 result["summary"] = "Factor column must have at least 2 groups."
-                result["guide_observation"] = "Bayesian t-test: insufficient groups in factor column."
+                result["guide_observation"] = (
+                    "Bayesian t-test: insufficient groups in factor column."
+                )
                 return result
             if len(group_names) > 2:
                 result["summary"] = (
@@ -163,7 +175,8 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         # Effect size (Cohen's d)
         pooled_std = np.sqrt(
-            ((len(x1) - 1) * np.var(x1, ddof=1) + (len(x2) - 1) * np.var(x2, ddof=1)) / (len(x1) + len(x2) - 2)
+            ((len(x1) - 1) * np.var(x1, ddof=1) + (len(x2) - 1) * np.var(x2, ddof=1))
+            / (len(x1) + len(x2) - 2)
         )
         cohens_d = (np.mean(x1) - np.mean(x2)) / pooled_std if pooled_std > 0 else 0
 
@@ -196,14 +209,19 @@ def run_bayesian_analysis(df, analysis_id, config):
         bf10 = max(bf10, 1e-10)  # Numerical floor
 
         # Posterior on effect size (approximate)
-        se_d = np.sqrt((len(x1) + len(x2)) / (len(x1) * len(x2)) + cohens_d**2 / (2 * (len(x1) + len(x2))))
+        se_d = np.sqrt(
+            (len(x1) + len(x2)) / (len(x1) * len(x2))
+            + cohens_d**2 / (2 * (len(x1) + len(x2)))
+        )
         d_ci_low = cohens_d - z * se_d
         d_ci_high = cohens_d + z * se_d
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>BAYESIAN T-TEST<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:highlight>>{var1}<</COLOR>> (n={len(x1)}, μ={np.mean(x1):.3f})\n"
+        summary += (
+            f"<<COLOR:highlight>>{var1}<</COLOR>> (n={len(x1)}, μ={np.mean(x1):.3f})\n"
+        )
         summary += f"<<COLOR:highlight>>{var2}<</COLOR>> (n={len(x2)}, μ={np.mean(x2):.3f})\n\n"
 
         summary += "<<COLOR:accent>>── Effect Size ──<</COLOR>>\n"
@@ -216,15 +234,28 @@ def run_bayesian_analysis(df, analysis_id, config):
         elif bf10 > 3:
             summary += "<<COLOR:warning>>Moderate evidence for difference (BF₁₀ > 3)<</COLOR>>\n"
         elif bf10 > 1:
-            summary += "<<COLOR:text>>Weak evidence for difference (BF₁₀ < 3)<</COLOR>>\n"
+            summary += (
+                "<<COLOR:text>>Weak evidence for difference (BF₁₀ < 3)<</COLOR>>\n"
+            )
         else:
-            summary += "<<COLOR:text>>Evidence favors no difference (BF₁₀ < 1)<</COLOR>>\n"
+            summary += (
+                "<<COLOR:text>>Evidence favors no difference (BF₁₀ < 1)<</COLOR>>\n"
+            )
 
         result["summary"] = summary
-        result["statistics"] = {"cohens_d": cohens_d, "bf10": bf10, "d_ci_low": d_ci_low, "d_ci_high": d_ci_high}
+        result["statistics"] = {
+            "cohens_d": cohens_d,
+            "bf10": bf10,
+            "d_ci_low": d_ci_low,
+            "d_ci_high": d_ci_high,
+        }
 
         # Guide observation
-        bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+        bf_label = (
+            "strong"
+            if bf10 > 10
+            else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+        )
         result["guide_observation"] = (
             f"Bayesian t-test: d={cohens_d:.3f}, BF₁₀={bf10:.2f} ({bf_label} evidence for difference)."
         )
@@ -233,7 +264,11 @@ def run_bayesian_analysis(df, analysis_id, config):
         _bt_mag = (
             "large"
             if abs(cohens_d) >= 0.8
-            else ("medium" if abs(cohens_d) >= 0.5 else ("small" if abs(cohens_d) >= 0.2 else "negligible"))
+            else (
+                "medium"
+                if abs(cohens_d) >= 0.5
+                else ("small" if abs(cohens_d) >= 0.2 else "negligible")
+            )
         )
         result["narrative"] = _narrative(
             f"Bayesian t-test — {bf_label} evidence, d = {cohens_d:.3f} ({_bt_mag})",
@@ -274,7 +309,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "name": "No effect",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Cohen's d"}, "yaxis": {"title": "Density"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Cohen's d"},
+                    "yaxis": {"title": "Density"},
+                },
             }
         )
 
@@ -344,8 +383,12 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>BAYESIAN A/B TEST<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:highlight>>Group A ({g1}):<</COLOR>> {s1}/{n1} = {rate1:.1%}\n"
-        summary += f"<<COLOR:highlight>>Group B ({g2}):<</COLOR>> {s2}/{n2} = {rate2:.1%}\n\n"
+        summary += (
+            f"<<COLOR:highlight>>Group A ({g1}):<</COLOR>> {s1}/{n1} = {rate1:.1%}\n"
+        )
+        summary += (
+            f"<<COLOR:highlight>>Group B ({g2}):<</COLOR>> {s2}/{n2} = {rate2:.1%}\n\n"
+        )
         summary += f"<<COLOR:text>>P({g1} > {g2}):<</COLOR>> {prob_better:.1%}\n"
         summary += f"<<COLOR:text>>Relative Lift:<</COLOR>> {lift:+.1%}\n\n"
 
@@ -359,7 +402,12 @@ def run_bayesian_analysis(df, analysis_id, config):
             summary += "<<COLOR:text>>Inconclusive - need more data<</COLOR>>\n"
 
         result["summary"] = summary
-        result["statistics"] = {"prob_better": prob_better, "rate_a": rate1, "rate_b": rate2, "lift": lift}
+        result["statistics"] = {
+            "prob_better": prob_better,
+            "rate_a": rate1,
+            "rate_b": rate2,
+            "lift": lift,
+        }
 
         # Posterior distributions
         x = np.linspace(0, 1, 200)
@@ -386,7 +434,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "name": f"{g2}",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Conversion Rate"}, "yaxis": {"title": "Density"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Conversion Rate"},
+                    "yaxis": {"title": "Density"},
+                },
             }
         )
 
@@ -442,7 +494,9 @@ def run_bayesian_analysis(df, analysis_id, config):
             """Integrand for correlation BF under uniform prior on rho."""
             if abs(rho) >= 1:
                 return 0.0
-            log_term = ((n - 2) / 2) * np.log(1 - rho**2) - ((n - 1) / 2) * np.log(1 - r * rho)
+            log_term = ((n - 2) / 2) * np.log(1 - rho**2) - ((n - 1) / 2) * np.log(
+                1 - r * rho
+            )
             return np.exp(log_term)
 
         bf_integral, _ = quad(_corr_bf_integrand, -1 + 1e-10, 1 - 1e-10)
@@ -473,13 +527,24 @@ def run_bayesian_analysis(df, analysis_id, config):
         elif bf10 > 1:
             summary += "  <<COLOR:text>>Weak evidence for association<</COLOR>>\n"
         else:
-            summary += "  <<COLOR:text>>Evidence favors no association (BF₁₀ < 1)<</COLOR>>\n"
+            summary += (
+                "  <<COLOR:text>>Evidence favors no association (BF₁₀ < 1)<</COLOR>>\n"
+            )
 
         result["summary"] = summary
-        result["statistics"] = {"r": r, "r_ci_low": r_low, "r_ci_high": r_high, "bf10": bf10}
+        result["statistics"] = {
+            "r": r,
+            "r_ci_low": r_low,
+            "r_ci_high": r_high,
+            "bf10": bf10,
+        }
 
         # Guide observation
-        bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+        bf_label = (
+            "strong"
+            if bf10 > 10
+            else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+        )
         result["guide_observation"] = (
             f"Bayesian correlation: r={r:.3f} ({strength} {direction}), BF₁₀={bf10:.2f} ({bf_label} evidence)."
         )
@@ -506,7 +571,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "marker": {"color": "#4a9f6e", "size": 6, "opacity": 0.6},
                     }
                 ],
-                "layout": {"height": 300, "xaxis": {"title": var1}, "yaxis": {"title": var2}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": var1},
+                    "yaxis": {"title": var2},
+                },
             }
         )
 
@@ -590,10 +659,19 @@ def run_bayesian_analysis(df, analysis_id, config):
             summary += "  <<COLOR:text>>Evidence favors no group differences (BF₁₀ < 1)<</COLOR>>\n"
 
         result["summary"] = summary
-        result["statistics"] = {"f_stat": f_stat, "eta_squared": eta_sq, "p_value": p_value, "bf10": bf10}
+        result["statistics"] = {
+            "f_stat": f_stat,
+            "eta_squared": eta_sq,
+            "p_value": p_value,
+            "bf10": bf10,
+        }
 
         # Guide observation
-        bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+        bf_label = (
+            "strong"
+            if bf10 > 10
+            else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+        )
         result["guide_observation"] = (
             f"Bayesian ANOVA: {factor} on {response}, F={f_stat:.3f}, η²={eta_sq:.3f}, BF₁₀={bf10:.2f} ({bf_label} evidence)."
         )
@@ -613,7 +691,12 @@ def run_bayesian_analysis(df, analysis_id, config):
             {
                 "title": f"{response} by {factor}",
                 "data": [
-                    {"type": "box", "y": groups[name], "name": str(name), "marker": {"color": "#4a9f6e"}}
+                    {
+                        "type": "box",
+                        "y": groups[name],
+                        "name": str(name),
+                        "marker": {"color": "#4a9f6e"},
+                    }
                     for name in group_names
                 ],
                 "layout": {"height": 350},
@@ -710,7 +793,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}\n"
-        summary += "<<COLOR:dim>>Method: BIC-approximated Bayes Factor scan<</COLOR>>\n\n"
+        summary += (
+            "<<COLOR:dim>>Method: BIC-approximated Bayes Factor scan<</COLOR>>\n\n"
+        )
 
         if len(changepoints) > 0:
             summary += "<<COLOR:accent>>── Change Points ──<</COLOR>>\n"
@@ -720,13 +805,17 @@ def run_bayesian_analysis(df, analysis_id, config):
                 after = data[cp:]
                 shift = np.mean(after) - np.mean(before)
                 pooled_std = (
-                    np.sqrt((np.var(before) + np.var(after)) / 2) if len(before) > 1 and len(after) > 1 else 1.0
+                    np.sqrt((np.var(before) + np.var(after)) / 2)
+                    if len(before) > 1 and len(after) > 1
+                    else 1.0
                 )
                 effect_d = abs(shift) / pooled_std if pooled_std > 0 else 0.0
                 summary += f"  Point {i + 1}: index {cp}\n"
                 summary += f"    BF₁₀ = {bf:.1f}"
                 summary += f"  |  before μ = {np.mean(before):.4f}, after μ = {np.mean(after):.4f}\n"
-                summary += f"    Shift = {shift:+.4f}  |  Effect size (d) = {effect_d:.2f}\n"
+                summary += (
+                    f"    Shift = {shift:+.4f}  |  Effect size (d) = {effect_d:.2f}\n"
+                )
         else:
             summary += "<<COLOR:accent>>── Result ──<</COLOR>>\n"
             summary += "  <<COLOR:text>>No significant change points detected (BF₁₀ < 3)<</COLOR>>\n"
@@ -756,7 +845,9 @@ def run_bayesian_analysis(df, analysis_id, config):
                 f"Bayesian changepoint: {len(changepoints)} shift(s) detected in {var}. Best BF₁₀={max(cp_bfs):.1f}."
             )
         else:
-            result["guide_observation"] = f"Bayesian changepoint: no significant shifts detected in {var} (n={n})."
+            result["guide_observation"] = (
+                f"Bayesian changepoint: no significant shifts detected in {var} (n={n})."
+            )
 
         # Narrative
         if changepoints:
@@ -768,7 +859,11 @@ def run_bayesian_analysis(df, analysis_id, config):
             result["narrative"] = _narrative(
                 f"Bayesian Changepoint — {len(changepoints)} shift{'s' if len(changepoints) > 1 else ''} detected",
                 f"Strongest change at observation {_bcp_idx} (BF\u2081\u2080 = {_bcp_bf:.1f}): mean shifted by {_bcp_shift:+.4f}. "
-                + (f"Total of {len(changepoints)} change points in {n} observations." if len(changepoints) > 1 else ""),
+                + (
+                    f"Total of {len(changepoints)} change points in {n} observations."
+                    if len(changepoints) > 1
+                    else ""
+                ),
                 next_steps="Investigate what happened at the change point(s). Align with process logs or external events.",
                 chart_guidance="Red dashed vertical lines mark detected shifts. Compare the mean level before and after each line.",
             )
@@ -783,7 +878,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         plot_data = [
             {
                 "type": "scatter",
-                "x": time_idx.tolist() if hasattr(time_idx, "tolist") else list(time_idx),
+                "x": (
+                    time_idx.tolist() if hasattr(time_idx, "tolist") else list(time_idx)
+                ),
                 "y": data.tolist(),
                 "mode": "lines+markers",
                 "marker": {"size": 4, "color": "#4a9f6e"},
@@ -808,7 +905,11 @@ def run_bayesian_analysis(df, analysis_id, config):
             {
                 "title": "Time Series with Change Points",
                 "data": plot_data,
-                "layout": {"height": 350, "xaxis": {"title": time_col or "Index"}, "yaxis": {"title": var}},
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"title": time_col or "Index"},
+                    "yaxis": {"title": var},
+                },
             }
         )
 
@@ -851,7 +952,12 @@ def run_bayesian_analysis(df, analysis_id, config):
             # Column-based mode: read from dataframe
             success_col = config.get("success")
             prior_type = config.get("prior", "uniform")
-            prior_map = {"uniform": (1, 1), "jeffreys": (0.5, 0.5), "optimistic": (8, 2), "pessimistic": (2, 8)}
+            prior_map = {
+                "uniform": (1, 1),
+                "jeffreys": (0.5, 0.5),
+                "optimistic": (8, 2),
+                "pessimistic": (2, 8),
+            }
             a_prior, b_prior = prior_map.get(prior_type, (1, 1))
             data = df[success_col].dropna()
             successes = int(data.sum())
@@ -863,7 +969,9 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         # Posterior mean and CI
         post_mean = a_post / (a_post + b_post)
-        ci_low, ci_high = stats.beta.ppf([(1 - ci_level) / 2, (1 + ci_level) / 2], a_post, b_post)
+        ci_low, ci_high = stats.beta.ppf(
+            [(1 - ci_level) / 2, (1 + ci_level) / 2], a_post, b_post
+        )
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>BAYESIAN PROPORTION ESTIMATION<</COLOR>>\n"
@@ -919,7 +1027,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "name": f"{int(ci_level * 100)}% CI",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Proportion"}, "yaxis": {"title": "Density"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Proportion"},
+                    "yaxis": {"title": "Density"},
+                },
             }
         )
 
@@ -959,14 +1071,21 @@ def run_bayesian_analysis(df, analysis_id, config):
         usl = config.get("usl")
 
         if lsl is None and usl is None:
-            result["summary"] = "Error: Specify at least one spec limit (LSL and/or USL)."
+            result["summary"] = (
+                "Error: Specify at least one spec limit (LSL and/or USL)."
+            )
             return result
 
         lsl = float(lsl) if lsl is not None and lsl != "" else None
         usl = float(usl) if usl is not None and usl != "" else None
         target = float(
             config.get(
-                "target", (lsl + usl) / 2 if lsl is not None and usl is not None else (lsl if lsl is not None else usl)
+                "target",
+                (
+                    (lsl + usl) / 2
+                    if lsl is not None and usl is not None
+                    else (lsl if lsl is not None else usl)
+                ),
             )
         )
 
@@ -989,7 +1108,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         kappa_n = kappa_0 + n
         mu_n = (kappa_0 * mu_0 + n * x_bar) / kappa_n
         nu_n = nu_0 + n
-        s2_n = (nu_0 * s2_0 + (n - 1) * s2 + (kappa_0 * n * (x_bar - mu_0) ** 2) / kappa_n) / nu_n
+        s2_n = (
+            nu_0 * s2_0 + (n - 1) * s2 + (kappa_0 * n * (x_bar - mu_0) ** 2) / kappa_n
+        ) / nu_n
 
         # Draw from posterior predictive for Cpk
         n_draws = 10000
@@ -1019,7 +1140,10 @@ def run_bayesian_analysis(df, analysis_id, config):
         # Credible intervals
         cpk_mean = float(np.mean(cpk_draws))
         cpk_median = float(np.median(cpk_draws))
-        cpk_ci = (float(np.percentile(cpk_draws, 2.5)), float(np.percentile(cpk_draws, 97.5)))
+        cpk_ci = (
+            float(np.percentile(cpk_draws, 2.5)),
+            float(np.percentile(cpk_draws, 97.5)),
+        )
         cp_mean = float(np.mean(cp_draws))
 
         # P(Cpk > threshold) for common targets
@@ -1082,7 +1206,10 @@ def run_bayesian_analysis(df, analysis_id, config):
                     {
                         "type": "histogram",
                         "x": cpk_draws.tolist(),
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.4)",
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
                         "name": "Posterior Cpk",
                         "nbinsx": 60,
                     }
@@ -1166,7 +1293,11 @@ def run_bayesian_analysis(df, analysis_id, config):
         )
 
         # Narrative
-        _cap_label = "capable" if cpk_mean >= 1.33 else ("marginally capable" if cpk_mean >= 1.0 else "not capable")
+        _cap_label = (
+            "capable"
+            if cpk_mean >= 1.33
+            else ("marginally capable" if cpk_mean >= 1.0 else "not capable")
+        )
         _confidence_133 = prob_above[1.33]
         result["narrative"] = _narrative(
             f"Process is {_cap_label} (Cpk = {cpk_mean:.3f}, 95% CI [{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}])",
@@ -1241,7 +1372,10 @@ def run_bayesian_analysis(df, analysis_id, config):
         se_diff = float(np.sqrt(np.var(x1, ddof=1) / n1 + np.var(x2, ddof=1) / n2))
 
         if use_effect_size:
-            pooled_std = np.sqrt(((n1 - 1) * np.var(x1, ddof=1) + (n2 - 1) * np.var(x2, ddof=1)) / (n1 + n2 - 2))
+            pooled_std = np.sqrt(
+                ((n1 - 1) * np.var(x1, ddof=1) + (n2 - 1) * np.var(x2, ddof=1))
+                / (n1 + n2 - 2)
+            )
             if pooled_std > 0:
                 effect = mean_diff / pooled_std
                 se_effect = np.sqrt((n1 + n2) / (n1 * n2) + effect**2 / (2 * (n1 + n2)))
@@ -1253,7 +1387,10 @@ def run_bayesian_analysis(df, analysis_id, config):
             label, _unit = "Difference", ""
 
         # Probabilities: P(effect in ROPE), P(effect < ROPE), P(effect > ROPE)
-        p_rope = float(stats.norm.cdf(rope_high, effect, se_effect) - stats.norm.cdf(rope_low, effect, se_effect))
+        p_rope = float(
+            stats.norm.cdf(rope_high, effect, se_effect)
+            - stats.norm.cdf(rope_low, effect, se_effect)
+        )
         p_below = float(stats.norm.cdf(rope_low, effect, se_effect))
         p_above = float(1 - stats.norm.cdf(rope_high, effect, se_effect))
 
@@ -1283,13 +1420,19 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>BAYESIAN EQUIVALENCE TEST (ROPE)<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:highlight>>{var1}<</COLOR>> (n={n1}, \u03bc={np.mean(x1):.4f})\n"
+        summary += (
+            f"<<COLOR:highlight>>{var1}<</COLOR>> (n={n1}, \u03bc={np.mean(x1):.4f})\n"
+        )
         summary += f"<<COLOR:highlight>>{var2}<</COLOR>> (n={n2}, \u03bc={np.mean(x2):.4f})\n\n"
-        summary += f"<<COLOR:text>>ROPE:<</COLOR>> [{rope_low}, {rope_high}] ({label})\n\n"
+        summary += (
+            f"<<COLOR:text>>ROPE:<</COLOR>> [{rope_low}, {rope_high}] ({label})\n\n"
+        )
         summary += f"<<COLOR:accent>>\u2500\u2500 Posterior on {label} \u2500\u2500<</COLOR>>\n"
         summary += f"  Estimate: {effect:.4f}\n"
         summary += f"  95% HDI:  [{hdi_low:.4f}, {hdi_high:.4f}]\n\n"
-        summary += "<<COLOR:accent>>\u2500\u2500 ROPE Probabilities \u2500\u2500<</COLOR>>\n"
+        summary += (
+            "<<COLOR:accent>>\u2500\u2500 ROPE Probabilities \u2500\u2500<</COLOR>>\n"
+        )
         summary += f"  P(in ROPE):    {p_rope * 100:.1f}%\n"
         summary += f"  P(below ROPE): {p_below * 100:.1f}%\n"
         summary += f"  P(above ROPE): {p_above * 100:.1f}%\n\n"
@@ -1315,7 +1458,11 @@ def run_bayesian_analysis(df, analysis_id, config):
         _be_mag = (
             "large"
             if abs(effect) >= 0.8
-            else ("medium" if abs(effect) >= 0.5 else ("small" if abs(effect) >= 0.2 else "negligible"))
+            else (
+                "medium"
+                if abs(effect) >= 0.5
+                else ("small" if abs(effect) >= 0.2 else "negligible")
+            )
         )
         result["narrative"] = _narrative(
             f"Bayesian Equivalence \u2014 {decision}, P(in ROPE) = {p_rope:.1%}",
@@ -1433,7 +1580,9 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         # Classical chi-square for reference
         chi2_stat, p_value, dof, expected = stats.chi2_contingency(observed)
-        cramers_v = float(np.sqrt(chi2_stat / (N * (min(nrow, ncol) - 1)))) if N > 0 else 0
+        cramers_v = (
+            float(np.sqrt(chi2_stat / (N * (min(nrow, ncol) - 1)))) if N > 0 else 0
+        )
 
         # BF via BIC approximation (Wagenmakers 2007)
         k = (nrow - 1) * (ncol - 1)
@@ -1448,7 +1597,11 @@ def run_bayesian_analysis(df, analysis_id, config):
         # Standardized residuals
         std_resid = (observed - expected) / np.sqrt(expected + 1e-10)
 
-        bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+        bf_label = (
+            "strong"
+            if bf10 > 10
+            else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+        )
 
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>BAYESIAN CHI-SQUARE (CONTINGENCY TABLE)<</COLOR>>\n"
@@ -1456,13 +1609,19 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>{row_var}<</COLOR>> ({nrow} levels) \u00d7 <<COLOR:highlight>>{col_var}<</COLOR>> ({ncol} levels)\n"
         summary += f"<<COLOR:text>>N:<</COLOR>> {N}\n\n"
         summary += "<<COLOR:accent>>\u2500\u2500 Bayes Factor \u2500\u2500<</COLOR>>\n"
-        summary += f"  BF\u2081\u2080: {bf10:.2f} ({bf_label} evidence for association)\n"
+        summary += (
+            f"  BF\u2081\u2080: {bf10:.2f} ({bf_label} evidence for association)\n"
+        )
         summary += f"  Cram\u00e9r's V: {cramers_v:.3f}\n\n"
-        summary += "<<COLOR:accent>>\u2500\u2500 Observed Counts \u2500\u2500<</COLOR>>\n"
+        summary += (
+            "<<COLOR:accent>>\u2500\u2500 Observed Counts \u2500\u2500<</COLOR>>\n"
+        )
         for i, row_label in enumerate(ct.index):
             row_str = "  ".join(f"{int(observed[i, j]):>6}" for j in range(ncol))
             summary += f"  {str(row_label):<15} {row_str}\n"
-        summary += "\n<<COLOR:accent>>\u2500\u2500 Largest Residuals \u2500\u2500<</COLOR>>\n"
+        summary += (
+            "\n<<COLOR:accent>>\u2500\u2500 Largest Residuals \u2500\u2500<</COLOR>>\n"
+        )
         flat_idx = np.argsort(np.abs(std_resid).ravel())[::-1][:5]
         for idx in flat_idx:
             ri, ci_idx = divmod(idx, ncol)
@@ -1484,7 +1643,11 @@ def run_bayesian_analysis(df, analysis_id, config):
         _bc_mag = (
             "large"
             if cramers_v >= 0.5
-            else ("medium" if cramers_v >= 0.3 else ("small" if cramers_v >= 0.1 else "negligible"))
+            else (
+                "medium"
+                if cramers_v >= 0.3
+                else ("small" if cramers_v >= 0.1 else "negligible")
+            )
         )
         result["narrative"] = _narrative(
             f"Bayesian \u03c7\u00b2 \u2014 {bf_label} evidence for association (V = {cramers_v:.3f}, {_bc_mag})",
@@ -1510,7 +1673,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "z": std_resid.tolist(),
                         "x": [str(c) for c in ct.columns],
                         "y": [str(r) for r in ct.index],
-                        "colorscale": [[0, "#4a90d9"], [0.5, "#f5f5f5"], [1, "#dc5050"]],
+                        "colorscale": [
+                            [0, "#4a90d9"],
+                            [0.5, "#f5f5f5"],
+                            [1, "#dc5050"],
+                        ],
                         "zmid": 0,
                         "colorbar": {"title": "Std Resid"},
                     }
@@ -1578,7 +1745,11 @@ def run_bayesian_analysis(df, analysis_id, config):
         x1 = df[var1].dropna().values.astype(float)
         n1 = len(x1)
         total1 = float(x1.sum())
-        exposure1 = float(df[exposure_col].dropna().sum()) if exposure_col and exposure_col in df.columns else float(n1)
+        exposure1 = (
+            float(df[exposure_col].dropna().sum())
+            if exposure_col and exposure_col in df.columns
+            else float(n1)
+        )
 
         # Gamma posterior: Gamma(alpha + sum(x), beta + exposure)
         # Jeffreys prior: Gamma(0.5, 0)
@@ -1622,7 +1793,9 @@ def run_bayesian_analysis(df, analysis_id, config):
             n2 = len(x2)
             total2 = float(x2.sum())
             exposure2 = (
-                float(df[exposure_col].dropna().sum()) if exposure_col and exposure_col in df.columns else float(n2)
+                float(df[exposure_col].dropna().sum())
+                if exposure_col and exposure_col in df.columns
+                else float(n2)
             )
             a2 = alpha_prior + total2
             b2 = beta_prior + exposure2
@@ -1648,7 +1821,9 @@ def run_bayesian_analysis(df, analysis_id, config):
                 float(np.percentile(rate_ratio_samples, (1 + ci_level) / 2 * 100)),
             )
 
-            summary += "\n<<COLOR:accent>>\u2500\u2500 Comparison \u2500\u2500<</COLOR>>\n"
+            summary += (
+                "\n<<COLOR:accent>>\u2500\u2500 Comparison \u2500\u2500<</COLOR>>\n"
+            )
             summary += f"  P({var1} rate > {var2} rate): {p_greater:.1%}\n"
             summary += f"  Rate ratio: {rr_mean:.3f} [{rr_ci[0]:.3f}, {rr_ci[1]:.3f}]\n"
 
@@ -1666,9 +1841,19 @@ def run_bayesian_analysis(df, analysis_id, config):
             )
 
         result["summary"] = summary
-        stat_dict = {"rate1_mean": rate1_mean, "rate1_ci_low": rate1_ci[0], "rate1_ci_high": rate1_ci[1]}
+        stat_dict = {
+            "rate1_mean": rate1_mean,
+            "rate1_ci_low": rate1_ci[0],
+            "rate1_ci_high": rate1_ci[1],
+        }
         if two_sample:
-            stat_dict.update({"rate2_mean": rate2_mean, "p_greater": p_greater, "rate_ratio": rr_mean})
+            stat_dict.update(
+                {
+                    "rate2_mean": rate2_mean,
+                    "p_greater": p_greater,
+                    "rate_ratio": rr_mean,
+                }
+            )
         result["statistics"] = stat_dict
 
         if two_sample:
@@ -1702,7 +1887,11 @@ def run_bayesian_analysis(df, analysis_id, config):
             {
                 "title": "Posterior Rate Distribution",
                 "data": plot_data,
-                "layout": {"height": 300, "xaxis": {"title": "Rate (\u03bb)"}, "yaxis": {"title": "Density"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Rate (\u03bb)"},
+                    "yaxis": {"title": "Density"},
+                },
             }
         )
 
@@ -1739,13 +1928,17 @@ def run_bayesian_analysis(df, analysis_id, config):
         features = config.get("features", [])
 
         if not target or not features:
-            result["summary"] = "Error: Select a binary target and at least one feature."
+            result["summary"] = (
+                "Error: Select a binary target and at least one feature."
+            )
             return result
 
         y = df[target].dropna()
         classes = sorted(y.unique())
         if len(classes) != 2:
-            result["summary"] = f"Error: Target must have exactly 2 classes (found {len(classes)})."
+            result["summary"] = (
+                f"Error: Target must have exactly 2 classes (found {len(classes)})."
+            )
             return result
 
         X = df[features].loc[y.index].dropna()
@@ -1768,7 +1961,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         # Laplace approximation: Hessian of log-posterior at MAP
         p_hat = y_pred_proba
         W = p_hat * (1 - p_hat)
-        H = X_scaled.T @ np.diag(W) @ X_scaled + (1 / prior_width) * np.eye(len(features))
+        H = X_scaled.T @ np.diag(W) @ X_scaled + (1 / prior_width) * np.eye(
+            len(features)
+        )
         try:
             cov = np.linalg.inv(H)
             coef_se = np.sqrt(np.diag(cov))
@@ -1783,7 +1978,11 @@ def run_bayesian_analysis(df, analysis_id, config):
         # P(coefficient > 0)
         p_positive = np.array(
             [
-                float(1 - stats.norm.cdf(0, coef[i], coef_se[i])) if not np.isnan(coef_se[i]) else 0.5
+                (
+                    float(1 - stats.norm.cdf(0, coef[i], coef_se[i]))
+                    if not np.isnan(coef_se[i])
+                    else 0.5
+                )
                 for i in range(len(features))
             ]
         )
@@ -1791,7 +1990,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>BAYESIAN LOGISTIC REGRESSION<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:text>>Target:<</COLOR>> {target} ({classes[0]} vs {classes[1]})\n"
+        summary += (
+            f"<<COLOR:text>>Target:<</COLOR>> {target} ({classes[0]} vs {classes[1]})\n"
+        )
         summary += f"<<COLOR:text>>N:<</COLOR>> {n}    Accuracy: {accuracy:.1%}\n\n"
         summary += "<<COLOR:accent>>\u2500\u2500 Coefficient Posteriors (per std dev) \u2500\u2500<</COLOR>>\n"
         _bl_header = "P(\u03b2>0)"
@@ -1855,8 +2056,13 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "error_x": {
                             "type": "data",
                             "symmetric": False,
-                            "array": [float(or_ci_high[i] - odds_ratios[i]) for i in sorted_idx],
-                            "arrayminus": [float(odds_ratios[i] - or_ci_low[i]) for i in sorted_idx],
+                            "array": [
+                                float(or_ci_high[i] - odds_ratios[i])
+                                for i in sorted_idx
+                            ],
+                            "arrayminus": [
+                                float(odds_ratios[i] - or_ci_low[i]) for i in sorted_idx
+                            ],
                         },
                         "mode": "markers",
                         "marker": {"size": 10, "color": "#4a90d9"},
@@ -1892,11 +2098,15 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "y": [float(p_positive[i]) for i in sorted_idx],
                         "marker": {
                             "color": [
-                                "#4a9f6e"
-                                if p_positive[i] > 0.975 or p_positive[i] < 0.025
-                                else "#d4a24a"
-                                if p_positive[i] > 0.95 or p_positive[i] < 0.05
-                                else "#999"
+                                (
+                                    "#4a9f6e"
+                                    if p_positive[i] > 0.975 or p_positive[i] < 0.025
+                                    else (
+                                        "#d4a24a"
+                                        if p_positive[i] > 0.95 or p_positive[i] < 0.05
+                                        else "#999"
+                                    )
+                                )
                                 for i in sorted_idx
                             ]
                         },
@@ -1951,7 +2161,9 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         times = df[time_col].dropna().values.astype(float)
         if event_col and event_col in df.columns:
-            events = df[event_col].loc[df[time_col].notna()].fillna(1).values.astype(float)
+            events = (
+                df[event_col].loc[df[time_col].notna()].fillna(1).values.astype(float)
+            )
         else:
             events = np.ones_like(times)
 
@@ -1980,7 +2192,9 @@ def run_bayesian_analysis(df, analysis_id, config):
             t_i = times[i]
             e_i = events[i]
             log_lik += e_i * (
-                np.log(beta_grid + 1e-15) + (beta_grid - 1) * np.log(t_i + 1e-15) - beta_grid * np.log(eta_grid + 1e-15)
+                np.log(beta_grid + 1e-15)
+                + (beta_grid - 1) * np.log(t_i + 1e-15)
+                - beta_grid * np.log(eta_grid + 1e-15)
             )
             log_lik -= (t_i / (eta_grid + 1e-15)) ** beta_grid
 
@@ -1998,12 +2212,32 @@ def run_bayesian_analysis(df, analysis_id, config):
         beta_mean = float(np.sum(beta_range * beta_marginal))
         eta_mean = float(np.sum(eta_range * eta_marginal))
         beta_ci = (
-            float(beta_range[np.searchsorted(np.cumsum(beta_marginal), (1 - ci_level) / 2)]),
-            float(beta_range[min(n_grid - 1, np.searchsorted(np.cumsum(beta_marginal), (1 + ci_level) / 2))]),
+            float(
+                beta_range[
+                    np.searchsorted(np.cumsum(beta_marginal), (1 - ci_level) / 2)
+                ]
+            ),
+            float(
+                beta_range[
+                    min(
+                        n_grid - 1,
+                        np.searchsorted(np.cumsum(beta_marginal), (1 + ci_level) / 2),
+                    )
+                ]
+            ),
         )
         eta_ci = (
-            float(eta_range[np.searchsorted(np.cumsum(eta_marginal), (1 - ci_level) / 2)]),
-            float(eta_range[min(n_grid - 1, np.searchsorted(np.cumsum(eta_marginal), (1 + ci_level) / 2))]),
+            float(
+                eta_range[np.searchsorted(np.cumsum(eta_marginal), (1 - ci_level) / 2)]
+            ),
+            float(
+                eta_range[
+                    min(
+                        n_grid - 1,
+                        np.searchsorted(np.cumsum(eta_marginal), (1 + ci_level) / 2),
+                    )
+                ]
+            ),
         )
 
         # Posterior predictive reliability metrics via MC
@@ -2048,7 +2282,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary += f"  Phase: {phase}\n\n"
         summary += "<<COLOR:accent>>\u2500\u2500 Scale (\u03b7) Posterior \u2500\u2500<</COLOR>>\n"
         summary += f"  Mean: {eta_mean:.2f}  [{eta_ci[0]:.2f}, {eta_ci[1]:.2f}]\n\n"
-        summary += "<<COLOR:accent>>\u2500\u2500 Reliability Metrics \u2500\u2500<</COLOR>>\n"
+        summary += (
+            "<<COLOR:accent>>\u2500\u2500 Reliability Metrics \u2500\u2500<</COLOR>>\n"
+        )
         summary += f"  B10 Life: {b10_mean:.2f}  [{b10_ci[0]:.2f}, {b10_ci[1]:.2f}]\n"
         summary += f"  MTTF:    {mttf_mean:.2f}  [{mttf_ci[0]:.2f}, {mttf_ci[1]:.2f}]\n"
 
@@ -2162,7 +2398,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "name": "\u03b2=1 (exponential)",
                     },
                 ],
-                "layout": {"height": 250, "xaxis": {"title": "Shape \u03b2"}, "yaxis": {"title": "Density"}},
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Shape \u03b2"},
+                    "yaxis": {"title": "Density"},
+                },
             }
         )
 
@@ -2219,7 +2459,9 @@ def run_bayesian_analysis(df, analysis_id, config):
             w = 1.0 / (se**2 + tau**2 + 1e-15)
             mu_hat = np.sum(w * y) / np.sum(w)
             var_total = se**2 + tau**2
-            log_marginal[i] = -0.5 * np.sum(np.log(2 * np.pi * var_total) + (y - mu_hat) ** 2 / var_total)
+            log_marginal[i] = -0.5 * np.sum(
+                np.log(2 * np.pi * var_total) + (y - mu_hat) ** 2 / var_total
+            )
 
         # Posterior on tau (flat prior)
         log_post_tau = log_marginal - log_marginal.max()
@@ -2232,7 +2474,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         tau_cdf = np.cumsum(tau_pmf)
         tau_ci = (
             float(tau_range[np.searchsorted(tau_cdf, (1 - ci_level) / 2)]),
-            float(tau_range[min(n_tau - 1, np.searchsorted(tau_cdf, (1 + ci_level) / 2))]),
+            float(
+                tau_range[min(n_tau - 1, np.searchsorted(tau_cdf, (1 + ci_level) / 2))]
+            ),
         )
 
         # Posterior on mu (integrate over tau)
@@ -2261,8 +2505,16 @@ def run_bayesian_analysis(df, analysis_id, config):
             est = shrink_factor * y[j_study] + (1 - shrink_factor) * mu_mean
             shrunk.append(float(est))
 
-        i2 = float(tau_mean**2 / (tau_mean**2 + np.mean(se**2)) * 100) if tau_mean > 0 else 0.0
-        het_label = "high" if i2 > 75 else ("moderate" if i2 > 50 else ("low" if i2 > 25 else "negligible"))
+        i2 = (
+            float(tau_mean**2 / (tau_mean**2 + np.mean(se**2)) * 100)
+            if tau_mean > 0
+            else 0.0
+        )
+        het_label = (
+            "high"
+            if i2 > 75
+            else ("moderate" if i2 > 50 else ("low" if i2 > 25 else "negligible"))
+        )
 
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>BAYESIAN META-ANALYSIS<</COLOR>>\n"
@@ -2275,7 +2527,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary += f"  Posterior mean: {tau_mean:.4f}\n"
         summary += f"  95% CI: [{tau_ci[0]:.4f}, {tau_ci[1]:.4f}]\n"
         summary += f"  I\u00b2 analog: {i2:.1f}% ({het_label})\n\n"
-        summary += "<<COLOR:accent>>\u2500\u2500 Study Estimates \u2500\u2500<</COLOR>>\n"
+        summary += (
+            "<<COLOR:accent>>\u2500\u2500 Study Estimates \u2500\u2500<</COLOR>>\n"
+        )
         for j_study in range(k):
             summary += f"  Study {j_study + 1}: {y[j_study]:.4f} \u00b1 {se[j_study]:.4f} \u2192 shrunk {shrunk[j_study]:.4f}\n"
 
@@ -2450,9 +2704,7 @@ def run_bayesian_analysis(df, analysis_id, config):
         if prob_exceed >= 0.95:
             summary += "<<COLOR:good>>Strong evidence that reliability meets target.<</COLOR>>\n"
         elif prob_exceed >= 0.5:
-            summary += (
-                "<<COLOR:warning>>Moderate evidence for reliability target \u2014 consider more testing.<</COLOR>>\n"
-            )
+            summary += "<<COLOR:warning>>Moderate evidence for reliability target \u2014 consider more testing.<</COLOR>>\n"
         else:
             summary += "<<COLOR:bad>>Insufficient evidence that reliability meets target.<</COLOR>>\n"
 
@@ -2771,7 +3023,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "name": "Posterior",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Demand Rate (\u03bb)"}, "yaxis": {"title": "Density"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Demand Rate (\u03bb)"},
+                    "yaxis": {"title": "Density"},
+                },
             }
         )
 
@@ -2926,7 +3182,13 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         n_mc = 10000
         rng = np.random.default_rng(42)
-        comp_names, comp_means, comp_cis, comp_draws, comp_post_params = [], [], [], [], []
+        comp_names, comp_means, comp_cis, comp_draws, comp_post_params = (
+            [],
+            [],
+            [],
+            [],
+            [],
+        )
 
         for c in components:
             name = c.get("name", f"C{len(comp_names) + 1}")
@@ -2939,7 +3201,9 @@ def run_bayesian_analysis(df, analysis_id, config):
             draws = rng.beta(a_post, b_post, size=n_mc)
             comp_names.append(name)
             comp_means.append(float(np.mean(draws)))
-            comp_cis.append((float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5))))
+            comp_cis.append(
+                (float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5)))
+            )
             comp_draws.append(draws)
             comp_post_params.append((float(a_post), float(b_post)))
 
@@ -2970,14 +3234,19 @@ def run_bayesian_analysis(df, analysis_id, config):
             float(np.percentile(sys_draws, (1 + ci_level) / 2 * 100)),
         )
 
-        importance = [float(np.corrcoef(draws_matrix[:, j], sys_draws)[0, 1]) for j in range(n_comp)]
+        importance = [
+            float(np.corrcoef(draws_matrix[:, j], sys_draws)[0, 1])
+            for j in range(n_comp)
+        ]
         weakest = comp_names[int(np.argmin(comp_means))]
 
         topology_label = topology.replace("_", "-")
         if topology == "k_of_n":
             topology_label = f"{k_val}-of-{n_comp}"
 
-        verdict = "PASS" if sys_mean > 0.9 else ("WARNING" if sys_mean > 0.8 else "FAIL")
+        verdict = (
+            "PASS" if sys_mean > 0.9 else ("WARNING" if sys_mean > 0.8 else "FAIL")
+        )
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>BAYESIAN SYSTEM RELIABILITY ({topology_label.upper()})<</COLOR>>\n"
@@ -2996,9 +3265,14 @@ def run_bayesian_analysis(df, analysis_id, config):
             "system_ci": list(sys_ci),
             "topology": topology_label,
             "weakest": weakest,
-            "components": {n: {"mean": m, "ci": list(c)} for n, m, c in zip(comp_names, comp_means, comp_cis)},
+            "components": {
+                n: {"mean": m, "ci": list(c)}
+                for n, m, c in zip(comp_names, comp_means, comp_cis)
+            },
         }
-        result["guide_observation"] = f"Bayes system ({topology_label}): R_sys={sys_mean:.4f}, weakest={weakest}"
+        result["guide_observation"] = (
+            f"Bayes system ({topology_label}): R_sys={sys_mean:.4f}, weakest={weakest}"
+        )
         result["narrative"] = _narrative(
             verdict,
             f"{topology_label} system with {n_comp} components: R_sys = {sys_mean:.4f} "
@@ -3029,7 +3303,11 @@ def run_bayesian_analysis(df, analysis_id, config):
             {
                 "title": "Component Reliability Posteriors",
                 "data": comp_traces,
-                "layout": {"height": 350, "xaxis": {"title": "Reliability"}, "yaxis": {"title": "Density"}},
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"title": "Reliability"},
+                    "yaxis": {"title": "Density"},
+                },
             }
         )
 
@@ -3076,10 +3354,19 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "type": "bar",
                         "x": comp_names,
                         "y": importance,
-                        "marker": {"color": [SVEND_COLORS[j % len(SVEND_COLORS)] for j in range(n_comp)]},
+                        "marker": {
+                            "color": [
+                                SVEND_COLORS[j % len(SVEND_COLORS)]
+                                for j in range(n_comp)
+                            ]
+                        },
                     }
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Component"}, "yaxis": {"title": "Birnbaum Importance"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Component"},
+                    "yaxis": {"title": "Birnbaum Importance"},
+                },
             }
         )
 
@@ -3227,7 +3514,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "name": "Posterior",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Failure Rate (\u03bb)"}, "yaxis": {"title": "Density"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Failure Rate (\u03bb)"},
+                    "yaxis": {"title": "Density"},
+                },
             }
         )
 
@@ -3262,7 +3553,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "name": "Expected",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Period"}, "yaxis": {"title": "Cumulative Claims"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Period"},
+                    "yaxis": {"title": "Cumulative Claims"},
+                },
             }
         )
 
@@ -3285,7 +3580,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "name": "Claims",
                     }
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Period"}, "yaxis": {"title": "Claims"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Period"},
+                    "yaxis": {"title": "Claims"},
+                },
             }
         )
 
@@ -3366,8 +3665,17 @@ def run_bayesian_analysis(df, analysis_id, config):
         beta_post_mean = float(np.sum(beta_range * beta_marg))
         theta_post_mean = float(np.sum(theta_range * theta_marg))
         beta_post_ci = (
-            float(beta_range[np.searchsorted(np.cumsum(beta_marg), (1 - ci_level) / 2)]),
-            float(beta_range[min(n_grid - 1, np.searchsorted(np.cumsum(beta_marg), (1 + ci_level) / 2))]),
+            float(
+                beta_range[np.searchsorted(np.cumsum(beta_marg), (1 - ci_level) / 2)]
+            ),
+            float(
+                beta_range[
+                    min(
+                        n_grid - 1,
+                        np.searchsorted(np.cumsum(beta_marg), (1 + ci_level) / 2),
+                    )
+                ]
+            ),
         )
         p_deteriorating = float(np.sum(beta_marg[beta_range > 1]))
 
@@ -3389,11 +3697,22 @@ def run_bayesian_analysis(df, analysis_id, config):
         dt = T * 0.1
         next_samples = ((T + dt) / theta_s) ** beta_s - (T / theta_s) ** beta_s
         next_mean = float(np.mean(next_samples))
-        next_ci = (float(np.percentile(next_samples, 2.5)), float(np.percentile(next_samples, 97.5)))
+        next_ci = (
+            float(np.percentile(next_samples, 2.5)),
+            float(np.percentile(next_samples, 97.5)),
+        )
 
         obs_mcf = np.arange(1, n_events + 1)
-        trend_label = "deteriorating" if p_deteriorating > 0.8 else ("improving" if p_deteriorating < 0.2 else "stable")
-        verdict = "FAIL" if p_deteriorating > 0.8 else ("PASS" if p_deteriorating < 0.2 else "WARNING")
+        trend_label = (
+            "deteriorating"
+            if p_deteriorating > 0.8
+            else ("improving" if p_deteriorating < 0.2 else "stable")
+        )
+        verdict = (
+            "FAIL"
+            if p_deteriorating > 0.8
+            else ("PASS" if p_deteriorating < 0.2 else "WARNING")
+        )
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>BAYESIAN REPAIRABLE SYSTEM (NHPP)<</COLOR>>\n"
@@ -3546,7 +3865,12 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         # Plot 3: Expected failures forecast
         n_fp = 5
-        forecast_bars, forecast_lo_bars, forecast_hi_bars, period_labels = [], [], [], []
+        forecast_bars, forecast_lo_bars, forecast_hi_bars, period_labels = (
+            [],
+            [],
+            [],
+            [],
+        )
         for p in range(1, n_fp + 1):
             t_start = T + (p - 1) * dt
             t_end = T + p * dt
@@ -3566,8 +3890,12 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "error_y": {
                             "type": "data",
                             "symmetric": False,
-                            "array": [h - m for h, m in zip(forecast_hi_bars, forecast_bars)],
-                            "arrayminus": [m - lo for m, lo in zip(forecast_bars, forecast_lo_bars)],
+                            "array": [
+                                h - m for h, m in zip(forecast_hi_bars, forecast_bars)
+                            ],
+                            "arrayminus": [
+                                m - lo for m, lo in zip(forecast_bars, forecast_lo_bars)
+                            ],
                         },
                         "marker": {"color": _rgba(SVEND_COLORS[2], 0.7)},
                         "name": "Expected Failures",
@@ -3672,29 +4000,47 @@ def run_bayesian_analysis(df, analysis_id, config):
             return result
 
         slope_mean = float(np.mean(slopes))
-        slope_var = float(np.var(slopes, ddof=1)) if n_units > 1 else float(slope_mean**2 * 0.1)
+        slope_var = (
+            float(np.var(slopes, ddof=1)) if n_units > 1 else float(slope_mean**2 * 0.1)
+        )
         slope_std = float(np.sqrt(slope_var))
 
         all_times = df_clean[time_col].values.astype(float)
         all_meas = df_clean[meas_col].values.astype(float)
         t_current = float(np.max(all_times))
         last_mask = all_times == all_times.max()
-        y_current = float(np.mean(all_meas[last_mask])) if np.sum(last_mask) > 0 else float(all_meas[-1])
+        y_current = (
+            float(np.mean(all_meas[last_mask]))
+            if np.sum(last_mask) > 0
+            else float(all_meas[-1])
+        )
 
         n_mc = 10000
         rng = np.random.default_rng(42)
         if n_units > 2:
             df_t = n_units - 1
             slope_samples = stats.t.rvs(
-                df_t, loc=slope_mean, scale=slope_std / np.sqrt(n_units), size=n_mc, random_state=42
+                df_t,
+                loc=slope_mean,
+                scale=slope_std / np.sqrt(n_units),
+                size=n_mc,
+                random_state=42,
             )
         else:
-            slope_samples = rng.normal(slope_mean, slope_std if slope_std > 0 else abs(slope_mean) * 0.1, size=n_mc)
+            slope_samples = rng.normal(
+                slope_mean,
+                slope_std if slope_std > 0 else abs(slope_mean) * 0.1,
+                size=n_mc,
+            )
 
         if direction == "decreasing":
-            rul_samples = np.where(slope_samples < 0, (threshold - y_current) / slope_samples, np.inf)
+            rul_samples = np.where(
+                slope_samples < 0, (threshold - y_current) / slope_samples, np.inf
+            )
         else:
-            rul_samples = np.where(slope_samples > 0, (threshold - y_current) / slope_samples, np.inf)
+            rul_samples = np.where(
+                slope_samples > 0, (threshold - y_current) / slope_samples, np.inf
+            )
 
         valid_rul = rul_samples[(rul_samples > 0) & np.isfinite(rul_samples)]
         if len(valid_rul) < 100:
@@ -3710,8 +4056,14 @@ def run_bayesian_analysis(df, analysis_id, config):
         else:
             rul_mean, rul_ci = float("inf"), (0.0, float("inf"))
 
-        horizon = float(config.get("horizon", rul_mean * 1.5 if np.isfinite(rul_mean) else t_current))
-        p_fail_horizon = float(np.mean(valid_rul <= horizon)) if len(valid_rul) > 0 else 0.0
+        horizon = float(
+            config.get(
+                "horizon", rul_mean * 1.5 if np.isfinite(rul_mean) else t_current
+            )
+        )
+        p_fail_horizon = (
+            float(np.mean(valid_rul <= horizon)) if len(valid_rul) > 0 else 0.0
+        )
         verdict = "WARNING" if p_fail_horizon > 0.5 else "PASS"
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
@@ -3761,7 +4113,10 @@ def run_bayesian_analysis(df, analysis_id, config):
                     "x": t_u.tolist(),
                     "y": y_u.tolist(),
                     "mode": "lines+markers",
-                    "line": {"color": SVEND_COLORS[u_idx % len(SVEND_COLORS)], "width": 1.5},
+                    "line": {
+                        "color": SVEND_COLORS[u_idx % len(SVEND_COLORS)],
+                        "width": 1.5,
+                    },
                     "marker": {"size": 3},
                     "name": str(u),
                     "showlegend": n_units <= 10,
@@ -3806,9 +4161,15 @@ def run_bayesian_analysis(df, analysis_id, config):
             else np.linspace(slope_mean * 0.5, slope_mean * 1.5, 200)
         )
         if n_units > 2:
-            rate_pdf = stats.t.pdf(rate_x, n_units - 1, loc=slope_mean, scale=slope_std / np.sqrt(n_units))
+            rate_pdf = stats.t.pdf(
+                rate_x, n_units - 1, loc=slope_mean, scale=slope_std / np.sqrt(n_units)
+            )
         else:
-            rate_pdf = stats.norm.pdf(rate_x, slope_mean, slope_std if slope_std > 0 else abs(slope_mean) * 0.1)
+            rate_pdf = stats.norm.pdf(
+                rate_x,
+                slope_mean,
+                slope_std if slope_std > 0 else abs(slope_mean) * 0.1,
+            )
         result["plots"].append(
             {
                 "title": "Posterior on Degradation Rate",
@@ -3823,7 +4184,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "name": "Rate Posterior",
                     }
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Degradation Rate"}, "yaxis": {"title": "Density"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Degradation Rate"},
+                    "yaxis": {"title": "Density"},
+                },
             }
         )
 
@@ -3855,7 +4220,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                                 "y0": 0,
                                 "y1": 1,
                                 "yref": "paper",
-                                "line": {"color": COLOR_WARNING, "dash": "dash", "width": 2},
+                                "line": {
+                                    "color": COLOR_WARNING,
+                                    "dash": "dash",
+                                    "width": 2,
+                                },
                             }
                         ],
                     },
@@ -3925,7 +4294,11 @@ def run_bayesian_analysis(df, analysis_id, config):
             try:
                 _, _, scale = stats.weibull_min.fit(t_s, floc=0)
                 log_lives.append(np.log(scale))
-                stress_x.append(1.0 / s if (model_type == "arrhenius" and s > 0) else np.log(s + 1e-15))
+                stress_x.append(
+                    1.0 / s
+                    if (model_type == "arrhenius" and s > 0)
+                    else np.log(s + 1e-15)
+                )
                 weights.append(len(t_s))
             except Exception:
                 continue
@@ -3951,15 +4324,21 @@ def run_bayesian_analysis(df, analysis_id, config):
         Sxx = np.sum((stress_x - x_mean_s) ** 2)
 
         if n_pts > 2:
-            sigma2_samples = (n_pts - 2) * s2 / rng.chisquare(max(1, n_pts - 2), size=n_mc)
+            sigma2_samples = (
+                (n_pts - 2) * s2 / rng.chisquare(max(1, n_pts - 2), size=n_mc)
+            )
         else:
             sigma2_samples = np.full(n_mc, s2)
 
-        a_samples = rng.normal(a, np.sqrt(sigma2_samples * (1 / n_pts + x_mean_s**2 / max(Sxx, 1e-15))))
+        a_samples = rng.normal(
+            a, np.sqrt(sigma2_samples * (1 / n_pts + x_mean_s**2 / max(Sxx, 1e-15)))
+        )
         b_samples = rng.normal(b, np.sqrt(sigma2_samples / max(Sxx, 1e-15)))
 
         life_use_samples = np.exp(a_samples + b_samples * x_use)
-        life_use_samples = life_use_samples[np.isfinite(life_use_samples) & (life_use_samples > 0)]
+        life_use_samples = life_use_samples[
+            np.isfinite(life_use_samples) & (life_use_samples > 0)
+        ]
 
         if len(life_use_samples) > 0:
             life_mean = float(np.mean(life_use_samples))
@@ -3973,14 +4352,20 @@ def run_bayesian_analysis(df, analysis_id, config):
             life_ci = (life_use * 0.5, life_use * 2.0)
             b10_use = life_use * 0.5
 
-        af = float(life_use / float(np.exp(a + b * stress_x[-1]))) if len(stress_x) > 0 else 1.0
+        af = (
+            float(life_use / float(np.exp(a + b * stress_x[-1])))
+            if len(stress_x) > 0
+            else 1.0
+        )
         verdict = "PASS"
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>BAYESIAN ACCELERATED LIFE TESTING<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Model:<</COLOR>> {model_type}\n"
-        summary += f"<<COLOR:highlight>>Stress levels:<</COLOR>> {len(unique_stresses)}\n"
+        summary += (
+            f"<<COLOR:highlight>>Stress levels:<</COLOR>> {len(unique_stresses)}\n"
+        )
         summary += f"<<COLOR:highlight>>Use stress:<</COLOR>> {use_stress}\n"
         summary += f"<<COLOR:highlight>>R\u00b2:<</COLOR>> {r2:.4f}\n\n"
         summary += f"<<COLOR:highlight>>Life at use condition:<</COLOR>> <<COLOR:good>>{life_mean:.1f}<</COLOR>> (CI: {life_ci[0]:.1f}\u2013{life_ci[1]:.1f})\n"
@@ -4014,13 +4399,19 @@ def run_bayesian_analysis(df, analysis_id, config):
         )
 
         # Plot 1: Life vs Stress with credible band
-        x_plot = np.linspace(min(min(stress_x), x_use) * 0.9, max(max(stress_x), x_use) * 1.1, 100)
+        x_plot = np.linspace(
+            min(min(stress_x), x_use) * 0.9, max(max(stress_x), x_use) * 1.1, 100
+        )
         log_life_fit = a + b * x_plot
         log_life_hi = np.percentile(
-            a_samples[:, None] + b_samples[:, None] * x_plot[None, :], (1 + ci_level) / 2 * 100, axis=0
+            a_samples[:, None] + b_samples[:, None] * x_plot[None, :],
+            (1 + ci_level) / 2 * 100,
+            axis=0,
         )
         log_life_lo = np.percentile(
-            a_samples[:, None] + b_samples[:, None] * x_plot[None, :], (1 - ci_level) / 2 * 100, axis=0
+            a_samples[:, None] + b_samples[:, None] * x_plot[None, :],
+            (1 - ci_level) / 2 * 100,
+            axis=0,
         )
 
         if model_type == "arrhenius":
@@ -4104,7 +4495,11 @@ def run_bayesian_analysis(df, analysis_id, config):
             shape_overall = 1.5
         t_surv = np.linspace(0, life_ci[1] * 1.5, 200)
         surv_mean = np.exp(-((t_surv / life_mean) ** shape_overall))
-        surv_lo = np.exp(-((t_surv / life_ci[0]) ** shape_overall)) if life_ci[0] > 0 else np.ones_like(t_surv)
+        surv_lo = (
+            np.exp(-((t_surv / life_ci[0]) ** shape_overall))
+            if life_ci[0] > 0
+            else np.ones_like(t_surv)
+        )
         surv_hi = np.exp(-((t_surv / life_ci[1]) ** shape_overall))
         result["plots"].append(
             {
@@ -4135,7 +4530,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                         "name": "S(t) at Use",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Time"}, "yaxis": {"title": "Survival Probability"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Time"},
+                    "yaxis": {"title": "Survival Probability"},
+                },
             }
         )
 
@@ -4221,7 +4620,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         modes = sorted([m for m in np.unique(events_cr) if m > 0])
         n_modes = len(modes)
         if n_modes < 2:
-            result["summary"] = "Error: Need at least 2 failure modes (event: 0=censored, 1,2,...=modes)."
+            result["summary"] = (
+                "Error: Need at least 2 failure modes (event: 0=censored, 1,2,...=modes)."
+            )
             return result
 
         mode_counts = np.array([np.sum(events_cr == m) for m in modes], dtype=float)
@@ -4263,7 +4664,11 @@ def run_bayesian_analysis(df, analysis_id, config):
             bg, eg = np.meshgrid(b_range, e_range)
             ll = np.zeros_like(bg)
             for t_i in t_m:
-                ll += np.log(bg + 1e-15) + (bg - 1) * np.log(t_i + 1e-15) - bg * np.log(eg + 1e-15)
+                ll += (
+                    np.log(bg + 1e-15)
+                    + (bg - 1) * np.log(t_i + 1e-15)
+                    - bg * np.log(eg + 1e-15)
+                )
                 ll -= (t_i / (eg + 1e-15)) ** bg
             lp = ll - ll.max()
             post = np.exp(lp)
@@ -4278,13 +4683,32 @@ def run_bayesian_analysis(df, analysis_id, config):
             e_mean = float(np.sum(e_range * e_marg))
             b_ci_m = (
                 float(b_range[np.searchsorted(np.cumsum(b_marg), (1 - ci_level) / 2)]),
-                float(b_range[min(n_grid - 1, np.searchsorted(np.cumsum(b_marg), (1 + ci_level) / 2))]),
+                float(
+                    b_range[
+                        min(
+                            n_grid - 1,
+                            np.searchsorted(np.cumsum(b_marg), (1 + ci_level) / 2),
+                        )
+                    ]
+                ),
             )
             e_ci_m = (
                 float(e_range[np.searchsorted(np.cumsum(e_marg), (1 - ci_level) / 2)]),
-                float(e_range[min(n_grid - 1, np.searchsorted(np.cumsum(e_marg), (1 + ci_level) / 2))]),
+                float(
+                    e_range[
+                        min(
+                            n_grid - 1,
+                            np.searchsorted(np.cumsum(e_marg), (1 + ci_level) / 2),
+                        )
+                    ]
+                ),
             )
-            mode_weibull[m] = {"shape": b_mean, "scale": e_mean, "shape_ci": b_ci_m, "scale_ci": e_ci_m}
+            mode_weibull[m] = {
+                "shape": b_mean,
+                "scale": e_mean,
+                "shape_ci": b_ci_m,
+                "scale_ci": e_ci_m,
+            }
 
         # CIF via MC
         t_eval = np.linspace(0, float(np.max(times_cr)) * 1.2, 150)
@@ -4296,7 +4720,9 @@ def run_bayesian_analysis(df, analysis_id, config):
             h_per_mode = {}
             for j, m in enumerate(modes):
                 w = mode_weibull[m]
-                h_j = (w["shape"] / w["scale"]) * ((t_eval + 1e-15) / w["scale"]) ** (w["shape"] - 1)
+                h_j = (w["shape"] / w["scale"]) * ((t_eval + 1e-15) / w["scale"]) ** (
+                    w["shape"] - 1
+                )
                 h_per_mode[m] = h_j
                 h_total += p_i[j] * h_j
 
@@ -4312,9 +4738,7 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>BAYESIAN COMPETING RISKS<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary += (
-            f"<<COLOR:highlight>>Observations:<</COLOR>> {n_cr} ({n_failed} failed, {n_cr - n_failed} censored)\n"
-        )
+        summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n_cr} ({n_failed} failed, {n_cr - n_failed} censored)\n"
         summary += f"<<COLOR:highlight>>Failure modes:<</COLOR>> {n_modes}\n\n"
         for j, m in enumerate(modes):
             w = mode_weibull[m]
@@ -4327,10 +4751,14 @@ def run_bayesian_analysis(df, analysis_id, config):
         result["statistics"] = {
             "n_modes": n_modes,
             "dominant_mode": int(dominant_mode),
-            "mode_probabilities": {str(m): float(mode_probs[j]) for j, m in enumerate(modes)},
+            "mode_probabilities": {
+                str(m): float(mode_probs[j]) for j, m in enumerate(modes)
+            },
             "mode_weibull": {str(m): mode_weibull[m] for m in modes},
         }
-        result["guide_observation"] = f"Bayes competing risks: {n_modes} modes, dominant=Mode {dominant_mode}"
+        result["guide_observation"] = (
+            f"Bayes competing risks: {n_modes} modes, dominant=Mode {dominant_mode}"
+        )
         result["narrative"] = _narrative(
             verdict,
             f"{n_modes} competing failure modes identified. "
@@ -4388,7 +4816,11 @@ def run_bayesian_analysis(df, analysis_id, config):
             {
                 "title": "Cumulative Incidence Functions (CIF) with Credible Bands",
                 "data": cif_traces,
-                "layout": {"height": 400, "xaxis": {"title": "Time"}, "yaxis": {"title": "Cumulative Incidence"}},
+                "layout": {
+                    "height": 400,
+                    "xaxis": {"title": "Time"},
+                    "yaxis": {"title": "Cumulative Incidence"},
+                },
             }
         )
 
@@ -4405,12 +4837,23 @@ def run_bayesian_analysis(df, analysis_id, config):
                             "type": "data",
                             "symmetric": False,
                             "array": [ci[1] - p for p, ci in zip(mode_probs, mode_ci)],
-                            "arrayminus": [p - ci[0] for p, ci in zip(mode_probs, mode_ci)],
+                            "arrayminus": [
+                                p - ci[0] for p, ci in zip(mode_probs, mode_ci)
+                            ],
                         },
-                        "marker": {"color": [SVEND_COLORS[j % len(SVEND_COLORS)] for j in range(n_modes)]},
+                        "marker": {
+                            "color": [
+                                SVEND_COLORS[j % len(SVEND_COLORS)]
+                                for j in range(n_modes)
+                            ]
+                        },
                     }
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Failure Mode"}, "yaxis": {"title": "Probability"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Failure Mode"},
+                    "yaxis": {"title": "Probability"},
+                },
             }
         )
 
@@ -4546,7 +4989,9 @@ def run_bayesian_analysis(df, analysis_id, config):
             # Posterior update
             post_precision = prior_precision + obs_precision
             post_var = 1.0 / post_precision
-            post_mean = post_var * (prior_precision * prior_mean + obs_precision * ewma[i])
+            post_mean = post_var * (
+                prior_precision * prior_mean + obs_precision * ewma[i]
+            )
 
             posterior_means[i] = post_mean
             posterior_vars[i] = post_var
@@ -4639,7 +5084,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         if len(ooc_indices) == 0 and bf10 < 3:
             summary += "<<COLOR:success>>Process appears stable — no Bayesian evidence of shift<</COLOR>>\n"
         elif bf10 >= 10:
-            summary += "<<COLOR:error>>Strong Bayesian evidence of process shift<</COLOR>>\n"
+            summary += (
+                "<<COLOR:error>>Strong Bayesian evidence of process shift<</COLOR>>\n"
+            )
         elif bf10 >= 3:
             summary += "<<COLOR:warning>>Moderate Bayesian evidence of process shift<</COLOR>>\n"
         else:
@@ -4649,7 +5096,9 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         # ── Guide observation ──
         if len(ooc_indices) == 0 and bf10 < 3:
-            result["guide_observation"] = f"Bayesian EWMA: process stable. BF₁₀={bf10:.2f} ({bf_label}), 0 OOC points."
+            result["guide_observation"] = (
+                f"Bayesian EWMA: process stable. BF₁₀={bf10:.2f} ({bf_label}), 0 OOC points."
+            )
         else:
             result["guide_observation"] = (
                 f"Bayesian EWMA: {len(ooc_indices)} OOC point{'s' if len(ooc_indices) != 1 else ''}. "
@@ -4694,7 +5143,11 @@ def run_bayesian_analysis(df, analysis_id, config):
                 "y": ewma.tolist(),
                 "mode": "lines+markers",
                 "name": "EWMA",
-                "marker": {"color": _rgba(COLOR_GOOD, 0.4), "size": 5, "line": {"color": COLOR_GOOD, "width": 1.5}},
+                "marker": {
+                    "color": _rgba(COLOR_GOOD, 0.4),
+                    "size": 5,
+                    "line": {"color": COLOR_GOOD, "width": 1.5},
+                },
                 "line": {"color": COLOR_GOOD},
             },
             {

@@ -43,7 +43,11 @@ LEARNING_PATH_LABELS = {
 # Email content keyed by email_key. Each returns (subject, body_html) given user + survey.
 def _email_welcome(user, survey):
     name = _esc(user.display_name or user.username)
-    path_label = LEARNING_PATH_LABELS.get(survey.learning_path, "Getting Started") if survey else "Getting Started"
+    path_label = (
+        LEARNING_PATH_LABELS.get(survey.learning_path, "Getting Started")
+        if survey
+        else "Getting Started"
+    )
     return (
         "Welcome to Svend!",
         f"""<h2>Hey {name},</h2>
@@ -145,34 +149,74 @@ def _email_learning_path(user, survey):
                     "/app/dsw/",
                     "Monitor process stability with X-bar/R, I-MR, and attribute charts",
                 ),
-                ("Capability Analysis", "/app/analysis/", "Calculate Cpk, Ppk, and process performance indices"),
+                (
+                    "Capability Analysis",
+                    "/app/analysis/",
+                    "Calculate Cpk, Ppk, and process performance indices",
+                ),
                 ("Gage R&R", "/app/analysis/", "Validate your measurement systems"),
-                ("DOE", "/app/experimenter/", "Optimize processes with designed experiments"),
+                (
+                    "DOE",
+                    "/app/experimenter/",
+                    "Optimize processes with designed experiments",
+                ),
             ],
         },
         "manager": {
             "title": "Your Management Dashboard Path",
             "items": [
-                ("Quick Analysis", "/app/analysis/", "Get answers from data without needing to pick the right test"),
-                ("SPC Dashboards", "/app/dsw/", "Monitor key process metrics at a glance"),
+                (
+                    "Quick Analysis",
+                    "/app/analysis/",
+                    "Get answers from data without needing to pick the right test",
+                ),
+                (
+                    "SPC Dashboards",
+                    "/app/dsw/",
+                    "Monitor key process metrics at a glance",
+                ),
                 ("A3 Reports", "/app/a3/", "Structure problem-solving for your team"),
-                ("PDF Export", "/app/analysis/", "Generate clean reports for stakeholders"),
+                (
+                    "PDF Export",
+                    "/app/analysis/",
+                    "Generate clean reports for stakeholders",
+                ),
             ],
         },
         "researcher": {
             "title": "Your Research Path",
             "items": [
-                ("Advanced Analysis", "/app/analysis/", "60+ statistical tests including nonparametric methods"),
-                ("DOE", "/app/experimenter/", "Full factorial, fractional factorial, RSM, and optimal designs"),
-                ("Hypothesis Engine", "/app/projects/", "Link evidence to hypotheses with Bayesian updating"),
+                (
+                    "Advanced Analysis",
+                    "/app/analysis/",
+                    "60+ statistical tests including nonparametric methods",
+                ),
+                (
+                    "DOE",
+                    "/app/experimenter/",
+                    "Full factorial, fractional factorial, RSM, and optimal designs",
+                ),
+                (
+                    "Hypothesis Engine",
+                    "/app/projects/",
+                    "Link evidence to hypotheses with Bayesian updating",
+                ),
                 ("Forecast", "/app/forecast/", "Time series analysis and forecasting"),
             ],
         },
         "analyst": {
             "title": "Your Data Analysis Path",
             "items": [
-                ("Statistical Testing", "/app/analysis/", "Run the right test automatically based on your data"),
-                ("Visualization", "/app/analysis/", "Interactive charts and distribution plots"),
+                (
+                    "Statistical Testing",
+                    "/app/analysis/",
+                    "Run the right test automatically based on your data",
+                ),
+                (
+                    "Visualization",
+                    "/app/analysis/",
+                    "Interactive charts and distribution plots",
+                ),
                 ("Process Monitoring", "/app/dsw/", "Set up ongoing control charts"),
                 (
                     "Calculators",
@@ -184,10 +228,22 @@ def _email_learning_path(user, survey):
         "student": {
             "title": "Your Learning Path",
             "items": [
-                ("Learning Center", "/app/learn/", "Guided modules on core statistical concepts"),
-                ("Practice Analysis", "/app/analysis/", "Try analyses with example datasets"),
+                (
+                    "Learning Center",
+                    "/app/learn/",
+                    "Guided modules on core statistical concepts",
+                ),
+                (
+                    "Practice Analysis",
+                    "/app/analysis/",
+                    "Try analyses with example datasets",
+                ),
                 ("Blog", "/blog/", "Practical articles on statistics in industry"),
-                ("Calculators", "/app/calculators/", "Build intuition with interactive tools"),
+                (
+                    "Calculators",
+                    "/app/calculators/",
+                    "Build intuition with interactive tools",
+                ),
             ],
         },
     }
@@ -196,9 +252,7 @@ def _email_learning_path(user, survey):
 
     items_html = ""
     for title, url, desc in path_data["items"]:
-        items_html += (
-            f'<li><a href="https://svend.ai{url}" style="color:#4a9f6e;font-weight:600;">{title}</a> — {desc}</li>\n'
-        )
+        items_html += f'<li><a href="https://svend.ai{url}" style="color:#4a9f6e;font-weight:600;">{title}</a> — {desc}</li>\n'
 
     return (
         f"{path_data['title']}",
@@ -275,7 +329,9 @@ def send_onboarding_email(payload, context):
         return {"error": "no_email"}
 
     if getattr(user, "is_email_opted_out", False):
-        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(status="skipped")
+        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(
+            status="skipped"
+        )
         return {"skipped": "opted_out"}
 
     # Get survey data
@@ -312,12 +368,18 @@ def send_onboarding_email(payload, context):
             html_message=full_html,
         )
         # Mark as sent
-        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(status="sent", sent_at=timezone.now())
+        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(
+            status="sent", sent_at=timezone.now()
+        )
         logger.info(f"Sent onboarding email '{email_key}' to {user.email}")
         return {"sent": True, "email_key": email_key}
     except Exception as e:
-        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(status="failed")
-        logger.error(f"Failed to send onboarding email '{email_key}' to {user.email}: {e}")
+        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(
+            status="failed"
+        )
+        logger.error(
+            f"Failed to send onboarding email '{email_key}' to {user.email}: {e}"
+        )
         return {"error": str(e)}
 
 
@@ -627,9 +689,9 @@ def process_automations(payload, context):
             )
         elif trigger_type == "query_limit_near":
             threshold_pct = cfg.get("threshold", 80)
-            for user in User.objects.filter(is_active=True, tier="free", is_email_opted_out=False).exclude(
-                id__in=staff_ids
-            ):
+            for user in User.objects.filter(
+                is_active=True, tier="free", is_email_opted_out=False
+            ).exclude(id__in=staff_ids):
                 limit = TIER_LIMITS.get(user.tier, 5)
                 if limit > 0 and user.queries_today >= (limit * threshold_pct / 100):
                     matched.add(user.id)
@@ -801,7 +863,9 @@ def claude_growth_review(payload, context):
 
     # Experiment results
     exp_data = []
-    for exp in Experiment.objects.filter(status__in=["running", "concluded"]).order_by("-created_at")[:10]:
+    for exp in Experiment.objects.filter(status__in=["running", "concluded"]).order_by(
+        "-created_at"
+    )[:10]:
         exp_data.append(
             {
                 "name": exp.name,
@@ -818,7 +882,9 @@ def claude_growth_review(payload, context):
     rule_stats = []
     for rule in AutomationRule.objects.filter(is_active=True):
         fires = AutomationLog.objects.filter(rule=rule, fired_at__gte=week_ago).count()
-        successes = AutomationLog.objects.filter(rule=rule, fired_at__gte=week_ago, result="success").count()
+        successes = AutomationLog.objects.filter(
+            rule=rule, fired_at__gte=week_ago, result="success"
+        ).count()
         rule_stats.append(
             {
                 "name": rule.name,
@@ -830,7 +896,9 @@ def claude_growth_review(payload, context):
 
     # Email campaign stats
     campaign_stats = []
-    for campaign in EmailCampaign.objects.filter(created_at__gte=week_ago).order_by("-created_at")[:10]:
+    for campaign in EmailCampaign.objects.filter(created_at__gte=week_ago).order_by(
+        "-created_at"
+    )[:10]:
         total = campaign.recipients.count()
         opened = campaign.recipients.filter(opened_at__isnull=False).count()
         clicked = campaign.recipients.filter(clicked_at__isnull=False).count()
@@ -848,7 +916,9 @@ def claude_growth_review(payload, context):
     from api.models import Feedback
 
     feedback_data = []
-    for fb in Feedback.objects.filter(created_at__gte=week_ago).order_by("-created_at")[:20]:
+    for fb in Feedback.objects.filter(created_at__gte=week_ago).order_by("-created_at")[
+        :20
+    ]:
         feedback_data.append(
             {
                 "category": fb.category,
@@ -1009,7 +1079,9 @@ def crm_send_one_email(payload, context):
 
     # Tracking pixel
     pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
-    full_html = EMAIL_TEMPLATE.format(body=body_html + pixel, unsub_url="https://svend.ai")
+    full_html = EMAIL_TEMPLATE.format(
+        body=body_html + pixel, unsub_url="https://svend.ai"
+    )
 
     try:
         send_mail(

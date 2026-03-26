@@ -104,7 +104,12 @@ class HypothesisEvaluation:
                 "samples": self.refuting_evidence.sample_values[:5],
             },
             "fallacies": [
-                {"type": f.type.value, "description": f.description, "severity": f.severity} for f in self.fallacies
+                {
+                    "type": f.type.value,
+                    "description": f.description,
+                    "severity": f.severity,
+                }
+                for f in self.fallacies
             ],
             "explanation": self.explanation,
             "needs_llm_review": self.needs_llm_review,
@@ -189,7 +194,9 @@ class LogicEngine:
 
         # Evaluate based on AST type
         try:
-            result, support_idx, refute_idx = self._evaluate_ast(hypothesis.ast, data, resolver)
+            result, support_idx, refute_idx = self._evaluate_ast(
+                hypothesis.ast, data, resolver
+            )
         except Exception as e:
             return HypothesisEvaluation(
                 hypothesis=hypothesis,
@@ -218,13 +225,19 @@ class LogicEngine:
         )
 
         # Calculate confidence
-        confidence = self._calculate_confidence(result, supporting, refuting, hypothesis)
+        confidence = self._calculate_confidence(
+            result, supporting, refuting, hypothesis
+        )
 
         # Generate explanation
-        explanation = self._generate_explanation(result, hypothesis, supporting, refuting)
+        explanation = self._generate_explanation(
+            result, hypothesis, supporting, refuting
+        )
 
         # Check if LLM review needed
-        needs_review, review_reason = self._check_needs_review(result, confidence, fallacies, hypothesis)
+        needs_review, review_reason = self._check_needs_review(
+            result, confidence, fallacies, hypothesis
+        )
 
         return HypothesisEvaluation(
             hypothesis=hypothesis,
@@ -591,7 +604,9 @@ class LogicEngine:
     def _has_nested_implications(self, ast: Expression) -> bool:
         """Check for nested implications."""
         if isinstance(ast, Implication):
-            return isinstance(ast.antecedent, Implication) or isinstance(ast.consequent, Implication)
+            return isinstance(ast.antecedent, Implication) or isinstance(
+                ast.consequent, Implication
+            )
         elif isinstance(ast, LogicalExpr):
             return any(self._has_nested_implications(op) for op in ast.operands)
         elif isinstance(ast, Quantified):
@@ -682,7 +697,11 @@ class LogicEngine:
                 )
 
         # Check for "NEVER X AND NEVER NOT-X" pattern (exhaustive negation)
-        never_quants = [q for q in quantifieds if q.quantifier in (Quantifier.NEVER, Quantifier.NONE)]
+        never_quants = [
+            q
+            for q in quantifieds
+            if q.quantifier in (Quantifier.NEVER, Quantifier.NONE)
+        ]
         if len(never_quants) >= 2:
             # Check if two NEVER quantifiers cover complementary conditions
             # on the same variable
@@ -708,7 +727,12 @@ class LogicEngine:
         # --- 4. Hasty generalization ---
         # Universal quantifier without domain restriction on a bare comparison
         for q in quantifieds:
-            if q.quantifier in (Quantifier.ALWAYS, Quantifier.NEVER, Quantifier.ALL, Quantifier.NONE):
+            if q.quantifier in (
+                Quantifier.ALWAYS,
+                Quantifier.NEVER,
+                Quantifier.ALL,
+                Quantifier.NONE,
+            ):
                 if q.domain is None and isinstance(q.body, Comparison):
                     fallacies.append(
                         Fallacy(
@@ -768,7 +792,9 @@ class LogicEngine:
                 result |= self._get_variables(op)
             return result
         elif isinstance(ast, Implication):
-            return self._get_variables(ast.antecedent) | self._get_variables(ast.consequent)
+            return self._get_variables(ast.antecedent) | self._get_variables(
+                ast.consequent
+            )
         elif isinstance(ast, Quantified):
             result = self._get_variables(ast.body)
             if ast.over:
@@ -788,9 +814,9 @@ class LogicEngine:
         if isinstance(ast, LogicalExpr):
             return any(self._contains_negation_of(op, target) for op in ast.operands)
         elif isinstance(ast, Implication):
-            return self._contains_negation_of(ast.antecedent, target) or self._contains_negation_of(
-                ast.consequent, target
-            )
+            return self._contains_negation_of(
+                ast.antecedent, target
+            ) or self._contains_negation_of(ast.consequent, target)
         elif isinstance(ast, Quantified):
             return self._contains_negation_of(ast.body, target)
         return False

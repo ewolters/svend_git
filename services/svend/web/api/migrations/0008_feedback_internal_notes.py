@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0007_feedback'),
+        ("api", "0007_feedback"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='feedback',
-            name='internal_notes',
-            field=models.TextField(blank=True, default=''),
+            model_name="feedback",
+            name="internal_notes",
+            field=models.TextField(blank=True, default=""),
         ),
     ]

@@ -26,7 +26,12 @@ PBS_PARADIGM_SHIFT = {
             "Observe how PBS gives you a credible interval on Cpk, not just a point estimate",
         ],
         "dsw_type": "pbs:pbs_full",
-        "dsw_config": {"column": "diameter_mm", "USL": 25.15, "LSL": 24.85, "target": 25.0},
+        "dsw_config": {
+            "column": "diameter_mm",
+            "USL": 25.15,
+            "LSL": 24.85,
+            "target": 25.0,
+        },
     },
     "content": """
 ## Why Classical SPC Is Broken
@@ -614,7 +619,12 @@ PBS_HEALTH_FUSION = {
             "If Taguchi Loss is shown, identify whether bias or variance dominates the cost",
         ],
         "dsw_type": "pbs:pbs_full",
-        "dsw_config": {"column": "diameter_mm", "USL": 25.15, "LSL": 24.85, "target": 25.0},
+        "dsw_config": {
+            "column": "diameter_mm",
+            "USL": 25.15,
+            "LSL": 24.85,
+            "target": 25.0,
+        },
     },
     "content": """
 ## The Problem: Siloed Metrics
@@ -759,7 +769,13 @@ PBS_ADVANCED = {
             "Think about how you would transfer this process's posterior to a new, similar product line",
         ],
         "dsw_type": "pbs:pbs_full",
-        "dsw_config": {"column": "diameter_mm", "USL": 25.15, "LSL": 24.85, "target": 25.0, "hazard_lambda": 50},
+        "dsw_config": {
+            "column": "diameter_mm",
+            "USL": 25.15,
+            "LSL": 24.85,
+            "target": 25.0,
+            "hazard_lambda": 50,
+        },
     },
     "content": """
 ## Chart Genealogy: Learning Across Processes

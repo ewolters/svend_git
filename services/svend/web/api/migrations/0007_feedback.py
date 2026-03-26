@@ -10,25 +10,54 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0006_automation_framework'),
+        ("api", "0006_automation_framework"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Feedback',
+            name="Feedback",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('category', models.CharField(choices=[('bug', 'Bug Report'), ('feature', 'Feature Request'), ('question', 'Question'), ('other', 'Other')], default='other', max_length=10)),
-                ('message', models.TextField()),
-                ('page', models.CharField(blank=True, max_length=200)),
-                ('status', models.CharField(default='new', max_length=10)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='feedback', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "category",
+                    models.CharField(
+                        choices=[
+                            ("bug", "Bug Report"),
+                            ("feature", "Feature Request"),
+                            ("question", "Question"),
+                            ("other", "Other"),
+                        ],
+                        default="other",
+                        max_length=10,
+                    ),
+                ),
+                ("message", models.TextField()),
+                ("page", models.CharField(blank=True, max_length=200)),
+                ("status", models.CharField(default="new", max_length=10)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="feedback",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'feedback',
-                'ordering': ['-created_at'],
+                "db_table": "feedback",
+                "ordering": ["-created_at"],
             },
         ),
     ]

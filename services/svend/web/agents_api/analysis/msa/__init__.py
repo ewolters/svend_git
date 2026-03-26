@@ -218,9 +218,13 @@ class BayesianGageRR:
         self.sig2_total = s["sig2_P"] + self.sig2_grr
         self.pct_grr = np.sqrt(self.sig2_grr) / np.sqrt(self.sig2_total) * 100
         self.pct_repeat = np.sqrt(s["sig2_E"]) / np.sqrt(self.sig2_total) * 100
-        self.pct_reprod = np.sqrt(s["sig2_O"] + s["sig2_PO"]) / np.sqrt(self.sig2_total) * 100
+        self.pct_reprod = (
+            np.sqrt(s["sig2_O"] + s["sig2_PO"]) / np.sqrt(self.sig2_total) * 100
+        )
         self.pct_part = np.sqrt(s["sig2_P"]) / np.sqrt(self.sig2_total) * 100
-        self.ndc_samples = np.floor(1.41 * np.sqrt(s["sig2_P"] / self.sig2_grr)).astype(int)
+        self.ndc_samples = np.floor(1.41 * np.sqrt(s["sig2_P"] / self.sig2_grr)).astype(
+            int
+        )
 
     def summary(self):
         """Posterior summary statistics."""
@@ -330,7 +334,9 @@ def run_bayes_msa(df, analysis_id, config):
 
     # Run Gibbs sampler
     prior = prior_json if isinstance(prior_json, dict) else None
-    model = BayesianGageRR(parts, operators, measurements, prior=prior, tolerance=tolerance)
+    model = BayesianGageRR(
+        parts, operators, measurements, prior=prior, tolerance=tolerance
+    )
     model.fit(n_iter=2000, burn_in=500, thin=2, seed=42)
     s = model.summary()
 
@@ -382,7 +388,9 @@ def run_bayes_msa(df, analysis_id, config):
         f"  P(NDC ≥ 5) = {s['p_ndc_ge_5']:.1%}"
     )
 
-    lines.append("\n<<COLOR:accent>>── Variance Components (posterior mean [95% CI]) ──<</COLOR>>")
+    lines.append(
+        "\n<<COLOR:accent>>── Variance Components (posterior mean [95% CI]) ──<</COLOR>>"
+    )
 
     def fmt(k, label):
         return f"  {label:<22} {s[k]['mean']:>10.4f}  [{s[k]['ci_low']:.4f}, {s[k]['ci_high']:.4f}]"
@@ -406,13 +414,17 @@ def run_bayes_msa(df, analysis_id, config):
 
     if tolerance:
         grr_tol = 6 * np.sqrt(s["var_grr"]["mean"]) / tolerance * 100
-        lines.append(f"\n<<COLOR:highlight>>%Tolerance (6σ_GRR/tol):<</COLOR>> {grr_tol:.1f}%")
+        lines.append(
+            f"\n<<COLOR:highlight>>%Tolerance (6σ_GRR/tol):<</COLOR>> {grr_tol:.1f}%"
+        )
 
     # Sequential updating info
     next_prior = model.prior_for_next_study()
     lines.append("\n<<COLOR:accent>>── Sequential Updating ──<</COLOR>>")
     lines.append("  This posterior can serve as the prior for your next gage study.")
-    lines.append("  Each successive study sharpens the estimates without discarding prior knowledge.")
+    lines.append(
+        "  Each successive study sharpens the estimates without discarding prior knowledge."
+    )
 
     lines.append("\n<<COLOR:accent>>── Assumptions ──<</COLOR>>")
     lines.append("  1. Balanced crossed design (each operator measures each part)")
@@ -436,7 +448,10 @@ def run_bayes_msa(df, analysis_id, config):
                     "type": "bar",
                     "x": bin_centers.tolist(),
                     "y": hist_vals.tolist(),
-                    "marker": {"color": "rgba(74,159,110,0.5)", "line": {"color": "#4a9f6e", "width": 0.5}},
+                    "marker": {
+                        "color": "rgba(74,159,110,0.5)",
+                        "line": {"color": "#4a9f6e", "width": 0.5},
+                    },
                     "name": "Posterior density",
                 },
                 {
@@ -521,7 +536,9 @@ def run_bayes_msa(df, analysis_id, config):
                     "type": "bar",
                     "x": ndc_vals.tolist(),
                     "y": ndc_probs.tolist(),
-                    "marker": {"color": ["#4a9f6e" if v >= 5 else "#d94a4a" for v in ndc_vals]},
+                    "marker": {
+                        "color": ["#4a9f6e" if v >= 5 else "#d94a4a" for v in ndc_vals]
+                    },
                     "name": "P(NDC=k)",
                 },
             ],
@@ -545,14 +562,24 @@ def run_bayes_msa(df, analysis_id, config):
 
     # 4. % Study Variation breakdown (stacked)
     labels = ["%Repeatability", "%Reproducibility", "%Part-to-Part"]
-    means = [s["pct_repeatability"]["mean"], s["pct_reproducibility"]["mean"], s["pct_part"]["mean"]]
+    means = [
+        s["pct_repeatability"]["mean"],
+        s["pct_reproducibility"]["mean"],
+        s["pct_part"]["mean"],
+    ]
     colors = ["#d4a24a", "#6ab7d4", "#4a9f6e"]
 
     result["plots"].append(
         {
             "title": "% Study Variation Breakdown",
             "data": [
-                {"type": "bar", "x": [label], "y": [val], "name": label, "marker": {"color": col}}
+                {
+                    "type": "bar",
+                    "x": [label],
+                    "y": [val],
+                    "name": label,
+                    "marker": {"color": col},
+                }
                 for label, val, col in zip(labels, means, colors)
             ],
             "layout": {
@@ -574,7 +601,10 @@ def run_bayes_msa(df, analysis_id, config):
         "n_total": model.N,
         "verdict": verdict,
         "pct_grr_mean": round(s["pct_grr"]["mean"], 2),
-        "pct_grr_ci": [round(s["pct_grr"]["ci_low"], 2), round(s["pct_grr"]["ci_high"], 2)],
+        "pct_grr_ci": [
+            round(s["pct_grr"]["ci_low"], 2),
+            round(s["pct_grr"]["ci_high"], 2),
+        ],
         "p_grr_lt_10": round(p10, 4),
         "p_grr_lt_30": round(p30, 4),
         "ndc_mean": round(s["ndc"]["mean"], 1),

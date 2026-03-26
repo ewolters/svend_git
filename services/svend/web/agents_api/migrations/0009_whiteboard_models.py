@@ -12,59 +12,126 @@ import agents_api.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0008_add_core_project_fk'),
+        ("agents_api", "0008_add_core_project_fk"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Board',
+            name="Board",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('room_code', models.CharField(db_index=True, default=agents_api.models.generate_room_code, max_length=10, unique=True)),
-                ('name', models.CharField(default='Untitled Board', max_length=255)),
-                ('elements', models.JSONField(default=list)),
-                ('connections', models.JSONField(default=list)),
-                ('zoom', models.FloatField(default=1.0)),
-                ('pan_x', models.FloatField(default=0.0)),
-                ('pan_y', models.FloatField(default=0.0)),
-                ('voting_active', models.BooleanField(default=False)),
-                ('votes_per_user', models.IntegerField(default=3)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('version', models.IntegerField(default=0)),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='owned_boards', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "room_code",
+                    models.CharField(
+                        db_index=True,
+                        default=agents_api.models.generate_room_code,
+                        max_length=10,
+                        unique=True,
+                    ),
+                ),
+                ("name", models.CharField(default="Untitled Board", max_length=255)),
+                ("elements", models.JSONField(default=list)),
+                ("connections", models.JSONField(default=list)),
+                ("zoom", models.FloatField(default=1.0)),
+                ("pan_x", models.FloatField(default=0.0)),
+                ("pan_y", models.FloatField(default=0.0)),
+                ("voting_active", models.BooleanField(default=False)),
+                ("votes_per_user", models.IntegerField(default=3)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("version", models.IntegerField(default=0)),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="owned_boards",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-updated_at'],
+                "ordering": ["-updated_at"],
             },
         ),
         migrations.CreateModel(
-            name='BoardParticipant',
+            name="BoardParticipant",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('color', models.CharField(default='#4a9f6e', max_length=7)),
-                ('last_seen', models.DateTimeField(auto_now=True)),
-                ('cursor_x', models.FloatField(blank=True, null=True)),
-                ('cursor_y', models.FloatField(blank=True, null=True)),
-                ('board', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='participants', to='agents_api.board')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='board_participations', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("color", models.CharField(default="#4a9f6e", max_length=7)),
+                ("last_seen", models.DateTimeField(auto_now=True)),
+                ("cursor_x", models.FloatField(blank=True, null=True)),
+                ("cursor_y", models.FloatField(blank=True, null=True)),
+                (
+                    "board",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="participants",
+                        to="agents_api.board",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="board_participations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'unique_together': {('board', 'user')},
+                "unique_together": {("board", "user")},
             },
         ),
         migrations.CreateModel(
-            name='BoardVote',
+            name="BoardVote",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('element_id', models.CharField(max_length=50)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('board', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='votes', to='agents_api.board')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='board_votes', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("element_id", models.CharField(max_length=50)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "board",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="votes",
+                        to="agents_api.board",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="board_votes",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'unique_together': {('board', 'user', 'element_id')},
+                "unique_together": {("board", "user", "element_id")},
             },
         ),
     ]

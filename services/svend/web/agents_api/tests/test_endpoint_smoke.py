@@ -685,7 +685,9 @@ class EmailTrackingSmokeTest(TestCase):
         self.assertNotEqual(res.status_code, 500)
 
     def test_email_unsubscribe(self):
-        res = self.client.post("/api/email/unsubscribe/", {}, content_type="application/json")
+        res = self.client.post(
+            "/api/email/unsubscribe/", {}, content_type="application/json"
+        )
         self.assertNotEqual(res.status_code, 500)
 
 
@@ -694,9 +696,17 @@ class PublicBeaconSmokeTest(TestCase):
     """Smoke tests for public beacon endpoints (no auth)."""
 
     def test_site_duration(self):
-        res = self.client.post("/api/site-duration/", {"duration": 5000, "path": "/"}, content_type="application/json")
+        res = self.client.post(
+            "/api/site-duration/",
+            {"duration": 5000, "path": "/"},
+            content_type="application/json",
+        )
         self.assertNotEqual(res.status_code, 500)
 
     def test_funnel_event(self):
-        res = self.client.post("/api/funnel-event/", {"event": "test", "page": "/"}, content_type="application/json")
+        res = self.client.post(
+            "/api/funnel-event/",
+            {"event": "test", "page": "/"},
+            content_type="application/json",
+        )
         self.assertNotEqual(res.status_code, 500)

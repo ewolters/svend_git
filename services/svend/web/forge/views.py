@@ -67,7 +67,9 @@ def require_api_key(view_func):
             request.api_key = None  # No API key, but user is authenticated
             return view_func(request, *args, **kwargs)
 
-        return Response({"error": "Invalid or missing API key"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {"error": "Invalid or missing API key"}, status=status.HTTP_401_UNAUTHORIZED
+        )
 
     return wrapper
 
@@ -159,7 +161,10 @@ def generate(request):
             schema_def = template.schema_def
             domain = template.domain
         except SchemaTemplate.DoesNotExist:
-            return Response({"error": f"Template not found: {data['template']}"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": f"Template not found: {data['template']}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
     else:
         schema_def = data["schema"]
         domain = data.get("domain", "")
@@ -186,7 +191,11 @@ def generate(request):
                 user=request.user,
                 api_key__isnull=True,
                 created_at__gte=period_start,
-                status__in=[JobStatus.COMPLETED, JobStatus.PROCESSING, JobStatus.QUEUED],
+                status__in=[
+                    JobStatus.COMPLETED,
+                    JobStatus.PROCESSING,
+                    JobStatus.QUEUED,
+                ],
             ).aggregate(total=Sum("record_count"))["total"]
             or 0
         )
@@ -291,7 +300,10 @@ def job_result(request, job_id):
         return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if job.status != JobStatus.COMPLETED:
-        return Response({"error": f"Job not completed. Status: {job.status}"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": f"Job not completed. Status: {job.status}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Generate download URL
     expires_at = timezone.now() + timedelta(hours=24)
@@ -327,7 +339,10 @@ def download(request, job_id):
         return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if job.status != JobStatus.COMPLETED:
-        return Response({"error": f"Job not completed. Status: {job.status}"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": f"Job not completed. Status: {job.status}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Get content from storage
     # Alpha: Local storage via job.result_path
@@ -339,7 +354,10 @@ def download(request, job_id):
         content = get_job_content(job)
     except Exception as e:
         logger.error(f"Failed to retrieve job content: {e}")
-        return Response({"error": "Failed to retrieve data"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": "Failed to retrieve data"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
     content_type = {
         "json": "application/json",
@@ -349,7 +367,9 @@ def download(request, job_id):
 
     response = HttpResponse(content, content_type=content_type)
     safe_fmt = re.sub(r"[^\w]", "", job.output_format) or "dat"
-    response["Content-Disposition"] = f'attachment; filename="forge_{job_id}.{safe_fmt}"'
+    response["Content-Disposition"] = (
+        f'attachment; filename="forge_{job_id}.{safe_fmt}"'
+    )
     return response
 
 
@@ -398,7 +418,9 @@ def usage(request):
 
     records_by_type = {}
     for dtype in DataType:
-        count = jobs.filter(data_type=dtype).aggregate(total=Sum("record_count"))["total"]
+        count = jobs.filter(data_type=dtype).aggregate(total=Sum("record_count"))[
+            "total"
+        ]
         if count:
             records_by_type[dtype.value] = count
 

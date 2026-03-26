@@ -83,4 +83,8 @@ def run_spc_analysis(df, analysis_id, config):
     if handler is not None:
         return handler(df, config)
 
-    return {"plots": [], "summary": f"Unknown SPC analysis: {analysis_id}", "guide_observation": ""}
+    return {
+        "plots": [],
+        "summary": f"Unknown SPC analysis: {analysis_id}",
+        "guide_observation": "",
+    }

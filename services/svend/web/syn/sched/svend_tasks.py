@@ -149,9 +149,14 @@ def register_svend_tasks():
         from syn.audit.models import HealthPing, IntegrityViolation
 
         cutoff = timezone.now() - timedelta(days=90)
-        deleted_violations, _ = IntegrityViolation.objects.filter(is_resolved=True, resolved_at__lt=cutoff).delete()
+        deleted_violations, _ = IntegrityViolation.objects.filter(
+            is_resolved=True, resolved_at__lt=cutoff
+        ).delete()
         deleted_pings, _ = HealthPing.objects.filter(timestamp__lt=cutoff).delete()
-        return {"deleted_violations": deleted_violations, "deleted_pings": deleted_pings}
+        return {
+            "deleted_violations": deleted_violations,
+            "deleted_pings": deleted_pings,
+        }
 
     def health_ping_handler(payload, context):
         """Ping /api/health/ and record result. Fires andon on 3+ consecutive failures."""
@@ -339,7 +344,9 @@ def register_svend_tasks():
         max_attempts=1,
     )
 
-    logger.info("[syn.sched] Registered %d Svend task handlers", len(TaskRegistry._handlers))
+    logger.info(
+        "[syn.sched] Registered %d Svend task handlers", len(TaskRegistry._handlers)
+    )
 
 
 def _fire_availability_andon(recent_pings):
@@ -360,7 +367,9 @@ def _fire_availability_andon(recent_pings):
             message=f"Health endpoint /api/health/ failed 3 times in a row. Errors: {'; '.join(errors)}",
             entity_type="health_ping",
         )
-    logger.warning("[syn.sched] Availability andon fired: 3 consecutive health ping failures")
+    logger.warning(
+        "[syn.sched] Availability andon fired: 3 consecutive health ping failures"
+    )
 
 
 # Schedule definitions matching current Tempora configuration.

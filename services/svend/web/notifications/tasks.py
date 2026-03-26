@@ -24,7 +24,11 @@ def send_notification_email_task(payload, context=None):
     from notifications.email import build_notification_email, send_notification_email
     from notifications.tokens import NotificationToken
 
-    args = payload.get("args", {}) if isinstance(payload, dict) else getattr(payload, "args", {}) or {}
+    args = (
+        payload.get("args", {})
+        if isinstance(payload, dict)
+        else getattr(payload, "args", {}) or {}
+    )
     notification_id = args.get("notification_id")
     token_id = args.get("token_id")
 
@@ -32,7 +36,9 @@ def send_notification_email_task(payload, context=None):
         return {"error": "Missing notification_id or token_id"}
 
     try:
-        tok = NotificationToken.objects.select_related("notification", "user").get(id=token_id)
+        tok = NotificationToken.objects.select_related("notification", "user").get(
+            id=token_id
+        )
     except NotificationToken.DoesNotExist:
         return {"error": f"Token {token_id} not found"}
 
@@ -47,7 +53,9 @@ def send_notification_email_task(payload, context=None):
         return {"skipped": True, "reason": "rate_limit"}
 
     subject, body_html = build_notification_email(tok.notification, tok)
-    sent = send_notification_email(tok.user, subject, body_html, tok.notification.notification_type)
+    sent = send_notification_email(
+        tok.user, subject, body_html, tok.notification.notification_type
+    )
 
     if sent:
         tok.email_sent_at = timezone.now()
@@ -90,7 +98,9 @@ def _send_digest(period, lookback):
     users = User.objects.filter(
         is_active=True,
         is_email_opted_out=False,
-    ).exclude(email="")[:_DIGEST_BATCH_CAP]
+    ).exclude(
+        email=""
+    )[:_DIGEST_BATCH_CAP]
 
     sent_count = 0
     for user in users:

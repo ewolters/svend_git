@@ -8,28 +8,28 @@ import core.encryption
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0027_action_item_source'),
+        ("agents_api", "0027_action_item_source"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='dswresult',
-            name='data',
+            model_name="dswresult",
+            name="data",
             field=core.encryption.EncryptedTextField(),
         ),
         migrations.AlterField(
-            model_name='triageresult',
-            name='cleaned_csv',
+            model_name="triageresult",
+            name="cleaned_csv",
             field=core.encryption.EncryptedTextField(),
         ),
         migrations.AlterField(
-            model_name='triageresult',
-            name='report_markdown',
+            model_name="triageresult",
+            name="report_markdown",
             field=core.encryption.EncryptedTextField(),
         ),
         migrations.AlterField(
-            model_name='triageresult',
-            name='summary_json',
+            model_name="triageresult",
+            name="summary_json",
             field=core.encryption.EncryptedTextField(),
         ),
     ]

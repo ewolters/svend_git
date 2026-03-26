@@ -120,7 +120,9 @@ class TenantRateLimitMiddleware(MiddlewareMixin):
         """Add rate limit headers to response."""
         tenant = getattr(request, "tenant", None)
 
-        if tenant and not any(request.path.startswith(path) for path in self.EXEMPT_PATHS):
+        if tenant and not any(
+            request.path.startswith(path) for path in self.EXEMPT_PATHS
+        ):
             cache_key = f"rate_limit:{tenant.id}"
             current_count = cache.get(cache_key, 0)
             remaining = max(tenant.rate_limit_per_hour - current_count, 0)
@@ -128,6 +130,8 @@ class TenantRateLimitMiddleware(MiddlewareMixin):
             # Add rate limit headers
             response["X-RateLimit-Limit"] = str(tenant.rate_limit_per_hour)
             response["X-RateLimit-Remaining"] = str(remaining)
-            response["X-RateLimit-Reset"] = str(int(time.time()) + self._get_retry_after(tenant))
+            response["X-RateLimit-Reset"] = str(
+                int(time.time()) + self._get_retry_after(tenant)
+            )
 
         return response

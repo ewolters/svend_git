@@ -61,7 +61,9 @@ def _run_advanced_regression(df, analysis_id, config, user):
         summary += f"  λ (weight precision) = {model.lambda_:.4f}\n\n"
 
         # Coefficient posteriors with credible intervals
-        summary += "<<COLOR:text>>Coefficient Posteriors (95% Credible Intervals):<</COLOR>>\n"
+        summary += (
+            "<<COLOR:text>>Coefficient Posteriors (95% Credible Intervals):<</COLOR>>\n"
+        )
         summary += "<<COLOR:text>>These intervals feed directly into Synara edge weights<</COLOR>>\n\n"
 
         for i, feat in enumerate(features):
@@ -115,7 +117,11 @@ def _run_advanced_regression(df, analysis_id, config, user):
                 ],
                 "layout": {
                     "height": max(300, len(features) * 30),
-                    "xaxis": {"title": "Coefficient Value", "zeroline": True, "zerolinecolor": "#e85747"},
+                    "xaxis": {
+                        "title": "Coefficient Value",
+                        "zeroline": True,
+                        "zerolinecolor": "#e85747",
+                    },
                     "margin": {"l": 150},
                     "shapes": [
                         {
@@ -161,14 +167,20 @@ def _run_advanced_regression(df, analysis_id, config, user):
                         "type": "scatter",
                         "x": list(range(len(y))) + list(range(len(y)))[::-1],
                         "y": (y_pred[sorted_idx] + 1.96 * y_std[sorted_idx]).tolist()
-                        + (y_pred[sorted_idx] - 1.96 * y_std[sorted_idx])[::-1].tolist(),
+                        + (y_pred[sorted_idx] - 1.96 * y_std[sorted_idx])[
+                            ::-1
+                        ].tolist(),
                         "fill": "toself",
                         "fillcolor": "rgba(232, 149, 71, 0.2)",
                         "line": {"color": "transparent"},
                         "name": "95% CI",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Observation (sorted)"}, "yaxis": {"title": target}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Observation (sorted)"},
+                    "yaxis": {"title": target},
+                },
             }
         )
 
@@ -244,7 +256,9 @@ def _run_advanced_regression(df, analysis_id, config, user):
 
         # Model statistics
         summary += "<<COLOR:text>>Model Statistics:<</COLOR>>\n"
-        summary += f"  Pseudo R² = {gam.statistics_['pseudo_r2']['explained_deviance']:.4f}\n"
+        summary += (
+            f"  Pseudo R² = {gam.statistics_['pseudo_r2']['explained_deviance']:.4f}\n"
+        )
         summary += f"  GCV Score = {gam.statistics_['GCV']:.4f}\n"
         summary += f"  Effective DF = {gam.statistics_['edof']:.1f}\n\n"
 
@@ -304,7 +318,9 @@ def _run_advanced_regression(df, analysis_id, config, user):
                     }
                 )
             except Exception:
-                logger.warning(f"GAM: partial dependence failed for feature '{feat}', skipping plot")
+                logger.warning(
+                    f"GAM: partial dependence failed for feature '{feat}', skipping plot"
+                )
 
         result["guide_observation"] = (
             "GAM shows smooth effect curves for each feature. Non-linear patterns indicate complex causal relationships."
@@ -321,7 +337,11 @@ def _run_advanced_regression(df, analysis_id, config, user):
                     "model_type": "Generalized Additive Model",
                     "features": features,
                     "target": target,
-                    "metrics": {"pseudo_r2": float(gam.statistics_["pseudo_r2"]["explained_deviance"])},
+                    "metrics": {
+                        "pseudo_r2": float(
+                            gam.statistics_["pseudo_r2"]["explained_deviance"]
+                        )
+                    },
                 },
             )
             result["model_key"] = model_key
@@ -353,11 +373,15 @@ def _run_advanced_regression(df, analysis_id, config, user):
         X_scaled = scaler.fit_transform(X)
 
         # Define kernel: constant * RBF + noise
-        kernel = ConstantKernel(1.0) * RBF(length_scale=1.0) + WhiteKernel(noise_level=0.1)
+        kernel = ConstantKernel(1.0) * RBF(length_scale=1.0) + WhiteKernel(
+            noise_level=0.1
+        )
 
         # Fit GP — reduce restarts for larger datasets
         n_restarts = 2 if len(X) > 300 else 5
-        gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=n_restarts, random_state=42)
+        gp = GaussianProcessRegressor(
+            kernel=kernel, n_restarts_optimizer=n_restarts, random_state=42
+        )
         gp.fit(X_scaled, y)
 
         # Predictions with uncertainty
@@ -375,16 +399,16 @@ def _run_advanced_regression(df, analysis_id, config, user):
         summary += f"<<COLOR:highlight>>Target:<</COLOR>> {target}\n"
         summary += f"<<COLOR:highlight>>Features:<</COLOR>> {', '.join(features)}\n"
         if subsampled:
-            summary += (
-                f"<<COLOR:warning>>Note: Subsampled to {MAX_GP_ROWS} rows (from {n_rows}) — GP is O(n³)<</COLOR>>\n"
-            )
+            summary += f"<<COLOR:warning>>Note: Subsampled to {MAX_GP_ROWS} rows (from {n_rows}) — GP is O(n³)<</COLOR>>\n"
         summary += "\n"
 
         summary += "<<COLOR:text>>Kernel:<</COLOR>>\n"
         summary += f"  {gp.kernel_}\n\n"
 
         summary += "<<COLOR:text>>Model Quality:<</COLOR>>\n"
-        summary += f"  Log-Marginal-Likelihood: {gp.log_marginal_likelihood_value_:.4f}\n"
+        summary += (
+            f"  Log-Marginal-Likelihood: {gp.log_marginal_likelihood_value_:.4f}\n"
+        )
 
         # Residual analysis
         residuals = y.values - y_pred
@@ -428,7 +452,9 @@ def _run_advanced_regression(df, analysis_id, config, user):
                     },
                     {
                         "type": "scatter",
-                        "x": np.concatenate([x_plot[sort_idx], x_plot[sort_idx][::-1]]).tolist(),
+                        "x": np.concatenate(
+                            [x_plot[sort_idx], x_plot[sort_idx][::-1]]
+                        ).tolist(),
                         "y": np.concatenate(
                             [
                                 (y_pred[sort_idx] + 1.96 * y_std[sort_idx]),
@@ -441,7 +467,11 @@ def _run_advanced_regression(df, analysis_id, config, user):
                         "name": "95% CI",
                     },
                 ],
-                "layout": {"height": 350, "xaxis": {"title": feature_for_plot}, "yaxis": {"title": target}},
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"title": feature_for_plot},
+                    "yaxis": {"title": target},
+                },
             }
         )
 
@@ -457,7 +487,11 @@ def _run_advanced_regression(df, analysis_id, config, user):
                         "mode": "markers",
                         "marker": {
                             "color": y_std.tolist(),
-                            "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#e85747"]],
+                            "colorscale": [
+                                [0, "#4a9f6e"],
+                                [0.5, "#e8c547"],
+                                [1, "#e85747"],
+                            ],
                             "size": 8,
                             "showscale": True,
                             "colorbar": {"title": "Std"},
@@ -551,7 +585,11 @@ def _run_advanced_regression(df, analysis_id, config, user):
 
         summary += "<<COLOR:text>>Feature Weights (Importance):<</COLOR>>\n"
         # VIP scores (Variable Importance in Projection)
-        vip = np.sqrt(len(features) * np.sum(X_weights**2 * np.sum(Y_scores**2, axis=0), axis=1) / np.sum(Y_scores**2))
+        vip = np.sqrt(
+            len(features)
+            * np.sum(X_weights**2 * np.sum(Y_scores**2, axis=0), axis=1)
+            / np.sum(Y_scores**2)
+        )
         for feat, v in sorted(zip(features, vip), key=lambda x: -x[1]):
             marker = "★" if v > 1.0 else " "
             summary += f"  {marker} {feat}: VIP={v:.3f}\n"
@@ -577,7 +615,11 @@ def _run_advanced_regression(df, analysis_id, config, user):
                             "mode": "markers",
                             "marker": {
                                 "color": y.values.tolist(),
-                                "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#e85747"]],
+                                "colorscale": [
+                                    [0, "#4a9f6e"],
+                                    [0.5, "#e8c547"],
+                                    [1, "#e85747"],
+                                ],
                                 "size": 8,
                                 "showscale": True,
                                 "colorbar": {"title": target},
@@ -603,10 +645,19 @@ def _run_advanced_regression(df, analysis_id, config, user):
                         "type": "bar",
                         "x": features,
                         "y": X_loadings[:, 0].tolist(),
-                        "marker": {"color": ["#4a9f6e" if v > 0 else "#e85747" for v in X_loadings[:, 0]]},
+                        "marker": {
+                            "color": [
+                                "#4a9f6e" if v > 0 else "#e85747"
+                                for v in X_loadings[:, 0]
+                            ]
+                        },
                     }
                 ],
-                "layout": {"height": 250, "xaxis": {"title": "Feature"}, "yaxis": {"title": "Loading on Component 1"}},
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Feature"},
+                    "yaxis": {"title": "Loading on Component 1"},
+                },
             }
         )
 
@@ -621,7 +672,10 @@ def _run_advanced_regression(df, analysis_id, config, user):
                         "x": [f[0] for f in vip_sorted],
                         "y": [f[1] for f in vip_sorted],
                         "marker": {
-                            "color": ["#4a9f6e" if v > 1.0 else "rgba(74, 159, 110, 0.4)" for _, v in vip_sorted]
+                            "color": [
+                                "#4a9f6e" if v > 1.0 else "rgba(74, 159, 110, 0.4)"
+                                for _, v in vip_sorted
+                            ]
                         },
                     },
                     {
@@ -669,7 +723,14 @@ def _run_advanced_regression(df, analysis_id, config, user):
         Ridge, LASSO, and Elastic Net regression with cross-validated alpha selection.
         Handles multicollinearity (Ridge), feature selection (LASSO), or both (Elastic Net).
         """
-        from sklearn.linear_model import ElasticNet, ElasticNetCV, Lasso, LassoCV, Ridge, RidgeCV
+        from sklearn.linear_model import (
+            ElasticNet,
+            ElasticNetCV,
+            Lasso,
+            LassoCV,
+            Ridge,
+            RidgeCV,
+        )
         from sklearn.metrics import mean_squared_error, r2_score
         from sklearn.model_selection import cross_val_score
         from sklearn.preprocessing import StandardScaler
@@ -703,10 +764,14 @@ def _run_advanced_regression(df, analysis_id, config, user):
             method_name = "LASSO"
         else:  # elastic_net
             l1_ratio = float(config.get("l1_ratio", 0.5))
-            cv_model = ElasticNetCV(alphas=alphas, l1_ratio=l1_ratio, cv=min(5, n), max_iter=10000)
+            cv_model = ElasticNetCV(
+                alphas=alphas, l1_ratio=l1_ratio, cv=min(5, n), max_iter=10000
+            )
             cv_model.fit(X_scaled, y)
             best_alpha = cv_model.alpha_
-            final_model = ElasticNet(alpha=best_alpha, l1_ratio=l1_ratio, max_iter=10000).fit(X_scaled, y)
+            final_model = ElasticNet(
+                alpha=best_alpha, l1_ratio=l1_ratio, max_iter=10000
+            ).fit(X_scaled, y)
             method_name = f"Elastic Net (L1 ratio={l1_ratio})"
 
         y_pred = final_model.predict(X_scaled)
@@ -716,7 +781,9 @@ def _run_advanced_regression(df, analysis_id, config, user):
         intercept = final_model.intercept_
 
         # Cross-validation R²
-        cv_scores = cross_val_score(final_model, X_scaled, y, cv=min(5, n), scoring="r2")
+        cv_scores = cross_val_score(
+            final_model, X_scaled, y, cv=min(5, n), scoring="r2"
+        )
 
         # Count non-zero coefficients (for LASSO/elastic net)
         n_nonzero = np.sum(np.abs(coefs) > 1e-10)
@@ -732,20 +799,26 @@ def _run_advanced_regression(df, analysis_id, config, user):
         summary += "<<COLOR:text>>Model Performance:<</COLOR>>\n"
         summary += f"  R²: {r2:.4f}\n"
         summary += f"  RMSE: {rmse:.4f}\n"
-        summary += f"  CV R² (mean ± std): {cv_scores.mean():.4f} ± {cv_scores.std():.4f}\n"
+        summary += (
+            f"  CV R² (mean ± std): {cv_scores.mean():.4f} ± {cv_scores.std():.4f}\n"
+        )
         if method != "ridge":
             summary += f"  Non-zero coefficients: {n_nonzero}/{p_vars}\n"
         summary += f"  Intercept: {intercept:.4f}\n\n"
 
         summary += "<<COLOR:text>>Standardized Coefficients:<</COLOR>>\n"
-        summary += f"{'Predictor':<25} {'Coefficient':>12} {'|Coef|':>10} {'Status':>10}\n"
+        summary += (
+            f"{'Predictor':<25} {'Coefficient':>12} {'|Coef|':>10} {'Status':>10}\n"
+        )
         summary += f"{'─' * 60}\n"
 
         # Sort by absolute coefficient
         coef_order = np.argsort(-np.abs(coefs))
         for idx in coef_order:
             status = (
-                "<<COLOR:good>>selected<</COLOR>>" if abs(coefs[idx]) > 1e-10 else "<<COLOR:text>>dropped<</COLOR>>"
+                "<<COLOR:good>>selected<</COLOR>>"
+                if abs(coefs[idx]) > 1e-10
+                else "<<COLOR:text>>dropped<</COLOR>>"
             )
             summary += f"{predictors[idx]:<25} {coefs[idx]:>12.6f} {abs(coefs[idx]):>10.6f} {status:>10}\n"
 
@@ -766,11 +839,22 @@ def _run_advanced_regression(df, analysis_id, config, user):
                         "x": [predictors[i] for i in sorted_idx],
                         "y": [float(coefs[i]) for i in sorted_idx],
                         "marker": {
-                            "color": ["#4a9f6e" if abs(coefs[i]) > 1e-10 else "rgba(90,106,90,0.3)" for i in sorted_idx]
+                            "color": [
+                                (
+                                    "#4a9f6e"
+                                    if abs(coefs[i]) > 1e-10
+                                    else "rgba(90,106,90,0.3)"
+                                )
+                                for i in sorted_idx
+                            ]
                         },
                     }
                 ],
-                "layout": {"height": 300, "xaxis": {"tickangle": -45}, "yaxis": {"title": "Standardized Coefficient"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"tickangle": -45},
+                    "yaxis": {"title": "Standardized Coefficient"},
+                },
             }
         )
 
@@ -796,7 +880,11 @@ def _run_advanced_regression(df, analysis_id, config, user):
                         "name": "Perfect Fit",
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Actual"}, "yaxis": {"title": "Predicted"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Actual"},
+                    "yaxis": {"title": "Predicted"},
+                },
             }
         )
 

@@ -58,36 +58,59 @@ class SecretStore(models.Model):
 
     # Unique identifier for the secret
     name = models.CharField(
-        max_length=255, db_index=True, help_text="Unique name for this secret (e.g., 'stripe_api_key')"
+        max_length=255,
+        db_index=True,
+        help_text="Unique name for this secret (e.g., 'stripe_api_key')",
     )
 
     # Encrypted value (base64 encoded)
-    value_encrypted = models.TextField(help_text="Encrypted secret value (base64 encoded)")
+    value_encrypted = models.TextField(
+        help_text="Encrypted secret value (base64 encoded)"
+    )
 
     # Encrypted Data Encryption Key (base64 encoded)
-    dek_encrypted = models.TextField(help_text="Encrypted Data Encryption Key used to encrypt this secret")
+    dek_encrypted = models.TextField(
+        help_text="Encrypted Data Encryption Key used to encrypt this secret"
+    )
 
     # Key version for rotation support
-    kek_version = models.IntegerField(default=1, help_text="Version of the Key Encryption Key used")
+    kek_version = models.IntegerField(
+        default=1, help_text="Version of the Key Encryption Key used"
+    )
 
     # Tenant isolation
     tenant_id = models.UUIDField(
-        db_index=True, null=True, blank=True, help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)"
+        db_index=True,
+        null=True,
+        blank=True,
+        help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)",
     )
 
     # Metadata
-    created_at = models.DateTimeField(default=timezone.now, db_index=True, help_text="When this secret was created")
+    created_at = models.DateTimeField(
+        default=timezone.now, db_index=True, help_text="When this secret was created"
+    )
 
-    updated_at = models.DateTimeField(auto_now=True, help_text="When this secret was last updated")
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="When this secret was last updated"
+    )
 
-    created_by = models.CharField(max_length=255, blank=True, help_text="User or service that created this secret")
+    created_by = models.CharField(
+        max_length=255, blank=True, help_text="User or service that created this secret"
+    )
 
-    last_rotated_at = models.DateTimeField(null=True, blank=True, help_text="When this secret was last rotated")
+    last_rotated_at = models.DateTimeField(
+        null=True, blank=True, help_text="When this secret was last rotated"
+    )
 
-    rotation_schedule_days = models.IntegerField(default=90, help_text="How often to rotate this secret (in days)")
+    rotation_schedule_days = models.IntegerField(
+        default=90, help_text="How often to rotate this secret (in days)"
+    )
 
     # Secret metadata (non-sensitive)
-    metadata = models.JSONField(default=dict, blank=True, help_text="Non-sensitive metadata about this secret")
+    metadata = models.JSONField(
+        default=dict, blank=True, help_text="Non-sensitive metadata about this secret"
+    )
 
     class Meta:
         app_label = "core"
@@ -396,7 +419,12 @@ def set_secret(
         action = "created" if created else "updated"
         logger.info(
             f"Secret {action}",
-            extra={"secret_name": name, "tenant_id": tenant_id, "created_by": created_by, "action": action},
+            extra={
+                "secret_name": name,
+                "tenant_id": tenant_id,
+                "created_by": created_by,
+                "action": action,
+            },
         )
 
         # Log to audit trail if available
@@ -441,21 +469,30 @@ def get_secret(name: str, tenant_id: str) -> str:
     try:
         secret = SecretStore.objects.get(name=name, tenant_id=tenant_id)
     except SecretStore.DoesNotExist:
-        logger.error(f"Secret not found: {name}", extra={"secret_name": name, "tenant_id": tenant_id})
+        logger.error(
+            f"Secret not found: {name}",
+            extra={"secret_name": name, "tenant_id": tenant_id},
+        )
         raise
 
     # Decrypt DEK with KEK
-    dek = _encryption_manager.decrypt_dek(secret.dek_encrypted, version=secret.kek_version)
+    dek = _encryption_manager.decrypt_dek(
+        secret.dek_encrypted, version=secret.kek_version
+    )
 
     # Decrypt value with DEK
     plaintext = _encryption_manager.decrypt_value(secret.value_encrypted, dek)
 
-    logger.debug(f"Secret retrieved: {name}", extra={"secret_name": name, "tenant_id": tenant_id})
+    logger.debug(
+        f"Secret retrieved: {name}", extra={"secret_name": name, "tenant_id": tenant_id}
+    )
 
     return plaintext
 
 
-def rotate_secret(name: str, tenant_id: str, new_value: str | None = None) -> SecretStore:
+def rotate_secret(
+    name: str, tenant_id: str, new_value: str | None = None
+) -> SecretStore:
     """
     Rotate a secret by re-encrypting with a new DEK.
 
@@ -475,7 +512,9 @@ def rotate_secret(name: str, tenant_id: str, new_value: str | None = None) -> Se
         >>> rotate_secret("stripe_api_key", "acme_corp", "sk_live_new...")
     """
     with transaction.atomic():
-        secret = SecretStore.objects.select_for_update().get(name=name, tenant_id=tenant_id)
+        secret = SecretStore.objects.select_for_update().get(
+            name=name, tenant_id=tenant_id
+        )
 
         # Get current value if not providing new one
         if new_value is None:
@@ -498,7 +537,10 @@ def rotate_secret(name: str, tenant_id: str, new_value: str | None = None) -> Se
         secret.last_rotated_at = timezone.now()
         secret.save()
 
-        logger.info(f"Secret rotated: {name}", extra={"secret_name": name, "tenant_id": tenant_id})
+        logger.info(
+            f"Secret rotated: {name}",
+            extra={"secret_name": name, "tenant_id": tenant_id},
+        )
 
         # Log to audit trail
         try:
@@ -534,7 +576,9 @@ def delete_secret(name: str, tenant_id: str) -> None:
     secret = SecretStore.objects.get(name=name, tenant_id=tenant_id)
     secret.delete()
 
-    logger.info(f"Secret deleted: {name}", extra={"secret_name": name, "tenant_id": tenant_id})
+    logger.info(
+        f"Secret deleted: {name}", extra={"secret_name": name, "tenant_id": tenant_id}
+    )
 
     # Log to audit trail
     try:
@@ -595,10 +639,14 @@ def rotate_all_keys(old_kek_version: int = 1, new_kek_version: int = 2) -> int:
         try:
             with transaction.atomic():
                 # Decrypt DEK with old KEK
-                dek = _encryption_manager.decrypt_dek(secret.dek_encrypted, version=old_kek_version)
+                dek = _encryption_manager.decrypt_dek(
+                    secret.dek_encrypted, version=old_kek_version
+                )
 
                 # Re-encrypt DEK with new KEK
-                new_dek_encrypted = _encryption_manager.encrypt_dek(dek, version=new_kek_version)
+                new_dek_encrypted = _encryption_manager.encrypt_dek(
+                    dek, version=new_kek_version
+                )
 
                 # Update secret
                 secret.dek_encrypted = new_dek_encrypted

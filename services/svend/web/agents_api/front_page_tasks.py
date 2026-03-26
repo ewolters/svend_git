@@ -47,13 +47,17 @@ def _collect_learnings(user):
         items.append(f"[Reflection] {hk.key_learning}")
 
     # Anti-patterns and notes from front matter
-    for page in NotebookPage.objects.filter(notebook__owner=user, trial_role="front_matter").order_by("-created_at"):
+    for page in NotebookPage.objects.filter(
+        notebook__owner=user, trial_role="front_matter"
+    ).order_by("-created_at"):
         label = "Anti-pattern" if page.source_tool == "anti_pattern" else "Note"
         text = page.narrative or page.title
         items.append(f"[{label}] {text}")
 
     # Yokoten
-    for y in Yokoten.objects.filter(source_notebook__owner=user).order_by("-created_at"):
+    for y in Yokoten.objects.filter(source_notebook__owner=user).order_by(
+        "-created_at"
+    ):
         ctx = f" ({y.context})" if y.context else ""
         items.append(f"[Yokoten] {y.learning}{ctx}")
 
@@ -84,7 +88,9 @@ def _run_qwen(learnings_text):
 
     prompt = _PROMPT.format(learnings=learnings_text)
     messages = [{"role": "user", "content": prompt}]
-    text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    text = tokenizer.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=True
+    )
     inputs = tokenizer(text, return_tensors="pt").to("cuda")
 
     start = time.time()
@@ -98,14 +104,21 @@ def _run_qwen(learnings_text):
         )
     gen_time = time.time() - start
 
-    response = tokenizer.decode(outputs[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True)
+    response = tokenizer.decode(
+        outputs[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True
+    )
     tokens_out = outputs.shape[1] - inputs["input_ids"].shape[1]
 
     # Cleanup GPU memory
     del model, inputs, outputs
     torch.cuda.empty_cache()
 
-    logger.info("Qwen generated %d tokens in %.1fs (%.0f tok/s)", tokens_out, gen_time, tokens_out / gen_time)
+    logger.info(
+        "Qwen generated %d tokens in %.1fs (%.0f tok/s)",
+        tokens_out,
+        gen_time,
+        tokens_out / gen_time,
+    )
 
     return response, gen_time * 1000
 
@@ -161,7 +174,9 @@ def generate_front_page_digest(payload, context=None):
     source_hash = _compute_hash(items)
     existing = FrontPageDigest.objects.filter(user=user).first()
     if existing and existing.source_hash == source_hash:
-        logger.info("Digest for %s is current (hash=%s) — skipping", user.email, source_hash)
+        logger.info(
+            "Digest for %s is current (hash=%s) — skipping", user.email, source_hash
+        )
         return {"skipped": True, "reason": "hash_unchanged"}
 
     # Format learnings as numbered list

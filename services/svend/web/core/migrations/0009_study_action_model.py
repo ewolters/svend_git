@@ -10,26 +10,66 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0008_alter_evidence_confidence_and_more'),
+        ("core", "0008_alter_evidence_confidence_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='StudyAction',
+            name="StudyAction",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('action_type', models.CharField(choices=[('raise_capa', 'Raise CAPA'), ('schedule_audit', 'Schedule Verification Audit'), ('request_doc_update', 'Request Document Update'), ('flag_training_gap', 'Flag Training Gap'), ('flag_fmea_update', 'Flag FMEA Update')], max_length=30)),
-                ('target_type', models.CharField(help_text='Model name of the target: report, audit, document, training, fmea', max_length=30)),
-                ('target_id', models.UUIDField(help_text='PK of the target record')),
-                ('notes', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
-                ('project', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='study_actions', to='core.project')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "action_type",
+                    models.CharField(
+                        choices=[
+                            ("raise_capa", "Raise CAPA"),
+                            ("schedule_audit", "Schedule Verification Audit"),
+                            ("request_doc_update", "Request Document Update"),
+                            ("flag_training_gap", "Flag Training Gap"),
+                            ("flag_fmea_update", "Flag FMEA Update"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                (
+                    "target_type",
+                    models.CharField(
+                        help_text="Model name of the target: report, audit, document, training, fmea",
+                        max_length=30,
+                    ),
+                ),
+                ("target_id", models.UUIDField(help_text="PK of the target record")),
+                ("notes", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "project",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="study_actions",
+                        to="core.project",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'core_study_action',
-                'ordering': ['-created_at'],
+                "db_table": "core_study_action",
+                "ordering": ["-created_at"],
             },
         ),
     ]

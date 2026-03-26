@@ -345,7 +345,9 @@ class ExpansionSignal:
 
     # Status
     resolved: bool = False
-    resolution: str | None = None  # "new_hypothesis", "expanded_hypothesis", "dismissed"
+    resolution: str | None = (
+        None  # "new_hypothesis", "expanded_hypothesis", "dismissed"
+    )
 
     # Metadata
     timestamp: datetime = field(default_factory=datetime.utcnow)

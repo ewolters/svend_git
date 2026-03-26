@@ -37,7 +37,9 @@ class Command(BaseDbShell):
                 sys.exit(1)
 
             if answer.strip().lower() != "production":
-                self.stderr.write(self.style.ERROR("Aborted. Did not type 'production'."))
+                self.stderr.write(
+                    self.style.ERROR("Aborted. Did not type 'production'.")
+                )
                 sys.exit(1)
 
         super().handle(*args, **options)

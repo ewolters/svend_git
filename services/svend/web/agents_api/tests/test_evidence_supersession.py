@@ -124,7 +124,9 @@ class ActiveEvidenceQueryTest(TestCase):
         e3 = _make_evidence(self.project, summary="Standalone")
 
         # Active = not superseded by anything
-        active = Evidence.objects.filter(project=self.project, superseded_by__isnull=True)
+        active = Evidence.objects.filter(
+            project=self.project, superseded_by__isnull=True
+        )
         self.assertIn(e2, active)
         self.assertIn(e3, active)
         self.assertNotIn(e1, active)
@@ -134,7 +136,9 @@ class ActiveEvidenceQueryTest(TestCase):
         e1 = _make_evidence(self.project, summary="A")
         e2 = _make_evidence(self.project, summary="B")
 
-        active = Evidence.objects.filter(project=self.project, superseded_by__isnull=True)
+        active = Evidence.objects.filter(
+            project=self.project, superseded_by__isnull=True
+        )
         self.assertEqual(active.count(), 2)
 
     def test_chain_only_head_is_active(self):
@@ -143,12 +147,16 @@ class ActiveEvidenceQueryTest(TestCase):
         e2 = _make_evidence(self.project, summary="v2", supersedes=e1)
         e3 = _make_evidence(self.project, summary="v3", supersedes=e2)
 
-        active = Evidence.objects.filter(project=self.project, superseded_by__isnull=True)
+        active = Evidence.objects.filter(
+            project=self.project, superseded_by__isnull=True
+        )
         self.assertEqual(list(active), [e3])
 
     def test_existing_evidence_unaffected(self):
         """Pre-existing evidence without supersedes remains active."""
         e1 = _make_evidence(self.project, summary="Legacy evidence")
         self.assertIsNone(e1.supersedes)
-        active = Evidence.objects.filter(project=self.project, superseded_by__isnull=True)
+        active = Evidence.objects.filter(
+            project=self.project, superseded_by__isnull=True
+        )
         self.assertIn(e1, active)

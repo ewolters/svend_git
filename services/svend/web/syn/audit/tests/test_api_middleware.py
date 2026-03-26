@@ -190,7 +190,9 @@ class SynaraErrorConversionTest(SimpleTestCase):
         """Non-SynaraError exceptions return generic 500 without internal details."""
         request = _make_request()
         middleware = ErrorEnvelopeMiddleware(lambda r: _json_ok())
-        response = middleware.process_exception(request, RuntimeError("db connection lost"))
+        response = middleware.process_exception(
+            request, RuntimeError("db connection lost")
+        )
 
         self.assertEqual(response.status_code, 500)
         data = json.loads(response.content)
@@ -457,7 +459,9 @@ class PaginationResponseTest(SimpleTestCase):
 
     def test_cursor_response_has_all_fields(self):
         """create_cursor_response includes data, next_cursor, total_estimate."""
-        result = create_cursor_response(data=["a"], next_cursor="cur", total_estimate=10)
+        result = create_cursor_response(
+            data=["a"], next_cursor="cur", total_estimate=10
+        )
         for field in ["data", "next_cursor", "total_estimate"]:
             self.assertIn(field, result)
 
@@ -642,7 +646,9 @@ class IdempotencyDirectTest(TestCase):
     def test_skips_non_api_paths(self):
         """Non-API POST requests bypass idempotency checks."""
         factory = RequestFactory()
-        request = factory.post("/admin/login/", data=b"{}", content_type="application/json")
+        request = factory.post(
+            "/admin/login/", data=b"{}", content_type="application/json"
+        )
         request.syn_request_id = "test"
         request.tenant_id = None
 

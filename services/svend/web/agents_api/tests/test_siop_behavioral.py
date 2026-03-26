@@ -23,7 +23,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email="siop-test@test.com", tier=Tier.TEAM):
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123")
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123"
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -198,8 +200,12 @@ class SIOPEoqTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         body = resp.json()
         stats = body.get("statistics", {})
-        eoq = stats.get("eoq") or stats.get("EOQ") or stats.get("optimal_order_quantity")
-        self.assertIsNotNone(eoq, f"Expected EOQ in statistics, got: {list(stats.keys())}")
+        eoq = (
+            stats.get("eoq") or stats.get("EOQ") or stats.get("optimal_order_quantity")
+        )
+        self.assertIsNotNone(
+            eoq, f"Expected EOQ in statistics, got: {list(stats.keys())}"
+        )
         self.assertGreater(float(eoq), 0)
         self.assertGreater(len(body.get("plots", [])), 0)
 
@@ -285,7 +291,9 @@ class SIOPInventoryTurnsTest(TestCase):
         body = resp.json()
         stats = body.get("statistics", {})
         turns = stats.get("turns") or stats.get("inventory_turns")
-        self.assertIsNotNone(turns, f"Expected turns in statistics, got: {list(stats.keys())}")
+        self.assertIsNotNone(
+            turns, f"Expected turns in statistics, got: {list(stats.keys())}"
+        )
         self.assertAlmostEqual(float(turns), 6.25, places=1)
 
 
@@ -346,8 +354,12 @@ class SIOPKanbanSizingTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         body = resp.json()
         stats = body.get("statistics", {})
-        cards = stats.get("kanban_cards") or stats.get("cards") or stats.get("n_kanbans")
-        self.assertIsNotNone(cards, f"Expected kanban cards in statistics, got: {list(stats.keys())}")
+        cards = (
+            stats.get("kanban_cards") or stats.get("cards") or stats.get("n_kanbans")
+        )
+        self.assertIsNotNone(
+            cards, f"Expected kanban cards in statistics, got: {list(stats.keys())}"
+        )
         self.assertGreater(float(cards), 0)
         self.assertIn("summary", body)
 
@@ -509,7 +521,12 @@ class SIOPDispatchIntegrationTest(TestCase):
         resp = _post_siop(
             self.client,
             "eoq",
-            config={"demand": 1000, "order_cost": 50, "unit_cost": 10, "holding_pct": 25},
+            config={
+                "demand": 1000,
+                "order_cost": 50,
+                "unit_cost": 10,
+                "holding_pct": 25,
+            },
         )
         self.assertEqual(resp.status_code, 200)
 
@@ -556,7 +573,12 @@ class SIOPDispatchIntegrationTest(TestCase):
         resp = _post_siop(
             self.client,
             "eoq",
-            config={"demand": 5000, "order_cost": 100, "unit_cost": 15, "holding_pct": 20},
+            config={
+                "demand": 5000,
+                "order_cost": 100,
+                "unit_cost": 15,
+                "holding_pct": 20,
+            },
         )
         self.assertEqual(resp.status_code, 200)
         body = resp.json()

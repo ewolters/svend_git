@@ -19,14 +19,24 @@ class Command(BaseCommand):
     help = "Verify audit log chain integrity for tenant(s)"
 
     def add_arguments(self, parser):
-        parser.add_argument("--tenant", type=str, help="Tenant ID to verify (default: verify all)")
-
-        parser.add_argument("--all-tenants", action="store_true", help="Explicitly verify all tenants")
-
-        parser.add_argument("--record-violations", action="store_true", help="Record detected violations to database")
+        parser.add_argument(
+            "--tenant", type=str, help="Tenant ID to verify (default: verify all)"
+        )
 
         parser.add_argument(
-            "--fail-on-violation", action="store_true", help="Exit with error code if violations detected"
+            "--all-tenants", action="store_true", help="Explicitly verify all tenants"
+        )
+
+        parser.add_argument(
+            "--record-violations",
+            action="store_true",
+            help="Record detected violations to database",
+        )
+
+        parser.add_argument(
+            "--fail-on-violation",
+            action="store_true",
+            help="Exit with error code if violations detected",
         )
 
     def handle(self, *args, **options):
@@ -41,11 +51,15 @@ class Command(BaseCommand):
             self.stdout.write(f"Verifying audit log for tenant: {tenant_id}")
         elif all_tenants:
             # Get all unique tenant IDs from audit log
-            tenant_ids = SysLogEntry.objects.values_list("tenant_id", flat=True).distinct()
+            tenant_ids = SysLogEntry.objects.values_list(
+                "tenant_id", flat=True
+            ).distinct()
             self.stdout.write(f"Verifying audit logs for {len(tenant_ids)} tenants")
         else:
             # Default: verify all tenants
-            tenant_ids = SysLogEntry.objects.values_list("tenant_id", flat=True).distinct()
+            tenant_ids = SysLogEntry.objects.values_list(
+                "tenant_id", flat=True
+            ).distinct()
             self.stdout.write(f"Verifying audit logs for {len(tenant_ids)} tenants")
 
         # Verify each tenant's chain
@@ -60,15 +74,25 @@ class Command(BaseCommand):
 
             # Display results
             if result["is_valid"]:
-                self.stdout.write(self.style.SUCCESS(f"  ✓ Chain intact: {result['total_entries']} entries verified"))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"  ✓ Chain intact: {result['total_entries']} entries verified"
+                    )
+                )
             else:
                 self.stdout.write(
-                    self.style.ERROR(f"  ✗ Chain compromised: {len(result['violations'])} violations detected")
+                    self.style.ERROR(
+                        f"  ✗ Chain compromised: {len(result['violations'])} violations detected"
+                    )
                 )
 
                 # Show violation details
                 for violation in result["violations"]:
-                    self.stdout.write(self.style.WARNING(f"    - {violation['type']}: {violation['message']}"))
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"    - {violation['type']}: {violation['message']}"
+                        )
+                    )
 
                     # Record violation if requested
                     if record_violations:
@@ -79,9 +103,17 @@ class Command(BaseCommand):
                                 entry_id=violation.get("entry_id"),
                                 details=violation,
                             )
-                            self.stdout.write(self.style.WARNING("      Violation recorded and alert emitted"))
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    "      Violation recorded and alert emitted"
+                                )
+                            )
                         except Exception as e:
-                            self.stdout.write(self.style.ERROR(f"      Failed to record violation: {e}"))
+                            self.stdout.write(
+                                self.style.ERROR(
+                                    f"      Failed to record violation: {e}"
+                                )
+                            )
 
                 total_violations += len(result["violations"])
 
@@ -104,9 +136,15 @@ class Command(BaseCommand):
 
         # Exit with error if violations detected and flag set
         if fail_on_violation and total_violations > 0:
-            raise CommandError(f"Integrity verification failed: {total_violations} violations detected")
+            raise CommandError(
+                f"Integrity verification failed: {total_violations} violations detected"
+            )
 
         if total_violations == 0:
             self.stdout.write(self.style.SUCCESS("\n✓ All audit log chains are intact"))
         else:
-            self.stdout.write(self.style.ERROR("\n✗ Integrity violations detected. Investigate immediately!"))
+            self.stdout.write(
+                self.style.ERROR(
+                    "\n✗ Integrity violations detected. Investigate immediately!"
+                )
+            )

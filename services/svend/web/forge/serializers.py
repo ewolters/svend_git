@@ -18,7 +18,19 @@ class FieldDefinitionSerializer(serializers.Serializer):
     """Definition for a single schema field."""
 
     type = serializers.ChoiceField(
-        choices=["string", "int", "float", "bool", "category", "email", "uuid", "datetime", "date", "url", "phone"]
+        choices=[
+            "string",
+            "int",
+            "float",
+            "bool",
+            "category",
+            "email",
+            "uuid",
+            "datetime",
+            "date",
+            "url",
+            "phone",
+        ]
     )
     constraints = FieldConstraintSerializer(required=False)
     nullable = serializers.BooleanField(default=False)
@@ -34,17 +46,25 @@ class SchemaDefinitionSerializer(serializers.Serializer):
 class GenerateRequestSerializer(serializers.Serializer):
     """Request to generate synthetic data."""
 
-    data_type = serializers.ChoiceField(choices=DataType.choices, default=DataType.TABULAR)
+    data_type = serializers.ChoiceField(
+        choices=DataType.choices, default=DataType.TABULAR
+    )
     domain = serializers.CharField(max_length=100, required=False, default="")
     record_count = serializers.IntegerField(min_value=1, max_value=1000000)
     schema = serializers.DictField(required=False)  # Custom schema
     template = serializers.CharField(max_length=100, required=False)  # Or use template
-    quality_level = serializers.ChoiceField(choices=QualityLevel.choices, default=QualityLevel.STANDARD)
-    output_format = serializers.ChoiceField(choices=["json", "jsonl", "csv"], default="jsonl")
+    quality_level = serializers.ChoiceField(
+        choices=QualityLevel.choices, default=QualityLevel.STANDARD
+    )
+    output_format = serializers.ChoiceField(
+        choices=["json", "jsonl", "csv"], default="jsonl"
+    )
 
     def validate(self, data):
         if not data.get("schema") and not data.get("template"):
-            raise serializers.ValidationError("Either 'schema' or 'template' must be provided")
+            raise serializers.ValidationError(
+                "Either 'schema' or 'template' must be provided"
+            )
         return data
 
 
@@ -101,7 +121,15 @@ class SchemaTemplateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemaTemplate
-        fields = ["id", "name", "description", "domain", "data_type", "schema_def", "is_builtin"]
+        fields = [
+            "id",
+            "name",
+            "description",
+            "domain",
+            "data_type",
+            "schema_def",
+            "is_builtin",
+        ]
         read_only_fields = ["id", "is_builtin"]
 
 

@@ -68,7 +68,9 @@ def redact_error_message(message: str) -> str:
     for pattern in SENSITIVE_ERROR_PATTERNS:
         redacted = re.sub(pattern, "***REDACTED***", redacted, flags=re.IGNORECASE)
     for pattern in ENV_VAR_PATTERNS:
-        redacted = re.sub(f"{pattern}=[^\\s]+", f"{pattern}=***", redacted, flags=re.IGNORECASE)
+        redacted = re.sub(
+            f"{pattern}=[^\\s]+", f"{pattern}=***", redacted, flags=re.IGNORECASE
+        )
     return redacted
 
 
@@ -277,12 +279,16 @@ class APIHeadersMiddleware:
             return self.get_response(request)
 
         # Validate Accept header for API paths
-        if request.path.startswith("/api/") and not _is_browser_facing_api(request.path):
+        if request.path.startswith("/api/") and not _is_browser_facing_api(
+            request.path
+        ):
             accept = request.headers.get(HEADER_ACCEPT, "")
             if not accept or accept == "*/*":
                 # Allow */* but prefer explicit JSON
                 pass
-            elif "application/json" not in {p.split(";")[0].strip() for p in accept.split(",")}:
+            elif "application/json" not in {
+                p.split(";")[0].strip() for p in accept.split(",")
+            }:
                 return JsonResponse(
                     {
                         "error": {
@@ -555,7 +561,9 @@ class ErrorEnvelopeMiddleware:
             if "error" in content and "code" in content.get("error", {}):
                 # Already has proper envelope, just add request_id if missing
                 if "request_id" not in content["error"]:
-                    content["error"]["request_id"] = getattr(request, "syn_request_id", None)
+                    content["error"]["request_id"] = getattr(
+                        request, "syn_request_id", None
+                    )
                     response.content = json.dumps(content).encode("utf-8")
                 return response
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -568,7 +576,9 @@ class ErrorEnvelopeMiddleware:
         retryable = status_code in self.RETRYABLE_STATUSES
 
         # Extract message from original response
-        message = content.get("detail", content.get("error", content.get("message", "")))
+        message = content.get(
+            "detail", content.get("error", content.get("message", ""))
+        )
         if not message:
             message = response.reason_phrase or f"HTTP {status_code}"
 
@@ -595,7 +605,9 @@ class ErrorEnvelopeMiddleware:
 
         return new_response
 
-    def process_exception(self, request: HttpRequest, exception: Exception) -> HttpResponse:
+    def process_exception(
+        self, request: HttpRequest, exception: Exception
+    ) -> HttpResponse:
         """
         Handle exceptions and convert to error envelope per ERR-002.
 

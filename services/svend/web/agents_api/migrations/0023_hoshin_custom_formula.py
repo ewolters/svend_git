@@ -6,23 +6,37 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0022_hoshin_kanri'),
+        ("agents_api", "0022_hoshin_kanri"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='hoshinproject',
-            name='custom_formula',
-            field=models.CharField(blank=True, default='', help_text="Custom formula e.g. '(baseline - actual) * volume * rate'", max_length=500),
+            model_name="hoshinproject",
+            name="custom_formula",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="Custom formula e.g. '(baseline - actual) * volume * rate'",
+                max_length=500,
+            ),
         ),
         migrations.AddField(
-            model_name='hoshinproject',
-            name='custom_formula_desc',
-            field=models.CharField(blank=True, default='', help_text='Human-readable description of the custom formula', max_length=200),
+            model_name="hoshinproject",
+            name="custom_formula_desc",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="Human-readable description of the custom formula",
+                max_length=200,
+            ),
         ),
         migrations.AlterField(
-            model_name='hoshinproject',
-            name='calculation_method',
-            field=models.CharField(blank=True, help_text='waste_pct, time_reduction, headcount, claims, freight, energy, direct, layout, custom', max_length=30),
+            model_name="hoshinproject",
+            name="calculation_method",
+            field=models.CharField(
+                blank=True,
+                help_text="waste_pct, time_reduction, headcount, claims, freight, energy, direct, layout, custom",
+                max_length=30,
+            ),
         ),
     ]

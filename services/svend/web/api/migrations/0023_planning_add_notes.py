@@ -6,18 +6,24 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0022_planning_system_initiative_feature_task'),
+        ("api", "0022_planning_system_initiative_feature_task"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='feature',
-            name='notes',
-            field=models.TextField(blank=True, help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's."),
+            model_name="feature",
+            name="notes",
+            field=models.TextField(
+                blank=True,
+                help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's.",
+            ),
         ),
         migrations.AddField(
-            model_name='initiative',
-            name='notes',
-            field=models.TextField(blank=True, help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's."),
+            model_name="initiative",
+            name="notes",
+            field=models.TextField(
+                blank=True,
+                help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's.",
+            ),
         ),
     ]

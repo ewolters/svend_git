@@ -9,70 +9,167 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0012_remove_whitepaperdownload_path_and_more'),
+        ("api", "0012_remove_whitepaperdownload_path_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='OutreachSequence',
+            name="OutreachSequence",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=200)),
-                ('description', models.TextField(blank=True)),
-                ('is_active', models.BooleanField(default=True)),
-                ('steps', models.JSONField(blank=True, default=list)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("name", models.CharField(max_length=200)),
+                ("description", models.TextField(blank=True)),
+                ("is_active", models.BooleanField(default=True)),
+                ("steps", models.JSONField(blank=True, default=list)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'db_table': 'outreach_sequences',
-                'ordering': ['-created_at'],
+                "db_table": "outreach_sequences",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='CRMLead',
+            name="CRMLead",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=200)),
-                ('email', models.EmailField(max_length=254, unique=True)),
-                ('company', models.CharField(blank=True, max_length=200)),
-                ('role', models.CharField(blank=True, max_length=100)),
-                ('industry', models.CharField(blank=True, max_length=100)),
-                ('source', models.CharField(choices=[('linkedin', 'LinkedIn'), ('referral', 'Referral'), ('inbound', 'Inbound'), ('conference', 'Conference'), ('cold', 'Cold'), ('whitepaper', 'Whitepaper'), ('other', 'Other')], default='other', max_length=20)),
-                ('stage', models.CharField(choices=[('prospect', 'Prospect'), ('contacted', 'Contacted'), ('engaged', 'Engaged'), ('demo', 'Demo'), ('trial', 'Trial'), ('customer', 'Customer'), ('churned', 'Churned'), ('lost', 'Lost')], db_index=True, default='prospect', max_length=20)),
-                ('notes', models.TextField(blank=True)),
-                ('tags', models.JSONField(blank=True, default=list)),
-                ('email_opted_out', models.BooleanField(default=False)),
-                ('last_contacted_at', models.DateTimeField(blank=True, null=True)),
-                ('next_followup_at', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("name", models.CharField(max_length=200)),
+                ("email", models.EmailField(max_length=254, unique=True)),
+                ("company", models.CharField(blank=True, max_length=200)),
+                ("role", models.CharField(blank=True, max_length=100)),
+                ("industry", models.CharField(blank=True, max_length=100)),
+                (
+                    "source",
+                    models.CharField(
+                        choices=[
+                            ("linkedin", "LinkedIn"),
+                            ("referral", "Referral"),
+                            ("inbound", "Inbound"),
+                            ("conference", "Conference"),
+                            ("cold", "Cold"),
+                            ("whitepaper", "Whitepaper"),
+                            ("other", "Other"),
+                        ],
+                        default="other",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "stage",
+                    models.CharField(
+                        choices=[
+                            ("prospect", "Prospect"),
+                            ("contacted", "Contacted"),
+                            ("engaged", "Engaged"),
+                            ("demo", "Demo"),
+                            ("trial", "Trial"),
+                            ("customer", "Customer"),
+                            ("churned", "Churned"),
+                            ("lost", "Lost"),
+                        ],
+                        db_index=True,
+                        default="prospect",
+                        max_length=20,
+                    ),
+                ),
+                ("notes", models.TextField(blank=True)),
+                ("tags", models.JSONField(blank=True, default=list)),
+                ("email_opted_out", models.BooleanField(default=False)),
+                ("last_contacted_at", models.DateTimeField(blank=True, null=True)),
+                ("next_followup_at", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'db_table': 'crm_leads',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['stage', 'next_followup_at'], name='crm_leads_stage_c1fb5d_idx'), models.Index(fields=['source', 'created_at'], name='crm_leads_source_147955_idx')],
+                "db_table": "crm_leads",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["stage", "next_followup_at"],
+                        name="crm_leads_stage_c1fb5d_idx",
+                    ),
+                    models.Index(
+                        fields=["source", "created_at"],
+                        name="crm_leads_source_147955_idx",
+                    ),
+                ],
             },
         ),
         migrations.CreateModel(
-            name='OutreachEnrollment',
+            name="OutreachEnrollment",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('current_step', models.IntegerField(default=0)),
-                ('status', models.CharField(choices=[('active', 'Active'), ('completed', 'Completed'), ('paused', 'Paused'), ('replied', 'Replied'), ('opted_out', 'Opted Out')], default='active', max_length=20)),
-                ('variant', models.CharField(max_length=1)),
-                ('last_sent_at', models.DateTimeField(blank=True, null=True)),
-                ('next_send_at', models.DateTimeField(blank=True, null=True)),
-                ('send_log', models.JSONField(blank=True, default=list)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('lead', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='enrollments', to='api.crmlead')),
-                ('sequence', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='enrollments', to='api.outreachsequence')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("current_step", models.IntegerField(default=0)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("active", "Active"),
+                            ("completed", "Completed"),
+                            ("paused", "Paused"),
+                            ("replied", "Replied"),
+                            ("opted_out", "Opted Out"),
+                        ],
+                        default="active",
+                        max_length=20,
+                    ),
+                ),
+                ("variant", models.CharField(max_length=1)),
+                ("last_sent_at", models.DateTimeField(blank=True, null=True)),
+                ("next_send_at", models.DateTimeField(blank=True, null=True)),
+                ("send_log", models.JSONField(blank=True, default=list)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "lead",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="enrollments",
+                        to="api.crmlead",
+                    ),
+                ),
+                (
+                    "sequence",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="enrollments",
+                        to="api.outreachsequence",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'outreach_enrollments',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['status', 'next_send_at'], name='outreach_en_status_621053_idx')],
-                'unique_together': {('lead', 'sequence')},
+                "db_table": "outreach_enrollments",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["status", "next_send_at"],
+                        name="outreach_en_status_621053_idx",
+                    )
+                ],
+                "unique_together": {("lead", "sequence")},
             },
         ),
     ]

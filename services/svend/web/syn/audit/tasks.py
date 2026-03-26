@@ -16,9 +16,11 @@ except ImportError:
             func.delay = lambda *a, **kw: None
             func.apply_async = lambda *a, **kw: None
             return func
+
         if args and callable(args[0]):
             return decorator(args[0])
         return decorator
+
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +64,9 @@ def verify_audit_integrity(self):
         # Get all unique tenant IDs
         tenant_ids = SysLogEntry.objects.values_list("tenant_id", flat=True).distinct()
 
-        logger.info(f"Starting audit integrity verification for {len(tenant_ids)} tenants")
+        logger.info(
+            f"Starting audit integrity verification for {len(tenant_ids)} tenants"
+        )
 
         violations_detected = 0
         tenants_verified = 0
@@ -88,14 +92,19 @@ def verify_audit_integrity(self):
                             violations_detected += 1
 
                             logger.critical(
-                                f"Audit integrity violation for tenant {tenant_id}: " f"{violation['type']}"
+                                f"Audit integrity violation for tenant {tenant_id}: "
+                                f"{violation['type']}"
                             )
 
                         except Exception as e:
-                            logger.error(f"Failed to record violation for tenant {tenant_id}: {e}")
+                            logger.error(
+                                f"Failed to record violation for tenant {tenant_id}: {e}"
+                            )
 
             except Exception as e:
-                logger.error(f"Failed to verify chain for tenant {tenant_id}: {e}", exc_info=True)
+                logger.error(
+                    f"Failed to verify chain for tenant {tenant_id}: {e}", exc_info=True
+                )
 
         # Log summary
         if violations_detected == 0:
@@ -161,9 +170,14 @@ def cleanup_old_violations(self, days: int = 90):
         cutoff = timezone.now() - timedelta(days=days)
 
         # Delete only resolved violations
-        deleted_count, _ = IntegrityViolation.objects.filter(is_resolved=True, resolved_at__lt=cutoff).delete()
+        deleted_count, _ = IntegrityViolation.objects.filter(
+            is_resolved=True, resolved_at__lt=cutoff
+        ).delete()
 
-        logger.info(f"Cleaned up {deleted_count} resolved integrity violations " f"older than {days} days")
+        logger.info(
+            f"Cleaned up {deleted_count} resolved integrity violations "
+            f"older than {days} days"
+        )
 
         return deleted_count
 

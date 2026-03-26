@@ -10,96 +10,200 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0038_alter_strategicobjective_target_metric_and_more'),
-        ('files', '0002_alter_userfile_file'),
+        ("agents_api", "0038_alter_strategicobjective_target_metric_and_more"),
+        ("files", "0002_alter_userfile_file"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='auditfinding',
-            name='evidence',
+            model_name="auditfinding",
+            name="evidence",
             field=models.TextField(blank=True),
         ),
         migrations.AddField(
-            model_name='auditfinding',
-            name='status',
-            field=models.CharField(choices=[('open', 'Open'), ('corrective_action_required', 'Corrective Action Required'), ('closed', 'Closed')], default='open', max_length=30),
+            model_name="auditfinding",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("open", "Open"),
+                    ("corrective_action_required", "Corrective Action Required"),
+                    ("closed", "Closed"),
+                ],
+                default="open",
+                max_length=30,
+            ),
         ),
         migrations.AddField(
-            model_name='nonconformancerecord',
-            name='approved_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='approved_ncrs', to=settings.AUTH_USER_MODEL),
+            model_name="nonconformancerecord",
+            name="approved_by",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="approved_ncrs",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='nonconformancerecord',
-            name='assigned_to',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assigned_ncrs', to=settings.AUTH_USER_MODEL),
+            model_name="nonconformancerecord",
+            name="assigned_to",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="assigned_ncrs",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='nonconformancerecord',
-            name='capa_report',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='ncrs', to='agents_api.report'),
+            model_name="nonconformancerecord",
+            name="capa_report",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="ncrs",
+                to="agents_api.report",
+            ),
         ),
         migrations.AddField(
-            model_name='nonconformancerecord',
-            name='files',
-            field=models.ManyToManyField(blank=True, related_name='ncrs', to='files.userfile'),
+            model_name="nonconformancerecord",
+            name="files",
+            field=models.ManyToManyField(
+                blank=True, related_name="ncrs", to="files.userfile"
+            ),
         ),
         migrations.AddField(
-            model_name='nonconformancerecord',
-            name='raised_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='raised_ncrs', to=settings.AUTH_USER_MODEL),
+            model_name="nonconformancerecord",
+            name="raised_by",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="raised_ncrs",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='nonconformancerecord',
-            name='rca_session',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='ncrs', to='agents_api.rcasession'),
+            model_name="nonconformancerecord",
+            name="rca_session",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="ncrs",
+                to="agents_api.rcasession",
+            ),
         ),
         migrations.AlterField(
-            model_name='auditfinding',
-            name='finding_type',
-            field=models.CharField(choices=[('nc_major', 'Major Nonconformity'), ('nc_minor', 'Minor Nonconformity'), ('observation', 'Observation'), ('opportunity', 'Opportunity for Improvement')], max_length=20),
+            model_name="auditfinding",
+            name="finding_type",
+            field=models.CharField(
+                choices=[
+                    ("nc_major", "Major Nonconformity"),
+                    ("nc_minor", "Minor Nonconformity"),
+                    ("observation", "Observation"),
+                    ("opportunity", "Opportunity for Improvement"),
+                ],
+                max_length=20,
+            ),
         ),
         migrations.AlterField(
-            model_name='internalaudit',
-            name='status',
-            field=models.CharField(choices=[('planned', 'Planned'), ('in_progress', 'In Progress'), ('complete', 'Complete'), ('report_issued', 'Report Issued'), ('cancelled', 'Cancelled')], default='planned', max_length=20),
+            model_name="internalaudit",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("planned", "Planned"),
+                    ("in_progress", "In Progress"),
+                    ("complete", "Complete"),
+                    ("report_issued", "Report Issued"),
+                    ("cancelled", "Cancelled"),
+                ],
+                default="planned",
+                max_length=20,
+            ),
         ),
         migrations.AlterField(
-            model_name='managementreview',
-            name='attendees',
-            field=models.JSONField(blank=True, default=list, help_text='List of attendee names'),
+            model_name="managementreview",
+            name="attendees",
+            field=models.JSONField(
+                blank=True, default=list, help_text="List of attendee names"
+            ),
         ),
         migrations.CreateModel(
-            name='AuditChecklist',
+            name="AuditChecklist",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=300)),
-                ('iso_clause', models.CharField(blank=True, max_length=20)),
-                ('check_items', models.JSONField(default=list, help_text='[{"question": "...", "guidance": "..."}]')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='audit_checklists', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("name", models.CharField(max_length=300)),
+                ("iso_clause", models.CharField(blank=True, max_length=20)),
+                (
+                    "check_items",
+                    models.JSONField(
+                        default=list,
+                        help_text='[{"question": "...", "guidance": "..."}]',
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="audit_checklists",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'iso_audit_checklists',
-                'ordering': ['name'],
+                "db_table": "iso_audit_checklists",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='NCRStatusChange',
+            name="NCRStatusChange",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('from_status', models.CharField(max_length=20)),
-                ('to_status', models.CharField(max_length=20)),
-                ('note', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('changed_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
-                ('ncr', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='status_changes', to='agents_api.nonconformancerecord')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("from_status", models.CharField(max_length=20)),
+                ("to_status", models.CharField(max_length=20)),
+                ("note", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "changed_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "ncr",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="status_changes",
+                        to="agents_api.nonconformancerecord",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'iso_ncr_status_changes',
-                'ordering': ['created_at'],
+                "db_table": "iso_ncr_status_changes",
+                "ordering": ["created_at"],
             },
         ),
     ]

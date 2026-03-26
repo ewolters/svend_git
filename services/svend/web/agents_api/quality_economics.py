@@ -56,7 +56,15 @@ class TaguchiLoss:
         For asymmetric — separate k below / above target.
     """
 
-    def __init__(self, loss_type="nib", target=0.0, delta0=1.0, cost_at_limit=100.0, k_low=None, k_high=None):
+    def __init__(
+        self,
+        loss_type="nib",
+        target=0.0,
+        delta0=1.0,
+        cost_at_limit=100.0,
+        k_low=None,
+        k_high=None,
+    ):
         self.loss_type = loss_type.lower()
         self.target = target
         self.delta0 = delta0
@@ -226,12 +234,16 @@ class ProcessDecision:
         # Investigate vs Adjust: c_fa*(1-p) + c_inv*p = c_over*(1-p) + c_adj*p
         #   → p = (c_over - c_fa) / (c_over - c_fa + c_inv - c_adj)
         denom_ia = (self.c_over - self.c_fa) + (self.c_inv - self.c_adj)
-        thresh_ia = (self.c_over - self.c_fa) / denom_ia if abs(denom_ia) > 1e-10 else 0.5
+        thresh_ia = (
+            (self.c_over - self.c_fa) / denom_ia if abs(denom_ia) > 1e-10 else 0.5
+        )
 
         return {
             "action": best,
             "action_name": self.action_names[best],
-            "expected_costs": {name: float(ec) for name, ec in zip(self.action_names, expected)},
+            "expected_costs": {
+                name: float(ec) for name, ec in zip(self.action_names, expected)
+            },
             "p_ooc": float(p_ooc),
             "thresholds": {
                 "continue_vs_investigate": float(thresh_ci),
@@ -271,7 +283,14 @@ class AcceptanceDecision:
         C_screen     = N * C_insp + N * p * C_int  (inspect all, catch internals)
     """
 
-    def __init__(self, lot_size=1000, c_external=50.0, c_internal=5.0, c_inspection=0.5, c_reject_lot=200.0):
+    def __init__(
+        self,
+        lot_size=1000,
+        c_external=50.0,
+        c_internal=5.0,
+        c_inspection=0.5,
+        c_reject_lot=200.0,
+    ):
         self.N = lot_size
         self.c_ext = c_external
         self.c_int = c_internal
@@ -339,7 +358,9 @@ class AcceptanceDecision:
 
     def sweep(self, n_points=200):
         """Cost curves over p ∈ [0, max_p]."""
-        max_p = min(1.0, 3 * self.c_rej / (self.N * self.c_ext) if self.c_ext > 0 else 0.1)
+        max_p = min(
+            1.0, 3 * self.c_rej / (self.N * self.c_ext) if self.c_ext > 0 else 0.1
+        )
         max_p = max(max_p, 0.02)
         ps = np.linspace(0, max_p, n_points)
         costs = self.expected_costs(ps)
@@ -362,7 +383,14 @@ class CostOfQuality:
     and total quality cost with uncertainty bands.
     """
 
-    def __init__(self, prevention=0.0, appraisal=0.0, internal_failure=0.0, external_failure=0.0, revenue=1.0):
+    def __init__(
+        self,
+        prevention=0.0,
+        appraisal=0.0,
+        internal_failure=0.0,
+        external_failure=0.0,
+        revenue=1.0,
+    ):
         self.prevention = prevention
         self.appraisal = appraisal
         self.internal_failure = internal_failure
@@ -371,7 +399,12 @@ class CostOfQuality:
 
     @property
     def total(self):
-        return self.prevention + self.appraisal + self.internal_failure + self.external_failure
+        return (
+            self.prevention
+            + self.appraisal
+            + self.internal_failure
+            + self.external_failure
+        )
 
     @property
     def conformance_cost(self):
@@ -396,7 +429,9 @@ class CostOfQuality:
             "nonconformance": self.nonconformance_cost,
             "coq_pct_revenue": t / rev * 100 if rev > 0 else 0,
             "conformance_ratio": (self.conformance_cost / t * 100 if t > 0 else 0),
-            "nonconformance_ratio": (self.nonconformance_cost / t * 100 if t > 0 else 0),
+            "nonconformance_ratio": (
+                self.nonconformance_cost / t * 100 if t > 0 else 0
+            ),
             "prevention_pct": self.prevention / t * 100 if t > 0 else 0,
             "appraisal_pct": self.appraisal / t * 100 if t > 0 else 0,
             "int_failure_pct": (self.internal_failure / t * 100 if t > 0 else 0),
@@ -485,7 +520,9 @@ def _run_taguchi(df, config):
         result["summary"] = "Error: Need at least 2 observations."
         return result
 
-    loss_fn = TaguchiLoss(loss_type=loss_type, target=target, delta0=delta0, cost_at_limit=cost_at_limit)
+    loss_fn = TaguchiLoss(
+        loss_type=loss_type, target=target, delta0=delta0, cost_at_limit=cost_at_limit
+    )
     mu, sigma = float(np.mean(y)), float(np.std(y, ddof=1))
     losses = loss_fn.loss(y)
     expected = loss_fn.expected_loss(mu, sigma)
@@ -500,7 +537,9 @@ def _run_taguchi(df, config):
 
     lines.append(f"<<COLOR:highlight>>Column:<</COLOR>> {col}  (n = {len(y)})")
     lines.append(f"<<COLOR:highlight>>Loss type:<</COLOR>> {loss_type.upper()}")
-    lines.append(f"<<COLOR:highlight>>Target:<</COLOR>> {target}  Δ₀ = {delta0}  A₀ = {cost_at_limit}")
+    lines.append(
+        f"<<COLOR:highlight>>Target:<</COLOR>> {target}  Δ₀ = {delta0}  A₀ = {cost_at_limit}"
+    )
     lines.append(f"<<COLOR:highlight>>k:<</COLOR>> {cost_at_limit / delta0**2:.4f}")
 
     lines.append("\n<<COLOR:accent>>── Process State ──<</COLOR>>")
@@ -509,7 +548,9 @@ def _run_taguchi(df, config):
     lines.append(f"  Bias (μ − T):          {mu - target:.4f}")
 
     lines.append("\n<<COLOR:accent>>── Loss Summary ──<</COLOR>>")
-    lines.append(f"  Expected loss E[L]:    <<COLOR:warning>>${expected:.2f}<</COLOR>> per unit")
+    lines.append(
+        f"  Expected loss E[L]:    <<COLOR:warning>>${expected:.2f}<</COLOR>> per unit"
+    )
     lines.append(f"  Average observed loss: ${avg_loss:.2f} per unit")
     lines.append(f"  Total observed loss:   ${total_loss:.2f}  (n = {len(y)} units)")
 
@@ -522,11 +563,17 @@ def _run_taguchi(df, config):
         pct_bias = bias_component / expected * 100 if expected > 0 else 0
         lines.append("\n<<COLOR:accent>>── Loss Decomposition ──<</COLOR>>")
         lines.append(f"  Variance component:    ${var_component:.2f}  ({pct_var:.0f}%)")
-        lines.append(f"  Bias component:        ${bias_component:.2f}  ({pct_bias:.0f}%)")
+        lines.append(
+            f"  Bias component:        ${bias_component:.2f}  ({pct_bias:.0f}%)"
+        )
         if pct_bias > 60:
-            lines.append("  <<COLOR:warning>>→ Dominant loss from bias — center the process on target<</COLOR>>")
+            lines.append(
+                "  <<COLOR:warning>>→ Dominant loss from bias — center the process on target<</COLOR>>"
+            )
         elif pct_var > 60:
-            lines.append("  <<COLOR:warning>>→ Dominant loss from variance — reduce process variability<</COLOR>>")
+            lines.append(
+                "  <<COLOR:warning>>→ Dominant loss from variance — reduce process variability<</COLOR>>"
+            )
 
     # What-if: if we center the process
     expected_centered = loss_fn.expected_loss(target, sigma)
@@ -534,20 +581,26 @@ def _run_taguchi(df, config):
     if savings_center > 0.01:
         lines.append("\n<<COLOR:accent>>── What-If ──<</COLOR>>")
         lines.append(f"  If centered on target: ${expected_centered:.2f} per unit")
-        lines.append(f"  <<COLOR:good>>Savings from centering: ${savings_center:.2f} per unit<</COLOR>>")
+        lines.append(
+            f"  <<COLOR:good>>Savings from centering: ${savings_center:.2f} per unit<</COLOR>>"
+        )
 
     # What-if: halve sigma
     expected_half_sigma = loss_fn.expected_loss(mu, sigma / 2)
     savings_sigma = expected - expected_half_sigma
     if savings_sigma > 0.01:
         lines.append(f"  If σ halved:           ${expected_half_sigma:.2f} per unit")
-        lines.append(f"  <<COLOR:good>>Savings from σ reduction: ${savings_sigma:.2f} per unit<</COLOR>>")
+        lines.append(
+            f"  <<COLOR:good>>Savings from σ reduction: ${savings_sigma:.2f} per unit<</COLOR>>"
+        )
 
     result["summary"] = "\n".join(lines)
 
     # Plot 1: Loss function curve + data
     np.sort(y)
-    y_range = np.linspace(min(y.min(), target - 2 * delta0), max(y.max(), target + 2 * delta0), 200)
+    y_range = np.linspace(
+        min(y.min(), target - 2 * delta0), max(y.max(), target + 2 * delta0), 200
+    )
     loss_curve = loss_fn.loss(y_range)
 
     result["plots"].append(
@@ -599,7 +652,10 @@ def _run_taguchi(df, config):
                     "type": "bar",
                     "x": bin_centers.tolist(),
                     "y": hist_vals.tolist(),
-                    "marker": {"color": "rgba(217,74,74,0.5)", "line": {"color": "#d94a4a", "width": 0.5}},
+                    "marker": {
+                        "color": "rgba(217,74,74,0.5)",
+                        "line": {"color": "#d94a4a", "width": 0.5},
+                    },
                     "name": "Loss density",
                 },
                 {
@@ -643,7 +699,11 @@ def _run_taguchi(df, config):
         "type": "taguchi",
         "loss_type": loss_type,
         "target": float(target),
-        "k": float(loss_fn.k) if hasattr(loss_fn, "k") else float(cost_at_limit / max(delta0**2, 1e-15)),
+        "k": (
+            float(loss_fn.k)
+            if hasattr(loss_fn, "k")
+            else float(cost_at_limit / max(delta0**2, 1e-15))
+        ),
         "mu": float(mu),
         "sigma": float(sigma),
         "expected_loss": float(expected),
@@ -665,7 +725,9 @@ def _run_process_decision(df, config):
     c_over = float(config.get("c_over", 120))
     c_adj = float(config.get("c_adj", 150))
 
-    pd_obj = ProcessDecision(c_miss=c_miss, c_fa=c_fa, c_inv=c_inv, c_over=c_over, c_adj=c_adj)
+    pd_obj = ProcessDecision(
+        c_miss=c_miss, c_fa=c_fa, c_inv=c_inv, c_over=c_over, c_adj=c_adj
+    )
     dec = pd_obj.optimal_action(p_ooc)
     sweep = pd_obj.sweep()
 
@@ -679,7 +741,9 @@ def _run_process_decision(df, config):
 
     color = {"Continue": "good", "Investigate": "highlight", "Adjust": "warning"}
     c = color.get(dec["action_name"], "highlight")
-    lines.append(f"\n<<COLOR:{c}>>OPTIMAL ACTION: {dec['action_name'].upper()}<</COLOR>>")
+    lines.append(
+        f"\n<<COLOR:{c}>>OPTIMAL ACTION: {dec['action_name'].upper()}<</COLOR>>"
+    )
     lines.append(f"  Expected cost: ${dec['expected_costs'][dec['action_name']]:.2f}")
     lines.append(f"  Savings vs worst: ${dec['cost_savings']:.2f}")
 
@@ -690,7 +754,9 @@ def _run_process_decision(df, config):
 
     lines.append("\n<<COLOR:accent>>── Decision Boundaries ──<</COLOR>>")
     t = dec["thresholds"]
-    lines.append(f"  Continue → Investigate at P(OOC) = {t['continue_vs_investigate']:.1%}")
+    lines.append(
+        f"  Continue → Investigate at P(OOC) = {t['continue_vs_investigate']:.1%}"
+    )
     lines.append(f"  Continue → Adjust at P(OOC) = {t['continue_vs_adjust']:.1%}")
 
     lines.append("\n<<COLOR:accent>>── Cost Parameters ──<</COLOR>>")
@@ -725,7 +791,11 @@ def _run_process_decision(df, config):
             "y": [dec["expected_costs"][dec["action_name"]]],
             "mode": "markers",
             "name": f"Current: {dec['action_name']}",
-            "marker": {"color": colors.get(dec["action_name"].lower(), "#ffffff"), "size": 12, "symbol": "star"},
+            "marker": {
+                "color": colors.get(dec["action_name"].lower(), "#ffffff"),
+                "size": 12,
+                "symbol": "star",
+            },
         }
     )
 
@@ -773,7 +843,11 @@ def _run_lot_sentencing(df, config):
     c_rej = float(config.get("c_reject_lot", 200))
 
     ad = AcceptanceDecision(
-        lot_size=lot_size, c_external=c_ext, c_internal=c_int, c_inspection=c_insp, c_reject_lot=c_rej
+        lot_size=lot_size,
+        c_external=c_ext,
+        c_internal=c_int,
+        c_inspection=c_insp,
+        c_reject_lot=c_rej,
     )
     dec = ad.optimal_action(p_defect)
     sweep = ad.sweep()
@@ -788,7 +862,9 @@ def _run_lot_sentencing(df, config):
 
     color = {"Accept": "good", "Reject": "warning", "100% Screen": "highlight"}
     c = color.get(dec["action_name"], "highlight")
-    lines.append(f"\n<<COLOR:{c}>>OPTIMAL ACTION: {dec['action_name'].upper()}<</COLOR>>")
+    lines.append(
+        f"\n<<COLOR:{c}>>OPTIMAL ACTION: {dec['action_name'].upper()}<</COLOR>>"
+    )
     lines.append(f"  Expected cost: ${dec['expected_costs'][dec['action_name']]:.2f}")
     lines.append(f"  Savings vs worst: ${dec['cost_savings']:.2f}")
 
@@ -903,17 +979,33 @@ def _run_coq(df, config):
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
 
     lines.append("<<COLOR:accent>>── Cost Breakdown ──<</COLOR>>")
-    lines.append(f"  Prevention:         ${prevention:>12,.0f}  ({s['prevention_pct']:.1f}%)")
-    lines.append(f"  Appraisal:          ${appraisal:>12,.0f}  ({s['appraisal_pct']:.1f}%)")
-    lines.append(f"  Internal Failure:   ${int_failure:>12,.0f}  ({s['int_failure_pct']:.1f}%)")
-    lines.append(f"  External Failure:   ${ext_failure:>12,.0f}  ({s['ext_failure_pct']:.1f}%)")
+    lines.append(
+        f"  Prevention:         ${prevention:>12,.0f}  ({s['prevention_pct']:.1f}%)"
+    )
+    lines.append(
+        f"  Appraisal:          ${appraisal:>12,.0f}  ({s['appraisal_pct']:.1f}%)"
+    )
+    lines.append(
+        f"  Internal Failure:   ${int_failure:>12,.0f}  ({s['int_failure_pct']:.1f}%)"
+    )
+    lines.append(
+        f"  External Failure:   ${ext_failure:>12,.0f}  ({s['ext_failure_pct']:.1f}%)"
+    )
     lines.append(f"  {'─' * 45}")
-    lines.append(f"  <<COLOR:warning>>Total CoQ:          ${s['total_coq']:>12,.0f}<</COLOR>>")
-    lines.append(f"  <<COLOR:highlight>>CoQ / Revenue:      {s['coq_pct_revenue']:.1f}%<</COLOR>>")
+    lines.append(
+        f"  <<COLOR:warning>>Total CoQ:          ${s['total_coq']:>12,.0f}<</COLOR>>"
+    )
+    lines.append(
+        f"  <<COLOR:highlight>>CoQ / Revenue:      {s['coq_pct_revenue']:.1f}%<</COLOR>>"
+    )
 
     lines.append("\n<<COLOR:accent>>── Conformance vs Nonconformance ──<</COLOR>>")
-    lines.append(f"  Conformance (P+A):     ${s['conformance']:>12,.0f}  ({s['conformance_ratio']:.0f}%)")
-    lines.append(f"  Nonconformance (F):    ${s['nonconformance']:>12,.0f}  ({s['nonconformance_ratio']:.0f}%)")
+    lines.append(
+        f"  Conformance (P+A):     ${s['conformance']:>12,.0f}  ({s['conformance_ratio']:.0f}%)"
+    )
+    lines.append(
+        f"  Nonconformance (F):    ${s['nonconformance']:>12,.0f}  ({s['nonconformance_ratio']:.0f}%)"
+    )
 
     # Benchmark guidance
     coq_pct = s["coq_pct_revenue"]
@@ -927,13 +1019,19 @@ def _run_coq(df, config):
         grade = "World-class"
 
     lines.append("\n<<COLOR:accent>>── Assessment ──<</COLOR>>")
-    lines.append(f"  Grade: <<COLOR:highlight>>{grade}<</COLOR>> (CoQ = {coq_pct:.1f}% of revenue)")
+    lines.append(
+        f"  Grade: <<COLOR:highlight>>{grade}<</COLOR>> (CoQ = {coq_pct:.1f}% of revenue)"
+    )
     lines.append("  Benchmark: world-class < 5%, typical 5-15%, high 15-25%")
 
     if s["nonconformance_ratio"] > 70:
-        lines.append("  <<COLOR:warning>>→ Failure costs dominate — invest more in prevention<</COLOR>>")
+        lines.append(
+            "  <<COLOR:warning>>→ Failure costs dominate — invest more in prevention<</COLOR>>"
+        )
     elif s["conformance_ratio"] > 80:
-        lines.append("  <<COLOR:good>>→ Strong prevention focus — verify ROI of appraisal spend<</COLOR>>")
+        lines.append(
+            "  <<COLOR:good>>→ Strong prevention focus — verify ROI of appraisal spend<</COLOR>>"
+        )
 
     lines.append("\n<<COLOR:accent>>── Optimal Prevention Model ──<</COLOR>>")
     lines.append(f"  Current prevention:  ${opt['current_prevention']:>12,.0f}")
@@ -942,7 +1040,9 @@ def _run_coq(df, config):
     lines.append(f"  Optimal total CoQ:   ${opt['optimal_total']:>12,.0f}")
     saving = opt["current_total"] - opt["optimal_total"]
     if saving > 0:
-        lines.append(f"  <<COLOR:good>>Potential savings:    ${saving:>12,.0f}<</COLOR>>")
+        lines.append(
+            f"  <<COLOR:good>>Potential savings:    ${saving:>12,.0f}<</COLOR>>"
+        )
 
     result["summary"] = "\n".join(lines)
 
@@ -953,7 +1053,12 @@ def _run_coq(df, config):
             "data": [
                 {
                     "type": "pie",
-                    "labels": ["Prevention", "Appraisal", "Internal Failure", "External Failure"],
+                    "labels": [
+                        "Prevention",
+                        "Appraisal",
+                        "Internal Failure",
+                        "External Failure",
+                    ],
                     "values": [prevention, appraisal, int_failure, ext_failure],
                     "marker": {"colors": ["#4a9f6e", "#6ab7d4", "#d4a24a", "#d94a4a"]},
                     "hole": 0.4,

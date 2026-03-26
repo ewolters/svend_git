@@ -300,7 +300,9 @@ class APIHeadersMiddlewareTest(SimpleTestCase):
     def test_accept_with_quality_params(self):
         """Accept header with quality parameters is parsed correctly."""
         middleware = self._make_middleware()
-        request = self.factory.get("/api/test/", HTTP_ACCEPT="text/html,application/json;q=0.9")
+        request = self.factory.get(
+            "/api/test/", HTTP_ACCEPT="text/html,application/json;q=0.9"
+        )
         response = middleware(request)
         self.assertEqual(response.status_code, 200)
 
@@ -355,7 +357,9 @@ class IdempotencyMiddlewareTest(SimpleTestCase):
     def test_allows_post_without_key(self):
         """POST without Idempotency-Key is allowed (with warning)."""
         middleware = self._make_middleware()
-        request = self.factory.post("/api/test/", data=b'{"a":1}', content_type="application/json")
+        request = self.factory.post(
+            "/api/test/", data=b'{"a":1}', content_type="application/json"
+        )
         response = middleware(request)
         self.assertEqual(response.status_code, 200)
 
@@ -447,7 +451,9 @@ class ErrorEnvelopeMiddlewareTest(SimpleTestCase):
     def setUp(self):
         self.factory = RequestFactory()
 
-    def _make_middleware(self, response_status=200, response_body=None, content_type="application/json"):
+    def _make_middleware(
+        self, response_status=200, response_body=None, content_type="application/json"
+    ):
         def get_response(request):
             if response_body is not None:
                 resp = JsonResponse(response_body, status=response_status)

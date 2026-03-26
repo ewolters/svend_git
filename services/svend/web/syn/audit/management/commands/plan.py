@@ -29,18 +29,73 @@ MASTER_PLAN_PHASES = [
         "title": "Phase 3: Enterprise Foundation",
         "quarter": "Q1-2026",
         "features": [
-            ("E3-001", "Notification system (bell icon + SSE)", "Cross-cutting", "critical"),
-            ("E3-002", "Email notification with ActionToken response", "Cross-cutting", "critical"),
-            ("E3-003", "ElectronicSignature (CFR Part 11, SynaraImmutableLog)", "§7.5.3", "critical"),
-            ("E3-004", "CAPA as standalone model (extract from NCR)", "§10.2", "critical"),
-            ("E3-005", "CAPA lifecycle: NCR → containment → RCA → corrective → verify → close", "§10.2", "critical"),
-            ("E3-006", "CAPA → RCA module bridge (auto-populate from NCR data)", "§10.2", "high"),
-            ("E3-007", "Management Review template system (customizable sections)", "§9.3", "high"),
-            ("E3-008", "Management Review auto-populate (aggregate QMS metrics)", "§9.3", "high"),
-            ("E3-009", "QMSAttachment (artifact uploads on NCR/CAPA/FMEA/RCA/A3)", "§7.5", "high"),
+            (
+                "E3-001",
+                "Notification system (bell icon + SSE)",
+                "Cross-cutting",
+                "critical",
+            ),
+            (
+                "E3-002",
+                "Email notification with ActionToken response",
+                "Cross-cutting",
+                "critical",
+            ),
+            (
+                "E3-003",
+                "ElectronicSignature (CFR Part 11, SynaraImmutableLog)",
+                "§7.5.3",
+                "critical",
+            ),
+            (
+                "E3-004",
+                "CAPA as standalone model (extract from NCR)",
+                "§10.2",
+                "critical",
+            ),
+            (
+                "E3-005",
+                "CAPA lifecycle: NCR → containment → RCA → corrective → verify → close",
+                "§10.2",
+                "critical",
+            ),
+            (
+                "E3-006",
+                "CAPA → RCA module bridge (auto-populate from NCR data)",
+                "§10.2",
+                "high",
+            ),
+            (
+                "E3-007",
+                "Management Review template system (customizable sections)",
+                "§9.3",
+                "high",
+            ),
+            (
+                "E3-008",
+                "Management Review auto-populate (aggregate QMS metrics)",
+                "§9.3",
+                "high",
+            ),
+            (
+                "E3-009",
+                "QMSAttachment (artifact uploads on NCR/CAPA/FMEA/RCA/A3)",
+                "§7.5",
+                "high",
+            ),
             ("E3-010", "NCR trending + Pareto analysis", "§8.7", "medium"),
-            ("E3-011", "Cost of poor quality (CoPQ) tracking per NCR", "§9.1", "medium"),
-            ("E3-012", "Recurrence detection (flag repeat root causes across CAPAs)", "§10.2", "medium"),
+            (
+                "E3-011",
+                "Cost of poor quality (CoPQ) tracking per NCR",
+                "§9.1",
+                "medium",
+            ),
+            (
+                "E3-012",
+                "Recurrence detection (flag repeat root causes across CAPAs)",
+                "§10.2",
+                "medium",
+            ),
         ],
     },
     {
@@ -48,17 +103,47 @@ MASTER_PLAN_PHASES = [
         "title": "Phase 4: Document Control & Supplier Quality",
         "quarter": "Q2-2026",
         "features": [
-            ("E4-001", "Controlled document register (version control, approval workflow)", "§7.5", "critical"),
+            (
+                "E4-001",
+                "Controlled document register (version control, approval workflow)",
+                "§7.5",
+                "critical",
+            ),
             ("E4-002", "Document change notice (DCN) lifecycle", "§7.5", "critical"),
             ("E4-003", "Document review scheduling + overdue alerts", "§7.5", "high"),
-            ("E4-004", "External document management (standards, customer specs)", "§7.5", "high"),
+            (
+                "E4-004",
+                "External document management (standards, customer specs)",
+                "§7.5",
+                "high",
+            ),
             ("E4-005", "Master list of documents and records", "§7.5", "high"),
-            ("E4-006", "Supplier scorecard (quality, delivery, cost metrics)", "§8.4", "critical"),
-            ("E4-007", "Supplier CAPA (issue + track + response via ActionToken)", "§8.4", "critical"),
-            ("E4-008", "Approved supplier list (ASL) with qualification status", "§8.4", "high"),
+            (
+                "E4-006",
+                "Supplier scorecard (quality, delivery, cost metrics)",
+                "§8.4",
+                "critical",
+            ),
+            (
+                "E4-007",
+                "Supplier CAPA (issue + track + response via ActionToken)",
+                "§8.4",
+                "critical",
+            ),
+            (
+                "E4-008",
+                "Approved supplier list (ASL) with qualification status",
+                "§8.4",
+                "high",
+            ),
             ("E4-009", "Incoming inspection management", "§8.4", "medium"),
             ("E4-010", "Supplier audit scheduling + tracking", "§8.4", "medium"),
-            ("E4-011", "Supplier portal via ActionToken (doc exchange, CAPA response)", "§8.4", "medium"),
+            (
+                "E4-011",
+                "Supplier portal via ActionToken (doc exchange, CAPA response)",
+                "§8.4",
+                "medium",
+            ),
             ("E4-012", "Retention schedule management", "§7.5", "medium"),
         ],
     },
@@ -68,17 +153,57 @@ MASTER_PLAN_PHASES = [
         "quarter": "Q2-2026",
         "features": [
             ("E5-001", "Training matrix (role x competency)", "§7.2", "critical"),
-            ("E5-002", "Training → Learn module integration (assessments = competency proof)", "§7.2", "critical"),
-            ("E5-003", "Training effectiveness tracking (link training to defect rates)", "§7.2", "high"),
-            ("E5-004", "CAPA → training trigger (root cause = training gap → auto-create requirement)", "§7.2", "high"),
-            ("E5-005", "Internal audit program management (risk-based scheduling)", "§9.2", "critical"),
-            ("E5-006", "Audit checklist builder (clause-based, process-based)", "§9.2", "high"),
+            (
+                "E5-002",
+                "Training → Learn module integration (assessments = competency proof)",
+                "§7.2",
+                "critical",
+            ),
+            (
+                "E5-003",
+                "Training effectiveness tracking (link training to defect rates)",
+                "§7.2",
+                "high",
+            ),
+            (
+                "E5-004",
+                "CAPA → training trigger (root cause = training gap → auto-create requirement)",
+                "§7.2",
+                "high",
+            ),
+            (
+                "E5-005",
+                "Internal audit program management (risk-based scheduling)",
+                "§9.2",
+                "critical",
+            ),
+            (
+                "E5-006",
+                "Audit checklist builder (clause-based, process-based)",
+                "§9.2",
+                "high",
+            ),
             ("E5-007", "Audit finding → CAPA bridge", "§9.2", "high"),
             ("E5-008", "Layered process audit (LPA) support", "IATF §9.2", "medium"),
-            ("E5-009", "Calibration management (gage register, intervals, alerts)", "§7.1.5", "high"),
-            ("E5-010", "Calibration → Gage R&R link (existing SPC module)", "§7.1.5", "high"),
+            (
+                "E5-009",
+                "Calibration management (gage register, intervals, alerts)",
+                "§7.1.5",
+                "high",
+            ),
+            (
+                "E5-010",
+                "Calibration → Gage R&R link (existing SPC module)",
+                "§7.1.5",
+                "high",
+            ),
             ("E5-011", "Out-of-calibration impact assessment", "§7.1.5", "medium"),
-            ("E5-012", "Control plan management (prototype/pre-launch/production)", "IATF §8.5", "medium"),
+            (
+                "E5-012",
+                "Control plan management (prototype/pre-launch/production)",
+                "IATF §8.5",
+                "medium",
+            ),
             ("E5-013", "FMEA → control plan auto-linkage", "IATF §8.5", "medium"),
             ("E5-014", "Requirements traceability matrix", "§8.3", "medium"),
         ],
@@ -88,18 +213,78 @@ MASTER_PLAN_PHASES = [
         "title": "Phase 6: Intelligence Layer",
         "quarter": "Q2-2026",
         "features": [
-            ("E6-001", "SPC alarm → auto-NCR creation (with process data context)", "", "critical"),
-            ("E6-002", "AI-assisted root cause suggestion (historical pattern matching)", "", "critical"),
-            ("E6-003", "Cross-FMEA pattern detection (systemic failure mode identification)", "", "high"),
-            ("E6-004", "Predictive risk trending (which failure modes are increasing?)", "", "high"),
-            ("E6-005", "Natural language QMS query ('Show me overdue CAPAs for supplier X')", "", "high"),
-            ("E6-006", "Automated trending that triggers action (statistical significance detection)", "", "high"),
-            ("E6-007", "Management review auto-narrative (AI-generated executive summary)", "", "medium"),
-            ("E6-008", "Complaint → reportability determination assist (FDA MDR, EU Vigilance)", "", "medium"),
-            ("E6-009", "Change impact analysis (auto-detect downstream effects)", "", "medium"),
-            ("E6-010", "Audit readiness scoring ('How ready are we for audit?')", "", "medium"),
-            ("E6-011", "Supplier risk prediction (based on scorecard trends)", "", "low"),
-            ("E6-012", "Cost of quality automation (aggregate prevention/appraisal/failure costs)", "", "low"),
+            (
+                "E6-001",
+                "SPC alarm → auto-NCR creation (with process data context)",
+                "",
+                "critical",
+            ),
+            (
+                "E6-002",
+                "AI-assisted root cause suggestion (historical pattern matching)",
+                "",
+                "critical",
+            ),
+            (
+                "E6-003",
+                "Cross-FMEA pattern detection (systemic failure mode identification)",
+                "",
+                "high",
+            ),
+            (
+                "E6-004",
+                "Predictive risk trending (which failure modes are increasing?)",
+                "",
+                "high",
+            ),
+            (
+                "E6-005",
+                "Natural language QMS query ('Show me overdue CAPAs for supplier X')",
+                "",
+                "high",
+            ),
+            (
+                "E6-006",
+                "Automated trending that triggers action (statistical significance detection)",
+                "",
+                "high",
+            ),
+            (
+                "E6-007",
+                "Management review auto-narrative (AI-generated executive summary)",
+                "",
+                "medium",
+            ),
+            (
+                "E6-008",
+                "Complaint → reportability determination assist (FDA MDR, EU Vigilance)",
+                "",
+                "medium",
+            ),
+            (
+                "E6-009",
+                "Change impact analysis (auto-detect downstream effects)",
+                "",
+                "medium",
+            ),
+            (
+                "E6-010",
+                "Audit readiness scoring ('How ready are we for audit?')",
+                "",
+                "medium",
+            ),
+            (
+                "E6-011",
+                "Supplier risk prediction (based on scorecard trends)",
+                "",
+                "low",
+            ),
+            (
+                "E6-012",
+                "Cost of quality automation (aggregate prevention/appraisal/failure costs)",
+                "",
+                "low",
+            ),
         ],
     },
     {
@@ -108,15 +293,50 @@ MASTER_PLAN_PHASES = [
         "quarter": "Q3-2026",
         "features": [
             ("E7-001", "APQP phase-gate management", "IATF 16949", "high"),
-            ("E7-002", "PPAP submission management (18 elements)", "IATF 16949", "high"),
-            ("E7-003", "AIAG-VDA harmonized FMEA (7-step, AP tables)", "IATF 16949", "high"),
-            ("E7-004", "First article inspection (AS9102 Forms 1-3)", "AS9100", "medium"),
+            (
+                "E7-002",
+                "PPAP submission management (18 elements)",
+                "IATF 16949",
+                "high",
+            ),
+            (
+                "E7-003",
+                "AIAG-VDA harmonized FMEA (7-step, AP tables)",
+                "IATF 16949",
+                "high",
+            ),
+            (
+                "E7-004",
+                "First article inspection (AS9102 Forms 1-3)",
+                "AS9100",
+                "medium",
+            ),
             ("E7-005", "Configuration management", "AS9100", "medium"),
             ("E7-006", "Counterfeit parts prevention workflow", "AS9100", "medium"),
-            ("E7-007", "Design controls (DHF/DMR/DHR management)", "ISO 13485", "medium"),
-            ("E7-008", "Complaint handling with reportability determination", "ISO 13485/FDA", "medium"),
-            ("E7-009", "Field corrective action / recall management", "ISO 13485/FDA", "medium"),
-            ("E7-010", "Customer-specific requirements (CSR) database per OEM", "IATF 16949", "low"),
+            (
+                "E7-007",
+                "Design controls (DHF/DMR/DHR management)",
+                "ISO 13485",
+                "medium",
+            ),
+            (
+                "E7-008",
+                "Complaint handling with reportability determination",
+                "ISO 13485/FDA",
+                "medium",
+            ),
+            (
+                "E7-009",
+                "Field corrective action / recall management",
+                "ISO 13485/FDA",
+                "medium",
+            ),
+            (
+                "E7-010",
+                "Customer-specific requirements (CSR) database per OEM",
+                "IATF 16949",
+                "low",
+            ),
         ],
     },
     {
@@ -124,12 +344,42 @@ MASTER_PLAN_PHASES = [
         "title": "Phase 8: DSW Statistical Calibration",
         "quarter": "Q1-2026",
         "features": [
-            ("E8-001", "Calibration reference pool — 17 cases across 6 categories", "STAT-001 §15", "critical"),
-            ("E8-002", "Calibration runner with date-seeded daily rotation", "STAT-001 §15", "critical"),
-            ("E8-003", "check_statistical_calibration compliance check — Thursday rotation", "CMP-001 §6", "critical"),
-            ("E8-004", "Dashboard calibration section — KPI cards + per-case result table", "CMP-001 §6", "high"),
-            ("E8-005", "CAL enforcement type in DriftViolation model", "CHG-001 §8", "high"),
-            ("E8-006", "Symbol-level impl hooks on existing STAT-001 assertions", "STAT-001 §4-§12", "medium"),
+            (
+                "E8-001",
+                "Calibration reference pool — 17 cases across 6 categories",
+                "STAT-001 §15",
+                "critical",
+            ),
+            (
+                "E8-002",
+                "Calibration runner with date-seeded daily rotation",
+                "STAT-001 §15",
+                "critical",
+            ),
+            (
+                "E8-003",
+                "check_statistical_calibration compliance check — Thursday rotation",
+                "CMP-001 §6",
+                "critical",
+            ),
+            (
+                "E8-004",
+                "Dashboard calibration section — KPI cards + per-case result table",
+                "CMP-001 §6",
+                "high",
+            ),
+            (
+                "E8-005",
+                "CAL enforcement type in DriftViolation model",
+                "CHG-001 §8",
+                "high",
+            ),
+            (
+                "E8-006",
+                "Symbol-level impl hooks on existing STAT-001 assertions",
+                "STAT-001 §4-§12",
+                "medium",
+            ),
             (
                 "E8-007",
                 "Calibration test suite — 5 tests covering pool, runner, reproducibility, drift",
@@ -143,8 +393,18 @@ MASTER_PLAN_PHASES = [
         "title": "Phase 9: DSW Output Standardization",
         "quarter": "Q1-2026",
         "features": [
-            ("E9-001", "Analysis registry — 211 entries with metadata", "DSW-001", "critical"),
-            ("E9-002", "Post-processing pipeline — standardize_output() in dispatch.py", "DSW-001", "critical"),
+            (
+                "E9-001",
+                "Analysis registry — 211 entries with metadata",
+                "DSW-001",
+                "critical",
+            ),
+            (
+                "E9-002",
+                "Post-processing pipeline — standardize_output() in dispatch.py",
+                "DSW-001",
+                "critical",
+            ),
             (
                 "E9-003",
                 "Chart standardization — apply_chart_defaults(), trace builders, SVEND_COLORS",
@@ -157,11 +417,36 @@ MASTER_PLAN_PHASES = [
                 "DSW-001",
                 "critical",
             ),
-            ("E9-005", "Education content — hand-written for all 211 analyses", "DSW-001", "critical"),
-            ("E9-006", "Bayesian shadow + evidence grade rollout — stats.py (~46 analyses)", "STAT-001", "high"),
-            ("E9-007", "Shadow rollout — spc.py, ml.py, reliability.py, d_type.py", "STAT-001", "high"),
-            ("E9-008", "What-if interactivity — unified schema, Tier 1+2 (~35 analyses)", "DSW-001", "high"),
-            ("E9-009", "DSW-001 standard update + dsw_output_format compliance check", "DSW-001", "high"),
+            (
+                "E9-005",
+                "Education content — hand-written for all 211 analyses",
+                "DSW-001",
+                "critical",
+            ),
+            (
+                "E9-006",
+                "Bayesian shadow + evidence grade rollout — stats.py (~46 analyses)",
+                "STAT-001",
+                "high",
+            ),
+            (
+                "E9-007",
+                "Shadow rollout — spc.py, ml.py, reliability.py, d_type.py",
+                "STAT-001",
+                "high",
+            ),
+            (
+                "E9-008",
+                "What-if interactivity — unified schema, Tier 1+2 (~35 analyses)",
+                "DSW-001",
+                "high",
+            ),
+            (
+                "E9-009",
+                "DSW-001 standard update + dsw_output_format compliance check",
+                "DSW-001",
+                "high",
+            ),
         ],
     },
 ]
@@ -257,22 +542,30 @@ class Command(BaseCommand):
         note = sub.add_parser("note", help="Add a note to an item")
         note.add_argument("short_id", type=str)
         note.add_argument("text", type=str)
-        note.add_argument("--user", action="store_true", help="Prefix with $ (user note)")
+        note.add_argument(
+            "--user", action="store_true", help="Prefix with $ (user note)"
+        )
 
         # plan activate
         act = sub.add_parser("activate", help="Set initiative(s) to active status")
         act.add_argument("init_ids", nargs="+", type=str)
 
         # plan context
-        sub.add_parser("context", help="Dump active initiatives context (for session start)")
+        sub.add_parser(
+            "context", help="Dump active initiatives context (for session start)"
+        )
 
         # plan import-master-plan
-        sub.add_parser("import-master-plan", help="Import from NEXT_GEN_QMS_MASTER_PLAN.md")
+        sub.add_parser(
+            "import-master-plan", help="Import from NEXT_GEN_QMS_MASTER_PLAN.md"
+        )
 
     def handle(self, *args, **options):
         cmd = options.get("subcommand")
         if not cmd:
-            self.stderr.write("Usage: plan <list|show|tree|search|deps|blocked|progress|update|import-master-plan>")
+            self.stderr.write(
+                "Usage: plan <list|show|tree|search|deps|blocked|progress|update|import-master-plan>"
+            )
             return
 
         handler = getattr(self, f"cmd_{cmd.replace('-', '_')}", None)
@@ -296,7 +589,9 @@ class Command(BaseCommand):
             for i in qs:
                 feat_count = i.features.count()
                 pct = i.progress
-                self.stdout.write(f"  {i.short_id:<10} {i.title:<50} {i.status:<12} {pct:>3}%  {feat_count} features")
+                self.stdout.write(
+                    f"  {i.short_id:<10} {i.title:<50} {i.status:<12} {pct:>3}%  {feat_count} features"
+                )
             self.stdout.write(f"\n  {qs.count()} initiatives")
 
         elif item_type == "feat":
@@ -322,7 +617,9 @@ class Command(BaseCommand):
             self.stdout.write("")
             for t in qs:
                 cr = f"CR:{str(t.change_request_id)[:8]}" if t.change_request_id else ""
-                self.stdout.write(f"  {t.short_id:<10} {t.title:<55} {t.status:<14} {t.feature.short_id}  {cr}")
+                self.stdout.write(
+                    f"  {t.short_id:<10} {t.title:<55} {t.status:<14} {t.feature.short_id}  {cr}"
+                )
             self.stdout.write(f"\n  {qs.count()} tasks")
 
     # ─── show ────────────────────────────────────────────────────────────
@@ -336,7 +633,9 @@ class Command(BaseCommand):
         elif sid.startswith("TASK-"):
             self._show_task(sid)
         else:
-            raise CommandError(f"Unknown ID format: {sid}. Expected INIT-xxx, FEAT-xxx, or TASK-xxx")
+            raise CommandError(
+                f"Unknown ID format: {sid}. Expected INIT-xxx, FEAT-xxx, or TASK-xxx"
+            )
 
     def _show_initiative(self, sid):
         try:
@@ -362,7 +661,11 @@ class Command(BaseCommand):
         features = i.features.all()
         self.stdout.write(f"\n  Features ({features.count()}):")
         for f in features:
-            marker = "✓" if f.status == "completed" else "○" if f.status == "in_progress" else "·"
+            marker = (
+                "✓"
+                if f.status == "completed"
+                else "○" if f.status == "in_progress" else "·"
+            )
             self.stdout.write(f"    {marker} {f.short_id}  {f.title:<50} {f.status}")
         self.stdout.write("")
 
@@ -379,7 +682,9 @@ class Command(BaseCommand):
         self.stdout.write(f"  UUID:        {f.id}")
         self.stdout.write(f"  Status:      {f.status}")
         self.stdout.write(f"  Priority:    {f.priority}")
-        self.stdout.write(f"  Initiative:  {f.initiative.short_id} — {f.initiative.title}")
+        self.stdout.write(
+            f"  Initiative:  {f.initiative.short_id} — {f.initiative.title}"
+        )
         if f.iso_clause:
             self.stdout.write(f"  ISO Clause:  {f.iso_clause}")
         if f.standards:
@@ -403,7 +708,9 @@ class Command(BaseCommand):
             self.stdout.write("\n  Dependencies:")
             for d in deps:
                 status_icon = "✓" if d.status == "completed" else "⚠"
-                self.stdout.write(f"    └── {d.short_id}  {d.title}  ({status_icon} {d.status})")
+                self.stdout.write(
+                    f"    └── {d.short_id}  {d.title}  ({status_icon} {d.status})"
+                )
 
         # What this blocks
         blockers = f.blocks.all()
@@ -424,14 +731,22 @@ class Command(BaseCommand):
                     marker = "○"
                 else:
                     marker = "·"
-                cr = f"  CR:{str(t.change_request_id)[:8]}" if t.change_request_id else ""
-                self.stdout.write(f"    {marker} {t.short_id}  {t.title:<45} {t.status}{cr}")
+                cr = (
+                    f"  CR:{str(t.change_request_id)[:8]}"
+                    if t.change_request_id
+                    else ""
+                )
+                self.stdout.write(
+                    f"    {marker} {t.short_id}  {t.title:<45} {t.status}{cr}"
+                )
 
         self.stdout.write(f"\n  Progress:    {f.progress}%")
         if f.roadmap_item_id:
             self.stdout.write(f"  Roadmap:     {f.roadmap_item_id}")
         if f.change_request_ids:
-            self.stdout.write(f"  CRs:         {', '.join(str(c)[:8] for c in f.change_request_ids)}")
+            self.stdout.write(
+                f"  CRs:         {', '.join(str(c)[:8] for c in f.change_request_ids)}"
+            )
 
         self.stdout.write(f"\n  Created:     {f.created_at.strftime('%Y-%m-%d')}")
         self.stdout.write(f"  Updated:     {f.updated_at.strftime('%Y-%m-%d')}")
@@ -439,7 +754,9 @@ class Command(BaseCommand):
 
     def _show_task(self, sid):
         try:
-            t = PlanTask.objects.select_related("feature", "feature__initiative").get(short_id=sid)
+            t = PlanTask.objects.select_related("feature", "feature__initiative").get(
+                short_id=sid
+            )
         except PlanTask.DoesNotExist:
             raise CommandError(f"Task not found: {sid}")
 
@@ -451,7 +768,9 @@ class Command(BaseCommand):
         self.stdout.write(f"  Status:      {t.status}")
         self.stdout.write(f"  Type:        {t.task_type}")
         self.stdout.write(f"  Feature:     {t.feature.short_id} — {t.feature.title}")
-        self.stdout.write(f"  Initiative:  {t.feature.initiative.short_id} — {t.feature.initiative.title}")
+        self.stdout.write(
+            f"  Initiative:  {t.feature.initiative.short_id} — {t.feature.initiative.title}"
+        )
         if t.change_request_id:
             self.stdout.write(f"  CR:          {t.change_request_id}")
         if t.description:
@@ -490,8 +809,14 @@ class Command(BaseCommand):
                     tprefix = "    └──" if is_last_task else "    ├──"
                     if not is_last_feat:
                         tprefix = "│   └──" if is_last_task else "│   ├──"
-                    marker = "✓" if t.status == "completed" else "○" if t.status == "in_progress" else "·"
-                    self.stdout.write(f"  {tprefix} {marker} {t.short_id}  {t.title:<45} {t.status}")
+                    marker = (
+                        "✓"
+                        if t.status == "completed"
+                        else "○" if t.status == "in_progress" else "·"
+                    )
+                    self.stdout.write(
+                        f"  {tprefix} {marker} {t.short_id}  {t.title:<45} {t.status}"
+                    )
 
             # Summary
             total = features.count()
@@ -516,7 +841,9 @@ class Command(BaseCommand):
         from django.db.models import Q
 
         inits = Initiative.objects.filter(
-            Q(title__icontains=query) | Q(description__icontains=query) | Q(short_id__icontains=query)
+            Q(title__icontains=query)
+            | Q(description__icontains=query)
+            | Q(short_id__icontains=query)
         )
         if inits:
             self.stdout.write("  Initiatives:")
@@ -535,16 +862,22 @@ class Command(BaseCommand):
             self.stdout.write("  Features:")
             for f in feats:
                 legacy = f" ({f.legacy_id})" if f.legacy_id else ""
-                self.stdout.write(f"    {f.short_id}  {f.title:<50} {f.status}  {f.initiative.short_id}{legacy}")
+                self.stdout.write(
+                    f"    {f.short_id}  {f.title:<50} {f.status}  {f.initiative.short_id}{legacy}"
+                )
 
         # Search tasks
         tasks = PlanTask.objects.filter(
-            Q(title__icontains=query) | Q(description__icontains=query) | Q(short_id__icontains=query)
+            Q(title__icontains=query)
+            | Q(description__icontains=query)
+            | Q(short_id__icontains=query)
         ).select_related("feature")
         if tasks:
             self.stdout.write("  Tasks:")
             for t in tasks:
-                self.stdout.write(f"    {t.short_id}  {t.title:<50} {t.status}  {t.feature.short_id}")
+                self.stdout.write(
+                    f"    {t.short_id}  {t.title:<50} {t.status}  {t.feature.short_id}"
+                )
 
         total = inits.count() + feats.count() + tasks.count()
         if total == 0:
@@ -570,7 +903,9 @@ class Command(BaseCommand):
             for d in deps:
                 status_icon = "✓" if d.status == "completed" else "⚠"
                 pct = d.progress
-                self.stdout.write(f"    └── {d.short_id}  {d.title}  ({status_icon} {d.status} — {pct}%)")
+                self.stdout.write(
+                    f"    └── {d.short_id}  {d.title}  ({status_icon} {d.status} — {pct}%)"
+                )
         else:
             self.stdout.write("  depends_on: (none)")
 
@@ -595,11 +930,17 @@ class Command(BaseCommand):
     def cmd_blocked(self, options):
         self.stdout.write("")
         blocked_count = 0
-        for f in Feature.objects.exclude(status__in=["completed", "cancelled", "deferred"]):
+        for f in Feature.objects.exclude(
+            status__in=["completed", "cancelled", "deferred"]
+        ):
             if f.is_blocked:
                 incomplete = f.depends_on.exclude(status="completed")
-                dep_info = ", ".join(f"{d.short_id} ({d.progress}%)" for d in incomplete)
-                self.stdout.write(f"  {f.short_id:<10} {f.title:<50} blocked by: {dep_info}")
+                dep_info = ", ".join(
+                    f"{d.short_id} ({d.progress}%)" for d in incomplete
+                )
+                self.stdout.write(
+                    f"  {f.short_id:<10} {f.title:<50} blocked by: {dep_info}"
+                )
                 blocked_count += 1
 
         if blocked_count == 0:
@@ -632,9 +973,13 @@ class Command(BaseCommand):
 
         if total_features > 0:
             overall = round(total_completed / total_features * 100)
-            self.stdout.write(f"\n  Overall: {overall}% ({total_completed}/{total_features} features completed)")
+            self.stdout.write(
+                f"\n  Overall: {overall}% ({total_completed}/{total_features} features completed)"
+            )
         else:
-            self.stdout.write("\n  No features imported yet. Run: plan import-master-plan")
+            self.stdout.write(
+                "\n  No features imported yet. Run: plan import-master-plan"
+            )
         self.stdout.write("")
 
     # ─── update ──────────────────────────────────────────────────────────
@@ -665,7 +1010,9 @@ class Command(BaseCommand):
             raise CommandError(f"Unknown ID format: {sid}")
 
         if new_status not in valid:
-            raise CommandError(f"Invalid status '{new_status}'. Valid: {', '.join(valid)}")
+            raise CommandError(
+                f"Invalid status '{new_status}'. Valid: {', '.join(valid)}"
+            )
 
         old_status = obj.status
         obj.status = new_status
@@ -674,7 +1021,11 @@ class Command(BaseCommand):
         now = timezone.now()
         if new_status == "completed" and hasattr(obj, "completed_at"):
             obj.completed_at = now
-        if new_status == "in_progress" and hasattr(obj, "started_at") and not obj.started_at:
+        if (
+            new_status == "in_progress"
+            and hasattr(obj, "started_at")
+            and not obj.started_at
+        ):
             obj.started_at = now
 
         obj.save()
@@ -737,7 +1088,9 @@ class Command(BaseCommand):
         self.stdout.write(f"\n  Active initiatives ({active.count()}):")
         for i in active:
             feat_count = i.features.count()
-            self.stdout.write(f"    {i.short_id}  {i.title}  ({feat_count} features, {i.progress}%)")
+            self.stdout.write(
+                f"    {i.short_id}  {i.title}  ({feat_count} features, {i.progress}%)"
+            )
         self.stdout.write("")
 
     # ─── context ─────────────────────────────────────────────────────────
@@ -765,21 +1118,35 @@ class Command(BaseCommand):
 
             features = i.features.all()
             # Show unblocked features first (actionable)
-            unblocked = [f for f in features if not f.is_blocked and f.status not in ("completed", "cancelled")]
-            blocked = [f for f in features if f.is_blocked and f.status not in ("completed", "cancelled")]
+            unblocked = [
+                f
+                for f in features
+                if not f.is_blocked and f.status not in ("completed", "cancelled")
+            ]
+            blocked = [
+                f
+                for f in features
+                if f.is_blocked and f.status not in ("completed", "cancelled")
+            ]
             completed = features.filter(status="completed")
 
             if unblocked:
                 self.stdout.write(f"\n  Ready to work ({len(unblocked)}):")
                 for f in unblocked:
                     marker = "○" if f.status == "in_progress" else "·"
-                    self.stdout.write(f"    {marker} {f.short_id}  {f.title:<50} {f.status}  P:{f.priority}")
+                    self.stdout.write(
+                        f"    {marker} {f.short_id}  {f.title:<50} {f.status}  P:{f.priority}"
+                    )
 
             if blocked:
                 self.stdout.write(f"\n  Blocked ({len(blocked)}):")
                 for f in blocked:
-                    deps = ", ".join(d.short_id for d in f.depends_on.exclude(status="completed"))
-                    self.stdout.write(f"    ⚠ {f.short_id}  {f.title:<50} waiting: {deps}")
+                    deps = ", ".join(
+                        d.short_id for d in f.depends_on.exclude(status="completed")
+                    )
+                    self.stdout.write(
+                        f"    ⚠ {f.short_id}  {f.title:<50} waiting: {deps}"
+                    )
 
             if completed:
                 self.stdout.write(f"\n  Completed ({completed.count()}):")
@@ -790,7 +1157,9 @@ class Command(BaseCommand):
 
         # Overall stats
         total_active_feats = Feature.objects.filter(initiative__status="active").count()
-        total_completed = Feature.objects.filter(initiative__status="active", status="completed").count()
+        total_completed = Feature.objects.filter(
+            initiative__status="active", status="completed"
+        ).count()
         self.stdout.write(
             f"  Overall: {total_completed}/{total_active_feats} features completed across active initiatives\n"
         )
@@ -853,7 +1222,10 @@ class Command(BaseCommand):
                 continue
             for dep_id in dep_list:
                 dep_feat = legacy_to_feature.get(dep_id)
-                if dep_feat and not dependent.depends_on.filter(pk=dep_feat.pk).exists():
+                if (
+                    dep_feat
+                    and not dependent.depends_on.filter(pk=dep_feat.pk).exists()
+                ):
                     dependent.depends_on.add(dep_feat)
                     dep_count += 1
 

@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0054_electronicsignature'),
+        ("agents_api", "0054_electronicsignature"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='capareport',
-            name='recurrence_check',
-            field=models.BooleanField(db_column='recurrence_check', default=False),
+            model_name="capareport",
+            name="recurrence_check",
+            field=models.BooleanField(db_column="recurrence_check", default=False),
         ),
         migrations.RenameField(
-            model_name='capareport',
-            old_name='recurrence_check',
-            new_name='is_recurrence_checked',
+            model_name="capareport",
+            old_name="recurrence_check",
+            new_name="is_recurrence_checked",
         ),
     ]

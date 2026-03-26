@@ -202,7 +202,9 @@ class ExecutionResult:
             "error_type": self.error_type,
             "error_traceback": self.error_traceback,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "completed_at": (
+                self.completed_at.isoformat() if self.completed_at else None
+            ),
             "duration_ms": self.duration_ms,
             "memory_peak_mb": self.memory_peak_mb,
             "cpu_time_ms": self.cpu_time_ms,
@@ -280,7 +282,11 @@ def _execute_in_subprocess(
         context = ExecutionContext(
             task_id=uuid.UUID(context_dict["task_id"]),
             task_name=context_dict["task_name"],
-            tenant_id=uuid.UUID(context_dict["tenant_id"]) if context_dict.get("tenant_id") else None,
+            tenant_id=(
+                uuid.UUID(context_dict["tenant_id"])
+                if context_dict.get("tenant_id")
+                else None
+            ),
             attempt=context_dict.get("attempt", 1),
             worker_id=context_dict.get("worker_id", ""),
             timeout_seconds=context_dict.get("timeout_seconds", 60),
@@ -365,7 +371,9 @@ class TaskExecutor:
         self._current_future: Future | None = None
 
         # Thread pool for lightweight tasks
-        self._thread_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"{worker_id}-")
+        self._thread_pool = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix=f"{worker_id}-"
+        )
 
         # Process pool for isolated tasks
         self._process_pool: ProcessPoolExecutor | None = None
@@ -404,7 +412,9 @@ class TaskExecutor:
 
         # Determine isolation mode
         use_process = (
-            self.use_process_isolation and config.process_isolation and task.resource_class != ResourceClass.LIGHTWEIGHT
+            self.use_process_isolation
+            and config.process_isolation
+            and task.resource_class != ResourceClass.LIGHTWEIGHT
         )
 
         started_at = timezone.now()
@@ -426,9 +436,13 @@ class TaskExecutor:
 
         except FutureTimeoutError:
             result.status = ExecutionStatus.TIMEOUT
-            result.error_message = f"Task exceeded timeout of {context.timeout_seconds}s"
+            result.error_message = (
+                f"Task exceeded timeout of {context.timeout_seconds}s"
+            )
             result.error_type = "TimeoutError"
-            logger.warning(f"[EXECUTOR] Task {task.task_id} timed out after {context.timeout_seconds}s")
+            logger.warning(
+                f"[EXECUTOR] Task {task.task_id} timed out after {context.timeout_seconds}s"
+            )
 
         except Exception as e:
             result.status = ExecutionStatus.FAILURE
@@ -439,7 +453,9 @@ class TaskExecutor:
 
         finally:
             result.completed_at = timezone.now()
-            result.duration_ms = (result.completed_at - started_at).total_seconds() * 1000
+            result.duration_ms = (
+                result.completed_at - started_at
+            ).total_seconds() * 1000
             self._current_context = None
             self._current_future = None
 
@@ -479,10 +495,16 @@ class TaskExecutor:
         # Wait with timeout
         try:
             result_tuple = future.result(timeout=context.timeout_seconds)
-            result_value, error_msg, error_type, error_tb, memory_mb, cpu_ms = result_tuple
+            result_value, error_msg, error_type, error_tb, memory_mb, cpu_ms = (
+                result_tuple
+            )
 
             if error_msg:
-                status = ExecutionStatus.MEMORY_EXCEEDED if error_type == "MemoryError" else ExecutionStatus.FAILURE
+                status = (
+                    ExecutionStatus.MEMORY_EXCEEDED
+                    if error_type == "MemoryError"
+                    else ExecutionStatus.FAILURE
+                )
                 return ExecutionResult(
                     task_id=task.task_id,
                     status=status,

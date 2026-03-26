@@ -90,12 +90,18 @@ def run_bayes_changepoint(df, config, ci_level, z):
             before = data[:cp]
             after = data[cp:]
             shift = np.mean(after) - np.mean(before)
-            pooled_std = np.sqrt((np.var(before) + np.var(after)) / 2) if len(before) > 1 and len(after) > 1 else 1.0
+            pooled_std = (
+                np.sqrt((np.var(before) + np.var(after)) / 2)
+                if len(before) > 1 and len(after) > 1
+                else 1.0
+            )
             effect_d = abs(shift) / pooled_std if pooled_std > 0 else 0.0
             summary += f"  Point {i + 1}: index {cp}\n"
             summary += f"    BF₁₀ = {bf:.1f}"
             summary += f"  |  before μ = {np.mean(before):.4f}, after μ = {np.mean(after):.4f}\n"
-            summary += f"    Shift = {shift:+.4f}  |  Effect size (d) = {effect_d:.2f}\n"
+            summary += (
+                f"    Shift = {shift:+.4f}  |  Effect size (d) = {effect_d:.2f}\n"
+            )
     else:
         summary += "<<COLOR:accent>>── Result ──<</COLOR>>\n"
         summary += "  <<COLOR:text>>No significant change points detected (BF₁₀ < 3)<</COLOR>>\n"
@@ -106,7 +112,9 @@ def run_bayes_changepoint(df, config, ci_level, z):
         if best_bf > 10:
             summary += "  <<COLOR:success>>Strong evidence for at least one process shift<</COLOR>>\n"
         else:
-            summary += "  <<COLOR:warning>>Moderate evidence for process shift(s)<</COLOR>>\n"
+            summary += (
+                "  <<COLOR:warning>>Moderate evidence for process shift(s)<</COLOR>>\n"
+            )
     else:
         summary += "  <<COLOR:text>>Process appears stable — no evidence of mean shifts<</COLOR>>\n"
 
@@ -125,7 +133,9 @@ def run_bayes_changepoint(df, config, ci_level, z):
             f"Bayesian changepoint: {len(changepoints)} shift(s) detected in {var}. Best BF₁₀={max(cp_bfs):.1f}."
         )
     else:
-        result["guide_observation"] = f"Bayesian changepoint: no significant shifts detected in {var} (n={n})."
+        result["guide_observation"] = (
+            f"Bayesian changepoint: no significant shifts detected in {var} (n={n})."
+        )
 
     # Narrative
     if changepoints:
@@ -137,7 +147,11 @@ def run_bayes_changepoint(df, config, ci_level, z):
         result["narrative"] = _narrative(
             f"Bayesian Changepoint — {len(changepoints)} shift{'s' if len(changepoints) > 1 else ''} detected",
             f"Strongest change at observation {_bcp_idx} (BF\u2081\u2080 = {_bcp_bf:.1f}): mean shifted by {_bcp_shift:+.4f}. "
-            + (f"Total of {len(changepoints)} change points in {n} observations." if len(changepoints) > 1 else ""),
+            + (
+                f"Total of {len(changepoints)} change points in {n} observations."
+                if len(changepoints) > 1
+                else ""
+            ),
             next_steps="Investigate what happened at the change point(s). Align with process logs or external events.",
             chart_guidance="Red dashed vertical lines mark detected shifts. Compare the mean level before and after each line.",
         )
@@ -177,7 +191,11 @@ def run_bayes_changepoint(df, config, ci_level, z):
         {
             "title": "Time Series with Change Points",
             "data": plot_data,
-            "layout": {"height": 350, "xaxis": {"title": time_col or "Index"}, "yaxis": {"title": var}},
+            "layout": {
+                "height": 350,
+                "xaxis": {"title": time_col or "Index"},
+                "yaxis": {"title": var},
+            },
         }
     )
 
@@ -228,7 +246,12 @@ def run_bayes_capability_prediction(df, config, ci_level, z):
     usl = float(usl) if usl is not None and usl != "" else None
     _target = float(
         config.get(
-            "target", (lsl + usl) / 2 if lsl is not None and usl is not None else (lsl if lsl is not None else usl)
+            "target",
+            (
+                (lsl + usl) / 2
+                if lsl is not None and usl is not None
+                else (lsl if lsl is not None else usl)
+            ),
         )
     )
 
@@ -251,7 +274,9 @@ def run_bayes_capability_prediction(df, config, ci_level, z):
     kappa_n = kappa_0 + n
     mu_n = (kappa_0 * mu_0 + n * x_bar) / kappa_n
     nu_n = nu_0 + n
-    s2_n = (nu_0 * s2_0 + (n - 1) * s2 + (kappa_0 * n * (x_bar - mu_0) ** 2) / kappa_n) / nu_n
+    s2_n = (
+        nu_0 * s2_0 + (n - 1) * s2 + (kappa_0 * n * (x_bar - mu_0) ** 2) / kappa_n
+    ) / nu_n
 
     # Draw from posterior predictive for Cpk
     n_draws = 10000
@@ -281,7 +306,10 @@ def run_bayes_capability_prediction(df, config, ci_level, z):
     # Credible intervals
     cpk_mean = float(np.mean(cpk_draws))
     cpk_median = float(np.median(cpk_draws))
-    cpk_ci = (float(np.percentile(cpk_draws, 2.5)), float(np.percentile(cpk_draws, 97.5)))
+    cpk_ci = (
+        float(np.percentile(cpk_draws, 2.5)),
+        float(np.percentile(cpk_draws, 97.5)),
+    )
     cp_mean = float(np.mean(cp_draws))
 
     # P(Cpk > threshold) for common targets
@@ -344,7 +372,10 @@ def run_bayes_capability_prediction(df, config, ci_level, z):
                 {
                     "type": "histogram",
                     "x": cpk_draws.tolist(),
-                    "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                    "marker": {
+                        "color": "rgba(74, 159, 110, 0.4)",
+                        "line": {"color": "#4a9f6e", "width": 1},
+                    },
                     "name": "Posterior Cpk",
                     "nbinsx": 60,
                 }
@@ -428,7 +459,11 @@ def run_bayes_capability_prediction(df, config, ci_level, z):
     )
 
     # Narrative
-    _cap_label = "capable" if cpk_mean >= 1.33 else ("marginally capable" if cpk_mean >= 1.0 else "not capable")
+    _cap_label = (
+        "capable"
+        if cpk_mean >= 1.33
+        else ("marginally capable" if cpk_mean >= 1.0 else "not capable")
+    )
     _confidence_133 = prob_above[1.33]
     result["narrative"] = _narrative(
         f"Process is {_cap_label} (Cpk = {cpk_mean:.3f}, 95% CI [{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}])",
@@ -518,7 +553,9 @@ def run_bayes_meta(df, config, ci_level, z):
         w = 1.0 / (se**2 + tau**2 + 1e-15)
         mu_hat = np.sum(w * y) / np.sum(w)
         var_total = se**2 + tau**2
-        log_marginal[i] = -0.5 * np.sum(np.log(2 * np.pi * var_total) + (y - mu_hat) ** 2 / var_total)
+        log_marginal[i] = -0.5 * np.sum(
+            np.log(2 * np.pi * var_total) + (y - mu_hat) ** 2 / var_total
+        )
 
     # Posterior on tau (flat prior)
     log_post_tau = log_marginal - log_marginal.max()
@@ -560,25 +597,35 @@ def run_bayes_meta(df, config, ci_level, z):
         est = shrink_factor * y[j_study] + (1 - shrink_factor) * mu_mean
         shrunk.append(float(est))
 
-    i2 = float(tau_mean**2 / (tau_mean**2 + np.mean(se**2)) * 100) if tau_mean > 0 else 0.0
-    het_label = "high" if i2 > 75 else ("moderate" if i2 > 50 else ("low" if i2 > 25 else "negligible"))
+    i2 = (
+        float(tau_mean**2 / (tau_mean**2 + np.mean(se**2)) * 100)
+        if tau_mean > 0
+        else 0.0
+    )
+    het_label = (
+        "high"
+        if i2 > 75
+        else ("moderate" if i2 > 50 else ("low" if i2 > 25 else "negligible"))
+    )
 
     summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
     summary += "<<COLOR:title>>BAYESIAN META-ANALYSIS<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:text>>Studies:<</COLOR>> {k}\n\n"
-    summary += "<<COLOR:accent>>\u2500\u2500 Pooled Effect (\u03bc) \u2500\u2500<</COLOR>>\n"
+    summary += (
+        "<<COLOR:accent>>\u2500\u2500 Pooled Effect (\u03bc) \u2500\u2500<</COLOR>>\n"
+    )
     summary += f"  Posterior mean: {mu_mean:.4f}\n"
     summary += f"  95% Credible Interval: [{mu_ci[0]:.4f}, {mu_ci[1]:.4f}]\n\n"
-    summary += "<<COLOR:accent>>\u2500\u2500 Heterogeneity (\u03c4) \u2500\u2500<</COLOR>>\n"
+    summary += (
+        "<<COLOR:accent>>\u2500\u2500 Heterogeneity (\u03c4) \u2500\u2500<</COLOR>>\n"
+    )
     summary += f"  Posterior mean: {tau_mean:.4f}\n"
     summary += f"  95% CI: [{tau_ci[0]:.4f}, {tau_ci[1]:.4f}]\n"
     summary += f"  I\u00b2 analog: {i2:.1f}% ({het_label})\n\n"
     summary += "<<COLOR:accent>>\u2500\u2500 Study Estimates \u2500\u2500<</COLOR>>\n"
     for j_study in range(k):
-        summary += (
-            f"  Study {j_study + 1}: {y[j_study]:.4f} \u00b1 {se[j_study]:.4f} \u2192 shrunk {shrunk[j_study]:.4f}\n"
-        )
+        summary += f"  Study {j_study + 1}: {y[j_study]:.4f} \u00b1 {se[j_study]:.4f} \u2192 shrunk {shrunk[j_study]:.4f}\n"
 
     result["summary"] = summary
     result["statistics"] = {
@@ -877,9 +924,13 @@ def run_bayes_ewma(df, config, ci_level, z):
     if len(ooc_indices) == 0 and bf10 < 3:
         summary += "<<COLOR:success>>Process appears stable — no Bayesian evidence of shift<</COLOR>>\n"
     elif bf10 >= 10:
-        summary += "<<COLOR:error>>Strong Bayesian evidence of process shift<</COLOR>>\n"
+        summary += (
+            "<<COLOR:error>>Strong Bayesian evidence of process shift<</COLOR>>\n"
+        )
     elif bf10 >= 3:
-        summary += "<<COLOR:warning>>Moderate Bayesian evidence of process shift<</COLOR>>\n"
+        summary += (
+            "<<COLOR:warning>>Moderate Bayesian evidence of process shift<</COLOR>>\n"
+        )
     else:
         summary += f"<<COLOR:text>>OOC points detected but Bayesian evidence is {bf_label}<</COLOR>>\n"
 
@@ -934,7 +985,11 @@ def run_bayes_ewma(df, config, ci_level, z):
             "y": ewma.tolist(),
             "mode": "lines+markers",
             "name": "EWMA",
-            "marker": {"color": _rgba(COLOR_GOOD, 0.4), "size": 5, "line": {"color": COLOR_GOOD, "width": 1.5}},
+            "marker": {
+                "color": _rgba(COLOR_GOOD, 0.4),
+                "size": 5,
+                "line": {"color": COLOR_GOOD, "width": 1.5},
+            },
             "line": {"color": COLOR_GOOD},
         },
         {

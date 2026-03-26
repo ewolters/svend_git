@@ -6,13 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0034_remove_valuestreammap_vsm_has_single_owner_and_more'),
+        ("agents_api", "0034_remove_valuestreammap_vsm_has_single_owner_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='valuestreammap',
-            name='metric_snapshots',
-            field=models.JSONField(blank=True, default=list, help_text='[{timestamp, lead_time, process_time, pce, takt_time, step_count, inventory_count}]'),
+            model_name="valuestreammap",
+            name="metric_snapshots",
+            field=models.JSONField(
+                blank=True,
+                default=list,
+                help_text="[{timestamp, lead_time, process_time, pce, takt_time, step_count, inventory_count}]",
+            ),
         ),
     ]

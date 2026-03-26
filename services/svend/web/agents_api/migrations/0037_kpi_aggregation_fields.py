@@ -7,33 +7,65 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0036_xmatrix_and_vsm_lifecycle'),
+        ("agents_api", "0036_xmatrix_and_vsm_lifecycle"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='hoshinkpi',
-            name='aggregation',
-            field=models.CharField(choices=[('sum', 'Sum (dollars)'), ('weighted_avg', 'Volume-weighted average'), ('latest', 'Latest calculator result'), ('manual', 'Manual entry')], default='sum', help_text='How this KPI aggregates across projects in the X-matrix rollup', max_length=20),
+            model_name="hoshinkpi",
+            name="aggregation",
+            field=models.CharField(
+                choices=[
+                    ("sum", "Sum (dollars)"),
+                    ("weighted_avg", "Volume-weighted average"),
+                    ("latest", "Latest calculator result"),
+                    ("manual", "Manual entry"),
+                ],
+                default="sum",
+                help_text="How this KPI aggregates across projects in the X-matrix rollup",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='hoshinkpi',
-            name='calculator_field',
-            field=models.CharField(blank=True, default='', help_text='JSON path within DSWResult.data to extract, e.g. cpk, yield_percent', max_length=60),
+            model_name="hoshinkpi",
+            name="calculator_field",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="JSON path within DSWResult.data to extract, e.g. cpk, yield_percent",
+                max_length=60,
+            ),
         ),
         migrations.AddField(
-            model_name='hoshinkpi',
-            name='calculator_result_type',
-            field=models.CharField(blank=True, default='', help_text='DSWResult.result_type to pull from, e.g. spc_capability. Used with aggregation=latest.', max_length=60),
+            model_name="hoshinkpi",
+            name="calculator_result_type",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="DSWResult.result_type to pull from, e.g. spc_capability. Used with aggregation=latest.",
+                max_length=60,
+            ),
         ),
         migrations.AlterField(
-            model_name='hoshinkpi',
-            name='derived_field',
-            field=models.CharField(blank=True, default='ytd_savings', help_text='Which project field to pull: ytd_savings, savings_pct, raw_metric', max_length=30),
+            model_name="hoshinkpi",
+            name="derived_field",
+            field=models.CharField(
+                blank=True,
+                default="ytd_savings",
+                help_text="Which project field to pull: ytd_savings, savings_pct, raw_metric",
+                max_length=30,
+            ),
         ),
         migrations.AlterField(
-            model_name='hoshinkpi',
-            name='derived_from',
-            field=models.ForeignKey(blank=True, help_text="If set, actual_value is computed from this project's data", null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='derived_kpis', to='agents_api.hoshinproject'),
+            model_name="hoshinkpi",
+            name="derived_from",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="If set, actual_value is computed from this project's data",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="derived_kpis",
+                to="agents_api.hoshinproject",
+            ),
         ),
     ]

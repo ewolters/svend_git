@@ -9,73 +9,272 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0068_risk_fmea_row_source_type'),
-        ('core', '0023_qms_phase_c_registers'),
+        ("agents_api", "0068_risk_fmea_row_source_type"),
+        ("core", "0023_qms_phase_c_registers"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AFE',
+            name="AFE",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('afe_number', models.CharField(blank=True, help_text='e.g. AFE-2026-001 (auto or manual)', max_length=50)),
-                ('title', models.CharField(max_length=300)),
-                ('description', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('draft', 'Draft'), ('submitted', 'Submitted'), ('in_review', 'In Review'), ('approved', 'Approved'), ('denied', 'Denied'), ('cancelled', 'Cancelled')], default='draft', max_length=20)),
-                ('department', models.CharField(blank=True, max_length=100)),
-                ('estimated_cost', models.DecimalField(decimal_places=2, default=0, max_digits=12)),
-                ('budgeted_amount', models.DecimalField(decimal_places=2, default=0, max_digits=12)),
-                ('actual_cost', models.DecimalField(decimal_places=2, default=0, max_digits=12)),
-                ('expected_savings', models.DecimalField(decimal_places=2, default=0, max_digits=12)),
-                ('payback_months', models.DecimalField(blank=True, decimal_places=1, max_digits=6, null=True)),
-                ('roi_percent', models.DecimalField(blank=True, decimal_places=2, max_digits=7, null=True)),
-                ('business_justification', models.TextField(blank=True)),
-                ('alternatives_considered', models.TextField(blank=True)),
-                ('quote_reference', models.CharField(blank=True, max_length=200)),
-                ('po_number', models.CharField(blank=True, max_length=100)),
-                ('denial_reason', models.TextField(blank=True)),
-                ('submitted_date', models.DateField(blank=True, null=True)),
-                ('decision_date', models.DateField(blank=True, null=True)),
-                ('expected_completion', models.DateField(blank=True, null=True)),
-                ('actual_completion', models.DateField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('checklist', models.ForeignKey(blank=True, help_text='Pre-approval checklist (safety review, environmental, etc.)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='afes', to='agents_api.checklist')),
-                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='afes_created', to=settings.AUTH_USER_MODEL)),
-                ('fmea', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='afes', to='agents_api.fmea')),
-                ('hoshin_project', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='afes', to='agents_api.hoshinproject')),
-                ('owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='afes', to=settings.AUTH_USER_MODEL)),
-                ('project', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='afes', to='core.project')),
-                ('risk', models.ForeignKey(blank=True, help_text='Risk register entry that justifies this expenditure', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='afes', to='agents_api.risk')),
-                ('site', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='afes', to='agents_api.site')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "afe_number",
+                    models.CharField(
+                        blank=True,
+                        help_text="e.g. AFE-2026-001 (auto or manual)",
+                        max_length=50,
+                    ),
+                ),
+                ("title", models.CharField(max_length=300)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Draft"),
+                            ("submitted", "Submitted"),
+                            ("in_review", "In Review"),
+                            ("approved", "Approved"),
+                            ("denied", "Denied"),
+                            ("cancelled", "Cancelled"),
+                        ],
+                        default="draft",
+                        max_length=20,
+                    ),
+                ),
+                ("department", models.CharField(blank=True, max_length=100)),
+                (
+                    "estimated_cost",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=12),
+                ),
+                (
+                    "budgeted_amount",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=12),
+                ),
+                (
+                    "actual_cost",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=12),
+                ),
+                (
+                    "expected_savings",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=12),
+                ),
+                (
+                    "payback_months",
+                    models.DecimalField(
+                        blank=True, decimal_places=1, max_digits=6, null=True
+                    ),
+                ),
+                (
+                    "roi_percent",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=7, null=True
+                    ),
+                ),
+                ("business_justification", models.TextField(blank=True)),
+                ("alternatives_considered", models.TextField(blank=True)),
+                ("quote_reference", models.CharField(blank=True, max_length=200)),
+                ("po_number", models.CharField(blank=True, max_length=100)),
+                ("denial_reason", models.TextField(blank=True)),
+                ("submitted_date", models.DateField(blank=True, null=True)),
+                ("decision_date", models.DateField(blank=True, null=True)),
+                ("expected_completion", models.DateField(blank=True, null=True)),
+                ("actual_completion", models.DateField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "checklist",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Pre-approval checklist (safety review, environmental, etc.)",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="afes",
+                        to="agents_api.checklist",
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="afes_created",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "fmea",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="afes",
+                        to="agents_api.fmea",
+                    ),
+                ),
+                (
+                    "hoshin_project",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="afes",
+                        to="agents_api.hoshinproject",
+                    ),
+                ),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="afes",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "project",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="afes",
+                        to="core.project",
+                    ),
+                ),
+                (
+                    "risk",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Risk register entry that justifies this expenditure",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="afes",
+                        to="agents_api.risk",
+                    ),
+                ),
+                (
+                    "site",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="afes",
+                        to="agents_api.site",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'afes',
-                'ordering': ['-created_at'],
+                "db_table": "afes",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='AFEApprovalLevel',
+            name="AFEApprovalLevel",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('level_order', models.IntegerField(default=0, help_text='0=first approver, 1=second, etc.')),
-                ('level_name', models.CharField(help_text='e.g. Site Manager, BU Director, VP Finance', max_length=100)),
-                ('cost_threshold', models.DecimalField(decimal_places=2, default=0, help_text='This level required when estimated_cost >= threshold. 0 = always required.', max_digits=12)),
-                ('is_required', models.BooleanField(default=True)),
-                ('approver_name', models.CharField(blank=True, help_text='Display name (for non-users)', max_length=200)),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('approved', 'Approved'), ('denied', 'Denied'), ('skipped', 'Skipped (below threshold)')], default='pending', max_length=20)),
-                ('comments', models.TextField(blank=True)),
-                ('decided_at', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('afe', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='approval_levels', to='agents_api.afe')),
-                ('approver', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='afe_approvals', to=settings.AUTH_USER_MODEL)),
-                ('signature', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='afe_approval_levels', to='agents_api.electronicsignature')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "level_order",
+                    models.IntegerField(
+                        default=0, help_text="0=first approver, 1=second, etc."
+                    ),
+                ),
+                (
+                    "level_name",
+                    models.CharField(
+                        help_text="e.g. Site Manager, BU Director, VP Finance",
+                        max_length=100,
+                    ),
+                ),
+                (
+                    "cost_threshold",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0,
+                        help_text="This level required when estimated_cost >= threshold. 0 = always required.",
+                        max_digits=12,
+                    ),
+                ),
+                ("is_required", models.BooleanField(default=True)),
+                (
+                    "approver_name",
+                    models.CharField(
+                        blank=True,
+                        help_text="Display name (for non-users)",
+                        max_length=200,
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("approved", "Approved"),
+                            ("denied", "Denied"),
+                            ("skipped", "Skipped (below threshold)"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
+                ("comments", models.TextField(blank=True)),
+                ("decided_at", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "afe",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="approval_levels",
+                        to="agents_api.afe",
+                    ),
+                ),
+                (
+                    "approver",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="afe_approvals",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "signature",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="afe_approval_levels",
+                        to="agents_api.electronicsignature",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'afe_approval_levels',
-                'ordering': ['level_order'],
-                'constraints': [models.UniqueConstraint(fields=('afe', 'level_order'), name='unique_afe_level_order')],
+                "db_table": "afe_approval_levels",
+                "ordering": ["level_order"],
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("afe", "level_order"), name="unique_afe_level_order"
+                    )
+                ],
             },
         ),
     ]

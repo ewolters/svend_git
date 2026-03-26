@@ -65,9 +65,9 @@ def _load_commitment(tok):
     try:
         from .models import ResourceCommitment
 
-        return ResourceCommitment.objects.select_related("employee", "project__project", "requested_by").get(
-            id=commitment_id
-        )
+        return ResourceCommitment.objects.select_related(
+            "employee", "project__project", "requested_by"
+        ).get(id=commitment_id)
     except ResourceCommitment.DoesNotExist:
         return None
 
@@ -176,7 +176,9 @@ def _post_commitment_action(tok):
         )
 
     # Transition
-    new_status = "confirmed" if tok.action_type == "confirm_availability" else "declined"
+    new_status = (
+        "confirmed" if tok.action_type == "confirm_availability" else "declined"
+    )
     commitment.status = new_status
     commitment.save(update_fields=["status", "updated_at"])
     tok.use()

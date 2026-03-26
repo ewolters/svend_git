@@ -111,9 +111,15 @@ class ReflexOutcome:
     compensating_tasks: list[CompensatingTask] = field(default_factory=list)
 
     # Modifications made
-    priority_adjustments: dict[str, int] = field(default_factory=dict)  # task/schedule -> delta
-    ttl_adjustments: dict[str, float] = field(default_factory=dict)  # task -> multiplier
-    interval_adjustments: dict[str, float] = field(default_factory=dict)  # schedule -> multiplier
+    priority_adjustments: dict[str, int] = field(
+        default_factory=dict
+    )  # task/schedule -> delta
+    ttl_adjustments: dict[str, float] = field(
+        default_factory=dict
+    )  # task -> multiplier
+    interval_adjustments: dict[str, float] = field(
+        default_factory=dict
+    )  # schedule -> multiplier
 
     # Timing
     started_at: datetime | None = None
@@ -139,7 +145,9 @@ class ReflexOutcome:
             "ttl_adjustments": self.ttl_adjustments,
             "interval_adjustments": self.interval_adjustments,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "completed_at": (
+                self.completed_at.isoformat() if self.completed_at else None
+            ),
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "error_message": self.error_message,
         }
@@ -155,26 +163,42 @@ class ReflexState:
 
     # Active modifications
     paused_schedules: set[str] = field(default_factory=set)
-    accelerated_schedules: dict[str, float] = field(default_factory=dict)  # schedule -> multiplier
-    delayed_schedules: dict[str, float] = field(default_factory=dict)  # schedule -> multiplier
+    accelerated_schedules: dict[str, float] = field(
+        default_factory=dict
+    )  # schedule -> multiplier
+    delayed_schedules: dict[str, float] = field(
+        default_factory=dict
+    )  # schedule -> multiplier
 
     # Priority modifications
-    priority_degradations: dict[str, int] = field(default_factory=dict)  # pattern -> delta
+    priority_degradations: dict[str, int] = field(
+        default_factory=dict
+    )  # pattern -> delta
     priority_boosts: dict[str, int] = field(default_factory=dict)  # pattern -> delta
 
     # TTL modifications
-    ttl_extensions: dict[str, float] = field(default_factory=dict)  # pattern -> multiplier
-    ttl_reductions: dict[str, float] = field(default_factory=dict)  # pattern -> multiplier
+    ttl_extensions: dict[str, float] = field(
+        default_factory=dict
+    )  # pattern -> multiplier
+    ttl_reductions: dict[str, float] = field(
+        default_factory=dict
+    )  # pattern -> multiplier
 
     # Tenant modifications
     paused_tenants: set[str] = field(default_factory=set)
-    throttled_tenants: dict[str, float] = field(default_factory=dict)  # tenant -> throttle level
+    throttled_tenants: dict[str, float] = field(
+        default_factory=dict
+    )  # tenant -> throttle level
 
     # Health check modifications
-    accelerated_health_checks: dict[str, float] = field(default_factory=dict)  # pattern -> multiplier
+    accelerated_health_checks: dict[str, float] = field(
+        default_factory=dict
+    )  # pattern -> multiplier
 
     # Active outcomes (with expiration tracking)
-    active_outcomes: dict[str, ReflexOutcome] = field(default_factory=dict)  # outcome_id -> outcome
+    active_outcomes: dict[str, ReflexOutcome] = field(
+        default_factory=dict
+    )  # outcome_id -> outcome
 
     # History
     outcome_history: list[ReflexOutcome] = field(default_factory=list)
@@ -406,7 +430,9 @@ class TemporalReflex:
 
         # Calculate expiration
         if action.duration_minutes:
-            outcome.expires_at = timezone.now() + timedelta(minutes=action.duration_minutes)
+            outcome.expires_at = timezone.now() + timedelta(
+                minutes=action.duration_minutes
+            )
 
         try:
             # Get executor for action type
@@ -427,7 +453,9 @@ class TemporalReflex:
                     "outcome_id": outcome.outcome_id,
                     "affected_schedules": len(outcome.affected_schedules),
                     "affected_tasks": len(outcome.affected_tasks),
-                    "expires_at": outcome.expires_at.isoformat() if outcome.expires_at else None,
+                    "expires_at": (
+                        outcome.expires_at.isoformat() if outcome.expires_at else None
+                    ),
                 },
             )
 
@@ -504,7 +532,9 @@ class TemporalReflex:
                 self._state.ttl_reductions.pop(pattern, None)
 
         elif action_type == ActionType.TENANT_PAUSE:
-            for tenant_id in outcome.affected_tasks:  # Reusing affected_tasks for tenant IDs
+            for (
+                tenant_id
+            ) in outcome.affected_tasks:  # Reusing affected_tasks for tenant IDs
                 self._state.paused_tenants.discard(tenant_id)
 
         elif action_type == ActionType.TENANT_THROTTLE:
@@ -646,7 +676,9 @@ class TemporalReflex:
         comp_task.payload["_triggered_by"] = outcome.rule_id
         comp_task.payload["_triggered_at"] = timezone.now().isoformat()
         comp_task.payload["_trigger_context"] = {
-            k: v for k, v in context.items() if isinstance(v, (str, int, float, bool, type(None)))
+            k: v
+            for k, v in context.items()
+            if isinstance(v, (str, int, float, bool, type(None)))
         }
 
         outcome.compensating_tasks.append(comp_task)
@@ -660,7 +692,9 @@ class TemporalReflex:
                     extra={"task_name": action.task_name, "rule_id": outcome.rule_id},
                 )
             except Exception as e:
-                logger.error(f"[TEMPORAL REFLEX] Failed to submit compensating task: {e}")
+                logger.error(
+                    f"[TEMPORAL REFLEX] Failed to submit compensating task: {e}"
+                )
 
     def _execute_cancel_tasks(
         self,
@@ -713,7 +747,9 @@ class TemporalReflex:
         """Apply throttling to a tenant."""
         tenant_id = context.get("tenant_id")
         if not tenant_id:
-            logger.warning("[TEMPORAL REFLEX] Tenant throttle requested but no tenant_id in context")
+            logger.warning(
+                "[TEMPORAL REFLEX] Tenant throttle requested but no tenant_id in context"
+            )
             return
 
         throttle_level = action.value or 0.5
@@ -729,7 +765,9 @@ class TemporalReflex:
         """Pause all tasks for a tenant."""
         tenant_id = context.get("tenant_id")
         if not tenant_id:
-            logger.warning("[TEMPORAL REFLEX] Tenant pause requested but no tenant_id in context")
+            logger.warning(
+                "[TEMPORAL REFLEX] Tenant pause requested but no tenant_id in context"
+            )
             return
 
         self._state.paused_tenants.add(str(tenant_id))
@@ -789,7 +827,9 @@ class TemporalReflex:
             action.custom_executor(context)
             logger.info("[TEMPORAL REFLEX] Custom action executed")
         else:
-            logger.warning("[TEMPORAL REFLEX] Custom action requested but no executor provided")
+            logger.warning(
+                "[TEMPORAL REFLEX] Custom action requested but no executor provided"
+            )
 
     # =========================================================================
     # Query Methods (for scheduler integration)

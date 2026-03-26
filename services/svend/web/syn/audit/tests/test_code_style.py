@@ -105,7 +105,9 @@ class FunctionNamingTest(SimpleTestCase):
     def test_all_functions_snake_case(self):
         """All functions use lowercase_snake_case naming."""
         violations = _scan_function_names(WEB_ROOT)
-        self.assertEqual(violations, [], f"Function naming violations: {violations[:10]}")
+        self.assertEqual(
+            violations, [], f"Function naming violations: {violations[:10]}"
+        )
 
 
 class ImportOrderTest(SimpleTestCase):
@@ -119,7 +121,9 @@ class ImportOrderTest(SimpleTestCase):
     def test_no_wildcard_imports(self):
         """No wildcard imports (from X import *) in codebase."""
         violations = _check_wildcard_imports(WEB_ROOT)
-        self.assertEqual(violations, [], f"Wildcard import violations: {violations[:10]}")
+        self.assertEqual(
+            violations, [], f"Wildcard import violations: {violations[:10]}"
+        )
 
 
 class ModuleDocstringTest(SimpleTestCase):
@@ -175,7 +179,12 @@ class CheckRegistrationTest(SimpleTestCase):
         self.assertIn(result["status"], ("pass", "fail", "warning", "error"))
         # Verify details has expected sub-keys
         details = result["details"]
-        for sub_key in ["files_scanned", "file_naming_violations", "class_naming_violations", "total_violations"]:
+        for sub_key in [
+            "files_scanned",
+            "file_naming_violations",
+            "class_naming_violations",
+            "total_violations",
+        ]:
             self.assertIn(sub_key, details, f"Details missing key: {sub_key}")
         self.assertGreater(details["files_scanned"], 100)
 
@@ -186,7 +195,11 @@ class ModelFieldNamingTest(SimpleTestCase):
     def test_no_fk_suffix(self):
         """No ForeignKey field uses _fk suffix."""
         violations = _check_model_field_naming(WEB_ROOT)
-        self.assertEqual(violations["fk_suffix"], [], f"FK _fk suffix violations: {violations['fk_suffix'][:10]}")
+        self.assertEqual(
+            violations["fk_suffix"],
+            [],
+            f"FK _fk suffix violations: {violations['fk_suffix'][:10]}",
+        )
 
     def test_no_mutable_jsonfield_defaults(self):
         """No JSONField uses mutable default ([] or {{}})."""
@@ -201,7 +214,11 @@ class ModelFieldNamingTest(SimpleTestCase):
         """BooleanField fields should have is_/has_/can_ prefix."""
         violations = _check_model_field_naming(WEB_ROOT)
         bool_violations = violations["boolean_prefix"]
-        self.assertEqual(bool_violations, [], f"BooleanField prefix violations: {bool_violations[:10]}")
+        self.assertEqual(
+            bool_violations,
+            [],
+            f"BooleanField prefix violations: {bool_violations[:10]}",
+        )
 
 
 class URLKebabCaseTest(SimpleTestCase):
@@ -210,7 +227,9 @@ class URLKebabCaseTest(SimpleTestCase):
     def test_no_underscore_urls(self):
         """All URL path segments use kebab-case (no underscores)."""
         violations = _check_arch_url_kebab_case(WEB_ROOT)
-        self.assertEqual(violations, [], f"URL kebab-case violations: {violations[:10]}")
+        self.assertEqual(
+            violations, [], f"URL kebab-case violations: {violations[:10]}"
+        )
 
 
 class TimestampNamingTest(SimpleTestCase):
@@ -219,7 +238,9 @@ class TimestampNamingTest(SimpleTestCase):
     def test_no_timestamp_violations(self):
         """All DateTimeField names end in _at (or are known exceptions)."""
         violations = _check_arch_timestamp_naming(WEB_ROOT)
-        self.assertEqual(violations, [], f"Timestamp naming violations: {violations[:10]}")
+        self.assertEqual(
+            violations, [], f"Timestamp naming violations: {violations[:10]}"
+        )
 
     def test_known_exceptions_documented(self):
         """Built-in Django timestamp fields are tracked as known exceptions."""
@@ -252,7 +273,9 @@ class ConstantNamingTest(SimpleTestCase):
     def test_module_level_constants_upper_snake(self):
         """All constants in syn/ follow UPPER_SNAKE_CASE (CC8.1)."""
         violations = _scan_constant_names(WEB_ROOT)
-        self.assertEqual(violations, [], f"Constant naming violations: {violations[:10]}")
+        self.assertEqual(
+            violations, [], f"Constant naming violations: {violations[:10]}"
+        )
 
     def test_known_constants_are_upper_snake(self):
         """Spot-check known constants: ALL_CHECKS, SENSITIVE_FIELD_PATTERNS, HEADER_CORRELATION_ID."""
@@ -311,18 +334,30 @@ class ModuleLayoutOrderTest(SimpleTestCase):
                             break
                     if first_import:
                         # Docstring node is the first Expr
-                        self.assertLess(1, first_import, f"{rel}: import before docstring")
+                        self.assertLess(
+                            1, first_import, f"{rel}: import before docstring"
+                        )
 
     def test_imports_before_constants(self):
         """8 key infra files: imports appear before constant assignments (CC8.1)."""
         violations = _check_module_layout_order(WEB_ROOT)
-        import_violations = [v for v in violations if "Imports" in v["violation"] and "constants" in v["violation"]]
-        self.assertEqual(import_violations, [], f"Layout violations: {import_violations}")
+        import_violations = [
+            v
+            for v in violations
+            if "Imports" in v["violation"] and "constants" in v["violation"]
+        ]
+        self.assertEqual(
+            import_violations, [], f"Layout violations: {import_violations}"
+        )
 
     def test_constants_before_functions(self):
         """8 key infra files: constants appear before def/class (CC8.1)."""
         violations = _check_module_layout_order(WEB_ROOT)
-        const_violations = [v for v in violations if "Constants" in v["violation"] and "functions" in v["violation"]]
+        const_violations = [
+            v
+            for v in violations
+            if "Constants" in v["violation"] and "functions" in v["violation"]
+        ]
         self.assertEqual(const_violations, [], f"Layout violations: {const_violations}")
 
 
@@ -357,12 +392,17 @@ class InfraDocstringTest(SimpleTestCase):
             source = fpath.read_text(errors="ignore")
             tree = ast.parse(source)
             for node in ast.walk(tree):
-                if isinstance(node, (ast.ClassDef, ast.FunctionDef)) and node.name == class_name:
+                if (
+                    isinstance(node, (ast.ClassDef, ast.FunctionDef))
+                    and node.name == class_name
+                ):
                     doc = ast.get_docstring(node)
                     if not doc:
                         missing.append(f"{rel_path}:{class_name}")
                     break
-        self.assertEqual(missing, [], f"Key infra classes missing docstrings: {missing}")
+        self.assertEqual(
+            missing, [], f"Key infra classes missing docstrings: {missing}"
+        )
 
 
 # =========================================================================

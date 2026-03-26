@@ -42,7 +42,10 @@ N = 60
 X1 = list(np.random.RandomState(42).normal(0, 1, N))
 X2 = list(np.random.RandomState(43).normal(0, 1, N))
 X3 = list(np.random.RandomState(44).normal(0, 1, N))
-Y_REG = [2 * x1 + 0.5 * x2 + np.random.RandomState(45).normal(0, 0.5) for x1, x2 in zip(X1, X2)]
+Y_REG = [
+    2 * x1 + 0.5 * x2 + np.random.RandomState(45).normal(0, 0.5)
+    for x1, x2 in zip(X1, X2)
+]
 Y_CLS = [1 if y > 0 else 0 for y in Y_REG]
 Y_MULTI = np.random.RandomState(46).choice(["A", "B", "C"], N).tolist()
 
@@ -134,7 +137,10 @@ class MLSupervised(TestCase):
         _check_schema(self, r)
 
     def test_item_analysis(self):
-        items = {f"q{i}": np.random.RandomState(i).choice([0, 1], N).tolist() for i in range(5)}
+        items = {
+            f"q{i}": np.random.RandomState(i).choice([0, 1], N).tolist()
+            for i in range(5)
+        }
         r = _run(
             "item_analysis",
             {"features": [f"q{i}" for i in range(5)]},

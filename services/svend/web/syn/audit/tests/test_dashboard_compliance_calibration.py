@@ -103,7 +103,17 @@ class ComplianceGetResponseStructureTest(TestCase):
         """Response contains all required top-level keys."""
         resp = self.client.get("/api/internal/compliance/")
         data = resp.json()
-        for key in ("checks", "trend", "stats", "reports", "standards", "code_coverage", "calibration", "sla", "soc2"):
+        for key in (
+            "checks",
+            "trend",
+            "stats",
+            "reports",
+            "standards",
+            "code_coverage",
+            "calibration",
+            "sla",
+            "soc2",
+        ):
             self.assertIn(key, data, f"Missing top-level key: {key}")
 
     def test_checks_is_list(self):
@@ -167,7 +177,9 @@ class ComplianceGetWithDataTest(TestCase):
         resp = self.client.get("/api/internal/compliance/")
         returned_names = {c["check_name"] for c in resp.json()["checks"]}
         for name in ALL_CHECKS:
-            self.assertIn(name, returned_names, f"Registered check '{name}' missing from response")
+            self.assertIn(
+                name, returned_names, f"Registered check '{name}' missing from response"
+            )
 
     def test_pending_check_has_correct_structure(self):
         """Checks with no stored results have status=pending."""
@@ -191,7 +203,9 @@ class ComplianceGetWithDataTest(TestCase):
             soc2_controls=["CC7.2"],
         )
         resp = self.client.get("/api/internal/compliance/")
-        check = next(c for c in resp.json()["checks"] if c["check_name"] == "audit_integrity")
+        check = next(
+            c for c in resp.json()["checks"] if c["check_name"] == "audit_integrity"
+        )
         self.assertEqual(check["status"], "pass")
         self.assertEqual(check["duration_ms"], 42.5)
         self.assertIsNotNone(check["id"])
@@ -320,7 +334,9 @@ class ComplianceRunListModeTest(TestCase):
 
     def test_all_keyword_returns_check_list(self):
         """POST with check=__all__ returns check list."""
-        resp = _post_json(self.client, "/api/internal/compliance/run/", {"check": "__all__"})
+        resp = _post_json(
+            self.client, "/api/internal/compliance/run/", {"check": "__all__"}
+        )
         data = resp.json()
         self.assertTrue(data["ok"])
         self.assertIn("checks", data)
@@ -339,12 +355,16 @@ class ComplianceRunSingleCheckTest(TestCase):
 
     def test_unknown_check_returns_400(self):
         """Unknown check name returns 400."""
-        resp = _post_json(self.client, "/api/internal/compliance/run/", {"check": "nonexistent_check"})
+        resp = _post_json(
+            self.client, "/api/internal/compliance/run/", {"check": "nonexistent_check"}
+        )
         self.assertEqual(resp.status_code, 400)
 
     def test_valid_check_runs_and_returns(self):
         """Running a valid check returns ok with check result."""
-        resp = _post_json(self.client, "/api/internal/compliance/run/", {"check": "security_config"})
+        resp = _post_json(
+            self.client, "/api/internal/compliance/run/", {"check": "security_config"}
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(data["ok"])
@@ -357,7 +377,9 @@ class ComplianceRunSingleCheckTest(TestCase):
         from syn.audit.models import ComplianceCheck
 
         before = ComplianceCheck.objects.filter(check_name="error_handling").count()
-        _post_json(self.client, "/api/internal/compliance/run/", {"check": "error_handling"})
+        _post_json(
+            self.client, "/api/internal/compliance/run/", {"check": "error_handling"}
+        )
         after = ComplianceCheck.objects.filter(check_name="error_handling").count()
         self.assertEqual(after, before + 1)
 
@@ -376,7 +398,9 @@ class ComplianceRunStandardsTestsTest(TestCase):
     def test_per_standard_test_run(self):
         """Running tests for a specific standard returns test results."""
         resp = _post_json(
-            self.client, "/api/internal/compliance/run/", {"check": "standards_tests", "standard": "TST-001"}
+            self.client,
+            "/api/internal/compliance/run/",
+            {"check": "standards_tests", "standard": "TST-001"},
         )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
@@ -388,7 +412,11 @@ class ComplianceRunStandardsTestsTest(TestCase):
 
     def test_run_all_standards_tests(self):
         """run_all_standards_tests mode aggregates across standards."""
-        resp = _post_json(self.client, "/api/internal/compliance/run/", {"check": "run_all_standards_tests"})
+        resp = _post_json(
+            self.client,
+            "/api/internal/compliance/run/",
+            {"check": "run_all_standards_tests"},
+        )
         # May return 500 if DB transaction state is broken in test context;
         # the endpoint wraps errors in try/except so 200 is the happy path.
         if resp.status_code == 200:
@@ -680,7 +708,9 @@ class CalibrationRunActionTest(TestCase):
 
     def test_unknown_action_returns_400(self):
         """Unknown action returns 400."""
-        resp = _post_json(self.client, "/api/internal/calibration/run/", {"action": "nonexistent"})
+        resp = _post_json(
+            self.client, "/api/internal/calibration/run/", {"action": "nonexistent"}
+        )
         self.assertEqual(resp.status_code, 400)
 
     def test_missing_action_returns_400(self):
@@ -690,7 +720,11 @@ class CalibrationRunActionTest(TestCase):
 
     def test_measure_coverage_runs(self):
         """measure_coverage action returns ok with output."""
-        resp = _post_json(self.client, "/api/internal/calibration/run/", {"action": "measure_coverage"})
+        resp = _post_json(
+            self.client,
+            "/api/internal/calibration/run/",
+            {"action": "measure_coverage"},
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(data["ok"])
@@ -700,7 +734,9 @@ class CalibrationRunActionTest(TestCase):
 
     def test_generate_cert_runs(self):
         """generate_cert action returns ok with output."""
-        resp = _post_json(self.client, "/api/internal/calibration/run/", {"action": "generate_cert"})
+        resp = _post_json(
+            self.client, "/api/internal/calibration/run/", {"action": "generate_cert"}
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(data["ok"])
@@ -728,11 +764,15 @@ class ComplianceDataFlowTest(TestCase):
     def test_run_then_get_reflects_result(self):
         """Running a check via POST then GET shows the result."""
         # Run a check
-        _post_json(self.client, "/api/internal/compliance/run/", {"check": "security_config"})
+        _post_json(
+            self.client, "/api/internal/compliance/run/", {"check": "security_config"}
+        )
 
         # GET should now show it with a real status
         resp = self.client.get("/api/internal/compliance/")
-        check = next(c for c in resp.json()["checks"] if c["check_name"] == "security_config")
+        check = next(
+            c for c in resp.json()["checks"] if c["check_name"] == "security_config"
+        )
         self.assertNotEqual(check["status"], "pending")
         self.assertIsNotNone(check["id"])
         self.assertIsNotNone(check["run_at"])
@@ -755,7 +795,9 @@ class ComplianceDataFlowTest(TestCase):
             duration_ms=20,
         )
         resp = self.client.get("/api/internal/compliance/")
-        check = next(c for c in resp.json()["checks"] if c["check_name"] == "session_security")
+        check = next(
+            c for c in resp.json()["checks"] if c["check_name"] == "session_security"
+        )
         # Should be the latest (pass, 20ms)
         self.assertEqual(check["status"], "pass")
         self.assertEqual(check["duration_ms"], 20)
@@ -772,7 +814,9 @@ class ComplianceDataFlowTest(TestCase):
             soc2_controls=["CC7.2", "CC7.3"],
         )
         resp = self.client.get("/api/internal/compliance/")
-        check = next(c for c in resp.json()["checks"] if c["check_name"] == "audit_integrity")
+        check = next(
+            c for c in resp.json()["checks"] if c["check_name"] == "audit_integrity"
+        )
         self.assertEqual(check["soc2_controls"], ["CC7.2", "CC7.3"])
 
 
@@ -792,7 +836,11 @@ class CalibrationDataFlowTest(TestCase):
         from syn.audit.models import CalibrationReport
 
         before = CalibrationReport.objects.count()
-        _post_json(self.client, "/api/internal/calibration/run/", {"action": "measure_coverage"})
+        _post_json(
+            self.client,
+            "/api/internal/calibration/run/",
+            {"action": "measure_coverage"},
+        )
         after = CalibrationReport.objects.count()
         self.assertGreaterEqual(after, before + 1)
 
@@ -800,7 +848,9 @@ class CalibrationDataFlowTest(TestCase):
         """generate_cert action creates a certificate CalibrationReport."""
         from syn.audit.models import CalibrationReport
 
-        _post_json(self.client, "/api/internal/calibration/run/", {"action": "generate_cert"})
+        _post_json(
+            self.client, "/api/internal/calibration/run/", {"action": "generate_cert"}
+        )
         certs = CalibrationReport.objects.filter(is_certificate=True)
         self.assertGreaterEqual(certs.count(), 1)
 

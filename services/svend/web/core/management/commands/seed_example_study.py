@@ -55,11 +55,17 @@ class Command(BaseCommand):
         if options["clean"]:
             deleted, _ = Project.objects.filter(title=EXAMPLE_TITLE, user=user).delete()
             if deleted:
-                self.stdout.write(self.style.WARNING(f"Deleted {deleted} previous example object(s)."))
+                self.stdout.write(
+                    self.style.WARNING(f"Deleted {deleted} previous example object(s).")
+                )
 
         # Check for existing
         if Project.objects.filter(title=EXAMPLE_TITLE, user=user).exists():
-            self.stdout.write(self.style.WARNING("Example study already exists. Use --clean to recreate."))
+            self.stdout.write(
+                self.style.WARNING(
+                    "Example study already exists. Use --clean to recreate."
+                )
+            )
             return
 
         # =====================================================================
@@ -171,10 +177,26 @@ class Command(BaseCommand):
             leader_name="Marcus Rodriguez",
             leader_title="Senior Quality Engineer",
             team_members=[
-                {"name": "Yuki Tanaka", "role": "Process Engineer", "department": "Molding"},
-                {"name": "David Kim", "role": "Tooling Specialist", "department": "Maintenance"},
-                {"name": "Priya Sharma", "role": "Data Analyst", "department": "Quality"},
-                {"name": "James O'Brien", "role": "Shift B Lead", "department": "Production"},
+                {
+                    "name": "Yuki Tanaka",
+                    "role": "Process Engineer",
+                    "department": "Molding",
+                },
+                {
+                    "name": "David Kim",
+                    "role": "Tooling Specialist",
+                    "department": "Maintenance",
+                },
+                {
+                    "name": "Priya Sharma",
+                    "role": "Data Analyst",
+                    "department": "Quality",
+                },
+                {
+                    "name": "James O'Brien",
+                    "role": "Shift B Lead",
+                    "department": "Production",
+                },
             ],
             # Timeline
             target_completion=date.today() + timedelta(days=21),
@@ -206,7 +228,13 @@ class Command(BaseCommand):
             ],
             domain="manufacturing",
             can_experiment=True,
-            tags=["injection-molding", "flash-defect", "DMAIC", "SPC", "customer-return"],
+            tags=[
+                "injection-molding",
+                "flash-defect",
+                "DMAIC",
+                "SPC",
+                "customer-return",
+            ],
         )
 
         self.stdout.write(self.style.SUCCESS(f"Created project: {project.title}"))
@@ -308,7 +336,11 @@ class Command(BaseCommand):
                 "the parting line seal surface can no longer contain material under normal injection pressure"
             ),
             independent_variable="Parting Line Wear (gap)",
-            independent_var_values=["0.00mm (new)", "0.05mm (max spec)", "TBD (current)"],
+            independent_var_values=[
+                "0.00mm (new)",
+                "0.05mm (max spec)",
+                "TBD (current)",
+            ],
             dependent_variable="Flash Defect Rate",
             dependent_var_unit="%",
             predicted_direction=Hypothesis.Direction.INCREASE,
@@ -619,7 +651,11 @@ class Command(BaseCommand):
             f"[{h3.get_status_display()}]  ({h3.evidence_count} evidence)"
         )
         self.stdout.write("")
-        self.stdout.write(f"  Evidence items: {Evidence.objects.filter(project=project).count()}")
-        self.stdout.write(f"  Evidence links: {EvidenceLink.objects.filter(hypothesis__project=project).count()}")
+        self.stdout.write(
+            f"  Evidence items: {Evidence.objects.filter(project=project).count()}"
+        )
+        self.stdout.write(
+            f"  Evidence links: {EvidenceLink.objects.filter(hypothesis__project=project).count()}"
+        )
         self.stdout.write("")
         self.stdout.write(self.style.NOTICE("  View at: /app/projects/"))

@@ -80,7 +80,9 @@ def create_a3_report(request):
 
     if notebook_id:
         try:
-            notebook = Notebook.objects.select_related("project").get(id=notebook_id, owner=request.user)
+            notebook = Notebook.objects.select_related("project").get(
+                id=notebook_id, owner=request.user
+            )
             project = notebook.project
         except Notebook.DoesNotExist:
             return JsonResponse({"error": "Notebook not found"}, status=404)
@@ -111,7 +113,11 @@ def create_a3_report(request):
                 rca_content += f"\n**Root Cause:** {rca.root_cause}\n"
             if rca.countermeasure:
                 rca_content += f"**Countermeasure:** {rca.countermeasure}\n"
-            root_cause = rca_content if not root_cause else root_cause + "\n\n---\n\n" + rca_content
+            root_cause = (
+                rca_content
+                if not root_cause
+                else root_cause + "\n\n---\n\n" + rca_content
+            )
         except RCASession.DoesNotExist:
             pass
 
@@ -164,9 +170,13 @@ def get_a3_report(request, report_id):
     # Also get related data for import suggestions
     project = report.project
     hypotheses = list(
-        Hypothesis.objects.filter(project=project).values("id", "statement", "current_probability", "status")[:20]
+        Hypothesis.objects.filter(project=project).values(
+            "id", "statement", "current_probability", "status"
+        )[:20]
     )
-    boards = list(Board.objects.filter(project=project).values("id", "name", "room_code")[:10])
+    boards = list(
+        Board.objects.filter(project=project).values("id", "name", "room_code")[:10]
+    )
 
     # Get DSW results linked to this project
     dsw_results = DSWResult.objects.filter(project=project).order_by("-created_at")[:20]
@@ -207,7 +217,10 @@ def get_a3_report(request, report_id):
                     }
                     for h in hypotheses
                 ],
-                "boards": [{"id": str(b["id"]), "name": b["name"], "room_code": b["room_code"]} for b in boards],
+                "boards": [
+                    {"id": str(b["id"]), "name": b["name"], "room_code": b["room_code"]}
+                    for b in boards
+                ],
                 "dsw_results": [
                     {
                         "id": r.id,
@@ -358,7 +371,9 @@ def import_to_a3(request, report_id):
         "follow_up",
     ]
     if section not in valid_sections:
-        return JsonResponse({"error": f"Invalid section. Must be one of: {valid_sections}"}, status=400)
+        return JsonResponse(
+            {"error": f"Invalid section. Must be one of: {valid_sections}"}, status=400
+        )
 
     # Get content based on source type
     content = ""
@@ -390,12 +405,24 @@ def import_to_a3(request, report_id):
                     content += f"- [{el_type}] {text}\n"
 
             # Extract causal connections
-            causal_conns = [c for c in (board.connections or []) if c.get("type") == "causal"]
+            causal_conns = [
+                c for c in (board.connections or []) if c.get("type") == "causal"
+            ]
             if causal_conns:
                 content += "\n**Causal Relationships:**\n"
                 for conn in causal_conns[:10]:
-                    from_el = next((e for e in elements if e.get("id") == conn["from"]["elementId"]), None)
-                    to_el = next((e for e in elements if e.get("id") == conn["to"]["elementId"]), None)
+                    from_el = next(
+                        (
+                            e
+                            for e in elements
+                            if e.get("id") == conn["from"]["elementId"]
+                        ),
+                        None,
+                    )
+                    to_el = next(
+                        (e for e in elements if e.get("id") == conn["to"]["elementId"]),
+                        None,
+                    )
                     if from_el and to_el:
                         from_text = from_el.get("text") or from_el.get("title") or "?"
                         to_text = to_el.get("text") or to_el.get("title") or "?"
@@ -422,10 +449,14 @@ def import_to_a3(request, report_id):
             content_parts = [f"**DSW Analysis:** {dsw_result.title}"]
 
             if result_data.get("analysis_id"):
-                content_parts.append(f"**Type:** {result_data['analysis_id'].replace('_', ' ').title()}")
+                content_parts.append(
+                    f"**Type:** {result_data['analysis_id'].replace('_', ' ').title()}"
+                )
 
             if "narrative" in include:
-                summary = result_data.get("summary", "") or result_data.get("guide_observation", "")
+                summary = result_data.get("summary", "") or result_data.get(
+                    "guide_observation", ""
+                )
                 if summary:
                     clean = re_module.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", summary)
                     content_parts.append(f"\n{clean}")
@@ -448,12 +479,16 @@ def import_to_a3(request, report_id):
 
                 chart_embeds = render_dsw_charts(result_data["plots"])
 
-            import_ref["summary"] = dsw_result.title or f"DSW: {result_data.get('analysis_id', 'Analysis')}"
+            import_ref["summary"] = (
+                dsw_result.title or f"DSW: {result_data.get('analysis_id', 'Analysis')}"
+            )
         except DSWResult.DoesNotExist:
             return JsonResponse({"error": "DSW result not found"}, status=404)
 
     else:
-        return JsonResponse({"error": f"Unknown source_type: {source_type}"}, status=400)
+        return JsonResponse(
+            {"error": f"Unknown source_type: {source_type}"}, status=400
+        )
 
     # Update section content
     current = getattr(report, section)
@@ -524,9 +559,13 @@ def auto_populate_a3(request, report_id):
         nb = report.notebook
         context_parts.append(f"\nNotebook: {nb.title} (status: {nb.status})")
         if nb.baseline_metric:
-            context_parts.append(f"Baseline: {nb.baseline_metric} = {nb.baseline_value} {nb.baseline_unit or ''}")
+            context_parts.append(
+                f"Baseline: {nb.baseline_metric} = {nb.baseline_value} {nb.baseline_unit or ''}"
+            )
         if nb.current_value is not None:
-            context_parts.append(f"Current: {nb.current_value} {nb.baseline_unit or ''}")
+            context_parts.append(
+                f"Current: {nb.current_value} {nb.baseline_unit or ''}"
+            )
         trials = list(Trial.objects.filter(notebook=nb).order_by("sequence")[:10])
         if trials:
             context_parts.append("\nTrials:")
@@ -540,7 +579,9 @@ def auto_populate_a3(request, report_id):
     if hypotheses:
         context_parts.append("\nHypotheses:")
         for h in hypotheses:
-            context_parts.append(f"- [{h.status}] {h.statement} (P={h.current_probability:.0%})")
+            context_parts.append(
+                f"- [{h.status}] {h.statement} (P={h.current_probability:.0%})"
+            )
 
     for board in boards:
         if board.elements:
@@ -551,19 +592,27 @@ def auto_populate_a3(request, report_id):
                     context_parts.append(f"- {text}")
 
     # Phase C: Include DSW analysis results
-    dsw_results = list(DSWResult.objects.filter(project=project).order_by("-created_at")[:10])
+    dsw_results = list(
+        DSWResult.objects.filter(project=project).order_by("-created_at")[:10]
+    )
     if dsw_results:
         context_parts.append("\nAnalysis Results:")
         for dr in dsw_results:
             try:
                 d = json.loads(dr.data) if isinstance(dr.data, str) else dr.data
-                obs = d.get("guide_observation", d.get("summary", ""))[:200] if d else str(dr.title)
+                obs = (
+                    d.get("guide_observation", d.get("summary", ""))[:200]
+                    if d
+                    else str(dr.title)
+                )
                 context_parts.append(f"- {dr.title}: {obs}")
             except Exception:
                 context_parts.append(f"- {dr.title}")
 
     # Phase C: Include RCA investigations
-    rca_sessions = list(RCASession.objects.filter(project=project).order_by("-created_at")[:5])
+    rca_sessions = list(
+        RCASession.objects.filter(project=project).order_by("-created_at")[:5]
+    )
     if rca_sessions:
         context_parts.append("\nRCA Investigations:")
         for rca in rca_sessions:
@@ -698,11 +747,16 @@ def critique_a3(request, report_id):
             section_content[s] = content if content.strip() else "[EMPTY]"
 
     if not any(v != "[EMPTY]" for v in section_content.values()):
-        return JsonResponse({"error": "No sections have content to critique"}, status=400)
+        return JsonResponse(
+            {"error": "No sections have content to critique"}, status=400
+        )
 
     # Build prompt with XML-delimited sections
     sections_xml = "\n".join(
-        [f'<section name="{name}">\n{content}\n</section>' for name, content in section_content.items()]
+        [
+            f'<section name="{name}">\n{content}\n</section>'
+            for name, content in section_content.items()
+        ]
     )
 
     prompt = f"""<a3_title>{report.title}</a3_title>
@@ -724,7 +778,9 @@ Critique these A3 sections. Return as JSON with ratings and feedback per section
     if not response:
         return JsonResponse({"error": "LLM service not available"}, status=503)
     if response.get("rate_limited"):
-        return JsonResponse({"error": response["error"], "rate_limited": True}, status=429)
+        return JsonResponse(
+            {"error": response["error"], "rate_limited": True}, status=429
+        )
 
     content = response.get("content", "")
 
@@ -953,13 +1009,16 @@ def export_a3_pdf(request, report_id):
         sections = last_critique.get("sections", {})
         if not sections:
             return JsonResponse(
-                {"error": "A3 has not been critiqued yet. Run critique before exporting, or add ?force=1 to bypass."},
+                {
+                    "error": "A3 has not been critiqued yet. Run critique before exporting, or add ?force=1 to bypass."
+                },
                 status=400,
             )
         weak_or_missing = [
             k
             for k, v in sections.items()
-            if isinstance(v, dict) and v.get("rating", "").strip("[]").upper() in ("WEAK", "MISSING")
+            if isinstance(v, dict)
+            and v.get("rating", "").strip("[]").upper() in ("WEAK", "MISSING")
         ]
         if weak_or_missing:
             return JsonResponse(
@@ -1031,7 +1090,9 @@ def export_a3_pdf(request, report_id):
         return response
     except Exception as e:
         logger.exception(f"A3 PDF export failed: {e}")
-        return JsonResponse({"error": "PDF export failed. WeasyPrint may not be available."}, status=500)
+        return JsonResponse(
+            {"error": "PDF export failed. WeasyPrint may not be available."}, status=500
+        )
 
 
 # =============================================================================
@@ -1071,7 +1132,9 @@ def _build_current_condition(notebook, trials, whiteboard_pages=None):
     """Build current condition from baseline, trial data, and whiteboard snapshots."""
     parts = []
     if notebook.baseline_metric:
-        baseline = f"**Baseline:** {notebook.baseline_metric} = {notebook.baseline_value}"
+        baseline = (
+            f"**Baseline:** {notebook.baseline_metric} = {notebook.baseline_value}"
+        )
         if notebook.baseline_unit:
             baseline += f" {notebook.baseline_unit}"
         if notebook.baseline_date:
@@ -1151,7 +1214,9 @@ def _build_root_cause(trials, rca_sessions):
                 parts.append(f"**Proposed countermeasure:** {rca.countermeasure}")
 
     # Include learnings from failed/inconclusive trials
-    failed = [t for t in trials if t.verdict in ("degraded", "no_effect", "inconclusive")]
+    failed = [
+        t for t in trials if t.verdict in ("degraded", "no_effect", "inconclusive")
+    ]
     if failed:
         parts.append("\n**Trial Learnings (non-improved):**")
         for t in failed:
@@ -1202,7 +1267,9 @@ def _build_implementation_plan(trials):
         completed = t.completed_at.strftime("%Y-%m-%d") if t.completed_at else "ongoing"
         verdict = t.get_verdict_display()
         delta = f"{t.delta:+.2f}" if t.delta is not None else "—"
-        parts.append(f"| {t.sequence} | {t.title} | {started} → {completed} | {verdict} | {delta} |")
+        parts.append(
+            f"| {t.sequence} | {t.title} | {started} → {completed} | {verdict} | {delta} |"
+        )
 
     return "\n".join(parts)
 
@@ -1258,7 +1325,9 @@ def project_notebook_to_a3(request, notebook_id):
     from core.models.notebook import HanseiKai, Notebook, Trial, TrialToolLink, Yokoten
 
     try:
-        nb = Notebook.objects.select_related("project").get(id=notebook_id, owner=request.user)
+        nb = Notebook.objects.select_related("project").get(
+            id=notebook_id, owner=request.user
+        )
     except Notebook.DoesNotExist:
         return JsonResponse({"error": "Notebook not found"}, status=404)
 
@@ -1269,13 +1338,15 @@ def project_notebook_to_a3(request, notebook_id):
     from django.contrib.contenttypes.models import ContentType
 
     rca_ct = ContentType.objects.get_for_model(RCASession)
-    rca_links = TrialToolLink.objects.filter(trial__notebook=nb, content_type=rca_ct).values_list(
-        "object_id", flat=True
-    )
+    rca_links = TrialToolLink.objects.filter(
+        trial__notebook=nb, content_type=rca_ct
+    ).values_list("object_id", flat=True)
     rca_sessions = list(RCASession.objects.filter(id__in=rca_links))
 
     # Also include RCA sessions directly on the project (not linked to trials)
-    project_rcas = RCASession.objects.filter(project=project).exclude(id__in=[r.id for r in rca_sessions])
+    project_rcas = RCASession.objects.filter(project=project).exclude(
+        id__in=[r.id for r in rca_sessions]
+    )
     rca_sessions.extend(project_rcas[:5])
 
     # HanseiKai and Yokoten
@@ -1289,8 +1360,16 @@ def project_notebook_to_a3(request, notebook_id):
     # Gather whiteboard pages by role
     from core.models.notebook import NotebookPage
 
-    wb_before = list(NotebookPage.objects.filter(notebook=nb, source_tool="whiteboard", trial_role="before"))
-    wb_after = list(NotebookPage.objects.filter(notebook=nb, source_tool="whiteboard", trial_role="after"))
+    wb_before = list(
+        NotebookPage.objects.filter(
+            notebook=nb, source_tool="whiteboard", trial_role="before"
+        )
+    )
+    wb_after = list(
+        NotebookPage.objects.filter(
+            notebook=nb, source_tool="whiteboard", trial_role="after"
+        )
+    )
 
     # Build A3 sections from notebook structure
     background = _build_background(project, nb)
@@ -1303,16 +1382,28 @@ def project_notebook_to_a3(request, notebook_id):
 
     # Build traceability refs
     imported_from = {
-        "background": [{"source": "notebook", "id": str(nb.id), "summary": f"Projected from: {nb.title}"}],
+        "background": [
+            {
+                "source": "notebook",
+                "id": str(nb.id),
+                "summary": f"Projected from: {nb.title}",
+            }
+        ],
     }
     if rca_sessions:
         imported_from["root_cause"] = [
-            {"source": "rca", "id": str(r.id), "summary": r.title or r.event[:80]} for r in rca_sessions
+            {"source": "rca", "id": str(r.id), "summary": r.title or r.event[:80]}
+            for r in rca_sessions
         ]
     adopted = [t for t in trials if t.is_adopted or t.verdict == "improved"]
     if adopted:
         imported_from["countermeasures"] = [
-            {"source": "trial", "id": str(t.id), "summary": f"Trial {t.sequence}: {t.title}"} for t in adopted
+            {
+                "source": "trial",
+                "id": str(t.id),
+                "summary": f"Trial {t.sequence}: {t.title}",
+            }
+            for t in adopted
         ]
 
     # Determine title
@@ -1366,7 +1457,9 @@ def project_notebook_to_a3(request, notebook_id):
     qms_set_ownership(report, request.user, site)
     report.save()
 
-    project.log_event("a3_projected", f"A3 projected from notebook: {nb.title}", user=request.user)
+    project.log_event(
+        "a3_projected", f"A3 projected from notebook: {nb.title}", user=request.user
+    )
 
     return JsonResponse(
         {

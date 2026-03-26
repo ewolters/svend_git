@@ -21,7 +21,9 @@ import re
 from django.test import SimpleTestCase
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "templates")
-STATIC_JS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "static", "js")
+STATIC_JS_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "..", "..", "static", "js"
+)
 
 
 def _read_template(name):
@@ -388,7 +390,8 @@ class SimulatorArchitectureTest(SimpleTestCase):
         self.assertEqual(
             violations,
             [],
-            "Browser prompt() dialogs must be replaced with config panels:\n" + "\n".join(violations),
+            "Browser prompt() dialogs must be replaced with config panels:\n"
+            + "\n".join(violations),
         )
 
     def test_resource_role_config(self):
@@ -778,13 +781,25 @@ class GlobalAntiPatternSweepTest(SimpleTestCase):
         # without safeStr() wrapping
         coercion_patterns = [
             # alert(data.error) or alert(data.error || 'x')
-            (r"alert\([^)]*(?<!safeStr\()(\w+\.error)\b(?!s|_)\s*(\|\||[,)])", "alert({var}.error)"),
+            (
+                r"alert\([^)]*(?<!safeStr\()(\w+\.error)\b(?!s|_)\s*(\|\||[,)])",
+                "alert({var}.error)",
+            ),
             # .textContent = X.error (word boundary: .error not .errors_today)
-            (r"\.textContent\s*=\s*(?!.*safeStr).*(\w+\.error)\b(?!s|_)", "textContent = {var}.error"),
+            (
+                r"\.textContent\s*=\s*(?!.*safeStr).*(\w+\.error)\b(?!s|_)",
+                "textContent = {var}.error",
+            ),
             # throw new Error(X.error) or throw new Error(X.error || 'x')
-            (r"throw\s+new\s+Error\((?!safeStr)(\w+\.error)\b(?!s|_)", "throw new Error({var}.error)"),
+            (
+                r"throw\s+new\s+Error\((?!safeStr)(\w+\.error)\b(?!s|_)",
+                "throw new Error({var}.error)",
+            ),
             # showToast(X.error || 'x') without safeStr
-            (r"showToast\((?!safeStr)(\w+\.error)\b(?!s|_)\s*\|\|", "showToast({var}.error ||)"),
+            (
+                r"showToast\((?!safeStr)(\w+\.error)\b(?!s|_)\s*\|\|",
+                "showToast({var}.error ||)",
+            ),
             # toast(X.error without safeStr
             (r"(?<!\w)toast\((?!safeStr)(\w+\.error)\b(?!s|_)", "toast({var}.error)"),
         ]
@@ -805,7 +820,8 @@ class GlobalAntiPatternSweepTest(SimpleTestCase):
         self.assertEqual(
             violations,
             [],
-            "Unguarded .error object coercion (JS-001 §15.8):\n" + "\n".join(violations),
+            "Unguarded .error object coercion (JS-001 §15.8):\n"
+            + "\n".join(violations),
         )
 
     def test_no_function_constructor_all_templates(self):
@@ -815,7 +831,9 @@ class GlobalAntiPatternSweepTest(SimpleTestCase):
             js = _extract_js(content)
             fn_constructors = re.findall(r"new\s+Function\s*\(", js)
             if fn_constructors:
-                violations.append(f"{name}: new Function() found ({len(fn_constructors)}x)")
+                violations.append(
+                    f"{name}: new Function() found ({len(fn_constructors)}x)"
+                )
         self.assertEqual(
             violations,
             [],
@@ -1243,7 +1261,9 @@ class AsyncComplianceSweepTest(SimpleTestCase):
             if async_count > 5:
                 try_count = len(re.findall(r"\btry\s*\{", js))
                 if try_count == 0:
-                    violations.append(f"{name}: {async_count} async functions, 0 try blocks")
+                    violations.append(
+                        f"{name}: {async_count} async functions, 0 try blocks"
+                    )
         self.assertEqual(
             violations,
             [],

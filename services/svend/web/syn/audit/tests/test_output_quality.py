@@ -76,17 +76,25 @@ class CaseStructureTest(SimpleTestCase):
         for case in REFERENCE_POOL:
             self.assertTrue(case.case_id, "Missing case_id")
             self.assertTrue(case.category, f"{case.case_id}: missing category")
-            self.assertTrue(case.analysis_type, f"{case.case_id}: missing analysis_type")
+            self.assertTrue(
+                case.analysis_type, f"{case.case_id}: missing analysis_type"
+            )
             self.assertTrue(case.analysis_id, f"{case.case_id}: missing analysis_id")
             self.assertIsInstance(case.config, dict, f"{case.case_id}: config not dict")
             self.assertIsInstance(case.data, dict, f"{case.case_id}: data not dict")
-            self.assertGreaterEqual(len(case.expectations), 1, f"{case.case_id}: no expectations")
+            self.assertGreaterEqual(
+                len(case.expectations), 1, f"{case.case_id}: no expectations"
+            )
 
     def test_case_id_format(self):
         """Case IDs match pattern CAL-{CATEGORY}-{NNN}."""
         pattern = re.compile(r"^CAL-[A-Z]+-\d{3}$")
         for case in REFERENCE_POOL:
-            self.assertRegex(case.case_id, pattern, f"case_id '{case.case_id}' doesn't match CAL-XXX-NNN")
+            self.assertRegex(
+                case.case_id,
+                pattern,
+                f"case_id '{case.case_id}' doesn't match CAL-XXX-NNN",
+            )
 
 
 class ExpectationTypesTest(SimpleTestCase):
@@ -95,33 +103,51 @@ class ExpectationTypesTest(SimpleTestCase):
     def test_abs_within(self):
         """abs_within comparison: |actual - expected| <= tolerance."""
         result = {"statistics": {"r_squared": 0.85}}
-        exp = Expectation(key="statistics.r_squared", expected=0.85, tolerance=0.01, comparison="abs_within")
+        exp = Expectation(
+            key="statistics.r_squared",
+            expected=0.85,
+            tolerance=0.01,
+            comparison="abs_within",
+        )
         check = _check_expectation(result, exp)
         self.assertTrue(check["passed"])
 
         # Out of tolerance
-        exp2 = Expectation(key="statistics.r_squared", expected=0.90, tolerance=0.01, comparison="abs_within")
+        exp2 = Expectation(
+            key="statistics.r_squared",
+            expected=0.90,
+            tolerance=0.01,
+            comparison="abs_within",
+        )
         check2 = _check_expectation(result, exp2)
         self.assertFalse(check2["passed"])
 
     def test_greater_than(self):
         """greater_than comparison: actual > expected."""
         result = {"statistics": {"p_value": 0.45}}
-        exp = Expectation(key="statistics.p_value", expected=0.05, comparison="greater_than")
+        exp = Expectation(
+            key="statistics.p_value", expected=0.05, comparison="greater_than"
+        )
         check = _check_expectation(result, exp)
         self.assertTrue(check["passed"])
 
     def test_less_than(self):
         """less_than comparison: actual < expected."""
         result = {"statistics": {"p_value": 0.003}}
-        exp = Expectation(key="statistics.p_value", expected=0.05, comparison="less_than")
+        exp = Expectation(
+            key="statistics.p_value", expected=0.05, comparison="less_than"
+        )
         check = _check_expectation(result, exp)
         self.assertTrue(check["passed"])
 
     def test_contains(self):
         """contains comparison: substring match."""
         result = {"guide_observation": "Significant difference found between groups"}
-        exp = Expectation(key="guide_observation_contains", expected="significant", comparison="contains")
+        exp = Expectation(
+            key="guide_observation_contains",
+            expected="significant",
+            comparison="contains",
+        )
         check = _check_expectation(result, exp)
         self.assertTrue(check["passed"])
 
@@ -268,7 +294,9 @@ class CoherenceTest(SimpleTestCase):
             out = standardize_output(result, "stats", "ttest")
         # With p=0.001, evidence_grade should be generated
         if out.get("evidence_grade"):
-            self.assertIn(out["evidence_grade"], ("Strong", "Moderate", "Weak", "Inconclusive"))
+            self.assertIn(
+                out["evidence_grade"], ("Strong", "Moderate", "Weak", "Inconclusive")
+            )
 
     def test_guide_observation_populated(self):
         """guide_observation auto-populated from summary when missing."""
@@ -306,7 +334,9 @@ class DSWQualityTest(SimpleTestCase):
 
             pvalue_analyses = get_all_with_pvalue()
             # At minimum, core inference analyses should be registered
-            self.assertGreater(len(pvalue_analyses), 0, "No analyses with has_pvalue=True found")
+            self.assertGreater(
+                len(pvalue_analyses), 0, "No analyses with has_pvalue=True found"
+            )
         except ImportError:
             self.skipTest("ANALYSIS_REGISTRY not available")
 
@@ -338,7 +368,8 @@ class QMSQualityTest(SimpleTestCase):
             source = inspect.getsource(fmea_mod)
             # Must reference RPN calculation
             self.assertTrue(
-                "rpn" in source.lower() or "RPN" in source, "FMEA module must contain RPN calculation logic"
+                "rpn" in source.lower() or "RPN" in source,
+                "FMEA module must contain RPN calculation logic",
             )
         except ImportError:
             self.skipTest("FMEA module not available")

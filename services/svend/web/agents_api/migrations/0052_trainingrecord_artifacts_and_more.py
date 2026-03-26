@@ -7,24 +7,37 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0051_employee_resourcecommitment_actiontoken'),
-        ('files', '0002_alter_userfile_file'),
+        ("agents_api", "0051_employee_resourcecommitment_actiontoken"),
+        ("files", "0002_alter_userfile_file"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='trainingrecord',
-            name='artifacts',
-            field=models.ManyToManyField(blank=True, related_name='training_records', to='files.userfile'),
+            model_name="trainingrecord",
+            name="artifacts",
+            field=models.ManyToManyField(
+                blank=True, related_name="training_records", to="files.userfile"
+            ),
         ),
         migrations.AddField(
-            model_name='trainingrequirement',
-            name='document',
-            field=models.ForeignKey(blank=True, help_text='Linked controlled document (nullable for informal training)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='training_requirements', to='agents_api.controlleddocument'),
+            model_name="trainingrequirement",
+            name="document",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Linked controlled document (nullable for informal training)",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="training_requirements",
+                to="agents_api.controlleddocument",
+            ),
         ),
         migrations.AddField(
-            model_name='trainingrequirement',
-            name='document_version',
-            field=models.CharField(blank=True, help_text='Document version when training was last aligned', max_length=20),
+            model_name="trainingrequirement",
+            name="document_version",
+            field=models.CharField(
+                blank=True,
+                help_text="Document version when training was last aligned",
+                max_length=20,
+            ),
         ),
     ]

@@ -7,33 +7,66 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0007_alter_hypothesis_current_probability_and_more'),
+        ("core", "0007_alter_hypothesis_current_probability_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='evidence',
-            name='confidence',
-            field=models.FloatField(default=0.8, help_text='How reliable is this evidence? (0.0 to 1.0)', validators=[django.core.validators.MinValueValidator(0.0), django.core.validators.MaxValueValidator(1.0)]),
+            model_name="evidence",
+            name="confidence",
+            field=models.FloatField(
+                default=0.8,
+                help_text="How reliable is this evidence? (0.0 to 1.0)",
+                validators=[
+                    django.core.validators.MinValueValidator(0.0),
+                    django.core.validators.MaxValueValidator(1.0),
+                ],
+            ),
         ),
         migrations.AlterField(
-            model_name='evidencelink',
-            name='likelihood_ratio',
-            field=models.FloatField(default=1.0, help_text='P(evidence|H true) / P(evidence|H false). >1 supports, <1 opposes', validators=[django.core.validators.MinValueValidator(0.001)]),
+            model_name="evidencelink",
+            name="likelihood_ratio",
+            field=models.FloatField(
+                default=1.0,
+                help_text="P(evidence|H true) / P(evidence|H false). >1 supports, <1 opposes",
+                validators=[django.core.validators.MinValueValidator(0.001)],
+            ),
         ),
         migrations.AlterField(
-            model_name='hypothesis',
-            name='confirmation_threshold',
-            field=models.FloatField(default=0.9, help_text='Probability above which hypothesis is confirmed', validators=[django.core.validators.MinValueValidator(0.5), django.core.validators.MaxValueValidator(1.0)]),
+            model_name="hypothesis",
+            name="confirmation_threshold",
+            field=models.FloatField(
+                default=0.9,
+                help_text="Probability above which hypothesis is confirmed",
+                validators=[
+                    django.core.validators.MinValueValidator(0.5),
+                    django.core.validators.MaxValueValidator(1.0),
+                ],
+            ),
         ),
         migrations.AlterField(
-            model_name='hypothesis',
-            name='rejection_threshold',
-            field=models.FloatField(default=0.1, help_text='Probability below which hypothesis is rejected', validators=[django.core.validators.MinValueValidator(0.0), django.core.validators.MaxValueValidator(0.5)]),
+            model_name="hypothesis",
+            name="rejection_threshold",
+            field=models.FloatField(
+                default=0.1,
+                help_text="Probability below which hypothesis is rejected",
+                validators=[
+                    django.core.validators.MinValueValidator(0.0),
+                    django.core.validators.MaxValueValidator(0.5),
+                ],
+            ),
         ),
         migrations.AlterField(
-            model_name='project',
-            name='resolution_confidence',
-            field=models.FloatField(blank=True, help_text='Confidence in resolution (0.0 to 1.0)', null=True, validators=[django.core.validators.MinValueValidator(0.0), django.core.validators.MaxValueValidator(1.0)]),
+            model_name="project",
+            name="resolution_confidence",
+            field=models.FloatField(
+                blank=True,
+                help_text="Confidence in resolution (0.0 to 1.0)",
+                null=True,
+                validators=[
+                    django.core.validators.MinValueValidator(0.0),
+                    django.core.validators.MaxValueValidator(1.0),
+                ],
+            ),
         ),
     ]

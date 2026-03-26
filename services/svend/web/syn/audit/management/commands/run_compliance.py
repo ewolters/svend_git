@@ -15,7 +15,12 @@ import sys
 
 from django.core.management.base import BaseCommand
 
-from syn.audit.compliance import ALL_CHECKS, generate_monthly_report, run_check, run_daily_checks
+from syn.audit.compliance import (
+    ALL_CHECKS,
+    generate_monthly_report,
+    run_check,
+    run_daily_checks,
+)
 
 
 class Command(BaseCommand):
@@ -24,13 +29,29 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--all", action="store_true", help="Run all checks")
         parser.add_argument("--check", type=str, help="Run a specific check by name")
-        parser.add_argument("--report", action="store_true", help="Generate monthly report")
         parser.add_argument(
-            "--standards", action="store_true", help="Run standards checks with verbose per-assertion output"
+            "--report", action="store_true", help="Generate monthly report"
         )
-        parser.add_argument("--run-tests", action="store_true", help="Execute linked tests (use with --standards)")
-        parser.add_argument("--json", action="store_true", help="Output results as JSON (for CI artifacts)")
-        parser.add_argument("--exit-code", action="store_true", help="Exit with code 1 if any check fails")
+        parser.add_argument(
+            "--standards",
+            action="store_true",
+            help="Run standards checks with verbose per-assertion output",
+        )
+        parser.add_argument(
+            "--run-tests",
+            action="store_true",
+            help="Execute linked tests (use with --standards)",
+        )
+        parser.add_argument(
+            "--json",
+            action="store_true",
+            help="Output results as JSON (for CI artifacts)",
+        )
+        parser.add_argument(
+            "--exit-code",
+            action="store_true",
+            help="Exit with code 1 if any check fails",
+        )
 
     def handle(self, *args, **options):
         if options["report"]:
@@ -53,7 +74,11 @@ class Command(BaseCommand):
         if options["check"]:
             name = options["check"]
             if name not in ALL_CHECKS:
-                self.stderr.write(self.style.ERROR(f"Unknown check: {name}. Available: {', '.join(ALL_CHECKS.keys())}"))
+                self.stderr.write(
+                    self.style.ERROR(
+                        f"Unknown check: {name}. Available: {', '.join(ALL_CHECKS.keys())}"
+                    )
+                )
                 return
             result = run_check(name)
             if use_json:
@@ -76,7 +101,9 @@ class Command(BaseCommand):
                         "summary": {
                             "passed": sum(1 for r in results if r.status == "pass"),
                             "failed": sum(1 for r in results if r.status == "fail"),
-                            "warnings": sum(1 for r in results if r.status == "warning"),
+                            "warnings": sum(
+                                1 for r in results if r.status == "warning"
+                            ),
                             "errors": sum(1 for r in results if r.status == "error"),
                             "total": len(results),
                         },
@@ -95,7 +122,9 @@ class Command(BaseCommand):
                 self._print_result(r)
 
             self.stdout.write("")
-            self.stdout.write(f"Summary: {passed} passed, {failed} failed, {warnings} warnings, {errors} errors")
+            self.stdout.write(
+                f"Summary: {passed} passed, {failed} failed, {warnings} warnings, {errors} errors"
+            )
 
         if use_exit_code and any(r.status in ("fail", "error") for r in results):
             sys.exit(1)
@@ -155,7 +184,9 @@ class Command(BaseCommand):
             # Show code check results
             for cc in result.get("code_checks", []):
                 mark = "ok" if cc["ok"] else "FAIL"
-                self.stdout.write(f"             code:{cc['type']}: [{mark}] {cc['message'][:70]}")
+                self.stdout.write(
+                    f"             code:{cc['type']}: [{mark}] {cc['message'][:70]}"
+                )
 
             # Show test results
             for tc in result.get("test_checks", []):
@@ -201,5 +232,7 @@ class Command(BaseCommand):
         }.get(check.status, self.style.NOTICE)
 
         self.stdout.write(
-            style(f"  [{check.status.upper():7s}] {check.check_name} ({check.duration_ms:.0f}ms) — {check.category}")
+            style(
+                f"  [{check.status.upper():7s}] {check.check_name} ({check.duration_ms:.0f}ms) — {check.category}"
+            )
         )

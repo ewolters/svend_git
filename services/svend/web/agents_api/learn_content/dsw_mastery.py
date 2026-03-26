@@ -373,7 +373,10 @@ REGRESSION_HANDS_ON = {
             "Compare R-squared vs adjusted R-squared",
         ],
         "dsw_type": "stats:regression",
-        "dsw_config": {"response": "diameter_mm", "predictors": ["weight_g", "roughness_ra"]},
+        "dsw_config": {
+            "response": "diameter_mm",
+            "predictors": ["weight_g", "roughness_ra"],
+        },
     },
     "content": """
 ## Building and Interpreting Regression Models
@@ -678,10 +681,26 @@ Before running an experiment, check that you have enough power to detect meaning
         "config": {
             "title": "DOE Design Selector",
             "questions": [
-                {"q": "Are you screening (>6 factors) or optimizing (≤6 factors)?", "yes_next": 1, "no_next": 2},
-                {"q": "Do you need to estimate curvature?", "yes_next": "dsd", "no_next": "screen"},
-                {"q": "Do you need to find the optimal point?", "yes_next": 3, "no_next": "factorial"},
-                {"q": "Can you run extreme factor combinations?", "yes_next": "ccd", "no_next": "bbd"},
+                {
+                    "q": "Are you screening (>6 factors) or optimizing (≤6 factors)?",
+                    "yes_next": 1,
+                    "no_next": 2,
+                },
+                {
+                    "q": "Do you need to estimate curvature?",
+                    "yes_next": "dsd",
+                    "no_next": "screen",
+                },
+                {
+                    "q": "Do you need to find the optimal point?",
+                    "yes_next": 3,
+                    "no_next": "factorial",
+                },
+                {
+                    "q": "Can you run extreme factor combinations?",
+                    "yes_next": "ccd",
+                    "no_next": "bbd",
+                },
             ],
             "outcomes": {
                 "screen": "Plackett-Burman — Screen many factors in minimal runs",

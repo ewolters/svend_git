@@ -25,7 +25,9 @@ User = get_user_model()
 def _make_user(email, tier=Tier.FREE, **kwargs):
     """Create a user with a given tier."""
     username = email.split("@")[0]
-    user = User.objects.create_user(username=username, email=email, password="testpass123", **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password="testpass123", **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -38,7 +40,9 @@ def _make_tenant(name="Test Org", slug="test-org", plan=Tenant.Plan.TEAM, **kwar
 
 def _make_membership(tenant, user, role=Membership.Role.MEMBER, **kwargs):
     """Create an active membership."""
-    return Membership.objects.create(tenant=tenant, user=user, role=role, joined_at=timezone.now(), **kwargs)
+    return Membership.objects.create(
+        tenant=tenant, user=user, role=role, joined_at=timezone.now(), **kwargs
+    )
 
 
 # =========================================================================
@@ -260,7 +264,9 @@ class OrgCreateTest(TestCase):
                 {"name": "Org", "slug": bad_slug},
                 format="json",
             )
-            self.assertIn(res.status_code, [400], msg=f"Expected 400 for slug '{bad_slug}'")
+            self.assertIn(
+                res.status_code, [400], msg=f"Expected 400 for slug '{bad_slug}'"
+            )
 
     def test_slug_too_short_rejected(self):
         user = _make_user("team@example.com", Tier.TEAM)
@@ -511,7 +517,9 @@ class AcceptInvitationTest(TestCase):
         )
 
     def test_unauthenticated_returns_forbidden(self):
-        res = self.client.post("/api/core/org/accept-invite/", {"token": str(self.invitation.token)})
+        res = self.client.post(
+            "/api/core/org/accept-invite/", {"token": str(self.invitation.token)}
+        )
         self.assertIn(res.status_code, [401, 403])
 
     def test_accept_valid_invitation(self):
@@ -796,7 +804,9 @@ class OrgRemoveMemberTest(TestCase):
 
     def test_cannot_remove_self(self):
         self.client.force_authenticate(self.owner)
-        res = self.client.delete(f"/api/core/org/members/{self.owner_membership.id}/remove/")
+        res = self.client.delete(
+            f"/api/core/org/members/{self.owner_membership.id}/remove/"
+        )
         self.assertEqual(res.status_code, 400)
         self.assertIn("Cannot remove yourself", res.json()["error"]["message"])
 
@@ -805,7 +815,9 @@ class OrgRemoveMemberTest(TestCase):
         _make_membership(self.tenant, admin, Membership.Role.ADMIN)
         self.client.force_authenticate(admin)
 
-        res = self.client.delete(f"/api/core/org/members/{self.owner_membership.id}/remove/")
+        res = self.client.delete(
+            f"/api/core/org/members/{self.owner_membership.id}/remove/"
+        )
         self.assertEqual(res.status_code, 403)
         self.assertIn("Only owners", res.json()["error"]["message"])
 
@@ -857,7 +869,9 @@ class OrgCancelInvitationTest(TestCase):
 
     def test_owner_can_cancel(self):
         self.client.force_authenticate(self.owner)
-        res = self.client.post(f"/api/core/org/invitations/{self.invitation.id}/cancel/")
+        res = self.client.post(
+            f"/api/core/org/invitations/{self.invitation.id}/cancel/"
+        )
         self.assertEqual(res.status_code, 200)
         self.invitation.refresh_from_db()
         self.assertEqual(self.invitation.status, OrgInvitation.Status.CANCELLED)
@@ -867,7 +881,9 @@ class OrgCancelInvitationTest(TestCase):
         _make_membership(self.tenant, member, Membership.Role.MEMBER)
         self.client.force_authenticate(member)
 
-        res = self.client.post(f"/api/core/org/invitations/{self.invitation.id}/cancel/")
+        res = self.client.post(
+            f"/api/core/org/invitations/{self.invitation.id}/cancel/"
+        )
         self.assertEqual(res.status_code, 403)
 
     def test_cancel_nonexistent_returns_404(self):
@@ -880,7 +896,9 @@ class OrgCancelInvitationTest(TestCase):
         self.invitation.save()
         self.client.force_authenticate(self.owner)
 
-        res = self.client.post(f"/api/core/org/invitations/{self.invitation.id}/cancel/")
+        res = self.client.post(
+            f"/api/core/org/invitations/{self.invitation.id}/cancel/"
+        )
         self.assertEqual(res.status_code, 404)
 
 
@@ -1016,7 +1034,9 @@ class OrgLifecycleTest(TestCase):
 
         # 10. Owner removes colleague
         self.client.force_authenticate(owner)
-        res = self.client.delete(f"/api/core/org/members/{colleague_membership.id}/remove/")
+        res = self.client.delete(
+            f"/api/core/org/members/{colleague_membership.id}/remove/"
+        )
         self.assertEqual(res.status_code, 200)
 
         # 11. Colleague no longer in org
@@ -1127,7 +1147,9 @@ class OrgSitesListTest(TestCase):
         self.assertTrue(res.json()["can_manage"])
 
     def test_enterprise_unlimited_sites(self):
-        ent_tenant = _make_tenant(name="Ent Org", slug="ent-org", plan=Tenant.Plan.ENTERPRISE)
+        ent_tenant = _make_tenant(
+            name="Ent Org", slug="ent-org", plan=Tenant.Plan.ENTERPRISE
+        )
         user = _make_user("ent-sites@example.com", Tier.ENTERPRISE)
         _make_membership(ent_tenant, user, Membership.Role.OWNER)
         self.client.force_authenticate(user)
@@ -1177,7 +1199,9 @@ class OrgCreateSiteTest(TestCase):
 
     def test_name_required(self):
         self.client.force_authenticate(self.admin)
-        res = self.client.post("/api/core/org/sites/create/", {"code": "X"}, format="json")
+        res = self.client.post(
+            "/api/core/org/sites/create/", {"code": "X"}, format="json"
+        )
         self.assertEqual(res.status_code, 400)
 
     def test_team_one_site_limit(self):
@@ -1197,7 +1221,9 @@ class OrgCreateSiteTest(TestCase):
         """Enterprise plan has no site limit."""
         from agents_api.models import Site
 
-        ent_tenant = _make_tenant(name="Enterprise Org", slug="enterprise-org", plan=Tenant.Plan.ENTERPRISE)
+        ent_tenant = _make_tenant(
+            name="Enterprise Org", slug="enterprise-org", plan=Tenant.Plan.ENTERPRISE
+        )
         user = _make_user("ent-create@example.com", Tier.ENTERPRISE)
         _make_membership(ent_tenant, user, Membership.Role.ADMIN)
 
@@ -1334,8 +1360,12 @@ class OrgEmployeesListTest(TestCase):
         self.admin = _make_user("emp-admin@example.com", Tier.TEAM)
         _make_membership(self.tenant, self.admin, Membership.Role.ADMIN)
         self.site = Site.objects.create(tenant=self.tenant, name="Main Plant")
-        Employee.objects.create(tenant=self.tenant, name="Alice", email="alice@plant.com", site=self.site)
-        Employee.objects.create(tenant=self.tenant, name="Bob", email="bob@plant.com", is_active=False)
+        Employee.objects.create(
+            tenant=self.tenant, name="Alice", email="alice@plant.com", site=self.site
+        )
+        Employee.objects.create(
+            tenant=self.tenant, name="Bob", email="bob@plant.com", is_active=False
+        )
 
     def test_list_all_employees(self):
         self.client.force_authenticate(self.admin)
@@ -1378,7 +1408,12 @@ class OrgCreateEmployeeTest(TestCase):
         self.client.force_authenticate(self.admin)
         res = self.client.post(
             "/api/core/org/employees/create/",
-            {"name": "Charlie", "email": "charlie@plant.com", "role": "Operator", "department": "Assembly"},
+            {
+                "name": "Charlie",
+                "email": "charlie@plant.com",
+                "role": "Operator",
+                "department": "Assembly",
+            },
             format="json",
         )
         self.assertEqual(res.status_code, 201)
@@ -1420,7 +1455,9 @@ class OrgCreateEmployeeTest(TestCase):
     def test_duplicate_email_rejected(self):
         from agents_api.models import Employee
 
-        Employee.objects.create(tenant=self.tenant, name="Existing", email="dupe@plant.com")
+        Employee.objects.create(
+            tenant=self.tenant, name="Existing", email="dupe@plant.com"
+        )
         self.client.force_authenticate(self.admin)
         res = self.client.post(
             "/api/core/org/employees/create/",
@@ -1462,7 +1499,10 @@ class OrgUpdateEmployeeTest(TestCase):
         self.admin = _make_user("update-emp-admin@example.com", Tier.TEAM)
         _make_membership(self.tenant, self.admin, Membership.Role.ADMIN)
         self.emp = Employee.objects.create(
-            tenant=self.tenant, name="Old Name", email="update-me@plant.com", role="Operator"
+            tenant=self.tenant,
+            name="Old Name",
+            email="update-me@plant.com",
+            role="Operator",
         )
 
     def test_update_employee(self):
@@ -1507,8 +1547,12 @@ class OrgUpdateEmployeeTest(TestCase):
     def test_cannot_update_other_tenant_employee(self):
         from agents_api.models import Employee
 
-        other_tenant = _make_tenant(name="Other", slug="other-emp", plan=Tenant.Plan.TEAM)
-        other_emp = Employee.objects.create(tenant=other_tenant, name="Other", email="other@plant.com")
+        other_tenant = _make_tenant(
+            name="Other", slug="other-emp", plan=Tenant.Plan.TEAM
+        )
+        other_emp = Employee.objects.create(
+            tenant=other_tenant, name="Other", email="other@plant.com"
+        )
         self.client.force_authenticate(self.admin)
         res = self.client.put(
             f"/api/core/org/employees/{other_emp.id}/",
@@ -1529,7 +1573,9 @@ class OrgDeleteEmployeeTest(TestCase):
         self.tenant = _make_tenant(plan=Tenant.Plan.TEAM)
         self.admin = _make_user("delete-emp-admin@example.com", Tier.TEAM)
         _make_membership(self.tenant, self.admin, Membership.Role.ADMIN)
-        self.emp = Employee.objects.create(tenant=self.tenant, name="Deletable", email="delete-me@plant.com")
+        self.emp = Employee.objects.create(
+            tenant=self.tenant, name="Deletable", email="delete-me@plant.com"
+        )
 
     def test_delete_employee(self):
         self.client.force_authenticate(self.admin)

@@ -6,13 +6,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0070_project_templates'),
+        ("agents_api", "0070_project_templates"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='customercomplaint',
-            name='reopen_reason',
-            field=models.TextField(blank=True, help_text='Required when reopening a closed complaint'),
+            model_name="customercomplaint",
+            name="reopen_reason",
+            field=models.TextField(
+                blank=True, help_text="Required when reopening a closed complaint"
+            ),
         ),
     ]

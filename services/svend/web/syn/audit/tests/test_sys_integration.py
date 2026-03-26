@@ -26,7 +26,9 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email="sys@test.com", tier=Tier.FREE, password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=password, **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -151,7 +153,9 @@ class EmailLinkTest(TestCase):
         """Unsubscribe sets user.is_email_opted_out = True."""
         signer = Signer(salt="email-unsubscribe")
         token = signer.sign(str(self.user.id))
-        self.client.get(f"/api/email/unsubscribe/?token={token}", HTTP_ACCEPT="text/html")
+        self.client.get(
+            f"/api/email/unsubscribe/?token={token}", HTTP_ACCEPT="text/html"
+        )
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_email_opted_out)
 
@@ -379,7 +383,9 @@ class FileDownloadTest(TestCase):
             HTTP_ACCEPT="text/html,application/xhtml+xml",
         )
         # Should NOT be 406 (Accept validation bypass must work)
-        self.assertNotEqual(resp.status_code, 406, "PDF export rejected by Accept validation")
+        self.assertNotEqual(
+            resp.status_code, 406, "PDF export rejected by Accept validation"
+        )
 
     def test_csv_download_path_not_rejected_by_accept(self):
         """CSV download paths accept browser Accept headers.
@@ -390,7 +396,9 @@ class FileDownloadTest(TestCase):
             "/api/triage/fake-job-id/download/",
             HTTP_ACCEPT="text/html,*/*",
         )
-        self.assertNotEqual(resp.status_code, 406, "CSV download rejected by Accept validation")
+        self.assertNotEqual(
+            resp.status_code, 406, "CSV download rejected by Accept validation"
+        )
 
     def test_forge_download_path_not_rejected_by_accept(self):
         """Forge download paths accept browser Accept headers."""
@@ -399,7 +407,9 @@ class FileDownloadTest(TestCase):
             f"/api/forge/download/{fake_id}",
             HTTP_ACCEPT="text/html,*/*",
         )
-        self.assertNotEqual(resp.status_code, 406, "Forge download rejected by Accept validation")
+        self.assertNotEqual(
+            resp.status_code, 406, "Forge download rejected by Accept validation"
+        )
 
     def test_dsw_download_path_not_rejected_by_accept(self):
         """DSW download paths accept browser Accept headers."""
@@ -407,7 +417,9 @@ class FileDownloadTest(TestCase):
             "/api/dsw/download/fake-result/csv/",
             HTTP_ACCEPT="text/html,*/*",
         )
-        self.assertNotEqual(resp.status_code, 406, "DSW download rejected by Accept validation")
+        self.assertNotEqual(
+            resp.status_code, 406, "DSW download rejected by Accept validation"
+        )
 
     def test_whiteboard_svg_export_is_json_api(self):
         """Whiteboard SVG export returns JSON (SVG data inside JSON envelope).
@@ -429,7 +441,9 @@ class FileDownloadTest(TestCase):
             f"/api/iso-docs/{fake_id}/export/docx/",
             HTTP_ACCEPT="text/html,*/*",
         )
-        self.assertNotEqual(resp.status_code, 406, "DOCX export rejected by Accept validation")
+        self.assertNotEqual(
+            resp.status_code, 406, "DOCX export rejected by Accept validation"
+        )
 
 
 # =============================================================================
@@ -452,7 +466,9 @@ class BrowserNavTest(TestCase):
         ]
         for path in pages:
             resp = self.client.get(path)
-            self.assertEqual(resp.status_code, 200, f"{path} returned {resp.status_code}")
+            self.assertEqual(
+                resp.status_code, 200, f"{path} returned {resp.status_code}"
+            )
             self.assertIn("text/html", resp["Content-Type"], f"{path} not HTML")
 
     def test_app_pages_serve_html_shell(self):
@@ -493,7 +509,9 @@ class BrowserNavTest(TestCase):
         ]
         for path in app_pages:
             resp = self.client.get(path)
-            self.assertEqual(resp.status_code, 200, f"{path} returned {resp.status_code}")
+            self.assertEqual(
+                resp.status_code, 200, f"{path} returned {resp.status_code}"
+            )
             self.assertIn("text/html", resp["Content-Type"], f"{path} not HTML")
 
     def test_tools_pages_return_html(self):
@@ -506,7 +524,9 @@ class BrowserNavTest(TestCase):
         ]
         for path in tools:
             resp = self.client.get(path)
-            self.assertEqual(resp.status_code, 200, f"{path} returned {resp.status_code}")
+            self.assertEqual(
+                resp.status_code, 200, f"{path} returned {resp.status_code}"
+            )
             self.assertIn("text/html", resp["Content-Type"], f"{path} not HTML")
 
     def test_seo_pages_return_correct_content_type(self):
@@ -882,5 +902,7 @@ class CriticalPathTest(TestCase):
             format="json",
         )
         # 200/201 = success, 302 = known @login_required gap, 400 = validation
-        self.assertNotEqual(resp.status_code, 406, "Workbench rejected by Accept validation")
+        self.assertNotEqual(
+            resp.status_code, 406, "Workbench rejected by Accept validation"
+        )
         self.assertNotEqual(resp.status_code, 404, "Workbench endpoint not found")

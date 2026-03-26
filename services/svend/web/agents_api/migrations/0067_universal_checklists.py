@@ -9,51 +9,157 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0066_audit_checklist_results'),
+        ("agents_api", "0066_audit_checklist_results"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Checklist',
+            name="Checklist",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=300)),
-                ('description', models.TextField(blank=True)),
-                ('checklist_type', models.CharField(choices=[('read_do', 'Read-Do'), ('do_confirm', 'Do-Confirm')], default='read_do', max_length=20)),
-                ('category', models.CharField(blank=True, help_text='Grouping: audit, kaizen, safety, equipment, training, project, general', max_length=50)),
-                ('version', models.CharField(default='1.0', max_length=20)),
-                ('items', models.JSONField(default=list, help_text='Array of typed prompt-response items')),
-                ('is_template', models.BooleanField(default=True, help_text='Templates are reusable; non-templates are one-offs')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='checklists', to=settings.AUTH_USER_MODEL)),
-                ('site', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='checklists', to='agents_api.site')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("name", models.CharField(max_length=300)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "checklist_type",
+                    models.CharField(
+                        choices=[("read_do", "Read-Do"), ("do_confirm", "Do-Confirm")],
+                        default="read_do",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "category",
+                    models.CharField(
+                        blank=True,
+                        help_text="Grouping: audit, kaizen, safety, equipment, training, project, general",
+                        max_length=50,
+                    ),
+                ),
+                ("version", models.CharField(default="1.0", max_length=20)),
+                (
+                    "items",
+                    models.JSONField(
+                        default=list, help_text="Array of typed prompt-response items"
+                    ),
+                ),
+                (
+                    "is_template",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Templates are reusable; non-templates are one-offs",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "owner",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="checklists",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "site",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="checklists",
+                        to="agents_api.site",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'checklists',
-                'ordering': ['category', 'name'],
+                "db_table": "checklists",
+                "ordering": ["category", "name"],
             },
         ),
         migrations.CreateModel(
-            name='ChecklistExecution',
+            name="ChecklistExecution",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('entity_type', models.CharField(db_index=True, help_text='audit, project, kaizen, ncr, capa, equipment, training, supplier, document, general', max_length=30)),
-                ('entity_id', models.UUIDField(db_index=True, help_text='UUID of the linked entity')),
-                ('status', models.CharField(choices=[('not_started', 'Not Started'), ('in_progress', 'In Progress'), ('complete', 'Complete'), ('blocked', 'Blocked')], default='not_started', max_length=20)),
-                ('responses', models.JSONField(default=list, help_text='Array of responses matching checklist items by index')),
-                ('started_at', models.DateTimeField(blank=True, null=True)),
-                ('completed_at', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('checklist', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='executions', to='agents_api.checklist')),
-                ('executor', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='checklist_executions', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "entity_type",
+                    models.CharField(
+                        db_index=True,
+                        help_text="audit, project, kaizen, ncr, capa, equipment, training, supplier, document, general",
+                        max_length=30,
+                    ),
+                ),
+                (
+                    "entity_id",
+                    models.UUIDField(
+                        db_index=True, help_text="UUID of the linked entity"
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("not_started", "Not Started"),
+                            ("in_progress", "In Progress"),
+                            ("complete", "Complete"),
+                            ("blocked", "Blocked"),
+                        ],
+                        default="not_started",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "responses",
+                    models.JSONField(
+                        default=list,
+                        help_text="Array of responses matching checklist items by index",
+                    ),
+                ),
+                ("started_at", models.DateTimeField(blank=True, null=True)),
+                ("completed_at", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "checklist",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="executions",
+                        to="agents_api.checklist",
+                    ),
+                ),
+                (
+                    "executor",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="checklist_executions",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'checklist_executions',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['entity_type', 'entity_id'], name='idx_clexec_entity')],
+                "db_table": "checklist_executions",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["entity_type", "entity_id"], name="idx_clexec_entity"
+                    )
+                ],
             },
         ),
     ]

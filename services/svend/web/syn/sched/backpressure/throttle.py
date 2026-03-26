@@ -184,7 +184,10 @@ class ThrottleRule:
             triggered = value == self.threshold
 
         if triggered:
-            return (True, f"{self.name}: {self.metric}={value:.2f} {self.comparison} {self.threshold}")
+            return (
+                True,
+                f"{self.name}: {self.metric}={value:.2f} {self.comparison} {self.threshold}",
+            )
 
         return (False, "")
 
@@ -471,7 +474,9 @@ class ThrottlePolicy:
                 decision.confidence_penalty = max(decision.confidence_penalty, penalty)
             elif action.startswith("delay_schedules:"):
                 delay = float(action.split(":")[1])
-                decision.schedule_delay_seconds = max(decision.schedule_delay_seconds, delay)
+                decision.schedule_delay_seconds = max(
+                    decision.schedule_delay_seconds, delay
+                )
             elif action == "pause_failing_tasks":
                 decision.pause_specific_tasks.update(self._paused_tasks)
 
@@ -497,8 +502,12 @@ class ThrottlePolicy:
     def pause_task(self, task_name: str, duration_minutes: int = 30) -> None:
         """Pause a specific task for a duration."""
         self._paused_tasks.add(task_name)
-        self._pause_until[task_name] = timezone.now() + timedelta(minutes=duration_minutes)
-        logger.info(f"[THROTTLE] Paused task {task_name} for {duration_minutes} minutes")
+        self._pause_until[task_name] = timezone.now() + timedelta(
+            minutes=duration_minutes
+        )
+        logger.info(
+            f"[THROTTLE] Paused task {task_name} for {duration_minutes} minutes"
+        )
 
     def unpause_task(self, task_name: str) -> None:
         """Unpause a specific task."""

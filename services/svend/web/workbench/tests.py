@@ -32,7 +32,9 @@ BASE = "/api/workbench"
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     """Create a test user with a given tier."""
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=password, **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -253,12 +255,16 @@ class KnowledgeGraphTest(TestCase):
         # Edges: A->B, B->C
         self.client.post(
             f"{BASE}/{self.wb_id}/graph/edges/add/",
-            data=json.dumps({"from_node": nodes[0], "to_node": nodes[1], "weight": 0.5}),
+            data=json.dumps(
+                {"from_node": nodes[0], "to_node": nodes[1], "weight": 0.5}
+            ),
             content_type="application/json",
         )
         self.client.post(
             f"{BASE}/{self.wb_id}/graph/edges/add/",
-            data=json.dumps({"from_node": nodes[1], "to_node": nodes[2], "weight": 0.5}),
+            data=json.dumps(
+                {"from_node": nodes[1], "to_node": nodes[2], "weight": 0.5}
+            ),
             content_type="application/json",
         )
 

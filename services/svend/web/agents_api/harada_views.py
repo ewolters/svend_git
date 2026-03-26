@@ -60,14 +60,20 @@ def get_questionnaire(request):
     For Likert: returns question text with 1-5 scale.
     """
     instrument = request.GET.get("instrument", "ci_readiness")
-    dimensions = QuestionDimension.objects.filter(instrument=instrument).order_by("dimension_number")
+    dimensions = QuestionDimension.objects.filter(instrument=instrument).order_by(
+        "dimension_number"
+    )
 
     if not dimensions.exists():
-        return JsonResponse({"error": f"No dimensions for instrument: {instrument}"}, status=404)
+        return JsonResponse(
+            {"error": f"No dimensions for instrument: {instrument}"}, status=404
+        )
 
     # Find previously used scenario IDs (from last session) to avoid on retake
     last_session = (
-        QuestionnaireResponse.objects.filter(user=request.user, dimension__instrument=instrument)
+        QuestionnaireResponse.objects.filter(
+            user=request.user, dimension__instrument=instrument
+        )
         .order_by("-timestamp")
         .values_list("session_id", flat=True)
         .first()
@@ -75,7 +81,9 @@ def get_questionnaire(request):
     used_scenario_ids = set()
     if last_session:
         used_scenario_ids = set(
-            QuestionnaireResponse.objects.filter(user=request.user, session_id=last_session)
+            QuestionnaireResponse.objects.filter(
+                user=request.user, session_id=last_session
+            )
             .exclude(scenario=None)
             .values_list("scenario_id", flat=True)
         )
@@ -85,16 +93,20 @@ def get_questionnaire(request):
 
     # Experience gate for Q11 (Measurement System Trust)
     # Default to profile, fallback to asking
-    Q11_EXPERIENCED = (
-        "I have delayed or revised a conclusion after discovering a problem with how the data was collected."
-    )
+    Q11_EXPERIENCED = "I have delayed or revised a conclusion after discovering a problem with how the data was collected."
     Q11_EARLY_CAREER = "Before drawing conclusions from data, I investigate whether the measurement system itself could explain the result."
 
     user = request.user
-    experience_known = bool(getattr(user, "experience_level", None)) or getattr(user, "role", "") == "student"
+    experience_known = (
+        bool(getattr(user, "experience_level", None))
+        or getattr(user, "role", "") == "student"
+    )
     is_early_career = None
     if experience_known:
-        is_early_career = getattr(user, "experience_level", "") == "beginner" or getattr(user, "role", "") == "student"
+        is_early_career = (
+            getattr(user, "experience_level", "") == "beginner"
+            or getattr(user, "role", "") == "student"
+        )
 
     # If experience is unknown, we'll flag it so the UI can ask
     needs_experience_question = not experience_known and instrument == "ci_readiness"
@@ -124,7 +136,13 @@ def get_questionnaire(request):
             item["question_text"] = question_text
             item["scale_min"] = 1
             item["scale_max"] = 5
-            item["scale_labels"] = ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"]
+            item["scale_labels"] = [
+                "Strongly Disagree",
+                "Disagree",
+                "Neutral",
+                "Agree",
+                "Strongly Agree",
+            ]
         else:
             # Forced-choice: select scenario, randomize options
             scenarios = list(dim.scenarios.filter(is_active=True))
@@ -155,7 +173,9 @@ def get_questionnaire(request):
         "instrument": instrument,
         "session_id": session_id,
         "dimensions": items,
-        "retake_number": QuestionnaireResponse.objects.filter(user=request.user, dimension__instrument=instrument)
+        "retake_number": QuestionnaireResponse.objects.filter(
+            user=request.user, dimension__instrument=instrument
+        )
         .values("session_id")
         .distinct()
         .count()
@@ -216,7 +236,9 @@ def submit_responses(request):
 
     # Determine instrument version (retake count)
     version = (
-        QuestionnaireResponse.objects.filter(user=request.user, dimension__instrument=instrument)
+        QuestionnaireResponse.objects.filter(
+            user=request.user, dimension__instrument=instrument
+        )
         .values("session_id")
         .distinct()
         .count()
@@ -253,7 +275,13 @@ def submit_responses(request):
         )
         created.append(str(qr.id))
 
-    logger.info("Harada %s v%d: %d responses from %s", instrument, version, len(created), request.user.email)
+    logger.info(
+        "Harada %s v%d: %d responses from %s",
+        instrument,
+        version,
+        len(created),
+        request.user.email,
+    )
 
     return JsonResponse(
         {
@@ -276,7 +304,9 @@ def get_response_history(request):
     instrument = request.GET.get("instrument", "ci_readiness")
 
     sessions = (
-        QuestionnaireResponse.objects.filter(user=request.user, dimension__instrument=instrument)
+        QuestionnaireResponse.objects.filter(
+            user=request.user, dimension__instrument=instrument
+        )
         .values("session_id", "instrument_version")
         .distinct()
         .order_by("-instrument_version")
@@ -308,7 +338,11 @@ def get_response_history(request):
             {
                 "session_id": str(sess["session_id"]),
                 "version": sess["instrument_version"],
-                "timestamp": responses.first().timestamp.isoformat() if responses.exists() else None,
+                "timestamp": (
+                    responses.first().timestamp.isoformat()
+                    if responses.exists()
+                    else None
+                ),
                 "responses": items,
             }
         )
@@ -331,21 +365,31 @@ def get_archetype(request):
     """
     from core.models import ArchetypeAssignment
 
-    assignment = ArchetypeAssignment.objects.filter(user=request.user).order_by("-created_at").first()
+    assignment = (
+        ArchetypeAssignment.objects.filter(user=request.user)
+        .order_by("-created_at")
+        .first()
+    )
 
     if not assignment:
         return JsonResponse(
-            {"archetype": None, "message": "No archetype assigned yet. Complete the CI Readiness questionnaire."}
+            {
+                "archetype": None,
+                "message": "No archetype assigned yet. Complete the CI Readiness questionnaire.",
+            }
         )
 
     # Get all assignments for trajectory
-    all_assignments = ArchetypeAssignment.objects.filter(user=request.user).order_by("created_at")
+    all_assignments = ArchetypeAssignment.objects.filter(user=request.user).order_by(
+        "created_at"
+    )
 
     return JsonResponse(
         {
             "archetype": {
                 "cluster_id": assignment.cluster_id,
-                "cluster_label": assignment.cluster_label or f"Archetype {assignment.cluster_id + 1}",
+                "cluster_label": assignment.cluster_label
+                or f"Archetype {assignment.cluster_id + 1}",
                 "feature_vector": assignment.feature_vector,
                 "cluster_distances": assignment.cluster_distances,
                 "silhouette_score": assignment.silhouette_score,
@@ -396,9 +440,9 @@ def list_create_goals(request):
     POST — Create a new goal.
     """
     if request.method == "GET":
-        roots = HaradaGoal.objects.filter(user=request.user, parent=None).prefetch_related(
-            "children__children__children"
-        )
+        roots = HaradaGoal.objects.filter(
+            user=request.user, parent=None
+        ).prefetch_related("children__children__children")
         return JsonResponse({"goals": [_serialize_goal(g) for g in roots]})
 
     try:
@@ -509,8 +553,12 @@ def list_create_window(request):
                     "cell_type": cell.cell_type,
                     "text": cell.text,
                     "is_completed": cell.is_completed,
-                    "completed_at": cell.completed_at.isoformat() if cell.completed_at else None,
-                    "harada_goal_id": str(cell.harada_goal_id) if cell.harada_goal_id else None,
+                    "completed_at": (
+                        cell.completed_at.isoformat() if cell.completed_at else None
+                    ),
+                    "harada_goal_id": (
+                        str(cell.harada_goal_id) if cell.harada_goal_id else None
+                    ),
                 }
             )
         return JsonResponse({"window": grid})
@@ -525,7 +573,9 @@ def list_create_window(request):
     text = data.get("text", "").strip()
 
     if goal_number is None or position is None or not text:
-        return JsonResponse({"error": "goal_number, position, and text required"}, status=400)
+        return JsonResponse(
+            {"error": "goal_number, position, and text required"}, status=400
+        )
 
     if not (0 <= goal_number <= 8) or not (0 <= position <= 8):
         return JsonResponse({"error": "goal_number 0-8, position 0-8"}, status=400)
@@ -608,7 +658,10 @@ def check_routine(request):
     if request.method == "GET":
         target_date = request.GET.get("date", str(date.today()))
         routines = Window64.objects.filter(user=request.user, cell_type="routine")
-        checks = {c.window_cell_id: c for c in RoutineCheck.objects.filter(user=request.user, date=target_date)}
+        checks = {
+            c.window_cell_id: c
+            for c in RoutineCheck.objects.filter(user=request.user, date=target_date)
+        }
 
         items = []
         for r in routines:
@@ -697,11 +750,15 @@ def routine_history(request):
     # Calculate streak
     streak = 0
     today = date.today()
-    routines_count = Window64.objects.filter(user=request.user, cell_type="routine").count()
+    routines_count = Window64.objects.filter(
+        user=request.user, cell_type="routine"
+    ).count()
     if routines_count > 0:
         check_date = today
         while True:
-            day_checks = RoutineCheck.objects.filter(user=request.user, date=check_date, is_completed=True).count()
+            day_checks = RoutineCheck.objects.filter(
+                user=request.user, date=check_date, is_completed=True
+            ).count()
             if day_checks >= routines_count:
                 streak += 1
                 check_date -= timedelta(days=1)
@@ -792,7 +849,12 @@ def list_create_diary(request):
         },
     )
 
-    logger.info("Diary %s for %s: total=%s", "created" if created else "updated", diary_date, diary.total_score)
+    logger.info(
+        "Diary %s for %s: total=%s",
+        "created" if created else "updated",
+        diary_date,
+        diary.total_score,
+    )
     return JsonResponse(_serialize_diary(diary), status=201 if created else 200)
 
 
@@ -830,7 +892,16 @@ def diary_detail(request, diary_date):
             setattr(diary, field, data[field])
 
     scores = data.get("scores", {})
-    for dim in ["overall", "mental", "body", "work", "relations", "life", "learning", "routines"]:
+    for dim in [
+        "overall",
+        "mental",
+        "body",
+        "work",
+        "relations",
+        "life",
+        "learning",
+        "routines",
+    ]:
         if dim in scores:
             setattr(diary, f"score_{dim}", scores[dim])
 

@@ -46,11 +46,15 @@ class Command(BaseCommand):
             except Exception as e:
                 findings.append(f"Coverage read error: {e}")
         else:
-            findings.append("coverage.json not found — run coverage before generating cert")
+            findings.append(
+                "coverage.json not found — run coverage before generating cert"
+            )
 
         # 3. Count golden files
         golden_dir = base / "agents_api" / "tests" / "golden"
-        golden_count = len(list(golden_dir.glob("*.json"))) if golden_dir.exists() else 0
+        golden_count = (
+            len(list(golden_dir.glob("*.json"))) if golden_dir.exists() else 0
+        )
 
         # 4. Count complexity violations
         complexity_violations = 0
@@ -69,7 +73,9 @@ class Command(BaseCommand):
         last_report = CalibrationReport.objects.order_by("-date").first()
         ratchet_baseline = last_report.ratchet_baseline if last_report else 0.0
         if overall_coverage is not None and overall_coverage < ratchet_baseline:
-            findings.append(f"Coverage regression: {overall_coverage:.1f}% < ratchet {ratchet_baseline:.1f}%")
+            findings.append(
+                f"Coverage regression: {overall_coverage:.1f}% < ratchet {ratchet_baseline:.1f}%"
+            )
             status_overall = "fail"
 
         # Determine certificate pass/fail

@@ -37,11 +37,20 @@ class EventCatalogTest(SimpleTestCase):
 
     def test_all_events_have_required_keys(self):
         """Every event: description, category, audit, priority, siem_forward, payload_schema (CC7.2)."""
-        required = {"description", "category", "audit", "priority", "siem_forward", "payload_schema"}
+        required = {
+            "description",
+            "category",
+            "audit",
+            "priority",
+            "siem_forward",
+            "payload_schema",
+        }
         for name, event in AUDIT_EVENTS.items():
             with self.subTest(event=name):
                 missing = required - set(event.keys())
-                self.assertEqual(missing, set(), f"Event '{name}' missing keys: {missing}")
+                self.assertEqual(
+                    missing, set(), f"Event '{name}' missing keys: {missing}"
+                )
 
     def test_critical_events_siem_forwarded(self):
         """priority=1 → siem_forward=True (CC4.1)."""
@@ -57,16 +66,24 @@ class EventCatalogTest(SimpleTestCase):
         """Names match [a-z]+.[a-z_]+.[a-z_]+ (CC7.2)."""
         for name in AUDIT_EVENTS:
             with self.subTest(event=name):
-                self.assertRegex(name, _DOTTED_RE, f"Event name '{name}' violates convention")
+                self.assertRegex(
+                    name, _DOTTED_RE, f"Event name '{name}' violates convention"
+                )
 
     def test_payload_schemas_have_required_fields(self):
         """Each schema has 'required' array (CC7.2)."""
         for name, event in AUDIT_EVENTS.items():
             schema = event["payload_schema"]
             with self.subTest(event=name):
-                self.assertIn("required", schema, f"Event '{name}' schema missing 'required'")
+                self.assertIn(
+                    "required", schema, f"Event '{name}' schema missing 'required'"
+                )
                 self.assertIsInstance(schema["required"], list)
-                self.assertGreater(len(schema["required"]), 0, f"Event '{name}' has empty required list")
+                self.assertGreater(
+                    len(schema["required"]),
+                    0,
+                    f"Event '{name}' has empty required list",
+                )
 
     def test_no_recursive_audit(self):
         """audit.entry.created has audit=False (CC7.2)."""

@@ -94,7 +94,9 @@ class SecurityAnalystVetoTest(TestCase):
         self._add_ra_with_vote(cr, "security_analyst", "reject")
         errors = cr.validate_for_transition("in_progress")
         veto_errors = [e for e in errors if "IVR-001" in e]
-        self.assertEqual(veto_errors, [], f"Enhancement should not trigger veto: {veto_errors}")
+        self.assertEqual(
+            veto_errors, [], f"Enhancement should not trigger veto: {veto_errors}"
+        )
 
     def test_cr_without_votes_still_passes(self):
         """CR with RA but no votes yet passes (veto requires explicit reject)."""
@@ -121,7 +123,9 @@ class SecurityAnalystVetoTest(TestCase):
         self._add_ra_with_vote(cr, "architect", "reject")
         errors = cr.validate_for_transition("in_progress")
         veto_errors = [e for e in errors if "IVR-001" in e]
-        self.assertEqual(veto_errors, [], f"Architect reject should not trigger veto: {veto_errors}")
+        self.assertEqual(
+            veto_errors, [], f"Architect reject should not trigger veto: {veto_errors}"
+        )
 
     def test_veto_blocks_testing_transition_too(self):
         """Veto blocks any APPROVED_PLUS target, including testing."""

@@ -246,7 +246,9 @@ class JsonFormatterTest(SimpleTestCase):
 
     def test_formats_valid_json(self):
         """Output is valid JSON with required fields."""
-        record = logging.LogRecord("syn.test", logging.INFO, "", 0, "test message", (), None)
+        record = logging.LogRecord(
+            "syn.test", logging.INFO, "", 0, "test message", (), None
+        )
         record.correlation_id = str(uuid.uuid4())
         record.tenant_id = None
 
@@ -338,7 +340,13 @@ class SynaraLogHandlerTest(SimpleTestCase):
 
     def test_level_map_complete(self):
         """LEVEL_MAP covers all Python log levels."""
-        expected = {logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL}
+        expected = {
+            logging.DEBUG,
+            logging.INFO,
+            logging.WARNING,
+            logging.ERROR,
+            logging.CRITICAL,
+        }
         self.assertEqual(set(SynaraLogHandler.LEVEL_MAP.keys()), expected)
 
     def test_build_entry_data_fields(self):
@@ -346,7 +354,9 @@ class SynaraLogHandlerTest(SimpleTestCase):
         handler = SynaraLogHandler.__new__(SynaraLogHandler)
         handler.include_context = True
 
-        record = logging.LogRecord("syn.test", logging.WARNING, "/path", 42, "test msg", (), None)
+        record = logging.LogRecord(
+            "syn.test", logging.WARNING, "/path", 42, "test msg", (), None
+        )
         record.correlation_id = str(uuid.uuid4())
         record.tenant_id = None
         record.actor_id = None
@@ -416,7 +426,9 @@ class SynaraLogHandlerTest(SimpleTestCase):
         record.actor_id = None
 
         # Mock _write_entry and _flush_buffer to avoid DB
-        with mock.patch.object(handler, "_write_entry"), mock.patch.object(handler, "_flush_buffer"):
+        with mock.patch.object(handler, "_write_entry"), mock.patch.object(
+            handler, "_flush_buffer"
+        ):
             handler.emit(record)
 
         self.assertEqual(len(handler._buffer), 1)
@@ -497,7 +509,9 @@ class CorrelationMiddlewareTest(SimpleTestCase):
 
         self.assertIn(HEADER_CORRELATION_ID, response)
         self.assertIn(HEADER_SYN_REQUEST_ID, response)
-        self.assertEqual(response[HEADER_CORRELATION_ID], response[HEADER_SYN_REQUEST_ID])
+        self.assertEqual(
+            response[HEADER_CORRELATION_ID], response[HEADER_SYN_REQUEST_ID]
+        )
 
     def test_stores_on_request_object(self):
         """Middleware stores correlation_id on request object."""
@@ -566,7 +580,9 @@ class RequestLoggingMiddlewareTest(SimpleTestCase):
     def test_extracts_client_ip_forwarded(self):
         """Extracts IP from X-Forwarded-For header."""
         middleware = self._make_middleware()
-        request = self.factory.get("/api/test/", HTTP_X_FORWARDED_FOR="1.2.3.4, 5.6.7.8")
+        request = self.factory.get(
+            "/api/test/", HTTP_X_FORWARDED_FOR="1.2.3.4, 5.6.7.8"
+        )
         ip = middleware._get_client_ip(request)
         self.assertEqual(ip, "1.2.3.4")
 
@@ -1071,7 +1087,11 @@ class EventCatalogTest(SimpleTestCase):
         pattern = re.compile(r"^log\.[a-z]+\.[a-z_]+$")
         for name in LOG_EVENTS:
             with self.subTest(event=name):
-                self.assertRegex(name, pattern, f"Event name '{name}' doesn't match dotted convention")
+                self.assertRegex(
+                    name,
+                    pattern,
+                    f"Event name '{name}' doesn't match dotted convention",
+                )
 
     def test_valid_severity_values(self):
         """Severity values are info, warning, or error."""
@@ -1235,5 +1255,7 @@ class GetSynaraLoggerTest(SimpleTestCase):
         get_synara_logger(name)
 
         logger = logging.getLogger(name)
-        synara_handlers = [h for h in logger.handlers if isinstance(h, SynaraLogHandler)]
+        synara_handlers = [
+            h for h in logger.handlers if isinstance(h, SynaraLogHandler)
+        ]
         self.assertEqual(len(synara_handlers), 1)

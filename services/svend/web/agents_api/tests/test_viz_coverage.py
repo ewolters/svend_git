@@ -74,7 +74,9 @@ class BasicVisualizationTest(TestCase):
 
     def test_pareto(self):
         categories = (
-            np.random.RandomState(42).choice(["Defect_A", "Defect_B", "Defect_C", "Defect_D", "Defect_E"], 100).tolist()
+            np.random.RandomState(42)
+            .choice(["Defect_A", "Defect_B", "Defect_C", "Defect_D", "Defect_E"], 100)
+            .tolist()
         )
         r = _run(
             "pareto",

@@ -13,15 +13,23 @@ def create_templates(apps, schema_editor):
             "domain": "machine_learning",
             "data_type": "tabular",
             "description": "Telecom customer churn dataset for classification exercises. "
-                           "Includes tenure, charges, service features, and churn label.",
+            "Includes tenure, charges, service features, and churn label.",
             "schema_def": {
                 "customer_id": {"type": "uuid"},
                 "tenure_months": {"type": "int", "constraints": {"min": 1, "max": 72}},
-                "monthly_charges": {"type": "float", "constraints": {"min": 18, "max": 120}},
-                "total_charges": {"type": "float", "constraints": {"min": 18, "max": 8700}},
+                "monthly_charges": {
+                    "type": "float",
+                    "constraints": {"min": 18, "max": 120},
+                },
+                "total_charges": {
+                    "type": "float",
+                    "constraints": {"min": 18, "max": 8700},
+                },
                 "contract_type": {
                     "type": "category",
-                    "constraints": {"values": ["month-to-month", "one-year", "two-year"]},
+                    "constraints": {
+                        "values": ["month-to-month", "one-year", "two-year"]
+                    },
                 },
                 "internet_service": {
                     "type": "category",
@@ -46,12 +54,14 @@ def create_templates(apps, schema_editor):
             "domain": "advanced_statistics",
             "data_type": "tabular",
             "description": "Multi-site clinical study with repeated measures. "
-                           "Includes baseline and follow-up scores, dropout, and site effects.",
+            "Includes baseline and follow-up scores, dropout, and site effects.",
             "schema_def": {
                 "patient_id": {"type": "uuid"},
                 "site": {
                     "type": "category",
-                    "constraints": {"values": ["site_A", "site_B", "site_C", "site_D", "site_E"]},
+                    "constraints": {
+                        "values": ["site_A", "site_B", "site_C", "site_D", "site_E"]
+                    },
                 },
                 "treatment_group": {
                     "type": "category",
@@ -59,7 +69,10 @@ def create_templates(apps, schema_editor):
                 },
                 "age": {"type": "int", "constraints": {"min": 25, "max": 80}},
                 "sex": {"type": "category", "constraints": {"values": ["M", "F"]}},
-                "baseline_score": {"type": "float", "constraints": {"min": 20, "max": 80}},
+                "baseline_score": {
+                    "type": "float",
+                    "constraints": {"min": 20, "max": 80},
+                },
                 "week4_score": {"type": "float", "constraints": {"min": 15, "max": 85}},
                 "week8_score": {
                     "type": "float",
@@ -71,7 +84,10 @@ def create_templates(apps, schema_editor):
                     "constraints": {"min": 5, "max": 95},
                     "nullable": True,
                 },
-                "adherence_pct": {"type": "float", "constraints": {"min": 0, "max": 100}},
+                "adherence_pct": {
+                    "type": "float",
+                    "constraints": {"min": 0, "max": 100},
+                },
                 "adverse_events": {"type": "int", "constraints": {"min": 0, "max": 5}},
                 "dropout": {"type": "bool"},
                 "dropout_week": {
@@ -86,12 +102,21 @@ def create_templates(apps, schema_editor):
             "domain": "quality_science",
             "data_type": "tabular",
             "description": "Precision manufacturing measurements for SPC and quality analysis. "
-                           "Includes dimensional measurements, machine/operator info, and inspection results.",
+            "Includes dimensional measurements, machine/operator info, and inspection results.",
             "schema_def": {
                 "part_id": {"type": "uuid"},
-                "inner_diameter": {"type": "float", "constraints": {"min": 24.95, "max": 25.05}},
-                "outer_diameter": {"type": "float", "constraints": {"min": 49.95, "max": 50.05}},
-                "surface_finish": {"type": "float", "constraints": {"min": 0.2, "max": 1.6}},
+                "inner_diameter": {
+                    "type": "float",
+                    "constraints": {"min": 24.95, "max": 25.05},
+                },
+                "outer_diameter": {
+                    "type": "float",
+                    "constraints": {"min": 49.95, "max": 50.05},
+                },
+                "surface_finish": {
+                    "type": "float",
+                    "constraints": {"min": 0.2, "max": 1.6},
+                },
                 "hardness": {"type": "float", "constraints": {"min": 58, "max": 65}},
                 "machine_id": {
                     "type": "category",
@@ -101,7 +126,10 @@ def create_templates(apps, schema_editor):
                     "type": "category",
                     "constraints": {"values": ["op_A", "op_B", "op_C"]},
                 },
-                "shift": {"type": "category", "constraints": {"values": ["day", "night"]}},
+                "shift": {
+                    "type": "category",
+                    "constraints": {"values": ["day", "night"]},
+                },
                 "batch": {"type": "int", "constraints": {"min": 1, "max": 50}},
                 "timestamp": {"type": "datetime"},
                 "inspection_result": {
@@ -115,17 +143,29 @@ def create_templates(apps, schema_editor):
             "domain": "operational_excellence",
             "data_type": "tabular",
             "description": "Assembly line production data for Lean/Six Sigma exercises. "
-                           "Includes cycle times, defects, downtime, and changeover metrics per station.",
+            "Includes cycle times, defects, downtime, and changeover metrics per station.",
             "schema_def": {
                 "record_id": {"type": "uuid"},
                 "date": {"type": "date"},
-                "shift": {"type": "category", "constraints": {"values": ["morning", "afternoon", "night"]}},
+                "shift": {
+                    "type": "category",
+                    "constraints": {"values": ["morning", "afternoon", "night"]},
+                },
                 "station": {"type": "int", "constraints": {"min": 1, "max": 12}},
-                "cycle_time_sec": {"type": "float", "constraints": {"min": 30, "max": 300}},
-                "units_produced": {"type": "int", "constraints": {"min": 0, "max": 120}},
+                "cycle_time_sec": {
+                    "type": "float",
+                    "constraints": {"min": 30, "max": 300},
+                },
+                "units_produced": {
+                    "type": "int",
+                    "constraints": {"min": 0, "max": 120},
+                },
                 "defects": {"type": "int", "constraints": {"min": 0, "max": 15}},
                 "downtime_min": {"type": "float", "constraints": {"min": 0, "max": 60}},
-                "changeover_min": {"type": "float", "constraints": {"min": 0, "max": 45}},
+                "changeover_min": {
+                    "type": "float",
+                    "constraints": {"min": 0, "max": 45},
+                },
                 "operator": {
                     "type": "category",
                     "constraints": {"values": ["team_A", "team_B", "team_C"]},
@@ -141,14 +181,24 @@ def create_templates(apps, schema_editor):
             "domain": "operations_research",
             "data_type": "tabular",
             "description": "Regional distribution network data for OR exercises. "
-                           "Includes demand, shipments, costs, and stockout flags.",
+            "Includes demand, shipments, costs, and stockout flags.",
             "schema_def": {
                 "order_id": {"type": "uuid"},
                 "date": {"type": "date"},
                 "warehouse": {
                     "type": "category",
-                    "constraints": {"values": ["WH_north", "WH_south", "WH_east", "WH_west",
-                                               "WH_central", "WH_coastal", "WH_mountain", "WH_plains"]},
+                    "constraints": {
+                        "values": [
+                            "WH_north",
+                            "WH_south",
+                            "WH_east",
+                            "WH_west",
+                            "WH_central",
+                            "WH_coastal",
+                            "WH_mountain",
+                            "WH_plains",
+                        ]
+                    },
                 },
                 "customer_id": {"type": "uuid"},
                 "product_family": {
@@ -157,9 +207,15 @@ def create_templates(apps, schema_editor):
                 },
                 "demand_qty": {"type": "int", "constraints": {"min": 1, "max": 500}},
                 "shipped_qty": {"type": "int", "constraints": {"min": 0, "max": 500}},
-                "transport_cost": {"type": "float", "constraints": {"min": 5, "max": 2000}},
+                "transport_cost": {
+                    "type": "float",
+                    "constraints": {"min": 5, "max": 2000},
+                },
                 "lead_time_days": {"type": "int", "constraints": {"min": 1, "max": 14}},
-                "distance_km": {"type": "float", "constraints": {"min": 10, "max": 1500}},
+                "distance_km": {
+                    "type": "float",
+                    "constraints": {"min": 10, "max": 1500},
+                },
                 "stockout_flag": {"type": "bool"},
             },
         },
@@ -168,18 +224,39 @@ def create_templates(apps, schema_editor):
             "domain": "decision_science",
             "data_type": "tabular",
             "description": "Product launch decision scenarios for decision analysis exercises. "
-                           "Includes market data, financials, risk factors, and success outcomes.",
+            "Includes market data, financials, risk factors, and success outcomes.",
             "schema_def": {
                 "scenario_id": {"type": "uuid"},
-                "market_size": {"type": "float", "constraints": {"min": 1e6, "max": 1e9}},
-                "growth_rate": {"type": "float", "constraints": {"min": -0.05, "max": 0.3}},
-                "competitor_count": {"type": "int", "constraints": {"min": 0, "max": 20}},
+                "market_size": {
+                    "type": "float",
+                    "constraints": {"min": 1e6, "max": 1e9},
+                },
+                "growth_rate": {
+                    "type": "float",
+                    "constraints": {"min": -0.05, "max": 0.3},
+                },
+                "competitor_count": {
+                    "type": "int",
+                    "constraints": {"min": 0, "max": 20},
+                },
                 "price_point": {"type": "float", "constraints": {"min": 5, "max": 500}},
-                "development_cost": {"type": "float", "constraints": {"min": 50000, "max": 5e6}},
-                "time_to_market_months": {"type": "int", "constraints": {"min": 3, "max": 36}},
+                "development_cost": {
+                    "type": "float",
+                    "constraints": {"min": 50000, "max": 5e6},
+                },
+                "time_to_market_months": {
+                    "type": "int",
+                    "constraints": {"min": 3, "max": 36},
+                },
                 "risk_score": {"type": "float", "constraints": {"min": 0, "max": 1}},
-                "npv_estimate": {"type": "float", "constraints": {"min": -1e6, "max": 1e7}},
-                "success_probability": {"type": "float", "constraints": {"min": 0.05, "max": 0.95}},
+                "npv_estimate": {
+                    "type": "float",
+                    "constraints": {"min": -1e6, "max": 1e7},
+                },
+                "success_probability": {
+                    "type": "float",
+                    "constraints": {"min": 0.05, "max": 0.95},
+                },
             },
         },
     ]

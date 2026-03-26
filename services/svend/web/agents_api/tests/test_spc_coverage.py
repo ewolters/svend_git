@@ -69,7 +69,10 @@ class SPCChartCoverageTest(TestCase):
         r = _run(
             "laney_p",
             {"defectives": "d", "sample_size": "n"},
-            {"d": list(np.random.RandomState(42).binomial(100, 0.05, 30)), "n": [100] * 30},
+            {
+                "d": list(np.random.RandomState(42).binomial(100, 0.05, 30)),
+                "n": [100] * 30,
+            },
         )
         _check_schema(self, r)
 
@@ -162,7 +165,9 @@ class SPCChartCoverageTest(TestCase):
     def test_degradation_capability(self):
         # Degradation over time
         time_vals = list(range(100))
-        deg_vals = [50 + 0.1 * t + np.random.RandomState(42).normal(0, 1) for t in time_vals]
+        deg_vals = [
+            50 + 0.1 * t + np.random.RandomState(42).normal(0, 1) for t in time_vals
+        ]
         r = _run(
             "degradation_capability",
             {"measurement": "y", "time": "t", "lsl": 40, "usl": 60},
@@ -210,7 +215,10 @@ class SPCGoldenFileCoverageTest(TestCase):
         r = _run(
             "p_chart",
             {"defectives": "d", "sample_size": "n"},
-            {"d": list(np.random.RandomState(42).binomial(50, 0.05, 25)), "n": [50] * 25},
+            {
+                "d": list(np.random.RandomState(42).binomial(50, 0.05, 25)),
+                "n": [50] * 25,
+            },
         )
         _check_schema(self, r)
 

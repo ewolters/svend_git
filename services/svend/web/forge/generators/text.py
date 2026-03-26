@@ -46,7 +46,9 @@ class TextGenerator:
         }[sentiment]
 
         if self.llm:
-            text = self._generate_with_llm(f"Write a {sentiment} product review in 2-3 sentences.")
+            text = self._generate_with_llm(
+                f"Write a {sentiment} product review in 2-3 sentences."
+            )
         else:
             text = self._mock_review(sentiment)
 
@@ -75,7 +77,9 @@ class TextGenerator:
             subject = self._generate_with_llm(
                 f"Write a customer support ticket subject about {category}. Just the subject line, no other text."
             )
-            body = self._generate_with_llm(f"Write a brief customer support message about {category}. 2-3 sentences.")
+            body = self._generate_with_llm(
+                f"Write a brief customer support message about {category}. 2-3 sentences."
+            )
         else:
             subject = self._mock_ticket_subject(category)
             body = self._mock_ticket_body(category)
@@ -111,7 +115,9 @@ class TextGenerator:
                 {
                     "role": role,
                     "content": content,
-                    "timestamp": (self._random_datetime() + timedelta(minutes=i * 2)).isoformat(),
+                    "timestamp": (
+                        self._random_datetime() + timedelta(minutes=i * 2)
+                    ).isoformat(),
                 }
             )
 
@@ -120,14 +126,18 @@ class TextGenerator:
             "customer_id": str(uuid.uuid4()),
             "messages": messages,
             "resolved": random.random() < 0.7,
-            "satisfaction_score": random.randint(1, 5) if random.random() < 0.5 else None,
+            "satisfaction_score": (
+                random.randint(1, 5) if random.random() < 0.5 else None
+            ),
             "created_at": messages[0]["timestamp"],
         }
 
     def _generate_generic(self) -> dict:
         """Generate generic text record."""
         if self.llm:
-            text = self._generate_with_llm("Write a short paragraph about a random topic.")
+            text = self._generate_with_llm(
+                "Write a short paragraph about a random topic."
+            )
         else:
             text = fake.paragraph(nb_sentences=random.randint(2, 5))
 
@@ -164,16 +174,34 @@ class TextGenerator:
             "Meets expectations. Not great but not bad either.",
             "Decent for the price. Some minor issues but acceptable.",
         ]
-        return random.choice({"positive": positive, "negative": negative, "neutral": neutral}[sentiment])
+        return random.choice(
+            {"positive": positive, "negative": negative, "neutral": neutral}[sentiment]
+        )
 
     def _mock_ticket_subject(self, category: str) -> str:
         """Mock ticket subject."""
         subjects = {
-            "billing": ["Charged twice for order", "Refund not received", "Invoice discrepancy"],
+            "billing": [
+                "Charged twice for order",
+                "Refund not received",
+                "Invoice discrepancy",
+            ],
             "technical": ["App keeps crashing", "Login issues", "Feature not working"],
-            "account": ["Can't reset password", "Update email address", "Delete account request"],
-            "shipping": ["Package not delivered", "Wrong address on order", "Delivery delay"],
-            "general": ["Question about product", "Feedback and suggestions", "General inquiry"],
+            "account": [
+                "Can't reset password",
+                "Update email address",
+                "Delete account request",
+            ],
+            "shipping": [
+                "Package not delivered",
+                "Wrong address on order",
+                "Delivery delay",
+            ],
+            "general": [
+                "Question about product",
+                "Feedback and suggestions",
+                "General inquiry",
+            ],
         }
         return random.choice(subjects.get(category, subjects["general"]))
 
@@ -204,4 +232,6 @@ class TextGenerator:
         """Generate random datetime in last 90 days."""
         now = datetime.now(timezone.utc)
         days_ago = random.randint(0, 90)
-        return now - timedelta(days=days_ago, hours=random.randint(0, 23), minutes=random.randint(0, 59))
+        return now - timedelta(
+            days=days_ago, hours=random.randint(0, 23), minutes=random.randint(0, 59)
+        )

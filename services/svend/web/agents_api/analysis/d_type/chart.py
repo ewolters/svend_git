@@ -8,8 +8,23 @@ import logging
 import numpy as np
 import pandas as pd
 
-from ..common import COLOR_BAD, COLOR_GOOD, COLOR_NEUTRAL, COLOR_REFERENCE, SVEND_COLORS, _rgba
-from .helpers import _build_grid, _d_chart_body, _d_chart_nextsteps, _d_narrative, _jsd, _kde_density, _noise_floor
+from ..common import (
+    COLOR_BAD,
+    COLOR_GOOD,
+    COLOR_NEUTRAL,
+    COLOR_REFERENCE,
+    SVEND_COLORS,
+    _rgba,
+)
+from .helpers import (
+    _build_grid,
+    _d_chart_body,
+    _d_chart_nextsteps,
+    _d_narrative,
+    _jsd,
+    _kde_density,
+    _noise_floor,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +49,9 @@ def run_d_chart(df, config):
     step_size = int(config.get("step_size", 0)) or window_size // 2
 
     if not variable or not factor:
-        result["summary"] = "<<COLOR:danger>>Error: variable and factor are required.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Error: variable and factor are required.<</COLOR>>"
+        )
         return result
 
     # Prepare data
@@ -50,11 +67,15 @@ def run_d_chart(df, config):
     n = len(df)
 
     if n < window_size:
-        result["summary"] = f"<<COLOR:warning>>Need at least {window_size} observations (have {n}).<</COLOR>>"
+        result["summary"] = (
+            f"<<COLOR:warning>>Need at least {window_size} observations (have {n}).<</COLOR>>"
+        )
         return result
 
     if len(unique_factors) < 2:
-        result["summary"] = "<<COLOR:warning>>Need at least 2 factor levels for divergence analysis.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:warning>>Need at least 2 factor levels for divergence analysis.<</COLOR>>"
+        )
         return result
 
     # Build KDE grid from full data
@@ -96,7 +117,9 @@ def run_d_chart(df, config):
             tc = w_df[time_col]
             if pd.api.types.is_datetime64_any_dtype(tc):
                 midpoint = tc.iloc[len(tc) // 2]
-                label = str(midpoint.date()) if hasattr(midpoint, "date") else str(midpoint)
+                label = (
+                    str(midpoint.date()) if hasattr(midpoint, "date") else str(midpoint)
+                )
             elif pd.api.types.is_numeric_dtype(tc):
                 midpoint = tc.iloc[len(tc) // 2]
                 label = str(midpoint)
@@ -104,7 +127,11 @@ def run_d_chart(df, config):
                 try:
                     ts = pd.to_datetime(tc)
                     midpoint = ts.iloc[len(ts) // 2]
-                    label = str(midpoint.date()) if hasattr(midpoint, "date") else str(midpoint)
+                    label = (
+                        str(midpoint.date())
+                        if hasattr(midpoint, "date")
+                        else str(midpoint)
+                    )
                 except Exception:
                     label = f"{start}-{end}"
                     midpoint = start + window_size // 2
@@ -195,7 +222,10 @@ def run_d_chart(df, config):
 
     # Information score bar chart
     sorted_factors = sorted(info_scores.items(), key=lambda x: x[1], reverse=True)
-    bar_colors = [SVEND_COLORS[unique_factors.index(f) % len(SVEND_COLORS)] for f, _ in sorted_factors]
+    bar_colors = [
+        SVEND_COLORS[unique_factors.index(f) % len(SVEND_COLORS)]
+        for f, _ in sorted_factors
+    ]
     result["plots"].append(
         {
             "title": f"Cumulative Information Score by {factor}",
@@ -229,7 +259,11 @@ def run_d_chart(df, config):
                     "z": z_data,
                     "x": x_labels,
                     "y": list(unique_factors),
-                    "colorscale": [[0, _rgba(COLOR_GOOD, 0.1)], [0.5, COLOR_REFERENCE], [1, COLOR_BAD]],
+                    "colorscale": [
+                        [0, _rgba(COLOR_GOOD, 0.1)],
+                        [0.5, COLOR_REFERENCE],
+                        [1, COLOR_BAD],
+                    ],
                     "colorbar": {"title": "JSD", "len": 0.8},
                     "hovertemplate": "%{y} @ %{x}<br>JSD = %{z:.4f}<extra></extra>",
                 }
@@ -315,7 +349,10 @@ def run_d_chart(df, config):
                 onset_idx = i
                 break
         if onset_idx is not None:
-            onset_info[fval] = {"window_idx": onset_idx, "label": windows[onset_idx]["label"]}
+            onset_info[fval] = {
+                "window_idx": onset_idx,
+                "label": windows[onset_idx]["label"],
+            }
 
     # Summary
     max_factor = sorted_factors[0][0] if sorted_factors else "N/A"
@@ -347,15 +384,17 @@ def run_d_chart(df, config):
     elif any_above_noise:
         summary += "<<COLOR:warning>>Some windows show divergence above noise floor, but the cumulative pattern is moderate.<</COLOR>>\n"
     else:
-        summary += (
-            "<<COLOR:good>>All factor levels behave consistently — no systematic divergence detected.<</COLOR>>\n"
-        )
+        summary += "<<COLOR:good>>All factor levels behave consistently — no systematic divergence detected.<</COLOR>>\n"
 
     result["summary"] = summary
 
     onset_str = ""
     if onset_info:
-        onset_str = " Onset: " + ", ".join(f"{f} from {i['label']}" for f, i in onset_info.items()) + "."
+        onset_str = (
+            " Onset: "
+            + ", ".join(f"{f} from {i['label']}" for f, i in onset_info.items())
+            + "."
+        )
 
     result["guide_observation"] = (
         f"D-Chart: {factor} on {variable}, {len(windows)} windows. "

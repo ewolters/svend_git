@@ -40,27 +40,56 @@ class Command(BaseCommand):
     help = "Initialize development environment with all required data (BOOT-001 / PROD-BOOT-005 compliant)"
 
     def add_arguments(self, parser):
-        parser.add_argument("--skip-migrate", action="store_true", help="Skip running migrations")
-        parser.add_argument("--skip-apps", action="store_true", help="Skip loading app definitions")
-        parser.add_argument("--skip-tenant", action="store_true", help="Skip creating default tenant")
-        parser.add_argument("--skip-superuser", action="store_true", help="Skip creating superuser")
+        parser.add_argument(
+            "--skip-migrate", action="store_true", help="Skip running migrations"
+        )
+        parser.add_argument(
+            "--skip-apps", action="store_true", help="Skip loading app definitions"
+        )
+        parser.add_argument(
+            "--skip-tenant", action="store_true", help="Skip creating default tenant"
+        )
+        parser.add_argument(
+            "--skip-superuser", action="store_true", help="Skip creating superuser"
+        )
         parser.add_argument(
             "--tenant-only",
             action="store_true",
             help="Only create tenant and initialize apps (skip migrations and app loading)",
         )
-        parser.add_argument("--tenant-name", default="Default Organization", help="Name for the default tenant")
-        parser.add_argument("--tenant-domain", default="default.local", help="Domain for the default tenant")
-        parser.add_argument("--admin-username", default="admin", help="Username for the admin superuser")
-        parser.add_argument("--admin-email", default="admin@default.local", help="Email for the admin superuser")
         parser.add_argument(
-            "--admin-password", help="Password for the admin superuser (auto-generated if not provided)"
+            "--tenant-name",
+            default="Default Organization",
+            help="Name for the default tenant",
         )
-        parser.add_argument("--no-input", action="store_true", help="Run in non-interactive mode with defaults")
+        parser.add_argument(
+            "--tenant-domain",
+            default="default.local",
+            help="Domain for the default tenant",
+        )
+        parser.add_argument(
+            "--admin-username", default="admin", help="Username for the admin superuser"
+        )
+        parser.add_argument(
+            "--admin-email",
+            default="admin@default.local",
+            help="Email for the admin superuser",
+        )
+        parser.add_argument(
+            "--admin-password",
+            help="Password for the admin superuser (auto-generated if not provided)",
+        )
+        parser.add_argument(
+            "--no-input",
+            action="store_true",
+            help="Run in non-interactive mode with defaults",
+        )
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.HTTP_INFO("\n" + "=" * 60))
-        self.stdout.write(self.style.HTTP_INFO(" Synara Development Environment Initialization"))
+        self.stdout.write(
+            self.style.HTTP_INFO(" Synara Development Environment Initialization")
+        )
         self.stdout.write(self.style.HTTP_INFO(" BOOT-001 / PROD-BOOT-005 Compliant"))
         self.stdout.write(self.style.HTTP_INFO("=" * 60 + "\n"))
 
@@ -134,7 +163,9 @@ class Command(BaseCommand):
 
         try:
             call_command("migrate", "--run-syncdb", verbosity=0)
-            self.stdout.write(self.style.SUCCESS("     Migrations applied successfully"))
+            self.stdout.write(
+                self.style.SUCCESS("     Migrations applied successfully")
+            )
             return True
         except Exception as e:
             self.stdout.write(self.style.WARNING(f"     Migration warning: {e}"))
@@ -154,7 +185,9 @@ class Command(BaseCommand):
 
             if new_apps > 0:
                 self.stdout.write(
-                    self.style.SUCCESS(f"     Loaded {new_apps} new app definitions (total: {final_count})")
+                    self.style.SUCCESS(
+                        f"     Loaded {new_apps} new app definitions (total: {final_count})"
+                    )
                 )
             else:
                 self.stdout.write(f"     No new apps to load (existing: {final_count})")
@@ -176,7 +209,9 @@ class Command(BaseCommand):
 
         existing = Tenant.objects.first()
         if existing:
-            self.stdout.write(f"     Tenant already exists: {existing.org_name} (ID: {existing.id})")
+            self.stdout.write(
+                f"     Tenant already exists: {existing.org_name} (ID: {existing.id})"
+            )
             return {"id": str(existing.id), "created": False}
 
         tenant = Tenant.objects.create(
@@ -205,7 +240,9 @@ class Command(BaseCommand):
                 existing.save()
                 self.stdout.write(f"     Assigned existing user '{username}' to tenant")
             else:
-                self.stdout.write(f"     Superuser '{username}' already exists and assigned to tenant")
+                self.stdout.write(
+                    f"     Superuser '{username}' already exists and assigned to tenant"
+                )
             return {"username": username, "created": False}
 
         # Generate password if not provided
@@ -250,7 +287,9 @@ class Command(BaseCommand):
 
             return installs
         except Exception as e:
-            self.stdout.write(self.style.WARNING(f"     App initialization warning: {e}"))
+            self.stdout.write(
+                self.style.WARNING(f"     App initialization warning: {e}")
+            )
             return 0
 
     def _seed_primitives(self):
@@ -267,14 +306,20 @@ class Command(BaseCommand):
 
             if new_primitives > 0:
                 self.stdout.write(
-                    self.style.SUCCESS(f"     Seeded {new_primitives} new primitives (total: {final_count})")
+                    self.style.SUCCESS(
+                        f"     Seeded {new_primitives} new primitives (total: {final_count})"
+                    )
                 )
             else:
-                self.stdout.write(f"     No new primitives to seed (existing: {final_count})")
+                self.stdout.write(
+                    f"     No new primitives to seed (existing: {final_count})"
+                )
 
             return final_count
         except Exception as e:
-            self.stdout.write(self.style.WARNING(f"     Primitive seeding warning: {e}"))
+            self.stdout.write(
+                self.style.WARNING(f"     Primitive seeding warning: {e}")
+            )
             return 0
 
     def _seed_reflexes(self):
@@ -290,9 +335,15 @@ class Command(BaseCommand):
             new_reflexes = final_count - initial_count
 
             if new_reflexes > 0:
-                self.stdout.write(self.style.SUCCESS(f"     Seeded {new_reflexes} new reflexes (total: {final_count})"))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"     Seeded {new_reflexes} new reflexes (total: {final_count})"
+                    )
+                )
             else:
-                self.stdout.write(f"     No new reflexes to seed (existing: {final_count})")
+                self.stdout.write(
+                    f"     No new reflexes to seed (existing: {final_count})"
+                )
 
             return final_count
         except Exception as e:
@@ -310,7 +361,9 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(" Initialization Complete"))
         self.stdout.write("=" * 60)
 
-        self.stdout.write(f"\n  Migrations: {'Applied' if results['migrations_applied'] else 'Skipped'}")
+        self.stdout.write(
+            f"\n  Migrations: {'Applied' if results['migrations_applied'] else 'Skipped'}"
+        )
         self.stdout.write(f"  App Definitions: {results['apps_loaded']} loaded")
         self.stdout.write(
             f"  Tenant: {'Created' if results['tenant_created'] else 'Existing'} (ID: {results['tenant_id']})"
@@ -319,13 +372,23 @@ class Command(BaseCommand):
             f"  Superuser: {'Created' if results['superuser_created'] else 'Existing'} ({results['superuser_username']})"
         )
         self.stdout.write(f"  Installed Apps: {results['apps_installed']}")
-        self.stdout.write(f"  Primitives: {results['primitives_seeded']} registered (PRM-001)")
+        self.stdout.write(
+            f"  Primitives: {results['primitives_seeded']} registered (PRM-001)"
+        )
         self.stdout.write(f"  Reflexes: {results['reflexes_seeded']} seeded (REF-001)")
 
         if results.get("password"):
-            self.stdout.write(self.style.WARNING(f"\n  Generated Password: {results['password']}"))
-            self.stdout.write(self.style.WARNING("  (Change this password after first login)"))
+            self.stdout.write(
+                self.style.WARNING(f"\n  Generated Password: {results['password']}")
+            )
+            self.stdout.write(
+                self.style.WARNING("  (Change this password after first login)")
+            )
 
-        self.stdout.write(self.style.SUCCESS("\n  Server ready! Start with: python manage.py runserver"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                "\n  Server ready! Start with: python manage.py runserver"
+            )
+        )
         self.stdout.write("  Login at: http://localhost:8000/ui/login/")
         self.stdout.write("")

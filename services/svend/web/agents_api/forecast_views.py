@@ -14,7 +14,9 @@ from .dsw.common import sanitize_for_json
 logger = logging.getLogger(__name__)
 
 
-def _forecast_connect_investigation(request, investigation_id, event_description, sample_size=None):
+def _forecast_connect_investigation(
+    request, investigation_id, event_description, sample_size=None
+):
     """CANON-002 §12 — connect forecast results to investigation graph."""
     from core.models import MeasurementSystem
 
@@ -26,7 +28,9 @@ def _forecast_connect_investigation(request, investigation_id, event_description
             owner=request.user,
             defaults={"system_type": "variable"},
         )
-        spec = InferenceSpec(event_description=event_description, sample_size=sample_size)
+        spec = InferenceSpec(
+            event_description=event_description, sample_size=sample_size
+        )
         connect_tool(
             investigation_id=investigation_id,
             tool_output=tool_output,
@@ -100,14 +104,26 @@ def simple_moving_average_forecast(prices, days=30, window=20):
     forecast = {
         "days": list(range(1, days + 1)),
         "median": [sma] * days,
-        "lower_5": [sma * (1 - 1.65 * daily_vol * np.sqrt(d)) for d in range(1, days + 1)],
-        "upper_95": [sma * (1 + 1.65 * daily_vol * np.sqrt(d)) for d in range(1, days + 1)],
+        "lower_5": [
+            sma * (1 - 1.65 * daily_vol * np.sqrt(d)) for d in range(1, days + 1)
+        ],
+        "upper_95": [
+            sma * (1 + 1.65 * daily_vol * np.sqrt(d)) for d in range(1, days + 1)
+        ],
     }
 
     return forecast
 
 
-def holt_winters_forecast(prices, days=30, season_length=12, alpha=0.3, beta=0.1, gamma=0.3, seasonal="additive"):
+def holt_winters_forecast(
+    prices,
+    days=30,
+    season_length=12,
+    alpha=0.3,
+    beta=0.1,
+    gamma=0.3,
+    seasonal="additive",
+):
     """Holt-Winters triple exponential smoothing with additive or multiplicative seasonality."""
     n = len(prices)
     if n < season_length * 2:
@@ -118,27 +134,45 @@ def holt_winters_forecast(prices, days=30, season_length=12, alpha=0.3, beta=0.1
     if seasonal == "multiplicative":
         # Multiplicative initialization
         level = np.mean(prices[:season_length])
-        trend = (np.mean(prices[season_length : 2 * season_length]) - np.mean(prices[:season_length])) / season_length
-        seasonals = [prices[i] / np.mean(prices[:season_length]) for i in range(season_length)]
+        trend = (
+            np.mean(prices[season_length : 2 * season_length])
+            - np.mean(prices[:season_length])
+        ) / season_length
+        seasonals = [
+            prices[i] / np.mean(prices[:season_length]) for i in range(season_length)
+        ]
     else:
         # Additive initialization
         level = np.mean(prices[:season_length])
-        trend = (np.mean(prices[season_length : 2 * season_length]) - np.mean(prices[:season_length])) / season_length
-        seasonals = [prices[i] - np.mean(prices[:season_length]) for i in range(season_length)]
+        trend = (
+            np.mean(prices[season_length : 2 * season_length])
+            - np.mean(prices[:season_length])
+        ) / season_length
+        seasonals = [
+            prices[i] - np.mean(prices[:season_length]) for i in range(season_length)
+        ]
 
     fitted = []
     for i in range(n):
         s_idx = i % season_length
         if seasonal == "multiplicative":
             forecast_val = (level + trend) * seasonals[s_idx]
-            new_level = alpha * (prices[i] / seasonals[s_idx]) + (1 - alpha) * (level + trend)
+            new_level = alpha * (prices[i] / seasonals[s_idx]) + (1 - alpha) * (
+                level + trend
+            )
             new_trend = beta * (new_level - level) + (1 - beta) * trend
-            seasonals[s_idx] = gamma * (prices[i] / new_level) + (1 - gamma) * seasonals[s_idx]
+            seasonals[s_idx] = (
+                gamma * (prices[i] / new_level) + (1 - gamma) * seasonals[s_idx]
+            )
         else:
             forecast_val = level + trend + seasonals[s_idx]
-            new_level = alpha * (prices[i] - seasonals[s_idx]) + (1 - alpha) * (level + trend)
+            new_level = alpha * (prices[i] - seasonals[s_idx]) + (1 - alpha) * (
+                level + trend
+            )
             new_trend = beta * (new_level - level) + (1 - beta) * trend
-            seasonals[s_idx] = gamma * (prices[i] - new_level) + (1 - gamma) * seasonals[s_idx]
+            seasonals[s_idx] = (
+                gamma * (prices[i] - new_level) + (1 - gamma) * seasonals[s_idx]
+            )
         level = new_level
         trend = new_trend
         fitted.append(forecast_val)
@@ -159,8 +193,12 @@ def holt_winters_forecast(prices, days=30, season_length=12, alpha=0.3, beta=0.1
     forecast = {
         "days": list(range(1, days + 1)),
         "median": forecast_vals,
-        "lower_5": [v - 1.65 * rmse * np.sqrt(d) for d, v in enumerate(forecast_vals, 1)],
-        "upper_95": [v + 1.65 * rmse * np.sqrt(d) for d, v in enumerate(forecast_vals, 1)],
+        "lower_5": [
+            v - 1.65 * rmse * np.sqrt(d) for d, v in enumerate(forecast_vals, 1)
+        ],
+        "upper_95": [
+            v + 1.65 * rmse * np.sqrt(d) for d, v in enumerate(forecast_vals, 1)
+        ],
     }
 
     return forecast
@@ -186,8 +224,12 @@ def exponential_smoothing_forecast(prices, days=30, alpha=0.3):
     forecast = {
         "days": list(range(1, days + 1)),
         "median": [smoothed] * days,
-        "lower_5": [smoothed * (1 - 1.65 * daily_vol * np.sqrt(d)) for d in range(1, days + 1)],
-        "upper_95": [smoothed * (1 + 1.65 * daily_vol * np.sqrt(d)) for d in range(1, days + 1)],
+        "lower_5": [
+            smoothed * (1 - 1.65 * daily_vol * np.sqrt(d)) for d in range(1, days + 1)
+        ],
+        "upper_95": [
+            smoothed * (1 + 1.65 * daily_vol * np.sqrt(d)) for d in range(1, days + 1)
+        ],
     }
 
     return forecast
@@ -229,7 +271,9 @@ def forecast(request):
             hist = ticker.history(period="1y")
 
             if hist.empty:
-                return JsonResponse({"error": f"No data found for symbol: {symbol}"}, status=400)
+                return JsonResponse(
+                    {"error": f"No data found for symbol: {symbol}"}, status=400
+                )
 
             prices = hist["Close"].tolist()
 
@@ -246,13 +290,19 @@ def forecast(request):
 
         except ImportError:
             return JsonResponse(
-                {"error": "yfinance not available", "suggestion": "Provide custom data in the 'data' field instead"},
+                {
+                    "error": "yfinance not available",
+                    "suggestion": "Provide custom data in the 'data' field instead",
+                },
                 status=400,
             )
         except Exception:
             logger.exception(f"Error fetching {symbol}")
             return JsonResponse(
-                {"error": f"Unable to fetch data for {symbol}. Please verify the symbol and try again."}, status=400
+                {
+                    "error": f"Unable to fetch data for {symbol}. Please verify the symbol and try again."
+                },
+                status=400,
             )
 
     elif custom_data:
@@ -284,20 +334,23 @@ def forecast(request):
         )
     elif method == "exp_smooth":
         forecast_data = exponential_smoothing_forecast(prices, days)
-        method_description = (
-            "Exponential Smoothing: Weights recent prices more heavily. Good for data with no clear trend."
-        )
+        method_description = "Exponential Smoothing: Weights recent prices more heavily. Good for data with no clear trend."
     elif method == "holt_winters":
         season_length = int(data.get("season_length", 12))
         seasonal = data.get("seasonal", "additive")
-        forecast_data = holt_winters_forecast(prices, days, season_length=season_length, seasonal=seasonal)
+        forecast_data = holt_winters_forecast(
+            prices, days, season_length=season_length, seasonal=seasonal
+        )
         method_description = (
             f"Holt-Winters ({seasonal}): Triple exponential smoothing with trend and "
             f"seasonality (period={season_length}). Best for data with repeating patterns."
         )
     else:
         return JsonResponse(
-            {"error": f"Unknown method: {method}. Use: random_walk, sma, exp_smooth, holt_winters"}, status=400
+            {
+                "error": f"Unknown method: {method}. Use: random_walk, sma, exp_smooth, holt_winters"
+            },
+            status=400,
         )
 
     if not forecast_data:
@@ -384,7 +437,9 @@ def quote(request):
                     "change_pct": round(change_pct, 2),
                     "currency": info.get("currency", "USD"),
                     "market_cap": info.get("marketCap"),
-                    "volume": int(hist["Volume"].iloc[-1]) if "Volume" in hist else None,
+                    "volume": (
+                        int(hist["Volume"].iloc[-1]) if "Volume" in hist else None
+                    ),
                     "high_52w": info.get("fiftyTwoWeekHigh"),
                     "low_52w": info.get("fiftyTwoWeekLow"),
                     "disclaimer": "Data provided for informational purposes only. Not financial advice.",
@@ -396,4 +451,6 @@ def quote(request):
         return JsonResponse({"error": "yfinance not available"}, status=500)
     except Exception:
         logger.exception(f"Error fetching quote for {symbol}")
-        return JsonResponse({"error": "Unable to retrieve quote data. Please try again."}, status=500)
+        return JsonResponse(
+            {"error": "Unable to retrieve quote data. Please try again."}, status=500
+        )

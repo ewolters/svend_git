@@ -65,10 +65,18 @@ def triage_clean_df(df, config=None):
     summary = {
         "original_shape": list(df.shape),
         "cleaned_shape": list(df_clean.shape),
-        "outliers_flagged": getattr(result.outliers, "count", 0) if result.outliers else 0,
-        "missing_filled": getattr(result.missing, "total_filled", 0) if result.missing else 0,
-        "columns_dropped": getattr(result.missing, "columns_dropped", []) if result.missing else [],
-        "rows_dropped": getattr(result.missing, "rows_dropped", 0) if result.missing else 0,
+        "outliers_flagged": (
+            getattr(result.outliers, "count", 0) if result.outliers else 0
+        ),
+        "missing_filled": (
+            getattr(result.missing, "total_filled", 0) if result.missing else 0
+        ),
+        "columns_dropped": (
+            getattr(result.missing, "columns_dropped", []) if result.missing else []
+        ),
+        "rows_dropped": (
+            getattr(result.missing, "rows_dropped", 0) if result.missing else 0
+        ),
         "warnings": getattr(result, "warnings", []),
     }
 
@@ -119,7 +127,9 @@ def forge_augment_df(df, n_synthetic, schema=None):
         "columns_generated": list(schema.keys()),
     }
 
-    logger.info(f"Forge: {len(df)} + {n_synthetic} synthetic → {len(augmented_df)} rows")
+    logger.info(
+        f"Forge: {len(df)} + {n_synthetic} synthetic → {len(augmented_df)} rows"
+    )
 
     return augmented_df, report
 
@@ -155,7 +165,9 @@ def _infer_forge_schema(df):
                     "precision": 2,
                 },
             }
-        elif dtype is bool or (series.nunique() == 2 and set(series.unique()) <= {True, False}):
+        elif dtype is bool or (
+            series.nunique() == 2 and set(series.unique()) <= {True, False}
+        ):
             schema[col] = {
                 "type": "bool",
                 "constraints": {
@@ -165,7 +177,10 @@ def _infer_forge_schema(df):
         elif series.nunique() <= 20:
             values = series.unique().tolist()
             # Convert numpy types to Python types for JSON serialization
-            values = [str(v) if not isinstance(v, (str, int, float, bool)) else v for v in values]
+            values = [
+                str(v) if not isinstance(v, (str, int, float, bool)) else v
+                for v in values
+            ]
             schema[col] = {
                 "type": "category",
                 "constraints": {
@@ -177,7 +192,9 @@ def _infer_forge_schema(df):
                 "type": "string",
                 "constraints": {
                     "min_length": 3,
-                    "max_length": min(int(series.str.len().max()) if dtype is object else 50, 100),
+                    "max_length": min(
+                        int(series.str.len().max()) if dtype is object else 50, 100
+                    ),
                 },
             }
 
@@ -203,7 +220,9 @@ def train_with_recipe(df, target, config=None):
 
     X, y, label_map = _clean_for_ml(df, target)
 
-    model, metrics, importances, task, X_test, y_test, y_pred = _auto_train(X, y, task=config.get("task_type"))
+    model, metrics, importances, task, X_test, y_test, y_pred = _auto_train(
+        X, y, task=config.get("task_type")
+    )
 
     recipe = {
         "features": list(X.columns),

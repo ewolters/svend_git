@@ -6,16 +6,16 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0011_whitepaper_download_referrer_path'),
+        ("api", "0011_whitepaper_download_referrer_path"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='whitepaperdownload',
-            name='path',
+            model_name="whitepaperdownload",
+            name="path",
         ),
         migrations.RemoveField(
-            model_name='whitepaperdownload',
-            name='referrer',
+            model_name="whitepaperdownload",
+            name="referrer",
         ),
     ]

@@ -5,7 +5,7 @@ After=postgresql.service
 [Service]
 Type=oneshot
 User=eric
-EnvironmentFile=-%h/.svend_b2_env
-ExecStart=%h/kjerne/services/svend/web/ops/backup_db.sh
+EnvironmentFile=-/home/eric/.svend_b2_env
+ExecStart=/home/eric/kjerne/services/svend/web/ops/backup_db.sh
 StandardOutput=journal
 StandardError=journal

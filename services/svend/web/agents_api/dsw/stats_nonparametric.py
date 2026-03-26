@@ -30,7 +30,9 @@ def _run_nonparametric(analysis_id, df, config):
 
         groups = df[group_var].dropna().unique()
         if len(groups) != 2:
-            result["summary"] = f"Mann-Whitney U requires exactly 2 groups. Found {len(groups)}: {list(groups)}"
+            result["summary"] = (
+                f"Mann-Whitney U requires exactly 2 groups. Found {len(groups)}: {list(groups)}"
+            )
             return result
 
         group1 = df[df[group_var] == groups[0]][var].dropna()
@@ -68,7 +70,9 @@ def _run_nonparametric(analysis_id, df, config):
         summary += "\n"
 
         if pval < 0.05:
-            summary += "<<COLOR:good>>Groups differ significantly (p < 0.05)<</COLOR>>\n"
+            summary += (
+                "<<COLOR:good>>Groups differ significantly (p < 0.05)<</COLOR>>\n"
+            )
         else:
             summary += "<<COLOR:text>>No significant difference (p >= 0.05)<</COLOR>>\n"
 
@@ -99,9 +103,15 @@ def _run_nonparametric(analysis_id, df, config):
         )
 
         result["guide_observation"] = f"Mann-Whitney U test p = {pval:.4f}. " + (
-            "Groups differ significantly." if pval < 0.05 else "No significant difference."
+            "Groups differ significantly."
+            if pval < 0.05
+            else "No significant difference."
         )
-        result["statistics"] = {"U_statistic": float(stat), "p_value": float(pval), "effect_size_r": float(effect_size)}
+        result["statistics"] = {
+            "U_statistic": float(stat),
+            "p_value": float(pval),
+            "effect_size_r": float(effect_size),
+        }
 
         # ── Diagnostics: assumption checks + cross-validation ──
         diagnostics = []
@@ -119,13 +129,21 @@ def _run_nonparametric(analysis_id, df, config):
             _any_nonnormal = bool(_norm1 or _norm2)
             _t_stat, _t_p = stats.ttest_ind(group1, group2, equal_var=False)
             _cv = _cross_validate(
-                pval, _t_p, "Mann-Whitney U", "Welch's t-test", alpha=_alpha, normality_failed=_any_nonnormal
+                pval,
+                _t_p,
+                "Mann-Whitney U",
+                "Welch's t-test",
+                alpha=_alpha,
+                normality_failed=_any_nonnormal,
             )
             _cv["action"] = {
                 "label": "Run t-test",
                 "type": "stats",
                 "analysis": "ttest2",
-                "config": {"var": config.get("var", ""), "group_var": config.get("group_var", "")},
+                "config": {
+                    "var": config.get("var", ""),
+                    "group_var": config.get("group_var", ""),
+                },
             }
             diagnostics.append(_cv)
         except Exception:
@@ -170,7 +188,11 @@ def _run_nonparametric(analysis_id, df, config):
 
         # Narrative
         _mw_eff_abs = abs(effect_size)
-        _mw_eff_label = "large" if _mw_eff_abs >= 0.5 else ("medium" if _mw_eff_abs >= 0.3 else "small")
+        _mw_eff_label = (
+            "large"
+            if _mw_eff_abs >= 0.5
+            else ("medium" if _mw_eff_abs >= 0.3 else "small")
+        )
         _mw_higher = groups[0] if group1.median() > group2.median() else groups[1]
         if pval < 0.05:
             _mw_verdict = f"Groups differ significantly (rank-biserial r = {effect_size:.3f}, {_mw_eff_label} effect)"
@@ -203,7 +225,9 @@ def _run_nonparametric(analysis_id, df, config):
         # Effect size (epsilon squared), clamped to [0, 1]
         n_total = sum(len(g) for g in group_data)
         epsilon_sq = (
-            max(0.0, min(1.0, (stat - len(groups) + 1) / (n_total - len(groups)))) if n_total > len(groups) else 0.0
+            max(0.0, min(1.0, (stat - len(groups) + 1) / (n_total - len(groups))))
+            if n_total > len(groups)
+            else 0.0
         )
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
@@ -232,9 +256,7 @@ def _run_nonparametric(analysis_id, df, config):
 
         if pval < 0.05:
             summary += "<<COLOR:good>>At least one group differs significantly (p < 0.05)<</COLOR>>\n"
-            summary += (
-                "<<COLOR:text>>Consider post-hoc tests (Dunn's test) to identify which groups differ.<</COLOR>>\n"
-            )
+            summary += "<<COLOR:text>>Consider post-hoc tests (Dunn's test) to identify which groups differ.<</COLOR>>\n"
         else:
             summary += "<<COLOR:text>>No significant difference among groups (p >= 0.05)<</COLOR>>\n"
 
@@ -249,7 +271,15 @@ def _run_nonparametric(analysis_id, df, config):
                         "type": "box",
                         "y": data.tolist(),
                         "name": str(g),
-                        "marker": {"color": ["#4a9f6e", "#47a5e8", "#e89547", "#9f4a4a", "#6c5ce7"][i % 5]},
+                        "marker": {
+                            "color": [
+                                "#4a9f6e",
+                                "#47a5e8",
+                                "#e89547",
+                                "#9f4a4a",
+                                "#6c5ce7",
+                            ][i % 5]
+                        },
                         "fillcolor": [
                             "rgba(74,159,110,0.3)",
                             "rgba(71,165,232,0.3)",
@@ -264,8 +294,9 @@ def _run_nonparametric(analysis_id, df, config):
             }
         )
 
-        result["guide_observation"] = f"Kruskal-Wallis H = {stat:.2f}, p = {pval:.4f}. " + (
-            "Groups differ." if pval < 0.05 else "No difference."
+        result["guide_observation"] = (
+            f"Kruskal-Wallis H = {stat:.2f}, p = {pval:.4f}. "
+            + ("Groups differ." if pval < 0.05 else "No difference.")
         )
         result["statistics"] = {
             "H_statistic": float(stat),
@@ -282,17 +313,28 @@ def _run_nonparametric(analysis_id, df, config):
                 diagnostics.append(_out)
         # Cross-validate with one-way ANOVA (if groups roughly normal)
         try:
-            _norms = [_check_normality(gd, label=str(gn), alpha=_alpha) for gn, gd in zip(groups, group_data)]
+            _norms = [
+                _check_normality(gd, label=str(gn), alpha=_alpha)
+                for gn, gd in zip(groups, group_data)
+            ]
             _any_nonnormal = any(_norms)
             _f_stat, _f_p = stats.f_oneway(*group_data)
             _cv = _cross_validate(
-                pval, _f_p, "Kruskal-Wallis", "One-way ANOVA", alpha=_alpha, normality_failed=_any_nonnormal
+                pval,
+                _f_p,
+                "Kruskal-Wallis",
+                "One-way ANOVA",
+                alpha=_alpha,
+                normality_failed=_any_nonnormal,
             )
             _cv["action"] = {
                 "label": "Run ANOVA",
                 "type": "stats",
                 "analysis": "anova",
-                "config": {"var": config.get("var", ""), "group_var": config.get("group_var", "")},
+                "config": {
+                    "var": config.get("var", ""),
+                    "group_var": config.get("group_var", ""),
+                },
             }
             diagnostics.append(_cv)
         except Exception:
@@ -325,14 +367,20 @@ def _run_nonparametric(analysis_id, df, config):
                         "label": "Power Analysis",
                         "type": "stats",
                         "analysis": "power_sample_size",
-                        "config": {"test_type": "kruskal", "effect_size": float(_eta_sq), "alpha": float(_alpha)},
+                        "config": {
+                            "test_type": "kruskal",
+                            "effect_size": float(_eta_sq),
+                            "alpha": float(_alpha),
+                        },
                     },
                 }
             )
         result["diagnostics"] = diagnostics
 
         # Narrative
-        _es_label = "large" if epsilon_sq > 0.14 else "medium" if epsilon_sq > 0.06 else "small"
+        _es_label = (
+            "large" if epsilon_sq > 0.14 else "medium" if epsilon_sq > 0.06 else "small"
+        )
         if pval < 0.05:
             verdict = f"Groups differ significantly (H = {stat:.2f}, p = {pval:.4f})"
             body = (
@@ -368,11 +416,24 @@ def _run_nonparametric(analysis_id, df, config):
             factor_col = config.get("group_var") or config.get("factor") or var2
             levels = df[factor_col].dropna().unique()
             if len(levels) != 2:
-                result["summary"] = f"Wilcoxon test requires exactly 2 groups. Found {len(levels)}: {list(levels)}"
+                result["summary"] = (
+                    f"Wilcoxon test requires exactly 2 groups. Found {len(levels)}: {list(levels)}"
+                )
                 return result
-            sample1 = df[df[factor_col] == levels[0]][response_col].dropna().reset_index(drop=True)
-            sample2 = df[df[factor_col] == levels[1]][response_col].dropna().reset_index(drop=True)
-            var1, var2 = f"{response_col} [{levels[0]}]", f"{response_col} [{levels[1]}]"
+            sample1 = (
+                df[df[factor_col] == levels[0]][response_col]
+                .dropna()
+                .reset_index(drop=True)
+            )
+            sample2 = (
+                df[df[factor_col] == levels[1]][response_col]
+                .dropna()
+                .reset_index(drop=True)
+            )
+            var1, var2 = (
+                f"{response_col} [{levels[0]}]",
+                f"{response_col} [{levels[1]}]",
+            )
             min_len = min(len(sample1), len(sample2))
             sample1 = sample1.iloc[:min_len]
             sample2 = sample2.iloc[:min_len]
@@ -385,7 +446,9 @@ def _run_nonparametric(analysis_id, df, config):
             sample2 = sample2.iloc[:min_len]
 
         if min_len < 6:
-            result["summary"] = f"Wilcoxon signed-rank requires at least 6 paired observations. Got {min_len}."
+            result["summary"] = (
+                f"Wilcoxon signed-rank requires at least 6 paired observations. Got {min_len}."
+            )
             return result
 
         diffs = sample1.values - sample2.values
@@ -426,7 +489,10 @@ def _run_nonparametric(analysis_id, df, config):
                         "type": "histogram",
                         "x": diffs.tolist(),
                         "name": "Differences",
-                        "marker": {"color": "rgba(71,165,232,0.7)", "line": {"color": "#47a5e8", "width": 1}},
+                        "marker": {
+                            "color": "rgba(71,165,232,0.7)",
+                            "line": {"color": "#47a5e8", "width": 1},
+                        },
                     },
                     {
                         "type": "scatter",
@@ -437,12 +503,17 @@ def _run_nonparametric(analysis_id, df, config):
                         "line": {"color": "#e89547", "dash": "dash", "width": 2},
                     },
                 ],
-                "layout": {"height": 300, "xaxis": {"title": "Difference"}, "yaxis": {"title": "Count"}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Difference"},
+                    "yaxis": {"title": "Count"},
+                },
             }
         )
 
-        result["guide_observation"] = f"Wilcoxon signed-rank W = {stat:.2f}, p = {pval:.4f}. " + (
-            "Paired samples differ." if pval < 0.05 else "No paired difference."
+        result["guide_observation"] = (
+            f"Wilcoxon signed-rank W = {stat:.2f}, p = {pval:.4f}. "
+            + ("Paired samples differ." if pval < 0.05 else "No paired difference.")
         )
         result["statistics"] = {
             "W_statistic": float(stat),
@@ -460,17 +531,27 @@ def _run_nonparametric(analysis_id, df, config):
             diagnostics.append(_out_diffs)
         # Cross-validate with paired t-test
         try:
-            _norm_diffs = _check_normality(diffs, label="Paired differences", alpha=_alpha)
+            _norm_diffs = _check_normality(
+                diffs, label="Paired differences", alpha=_alpha
+            )
             _any_nonnormal = bool(_norm_diffs)
             _t_stat, _t_p = stats.ttest_rel(sample1, sample2)
             _cv = _cross_validate(
-                pval, _t_p, "Wilcoxon signed-rank", "Paired t-test", alpha=_alpha, normality_failed=_any_nonnormal
+                pval,
+                _t_p,
+                "Wilcoxon signed-rank",
+                "Paired t-test",
+                alpha=_alpha,
+                normality_failed=_any_nonnormal,
             )
             _cv["action"] = {
                 "label": "Run paired t-test",
                 "type": "stats",
                 "analysis": "ttest_paired",
-                "config": {"var1": config.get("var1", ""), "var2": config.get("var2", "")},
+                "config": {
+                    "var1": config.get("var1", ""),
+                    "var2": config.get("var2", ""),
+                },
             }
             diagnostics.append(_cv)
         except Exception:
@@ -502,13 +583,19 @@ def _run_nonparametric(analysis_id, df, config):
                         "label": "Power Analysis",
                         "type": "stats",
                         "analysis": "power_sample_size",
-                        "config": {"test_type": "wilcoxon", "effect_size": float(effect_r), "alpha": float(_alpha)},
+                        "config": {
+                            "test_type": "wilcoxon",
+                            "effect_size": float(effect_r),
+                            "alpha": float(_alpha),
+                        },
                     },
                 }
             )
         result["diagnostics"] = diagnostics
 
-        _er_label = "large" if effect_r > 0.5 else "medium" if effect_r > 0.3 else "small"
+        _er_label = (
+            "large" if effect_r > 0.5 else "medium" if effect_r > 0.3 else "small"
+        )
         if pval < 0.05:
             verdict = f"Paired samples differ (W = {stat:.1f}, p = {pval:.4f})"
             body = f"Median difference = {np.median(diffs):.4f} ({_er_label} effect, r = {effect_r:.3f}). The paired measurements are significantly different."
@@ -547,7 +634,9 @@ def _run_nonparametric(analysis_id, df, config):
         n_subjects = len(clean_df)
 
         if n_subjects < 5:
-            result["summary"] = f"Friedman test requires at least 5 complete observations. Got {n_subjects}."
+            result["summary"] = (
+                f"Friedman test requires at least 5 complete observations. Got {n_subjects}."
+            )
             return result
 
         groups = [clean_df[v].values for v in vars_list]
@@ -560,7 +649,9 @@ def _run_nonparametric(analysis_id, df, config):
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>FRIEDMAN TEST<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:highlight>>Repeated Measures:<</COLOR>> {', '.join(vars_list)}\n"
+        summary += (
+            f"<<COLOR:highlight>>Repeated Measures:<</COLOR>> {', '.join(vars_list)}\n"
+        )
         summary += f"<<COLOR:highlight>>N subjects:<</COLOR>> {n_subjects}\n"
         summary += f"<<COLOR:highlight>>k conditions:<</COLOR>> {k}\n\n"
 
@@ -620,8 +711,9 @@ def _run_nonparametric(analysis_id, df, config):
             }
         )
 
-        result["guide_observation"] = f"Friedman chi2 = {stat:.2f}, p = {pval:.4f}, W = {kendall_w:.3f}. " + (
-            "Conditions differ." if pval < 0.05 else "No difference."
+        result["guide_observation"] = (
+            f"Friedman chi2 = {stat:.2f}, p = {pval:.4f}, W = {kendall_w:.3f}. "
+            + ("Conditions differ." if pval < 0.05 else "No difference.")
         )
         result["statistics"] = {
             "chi2_statistic": float(stat),
@@ -630,7 +722,9 @@ def _run_nonparametric(analysis_id, df, config):
             "df": int(k - 1),
             "n_subjects": int(n_subjects),
         }
-        _w_label = "strong" if kendall_w > 0.7 else "moderate" if kendall_w > 0.3 else "weak"
+        _w_label = (
+            "strong" if kendall_w > 0.7 else "moderate" if kendall_w > 0.3 else "weak"
+        )
         if pval < 0.05:
             verdict = f"Conditions differ significantly (\u03c7\u00b2 = {stat:.2f}, p = {pval:.4f})"
             body = f"At least one of {k} conditions has a different distribution ({n_subjects} subjects). Kendall's W = {kendall_w:.3f} ({_w_label} concordance)."
@@ -658,7 +752,9 @@ def _run_nonparametric(analysis_id, df, config):
         n = len(x)
 
         if n < 5:
-            result["summary"] = f"Spearman correlation requires at least 5 observations. Got {n}."
+            result["summary"] = (
+                f"Spearman correlation requires at least 5 observations. Got {n}."
+            )
             return result
 
         rho, pval = stats.spearmanr(x, y)
@@ -688,15 +784,19 @@ def _run_nonparametric(analysis_id, df, config):
         summary += f"<<COLOR:highlight>>N:<</COLOR>> {n}\n\n"
         summary += f"<<COLOR:highlight>>Spearman rho:<</COLOR>> {rho:.4f}\n"
         summary += f"<<COLOR:highlight>>p-value:<</COLOR>> {pval:.6f}\n"
-        summary += f"<<COLOR:highlight>>95% CI:<</COLOR>> [{ci_low:.4f}, {ci_high:.4f}]\n\n"
         summary += (
-            f"<<COLOR:text>>Interpretation: {strength.capitalize()} {direction} monotonic association<</COLOR>>\n"
+            f"<<COLOR:highlight>>95% CI:<</COLOR>> [{ci_low:.4f}, {ci_high:.4f}]\n\n"
         )
+        summary += f"<<COLOR:text>>Interpretation: {strength.capitalize()} {direction} monotonic association<</COLOR>>\n"
 
         if pval < 0.05:
-            summary += "<<COLOR:accent>>Statistically significant (p < 0.05)<</COLOR>>\n"
+            summary += (
+                "<<COLOR:accent>>Statistically significant (p < 0.05)<</COLOR>>\n"
+            )
         else:
-            summary += "<<COLOR:text>>Not statistically significant (p >= 0.05)<</COLOR>>\n"
+            summary += (
+                "<<COLOR:text>>Not statistically significant (p >= 0.05)<</COLOR>>\n"
+            )
 
         result["summary"] = summary
 
@@ -714,7 +814,11 @@ def _run_nonparametric(analysis_id, df, config):
                         "name": "Data",
                     }
                 ],
-                "layout": {"height": 300, "xaxis": {"title": var1}, "yaxis": {"title": var2}},
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": var1},
+                    "yaxis": {"title": var2},
+                },
             }
         )
 
@@ -792,9 +896,7 @@ def _run_nonparametric(analysis_id, df, config):
                 summary += "<<COLOR:text>>Values tend to cluster together, suggesting trends or patterns.<</COLOR>>\n"
             else:
                 summary += "<<COLOR:warning>>SEQUENCE IS NOT RANDOM - Too many runs (oscillation)<</COLOR>>\n"
-                summary += (
-                    "<<COLOR:text>>Values alternate too frequently, suggesting negative autocorrelation.<</COLOR>>\n"
-                )
+                summary += "<<COLOR:text>>Values alternate too frequently, suggesting negative autocorrelation.<</COLOR>>\n"
         else:
             summary += "<<COLOR:good>>SEQUENCE APPEARS RANDOM (p >= 0.05)<</COLOR>>\n"
             summary += "<<COLOR:text>>No evidence of patterns or trends in the data.<</COLOR>>\n"
@@ -826,13 +928,22 @@ def _run_nonparametric(analysis_id, df, config):
                         "line": {"color": "#e89547", "dash": "dash"},
                     },
                 ],
-                "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": var}},
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Observation"},
+                    "yaxis": {"title": var},
+                },
             }
         )
 
         result["summary"] = summary
-        result["guide_observation"] = f"Runs test: {n_runs} runs, p = {p_value:.4f}. " + (
-            "Non-random pattern detected." if p_value < 0.05 else "Sequence appears random."
+        result["guide_observation"] = (
+            f"Runs test: {n_runs} runs, p = {p_value:.4f}. "
+            + (
+                "Non-random pattern detected."
+                if p_value < 0.05
+                else "Sequence appears random."
+            )
         )
         result["statistics"] = {
             "runs": int(n_runs),
@@ -860,7 +971,9 @@ def _run_nonparametric(analysis_id, df, config):
         Non-parametric alternative to one-way ANOVA for medians.
         """
         var = config.get("var")
-        group_col = config.get("group") or config.get("group_var") or config.get("factor")
+        group_col = (
+            config.get("group") or config.get("group_var") or config.get("factor")
+        )
 
         from scipy import stats
 
@@ -878,7 +991,9 @@ def _run_nonparametric(analysis_id, df, config):
         # Chi-squared test on contingency table
         chi2, p_value, dof, expected = stats.chi2_contingency(table)
 
-        group_medians = {str(g): float(np.median(d)) for g, d in zip(groups, data_by_group)}
+        group_medians = {
+            str(g): float(np.median(d)) for g, d in zip(groups, data_by_group)
+        }
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += "<<COLOR:title>>MOOD'S MEDIAN TEST<</COLOR>>\n"
@@ -905,7 +1020,14 @@ def _run_nonparametric(analysis_id, df, config):
 
         # Box plots by group
         traces = []
-        theme_colors = ["#4a9f6e", "#4a90d9", "#e89547", "#d94a4a", "#9f4a4a", "#7a6a9a"]
+        theme_colors = [
+            "#4a9f6e",
+            "#4a90d9",
+            "#e89547",
+            "#d94a4a",
+            "#9f4a4a",
+            "#7a6a9a",
+        ]
         for i, (g, d) in enumerate(zip(groups, data_by_group)):
             traces.append(
                 {
@@ -934,8 +1056,13 @@ def _run_nonparametric(analysis_id, df, config):
         )
 
         result["summary"] = summary
-        result["guide_observation"] = f"Mood's median test: χ² = {chi2:.2f}, p = {p_value:.4f}. " + (
-            "Medians differ." if p_value < 0.05 else "No evidence of median differences."
+        result["guide_observation"] = (
+            f"Mood's median test: χ² = {chi2:.2f}, p = {p_value:.4f}. "
+            + (
+                "Medians differ."
+                if p_value < 0.05
+                else "No evidence of median differences."
+            )
         )
         result["statistics"] = {
             "chi_squared": float(chi2),
@@ -944,7 +1071,9 @@ def _run_nonparametric(analysis_id, df, config):
             "grand_median": float(grand_median),
         }
         if p_value < 0.05:
-            verdict = f"Group medians differ (\u03c7\u00b2 = {chi2:.2f}, p = {p_value:.4f})"
+            verdict = (
+                f"Group medians differ (\u03c7\u00b2 = {chi2:.2f}, p = {p_value:.4f})"
+            )
             body = f"At least one group's median differs from the grand median of {grand_median:.4f}."
         else:
             verdict = f"No significant median differences (p = {p_value:.4f})"
@@ -997,7 +1126,11 @@ def _run_nonparametric(analysis_id, df, config):
                         "x": [x_pos + np.random.uniform(-0.1, 0.1) for _ in vals],
                         "y": vals.tolist(),
                         "mode": "markers",
-                        "marker": {"color": colors[i % len(colors)], "size": 6, "opacity": 0.6},
+                        "marker": {
+                            "color": colors[i % len(colors)],
+                            "size": 6,
+                            "opacity": 0.6,
+                        },
                         "showlegend": False,
                     }
                 )
@@ -1009,7 +1142,11 @@ def _run_nonparametric(analysis_id, df, config):
                         "x": [x_pos],
                         "y": [vals.mean()],
                         "mode": "markers",
-                        "marker": {"color": colors[i % len(colors)], "size": 12, "symbol": "diamond"},
+                        "marker": {
+                            "color": colors[i % len(colors)],
+                            "size": 12,
+                            "symbol": "diamond",
+                        },
                         "showlegend": False,
                     }
                 )
@@ -1017,7 +1154,9 @@ def _run_nonparametric(analysis_id, df, config):
                 summary += f"  {level}: n={len(vals)}, mean={vals.mean():.4f}, std={vals.std():.4f}\n"
 
             # Connect means
-            means = [groups.get_group(lvl).mean() for lvl in df[factor].dropna().unique()]
+            means = [
+                groups.get_group(lvl).mean() for lvl in df[factor].dropna().unique()
+            ]
             plot_data.append(
                 {
                     "type": "scatter",
@@ -1035,7 +1174,11 @@ def _run_nonparametric(analysis_id, df, config):
                     "data": plot_data,
                     "layout": {
                         "height": 300,
-                        "xaxis": {"tickvals": x_positions, "ticktext": x_labels, "title": factor},
+                        "xaxis": {
+                            "tickvals": x_positions,
+                            "ticktext": x_labels,
+                            "title": factor,
+                        },
                         "yaxis": {"title": response},
                     },
                 }
@@ -1066,10 +1209,16 @@ def _run_nonparametric(analysis_id, df, config):
                         plot_data.append(
                             {
                                 "type": "scatter",
-                                "x": [pos + np.random.uniform(-0.15, 0.15) for _ in vals],
+                                "x": [
+                                    pos + np.random.uniform(-0.15, 0.15) for _ in vals
+                                ],
                                 "y": vals.tolist(),
                                 "mode": "markers",
-                                "marker": {"color": colors[i % len(colors)], "size": 5, "opacity": 0.5},
+                                "marker": {
+                                    "color": colors[i % len(colors)],
+                                    "size": 5,
+                                    "opacity": 0.5,
+                                },
                                 "showlegend": False,
                             }
                         )
@@ -1086,7 +1235,11 @@ def _run_nonparametric(analysis_id, df, config):
                             "x": [g[0] for g in group_means],
                             "y": [g[1] for g in group_means],
                             "mode": "lines+markers",
-                            "marker": {"color": colors[i % len(colors)], "size": 10, "symbol": "diamond"},
+                            "marker": {
+                                "color": colors[i % len(colors)],
+                                "size": 10,
+                                "symbol": "diamond",
+                            },
                             "line": {"color": colors[i % len(colors)], "width": 2},
                             "name": str(lev1),
                         }
@@ -1100,7 +1253,11 @@ def _run_nonparametric(analysis_id, df, config):
                     "data": plot_data,
                     "layout": {
                         "height": 350,
-                        "xaxis": {"tickvals": x_positions, "ticktext": x_labels, "title": factor2},
+                        "xaxis": {
+                            "tickvals": x_positions,
+                            "ticktext": x_labels,
+                            "title": factor2,
+                        },
                         "yaxis": {"title": response},
                         "showlegend": True,
                     },
@@ -1124,15 +1281,20 @@ def _run_nonparametric(analysis_id, df, config):
             _mv_grp = df.groupby(factors[0])[response]
             _mv_means = _mv_grp.mean()
             _mv_sizes = _mv_grp.count()
-            _mv_ss_between = sum(float(_mv_sizes[g]) * (float(_mv_means[g]) - _mv_grand) ** 2 for g in _mv_means.index)
+            _mv_ss_between = sum(
+                float(_mv_sizes[g]) * (float(_mv_means[g]) - _mv_grand) ** 2
+                for g in _mv_means.index
+            )
             _mv_ss_total = float(np.sum((_mv_all.values - _mv_grand) ** 2))
             _mv_pct = (_mv_ss_between / _mv_ss_total * 100) if _mv_ss_total > 0 else 0
-            _mv_dominant = f"Between-{factors[0]}" if _mv_pct > 50 else f"Within-{factors[0]}"
-            _mv_verdict = f"{_mv_dominant} variation dominates ({_mv_pct:.0f}% between-group)"
-            _mv_body = f"Variation between levels of <strong>{factors[0]}</strong> accounts for {_mv_pct:.0f}% of total variation in {response}. {'Focus improvement on the between-group differences.' if _mv_pct > 50 else 'Focus improvement on reducing within-group variation (consistency).'}"
-            _mv_next = (
-                "Run a one-way ANOVA to formally test if the between-group difference is statistically significant."
+            _mv_dominant = (
+                f"Between-{factors[0]}" if _mv_pct > 50 else f"Within-{factors[0]}"
             )
+            _mv_verdict = (
+                f"{_mv_dominant} variation dominates ({_mv_pct:.0f}% between-group)"
+            )
+            _mv_body = f"Variation between levels of <strong>{factors[0]}</strong> accounts for {_mv_pct:.0f}% of total variation in {response}. {'Focus improvement on the between-group differences.' if _mv_pct > 50 else 'Focus improvement on reducing within-group variation (consistency).'}"
+            _mv_next = "Run a one-way ANOVA to formally test if the between-group difference is statistically significant."
         elif len(factors) >= 2 and _mv_total_var > 0:
             _mv_grand = float(_mv_all.mean())
             _mv_f1_means = df.groupby(factors[0])[response].mean()
@@ -1140,10 +1302,12 @@ def _run_nonparametric(analysis_id, df, config):
             _mv_f1_sizes = df.groupby(factors[0])[response].count()
             _mv_f2_sizes = df.groupby(factors[1])[response].count()
             _mv_ss1 = sum(
-                float(_mv_f1_sizes[g]) * (float(_mv_f1_means[g]) - _mv_grand) ** 2 for g in _mv_f1_means.index
+                float(_mv_f1_sizes[g]) * (float(_mv_f1_means[g]) - _mv_grand) ** 2
+                for g in _mv_f1_means.index
             )
             _mv_ss2 = sum(
-                float(_mv_f2_sizes[g]) * (float(_mv_f2_means[g]) - _mv_grand) ** 2 for g in _mv_f2_means.index
+                float(_mv_f2_sizes[g]) * (float(_mv_f2_means[g]) - _mv_grand) ** 2
+                for g in _mv_f2_means.index
             )
             _mv_ss_total = float(np.sum((_mv_all.values - _mv_grand) ** 2))
             _mv_pct1 = (_mv_ss1 / _mv_ss_total * 100) if _mv_ss_total > 0 else 0

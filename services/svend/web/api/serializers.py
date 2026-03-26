@@ -88,13 +88,13 @@ class ChatInputSerializer(serializers.Serializer):
         choices=["auto", "coder", "synara"],
         default="auto",
         required=False,
-        help_text="Pipeline mode: auto (smart routing), coder (computation), synara (reasoning)"
+        help_text="Pipeline mode: auto (smart routing), coder (computation), synara (reasoning)",
     )
     model = serializers.ChoiceField(
         choices=["default", "opus", "sonnet", "haiku", "qwen"],
         default="default",
         required=False,
-        help_text="Model selection (enterprise only): opus, sonnet, haiku, qwen"
+        help_text="Model selection (enterprise only): opus, sonnet, haiku, qwen",
     )
 
 

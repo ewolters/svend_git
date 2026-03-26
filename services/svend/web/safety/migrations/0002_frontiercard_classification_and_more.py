@@ -6,123 +6,219 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('safety', '0001_initial'),
+        ("safety", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='frontiercard',
-            name='classification',
-            field=models.CharField(choices=[('routine', 'Routine Frontier'), ('deep_dive', 'Deep Dive'), ('post_incident', 'Post-Incident'), ('new_process', 'New Process/Area'), ('seasonal', 'Seasonal/Temporary')], default='routine', help_text='Type of frontier audit', max_length=20),
+            model_name="frontiercard",
+            name="classification",
+            field=models.CharField(
+                choices=[
+                    ("routine", "Routine Frontier"),
+                    ("deep_dive", "Deep Dive"),
+                    ("post_incident", "Post-Incident"),
+                    ("new_process", "New Process/Area"),
+                    ("seasonal", "Seasonal/Temporary"),
+                ],
+                default="routine",
+                help_text="Type of frontier audit",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='close_loop_followup_date',
-            field=models.DateField(blank=True, help_text='Scheduled follow-up date', null=True),
+            model_name="frontiercard",
+            name="close_loop_followup_date",
+            field=models.DateField(
+                blank=True, help_text="Scheduled follow-up date", null=True
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='close_loop_method',
-            field=models.CharField(choices=[('immediate', 'Yes, on the spot'), ('within_24h', 'Within 24 hours'), ('pending', 'Pending'), ('not_done', 'Not done')], default='pending', help_text='How feedback was delivered to operator', max_length=20),
+            model_name="frontiercard",
+            name="close_loop_method",
+            field=models.CharField(
+                choices=[
+                    ("immediate", "Yes, on the spot"),
+                    ("within_24h", "Within 24 hours"),
+                    ("pending", "Pending"),
+                    ("not_done", "Not done"),
+                ],
+                default="pending",
+                help_text="How feedback was delivered to operator",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='close_loop_notes',
-            field=models.TextField(blank=True, default='', help_text="Operator's response to feedback"),
+            model_name="frontiercard",
+            name="close_loop_notes",
+            field=models.TextField(
+                blank=True, default="", help_text="Operator's response to feedback"
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='five_s_scores',
-            field=models.JSONField(default=list, help_text='[{pillar, item, score: 1-5, notes}] — detailed 5S assessment'),
+            model_name="frontiercard",
+            name="five_s_scores",
+            field=models.JSONField(
+                default=list,
+                help_text="[{pillar, item, score: 1-5, notes}] — detailed 5S assessment",
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='operator_behavior_notes',
-            field=models.TextField(blank=True, default='', help_text="Auditor's observation of operator behavior during task"),
+            model_name="frontiercard",
+            name="operator_behavior_notes",
+            field=models.TextField(
+                blank=True,
+                default="",
+                help_text="Auditor's observation of operator behavior during task",
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='operator_comfort_level',
-            field=models.PositiveSmallIntegerField(blank=True, help_text='1=Reluctant/guarded, 3=Cooperative, 5=Enthusiastic/engaged', null=True),
+            model_name="frontiercard",
+            name="operator_comfort_level",
+            field=models.PositiveSmallIntegerField(
+                blank=True,
+                help_text="1=Reluctant/guarded, 3=Cooperative, 5=Enthusiastic/engaged",
+                null=True,
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='operator_ergonomic',
-            field=models.TextField(blank=True, default='', help_text='What part of your body is most tired at end of shift?'),
+            model_name="frontiercard",
+            name="operator_ergonomic",
+            field=models.TextField(
+                blank=True,
+                default="",
+                help_text="What part of your body is most tired at end of shift?",
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='operator_five_s_issue',
-            field=models.CharField(blank=True, default='', help_text="Operator's #1 5S issue in the area", max_length=300),
+            model_name="frontiercard",
+            name="operator_five_s_issue",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="Operator's #1 5S issue in the area",
+                max_length=300,
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='operator_quick_win',
-            field=models.CharField(blank=True, default='', help_text='Quick win spotted during conversation', max_length=300),
+            model_name="frontiercard",
+            name="operator_quick_win",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="Quick win spotted during conversation",
+                max_length=300,
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='operator_role',
-            field=models.CharField(blank=True, default='', max_length=100),
+            model_name="frontiercard",
+            name="operator_role",
+            field=models.CharField(blank=True, default="", max_length=100),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='operator_tenure',
-            field=models.CharField(blank=True, default='', help_text='How long in this area', max_length=100),
+            model_name="frontiercard",
+            name="operator_tenure",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="How long in this area",
+                max_length=100,
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='pipeline_feedback_given',
-            field=models.BooleanField(default=False, help_text='Feedback given to operator'),
+            model_name="frontiercard",
+            name="pipeline_feedback_given",
+            field=models.BooleanField(
+                default=False, help_text="Feedback given to operator"
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='pipeline_logged',
-            field=models.BooleanField(default=False, help_text='Card logged to tracking'),
+            model_name="frontiercard",
+            name="pipeline_logged",
+            field=models.BooleanField(
+                default=False, help_text="Card logged to tracking"
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='pipeline_safety_to_fmea',
-            field=models.BooleanField(default=False, help_text='Safety findings entered to FMEA'),
+            model_name="frontiercard",
+            name="pipeline_safety_to_fmea",
+            field=models.BooleanField(
+                default=False, help_text="Safety findings entered to FMEA"
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='pipeline_tallies_entered',
-            field=models.BooleanField(default=False, help_text='5S tallies entered for Pareto'),
+            model_name="frontiercard",
+            name="pipeline_tallies_entered",
+            field=models.BooleanField(
+                default=False, help_text="5S tallies entered for Pareto"
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='positive_observations',
-            field=models.JSONField(default=list, help_text='[{observation, reinforce_how}] — safe behaviors to recognize'),
+            model_name="frontiercard",
+            name="positive_observations",
+            field=models.JSONField(
+                default=list,
+                help_text="[{observation, reinforce_how}] — safe behaviors to recognize",
+            ),
         ),
         migrations.AddField(
-            model_name='frontiercard',
-            name='zone_reason',
-            field=models.CharField(blank=True, default='', help_text='Why this zone? What made you suspicious?', max_length=300),
+            model_name="frontiercard",
+            name="zone_reason",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="Why this zone? What made you suspicious?",
+                max_length=300,
+            ),
         ),
         migrations.AlterField(
-            model_name='frontiercard',
-            name='operator_concern',
-            field=models.TextField(blank=True, default='', help_text="What's the most hazardous thing about working here?"),
+            model_name="frontiercard",
+            name="operator_concern",
+            field=models.TextField(
+                blank=True,
+                default="",
+                help_text="What's the most hazardous thing about working here?",
+            ),
         ),
         migrations.AlterField(
-            model_name='frontiercard',
-            name='operator_improvement',
-            field=models.TextField(blank=True, default='', help_text='If you could change one thing here, what would it be?'),
+            model_name="frontiercard",
+            name="operator_improvement",
+            field=models.TextField(
+                blank=True,
+                default="",
+                help_text="If you could change one thing here, what would it be?",
+            ),
         ),
         migrations.AlterField(
-            model_name='frontiercard',
-            name='operator_near_miss',
-            field=models.TextField(blank=True, default='', help_text='Has anyone had a close call here recently?'),
+            model_name="frontiercard",
+            name="operator_near_miss",
+            field=models.TextField(
+                blank=True,
+                default="",
+                help_text="Has anyone had a close call here recently?",
+            ),
         ),
         migrations.AlterField(
-            model_name='frontiercard',
-            name='safety_observations',
-            field=models.JSONField(default=list, help_text='[{category, item, rating: "S"|"AR"|"U", severity, notes}]'),
+            model_name="frontiercard",
+            name="safety_observations",
+            field=models.JSONField(
+                default=list,
+                help_text='[{category, item, rating: "S"|"AR"|"U", severity, notes}]',
+            ),
         ),
         migrations.AlterField(
-            model_name='frontierzone',
-            name='zone_type',
-            field=models.CharField(choices=[('transition', 'Transition Zone'), ('hidden_infra', 'Hidden Infrastructure'), ('overhead_below', 'Overhead & Below'), ('temporal', 'Temporal Frontier'), ('general', 'General')], default='general', max_length=30),
+            model_name="frontierzone",
+            name="zone_type",
+            field=models.CharField(
+                choices=[
+                    ("transition", "Transition Zone"),
+                    ("hidden_infra", "Hidden Infrastructure"),
+                    ("overhead_below", "Overhead & Below"),
+                    ("temporal", "Temporal Frontier"),
+                    ("general", "General"),
+                ],
+                default="general",
+                max_length=30,
+            ),
         ),
     ]

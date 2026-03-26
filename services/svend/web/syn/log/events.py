@@ -58,7 +58,6 @@ LOG_EVENTS = {
             "reason": "str",
         },
     },
-
     # -------------------------------------------------------------------------
     # Stream Events (LOG-002 §4.3)
     # -------------------------------------------------------------------------
@@ -93,7 +92,6 @@ LOG_EVENTS = {
             "reason": "str",
         },
     },
-
     # -------------------------------------------------------------------------
     # Alert Events (LOG-002 §4.4)
     # -------------------------------------------------------------------------
@@ -145,7 +143,6 @@ LOG_EVENTS = {
             "cooldown_ends_at": "datetime",
         },
     },
-
     # -------------------------------------------------------------------------
     # Metric Events (LOG-002 §4.5)
     # -------------------------------------------------------------------------
@@ -185,7 +182,6 @@ LOG_EVENTS = {
             "deviation_sigma": "float",
         },
     },
-
     # -------------------------------------------------------------------------
     # Retention Events (LOG-002 §5.5)
     # -------------------------------------------------------------------------
@@ -231,7 +227,6 @@ LOG_EVENTS = {
             "duration_ms": "float",
         },
     },
-
     # -------------------------------------------------------------------------
     # SIEM Events (LOG-002 §5.4, SEC-002 §8)
     # -------------------------------------------------------------------------
@@ -265,7 +260,6 @@ LOG_EVENTS = {
             "entries_pending": "int",
         },
     },
-
     # -------------------------------------------------------------------------
     # Error Events (LOG-002 §9)
     # -------------------------------------------------------------------------
@@ -300,7 +294,6 @@ LOG_EVENTS = {
             "error": "str",
         },
     },
-
     # -------------------------------------------------------------------------
     # Governance Events (GOV-001 §5)
     # -------------------------------------------------------------------------
@@ -321,6 +314,7 @@ LOG_EVENTS = {
 # =============================================================================
 # Event Emission (EVT-001 §6)
 # =============================================================================
+
 
 def emit_log_event(
     event_name: str,
@@ -344,7 +338,9 @@ def emit_log_event(
         ValueError: If event_name not in catalog
     """
     if event_name not in LOG_EVENTS:
-        raise ValueError(f"Unknown log event: {event_name}. Must be one of: {list(LOG_EVENTS.keys())}")
+        raise ValueError(
+            f"Unknown log event: {event_name}. Must be one of: {list(LOG_EVENTS.keys())}"
+        )
 
     # Build full event payload
     event_payload = {
@@ -359,10 +355,12 @@ def emit_log_event(
     # Import Cortex publisher if available
     try:
         from syn.cortex import publish
+
         publish(event_name, event_payload)
     except ImportError:
         # Cortex not available, log locally
         import logging
+
         logger = logging.getLogger("syn.log.events")
         logger.info(f"Log event: {event_name}", extra={"payload": event_payload})
 
@@ -370,6 +368,7 @@ def emit_log_event(
 # =============================================================================
 # Payload Builders (EVT-001 §6.2)
 # =============================================================================
+
 
 def build_entry_created_payload(
     log_id: uuid.UUID,

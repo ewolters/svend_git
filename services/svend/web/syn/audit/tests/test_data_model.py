@@ -317,7 +317,9 @@ class ProjectModelFieldsTest(SimpleTestCase):
 
         field_names = {f.name for f in Project._meta.get_fields() if hasattr(f, "name")}
         for field_name in self.REQUIRED_FIELDS:
-            self.assertIn(field_name, field_names, f"Project missing field: {field_name}")
+            self.assertIn(
+                field_name, field_names, f"Project missing field: {field_name}"
+            )
 
     def test_project_has_uuid_pk(self):
         from core.models.project import Project
@@ -344,9 +346,13 @@ class HypothesisModelFieldsTest(SimpleTestCase):
     def test_all_required_fields_exist(self):
         from core.models.hypothesis import Hypothesis
 
-        field_names = {f.name for f in Hypothesis._meta.get_fields() if hasattr(f, "name")}
+        field_names = {
+            f.name for f in Hypothesis._meta.get_fields() if hasattr(f, "name")
+        }
         for field_name in self.REQUIRED_FIELDS:
-            self.assertIn(field_name, field_names, f"Hypothesis missing field: {field_name}")
+            self.assertIn(
+                field_name, field_names, f"Hypothesis missing field: {field_name}"
+            )
 
     def test_hypothesis_has_uuid_pk(self):
         from core.models.hypothesis import Hypothesis
@@ -401,4 +407,6 @@ class KnowledgeGraphOwnershipTest(SimpleTestCase):
 
         for field_name in ("source", "target"):
             fk = Relationship._meta.get_field(field_name)
-            self.assertTrue(fk.is_relation, f"Relationship.{field_name} is not a relation")
+            self.assertTrue(
+                fk.is_relation, f"Relationship.{field_name} is not a relation"
+            )

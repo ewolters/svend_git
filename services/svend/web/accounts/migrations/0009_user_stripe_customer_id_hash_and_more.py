@@ -8,18 +8,18 @@ import core.encryption
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0008_email_opt_out'),
+        ("accounts", "0008_email_opt_out"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='stripe_customer_id_hash',
+            model_name="user",
+            name="stripe_customer_id_hash",
             field=models.CharField(blank=True, db_index=True, max_length=64),
         ),
         migrations.AlterField(
-            model_name='user',
-            name='stripe_customer_id',
+            model_name="user",
+            name="stripe_customer_id",
             field=core.encryption.EncryptedCharField(blank=True, max_length=500),
         ),
     ]

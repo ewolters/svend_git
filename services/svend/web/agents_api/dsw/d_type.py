@@ -57,7 +57,9 @@ def _kde_density(x, grid, bandwidth=None):
 
         bw = bandwidth or "silverman"
         try:
-            kde = gaussian_kde(x, bw_method=float(bw) if isinstance(bw, (int, float)) else bw)
+            kde = gaussian_kde(
+                x, bw_method=float(bw) if isinstance(bw, (int, float)) else bw
+            )
             density = kde(grid)
         except Exception:
             kde = gaussian_kde(x, bw_method="silverman")
@@ -225,7 +227,9 @@ def run_d_chart(df, config):
     step_size = int(config.get("step_size", 0)) or window_size // 2
 
     if not variable or not factor:
-        result["summary"] = "<<COLOR:danger>>Error: variable and factor are required.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Error: variable and factor are required.<</COLOR>>"
+        )
         return result
 
     # Prepare data
@@ -241,11 +245,15 @@ def run_d_chart(df, config):
     n = len(df)
 
     if n < window_size:
-        result["summary"] = f"<<COLOR:warning>>Need at least {window_size} observations (have {n}).<</COLOR>>"
+        result["summary"] = (
+            f"<<COLOR:warning>>Need at least {window_size} observations (have {n}).<</COLOR>>"
+        )
         return result
 
     if len(unique_factors) < 2:
-        result["summary"] = "<<COLOR:warning>>Need at least 2 factor levels for divergence analysis.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:warning>>Need at least 2 factor levels for divergence analysis.<</COLOR>>"
+        )
         return result
 
     # Build KDE grid from full data
@@ -287,7 +295,9 @@ def run_d_chart(df, config):
             tc = w_df[time_col]
             if pd.api.types.is_datetime64_any_dtype(tc):
                 midpoint = tc.iloc[len(tc) // 2]
-                label = str(midpoint.date()) if hasattr(midpoint, "date") else str(midpoint)
+                label = (
+                    str(midpoint.date()) if hasattr(midpoint, "date") else str(midpoint)
+                )
             elif pd.api.types.is_numeric_dtype(tc):
                 midpoint = tc.iloc[len(tc) // 2]
                 label = str(midpoint)
@@ -295,7 +305,11 @@ def run_d_chart(df, config):
                 try:
                     ts = pd.to_datetime(tc)
                     midpoint = ts.iloc[len(ts) // 2]
-                    label = str(midpoint.date()) if hasattr(midpoint, "date") else str(midpoint)
+                    label = (
+                        str(midpoint.date())
+                        if hasattr(midpoint, "date")
+                        else str(midpoint)
+                    )
                 except Exception:
                     label = f"{start}-{end}"
                     midpoint = start + window_size // 2
@@ -386,7 +400,10 @@ def run_d_chart(df, config):
 
     # Information score bar chart
     sorted_factors = sorted(info_scores.items(), key=lambda x: x[1], reverse=True)
-    bar_colors = [SVEND_COLORS[unique_factors.index(f) % len(SVEND_COLORS)] for f, _ in sorted_factors]
+    bar_colors = [
+        SVEND_COLORS[unique_factors.index(f) % len(SVEND_COLORS)]
+        for f, _ in sorted_factors
+    ]
     result["plots"].append(
         {
             "title": f"Cumulative Information Score by {factor}",
@@ -420,7 +437,11 @@ def run_d_chart(df, config):
                     "z": z_data,
                     "x": x_labels,
                     "y": list(unique_factors),
-                    "colorscale": [[0, _rgba(COLOR_GOOD, 0.1)], [0.5, COLOR_REFERENCE], [1, COLOR_BAD]],
+                    "colorscale": [
+                        [0, _rgba(COLOR_GOOD, 0.1)],
+                        [0.5, COLOR_REFERENCE],
+                        [1, COLOR_BAD],
+                    ],
                     "colorbar": {"title": "JSD", "len": 0.8},
                     "hovertemplate": "%{y} @ %{x}<br>JSD = %{z:.4f}<extra></extra>",
                 }
@@ -506,7 +527,10 @@ def run_d_chart(df, config):
                 onset_idx = i
                 break
         if onset_idx is not None:
-            onset_info[fval] = {"window_idx": onset_idx, "label": windows[onset_idx]["label"]}
+            onset_info[fval] = {
+                "window_idx": onset_idx,
+                "label": windows[onset_idx]["label"],
+            }
 
     # Summary
     max_factor = sorted_factors[0][0] if sorted_factors else "N/A"
@@ -538,15 +562,17 @@ def run_d_chart(df, config):
     elif any_above_noise:
         summary += "<<COLOR:warning>>Some windows show divergence above noise floor, but the cumulative pattern is moderate.<</COLOR>>\n"
     else:
-        summary += (
-            "<<COLOR:good>>All factor levels behave consistently — no systematic divergence detected.<</COLOR>>\n"
-        )
+        summary += "<<COLOR:good>>All factor levels behave consistently — no systematic divergence detected.<</COLOR>>\n"
 
     result["summary"] = summary
 
     onset_str = ""
     if onset_info:
-        onset_str = " Onset: " + ", ".join(f"{f} from {i['label']}" for f, i in onset_info.items()) + "."
+        onset_str = (
+            " Onset: "
+            + ", ".join(f"{f} from {i['label']}" for f, i in onset_info.items())
+            + "."
+        )
 
     result["guide_observation"] = (
         f"D-Chart: {factor} on {variable}, {len(windows)} windows. "
@@ -636,11 +662,15 @@ def run_d_cpk(df, config):
     usl = config.get("usl")
 
     if not variable or not factor:
-        result["summary"] = "<<COLOR:danger>>Error: variable and factor are required.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Error: variable and factor are required.<</COLOR>>"
+        )
         return result
 
     if lsl is None and usl is None:
-        result["summary"] = "<<COLOR:danger>>Error: at least one spec limit (LSL or USL) is required.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Error: at least one spec limit (LSL or USL) is required.<</COLOR>>"
+        )
         return result
 
     lsl = float(lsl) if lsl is not None else None
@@ -708,7 +738,9 @@ def run_d_cpk(df, config):
         # Uses complement (all data except this factor) instead of pooled
         # to avoid the "pooled contamination" problem.
         other_data = values[~mask]
-        complement_density = _kde_density(other_data, grid) if len(other_data) >= 5 else pooled_density
+        complement_density = (
+            _kde_density(other_data, grid) if len(other_data) >= 5 else pooled_density
+        )
         jsd_full = _jsd(f_density, complement_density, grid)
 
         # Tail-only JSD: divergence in the out-of-spec regions only
@@ -724,7 +756,9 @@ def run_d_cpk(df, config):
         direction = 1 if f_cpk < pooled_cpk else -1
 
         # Counterfactual: Cpk without this factor
-        cpk_without = _compute_cpk(other_data, lsl, usl) if len(other_data) >= 5 else pooled_cpk
+        cpk_without = (
+            _compute_cpk(other_data, lsl, usl) if len(other_data) >= 5 else pooled_cpk
+        )
 
         # PPM defect rate (computed here so we can sort by it)
         from scipy import stats as sp_stats
@@ -786,7 +820,8 @@ def run_d_cpk(df, config):
                     "y": [round(fr["cpk"], 3) for fr in fr_by_cpk],
                     "marker": {"color": cpk_bar_colors},
                     "text": [
-                        f"Cpk={fr['cpk']:.3f}<br>JSD={fr['jsd']:.4f}<br>PPM={fr.get('ppm', 'N/A')}" for fr in fr_by_cpk
+                        f"Cpk={fr['cpk']:.3f}<br>JSD={fr['jsd']:.4f}<br>PPM={fr.get('ppm', 'N/A')}"
+                        for fr in fr_by_cpk
                     ],
                     "hoverinfo": "text+x",
                     "textposition": "outside",
@@ -878,7 +913,12 @@ def run_d_cpk(df, config):
                     "type": "bar",
                     "x": [fr["factor"] for fr in factor_results],
                     "y": [round(fr["cpk_without"], 3) for fr in factor_results],
-                    "marker": {"color": [COLOR_BAD if fr["delta_cpk"] > 0.05 else COLOR_INFO for fr in factor_results]},
+                    "marker": {
+                        "color": [
+                            COLOR_BAD if fr["delta_cpk"] > 0.05 else COLOR_INFO
+                            for fr in factor_results
+                        ]
+                    },
                     "name": "Cpk without factor",
                 },
                 {
@@ -913,7 +953,12 @@ def run_d_cpk(df, config):
                         "y": [fr["ppm"] for fr in ppm_sorted],
                         "marker": {
                             "color": [
-                                COLOR_BAD if fr["jsd"] > noise else _rgba(COLOR_NEUTRAL, 0.6) for fr in ppm_sorted
+                                (
+                                    COLOR_BAD
+                                    if fr["jsd"] > noise
+                                    else _rgba(COLOR_NEUTRAL, 0.6)
+                                )
+                                for fr in ppm_sorted
                             ]
                         },
                         "text": [f"{fr['ppm']:,.0f}" for fr in ppm_sorted],
@@ -923,7 +968,10 @@ def run_d_cpk(df, config):
                 "layout": {
                     "height": 400,
                     "xaxis": {"title": factor},
-                    "yaxis": {"title": "PPM (parts per million)", "rangemode": "tozero"},
+                    "yaxis": {
+                        "title": "PPM (parts per million)",
+                        "rangemode": "tozero",
+                    },
                 },
             }
         )
@@ -976,10 +1024,14 @@ def run_d_cpk(df, config):
     # Summary — factor_results is sorted by PPM descending (worst defect producer first)
     significant = [fr for fr in factor_results if fr["jsd"] > noise]
     degraders = [fr for fr in significant if fr["direction"] > 0]
-    worst = degraders[0] if degraders else (factor_results[0] if factor_results else None)
+    worst = (
+        degraders[0] if degraders else (factor_results[0] if factor_results else None)
+    )
 
     summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-    summary += "<<COLOR:title>>D-Cpk: FACTOR-ATTRIBUTED CAPABILITY DIVERGENCE<</COLOR>>\n"
+    summary += (
+        "<<COLOR:title>>D-Cpk: FACTOR-ATTRIBUTED CAPABILITY DIVERGENCE<</COLOR>>\n"
+    )
     summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {variable}\n"
     summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({len(unique_factors)} levels)\n"
@@ -990,7 +1042,9 @@ def run_d_cpk(df, config):
     summary += f"<<COLOR:highlight>>Pooled Cpk:<</COLOR>> {pooled_cpk:.3f}\n"
     summary += f"<<COLOR:highlight>>Noise Floor:<</COLOR>> {noise:.4f} bits\n\n"
 
-    summary += "<<COLOR:accent>>── Factor Attribution (sorted by defect rate) ──<</COLOR>>\n"
+    summary += (
+        "<<COLOR:accent>>── Factor Attribution (sorted by defect rate) ──<</COLOR>>\n"
+    )
     for fr in factor_results:
         dir_sym = "▲" if fr["direction"] > 0 else "▼"
         sig = " <<COLOR:danger>>***<</COLOR>>" if fr["jsd"] > noise else ""
@@ -1012,7 +1066,9 @@ def run_d_cpk(df, config):
 
     summary += "\n<<COLOR:accent>>── Assessment ──<</COLOR>>\n"
     if degraders:
-        pooled_ppm = sum(fr["ppm"] * fr["n"] for fr in factor_results) / sum(fr["n"] for fr in factor_results)
+        pooled_ppm = sum(fr["ppm"] * fr["n"] for fr in factor_results) / sum(
+            fr["n"] for fr in factor_results
+        )
         summary += f"<<COLOR:danger>>Factor '{worst['factor']}' is the largest defect contributor at {worst['ppm']:,.0f} PPM (pooled avg: {pooled_ppm:,.0f} PPM).<</COLOR>>\n"
         summary += f"<<COLOR:warning>>Cpk for {worst['factor']}: {worst['cpk']:.3f} vs pooled {pooled_cpk:.3f}. Removing it would raise Cpk to {worst['cpk_without']:.3f}.<</COLOR>>\n"
         # Explain the D-Chart vs D-Cpk ranking difference if it exists
@@ -1027,7 +1083,9 @@ def run_d_cpk(df, config):
                 f"{jsd_top['defect_eff']:.0%} ({int(jsd_top['loc_pct'] * 100)}% location).<</COLOR>>\n"
             )
         if len(degraders) > 1:
-            others = ", ".join(f"{fr['factor']} ({fr['ppm']:,.0f} PPM)" for fr in degraders[1:])
+            others = ", ".join(
+                f"{fr['factor']} ({fr['ppm']:,.0f} PPM)" for fr in degraders[1:]
+            )
             summary += f"<<COLOR:highlight>>Also degrading: {others}<</COLOR>>\n"
     elif significant:
         summary += "<<COLOR:warning>>Significant divergence detected but factors are performing BETTER than pooled.<</COLOR>>\n"
@@ -1199,7 +1257,9 @@ def _d_narrative(title, body, next_steps, chart_guidance):
     if chart_guidance:
         parts.append(f"<p><strong>In the chart:</strong> {chart_guidance}</p>")
     if next_steps:
-        parts.append(f'<div class="dsw-next"><strong>Next &rarr;</strong> {next_steps}</div>')
+        parts.append(
+            f'<div class="dsw-next"><strong>Next &rarr;</strong> {next_steps}</div>'
+        )
     return "\n".join(parts)
 
 
@@ -1290,13 +1350,17 @@ def run_d_nonnorm(df, config):
 
     variable = config.get("variable") or config.get("measurement")
     if not variable or variable not in df.columns:
-        result["summary"] = "<<COLOR:danger>>Please select a valid measurement variable.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Please select a valid measurement variable.<</COLOR>>"
+        )
         return result
 
     lsl = float(config["lsl"]) if config.get("lsl") is not None else None
     usl = float(config["usl"]) if config.get("usl") is not None else None
     if lsl is None and usl is None:
-        result["summary"] = "<<COLOR:danger>>At least one spec limit (LSL or USL) is required.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>At least one spec limit (LSL or USL) is required.<</COLOR>>"
+        )
         return result
 
     data = df[variable].dropna().astype(float).values
@@ -1572,7 +1636,10 @@ def run_d_nonnorm(df, config):
                 {
                     "type": "scatter",
                     "x": [theoretical_q[0], theoretical_q[-1]],
-                    "y": [mu + sigma * theoretical_q[0], mu + sigma * theoretical_q[-1]],
+                    "y": [
+                        mu + sigma * theoretical_q[0],
+                        mu + sigma * theoretical_q[-1],
+                    ],
                     "mode": "lines",
                     "name": "Normal Reference",
                     "line": {"color": COLOR_BAD, "dash": "dash", "width": 1.5},
@@ -1676,9 +1743,11 @@ def run_d_nonnorm(df, config):
         (
             "Process is capable — monitor for drift."
             if ppk_kde >= 1.33
-            else "Investigate sources of variation to improve capability."
-            if ppk_kde >= 1.0
-            else "Prioritise variation reduction; consider the D-Chart to identify contributing factors."
+            else (
+                "Investigate sources of variation to improve capability."
+                if ppk_kde >= 1.0
+                else "Prioritise variation reduction; consider the D-Chart to identify contributing factors."
+            )
         ),
         "The top plot overlays KDE (actual shape) vs normal assumption. "
         "The middle plot shows the best-fit parametric distribution. "
@@ -1730,10 +1799,14 @@ def run_d_equiv(df, config):
     variable = config.get("variable") or config.get("measurement")
     batch_col = config.get("batch") or config.get("group") or config.get("factor")
     if not variable or variable not in df.columns:
-        result["summary"] = "<<COLOR:danger>>Please select a valid measurement variable.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Please select a valid measurement variable.<</COLOR>>"
+        )
         return result
     if not batch_col or batch_col not in df.columns:
-        result["summary"] = "<<COLOR:danger>>Please select a valid batch/group column.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Please select a valid batch/group column.<</COLOR>>"
+        )
         return result
 
     threshold = float(config.get("threshold", 0.05))
@@ -1745,7 +1818,9 @@ def run_d_equiv(df, config):
 
     batches = work[batch_col].unique()
     if len(batches) < 2:
-        result["summary"] = "<<COLOR:danger>>Need at least 2 batches for equivalence testing.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Need at least 2 batches for equivalence testing.<</COLOR>>"
+        )
         return result
 
     # Choose reference batch
@@ -1757,7 +1832,9 @@ def run_d_equiv(df, config):
 
     ref_data = work.loc[work[batch_col] == ref_batch, variable].values
     if len(ref_data) < 5:
-        result["summary"] = f"<<COLOR:danger>>Reference batch '{ref_batch}' has fewer than 5 observations.<</COLOR>>"
+        result["summary"] = (
+            f"<<COLOR:danger>>Reference batch '{ref_batch}' has fewer than 5 observations.<</COLOR>>"
+        )
         return result
 
     # Common grid
@@ -1776,7 +1853,9 @@ def run_d_equiv(df, config):
     for _ in range(n_perm):
         perm = rng.permutation(all_vals)
         d1 = _kde_density(perm[:n_ref], grid)
-        d2 = _kde_density(perm[n_ref : 2 * n_ref] if len(perm) >= 2 * n_ref else perm[n_ref:], grid)
+        d2 = _kde_density(
+            perm[n_ref : 2 * n_ref] if len(perm) >= 2 * n_ref else perm[n_ref:], grid
+        )
         perm_jsds.append(_jsd(d1, d2, grid))
     noise_95 = float(np.percentile(perm_jsds, 95))
 
@@ -1818,8 +1897,15 @@ def run_d_equiv(df, config):
     jsd_matrix = np.zeros((n_batches, n_batches))
     for i in range(n_batches):
         for j in range(i + 1, n_batches):
-            if all_batch_names[i] in all_batch_data and all_batch_names[j] in all_batch_data:
-                jsd_ij = _jsd(all_batch_data[all_batch_names[i]], all_batch_data[all_batch_names[j]], grid)
+            if (
+                all_batch_names[i] in all_batch_data
+                and all_batch_names[j] in all_batch_data
+            ):
+                jsd_ij = _jsd(
+                    all_batch_data[all_batch_names[i]],
+                    all_batch_data[all_batch_names[j]],
+                    grid,
+                )
                 jsd_matrix[i, j] = jsd_ij
                 jsd_matrix[j, i] = jsd_ij
 
@@ -1891,14 +1977,23 @@ def run_d_equiv(df, config):
                 "y": b_dens.tolist(),
                 "mode": "lines",
                 "name": br["batch"],
-                "line": {"color": color, "width": 1.5, "dash": "dash" if not br["equivalent"] else "solid"},
+                "line": {
+                    "color": color,
+                    "width": 1.5,
+                    "dash": "dash" if not br["equivalent"] else "solid",
+                },
             }
         )
     result["plots"].append(
         {
             "title": "Batch Density Overlay",
             "data": density_traces,
-            "layout": {"height": 340, "xaxis": {"title": variable}, "yaxis": {"title": "Density"}, "showlegend": True},
+            "layout": {
+                "height": 340,
+                "xaxis": {"title": variable},
+                "yaxis": {"title": "Density"},
+                "showlegend": True,
+            },
         }
     )
 
@@ -1913,7 +2008,10 @@ def run_d_equiv(df, config):
                     "x": all_batch_names,
                     "y": all_batch_names,
                     "colorscale": [[0, "#f0f8f0"], [0.5, COLOR_GOLD], [1, COLOR_BAD]],
-                    "text": [[f"{jsd_matrix[i][j]:.4f}" for j in range(n_batches)] for i in range(n_batches)],
+                    "text": [
+                        [f"{jsd_matrix[i][j]:.4f}" for j in range(n_batches)]
+                        for i in range(n_batches)
+                    ],
                     "texttemplate": "%{text}",
                     "showscale": True,
                     "colorbar": {"title": "JSD"},
@@ -1932,8 +2030,12 @@ def run_d_equiv(df, config):
     n_test = len(batch_results)
     summary = "<<COLOR:title>>D-EQUIV — BATCH EQUIVALENCE VIA JSD<</COLOR>>\n\n"
     summary += f"<<COLOR:header>>Reference Batch:<</COLOR>> '{ref_batch}' (n={len(ref_data)})\n"
-    summary += f"<<COLOR:header>>Equivalence Threshold:<</COLOR>> {threshold} JSD bits\n"
-    summary += f"<<COLOR:header>>Permutation Noise Floor (95th):<</COLOR>> {noise_95:.5f}\n\n"
+    summary += (
+        f"<<COLOR:header>>Equivalence Threshold:<</COLOR>> {threshold} JSD bits\n"
+    )
+    summary += (
+        f"<<COLOR:header>>Permutation Noise Floor (95th):<</COLOR>> {noise_95:.5f}\n\n"
+    )
 
     summary += "<<COLOR:header>>Results:<</COLOR>>\n"
     summary += f"  {'Batch':<15} {'n':>5} {'JSD':>8} {'p-val':>7} {'Decision':>12}\n"
@@ -2043,13 +2145,19 @@ def run_d_sig(df, config):
     group_col = config.get("group") or config.get("factor")
 
     if not variable or variable not in df.columns:
-        result["summary"] = "<<COLOR:danger>>Please select a valid profile variable.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Please select a valid profile variable.<</COLOR>>"
+        )
         return result
     if not time_col or time_col not in df.columns:
-        result["summary"] = "<<COLOR:danger>>Please select a valid time/sequence column.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Please select a valid time/sequence column.<</COLOR>>"
+        )
         return result
     if not group_col or group_col not in df.columns:
-        result["summary"] = "<<COLOR:danger>>Please select a valid group column.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Please select a valid group column.<</COLOR>>"
+        )
         return result
 
     work = df[[variable, time_col, group_col]].dropna()
@@ -2064,7 +2172,9 @@ def run_d_sig(df, config):
 
     groups = work[group_col].unique()
     if len(groups) < 2:
-        result["summary"] = "<<COLOR:danger>>Need at least 2 groups for signature comparison.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Need at least 2 groups for signature comparison.<</COLOR>>"
+        )
         return result
 
     # Build per-group profiles sorted by time
@@ -2079,7 +2189,9 @@ def run_d_sig(df, config):
         }
 
     if len(group_profiles) < 2:
-        result["summary"] = "<<COLOR:danger>>Not enough groups with ≥5 observations.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Not enough groups with ≥5 observations.<</COLOR>>"
+        )
         return result
 
     group_names = list(group_profiles.keys())
@@ -2123,7 +2235,9 @@ def run_d_sig(df, config):
                 # Use local value distribution comparison
                 all_vals = np.concatenate([ref_window, g_window])
                 local_grid = np.linspace(
-                    all_vals.min() - 0.1 * (np.ptp(all_vals) or 1), all_vals.max() + 0.1 * (np.ptp(all_vals) or 1), 100
+                    all_vals.min() - 0.1 * (np.ptp(all_vals) or 1),
+                    all_vals.max() + 0.1 * (np.ptp(all_vals) or 1),
+                    100,
                 )
                 ref_dens = _kde_density(ref_window, local_grid)
                 g_dens = _kde_density(g_window, local_grid)
@@ -2140,7 +2254,9 @@ def run_d_sig(df, config):
         }
 
     # Sort by mean JSD
-    sorted_groups = sorted(test_groups, key=lambda g: group_divergences[g]["mean_jsd"], reverse=True)
+    sorted_groups = sorted(
+        test_groups, key=lambda g: group_divergences[g]["mean_jsd"], reverse=True
+    )
 
     # --- Plot 1: Profile overlay ---
     profile_traces = []
@@ -2169,7 +2285,12 @@ def run_d_sig(df, config):
         {
             "title": "Process Signatures",
             "data": profile_traces,
-            "layout": {"height": 340, "xaxis": {"title": time_col}, "yaxis": {"title": variable}, "showlegend": True},
+            "layout": {
+                "height": 340,
+                "xaxis": {"title": time_col},
+                "yaxis": {"title": variable},
+                "showlegend": True,
+            },
         }
     )
 
@@ -2205,7 +2326,9 @@ def run_d_sig(df, config):
     bar_names = [g for g in sorted_groups]
     bar_means = [group_divergences[g]["mean_jsd"] for g in sorted_groups]
     bar_maxes = [group_divergences[g]["max_jsd"] for g in sorted_groups]
-    bar_colors_mean = [SVEND_COLORS[i % len(SVEND_COLORS)] for i in range(len(sorted_groups))]
+    bar_colors_mean = [
+        SVEND_COLORS[i % len(SVEND_COLORS)] for i in range(len(sorted_groups))
+    ]
 
     result["plots"].append(
         {
@@ -2230,7 +2353,12 @@ def run_d_sig(df, config):
                     "textposition": "outside",
                 },
             ],
-            "layout": {"height": 300, "barmode": "group", "yaxis": {"title": "JSD (bits)"}, "showlegend": True},
+            "layout": {
+                "height": 300,
+                "barmode": "group",
+                "yaxis": {"title": "JSD (bits)"},
+                "showlegend": True,
+            },
         }
     )
 
@@ -2245,9 +2373,7 @@ def run_d_sig(df, config):
     summary += f"  {'-' * 58}\n"
     for g in sorted_groups:
         d = group_divergences[g]
-        summary += (
-            f"  {g:<15} {d['mean_jsd']:>10.4f} {d['max_jsd']:>10.4f} {d['peak_time']:>10.1f} {d['rmse']:>10.3f}\n"
-        )
+        summary += f"  {g:<15} {d['mean_jsd']:>10.4f} {d['max_jsd']:>10.4f} {d['peak_time']:>10.1f} {d['rmse']:>10.3f}\n"
 
     most_div = sorted_groups[0] if sorted_groups else None
     if most_div:
@@ -2342,12 +2468,16 @@ def run_d_multi(df, config):
 
     variables = config.get("variables") or config.get("columns", [])
     if not variables or len(variables) < 2:
-        result["summary"] = "<<COLOR:danger>>Select at least 2 numeric variables.<</COLOR>>"
+        result["summary"] = (
+            "<<COLOR:danger>>Select at least 2 numeric variables.<</COLOR>>"
+        )
         return result
 
     missing = [v for v in variables if v not in df.columns]
     if missing:
-        result["summary"] = f"<<COLOR:danger>>Columns not found: {', '.join(missing)}<</COLOR>>"
+        result["summary"] = (
+            f"<<COLOR:danger>>Columns not found: {', '.join(missing)}<</COLOR>>"
+        )
         return result
 
     tolerance_pct = config.get("tolerance_pct")
@@ -2355,7 +2485,9 @@ def run_d_multi(df, config):
     work = df[variables].dropna().astype(float)
     n, p = work.shape
     if n < p + 5:
-        result["summary"] = f"<<COLOR:danger>>Need at least {p + 5} observations (have {n}).<</COLOR>>"
+        result["summary"] = (
+            f"<<COLOR:danger>>Need at least {p + 5} observations (have {n}).<</COLOR>>"
+        )
         return result
 
     data_matrix = work.values
@@ -2442,7 +2574,14 @@ def run_d_multi(df, config):
                     }
                 )
             else:
-                var_cpk.append({"variable": v, "cpk": 999.0, "lsl": round(v_lsl, 4), "usl": round(v_usl, 4)})
+                var_cpk.append(
+                    {
+                        "variable": v,
+                        "cpk": 999.0,
+                        "lsl": round(v_lsl, 4),
+                        "usl": round(v_usl, 4),
+                    }
+                )
 
     # T² capability: proportion within UCL
     t2_capability = float(1.0 - ooc_mask.mean())
@@ -2516,7 +2655,10 @@ def run_d_multi(df, config):
             "layout": {
                 "height": 380,
                 "xaxis": {"title": f"PC1 ({explained[0] * 100:.1f}%)"},
-                "yaxis": {"title": f"PC2 ({explained[1] * 100:.1f}%)", "scaleanchor": "x"},
+                "yaxis": {
+                    "title": f"PC2 ({explained[1] * 100:.1f}%)",
+                    "scaleanchor": "x",
+                },
                 "showlegend": True,
                 "annotations": arrow_annotations,
             },
@@ -2535,7 +2677,12 @@ def run_d_multi(df, config):
                     "y": T2.tolist(),
                     "mode": "lines+markers",
                     "name": "T²",
-                    "marker": {"color": [COLOR_BAD if ooc else SVEND_COLORS[0] for ooc in ooc_mask], "size": 4},
+                    "marker": {
+                        "color": [
+                            COLOR_BAD if ooc else SVEND_COLORS[0] for ooc in ooc_mask
+                        ],
+                        "size": 4,
+                    },
                     "line": {"color": SVEND_COLORS[0], "width": 1},
                 },
             ],
@@ -2580,7 +2727,11 @@ def run_d_multi(df, config):
                     "name": "Cpk",
                     "marker": {
                         "color": [
-                            COLOR_GOOD if c >= 1.33 else (COLOR_WARNING if c >= 1.0 else COLOR_BAD)
+                            (
+                                COLOR_GOOD
+                                if c >= 1.33
+                                else (COLOR_WARNING if c >= 1.0 else COLOR_BAD)
+                            )
                             for c in component_cpk
                         ]
                     },
@@ -2669,9 +2820,7 @@ def run_d_multi(df, config):
         summary += f"\n<<COLOR:danger>>Multivariate process is NOT capable (MCpk = {mcpk:.3f}).<</COLOR>>"
 
     if n_ooc > 0:
-        summary += (
-            f"\n<<COLOR:warning>>{n_ooc} observations exceed T² UCL — investigate multivariate outliers.<</COLOR>>"
-        )
+        summary += f"\n<<COLOR:warning>>{n_ooc} observations exceed T² UCL — investigate multivariate outliers.<</COLOR>>"
 
     result["summary"] = summary
     result["guide_observation"] = (

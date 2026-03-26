@@ -71,7 +71,9 @@ class INC001StandardTest(SimpleTestCase):
     def test_has_machine_readable_hooks(self):
         """INC-001 contains <!-- assert: --> hooks per DOC-001 §7."""
         assert_count = self.inc_standard.count("<!-- assert:")
-        self.assertGreaterEqual(assert_count, 5, f"Only {assert_count} assertion hooks found")
+        self.assertGreaterEqual(
+            assert_count, 5, f"Only {assert_count} assertion hooks found"
+        )
 
     def test_has_test_hooks(self):
         """INC-001 contains <!-- test: --> hooks linking to test_incidents."""
@@ -103,14 +105,22 @@ class IncidentModelTest(SimpleTestCase):
     def test_uuid_primary_key(self):
         """Incident uses UUID primary key per DAT-001."""
         # Find Incident class body
-        m = re.search(r"class Incident\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class Incident\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         self.assertIsNotNone(m)
         body = m.group()
         self.assertIn("UUIDField(primary_key=True", body)
 
     def test_severity_choices(self):
         """Incident model has severity field with critical/high/medium/low."""
-        m = re.search(r"class Incident\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class Incident\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn("SEVERITY_CHOICES", body)
         for level in ["critical", "high", "medium", "low"]:
@@ -118,16 +128,31 @@ class IncidentModelTest(SimpleTestCase):
 
     def test_status_choices(self):
         """Incident model has status field with lifecycle states."""
-        m = re.search(r"class Incident\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class Incident\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn("STATUS_CHOICES", body)
-        for state in ["detected", "acknowledged", "investigating", "mitigating",
-                       "resolved", "post_mortem", "closed"]:
+        for state in [
+            "detected",
+            "acknowledged",
+            "investigating",
+            "mitigating",
+            "resolved",
+            "post_mortem",
+            "closed",
+        ]:
             self.assertIn(f'"{state}"', body)
 
     def test_category_choices(self):
         """Incident model has category field for classification."""
-        m = re.search(r"class Incident\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class Incident\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn("CATEGORY_CHOICES", body)
         for cat in ["outage", "degradation", "security", "data", "dependency", "other"]:
@@ -135,50 +160,88 @@ class IncidentModelTest(SimpleTestCase):
 
     def test_lifecycle_timestamps(self):
         """Incident model has lifecycle timestamp fields for SLA measurement."""
-        m = re.search(r"class Incident\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class Incident\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
-        for ts_field in ["detected_at", "acknowledged_at", "investigating_at",
-                          "mitigating_at", "resolved_at", "closed_at"]:
+        for ts_field in [
+            "detected_at",
+            "acknowledged_at",
+            "investigating_at",
+            "mitigating_at",
+            "resolved_at",
+            "closed_at",
+        ]:
             self.assertIn(ts_field, body, f"Missing lifecycle timestamp: {ts_field}")
 
     def test_actor_fields(self):
         """Incident model has reported_by and assigned_to fields."""
-        m = re.search(r"class Incident\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class Incident\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn("reported_by", body)
         self.assertIn("assigned_to", body)
 
     def test_change_request_fk(self):
         """Incident links to ChangeRequest for remediation (INC-001 §8.3)."""
-        m = re.search(r"class Incident\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class Incident\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn("change_request", body)
         self.assertIn("ChangeRequest", body)
 
     def test_resolution_fields(self):
         """Incident has root_cause, resolution_summary, and post_mortem_notes."""
-        m = re.search(r"class Incident\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class Incident\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         for field in ["root_cause", "resolution_summary", "post_mortem_notes"]:
             self.assertIn(field, body, f"Missing resolution field: {field}")
 
     def test_sla_properties(self):
         """Incident has SLA breach detection properties."""
-        m = re.search(r"class Incident\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class Incident\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
-        for prop in ["ack_elapsed_hours", "resolution_elapsed_hours",
-                      "is_ack_sla_breached", "is_resolution_sla_breached"]:
+        for prop in [
+            "ack_elapsed_hours",
+            "resolution_elapsed_hours",
+            "is_ack_sla_breached",
+            "is_resolution_sla_breached",
+        ]:
             self.assertIn(prop, body, f"Missing SLA property: {prop}")
 
     def test_db_table_name(self):
         """Incident uses syn_audit_incident table name."""
-        m = re.search(r"class Incident\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class Incident\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn('db_table = "syn_audit_incident"', body)
 
     def test_correlation_id(self):
         """Incident has correlation_id for audit trail linkage."""
-        m = re.search(r"class Incident\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class Incident\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn("correlation_id", body)
 
@@ -198,35 +261,61 @@ class IncidentLogTest(SimpleTestCase):
 
     def test_action_choices(self):
         """IncidentLog has ACTION_CHOICES with state transitions and events."""
-        m = re.search(r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn("ACTION_CHOICES", body)
-        for action in ["detected", "acknowledged", "escalated", "comment", "severity_changed"]:
+        for action in [
+            "detected",
+            "acknowledged",
+            "escalated",
+            "comment",
+            "severity_changed",
+        ]:
             self.assertIn(f'"{action}"', body)
 
     def test_incident_fk(self):
         """IncidentLog has FK to Incident."""
-        m = re.search(r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn("ForeignKey", body)
         self.assertIn("Incident", body)
 
     def test_state_transition_fields(self):
         """IncidentLog records from_state and to_state."""
-        m = re.search(r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn("from_state", body)
         self.assertIn("to_state", body)
 
     def test_actor_field(self):
         """IncidentLog records who made the change."""
-        m = re.search(r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn("actor", body)
 
     def test_immutability(self):
         """IncidentLog save() raises error on update, delete() raises error."""
-        m = re.search(r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         # save() blocks updates
         self.assertIn("ValidationError", body)
@@ -236,13 +325,21 @@ class IncidentLogTest(SimpleTestCase):
 
     def test_db_table_name(self):
         """IncidentLog uses syn_audit_incident_log table name."""
-        m = re.search(r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn('db_table = "syn_audit_incident_log"', body)
 
     def test_default_permissions(self):
         """IncidentLog restricts permissions to add and view only."""
-        m = re.search(r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)", self.models_src, re.DOTALL)
+        m = re.search(
+            r"class IncidentLog\(models\.Model\).*?(?=\nclass |\Z)",
+            self.models_src,
+            re.DOTALL,
+        )
         body = m.group()
         self.assertIn("default_permissions", body)
 
@@ -261,12 +358,16 @@ class IncidentSLAMeasurementTest(SimpleTestCase):
         """_measure_incident_response is a real implementation, not a stub."""
         fn_match = re.search(
             r"def _measure_incident_response\(.*?(?=\ndef |\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         self.assertIsNotNone(fn_match)
         fn_body = fn_match.group()
         # Should not just return unmeasurable
-        self.assertNotIn('return {"status": "unmeasurable"', fn_body.split("\n")[1] if len(fn_body.split("\n")) > 1 else "")
+        self.assertNotIn(
+            'return {"status": "unmeasurable"',
+            fn_body.split("\n")[1] if len(fn_body.split("\n")) > 1 else "",
+        )
         # Should reference Incident model
         self.assertIn("Incident", fn_body)
 
@@ -274,7 +375,8 @@ class IncidentSLAMeasurementTest(SimpleTestCase):
         """_measure_incident_response queries the Incident model."""
         fn_match = re.search(
             r"def _measure_incident_response\(.*?(?=\ndef |\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         fn_body = fn_match.group()
         self.assertIn("Incident.objects.filter", fn_body)
@@ -283,7 +385,8 @@ class IncidentSLAMeasurementTest(SimpleTestCase):
         """_measure_incident_response differentiates ack vs resolution SLAs."""
         fn_match = re.search(
             r"def _measure_incident_response\(.*?(?=\ndef |\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         fn_body = fn_match.group()
         self.assertIn("ack", fn_body)
@@ -294,7 +397,8 @@ class IncidentSLAMeasurementTest(SimpleTestCase):
         """_measure_incident_response calculates compliance percentage."""
         fn_match = re.search(
             r"def _measure_incident_response\(.*?(?=\ndef |\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         fn_body = fn_match.group()
         self.assertIn("compliance_pct", fn_body)
@@ -303,7 +407,8 @@ class IncidentSLAMeasurementTest(SimpleTestCase):
         """_measure_incident_response returns 'met' when no incidents exist."""
         fn_match = re.search(
             r"def _measure_incident_response\(.*?(?=\ndef |\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         fn_body = fn_match.group()
         self.assertIn("No incidents", fn_body)
@@ -326,7 +431,8 @@ class IncidentReadinessTest(SimpleTestCase):
         """incident_readiness verifies INC-001 standard exists."""
         fn_match = re.search(
             r"def check_incident_readiness\(.*?(?=\ndef |\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         self.assertIsNotNone(fn_match)
         fn_body = fn_match.group()
@@ -336,7 +442,8 @@ class IncidentReadinessTest(SimpleTestCase):
         """incident_readiness verifies Incident model is accessible."""
         fn_match = re.search(
             r"def check_incident_readiness\(.*?(?=\ndef |\Z)",
-            self.compliance_src, re.DOTALL,
+            self.compliance_src,
+            re.DOTALL,
         )
         fn_body = fn_match.group()
         self.assertIn("Incident", fn_body)
@@ -414,7 +521,8 @@ class IncidentAPITest(SimpleTestCase):
         """api_incident_transition creates IncidentLog entries."""
         fn_match = re.search(
             r"def api_incident_transition\(.*?(?=\ndef |\Z)",
-            self.views_src, re.DOTALL,
+            self.views_src,
+            re.DOTALL,
         )
         self.assertIsNotNone(fn_match)
         fn_body = fn_match.group()
@@ -441,7 +549,8 @@ class SLA001IntegrationTest(SimpleTestCase):
         self.assertGreater(len(incident_tags), 0, "No incident_response SLA tags found")
         for tag in incident_tags:
             self.assertIn(
-                "measurement=automated", tag,
+                "measurement=automated",
+                tag,
                 f"Incident SLA not automated: {tag[:80]}",
             )
 
@@ -453,6 +562,7 @@ class SLA001IntegrationTest(SimpleTestCase):
         )
         for tag in incident_tags:
             self.assertNotIn(
-                "measurement=manual", tag,
+                "measurement=manual",
+                tag,
                 f"Incident SLA still manual: {tag[:80]}",
             )

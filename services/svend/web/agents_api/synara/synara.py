@@ -49,7 +49,9 @@ class UpdateResult:
             "likelihoods": self.likelihoods,
             "posteriors": self.posteriors,
             "propagated_changes": self.propagated_changes,
-            "expansion_signal": self.expansion_signal.to_dict() if self.expansion_signal else None,
+            "expansion_signal": (
+                self.expansion_signal.to_dict() if self.expansion_signal else None
+            ),
             "most_supported": self.most_supported,
             "most_weakened": self.most_weakened,
         }
@@ -199,7 +201,9 @@ class Synara:
         self.graph.evidence.append(evidence)
 
         # Store prior posteriors for comparison
-        prior_posteriors = {h_id: h.posterior for h_id, h in self.graph.hypotheses.items()}
+        prior_posteriors = {
+            h_id: h.posterior for h_id, h in self.graph.hypotheses.items()
+        }
 
         # 1. Compute likelihoods
         likelihoods = self.belief_engine.compute_all_likelihoods(self.graph, evidence)
@@ -210,7 +214,9 @@ class Synara:
             self.expansion_signals.append(expansion_signal)
 
         # 3. Update posteriors
-        posteriors = self.belief_engine.update_posteriors(self.graph, evidence, likelihoods)
+        posteriors = self.belief_engine.update_posteriors(
+            self.graph, evidence, likelihoods
+        )
 
         # 4. Propagate through causal graph
         propagated_changes = {}
@@ -345,7 +351,11 @@ class Synara:
             return []
 
         top_posterior = max(h.posterior for h in self.graph.hypotheses.values())
-        return [h for h in self.graph.hypotheses.values() if h.posterior >= top_posterior - threshold]
+        return [
+            h
+            for h in self.graph.hypotheses.values()
+            if h.posterior >= top_posterior - threshold
+        ]
 
     def get_causal_chains_to(self, h_id: str) -> list[list[str]]:
         """Get all causal chains leading to a hypothesis."""
@@ -362,8 +372,12 @@ class Synara:
             return {"error": "Hypothesis not found"}
 
         # Get supporting and weakening evidence
-        supporting_evidence = [e for e in self.graph.evidence if e.id in hypothesis.evidence_for]
-        weakening_evidence = [e for e in self.graph.evidence if e.id in hypothesis.evidence_against]
+        supporting_evidence = [
+            e for e in self.graph.evidence if e.id in hypothesis.evidence_for
+        ]
+        weakening_evidence = [
+            e for e in self.graph.evidence if e.id in hypothesis.evidence_against
+        ]
 
         # Get causal influences
         upstream = self.graph.get_upstream(h_id)
@@ -374,8 +388,12 @@ class Synara:
             "description": hypothesis.description,
             "prior": hypothesis.prior,
             "posterior": hypothesis.posterior,
-            "evidence_for": [{"id": e.id, "event": e.event} for e in supporting_evidence],
-            "evidence_against": [{"id": e.id, "event": e.event} for e in weakening_evidence],
+            "evidence_for": [
+                {"id": e.id, "event": e.event} for e in supporting_evidence
+            ],
+            "evidence_against": [
+                {"id": e.id, "event": e.event} for e in weakening_evidence
+            ],
             "upstream_causes": upstream,
             "downstream_effects": downstream,
             "domain_conditions": hypothesis.domain_conditions,
@@ -391,7 +409,9 @@ class Synara:
         return {
             "graph": self.graph.to_dict(),
             "expansion_signals": [s.to_dict() for s in self.expansion_signals],
-            "update_history": [r.to_dict() for r in self.update_history[-50:]],  # Last 50
+            "update_history": [
+                r.to_dict() for r in self.update_history[-50:]
+            ],  # Last 50
         }
 
     @classmethod

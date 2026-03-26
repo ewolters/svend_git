@@ -125,7 +125,9 @@ class TestChangeManagementCheck(TestCase):
         result = run_check("change_management")
         issues = result.details.get("issues", [])
         # Should warn about emergency without retroactive RA
-        has_emergency_warn = any("emergency" in i.lower() or "hotfix" in i.lower() for i in issues)
+        has_emergency_warn = any(
+            "emergency" in i.lower() or "hotfix" in i.lower() for i in issues
+        )
         # Note: The check counts emergency CRs across the whole DB, so the
         # exact warning text depends on other data. We just verify the check runs
         # without error and returns a valid structure.
@@ -169,7 +171,9 @@ class TestChangeManagementCheck(TestCase):
 
         result = run_check("change_management")
         issues = result.details.get("issues", [])
-        has_log_warn = any("completed" in i.lower() and "log" in i.lower() for i in issues)
+        has_log_warn = any(
+            "completed" in i.lower() and "log" in i.lower() for i in issues
+        )
         self.assertTrue(has_log_warn, f"Expected missing-log warning, got: {issues}")
 
     def test_missing_commit_sha_in_log_warns(self):
@@ -241,7 +245,9 @@ class TestCodeStyleSubChecks(SimpleTestCase):
     def test_no_class_docstring_violations(self):
         """All non-exempt classes have docstrings."""
         violations = _scan_class_docstrings(WEB_ROOT)
-        self.assertEqual(violations, [], f"Class docstring violations: {violations[:5]}")
+        self.assertEqual(
+            violations, [], f"Class docstring violations: {violations[:5]}"
+        )
 
 
 class TestCodeStyleCheck(TestCase):
@@ -319,7 +325,9 @@ class TestSymbolCoverageCheck(TestCase):
         result = run_check("symbol_coverage")
         details = result.details
         for key in ("total_symbols", "covered_symbols", "covered_pct", "risk_score"):
-            self.assertIn(key, details, f"Missing key '{key}' in symbol_coverage details")
+            self.assertIn(
+                key, details, f"Missing key '{key}' in symbol_coverage details"
+            )
 
     def test_coverage_pct_is_ratio(self):
         """covered_pct equals covered_symbols / total_symbols * 100."""
@@ -337,7 +345,9 @@ class TestSymbolCoverageCheck(TestCase):
         d = result.details
         ungoverned = d["total_symbols"] - d["covered_symbols"]
         if ungoverned > 0:
-            self.assertGreater(d["risk_score"], 0, "Risk score should be > 0 with ungoverned symbols")
+            self.assertGreater(
+                d["risk_score"], 0, "Risk score should be > 0 with ungoverned symbols"
+            )
 
     def test_status_reflects_threshold(self):
         """Status is fail when coverage < 50%, pass when >= 50%."""
@@ -389,4 +399,6 @@ class TestCC81Integration(TestCase):
         valid = {"pass", "warning", "fail", "error"}
         for name in self.CC81_CHECKS:
             result = run_check(name)
-            self.assertIn(result.status, valid, f"{name} returned invalid status: {result.status}")
+            self.assertIn(
+                result.status, valid, f"{name} returned invalid status: {result.status}"
+            )

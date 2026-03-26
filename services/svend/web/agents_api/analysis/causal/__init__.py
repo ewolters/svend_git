@@ -42,7 +42,9 @@ def run_causal_discovery(df, analysis_id, config):
     if not variables:
         variables = df.select_dtypes(include=[np.number]).columns.tolist()
     if len(variables) < 2:
-        result["summary"] = "Error: Need at least 2 numeric variables for causal discovery."
+        result["summary"] = (
+            "Error: Need at least 2 numeric variables for causal discovery."
+        )
         return result
 
     # Clean data: drop rows with NaN in selected variables
@@ -141,7 +143,13 @@ def _run_pc_core(data, labels, alpha, max_cond_size):
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        cg = pc(data, alpha=alpha, indep_test="fisherz", node_names=labels, depth=max_cond_size)
+        cg = pc(
+            data,
+            alpha=alpha,
+            indep_test="fisherz",
+            node_names=labels,
+            depth=max_cond_size,
+        )
 
     graph_matrix = cg.G.graph  # p×p, -1=tail, 1=arrowhead
 
@@ -155,14 +163,20 @@ def _run_pc_core(data, labels, alpha, max_cond_size):
         for j in range(i + 1, p):
             # If no edge exists, find the separating set
             if graph_matrix[i, j] == 0 and graph_matrix[j, i] == 0:
-                raw = sepset[i][j] if sepset[i][j] is not None else (sepset[j][i] if sepset[j][i] is not None else None)
+                raw = (
+                    sepset[i][j]
+                    if sepset[i][j] is not None
+                    else (sepset[j][i] if sepset[j][i] is not None else None)
+                )
                 if raw is not None:
                     # raw is a list of tuples, e.g. [(2,), (2,)] — take first
                     first = raw[0] if isinstance(raw, list) and len(raw) > 0 else raw
                     cond_indices = [int(x) for x in first] if first else []
                     rho, pval, z = _partial_corr_test(data, i, j, cond_indices, n)
                     depth = len(cond_indices)
-                    cond_names = [labels[k] for k in cond_indices] if cond_indices else []
+                    cond_names = (
+                        [labels[k] for k in cond_indices] if cond_indices else []
+                    )
 
                     separating_sets[(i, j)] = {
                         "cond_set": cond_indices,
@@ -174,7 +188,9 @@ def _run_pc_core(data, labels, alpha, max_cond_size):
 
                     if depth not in edges_removed_by_depth:
                         edges_removed_by_depth[depth] = []
-                    edges_removed_by_depth[depth].append((labels[i], labels[j], cond_names, pval))
+                    edges_removed_by_depth[depth].append(
+                        (labels[i], labels[j], cond_names, pval)
+                    )
 
     return graph_matrix, separating_sets, edges_removed_by_depth
 
@@ -215,7 +231,11 @@ def _run_pc_analysis(data, labels, alpha, max_cond_size, n_boot, result):
     # --- Build plots ---
     result["plots"].append(
         _build_dag_plot(
-            labels, directed_edges, undirected_edges, edge_stability, title="PC Algorithm — Candidate Causal Structure"
+            labels,
+            directed_edges,
+            undirected_edges,
+            edge_stability,
+            title="PC Algorithm — Candidate Causal Structure",
         )
     )
 
@@ -225,7 +245,16 @@ def _run_pc_analysis(data, labels, alpha, max_cond_size, n_boot, result):
 
     # --- Summary ---
     result["summary"] = _build_pc_summary(
-        labels, directed_edges, undirected_edges, sep_sets, removed_by_depth, edge_stability, alpha, max_cond_size, n, p
+        labels,
+        directed_edges,
+        undirected_edges,
+        sep_sets,
+        removed_by_depth,
+        edge_stability,
+        alpha,
+        max_cond_size,
+        n,
+        p,
     )
 
     # --- Statistics dict ---
@@ -233,12 +262,24 @@ def _run_pc_analysis(data, labels, alpha, max_cond_size, n_boot, result):
     for src, tgt, strength in directed_edges:
         stab = edge_stability.get(_edge_key(src, tgt), 0)
         adj_list.append(
-            {"from": src, "to": tgt, "type": "directed", "strength": round(strength, 4), "stability": round(stab, 3)}
+            {
+                "from": src,
+                "to": tgt,
+                "type": "directed",
+                "strength": round(strength, 4),
+                "stability": round(stab, 3),
+            }
         )
     for a, b, strength in undirected_edges:
         stab = edge_stability.get(_edge_key(a, b), 0)
         adj_list.append(
-            {"from": a, "to": b, "type": "undirected", "strength": round(strength, 4), "stability": round(stab, 3)}
+            {
+                "from": a,
+                "to": b,
+                "type": "undirected",
+                "strength": round(strength, 4),
+                "stability": round(stab, 3),
+            }
         )
 
     result["statistics"] = {
@@ -290,7 +331,13 @@ def _bootstrap_pc(data, labels, alpha, max_cond_size, n_boot):
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                cg = pc(boot_data, alpha=alpha, indep_test="fisherz", node_names=labels, depth=max_cond_size)
+                cg = pc(
+                    boot_data,
+                    alpha=alpha,
+                    indep_test="fisherz",
+                    node_names=labels,
+                    depth=max_cond_size,
+                )
             G = cg.G.graph
             for i in range(p):
                 for j in range(i + 1, p):
@@ -377,7 +424,15 @@ def _run_lingam_analysis(data, labels, alpha, n_boot, result):
 
     # --- Summary ---
     result["summary"] = _build_lingam_summary(
-        labels, directed_edges, causal_order, edge_stability, edge_cis, gaussianity_warnings, n, p, n_boot
+        labels,
+        directed_edges,
+        causal_order,
+        edge_stability,
+        edge_cis,
+        gaussianity_warnings,
+        n,
+        p,
+        n_boot,
     )
 
     # --- Statistics ---
@@ -462,7 +517,12 @@ def _bootstrap_lingam(data, labels, n_boot):
 # Plotting
 # ===========================================================================
 def _build_dag_plot(
-    labels, directed_edges, undirected_edges, edge_stability, title="Causal Discovery", show_coefficients=False
+    labels,
+    directed_edges,
+    undirected_edges,
+    edge_stability,
+    title="Causal Discovery",
+    show_coefficients=False,
 ):
     """Build a Plotly figure of the causal DAG with nodes in a circle layout."""
     p = len(labels)
@@ -470,7 +530,10 @@ def _build_dag_plot(
     angles = np.linspace(0, 2 * np.pi, p, endpoint=False)
     # Start from top, go clockwise
     angles = np.pi / 2 - angles
-    pos = {labels[i]: (float(np.cos(angles[i])), float(np.sin(angles[i]))) for i in range(p)}
+    pos = {
+        labels[i]: (float(np.cos(angles[i])), float(np.sin(angles[i])))
+        for i in range(p)
+    }
 
     traces = []
 
@@ -487,7 +550,11 @@ def _build_dag_plot(
                 "mode": "lines",
                 "x": [x0, x1, None],
                 "y": [y0, y1, None],
-                "line": {"color": f"rgba(150,150,150,{opacity})", "width": 1.5, "dash": "dash"},
+                "line": {
+                    "color": f"rgba(150,150,150,{opacity})",
+                    "width": 1.5,
+                    "dash": "dash",
+                },
                 "hoverinfo": "text",
                 "text": f"{a} — {b} (undirected, stability={stab:.0%})",
                 "showlegend": False,
@@ -578,7 +645,11 @@ def _build_dag_plot(
             "mode": "markers+text",
             "x": node_x,
             "y": node_y,
-            "marker": {"size": 28, "color": "#1a3a5c", "line": {"width": 2, "color": "#4a9f6e"}},
+            "marker": {
+                "size": 28,
+                "color": "#1a3a5c",
+                "line": {"width": 2, "color": "#4a9f6e"},
+            },
             "text": labels,
             "textposition": "middle center",
             "textfont": {"color": "white", "size": 10},
@@ -611,7 +682,11 @@ def _build_stability_plot(edge_stability, labels):
     edge_names = [k for k, v in sorted_edges]
     stabilities = [v for k, v in sorted_edges]
     colors = [
-        "rgba(74,159,110,0.7)" if s >= 0.7 else "rgba(200,170,60,0.7)" if s >= 0.5 else "rgba(208,96,96,0.7)"
+        (
+            "rgba(74,159,110,0.7)"
+            if s >= 0.7
+            else "rgba(200,170,60,0.7)" if s >= 0.5 else "rgba(208,96,96,0.7)"
+        )
         for s in stabilities
     ]
 
@@ -630,7 +705,11 @@ def _build_stability_plot(edge_stability, labels):
         "layout": {
             "template": "plotly_dark",
             "height": max(200, len(edge_names) * 25),
-            "xaxis": {"title": "Bootstrap frequency", "range": [0, 1], "tickformat": ".0%"},
+            "xaxis": {
+                "title": "Bootstrap frequency",
+                "range": [0, 1],
+                "tickformat": ".0%",
+            },
             "yaxis": {"automargin": True},
             "shapes": [
                 {
@@ -649,7 +728,18 @@ def _build_stability_plot(edge_stability, labels):
 # ===========================================================================
 # Summary builders
 # ===========================================================================
-def _build_pc_summary(labels, directed, undirected, sep_sets, removed_by_depth, stability, alpha, max_cond, n, p):
+def _build_pc_summary(
+    labels,
+    directed,
+    undirected,
+    sep_sets,
+    removed_by_depth,
+    stability,
+    alpha,
+    max_cond,
+    n,
+    p,
+):
     """Build the PC summary text with separating-set explanations."""
     lines = []
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>")
@@ -670,11 +760,15 @@ def _build_pc_summary(labels, directed, undirected, sep_sets, removed_by_depth, 
             key = _edge_key(src, tgt)
             stab = stability.get(key, 0)
             stab_icon = "●" if stab >= 0.7 else "◐" if stab >= 0.5 else "○"
-            lines.append(f"  {stab_icon} {src} → {tgt}  (|ρ|={strength:.3f}, stability={stab:.0%})")
+            lines.append(
+                f"  {stab_icon} {src} → {tgt}  (|ρ|={strength:.3f}, stability={stab:.0%})"
+            )
         lines.append("")
 
     if undirected:
-        lines.append("<<COLOR:accent>>── Undirected Edges (direction unresolved) ──<</COLOR>>")
+        lines.append(
+            "<<COLOR:accent>>── Undirected Edges (direction unresolved) ──<</COLOR>>"
+        )
         for a, b, strength in undirected:
             key = _edge_key(a, b)
             stab = stability.get(key, 0)
@@ -705,18 +799,30 @@ def _build_pc_summary(labels, directed, undirected, sep_sets, removed_by_depth, 
 
     # Assumptions
     lines.append("<<COLOR:accent>>── Assumptions ──<</COLOR>>")
-    lines.append("<<COLOR:warning>>This is a candidate causal structure, not ground truth.<</COLOR>>")
+    lines.append(
+        "<<COLOR:warning>>This is a candidate causal structure, not ground truth.<</COLOR>>"
+    )
     lines.append("  The PC algorithm assumes:")
-    lines.append("  1. Causal sufficiency — no hidden common causes (use FCI if violated)")
-    lines.append("  2. Faithfulness — all conditional independences reflect the true graph")
+    lines.append(
+        "  1. Causal sufficiency — no hidden common causes (use FCI if violated)"
+    )
+    lines.append(
+        "  2. Faithfulness — all conditional independences reflect the true graph"
+    )
     lines.append("  3. i.i.d. sampling — observations are independent")
-    lines.append("  4. Gaussian CI test — partial correlations detect linear dependencies only")
-    lines.append("\n  Sensitivity: try α=0.01 (sparser) or α=0.10 (denser) to assess stability.")
+    lines.append(
+        "  4. Gaussian CI test — partial correlations detect linear dependencies only"
+    )
+    lines.append(
+        "\n  Sensitivity: try α=0.01 (sparser) or α=0.10 (denser) to assess stability."
+    )
 
     return "\n".join(lines)
 
 
-def _build_lingam_summary(labels, directed, causal_order, stability, edge_cis, gauss_warnings, n, p, n_boot):
+def _build_lingam_summary(
+    labels, directed, causal_order, stability, edge_cis, gauss_warnings, n, p, n_boot
+):
     """Build the LiNGAM summary text."""
     lines = []
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>")
@@ -726,7 +832,9 @@ def _build_lingam_summary(labels, directed, causal_order, stability, edge_cis, g
     lines.append(f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(labels)}")
     lines.append(f"<<COLOR:highlight>>Observations:<</COLOR>> {n}")
     lines.append(f"<<COLOR:highlight>>Edges found:<</COLOR>> {len(directed)}")
-    lines.append(f"<<COLOR:highlight>>Causal order:<</COLOR>> {' → '.join(labels[i] for i in causal_order)}")
+    lines.append(
+        f"<<COLOR:highlight>>Causal order:<</COLOR>> {' → '.join(labels[i] for i in causal_order)}"
+    )
     lines.append(f"<<COLOR:highlight>>Bootstrap resamples:<</COLOR>> {n_boot}\n")
 
     # Edges with CIs
@@ -742,7 +850,9 @@ def _build_lingam_summary(labels, directed, causal_order, stability, edge_cis, g
             if ci:
                 ci_str = f", 95% CI [{ci['ci_low']:.3f}, {ci['ci_high']:.3f}]"
 
-            lines.append(f"  {stab_icon} {src} → {tgt}  (B={coef:.3f}{ci_str}, stability={stab:.0%})")
+            lines.append(
+                f"  {stab_icon} {src} → {tgt}  (B={coef:.3f}{ci_str}, stability={stab:.0%})"
+            )
         lines.append("")
 
     # Gaussianity warnings
@@ -757,7 +867,9 @@ def _build_lingam_summary(labels, directed, causal_order, stability, edge_cis, g
 
     # Assumptions
     lines.append("<<COLOR:accent>>── Assumptions ──<</COLOR>>")
-    lines.append("<<COLOR:warning>>This is a candidate causal structure, not ground truth.<</COLOR>>")
+    lines.append(
+        "<<COLOR:warning>>This is a candidate causal structure, not ground truth.<</COLOR>>"
+    )
     lines.append("  LiNGAM assumes:")
     lines.append("  1. Linear relationships (X = BX + e)")
     lines.append("  2. Non-Gaussian error terms (violated → edges may reverse)")

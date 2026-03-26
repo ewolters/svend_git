@@ -6,26 +6,37 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0013_alter_subscription_cancel_at_period_end_and_more'),
+        ("accounts", "0013_alter_subscription_cancel_at_period_end_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='LoginAttempt',
+            name="LoginAttempt",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('username', models.CharField(db_index=True, max_length=255)),
-                ('ip_address', models.GenericIPAddressField(blank=True, null=True)),
-                ('attempted_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('was_successful', models.BooleanField(default=False)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("username", models.CharField(db_index=True, max_length=255)),
+                ("ip_address", models.GenericIPAddressField(blank=True, null=True)),
+                (
+                    "attempted_at",
+                    models.DateTimeField(auto_now_add=True, db_index=True),
+                ),
+                ("was_successful", models.BooleanField(default=False)),
             ],
             options={
-                'db_table': 'login_attempts',
+                "db_table": "login_attempts",
             },
         ),
         migrations.AddField(
-            model_name='user',
-            name='email_verification_token_sent_at',
+            model_name="user",
+            name="email_verification_token_sent_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
     ]

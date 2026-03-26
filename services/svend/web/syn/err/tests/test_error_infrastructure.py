@@ -402,10 +402,19 @@ class ErrorTypesTest(SimpleTestCase):
 
     def test_severity_levels_ordered(self):
         """Severity numeric levels increase: DEBUG < INFO < WARNING < ERROR < CRITICAL."""
-        self.assertLess(SEVERITY_LEVELS[ErrorSeverity.DEBUG], SEVERITY_LEVELS[ErrorSeverity.INFO])
-        self.assertLess(SEVERITY_LEVELS[ErrorSeverity.INFO], SEVERITY_LEVELS[ErrorSeverity.WARNING])
-        self.assertLess(SEVERITY_LEVELS[ErrorSeverity.WARNING], SEVERITY_LEVELS[ErrorSeverity.ERROR])
-        self.assertLess(SEVERITY_LEVELS[ErrorSeverity.ERROR], SEVERITY_LEVELS[ErrorSeverity.CRITICAL])
+        self.assertLess(
+            SEVERITY_LEVELS[ErrorSeverity.DEBUG], SEVERITY_LEVELS[ErrorSeverity.INFO]
+        )
+        self.assertLess(
+            SEVERITY_LEVELS[ErrorSeverity.INFO], SEVERITY_LEVELS[ErrorSeverity.WARNING]
+        )
+        self.assertLess(
+            SEVERITY_LEVELS[ErrorSeverity.WARNING], SEVERITY_LEVELS[ErrorSeverity.ERROR]
+        )
+        self.assertLess(
+            SEVERITY_LEVELS[ErrorSeverity.ERROR],
+            SEVERITY_LEVELS[ErrorSeverity.CRITICAL],
+        )
 
     def test_category_has_ten_values(self):
         """ErrorCategory has 10 values."""
@@ -414,7 +423,11 @@ class ErrorTypesTest(SimpleTestCase):
     def test_every_category_has_status_code(self):
         """Every ErrorCategory maps to an HTTP status code."""
         for cat in ErrorCategory:
-            self.assertIn(cat, CATEGORY_STATUS_CODES, f"{cat.value} missing from CATEGORY_STATUS_CODES")
+            self.assertIn(
+                cat,
+                CATEGORY_STATUS_CODES,
+                f"{cat.value} missing from CATEGORY_STATUS_CODES",
+            )
 
     def test_retryable_categories_subset(self):
         """RETRYABLE_CATEGORIES is a subset of ErrorCategory."""
@@ -480,7 +493,10 @@ class ErrorRegistryTest(SimpleTestCase):
         # governs exception.retryable). Registry marks database_error as retryable
         # because DB errors can be transient even though the exception category
         # isn't in the strict retryable set.
-        transient_categories = RETRYABLE_CATEGORIES | {ErrorCategory.SYSTEM, ErrorCategory.DATABASE}
+        transient_categories = RETRYABLE_CATEGORIES | {
+            ErrorCategory.SYSTEM,
+            ErrorCategory.DATABASE,
+        }
         for code, entry in ERROR_REGISTRY.items():
             if entry.retryable:
                 self.assertIn(
@@ -1147,7 +1163,9 @@ class DefaultConfigTest(SimpleTestCase):
         self.assertEqual(DEFAULT_RETRY_CONFIG.strategy, RetryStrategy.EXPONENTIAL)
         self.assertEqual(DEFAULT_RETRY_CONFIG.max_attempts, 3)
         self.assertGreater(DEFAULT_RETRY_CONFIG.base_delay_ms, 0)
-        self.assertGreater(DEFAULT_RETRY_CONFIG.max_delay_ms, DEFAULT_RETRY_CONFIG.base_delay_ms)
+        self.assertGreater(
+            DEFAULT_RETRY_CONFIG.max_delay_ms, DEFAULT_RETRY_CONFIG.base_delay_ms
+        )
 
     def test_default_circuit_breaker_config(self):
         """DEFAULT_CIRCUIT_BREAKER_CONFIG has expected defaults."""

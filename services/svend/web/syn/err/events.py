@@ -96,7 +96,15 @@ ERROR_LOGGED = EventDefinition(
             },
             "layer": {
                 "type": "string",
-                "enum": ["API", "SERVICE", "REPOSITORY", "INTEGRATION", "KERNEL", "CLI", "UI"],
+                "enum": [
+                    "API",
+                    "SERVICE",
+                    "REPOSITORY",
+                    "INTEGRATION",
+                    "KERNEL",
+                    "CLI",
+                    "UI",
+                ],
                 "description": "System layer where error occurred",
             },
             "operation": {
@@ -325,7 +333,11 @@ CIRCUIT_BREAKER_OPENED = EventDefinition(
     severity="WARNING",
     payload_schema={
         "type": "object",
-        "required": ["circuit_breaker_name", "consecutive_failures", "failure_threshold"],
+        "required": [
+            "circuit_breaker_name",
+            "consecutive_failures",
+            "failure_threshold",
+        ],
         "properties": {
             "circuit_breaker_name": {
                 "type": "string",

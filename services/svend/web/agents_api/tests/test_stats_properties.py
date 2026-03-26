@@ -38,7 +38,9 @@ def _run_spc(analysis_id, config, data_dict):
 # --- Strategies ---
 
 # Finite floats suitable for statistical data (no nan/inf, reasonable range)
-stat_float = st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False)
+stat_float = st.floats(
+    min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False
+)
 
 # Lists of floats for one-sample data
 sample_data = st.lists(stat_float, min_size=10, max_size=200)
@@ -49,7 +51,9 @@ two_samples = st.tuples(
     st.lists(stat_float, min_size=10, max_size=100),
 )
 
-PROP_SETTINGS = settings(max_examples=20, deadline=10000, suppress_health_check=[HealthCheck.too_slow])
+PROP_SETTINGS = settings(
+    max_examples=20, deadline=10000, suppress_health_check=[HealthCheck.too_slow]
+)
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +137,9 @@ class RSquaredBoundsTest(TestCase):
         assume(len(set(x)) > 5)  # need real variance in predictor
         assume(len(set(y)) > 5)
 
-        result = _run_stats("regression", {"response": "y", "predictors": ["x"]}, {"x": x, "y": y})
+        result = _run_stats(
+            "regression", {"response": "y", "predictors": ["x"]}, {"x": x, "y": y}
+        )
         r2 = (result.get("regression_metrics") or {}).get("r_squared")
         if r2 is not None:
             self.assertGreaterEqual(r2, -0.01, f"R²={r2} < 0")
@@ -195,7 +201,9 @@ class SymmetryTest(TestCase):
         p1 = r1.get("statistics", {}).get("p_value")
         p2 = r2.get("statistics", {}).get("p_value")
         if p1 is not None and p2 is not None:
-            self.assertAlmostEqual(p1, p2, delta=1e-10, msg="p-value not symmetric on group swap")
+            self.assertAlmostEqual(
+                p1, p2, delta=1e-10, msg="p-value not symmetric on group swap"
+            )
 
 
 # ---------------------------------------------------------------------------

@@ -64,7 +64,9 @@ def _generate_data(job_id: str) -> dict:
 
     try:
         job.mark_processing()
-        logger.info(f"Processing job {job_id}: {job.data_type}, {job.record_count} records")
+        logger.info(
+            f"Processing job {job_id}: {job.data_type}, {job.record_count} records"
+        )
 
         # Generate based on data type
         if job.data_type == DataType.TABULAR:
@@ -110,7 +112,9 @@ def _generate_data(job_id: str) -> dict:
         return {
             "success": True,
             "records_generated": len(records),
-            "data": records[:100] if len(records) <= 1000 else None,  # Include data for small jobs
+            "data": (
+                records[:100] if len(records) <= 1000 else None
+            ),  # Include data for small jobs
         }
 
     except Exception as e:

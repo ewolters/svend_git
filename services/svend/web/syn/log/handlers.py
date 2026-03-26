@@ -297,7 +297,11 @@ class SynaraLogHandler(logging.Handler):
             # Don't raise exceptions from logging handler
             # Log to stderr for visibility (can't use logger here)
             import sys
-            print(f"[LOG-002] Handler emit error: {type(e).__name__}: {e}", file=sys.stderr)
+
+            print(
+                f"[LOG-002] Handler emit error: {type(e).__name__}: {e}",
+                file=sys.stderr,
+            )
             self.handleError(record)
 
     def _build_entry_data(self, record: logging.LogRecord) -> dict[str, Any]:
@@ -327,7 +331,13 @@ class SynaraLogHandler(logging.Handler):
         context = {}
         if self.include_context:
             # Standard context fields
-            for attr in ["user_id", "request_id", "operation", "resource_type", "resource_id"]:
+            for attr in [
+                "user_id",
+                "request_id",
+                "operation",
+                "resource_type",
+                "resource_id",
+            ]:
                 if hasattr(record, attr):
                     context[attr] = getattr(record, attr)
 
@@ -354,7 +364,9 @@ class SynaraLogHandler(logging.Handler):
                 exception = {
                     "type": exc_type.__name__,
                     "message": str(exc_value),
-                    "traceback": traceback.format_exception(exc_type, exc_value, exc_tb),
+                    "traceback": traceback.format_exception(
+                        exc_type, exc_value, exc_tb
+                    ),
                 }
 
         return {

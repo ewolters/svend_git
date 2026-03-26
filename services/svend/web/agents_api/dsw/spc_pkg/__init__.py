@@ -94,7 +94,11 @@ def run_spc_analysis(df, analysis_id, config):
         return handler(df, config)
 
     # Unknown analysis_id — return empty result
-    return {"plots": [], "summary": f"Unknown SPC analysis_id: {analysis_id}", "guide_observation": ""}
+    return {
+        "plots": [],
+        "summary": f"Unknown SPC analysis_id: {analysis_id}",
+        "guide_observation": "",
+    }
 
 
 def _run_g_t_chart(df, config):
@@ -181,7 +185,9 @@ def _run_g_t_chart(df, config):
                     "line": {"color": "#4a9f6e"},
                     "marker": {"color": colors, "size": 6},
                     "name": var,
-                    "customdata": [[i, "OOC" if i in ooc_indices else ""] for i in range(n)],
+                    "customdata": [
+                        [i, "OOC" if i in ooc_indices else ""] for i in range(n)
+                    ],
                     "hovertemplate": "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra></extra>",
                 },
                 {
@@ -211,7 +217,10 @@ def _run_g_t_chart(df, config):
             ],
             "layout": {
                 "height": 390,
-                "xaxis": {"title": "Observation", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "xaxis": {
+                    "title": "Observation",
+                    "rangeslider": {"visible": True, "thickness": 0.12},
+                },
                 "yaxis": {"title": y_label},
             },
             "interactive": {"type": "spc_inspect"},
@@ -246,22 +255,26 @@ def _run_g_t_chart(df, config):
     }
 
     # Narrative
-    _gt_label = "G Chart (count between events)" if chart_type == "g" else "T Chart (time between events)"
+    _gt_label = (
+        "G Chart (count between events)"
+        if chart_type == "g"
+        else "T Chart (time between events)"
+    )
     _gt_n_ooc = len(ooc_indices)
     if _gt_n_ooc == 0:
         _gt_verdict = f"{_gt_label} \u2014 process in control"
-        _gt_body = (
-            f"All {n} observations fall within control limits (CL = {cl:.2f}). The rate of rare events appears stable."
-        )
+        _gt_body = f"All {n} observations fall within control limits (CL = {cl:.2f}). The rate of rare events appears stable."
     else:
         _gt_verdict = f"{_gt_label} \u2014 {_gt_n_ooc} out-of-control point{'s' if _gt_n_ooc > 1 else ''}"
         _gt_body = f"{_gt_n_ooc} of {n} observations exceed control limits, suggesting the event rate has shifted."
     result["narrative"] = _narrative(
         _gt_verdict,
         _gt_body,
-        next_steps="Investigate OOC points for assignable causes. A cluster of short intervals suggests a worsening event rate."
-        if _gt_n_ooc > 0
-        else "Continue monitoring. Consider adding process improvement to reduce the baseline event rate.",
+        next_steps=(
+            "Investigate OOC points for assignable causes. A cluster of short intervals suggests a worsening event rate."
+            if _gt_n_ooc > 0
+            else "Continue monitoring. Consider adding process improvement to reduce the baseline event rate."
+        ),
         chart_guidance="Points above UCL indicate unusually long gaps between events (improvement). Points below LCL indicate unusually short gaps (deterioration).",
     )
 

@@ -96,20 +96,28 @@ def _assert_quality_output(test_case, result, label, require_education=True):
     # Narrative is dict when present
     if result.get("narrative") is not None:
         test_case.assertIsInstance(
-            result["narrative"], dict, f"{label}: narrative is {type(result['narrative'])}, not dict"
+            result["narrative"],
+            dict,
+            f"{label}: narrative is {type(result['narrative'])}, not dict",
         )
     # Plots is list
     test_case.assertIsInstance(result["plots"], list, f"{label}: plots is not list")
     # Charts have defaults applied (QUAL-001 §6.2 / QUAL-001 §8.1 /6)
     for plot in result.get("plots", []):
         if isinstance(plot, dict) and "layout" in plot:
-            test_case.assertIn("height", plot["layout"], f"{label}: chart missing height")
+            test_case.assertIn(
+                "height", plot["layout"], f"{label}: chart missing height"
+            )
             test_case.assertEqual(
-                plot["layout"].get("paper_bgcolor"), "rgba(0,0,0,0)", f"{label}: chart missing transparent bg"
+                plot["layout"].get("paper_bgcolor"),
+                "rgba(0,0,0,0)",
+                f"{label}: chart missing transparent bg",
             )
     # Education present (when required)
     if require_education:
-        test_case.assertIsNotNone(result.get("education"), f"{label}: missing education")
+        test_case.assertIsNotNone(
+            result.get("education"), f"{label}: missing education"
+        )
 
 
 # ── §4: Canonical Output Schema ──────────────────────────────────────────
@@ -141,7 +149,9 @@ class CanonicalSchemaTest(SimpleTestCase):
         self.assertIsInstance(result["_analysis_id"], str)
         # narrative should be dict or None, never str
         if result["narrative"] is not None:
-            self.assertIsInstance(result["narrative"], dict, "narrative must be dict, not str")
+            self.assertIsInstance(
+                result["narrative"], dict, "narrative must be dict, not str"
+            )
 
     def test_conditional_evidence_grade(self):
         """evidence_grade populated when p_value exists in statistics."""
@@ -155,7 +165,10 @@ class CanonicalSchemaTest(SimpleTestCase):
             "stats",
             "ttest",
         )
-        self.assertIsNotNone(result.get("evidence_grade"), "evidence_grade should be set when p_value exists")
+        self.assertIsNotNone(
+            result.get("evidence_grade"),
+            "evidence_grade should be set when p_value exists",
+        )
 
     def test_conditional_what_if(self):
         """what_if populated for tier 1/2 analyses."""
@@ -166,7 +179,8 @@ class CanonicalSchemaTest(SimpleTestCase):
             if entry.get("what_if_tier", 0) >= 1:
                 result = standardize_output({"summary": "test"}, atype, aid)
                 self.assertIsNotNone(
-                    result.get("what_if"), f"what_if missing for tier {entry['what_if_tier']} analysis {atype}/{aid}"
+                    result.get("what_if"),
+                    f"what_if missing for tier {entry['what_if_tier']} analysis {atype}/{aid}",
                 )
                 break  # Just verify one — full coverage in WhatIfSchemaTest
 
@@ -189,14 +203,18 @@ class NarrativeQualityTest(SimpleTestCase):
             "stats",
             "ttest",
         )
-        self.assertIsInstance(result["narrative"], dict, "String narrative not normalized to dict")
+        self.assertIsInstance(
+            result["narrative"], dict, "String narrative not normalized to dict"
+        )
         self.assertIn("verdict", result["narrative"])
 
     def test_narrative_is_dict(self):
         """Narrative is always dict after standardization (never str or None when summary exists)."""
         from agents_api.dsw.standardize import standardize_output
 
-        result = standardize_output({"summary": "A meaningful test summary line"}, "stats", "ttest")
+        result = standardize_output(
+            {"summary": "A meaningful test summary line"}, "stats", "ttest"
+        )
         self.assertIsNotNone(result["narrative"])
         self.assertIsInstance(result["narrative"], dict)
 
@@ -204,7 +222,9 @@ class NarrativeQualityTest(SimpleTestCase):
         """Narrative dict has verdict, body, next_steps, chart_guidance."""
         from agents_api.dsw.standardize import standardize_output
 
-        result = standardize_output({"summary": "A meaningful test summary"}, "stats", "ttest")
+        result = standardize_output(
+            {"summary": "A meaningful test summary"}, "stats", "ttest"
+        )
         nar = result["narrative"]
         for key in ("verdict", "body", "next_steps", "chart_guidance"):
             self.assertIn(key, nar, f"Narrative missing key: {key}")
@@ -214,17 +234,23 @@ class NarrativeQualityTest(SimpleTestCase):
         from agents_api.dsw.standardize import standardize_output
 
         result = standardize_output(
-            {"summary": "This is a sufficiently long summary for testing purposes."}, "stats", "ttest"
+            {"summary": "This is a sufficiently long summary for testing purposes."},
+            "stats",
+            "ttest",
         )
         verdict = result["narrative"]["verdict"]
-        self.assertGreaterEqual(len(verdict), 10, f"Verdict too short: '{verdict}' ({len(verdict)} chars)")
+        self.assertGreaterEqual(
+            len(verdict), 10, f"Verdict too short: '{verdict}' ({len(verdict)} chars)"
+        )
 
     def test_verdict_no_color_tags(self):
         """Narrative verdict has no <<COLOR:>> tags."""
         from agents_api.dsw.standardize import standardize_output
 
         result = standardize_output(
-            {"summary": "<<COLOR:accent>>Important<<</COLOR>>> result with color tags"}, "stats", "ttest"
+            {"summary": "<<COLOR:accent>>Important<<</COLOR>>> result with color tags"},
+            "stats",
+            "ttest",
         )
         verdict = result["narrative"]["verdict"]
         self.assertNotIn("<<COLOR:", verdict, f"Color tags in verdict: {verdict}")
@@ -236,15 +262,21 @@ class NarrativeQualityTest(SimpleTestCase):
         long_summary = "A " * 200  # 400 chars
         result = standardize_output({"summary": long_summary}, "stats", "ttest")
         obs = result["guide_observation"]
-        self.assertGreaterEqual(len(obs), 10, f"guide_observation too short: {len(obs)} chars")
-        self.assertLessEqual(len(obs), 300, f"guide_observation too long: {len(obs)} chars")
+        self.assertGreaterEqual(
+            len(obs), 10, f"guide_observation too short: {len(obs)} chars"
+        )
+        self.assertLessEqual(
+            len(obs), 300, f"guide_observation too long: {len(obs)} chars"
+        )
 
     def test_guide_observation_no_color_tags(self):
         """guide_observation has no <<COLOR:>> tags."""
         from agents_api.dsw.standardize import standardize_output
 
         result = standardize_output(
-            {"summary": "<<COLOR:title>>RESULT<</COLOR>> with tags everywhere"}, "stats", "ttest"
+            {"summary": "<<COLOR:title>>RESULT<</COLOR>> with tags everywhere"},
+            "stats",
+            "ttest",
         )
         obs = result["guide_observation"]
         self.assertNotIn("<<COLOR:", obs, f"Color tags in guide_observation: {obs}")
@@ -341,7 +373,9 @@ class ChartOutputTest(SimpleTestCase):
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)
         self.assertEqual(plot["layout"]["xaxis"]["gridcolor"], "rgba(128,128,128,0.15)")
-        self.assertEqual(plot["layout"]["yaxis"]["zerolinecolor"], "rgba(128,128,128,0.25)")
+        self.assertEqual(
+            plot["layout"]["yaxis"]["zerolinecolor"], "rgba(128,128,128,0.25)"
+        )
 
     def test_font(self):
         """Font is Inter, system-ui, sans-serif at size 12."""
@@ -360,13 +394,19 @@ class ChartOutputTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"x": np.random.normal(50, 2, 100)})
-        result = _run_analysis("spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44})
+        result = _run_analysis(
+            "spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44}
+        )
         plots = result.get("plots", [])
         for plot in plots:
             if isinstance(plot, dict) and "layout" in plot:
                 layout = plot["layout"]
                 self.assertIn("height", layout, "Chart missing height")
-                self.assertEqual(layout.get("paper_bgcolor"), "rgba(0,0,0,0)", "Chart missing transparent background")
+                self.assertEqual(
+                    layout.get("paper_bgcolor"),
+                    "rgba(0,0,0,0)",
+                    "Chart missing transparent background",
+                )
 
 
 # ── §7: Education Quality ─────────────────────────────────────────────────
@@ -382,7 +422,9 @@ class EducationQualityTest(SimpleTestCase):
         for key, entry in EDUCATION_CONTENT.items():
             title = entry.get("title", "")
             self.assertGreaterEqual(
-                len(title), 15, f"Education title too short for {key}: '{title}' ({len(title)} chars)"
+                len(title),
+                15,
+                f"Education title too short for {key}: '{title}' ({len(title)} chars)",
             )
 
     def test_content_minimum_depth(self):
@@ -391,7 +433,11 @@ class EducationQualityTest(SimpleTestCase):
 
         for key, entry in EDUCATION_CONTENT.items():
             content = entry.get("content", "")
-            self.assertGreaterEqual(len(content), 200, f"Education content too shallow for {key}: {len(content)} chars")
+            self.assertGreaterEqual(
+                len(content),
+                200,
+                f"Education content too shallow for {key}: {len(content)} chars",
+            )
 
     def test_dl_structure(self):
         """Education content contains <dl>, <dt>, <dd> HTML structure."""
@@ -399,7 +445,9 @@ class EducationQualityTest(SimpleTestCase):
 
         for key, entry in EDUCATION_CONTENT.items():
             content = entry.get("content", "")
-            self.assertIn("<dl>", content, f"Education for {key} missing <dl> structure")
+            self.assertIn(
+                "<dl>", content, f"Education for {key} missing <dl> structure"
+            )
             self.assertIn("<dt>", content, f"Education for {key} missing <dt> elements")
             self.assertIn("<dd>", content, f"Education for {key} missing <dd> elements")
 
@@ -443,7 +491,11 @@ class EvidenceGradeTest(SimpleTestCase):
         for p in (0.001, 0.01, 0.03, 0.05, 0.1, 0.5):
             result = _evidence_grade(p)
             self.assertIsNotNone(result)
-            self.assertIn(result["grade"], self.VALID_GRADES, f"Invalid grade '{result['grade']}' for p={p}")
+            self.assertIn(
+                result["grade"],
+                self.VALID_GRADES,
+                f"Invalid grade '{result['grade']}' for p={p}",
+            )
 
     def test_pvalue_triggers_grade(self):
         """standardize_output sets evidence_grade when p_value in statistics."""
@@ -457,14 +509,19 @@ class EvidenceGradeTest(SimpleTestCase):
             "stats",
             "ttest",
         )
-        self.assertIsNotNone(result.get("evidence_grade"), "evidence_grade not set despite p_value in statistics")
+        self.assertIsNotNone(
+            result.get("evidence_grade"),
+            "evidence_grade not set despite p_value in statistics",
+        )
         self.assertIn(result["evidence_grade"], self.VALID_GRADES)
 
     def test_cohens_d_thresholds(self):
         """Effect classification thresholds for Cohen's d match standard."""
         from agents_api.dsw.standardize import _classify_effect
 
-        self.assertEqual(_classify_effect({"statistics": {"cohens_d": 0.1}}), "negligible")
+        self.assertEqual(
+            _classify_effect({"statistics": {"cohens_d": 0.1}}), "negligible"
+        )
         self.assertEqual(_classify_effect({"statistics": {"cohens_d": 0.3}}), "small")
         self.assertEqual(_classify_effect({"statistics": {"cohens_d": 0.6}}), "medium")
         self.assertEqual(_classify_effect({"statistics": {"cohens_d": 0.9}}), "large")
@@ -473,27 +530,47 @@ class EvidenceGradeTest(SimpleTestCase):
         """Effect classification thresholds for eta-squared match standard."""
         from agents_api.dsw.standardize import _classify_effect
 
-        self.assertEqual(_classify_effect({"statistics": {"eta_squared": 0.005}}), "negligible")
-        self.assertEqual(_classify_effect({"statistics": {"eta_squared": 0.03}}), "small")
-        self.assertEqual(_classify_effect({"statistics": {"eta_squared": 0.08}}), "medium")
-        self.assertEqual(_classify_effect({"statistics": {"eta_squared": 0.16}}), "large")
+        self.assertEqual(
+            _classify_effect({"statistics": {"eta_squared": 0.005}}), "negligible"
+        )
+        self.assertEqual(
+            _classify_effect({"statistics": {"eta_squared": 0.03}}), "small"
+        )
+        self.assertEqual(
+            _classify_effect({"statistics": {"eta_squared": 0.08}}), "medium"
+        )
+        self.assertEqual(
+            _classify_effect({"statistics": {"eta_squared": 0.16}}), "large"
+        )
 
     def test_r_thresholds(self):
         """Effect classification thresholds for r match standard."""
         from agents_api.dsw.standardize import _classify_effect
 
-        self.assertEqual(_classify_effect({"statistics": {"effect_size_r": 0.05}}), "negligible")
-        self.assertEqual(_classify_effect({"statistics": {"effect_size_r": 0.15}}), "small")
-        self.assertEqual(_classify_effect({"statistics": {"effect_size_r": 0.35}}), "medium")
-        self.assertEqual(_classify_effect({"statistics": {"effect_size_r": 0.6}}), "large")
+        self.assertEqual(
+            _classify_effect({"statistics": {"effect_size_r": 0.05}}), "negligible"
+        )
+        self.assertEqual(
+            _classify_effect({"statistics": {"effect_size_r": 0.15}}), "small"
+        )
+        self.assertEqual(
+            _classify_effect({"statistics": {"effect_size_r": 0.35}}), "medium"
+        )
+        self.assertEqual(
+            _classify_effect({"statistics": {"effect_size_r": 0.6}}), "large"
+        )
 
     def test_r_squared_thresholds(self):
         """Effect classification thresholds for R-squared match standard."""
         from agents_api.dsw.standardize import _classify_effect
 
-        self.assertEqual(_classify_effect({"statistics": {"r_squared": 0.01}}), "negligible")
+        self.assertEqual(
+            _classify_effect({"statistics": {"r_squared": 0.01}}), "negligible"
+        )
         self.assertEqual(_classify_effect({"statistics": {"r_squared": 0.05}}), "small")
-        self.assertEqual(_classify_effect({"statistics": {"r_squared": 0.15}}), "medium")
+        self.assertEqual(
+            _classify_effect({"statistics": {"r_squared": 0.15}}), "medium"
+        )
         self.assertEqual(_classify_effect({"statistics": {"r_squared": 0.3}}), "large")
 
 
@@ -516,7 +593,11 @@ class BayesianShadowTest(SimpleTestCase):
 
         shadow = _bayesian_shadow("proportion", x=60, n=100, p0=0.5)
         if shadow is not None:
-            self.assertIsInstance(shadow["bf10"], (int, float), f"bf10 is not numeric: {type(shadow['bf10'])}")
+            self.assertIsInstance(
+                shadow["bf10"],
+                (int, float),
+                f"bf10 is not numeric: {type(shadow['bf10'])}",
+            )
 
     def test_shadow_types_produce_output(self):
         """Known shadow types produce non-None output with valid inputs."""
@@ -530,7 +611,9 @@ class BayesianShadowTest(SimpleTestCase):
         ]
         for shadow_type, kwargs in cases:
             shadow = _bayesian_shadow(shadow_type, **kwargs)
-            self.assertIsNotNone(shadow, f"Shadow type '{shadow_type}' returned None with valid inputs")
+            self.assertIsNotNone(
+                shadow, f"Shadow type '{shadow_type}' returned None with valid inputs"
+            )
 
 
 # ── §9: What-If Interactivity ─────────────────────────────────────────────
@@ -603,13 +686,23 @@ class WhatIfSchemaTest(SimpleTestCase):
             "ttest",
         )
         for p in result["what_if"]["parameters"]:
-            self.assertLess(p["min"], p["max"], f"Parameter '{p['name']}': min ({p['min']}) >= max ({p['max']})")
-            self.assertGreater(p["step"], 0, f"Parameter '{p['name']}': step ({p['step']}) <= 0")
+            self.assertLess(
+                p["min"],
+                p["max"],
+                f"Parameter '{p['name']}': min ({p['min']}) >= max ({p['max']})",
+            )
+            self.assertGreater(
+                p["step"], 0, f"Parameter '{p['name']}': step ({p['step']}) <= 0"
+            )
             self.assertGreaterEqual(
-                p["value"], p["min"], f"Parameter '{p['name']}': value ({p['value']}) < min ({p['min']})"
+                p["value"],
+                p["min"],
+                f"Parameter '{p['name']}': value ({p['value']}) < min ({p['min']})",
             )
             self.assertLessEqual(
-                p["value"], p["max"], f"Parameter '{p['name']}': value ({p['value']}) > max ({p['max']})"
+                p["value"],
+                p["max"],
+                f"Parameter '{p['name']}': value ({p['value']}) > max ({p['max']})",
             )
 
     def test_tier1_has_parameters(self):
@@ -631,7 +724,9 @@ class WhatIfSchemaTest(SimpleTestCase):
         )
         wi = result.get("what_if")
         self.assertIsNotNone(wi)
-        self.assertGreater(len(wi["parameters"]), 0, "Tier 1 what_if has empty parameters")
+        self.assertGreater(
+            len(wi["parameters"]), 0, "Tier 1 what_if has empty parameters"
+        )
 
     def test_regression_what_if_has_client_model(self):
         """Regression what_if from what_if_data includes client_model."""
@@ -680,13 +775,19 @@ class DiagnosticsTest(SimpleTestCase):
                 "after": np.random.normal(55, 5, 30),
             }
         )
-        result = _run_analysis("stats", "ttest", df, {"var1": "before", "mu": 50, "alpha": 0.05})
+        result = _run_analysis(
+            "stats", "ttest", df, {"var1": "before", "mu": 50, "alpha": 0.05}
+        )
         for diag in result.get("diagnostics", []):
             if isinstance(diag, dict):
                 # Accept both canonical 'status' and alternative 'result'
                 status = diag.get("status") or diag.get("result")
                 if status:
-                    self.assertIn(status, self.VALID_STATUSES, f"Invalid diagnostic status: '{status}'")
+                    self.assertIn(
+                        status,
+                        self.VALID_STATUSES,
+                        f"Invalid diagnostic status: '{status}'",
+                    )
 
     def test_diagnostics_is_list(self):
         """diagnostics is always a list after standardization."""
@@ -702,9 +803,13 @@ class DiagnosticsTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"x": np.random.normal(50, 5, 30)})
-        result = _run_analysis("stats", "ttest", df, {"var1": "x", "mu": 50, "alpha": 0.05})
+        result = _run_analysis(
+            "stats", "ttest", df, {"var1": "x", "mu": 50, "alpha": 0.05}
+        )
         for diag in result.get("diagnostics", []):
-            self.assertIsInstance(diag, dict, f"Diagnostic entry is not a dict: {type(diag)}")
+            self.assertIsInstance(
+                diag, dict, f"Diagnostic entry is not a dict: {type(diag)}"
+            )
 
 
 # ── Integration ───────────────────────────────────────────────────────────
@@ -720,19 +825,25 @@ class IntegrationTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"x": np.random.normal(50, 2, 100)})
-        result = _run_analysis("spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44})
+        result = _run_analysis(
+            "spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44}
+        )
 
         # Education
         edu = result.get("education")
         self.assertIsNotNone(edu, "Cpk missing education")
-        self.assertGreaterEqual(len(edu.get("content", "")), 200, "Cpk education content too shallow")
+        self.assertGreaterEqual(
+            len(edu.get("content", "")), 200, "Cpk education content too shallow"
+        )
         self.assertIn("<dl>", edu.get("content", ""))
 
         # Narrative
         nar = result.get("narrative")
         self.assertIsNotNone(nar, "Cpk missing narrative")
         self.assertIsInstance(nar, dict, "Cpk narrative is not dict")
-        self.assertGreaterEqual(len(nar.get("verdict", "")), 10, "Cpk verdict too short")
+        self.assertGreaterEqual(
+            len(nar.get("verdict", "")), 10, "Cpk verdict too short"
+        )
 
         # Charts
         plots = result.get("plots", [])
@@ -749,7 +860,9 @@ class IntegrationTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"values": np.random.normal(52, 5, 30)})
-        result = _run_analysis("stats", "ttest", df, {"var1": "values", "mu": 50, "alpha": 0.05})
+        result = _run_analysis(
+            "stats", "ttest", df, {"var1": "values", "mu": 50, "alpha": 0.05}
+        )
 
         self.assertIsNotNone(result.get("education"), "t-test missing education")
         self.assertIsNotNone(result.get("narrative"), "t-test missing narrative")
@@ -762,7 +875,10 @@ class IntegrationTest(SimpleTestCase):
         elif isinstance(result.get("statistics"), dict):
             p = result["statistics"].get("p_value")
         if p is not None:
-            self.assertIsNotNone(result.get("evidence_grade"), "t-test with p-value missing evidence_grade")
+            self.assertIsNotNone(
+                result.get("evidence_grade"),
+                "t-test with p-value missing evidence_grade",
+            )
 
     def test_regression_full_pipeline(self):
         """Regression: education + narrative + what-if potential."""
@@ -772,7 +888,9 @@ class IntegrationTest(SimpleTestCase):
         np.random.seed(42)
         x = np.random.normal(0, 1, 50)
         df = pd.DataFrame({"x": x, "y": 2 * x + np.random.normal(0, 0.5, 50)})
-        result = _run_analysis("stats", "regression", df, {"predictors": ["x"], "response": "y"})
+        result = _run_analysis(
+            "stats", "regression", df, {"predictors": ["x"], "response": "y"}
+        )
 
         self.assertIsNotNone(result.get("education"), "Regression missing education")
         self.assertIsNotNone(result.get("narrative"), "Regression missing narrative")
@@ -854,7 +972,9 @@ class RegistryStructureTest(SimpleTestCase):
 
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
             self.assertIn(
-                entry["what_if_tier"], {0, 1, 2}, f"{atype}/{aid} has invalid what_if_tier: {entry['what_if_tier']}"
+                entry["what_if_tier"],
+                {0, 1, 2},
+                f"{atype}/{aid} has invalid what_if_tier: {entry['what_if_tier']}",
             )
 
     def test_module_names_valid(self):
@@ -862,7 +982,11 @@ class RegistryStructureTest(SimpleTestCase):
         from agents_api.dsw.registry import ANALYSIS_REGISTRY
 
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
-            self.assertIn(entry["module"], self.VALID_MODULES, f"{atype}/{aid} has unknown module: {entry['module']}")
+            self.assertIn(
+                entry["module"],
+                self.VALID_MODULES,
+                f"{atype}/{aid} has unknown module: {entry['module']}",
+            )
 
     def test_boolean_fields_are_bool(self):
         """has_pvalue, has_narrative, has_education, has_charts are booleans."""
@@ -871,24 +995,43 @@ class RegistryStructureTest(SimpleTestCase):
         bool_fields = ("has_pvalue", "has_narrative", "has_education", "has_charts")
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
             for field in bool_fields:
-                self.assertIsInstance(entry[field], bool, f"{atype}/{aid}.{field} is {type(entry[field])}, not bool")
+                self.assertIsInstance(
+                    entry[field],
+                    bool,
+                    f"{atype}/{aid}.{field} is {type(entry[field])}, not bool",
+                )
 
     def test_analysis_type_matches_key(self):
         """Registry key (analysis_type, _) matches entry module for core types."""
         from agents_api.dsw.registry import ANALYSIS_REGISTRY
 
         # Core types where atype == module
-        core_types = {"stats", "spc", "ml", "viz", "bayesian", "reliability", "simulation", "d_type"}
+        core_types = {
+            "stats",
+            "spc",
+            "ml",
+            "viz",
+            "bayesian",
+            "reliability",
+            "simulation",
+            "d_type",
+        }
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
             if atype in core_types:
-                self.assertEqual(atype, entry["module"], f"Key type '{atype}' != module '{entry['module']}' for {aid}")
+                self.assertEqual(
+                    atype,
+                    entry["module"],
+                    f"Key type '{atype}' != module '{entry['module']}' for {aid}",
+                )
 
     def test_registry_not_empty(self):
         """Registry has a substantial number of entries (200+)."""
         from agents_api.dsw.registry import ANALYSIS_REGISTRY
 
         self.assertGreaterEqual(
-            len(ANALYSIS_REGISTRY), 200, f"Registry only has {len(ANALYSIS_REGISTRY)} entries, expected 200+"
+            len(ANALYSIS_REGISTRY),
+            200,
+            f"Registry only has {len(ANALYSIS_REGISTRY)} entries, expected 200+",
         )
 
     def test_pvalue_analyses_have_effect_or_shadow(self):
@@ -901,7 +1044,11 @@ class RegistryStructureTest(SimpleTestCase):
 
         missing = []
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
-            if entry["has_pvalue"] and not entry["effect_type"] and not entry["shadow_type"]:
+            if (
+                entry["has_pvalue"]
+                and not entry["effect_type"]
+                and not entry["shadow_type"]
+            ):
                 missing.append(f"{atype}/{aid}")
         total_pval = sum(1 for e in ANALYSIS_REGISTRY.values() if e["has_pvalue"])
         if total_pval > 0:
@@ -1043,7 +1190,9 @@ class DispatchPipelineTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"x": np.random.normal(50, 2, 100)})
-        result = _run_analysis("spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44})
+        result = _run_analysis(
+            "spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44}
+        )
         self.assertEqual(result["_analysis_type"], "spc")
         self.assertEqual(result["_analysis_id"], "capability")
 
@@ -1057,7 +1206,9 @@ class DispatchPipelineTest(SimpleTestCase):
         result = _run_analysis("viz", "histogram", df, {"var": "x", "bins": 20})
         self.assertEqual(result["_analysis_type"], "viz")
         self.assertEqual(result["_analysis_id"], "histogram")
-        self.assertGreater(len(result.get("plots", [])), 0, "Histogram should produce plots")
+        self.assertGreater(
+            len(result.get("plots", [])), 0, "Histogram should produce plots"
+        )
 
     def test_ml_routing(self):
         """ML analysis routes to ml module and returns standardized output."""
@@ -1073,7 +1224,15 @@ class DispatchPipelineTest(SimpleTestCase):
             }
         )
         result = _run_analysis(
-            "ml", "classification", df, {"target": "target", "features": ["f1", "f2"], "algorithm": "rf", "split": 20}
+            "ml",
+            "classification",
+            df,
+            {
+                "target": "target",
+                "features": ["f1", "f2"],
+                "algorithm": "rf",
+                "split": 20,
+            },
         )
         self.assertEqual(result["_analysis_type"], "ml")
         self.assertEqual(result["_analysis_id"], "classification")
@@ -1120,7 +1279,11 @@ class SPCCapabilityPostProcessTest(SimpleTestCase):
             "analysis_type": "capability",
             "summary": "Process Capability: Cpk=1.33, Ppk=1.28. Process is capable.",
             "plots": [
-                {"title": "Capability Histogram", "data": [{"type": "histogram"}], "layout": {}},
+                {
+                    "title": "Capability Histogram",
+                    "data": [{"type": "histogram"}],
+                    "layout": {},
+                },
                 {"title": "Process Spread", "data": [{"type": "bar"}], "layout": {}},
             ],
             "guide_observation": "Process capability Cpk = 1.33. Process is capable.",
@@ -1140,7 +1303,9 @@ class SPCCapabilityPostProcessTest(SimpleTestCase):
 
         resp = self._build_mock_capability_response()
         result = standardize_output(resp, "spc", "capability")
-        self.assertIsNotNone(result.get("education"), "Education not injected for spc/capability")
+        self.assertIsNotNone(
+            result.get("education"), "Education not injected for spc/capability"
+        )
 
     def test_narrative_normalized(self):
         """String summary produces dict narrative."""
@@ -1193,10 +1358,15 @@ class BayesianEngineTest(SimpleTestCase):
             }
         )
         try:
-            result = _run_analysis("bayesian", "bayes_ttest", df, {"var1": "group_a", "var2": "group_b"})
+            result = _run_analysis(
+                "bayesian", "bayes_ttest", df, {"var1": "group_a", "var2": "group_b"}
+            )
             _assert_quality_output(self, result, "bayes_ttest")
         except Exception as e:
-            if "not found" not in str(e).lower() and "not implemented" not in str(e).lower():
+            if (
+                "not found" not in str(e).lower()
+                and "not implemented" not in str(e).lower()
+            ):
                 raise
 
     def test_bayes_regression_pipeline(self):
@@ -1208,10 +1378,15 @@ class BayesianEngineTest(SimpleTestCase):
         x = np.random.normal(0, 1, 50)
         df = pd.DataFrame({"x": x, "y": 2 * x + np.random.normal(0, 0.5, 50)})
         try:
-            result = _run_analysis("bayesian", "bayes_regression", df, {"target": "y", "features": ["x"]})
+            result = _run_analysis(
+                "bayesian", "bayes_regression", df, {"target": "y", "features": ["x"]}
+            )
             _assert_quality_output(self, result, "bayes_regression")
         except Exception as e:
-            if "not found" not in str(e).lower() and "not implemented" not in str(e).lower():
+            if (
+                "not found" not in str(e).lower()
+                and "not implemented" not in str(e).lower()
+            ):
                 raise
 
 
@@ -1231,10 +1406,15 @@ class ReliabilityEngineTest(SimpleTestCase):
             }
         )
         try:
-            result = _run_analysis("reliability", "weibull", df, {"time": "time", "censor": "censor"})
+            result = _run_analysis(
+                "reliability", "weibull", df, {"time": "time", "censor": "censor"}
+            )
             _assert_quality_output(self, result, "weibull")
         except Exception as e:
-            if "not found" not in str(e).lower() and "not implemented" not in str(e).lower():
+            if (
+                "not found" not in str(e).lower()
+                and "not implemented" not in str(e).lower()
+            ):
                 raise
 
     def test_kaplan_meier_pipeline(self):
@@ -1250,10 +1430,15 @@ class ReliabilityEngineTest(SimpleTestCase):
             }
         )
         try:
-            result = _run_analysis("reliability", "kaplan_meier", df, {"time": "time", "event": "event"})
+            result = _run_analysis(
+                "reliability", "kaplan_meier", df, {"time": "time", "event": "event"}
+            )
             _assert_quality_output(self, result, "kaplan_meier")
         except Exception as e:
-            if "not found" not in str(e).lower() and "not implemented" not in str(e).lower():
+            if (
+                "not found" not in str(e).lower()
+                and "not implemented" not in str(e).lower()
+            ):
                 raise
 
 
@@ -1268,7 +1453,9 @@ class VizEngineTest(SimpleTestCase):
         np.random.seed(42)
         df = pd.DataFrame({"x": np.random.normal(100, 15, 200)})
         result = _run_analysis("viz", "histogram", df, {"var": "x", "bins": 20})
-        self.assertGreater(len(result.get("plots", [])), 0, "Histogram should produce plots")
+        self.assertGreater(
+            len(result.get("plots", [])), 0, "Histogram should produce plots"
+        )
         _assert_quality_output(self, result, "histogram")
 
     def test_boxplot_pipeline(self):
@@ -1284,7 +1471,9 @@ class VizEngineTest(SimpleTestCase):
             }
         )
         result = _run_analysis("viz", "boxplot", df, {"var": "value", "by": "group"})
-        self.assertGreater(len(result.get("plots", [])), 0, "Boxplot should produce plots")
+        self.assertGreater(
+            len(result.get("plots", [])), 0, "Boxplot should produce plots"
+        )
         _assert_quality_output(self, result, "boxplot")
 
     def test_scatter_pipeline(self):
@@ -1300,7 +1489,9 @@ class VizEngineTest(SimpleTestCase):
             }
         )
         result = _run_analysis("viz", "scatter", df, {"x": "x", "y": "y"})
-        self.assertGreater(len(result.get("plots", [])), 0, "Scatter should produce plots")
+        self.assertGreater(
+            len(result.get("plots", [])), 0, "Scatter should produce plots"
+        )
         _assert_quality_output(self, result, "scatter")
 
 
@@ -1321,7 +1512,15 @@ class MLEngineTest(SimpleTestCase):
             }
         )
         result = _run_analysis(
-            "ml", "classification", df, {"target": "target", "features": ["f1", "f2"], "algorithm": "rf", "split": 20}
+            "ml",
+            "classification",
+            df,
+            {
+                "target": "target",
+                "features": ["f1", "f2"],
+                "algorithm": "rf",
+                "split": 20,
+            },
         )
         _assert_quality_output(self, result, "classification")
 
@@ -1333,11 +1532,17 @@ class MLEngineTest(SimpleTestCase):
         np.random.seed(42)
         df = pd.DataFrame(
             {
-                "x": np.concatenate([np.random.normal(0, 1, 50), np.random.normal(5, 1, 50)]),
-                "y": np.concatenate([np.random.normal(0, 1, 50), np.random.normal(5, 1, 50)]),
+                "x": np.concatenate(
+                    [np.random.normal(0, 1, 50), np.random.normal(5, 1, 50)]
+                ),
+                "y": np.concatenate(
+                    [np.random.normal(0, 1, 50), np.random.normal(5, 1, 50)]
+                ),
             }
         )
-        result = _run_analysis("ml", "clustering", df, {"features": ["x", "y"], "n_clusters": 2})
+        result = _run_analysis(
+            "ml", "clustering", df, {"features": ["x", "y"], "n_clusters": 2}
+        )
         _assert_quality_output(self, result, "clustering")
 
     def test_pca_pipeline(self):
@@ -1367,8 +1572,16 @@ class SimulationEngineTest(SimpleTestCase):
         df = pd.DataFrame({"dummy": [1]})
         config = {
             "variables": [
-                {"name": "X", "distribution": "normal", "params": {"mean": 0, "std": 1}},
-                {"name": "Y", "distribution": "uniform", "params": {"low": -1, "high": 1}},
+                {
+                    "name": "X",
+                    "distribution": "normal",
+                    "params": {"mean": 0, "std": 1},
+                },
+                {
+                    "name": "Y",
+                    "distribution": "uniform",
+                    "params": {"low": -1, "high": 1},
+                },
             ],
             "transfer_function": "X + Y",
             "n_iterations": 5000,
@@ -1378,7 +1591,10 @@ class SimulationEngineTest(SimpleTestCase):
             result = _run_analysis("simulation", "monte_carlo", df, config)
             _assert_quality_output(self, result, "monte_carlo", require_education=False)
         except Exception as e:
-            if "not found" not in str(e).lower() and "not implemented" not in str(e).lower():
+            if (
+                "not found" not in str(e).lower()
+                and "not implemented" not in str(e).lower()
+            ):
                 raise
 
 
@@ -1399,11 +1615,17 @@ class DTypeEngineTest(SimpleTestCase):
         )
         try:
             result = _run_analysis(
-                "d_type", "d_chart", df, {"variable": "measurement", "factor": "shift", "window_size": 50}
+                "d_type",
+                "d_chart",
+                df,
+                {"variable": "measurement", "factor": "shift", "window_size": 50},
             )
             _assert_quality_output(self, result, "d_chart")
         except Exception as e:
-            if "not found" not in str(e).lower() and "not implemented" not in str(e).lower():
+            if (
+                "not found" not in str(e).lower()
+                and "not implemented" not in str(e).lower()
+            ):
                 raise
 
 
@@ -1421,15 +1643,22 @@ class StatsEngineBreadthTest(SimpleTestCase):
         np.random.seed(42)
         df = pd.DataFrame(
             {
-                "value": np.concatenate([np.random.normal(m, 3, 30) for m in [50, 55, 60]]),
+                "value": np.concatenate(
+                    [np.random.normal(m, 3, 30) for m in [50, 55, 60]]
+                ),
                 "group": ["A"] * 30 + ["B"] * 30 + ["C"] * 30,
             }
         )
-        result = _run_analysis("stats", "anova", df, {"var1": "value", "groupby": "group"})
+        result = _run_analysis(
+            "stats", "anova", df, {"var1": "value", "groupby": "group"}
+        )
         _assert_quality_output(self, result, "anova")
         # ANOVA has p-value → evidence grade expected
         if result.get("statistics", {}).get("p_value") is not None:
-            self.assertIsNotNone(result.get("evidence_grade"), "ANOVA with p-value missing evidence_grade")
+            self.assertIsNotNone(
+                result.get("evidence_grade"),
+                "ANOVA with p-value missing evidence_grade",
+            )
 
     def test_chi_square_pipeline(self):
         """Chi-square: schema + narrative + bayesian shadow."""
@@ -1443,7 +1672,9 @@ class StatsEngineBreadthTest(SimpleTestCase):
                 "category2": np.random.choice(["X", "Y"], 200),
             }
         )
-        result = _run_analysis("stats", "chi_square", df, {"var1": "category1", "var2": "category2"})
+        result = _run_analysis(
+            "stats", "chi_square", df, {"var1": "category1", "var2": "category2"}
+        )
         _assert_quality_output(self, result, "chi_square", require_education=False)
 
     def test_correlation_pipeline(self):
@@ -1475,11 +1706,15 @@ class StatsEngineBreadthTest(SimpleTestCase):
         np.random.seed(42)
         df = pd.DataFrame(
             {
-                "value": np.concatenate([np.random.normal(50, 5, 30), np.random.normal(55, 5, 30)]),
+                "value": np.concatenate(
+                    [np.random.normal(50, 5, 30), np.random.normal(55, 5, 30)]
+                ),
                 "group": ["A"] * 30 + ["B"] * 30,
             }
         )
-        result = _run_analysis("stats", "mann_whitney", df, {"var": "value", "group_var": "group"})
+        result = _run_analysis(
+            "stats", "mann_whitney", df, {"var": "value", "group_var": "group"}
+        )
         _assert_quality_output(self, result, "mann_whitney")
 
     def test_paired_ttest_pipeline(self):
@@ -1494,7 +1729,9 @@ class StatsEngineBreadthTest(SimpleTestCase):
                 "after": np.random.normal(55, 5, 30),
             }
         )
-        result = _run_analysis("stats", "paired_ttest", df, {"var1": "before", "var2": "after"})
+        result = _run_analysis(
+            "stats", "paired_ttest", df, {"var1": "before", "var2": "after"}
+        )
         _assert_quality_output(self, result, "paired_ttest", require_education=False)
 
     def test_descriptive_pipeline(self):
@@ -1539,7 +1776,9 @@ class SPCEngineBreadthTest(SimpleTestCase):
                 "subgroup": [i // 5 for i in range(125)],
             }
         )
-        result = _run_analysis("spc", "xbar_r", df, {"column": "x", "subgroup_column": "subgroup"})
+        result = _run_analysis(
+            "spc", "xbar_r", df, {"column": "x", "subgroup_column": "subgroup"}
+        )
         _assert_quality_output(self, result, "xbar_r")
 
 
@@ -1553,11 +1792,16 @@ class FrontendContractTest(SimpleTestCase):
         """Dict narrative has string values in verdict/body/next_steps/chart_guidance."""
         from agents_api.dsw.standardize import standardize_output
 
-        result = standardize_output({"summary": "A meaningful test summary for rendering."}, "stats", "ttest")
+        result = standardize_output(
+            {"summary": "A meaningful test summary for rendering."}, "stats", "ttest"
+        )
         nar = result["narrative"]
         for key in ("verdict", "body", "next_steps", "chart_guidance"):
             val = nar.get(key)
-            self.assertTrue(val is None or isinstance(val, str), f"narrative.{key} is {type(val)}, must be str or None")
+            self.assertTrue(
+                val is None or isinstance(val, str),
+                f"narrative.{key} is {type(val)}, must be str or None",
+            )
 
     def test_evidence_grade_is_string(self):
         """evidence_grade stored as string (not dict) after standardization."""
@@ -1573,7 +1817,9 @@ class FrontendContractTest(SimpleTestCase):
         )
         eg = result.get("evidence_grade")
         if eg is not None:
-            self.assertIsInstance(eg, str, f"evidence_grade is {type(eg)}, expected str")
+            self.assertIsInstance(
+                eg, str, f"evidence_grade is {type(eg)}, expected str"
+            )
 
     def test_education_dict_renderable(self):
         """Education dict has string title and HTML content."""
@@ -1583,7 +1829,9 @@ class FrontendContractTest(SimpleTestCase):
         edu = result.get("education")
         if edu is not None:
             self.assertIsInstance(edu.get("title"), str, "education.title must be str")
-            self.assertIsInstance(edu.get("content"), str, "education.content must be str")
+            self.assertIsInstance(
+                edu.get("content"), str, "education.content must be str"
+            )
 
     def test_plots_have_plotly_structure(self):
         """Each plot dict has data (list) and layout (dict) for Plotly rendering."""
@@ -1592,7 +1840,9 @@ class FrontendContractTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"x": np.random.normal(50, 2, 100)})
-        result = _run_analysis("spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44})
+        result = _run_analysis(
+            "spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44}
+        )
         for plot in result.get("plots", []):
             if isinstance(plot, dict):
                 self.assertIn("data", plot, "Plot missing 'data' key")
@@ -1612,7 +1862,9 @@ class FrontendContractTest(SimpleTestCase):
             if isinstance(diag, dict):
                 has_label = bool(diag.get("test") or diag.get("name"))
                 has_detail = bool(diag.get("detail") or diag.get("message"))
-                self.assertTrue(has_label or has_detail, f"Diagnostic entry not renderable: {diag}")
+                self.assertTrue(
+                    has_label or has_detail, f"Diagnostic entry not renderable: {diag}"
+                )
 
     def test_what_if_js_compatible(self):
         """what_if parameters have JS-compatible numeric types."""
@@ -1636,9 +1888,17 @@ class FrontendContractTest(SimpleTestCase):
             for p in wi["parameters"]:
                 for num_key in ("min", "max", "step", "value"):
                     val = p.get(num_key)
-                    self.assertIsInstance(val, (int, float), f"what_if param '{p['name']}'.{num_key} is {type(val)}")
-                    self.assertFalse(math.isnan(val), f"what_if param '{p['name']}'.{num_key} is NaN")
-                    self.assertFalse(math.isinf(val), f"what_if param '{p['name']}'.{num_key} is Inf")
+                    self.assertIsInstance(
+                        val,
+                        (int, float),
+                        f"what_if param '{p['name']}'.{num_key} is {type(val)}",
+                    )
+                    self.assertFalse(
+                        math.isnan(val), f"what_if param '{p['name']}'.{num_key} is NaN"
+                    )
+                    self.assertFalse(
+                        math.isinf(val), f"what_if param '{p['name']}'.{num_key} is Inf"
+                    )
 
 
 # ── DSW-002 §5: Narrative Cleanliness ────────────────────────────────────
@@ -1708,17 +1968,25 @@ class NarrativeFromSummaryTest(SimpleTestCase):
         """HTML tags are removed from summary input."""
         from agents_api.dsw.standardize import _narrative_from_summary
 
-        n = _narrative_from_summary('<div class="dsw-verdict">Good</div><p>Body text</p>')
-        self.assertNotRegex(n["verdict"], r"<[^>]+>", "HTML tags not stripped from verdict")
+        n = _narrative_from_summary(
+            '<div class="dsw-verdict">Good</div><p>Body text</p>'
+        )
+        self.assertNotRegex(
+            n["verdict"], r"<[^>]+>", "HTML tags not stripped from verdict"
+        )
         self.assertNotRegex(n["body"], r"<[^>]+>", "HTML tags not stripped from body")
 
     def test_strips_box_drawing(self):
         """Box-drawing characters (═, ─, etc.) are removed."""
         from agents_api.dsw.standardize import _narrative_from_summary
 
-        n = _narrative_from_summary("═══ Result ═══\n─── Details ───\nActual content here")
+        n = _narrative_from_summary(
+            "═══ Result ═══\n─── Details ───\nActual content here"
+        )
         for key in ("verdict", "body"):
-            self.assertNotRegex(n[key], r"[═─│╔╗╚╝╠╣╬]", f"Box chars in {key}: {n[key]}")
+            self.assertNotRegex(
+                n[key], r"[═─│╔╗╚╝╠╣╬]", f"Box chars in {key}: {n[key]}"
+            )
 
     def test_strips_color_tags(self):
         """<<COLOR:>> tags are removed."""
@@ -1753,7 +2021,9 @@ class NarrativeFromSummaryTest(SimpleTestCase):
         """Meaningful text survives all the stripping."""
         from agents_api.dsw.standardize import _narrative_from_summary
 
-        n = _narrative_from_summary("Process is capable\nCpk = 1.45 exceeds 1.33 threshold")
+        n = _narrative_from_summary(
+            "Process is capable\nCpk = 1.45 exceeds 1.33 threshold"
+        )
         self.assertEqual(n["verdict"], "Process is capable")
         self.assertIn("Cpk = 1.45", n["body"])
 
@@ -1801,7 +2071,9 @@ class NarrativeNoneGuardTest(SimpleTestCase):
         result = standardize_output({"summary": "Test summary line"}, "stats", "ttest")
         nar = result["narrative"]
         for key in ("verdict", "body", "next_steps", "chart_guidance"):
-            self.assertIsInstance(nar[key], str, f"narrative.{key} is {type(nar[key])}, not str")
+            self.assertIsInstance(
+                nar[key], str, f"narrative.{key} is {type(nar[key])}, not str"
+            )
 
     def test_dict_narrative_passed_through(self):
         """Dict narrative from _narrative() passes through standardize_output() unchanged."""
@@ -1850,7 +2122,9 @@ class EducationCoverageEnforcementTest(SimpleTestCase):
             if key not in ANALYSIS_REGISTRY:
                 orphaned.append(f"{key[0]}/{key[1]}")
         if orphaned:
-            self.fail(f"Education entries for non-existent analyses: {', '.join(orphaned[:10])}")
+            self.fail(
+                f"Education entries for non-existent analyses: {', '.join(orphaned[:10])}"
+            )
 
 
 # ── Bayesian SPC Behavioral Tests ───────────────────────────────────────
@@ -1866,14 +2140,25 @@ class BayesSPCCapabilityTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"measurement": np.random.normal(50, 2, 60)})
-        result = _run_analysis("viz", "bayes_spc_capability", df, {"measurement": "measurement", "usl": 56, "lsl": 44})
+        result = _run_analysis(
+            "viz",
+            "bayes_spc_capability",
+            df,
+            {"measurement": "measurement", "usl": 56, "lsl": 44},
+        )
         # Education present with proper structure
         edu = result.get("education")
         self.assertIsNotNone(edu, "bayes_spc_capability missing education")
         self.assertIsInstance(edu, dict)
-        self.assertGreaterEqual(len(edu.get("title", "")), 15, "Education title too short")
-        self.assertGreaterEqual(len(edu.get("content", "")), 200, "Education content too shallow")
-        self.assertIn("<dl>", edu.get("content", ""), "Education missing <dl> structure")
+        self.assertGreaterEqual(
+            len(edu.get("title", "")), 15, "Education title too short"
+        )
+        self.assertGreaterEqual(
+            len(edu.get("content", "")), 200, "Education content too shallow"
+        )
+        self.assertIn(
+            "<dl>", edu.get("content", ""), "Education missing <dl> structure"
+        )
 
         # Narrative is dict (not HTML string, not None)
         nar = result.get("narrative")
@@ -1883,7 +2168,9 @@ class BayesSPCCapabilityTest(SimpleTestCase):
             self.assertIn(key, nar, f"Narrative missing key: {key}")
 
         # Charts produced
-        self.assertGreater(len(result.get("plots", [])), 0, "Should produce at least one chart")
+        self.assertGreater(
+            len(result.get("plots", [])), 0, "Should produce at least one chart"
+        )
 
     def test_bayes_spc_capability_error_on_no_spec(self):
         """bayes_spc_capability returns error when no spec limits provided."""
@@ -1892,9 +2179,13 @@ class BayesSPCCapabilityTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"measurement": np.random.normal(50, 2, 60)})
-        result = _run_analysis("viz", "bayes_spc_capability", df, {"measurement": "measurement"})
+        result = _run_analysis(
+            "viz", "bayes_spc_capability", df, {"measurement": "measurement"}
+        )
         summary = result.get("summary", "")
-        self.assertIn("spec limit", summary.lower(), "Should report missing spec limits")
+        self.assertIn(
+            "spec limit", summary.lower(), "Should report missing spec limits"
+        )
 
 
 class BayesSPCControlTest(SimpleTestCase):
@@ -1907,12 +2198,19 @@ class BayesSPCControlTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"measurement": np.random.normal(50, 2, 50)})
-        result = _run_analysis("viz", "bayes_spc_control", df, {"measurement": "measurement", "shift_size": 1.5})
+        result = _run_analysis(
+            "viz",
+            "bayes_spc_control",
+            df,
+            {"measurement": "measurement", "shift_size": 1.5},
+        )
         # Education present
         edu = result.get("education")
         self.assertIsNotNone(edu, "bayes_spc_control missing education")
         self.assertIsInstance(edu, dict)
-        self.assertGreaterEqual(len(edu.get("content", "")), 200, "Education too shallow")
+        self.assertGreaterEqual(
+            len(edu.get("content", "")), 200, "Education too shallow"
+        )
 
         # Narrative is dict
         nar = result.get("narrative")
@@ -1920,7 +2218,9 @@ class BayesSPCControlTest(SimpleTestCase):
         self.assertIsInstance(nar, dict)
 
         # Charts produced
-        self.assertGreater(len(result.get("plots", [])), 0, "Should produce control chart")
+        self.assertGreater(
+            len(result.get("plots", [])), 0, "Should produce control chart"
+        )
 
     def test_bayes_spc_control_chart_styling(self):
         """Charts from bayes_spc_control have standard defaults applied."""
@@ -1929,12 +2229,19 @@ class BayesSPCControlTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"measurement": np.random.normal(50, 2, 50)})
-        result = _run_analysis("viz", "bayes_spc_control", df, {"measurement": "measurement", "shift_size": 1.5})
+        result = _run_analysis(
+            "viz",
+            "bayes_spc_control",
+            df,
+            {"measurement": "measurement", "shift_size": 1.5},
+        )
         for plot in result.get("plots", []):
             if isinstance(plot, dict) and "layout" in plot:
                 self.assertIn("height", plot["layout"], "Chart missing height")
                 self.assertEqual(
-                    plot["layout"].get("paper_bgcolor"), "rgba(0,0,0,0)", "Chart missing transparent background"
+                    plot["layout"].get("paper_bgcolor"),
+                    "rgba(0,0,0,0)",
+                    "Chart missing transparent background",
                 )
 
 
@@ -1948,19 +2255,27 @@ class BayesSPCChangepointTest(SimpleTestCase):
 
         np.random.seed(42)
         # Data with an intentional shift at observation 50
-        data = np.concatenate([np.random.normal(50, 2, 50), np.random.normal(55, 2, 50)])
+        data = np.concatenate(
+            [np.random.normal(50, 2, 50), np.random.normal(55, 2, 50)]
+        )
         df = pd.DataFrame({"measurement": data})
         result = _run_analysis(
             "viz",
             "bayes_spc_changepoint",
             df,
-            {"measurement": "measurement", "hazard_rate": 0.01, "min_segment_length": 5},
+            {
+                "measurement": "measurement",
+                "hazard_rate": 0.01,
+                "min_segment_length": 5,
+            },
         )
         # Education present
         edu = result.get("education")
         self.assertIsNotNone(edu, "bayes_spc_changepoint missing education")
         self.assertIsInstance(edu, dict)
-        self.assertGreaterEqual(len(edu.get("content", "")), 200, "Education too shallow")
+        self.assertGreaterEqual(
+            len(edu.get("content", "")), 200, "Education too shallow"
+        )
 
         # Narrative is dict
         nar = result.get("narrative")
@@ -1968,4 +2283,6 @@ class BayesSPCChangepointTest(SimpleTestCase):
         self.assertIsInstance(nar, dict)
 
         # Charts produced
-        self.assertGreater(len(result.get("plots", [])), 0, "Should produce changepoint chart")
+        self.assertGreater(
+            len(result.get("plots", [])), 0, "Should produce changepoint chart"
+        )

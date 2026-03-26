@@ -9,7 +9,7 @@
 #
 # Prerequisites (one-time):
 #   sudo visudo -f /etc/sudoers.d/svend-deploy
-#   eric ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart svend, /usr/bin/systemctl restart tempora
+#   eric ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart svend, /usr/bin/systemctl restart tempora, /usr/bin/systemctl daemon-reload, /usr/bin/cp /home/eric/kjerne/services/svend/web/ops/*.service /etc/systemd/system/*, /usr/bin/cp /home/eric/kjerne/services/svend/web/ops/*.timer /etc/systemd/system/*
 
 set -euo pipefail
 
@@ -273,8 +273,28 @@ python3 manage.py check --deploy 2>&1 || warn "Deploy check reported warnings (n
 ok "Deploy checks complete"
 
 # ══════════════════════════════════════════════════════════════════════
-# Step 8: Restart services
+# Step 8: Sync service units + restart
 # ══════════════════════════════════════════════════════════════════════
+step "Syncing service units"
+
+UNITS_CHANGED=false
+for unit in svend.service tempora.service svend-backup.service svend-backup.timer svend-purge.service svend-purge.timer; do
+    SRC="$OPS_DIR/$unit"
+    DST="/etc/systemd/system/$unit"
+    if [[ -f "$SRC" ]] && ! diff -q "$SRC" "$DST" >/dev/null 2>&1; then
+        sudo cp "$SRC" "$DST"
+        info "Updated $unit"
+        UNITS_CHANGED=true
+    fi
+done
+
+if [[ "$UNITS_CHANGED" == "true" ]]; then
+    sudo systemctl daemon-reload
+    ok "Service units synced and daemon reloaded"
+else
+    info "Service units already in sync"
+fi
+
 step "Restarting services"
 
 sudo systemctl restart svend

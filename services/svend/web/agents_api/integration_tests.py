@@ -29,7 +29,9 @@ SECURE_OFF = override_settings(
 
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
+    user = User.objects.create_user(
+        username=username, email=email, password=password, **kwargs
+    )
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -223,7 +225,9 @@ class ProjectHypothesisEvidencePipelineTest(TestCase):
         hyp = _create_hypothesis(self.client, proj_a["id"]).json()
 
         # Try to get hypothesis from wrong project
-        res = self.client.get(f"/api/core/projects/{proj_b['id']}/hypotheses/{hyp['id']}/")
+        res = self.client.get(
+            f"/api/core/projects/{proj_b['id']}/hypotheses/{hyp['id']}/"
+        )
         self.assertEqual(res.status_code, 404)
 
     def test_project_advance_phase(self):
@@ -587,8 +591,12 @@ class FileUploadTest(TestCase):
     def test_dangerous_extension_blocked(self):
         """Executable files should be rejected."""
         for ext in [".exe", ".bat", ".sh", ".py", ".php"]:
-            f = SimpleUploadedFile(f"test{ext}", b"content", content_type="application/octet-stream")
-            res = self.client.post("/api/files/upload/", {"file": f}, format="multipart")
+            f = SimpleUploadedFile(
+                f"test{ext}", b"content", content_type="application/octet-stream"
+            )
+            res = self.client.post(
+                "/api/files/upload/", {"file": f}, format="multipart"
+            )
             self.assertEqual(res.status_code, 400, msg=f"{ext} should be blocked")
 
     def test_list_files(self):
@@ -683,7 +691,9 @@ class FMEAHypothesisLinkTest(TestCase):
         drf_client = APIClient()
         drf_client.force_authenticate(self.user)
         proj = _create_project(drf_client).json()
-        hyp = _create_hypothesis(drf_client, proj["id"], "Cooling failure causes defects").json()
+        hyp = _create_hypothesis(
+            drf_client, proj["id"], "Cooling failure causes defects"
+        ).json()
 
         # Create FMEA with project link
         fmea_res = self.client.post(
@@ -835,7 +845,9 @@ class TenantProjectIsolationTest(TestCase):
         self.member = _make_user("member@example.com", Tier.TEAM)
         self.outsider = _make_user("outsider@example.com", Tier.PRO)
 
-        self.tenant = Tenant.objects.create(name="Test Org", slug="test-org", plan="team")
+        self.tenant = Tenant.objects.create(
+            name="Test Org", slug="test-org", plan="team"
+        )
         Membership.objects.create(
             tenant=self.tenant,
             user=self.owner,

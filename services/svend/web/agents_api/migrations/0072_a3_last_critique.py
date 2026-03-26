@@ -6,13 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agents_api', '0071_complaint_reopen_reason'),
+        ("agents_api", "0071_complaint_reopen_reason"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='a3report',
-            name='last_critique',
-            field=models.JSONField(blank=True, default=dict, help_text='Last critique result: {sections: {field: {rating, feedback}}, overall, logical_flow}'),
+            model_name="a3report",
+            name="last_critique",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text="Last critique result: {sections: {field: {rating, feedback}}, overall, logical_flow}",
+            ),
         ),
     ]

@@ -34,7 +34,9 @@ def _make_measurement_system(user, name="Test Gage", system_type="variable"):
     )
 
 
-def _make_gage_study(ms, study_type="grr_crossed", grr_percent=None, kappa=None, completed=True):
+def _make_gage_study(
+    ms, study_type="grr_crossed", grr_percent=None, kappa=None, completed=True
+):
     return GageStudy.objects.create(
         measurement_system=ms,
         study_type=study_type,

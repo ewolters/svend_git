@@ -81,14 +81,26 @@ class CognitiveTaskAdmin(admin.ModelAdmin):
         (
             "Correlation & Lineage",
             {
-                "fields": ("correlation_id", "root_correlation_id", "parent_task_id", "cascade_depth"),
+                "fields": (
+                    "correlation_id",
+                    "root_correlation_id",
+                    "parent_task_id",
+                    "cascade_depth",
+                ),
                 "classes": ("collapse",),
             },
         ),
         (
             "State",
             {
-                "fields": ("state", "attempts", "max_attempts", "result", "error_message", "error_type"),
+                "fields": (
+                    "state",
+                    "attempts",
+                    "max_attempts",
+                    "result",
+                    "error_message",
+                    "error_type",
+                ),
             },
         ),
         (
@@ -100,14 +112,26 @@ class CognitiveTaskAdmin(admin.ModelAdmin):
         (
             "Cognitive Attributes",
             {
-                "fields": ("urgency", "confidence_score", "governance_risk", "resource_weight", "priority_score"),
+                "fields": (
+                    "urgency",
+                    "confidence_score",
+                    "governance_risk",
+                    "resource_weight",
+                    "priority_score",
+                ),
                 "classes": ("collapse",),
             },
         ),
         (
             "Timing",
             {
-                "fields": ("created_at", "updated_at", "scheduled_at", "completed_at", "deadline"),
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                    "scheduled_at",
+                    "completed_at",
+                    "deadline",
+                ),
             },
         ),
         (
@@ -170,9 +194,9 @@ class CognitiveTaskAdmin(admin.ModelAdmin):
 
     @admin.action(description="Cancel selected tasks")
     def mark_cancelled(self, request, queryset):
-        count = queryset.filter(state__in=[TaskState.PENDING.value, TaskState.SCHEDULED.value]).update(
-            state=TaskState.CANCELLED.value
-        )
+        count = queryset.filter(
+            state__in=[TaskState.PENDING.value, TaskState.SCHEDULED.value]
+        ).update(state=TaskState.CANCELLED.value)
         self.message_user(request, f"{count} task(s) cancelled.")
 
     @admin.action(description="Retry selected tasks")
@@ -188,7 +212,9 @@ class CognitiveTaskAdmin(admin.ModelAdmin):
     @admin.action(description="Move to Dead Letter Queue")
     def move_to_dlq(self, request, queryset):
         count = 0
-        for task in queryset.filter(state__in=[TaskState.FAILURE.value, TaskState.RETRYING.value]):
+        for task in queryset.filter(
+            state__in=[TaskState.FAILURE.value, TaskState.RETRYING.value]
+        ):
             task.state = TaskState.DEAD_LETTERED.value
             task.save()
             DeadLetterEntry.create_from_task(task, "Manual DLQ move via admin")
@@ -308,7 +334,10 @@ class ScheduleAdmin(admin.ModelAdmin):
     ordering = ("name",)
 
     fieldsets = (
-        ("Identity", {"fields": ("schedule_id", "name", "task_name", "tenant_id", "is_enabled")}),
+        (
+            "Identity",
+            {"fields": ("schedule_id", "name", "task_name", "tenant_id", "is_enabled")},
+        ),
         (
             "Schedule Pattern",
             {
@@ -442,7 +471,12 @@ class DeadLetterEntryAdmin(admin.ModelAdmin):
         (
             "Failure Details",
             {
-                "fields": ("failure_reason", "last_error_type", "last_error_message", "last_error_traceback"),
+                "fields": (
+                    "failure_reason",
+                    "last_error_type",
+                    "last_error_message",
+                    "last_error_traceback",
+                ),
             },
         ),
         (
@@ -491,7 +525,9 @@ class DeadLetterEntryAdmin(admin.ModelAdmin):
 
     def failure_reason_short(self, obj):
         if obj.failure_reason:
-            return obj.failure_reason[:50] + ("..." if len(obj.failure_reason) > 50 else "")
+            return obj.failure_reason[:50] + (
+                "..." if len(obj.failure_reason) > 50 else ""
+            )
         return "-"
 
     failure_reason_short.short_description = "Reason"
@@ -678,9 +714,13 @@ class SchedulerAdminSite(admin.AdminSite):
                 "pending_tasks": CognitiveTask.objects.filter(
                     state__in=[TaskState.PENDING.value, TaskState.SCHEDULED.value]
                 ).count(),
-                "running_tasks": CognitiveTask.objects.filter(state=TaskState.RUNNING.value).count(),
+                "running_tasks": CognitiveTask.objects.filter(
+                    state=TaskState.RUNNING.value
+                ).count(),
                 "dlq_pending": DeadLetterEntry.objects.filter(status="pending").count(),
-                "circuits_open": CircuitBreakerState.objects.filter(state="open").count(),
+                "circuits_open": CircuitBreakerState.objects.filter(
+                    state="open"
+                ).count(),
                 "schedules_enabled": Schedule.objects.filter(is_enabled=True).count(),
             }
         except Exception:

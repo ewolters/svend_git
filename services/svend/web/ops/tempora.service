@@ -8,7 +8,7 @@ Wants=postgresql.service
 Type=simple
 User=eric
 Group=eric
-WorkingDirectory=%h/kjerne/services/svend/web
+WorkingDirectory=/home/eric/kjerne/services/svend/web
 Environment=DJANGO_SETTINGS_MODULE=svend.settings
 Environment=TEMPORA_NODE_ID=tempora-1
 Environment=TEMPORA_HOST=0.0.0.0
@@ -38,7 +38,7 @@ SyslogIdentifier=tempora
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=%h/kjerne
+ReadWritePaths=/home/eric/kjerne
 
 [Install]
 WantedBy=multi-user.target

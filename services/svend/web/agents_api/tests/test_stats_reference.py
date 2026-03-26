@@ -50,10 +50,17 @@ class TTestReferenceTest(TestCase):
         ref_stat, ref_p = sp_stats.ttest_1samp(data, 100)
 
         # Svend
-        result = _svend_stats("ttest", {"var1": "x", "mu": 100, "conf": 95}, {"x": data.tolist()})
+        result = _svend_stats(
+            "ttest", {"var1": "x", "mu": 100, "conf": 95}, {"x": data.tolist()}
+        )
         svend_p = result["statistics"]["p_value"]
 
-        self.assertAlmostEqual(svend_p, ref_p, delta=0.005, msg=f"p-value: svend={svend_p:.6f} vs scipy={ref_p:.6f}")
+        self.assertAlmostEqual(
+            svend_p,
+            ref_p,
+            delta=0.005,
+            msg=f"p-value: svend={svend_p:.6f} vs scipy={ref_p:.6f}",
+        )
 
     def test_ttest_effect_present(self):
         rng = np.random.RandomState(43)
@@ -61,10 +68,17 @@ class TTestReferenceTest(TestCase):
 
         ref_stat, ref_p = sp_stats.ttest_1samp(data, 100)
 
-        result = _svend_stats("ttest", {"var1": "x", "mu": 100, "conf": 95}, {"x": data.tolist()})
+        result = _svend_stats(
+            "ttest", {"var1": "x", "mu": 100, "conf": 95}, {"x": data.tolist()}
+        )
         svend_p = result["statistics"]["p_value"]
 
-        self.assertAlmostEqual(svend_p, ref_p, delta=0.005, msg=f"p-value: svend={svend_p:.6f} vs scipy={ref_p:.6f}")
+        self.assertAlmostEqual(
+            svend_p,
+            ref_p,
+            delta=0.005,
+            msg=f"p-value: svend={svend_p:.6f} vs scipy={ref_p:.6f}",
+        )
 
 
 class TTest2ReferenceTest(TestCase):
@@ -77,10 +91,17 @@ class TTest2ReferenceTest(TestCase):
 
         ref_stat, ref_p = sp_stats.ttest_ind(a, b)
 
-        result = _svend_stats("ttest2", {"var1": "a", "var2": "b"}, {"a": a.tolist(), "b": b.tolist()})
+        result = _svend_stats(
+            "ttest2", {"var1": "a", "var2": "b"}, {"a": a.tolist(), "b": b.tolist()}
+        )
         svend_p = result["statistics"]["p_value"]
 
-        self.assertAlmostEqual(svend_p, ref_p, delta=0.005, msg=f"p-value: svend={svend_p:.6f} vs scipy={ref_p:.6f}")
+        self.assertAlmostEqual(
+            svend_p,
+            ref_p,
+            delta=0.005,
+            msg=f"p-value: svend={svend_p:.6f} vs scipy={ref_p:.6f}",
+        )
 
     def test_ttest2_cohens_d(self):
         """Verify Cohen's d is computed correctly."""
@@ -92,10 +113,17 @@ class TTest2ReferenceTest(TestCase):
         pooled_std = np.sqrt((np.var(a, ddof=1) + np.var(b, ddof=1)) / 2)
         ref_d = abs(np.mean(a) - np.mean(b)) / pooled_std
 
-        result = _svend_stats("ttest2", {"var1": "a", "var2": "b"}, {"a": a.tolist(), "b": b.tolist()})
+        result = _svend_stats(
+            "ttest2", {"var1": "a", "var2": "b"}, {"a": a.tolist(), "b": b.tolist()}
+        )
         svend_d = abs(result["statistics"]["cohens_d"])
 
-        self.assertAlmostEqual(svend_d, ref_d, delta=0.05, msg=f"Cohen's d: svend={svend_d:.4f} vs ref={ref_d:.4f}")
+        self.assertAlmostEqual(
+            svend_d,
+            ref_d,
+            delta=0.05,
+            msg=f"Cohen's d: svend={svend_d:.4f} vs ref={ref_d:.4f}",
+        )
 
 
 class ANOVAReferenceTest(TestCase):
@@ -111,13 +139,27 @@ class ANOVAReferenceTest(TestCase):
 
         values = np.concatenate([a, b, c]).tolist()
         groups = (["A"] * 80) + (["B"] * 80) + (["C"] * 80)
-        result = _svend_stats("anova", {"response": "value", "factor": "group"}, {"value": values, "group": groups})
+        result = _svend_stats(
+            "anova",
+            {"response": "value", "factor": "group"},
+            {"value": values, "group": groups},
+        )
 
         svend_p = result["statistics"]["p_value"]
         svend_f = result["statistics"]["f_statistic"]
 
-        self.assertAlmostEqual(svend_p, ref_p, delta=0.005, msg=f"p-value: svend={svend_p:.6f} vs scipy={ref_p:.6f}")
-        self.assertAlmostEqual(svend_f, ref_f, delta=0.5, msg=f"F: svend={svend_f:.4f} vs scipy={ref_f:.4f}")
+        self.assertAlmostEqual(
+            svend_p,
+            ref_p,
+            delta=0.005,
+            msg=f"p-value: svend={svend_p:.6f} vs scipy={ref_p:.6f}",
+        )
+        self.assertAlmostEqual(
+            svend_f,
+            ref_f,
+            delta=0.5,
+            msg=f"F: svend={svend_f:.4f} vs scipy={ref_f:.4f}",
+        )
 
 
 class CorrelationReferenceTest(TestCase):
@@ -130,14 +172,26 @@ class CorrelationReferenceTest(TestCase):
 
         ref_r, ref_p = sp_stats.pearsonr(x, y)
 
-        result = _svend_stats("correlation", {"variables": ["x", "y"]}, {"x": x.tolist(), "y": y.tolist()})
+        result = _svend_stats(
+            "correlation", {"variables": ["x", "y"]}, {"x": x.tolist(), "y": y.tolist()}
+        )
 
         # Svend uses stats keys like "r(x,y)" and "p(x,y)"
         svend_r = result["statistics"]["r(x,y)"]
         svend_p = result["statistics"]["p(x,y)"]
 
-        self.assertAlmostEqual(svend_r, ref_r, delta=0.02, msg=f"r: svend={svend_r:.6f} vs scipy={ref_r:.6f}")
-        self.assertAlmostEqual(svend_p, ref_p, delta=0.005, msg=f"p: svend={svend_p:.6f} vs scipy={ref_p:.6f}")
+        self.assertAlmostEqual(
+            svend_r,
+            ref_r,
+            delta=0.02,
+            msg=f"r: svend={svend_r:.6f} vs scipy={ref_r:.6f}",
+        )
+        self.assertAlmostEqual(
+            svend_p,
+            ref_p,
+            delta=0.005,
+            msg=f"p: svend={svend_p:.6f} vs scipy={ref_p:.6f}",
+        )
 
 
 class Chi2ReferenceTest(TestCase):
@@ -152,13 +206,25 @@ class Chi2ReferenceTest(TestCase):
         table = pd.crosstab(pd.Series(row_var), pd.Series(col_var))
         ref_chi2, ref_p, _, _ = sp_stats.chi2_contingency(table)
 
-        result = _svend_stats("chi2", {"var1": "a", "var2": "b"}, {"a": row_var.tolist(), "b": col_var.tolist()})
+        result = _svend_stats(
+            "chi2",
+            {"var1": "a", "var2": "b"},
+            {"a": row_var.tolist(), "b": col_var.tolist()},
+        )
         svend_p = result["statistics"]["p_value"]
         svend_chi2 = result["statistics"]["chi2"]
 
-        self.assertAlmostEqual(svend_p, ref_p, delta=0.005, msg=f"p: svend={svend_p:.6f} vs scipy={ref_p:.6f}")
         self.assertAlmostEqual(
-            svend_chi2, ref_chi2, delta=0.5, msg=f"χ²: svend={svend_chi2:.4f} vs scipy={ref_chi2:.4f}"
+            svend_p,
+            ref_p,
+            delta=0.005,
+            msg=f"p: svend={svend_p:.6f} vs scipy={ref_p:.6f}",
+        )
+        self.assertAlmostEqual(
+            svend_chi2,
+            ref_chi2,
+            delta=0.5,
+            msg=f"χ²: svend={svend_chi2:.4f} vs scipy={ref_chi2:.4f}",
         )
 
 
@@ -175,11 +241,18 @@ class MannWhitneyReferenceTest(TestCase):
         values = np.concatenate([a, b]).tolist()
         groups = (["A"] * 80) + (["B"] * 80)
         result = _svend_stats(
-            "mann_whitney", {"var": "value", "group_var": "group"}, {"value": values, "group": groups}
+            "mann_whitney",
+            {"var": "value", "group_var": "group"},
+            {"value": values, "group": groups},
         )
 
         svend_p = result["statistics"]["p_value"]
-        self.assertAlmostEqual(svend_p, ref_p, delta=0.005, msg=f"p: svend={svend_p:.6f} vs scipy={ref_p:.6f}")
+        self.assertAlmostEqual(
+            svend_p,
+            ref_p,
+            delta=0.005,
+            msg=f"p: svend={svend_p:.6f} vs scipy={ref_p:.6f}",
+        )
 
 
 class RegressionReferenceTest(TestCase):
@@ -196,14 +269,26 @@ class RegressionReferenceTest(TestCase):
         ref_r2 = lr.score(x.reshape(-1, 1), y)
         ref_slope = lr.coef_[0]
 
-        result = _svend_stats("regression", {"response": "y", "predictors": ["x"]}, {"x": x.tolist(), "y": y.tolist()})
+        result = _svend_stats(
+            "regression",
+            {"response": "y", "predictors": ["x"]},
+            {"x": x.tolist(), "y": y.tolist()},
+        )
 
         svend_r2 = result["regression_metrics"]["r_squared"]
         svend_slope = result["statistics"]["coef(x)"]
 
-        self.assertAlmostEqual(svend_r2, ref_r2, delta=0.02, msg=f"R²: svend={svend_r2:.4f} vs sklearn={ref_r2:.4f}")
         self.assertAlmostEqual(
-            svend_slope, ref_slope, delta=0.1, msg=f"slope: svend={svend_slope:.4f} vs sklearn={ref_slope:.4f}"
+            svend_r2,
+            ref_r2,
+            delta=0.02,
+            msg=f"R²: svend={svend_r2:.4f} vs sklearn={ref_r2:.4f}",
+        )
+        self.assertAlmostEqual(
+            svend_slope,
+            ref_slope,
+            delta=0.1,
+            msg=f"slope: svend={svend_slope:.4f} vs sklearn={ref_slope:.4f}",
         )
 
     def test_multiple_regression(self):
@@ -225,7 +310,12 @@ class RegressionReferenceTest(TestCase):
         )
         svend_r2 = result["regression_metrics"]["r_squared"]
 
-        self.assertAlmostEqual(svend_r2, ref_r2, delta=0.02, msg=f"R²: svend={svend_r2:.4f} vs sklearn={ref_r2:.4f}")
+        self.assertAlmostEqual(
+            svend_r2,
+            ref_r2,
+            delta=0.02,
+            msg=f"R²: svend={svend_r2:.4f} vs sklearn={ref_r2:.4f}",
+        )
 
 
 class CapabilityReferenceTest(TestCase):
@@ -243,7 +333,11 @@ class CapabilityReferenceTest(TestCase):
         ref_cp = (usl - lsl) / (6 * std)
         ref_cpk = min((usl - mean) / (3 * std), (mean - lsl) / (3 * std))
 
-        result = _svend_spc("capability", {"measurement": "x", "lsl": 40, "usl": 60}, {"x": data.tolist()})
+        result = _svend_spc(
+            "capability",
+            {"measurement": "x", "lsl": 40, "usl": 60},
+            {"x": data.tolist()},
+        )
 
         # Extract from summary text (Cp and Cpk values)
         summary = result.get("summary", "")
@@ -256,12 +350,18 @@ class CapabilityReferenceTest(TestCase):
             if "Cp:" in line and "Cpk:" not in line:
                 svend_cp = float(line.split("Cp:")[1].split()[0])
                 self.assertAlmostEqual(
-                    svend_cp, ref_cp, delta=0.2, msg=f"Cp: svend={svend_cp:.3f} vs manual={ref_cp:.3f}"
+                    svend_cp,
+                    ref_cp,
+                    delta=0.2,
+                    msg=f"Cp: svend={svend_cp:.3f} vs manual={ref_cp:.3f}",
                 )
             if "Cpk:" in line and "Ppk:" in line:
                 svend_cpk = float(line.split("Cpk:")[1].split()[0])
                 self.assertAlmostEqual(
-                    svend_cpk, ref_cpk, delta=0.2, msg=f"Cpk: svend={svend_cpk:.3f} vs manual={ref_cpk:.3f}"
+                    svend_cpk,
+                    ref_cpk,
+                    delta=0.2,
+                    msg=f"Cpk: svend={svend_cpk:.3f} vs manual={ref_cpk:.3f}",
                 )
 
 
