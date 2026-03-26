@@ -232,7 +232,7 @@ urlpatterns = [
         TemplateView.as_view(template_name="experimenter.html"),
         name="experimenter",
     ),
-    path("app/spc/", RedirectView.as_view(url="/app/dsw/", permanent=True), name="spc"),
+    path("app/spc/", RedirectView.as_view(url="/app/analysis/", permanent=True), name="spc"),
     path(
         "app/safety/",
         TemplateView.as_view(template_name="safety_app.html"),
