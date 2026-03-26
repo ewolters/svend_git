@@ -333,6 +333,42 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         </div>
     </div>
 </div>
+
+<!-- Members modal -->
+<div class="inv-modal-overlay" id="members-modal">
+    <div class="inv-modal" style="max-width:450px;">
+        <h3>Members</h3>
+        <div id="members-list" style="margin-bottom:12px;max-height:200px;overflow-y:auto;"></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <input type="text" id="add-member-email" placeholder="Username or email" style="flex:1;">
+            <select id="add-member-role" style="width:120px;">
+                <option value="contributor">Contributor</option>
+                <option value="viewer">Viewer</option>
+            </select>
+            <button class="btn-primary btn-sm" onclick="addMember()">Add</button>
+        </div>
+        <div class="inv-modal-actions">
+            <button class="btn-secondary" onclick="hideMembersModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Export modal -->
+<div class="inv-modal-overlay" id="export-modal">
+    <div class="inv-modal" style="max-width:450px;">
+        <h3>Export Investigation</h3>
+        <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Export conclusion package as evidence to a target project. This freezes the investigation.</p>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Target Project</label>
+            <select id="export-project" style="width:100%;"></select>
+        </div>
+        <div id="export-result" style="display:none;margin-bottom:12px;padding:10px;background:rgba(74,159,110,0.1);border-radius:6px;font-size:12px;"></div>
+        <div class="inv-modal-actions">
+            <button class="btn-secondary" onclick="hideExportModal()">Cancel</button>
+            <button class="btn-primary" id="export-btn" onclick="doExport()" data-loading-text="Exporting\u2026">Export</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -356,11 +392,7 @@ function timeAgo(dt) {
 }
 
 function apiFetch(url, opts = {}) {
-    return fetch(url, {
-        ...opts,
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, ...opts.headers },
-    }).then(r => r.json());
+    return svendFetch(url, opts);
 }
 
 // ============================================================================
@@ -434,7 +466,10 @@ function renderDetail() {
             <div class="inv-actions">
                 ${canTransition && nextStatus ? `<button class="btn-primary btn-sm" onclick="transitionInv('${nextStatus}')">${nextStatus === 'active' ? 'Activate' : 'Conclude'}</button>` : ''}
                 ${inv.status === 'concluded' ? `<button class="btn-secondary btn-sm" onclick="reopenInv()">Reopen</button>` : ''}
+                ${inv.status === 'concluded' ? `<button class="btn-primary btn-sm" onclick="showExportModal()">Export to Project</button>` : ''}
+                ${inv.status === 'exported' ? `<span style="font-size:12px;color:var(--success);">Exported ${inv.exported_at ? timeAgo(inv.exported_at) : ''}</span>` : ''}
                 ${inv.status === 'open' ? `<button class="btn-danger btn-sm" onclick="deleteInv()">Delete</button>` : ''}
+                <button class="btn-secondary btn-sm" onclick="showMembersModal()">Members</button>
             </div>
         </div>
 
@@ -556,44 +591,37 @@ function renderDetail() {
 // ============================================================================
 
 async function transitionInv(targetStatus) {
-    const data = await apiFetch(API + currentInvId + '/transition/', {
-        method: 'POST',
-        body: JSON.stringify({ target_status: targetStatus }),
-    });
-    if (data.error) {
-        alert(data.error);
-        return;
-    }
-    await loadInvestigation(currentInvId);
+    try {
+        await apiFetch(API + currentInvId + '/transition/', {
+            method: 'POST',
+            body: JSON.stringify({ target_status: targetStatus }),
+        });
+        await loadInvestigation(currentInvId);
+    } catch (e) { /* svendFetch already toasted */ }
 }
 
 async function reopenInv() {
-    if (!confirm('Reopen this investigation? A new version will be created.')) return;
-    const data = await apiFetch(API + currentInvId + '/reopen/', {
-        method: 'POST',
-        body: JSON.stringify({}),
-    });
-    if (data.error) {
-        alert(data.error);
-        return;
-    }
-    // Load the new version
-    await loadInvestigation(data.investigation.id);
-    await loadList();
+    if (!await svendConfirm('Reopen this investigation? A new version will be created.', 'Reopen')) return;
+    try {
+        const data = await apiFetch(API + currentInvId + '/reopen/', {
+            method: 'POST',
+            body: JSON.stringify({}),
+        });
+        await loadInvestigation(data.investigation.id);
+        await loadList();
+    } catch (e) { /* svendFetch already toasted */ }
 }
 
 async function deleteInv() {
-    if (!confirm('Delete this investigation? This cannot be undone.')) return;
-    const data = await apiFetch(API + currentInvId + '/', { method: 'DELETE' });
-    if (data.error) {
-        alert(data.error);
-        return;
-    }
-    currentInvId = null;
-    currentInv = null;
-    document.getElementById('inv-detail').style.display = 'none';
-    document.getElementById('inv-empty').style.display = 'flex';
-    await loadList();
+    if (!await svendConfirm('Delete this investigation? This cannot be undone.', 'Delete')) return;
+    try {
+        await apiFetch(API + currentInvId + '/', { method: 'DELETE' });
+        currentInvId = null;
+        currentInv = null;
+        document.getElementById('inv-detail').style.display = 'none';
+        document.getElementById('inv-empty').style.display = 'flex';
+        await loadList();
+    } catch (e) { /* svendFetch already toasted */ }
 }
 
 // ============================================================================
@@ -613,8 +641,9 @@ function hideCreateModal() {
 
 async function createInvestigation() {
     const title = document.getElementById('create-title').value.trim();
-    if (!title) { alert('Title is required'); return; }
+    if (!title) { svToast('Title is required', 'warning'); return; }
 
+    try {
     const data = await apiFetch(API, {
         method: 'POST',
         body: JSON.stringify({
@@ -623,14 +652,128 @@ async function createInvestigation() {
         }),
     });
 
-    if (data.error) {
-        alert(data.error);
-        return;
-    }
-
     hideCreateModal();
     await loadList();
     await loadInvestigation(data.investigation.id);
+    } catch (e) { /* svendFetch already toasted */ }
+}
+
+// ============================================================================
+// Members
+// ============================================================================
+
+async function showMembersModal() {
+    if (!currentInvId) return;
+    document.getElementById('members-modal').classList.add('active');
+    document.getElementById('members-list').innerHTML = '<div style="color:var(--text-dim);font-size:12px;">Loading...</div>';
+
+    try {
+        const data = await apiFetch(API + currentInvId + '/members/');
+        const members = data.members || [];
+        if (members.length === 0) {
+            document.getElementById('members-list').innerHTML = '<div style="color:var(--text-dim);font-size:12px;">No members yet.</div>';
+        } else {
+            document.getElementById('members-list').innerHTML = members.map(m => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
+                    <div>
+                        <strong style="font-size:13px;">${esc(m.username)}</strong>
+                        <span style="font-size:11px;color:var(--text-dim);margin-left:6px;text-transform:capitalize;">${esc(m.role)}</span>
+                    </div>
+                    ${m.role !== 'owner' ? `<button class="btn-danger btn-sm" onclick="removeMember('${m.user_id}')" style="padding:2px 8px;">Remove</button>` : ''}
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        document.getElementById('members-list').innerHTML = '<div style="color:var(--error);font-size:12px;">Failed to load members.</div>';
+    }
+}
+
+function hideMembersModal() {
+    document.getElementById('members-modal').classList.remove('active');
+}
+
+async function addMember() {
+    const input = document.getElementById('add-member-email').value.trim();
+    if (!input) { svToast('Enter a username or email', 'warning'); return; }
+    const role = document.getElementById('add-member-role').value;
+
+    try {
+        await apiFetch(API + currentInvId + '/members/', {
+            method: 'POST',
+            body: JSON.stringify({ username: input, role: role }),
+        });
+        document.getElementById('add-member-email').value = '';
+        svToast('Member added', 'success');
+        await showMembersModal();
+    } catch (e) { /* svendFetch already toasted */ }
+}
+
+async function removeMember(userId) {
+    if (!await svendConfirm('Remove this member?', 'Remove')) return;
+    try {
+        await apiFetch(API + currentInvId + '/members/', {
+            method: 'DELETE',
+            body: JSON.stringify({ user_id: userId }),
+        });
+        svToast('Member removed', 'success');
+        await showMembersModal();
+    } catch (e) { /* svendFetch already toasted */ }
+}
+
+// ============================================================================
+// Export
+// ============================================================================
+
+async function showExportModal() {
+    if (!currentInvId) return;
+    document.getElementById('export-modal').classList.add('active');
+    document.getElementById('export-result').style.display = 'none';
+    document.getElementById('export-btn').style.display = '';
+
+    const select = document.getElementById('export-project');
+    select.innerHTML = '<option value="">Loading...</option>';
+
+    try {
+        const data = await apiFetch('/api/core/projects/');
+        const projects = data.projects || [];
+        if (projects.length === 0) {
+            select.innerHTML = '<option value="">No projects found</option>';
+        } else {
+            select.innerHTML = '<option value="">Select a project...</option>' +
+                projects.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
+        }
+    } catch (e) {
+        select.innerHTML = '<option value="">Failed to load projects</option>';
+    }
+}
+
+function hideExportModal() {
+    document.getElementById('export-modal').classList.remove('active');
+}
+
+async function doExport() {
+    const projectId = document.getElementById('export-project').value;
+    if (!projectId) { svToast('Select a target project', 'warning'); return; }
+
+    const btn = document.getElementById('export-btn');
+    await withLoading(btn, async () => {
+        try {
+            const data = await apiFetch(API + currentInvId + '/export/', {
+                method: 'POST',
+                body: JSON.stringify({ target_project_id: projectId }),
+            });
+            btn.style.display = 'none';
+            const resultDiv = document.getElementById('export-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+                <strong style="color:var(--success);">Exported successfully</strong><br>
+                Evidence created on project. Conclusion package frozen.<br>
+                <span style="font-size:11px;color:var(--text-dim);">Investigation is now locked.</span>
+            `;
+            await loadInvestigation(currentInvId);
+            await loadList();
+        } catch (e) { /* svendFetch already toasted */ }
+    });
 }
 
 // ============================================================================
