@@ -103,7 +103,7 @@ def _require_project(workbench_id: str, user=None):
     """
     project = _resolve_project(workbench_id, user=user)
     if not project:
-        return None, JsonResponse({"error": "No study loaded. Create or select a study first."}, status=400)
+        return None, JsonResponse({"error": "No project loaded. Create or select a project first."}, status=400)
     return project, None
 
 

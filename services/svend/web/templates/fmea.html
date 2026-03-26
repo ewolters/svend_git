@@ -807,12 +807,6 @@
                     <option value="complete">Complete</option>
                 </select>
             </div>
-            <div class="fmea-toolbar-group">
-                <span style="font-size:12px;color:var(--text-dim);">Investigation:</span>
-                <select class="fmea-project-select" id="fmea-investigation" onchange="saveMeta()">
-                    <option value="">No investigation linked</option>
-                </select>
-            </div>
             <div class="fmea-spacer"></div>
             <div class="fmea-toolbar-group">
                 <button class="fmea-btn small" onclick="addRow()">+ Add Row</button>
@@ -874,10 +868,6 @@
                 </select>
                 <label>Description (optional)</label>
                 <textarea id="create-desc" placeholder="Brief scope or purpose"></textarea>
-                <label>Investigation (optional)</label>
-                <select id="create-investigation">
-                    <option value="">None</option>
-                </select>
                 <div id="fmea-site-slot"></div>
             </div>
         </div>
@@ -902,7 +892,7 @@
             </p>
             <div id="hypothesis-list"></div>
             <div id="no-hypotheses" style="display:none;padding:20px;text-align:center;color:var(--text-dim);">
-                No hypotheses found. Link an investigation with hypotheses first.
+                No hypotheses found. Link a project with hypotheses first.
             </div>
         </div>
     </div>
@@ -926,7 +916,6 @@ const API = '/api/fmea/';
 let currentFmea = null;
 let currentRows = [];
 let availableHypotheses = [];
-let investigations = [];
 let currentActionItems = [];
 let linkingRowId = null;
 let editingRowId = null;
@@ -934,9 +923,6 @@ let saveTimer = null;
 let actionFilter = 'all';
 let listFilter = 'all';
 let allFmeas = [];
-
-// CANON-002 §12 — investigation bridge
-const currentInvestigationId = new URLSearchParams(window.location.search).get('investigation_id') || null;
 
 // ORG-001 §5.3 — site selector for multi-site QMS
 let _fmeaSitesCache = null;
@@ -953,16 +939,6 @@ async function loadFmeaSites() {
 // ====== INIT ======
 
 document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        const resp = await fetch('/api/investigations/', {credentials: 'include'});
-        if (resp.ok) {
-            const data = await resp.json();
-            investigations = data.investigations || [];
-        }
-    } catch(e) {}
-
-    populateInvestigationDropdowns();
-
     // Populate site selector slot if user has org sites
     const siteData = await loadFmeaSites();
     if (siteData.sites.length) {
@@ -985,20 +961,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadList();
     }
 });
-
-function populateInvestigationDropdowns() {
-    const labels = {'create-investigation': 'None', 'fmea-investigation': 'No investigation linked'};
-    ['create-investigation', 'fmea-investigation'].forEach(id => {
-        const sel = document.getElementById(id);
-        if (!sel) return;
-        const val = sel.value;
-        sel.innerHTML = `<option value="">${labels[id]}</option>`;
-        investigations.forEach(inv => {
-            sel.innerHTML += `<option value="${inv.id}">${esc(inv.title)}</option>`;
-        });
-        sel.value = val;
-    });
-}
 
 // ====== LIST VIEW ======
 
@@ -1083,10 +1045,6 @@ async function loadFmea(id) {
 
     document.getElementById('fmea-title').value = currentFmea.title;
     document.getElementById('fmea-status').value = currentFmea.status;
-
-    populateInvestigationDropdowns();
-    // Set investigation dropdown from URL param or FMEA data
-    document.getElementById('fmea-investigation').value = currentInvestigationId || '';
 
     renderRows();
     renderFmeaActionItems(currentActionItems);
@@ -1380,7 +1338,6 @@ function updatePrpnPreview() {
 async function saveEditField(rowId, field, el) {
     const value = el.type === 'number' ? (parseInt(el.value) || 1) : el.value;
     const payload = {[field]: value};
-    if (currentInvestigationId) payload.investigation_id = currentInvestigationId;
 
     const resp = await fetch(API + currentFmea.id + '/rows/' + rowId + '/', {
         method: 'PATCH',
@@ -1452,7 +1409,6 @@ function closeEditModal() {
 
 async function addRow() {
     const payload = {failure_mode: 'New failure mode'};
-    if (currentInvestigationId) payload.investigation_id = currentInvestigationId;
     const resp = await fetch(API + currentFmea.id + '/rows/', {
         method: 'POST',
         credentials: 'include',
@@ -1476,8 +1432,6 @@ async function saveMeta() {
             title: document.getElementById('fmea-title').value,
             status: document.getElementById('fmea-status').value,
         };
-        const invSel = document.getElementById('fmea-investigation').value;
-        if (invSel) metaPayload.investigation_id = invSel;
         await fetch(API + currentFmea.id + '/update/', {
             method: 'PATCH',
             credentials: 'include',
@@ -1501,9 +1455,6 @@ async function createFmea() {
         fmea_type: document.getElementById('create-type').value,
         description: document.getElementById('create-desc').value,
     };
-    const createInvSel = document.getElementById('create-investigation').value;
-    if (createInvSel) createPayload.investigation_id = createInvSel;
-    if (currentInvestigationId) createPayload.investigation_id = currentInvestigationId;
     const fmeaSiteEl = document.getElementById('fmea-site');
     if (fmeaSiteEl && fmeaSiteEl.value) createPayload.site_id = fmeaSiteEl.value;
     const resp = await fetch(API + 'create/', {

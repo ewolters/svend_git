@@ -671,7 +671,7 @@ let sites = [], zones = [], employees = [], fmeas = [];
 
 async function loadSites() {
     try {
-        const data = await hoshinApi('/sites/');
+        const data = await api('/sites/');
         sites = data.sites || data || [];
         const selectors = ['dashSiteFilter','cardSiteFilter','schedSiteFilter','paretoSiteFilter','ncSite','nsSite'];
         selectors.forEach(id => {
@@ -701,7 +701,7 @@ async function loadAuditorsForSite(siteSelId, audSelId) {
     aSel.innerHTML = '<option value="">Select auditor</option>';
     if (!siteId) return;
     try {
-        const data = await hoshinApi('/employees/?site=' + siteId);
+        const data = await api('/auditors/?site=' + siteId);
         (data.employees || data || []).forEach(e => { aSel.innerHTML += '<option value="'+esc(e.id)+'">'+esc(e.name)+'</option>'; });
     } catch(e) {}
 }
@@ -962,7 +962,7 @@ function addAssignmentRow() {
     // Populate from site
     const siteId = document.getElementById('nsSite').value;
     if (siteId) {
-        hoshinApi('/employees/?site='+siteId).then(d => {
+        api('/auditors/?site='+siteId).then(d => {
             const sel = document.getElementById('nsAud'+idx);
             (d.employees||d||[]).forEach(e => { sel.innerHTML += '<option value="'+esc(e.id)+'">'+esc(e.name)+'</option>'; });
         });

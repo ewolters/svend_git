@@ -435,6 +435,52 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     </div>
 </div>
 
+<!-- Pull Tool Output Modal -->
+<div class="nb-modal-overlay" id="pull-modal">
+    <div class="nb-modal">
+        <h3>Pull Tool Output</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 12px 0;">
+            Snapshot a tool output into this notebook as a frozen page.
+        </p>
+        <label>Source</label>
+        <select id="pull-source-type" onchange="loadPullItems()" style="width:100%;padding:6px 8px;margin-bottom:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;">
+            <option value="whiteboard">Whiteboard</option>
+            <option value="fmea">FMEA</option>
+            <option value="rca">Root Cause Analysis</option>
+            <option value="ishikawa">Ishikawa (Fishbone)</option>
+            <option value="ce_matrix">C&amp;E Matrix</option>
+            <option value="dsw">Statistical Analysis (DSW)</option>
+            <option value="doe">DOE Design</option>
+        </select>
+        <label>Item</label>
+        <select id="pull-item" style="width:100%;padding:6px 8px;margin-bottom:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;">
+            <option value="">Select source first...</option>
+        </select>
+        <div id="pull-role-group">
+            <label>Role</label>
+            <select id="pull-role" style="width:100%;padding:6px 8px;margin-bottom:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;">
+                <option value="before">Current Condition (before)</option>
+                <option value="after">Target Condition (after)</option>
+                <option value="supporting">Supporting</option>
+            </select>
+        </div>
+        <div id="pull-doe-mode" style="display:none;">
+            <label>DOE Mode</label>
+            <select id="pull-mode" style="width:100%;padding:6px 8px;margin-bottom:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;">
+                <option value="loose">Loose — design as reference only</option>
+                <option value="strict">Strict — auto-generate trials from design matrix</option>
+            </select>
+            <p id="pull-mode-hint" style="font-size:11px;color:var(--text-dim);margin:0 0 8px 0;">
+                Strict mode creates a trial for each run in the design. You fill in response values as you execute.
+            </p>
+        </div>
+        <div class="nb-modal-actions">
+            <button class="nb-btn" onclick="closeModal('pull-modal')">Cancel</button>
+            <button class="nb-btn nb-btn-primary" onclick="pullToolOutput()">Pull In</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const API = '/api/notebooks/';
 let currentNb = null;
@@ -602,7 +648,9 @@ function renderDetail(nb) {
         <div class="nb-actions">
             <button class="nb-btn nb-btn-primary" onclick="showTrialModal()">+ New Trial</button>
             <button class="nb-btn" onclick="showFrontMatterModal()">+ Note</button>
+            <button class="nb-btn" onclick="showPullToolModal()">Pull Tool Output</button>
             <button class="nb-btn" onclick="window.location.href='/app/analysis/?notebook=${nb.id}'">Open in Workbench</button>
+            <button class="nb-btn" onclick="projectToA3('${nb.id}')">Create A3</button>
             ${nb.status === 'active' ? `<button class="nb-btn" onclick="showConcludeModal()" style="margin-left:auto;">Conclude</button>` : ''}
         </div>
         ` : ''}
@@ -970,21 +1018,105 @@ async function createTrial() {
     }
 }
 
-async function concludeNotebook() {
+async function concludeNotebook(confirmIncompleteDoe) {
     if (!currentNb) return;
-    const { status, data } = await api(API + currentNb.id + '/conclude/', 'POST', {
+    const payload = {
         what_went_well: document.getElementById('hk-well').value,
         what_didnt: document.getElementById('hk-didnt').value,
         what_next: document.getElementById('hk-next').value,
         key_learning: document.getElementById('hk-learning').value,
         carry_forward: document.getElementById('hk-carry').checked,
-    });
+    };
+    if (confirmIncompleteDoe) payload.confirm_incomplete_doe = true;
+
+    const { status, data } = await api(API + currentNb.id + '/conclude/', 'POST', payload);
     if (status === 200) {
         closeModal('conclude-modal');
         selectNotebook(currentNb.id);
         loadNotebooks();
+    } else if (status === 409 && data.error === 'incomplete_doe') {
+        // DOE gate — show confirmation with consequences
+        const proceed = confirm(
+            `⚠ Incomplete DOE Design\n\n` +
+            `${data.pending_runs} of ${data.total_runs} runs are still pending.\n\n` +
+            `Consequences of concluding now:\n` +
+            `• The design matrix is incomplete\n` +
+            `• Main effects and interactions may not be estimable\n` +
+            `• Statistical power is reduced\n\n` +
+            `Conclude anyway?`
+        );
+        if (proceed) concludeNotebook(true);
     } else {
         alert(data.error || 'Failed to conclude notebook');
+    }
+}
+
+function showPullToolModal() {
+    if (!currentNb) return;
+    document.getElementById('pull-modal').classList.add('open');
+    loadPullItems();
+}
+
+async function loadPullItems() {
+    if (!currentNb) return;
+    const sourceType = document.getElementById('pull-source-type').value;
+    const select = document.getElementById('pull-item');
+    select.innerHTML = '<option value="">Loading...</option>';
+
+    // Toggle DOE mode vs role selector
+    const isDoe = sourceType === 'doe';
+    document.getElementById('pull-doe-mode').style.display = isDoe ? '' : 'none';
+    document.getElementById('pull-role-group').style.display = isDoe ? 'none' : '';
+
+    const { status, data } = await api(API + currentNb.id + '/pull/?source_type=' + sourceType);
+    if (status === 200 && data.items) {
+        if (!data.items.length) {
+            select.innerHTML = '<option value="">None found</option>';
+            return;
+        }
+        select.innerHTML = '<option value="">Select...</option>';
+        data.items.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = `${item.title} (${item.subtitle})`;
+            select.appendChild(opt);
+        });
+    } else {
+        select.innerHTML = '<option value="">Failed to load</option>';
+    }
+}
+
+async function pullToolOutput() {
+    if (!currentNb) return;
+    const sourceType = document.getElementById('pull-source-type').value;
+    const sourceId = document.getElementById('pull-item').value;
+    if (!sourceId) { alert('Select an item to pull'); return; }
+
+    const payload = { source_type: sourceType, source_id: sourceId };
+    if (sourceType === 'doe') {
+        payload.mode = document.getElementById('pull-mode').value;
+    } else {
+        payload.role = document.getElementById('pull-role').value;
+    }
+
+    const { status, data } = await api(API + currentNb.id + '/pull/', 'POST', payload);
+    if (status === 201) {
+        closeModal('pull-modal');
+        if (data.trials_created) {
+            alert(`DOE design pulled in. ${data.trials_created} trials created from design matrix.`);
+        }
+        selectNotebook(currentNb.id);
+    } else {
+        alert(data.error || 'Failed to pull tool output');
+    }
+}
+
+async function projectToA3(notebookId) {
+    const { status, data } = await api(API + notebookId + '/project/a3/', 'POST', {});
+    if (status === 201 && data.id) {
+        window.location.href = '/app/a3/' + data.id + '/';
+    } else {
+        alert(data.error || 'Failed to create A3 from notebook');
     }
 }
 

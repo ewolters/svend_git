@@ -443,6 +443,130 @@ class A3ReportScenarioTest(TestCase):
         resp = anon.get("/api/a3/")
         self.assertEqual(resp.status_code, 401)
 
+    def test_create_a3_with_notebook_id(self):
+        """A3 created via notebook_id derives project from notebook."""
+        from core.models.notebook import Notebook
+
+        nb = Notebook.objects.create(
+            project=self.project,
+            title="OEE Improvement",
+            owner=self.user,
+        )
+        resp = self.client.post(
+            "/api/a3/create/",
+            {
+                "notebook_id": str(nb.id),
+                "title": "Notebook-linked A3",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        report = data["report"]
+        self.assertEqual(report["title"], "Notebook-linked A3")
+        self.assertEqual(report["notebook_id"], str(nb.id))
+        # Project derived from notebook
+        self.assertEqual(report["project_id"], str(self.project.id))
+
+    def test_project_notebook_to_a3_projection(self):
+        """Projection endpoint creates A3 pre-filled from notebook structure."""
+        from core.models.notebook import HanseiKai, Notebook, Trial
+
+        # Set problem_statement so _build_background produces content
+        self.project.problem_statement = "Scrap rate increased 15% in Q3"
+        self.project.save(update_fields=["problem_statement"])
+
+        nb = Notebook.objects.create(
+            project=self.project,
+            title="Scrap Reduction Notebook",
+            description="Investigating scrap drivers on Line 3",
+            owner=self.user,
+            baseline_metric="Scrap Rate",
+            baseline_value=8.2,
+            baseline_unit="%",
+        )
+        # Create trials with verdicts
+        Trial.objects.create(
+            notebook=nb,
+            sequence=1,
+            title="Tooling inspection interval",
+            description="Reduce inspection interval from 8h to 4h",
+            before_value=8.2,
+            after_value=6.1,
+            verdict="improved",
+            is_adopted=True,
+            created_by=self.user,
+        )
+        Trial.objects.create(
+            notebook=nb,
+            sequence=2,
+            title="Material supplier change",
+            description="Switch to supplier B stock",
+            before_value=6.1,
+            after_value=6.3,
+            verdict="no_effect",
+            is_adopted=False,
+            created_by=self.user,
+        )
+
+        # Add HanseiKai reflection
+        HanseiKai.objects.create(
+            notebook=nb,
+            what_went_well="Tooling inspection interval cut scrap 25%",
+            what_didnt="Supplier change had no measurable impact",
+            what_next="Investigate tooling material grade",
+            key_learning="Inspection frequency is the dominant lever for scrap",
+            created_by=self.user,
+        )
+
+        resp = self.client.post(
+            f"/api/notebooks/{nb.id}/project/a3/",
+            {"title": "Scrap A3 from Notebook"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+
+        # Verify A3 created with notebook linkage
+        self.assertIn("id", data)
+        report = data["report"]
+        self.assertEqual(report["notebook_id"], str(nb.id))
+        self.assertEqual(report["title"], "Scrap A3 from Notebook")
+
+        # Verify sections were populated from notebook data
+        self.assertIn("Scrap rate", report["background"])
+        self.assertIn("Baseline", report["current_condition"])
+        self.assertIn("8.2", report["current_condition"])
+        self.assertIn("Trial 2", report["root_cause"])  # non-improved trial learning
+        self.assertIn("Tooling inspection", report["countermeasures"])  # adopted trial
+        self.assertIn("Hansei Kai", report["follow_up"])
+
+        # Verify projection metadata
+        projected = data["projected_from"]
+        self.assertEqual(projected["notebook_id"], str(nb.id))
+        self.assertEqual(projected["trial_count"], 2)
+        self.assertTrue(projected["has_hansei_kai"])
+
+        # Verify imported_from traceability
+        self.assertIn("background", report["imported_from"])
+
+    def test_projection_requires_notebook_owner(self):
+        """Projection endpoint rejects if user doesn't own the notebook."""
+        from core.models.notebook import Notebook
+
+        other_user = _make_user("other_a3_user")
+        nb = Notebook.objects.create(
+            project=self.project,
+            title="Someone else's notebook",
+            owner=other_user,
+        )
+        resp = self.client.post(
+            f"/api/notebooks/{nb.id}/project/a3/",
+            {},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 404)
+
 
 # =========================================================================
 # 4. Report Scenario (CAPA, 8D)

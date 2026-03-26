@@ -103,38 +103,6 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     gap: 4px;
 }
 
-.wb-project-select {
-    background: var(--wb-panel);
-    border: 1px solid var(--wb-border);
-    padding: 4px 8px;
-    font-size: 11px;
-    color: var(--wb-text);
-    border-radius: 4px;
-    max-width: 150px;
-    cursor: pointer;
-}
-
-.wb-project-select:focus {
-    border-color: var(--wb-accent);
-    outline: none;
-}
-
-.wb-project-link {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    color: var(--wb-text-dim);
-    border-radius: 4px;
-    transition: all 0.15s;
-}
-
-.wb-project-link:hover {
-    color: var(--wb-accent);
-    background: rgba(74, 159, 110, 0.15);
-}
-
 .wb-zoom-display {
     font-size: 11px;
     color: var(--wb-text-dim);
@@ -1507,19 +1475,6 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                 </svg>
             </button>
             <span class="wb-votes-remaining" id="votes-remaining" style="display:none;">3 votes</span>
-        </div>
-
-        <div class="wb-toolbar-group wb-project-group">
-            <select id="project-select" class="wb-project-select" title="Link to investigation">
-                <option value="">No investigation</option>
-            </select>
-            <a href="#" id="project-link" class="wb-project-link" style="display:none" title="Open investigation">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                    <polyline points="15 3 21 3 21 9"/>
-                    <line x1="10" y1="14" x2="21" y2="3"/>
-                </svg>
-            </a>
         </div>
 
         <div class="wb-toolbar-group">
@@ -4541,13 +4496,10 @@ async function loadBoardFromServer() {
         myColor = data.my_color;
         isOwner = data.is_owner;
 
-        // Set project from loaded board
+        // Set project from loaded board (for hypothesis export compat)
         const boardProjectId = data.project_id || (data.project && data.project.id);
         if (boardProjectId) {
             currentProjectId = boardProjectId;
-            const sel = document.getElementById('project-select');
-            sel.value = currentProjectId;
-            updateProjectLink(currentProjectId);
         }
 
         // Update UI
@@ -4919,63 +4871,7 @@ canvasContainer.addEventListener('click', (e) => {
 // Project Selector
 // ============================================================================
 
-async function setupProjectSelector() {
-    const select = document.getElementById('project-select');
-    const link = document.getElementById('project-link');
-
-    try {
-        const response = await fetch('/api/core/projects/', { credentials: 'include' });
-        if (!response.ok) return;
-        const projects = await response.json();
-
-        // Populate dropdown
-        projects.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = p.title;
-            select.appendChild(opt);
-        });
-
-        // Check for project param in URL or pre-loaded from board data
-        const urlParams = new URLSearchParams(window.location.search);
-        const projectId = urlParams.get('project') || currentProjectId;
-        if (projectId) {
-            select.value = projectId;
-            currentProjectId = projectId;
-            updateProjectLink(projectId);
-        }
-    } catch (err) {
-        console.error('Failed to load projects:', err);
-    }
-
-    // Handle selection change
-    select.addEventListener('change', (e) => {
-        currentProjectId = e.target.value || null;
-        updateProjectLink(currentProjectId);
-        // Update URL without reload
-        const url = new URL(window.location);
-        if (currentProjectId) {
-            url.searchParams.set('project', currentProjectId);
-        } else {
-            url.searchParams.delete('project');
-        }
-        window.history.replaceState({}, '', url);
-        // Save to server if collaborative
-        if (isCollaborative && roomCode) {
-            saveBoardToServer();
-        }
-    });
-}
-
-function updateProjectLink(projectId) {
-    const link = document.getElementById('project-link');
-    if (projectId) {
-        link.href = `/app/investigations/?id=${projectId}`;
-        link.style.display = 'flex';
-    } else {
-        link.style.display = 'none';
-    }
-}
+// Project selector removed — whiteboards are pulled into notebooks via pull-whiteboard endpoint
 
 // ============================================================================
 // Guest Mode
@@ -5280,7 +5176,6 @@ async function saveToNotebook() {
 // ============================================================================
 
 if (!isGuestMode) {
-    setupProjectSelector();
     loadBoardsList();
 }
 saveState(); // Save initial empty state

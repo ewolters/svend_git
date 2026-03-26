@@ -119,7 +119,7 @@ def create_report(request):
     try:
         project = Project.objects.get(id=project_id, user=request.user)
     except Project.DoesNotExist:
-        return JsonResponse({"error": "Study not found"}, status=404)
+        return JsonResponse({"error": "Project not found"}, status=404)
 
     type_def = REPORT_TYPES[report_type]
     title = data.get("title", f"{type_def['name']} — {project.title}")
@@ -390,7 +390,7 @@ def import_to_report(request, report_id):
             return JsonResponse({"error": "Whiteboard not found"}, status=404)
 
     elif source_type == "project":
-        content = f"**Study:** {report.project.title}\n\n{getattr(report.project, 'problem_statement', '') or ''}"
+        content = f"**Charter:** {report.project.title}\n\n{getattr(report.project, 'problem_statement', '') or ''}"
         import_ref["summary"] = report.project.title
 
     elif source_type == "dsw":
@@ -523,7 +523,7 @@ def auto_populate_report(request, report_id):
     hypotheses = list(Hypothesis.objects.filter(project=project)[:10])
     boards = list(Board.objects.filter(project=project)[:5])
 
-    context_parts = [f"Study: {project.title}"]
+    context_parts = [f"Charter: {project.title}"]
     if getattr(project, "problem_statement", ""):
         context_parts.append(f"Description: {project.problem_statement}")
     if hypotheses:

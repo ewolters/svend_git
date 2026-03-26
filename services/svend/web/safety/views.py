@@ -37,6 +37,55 @@ def _require_tenant(user):
 
 
 # =============================================================================
+# SITES & AUDITORS (safety-scoped — avoids hoshin_kanri feature gate)
+# =============================================================================
+
+
+@csrf_exempt
+@require_feature("safety")
+@require_http_methods(["GET"])
+def site_list(request):
+    """List sites accessible to the current user."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    sites, is_admin = get_accessible_sites(request.user, tenant)
+    if request.GET.get("active_only", "").lower() == "true":
+        sites = sites.filter(is_active=True)
+
+    return JsonResponse(
+        {
+            "sites": [s.to_dict() for s in sites],
+            "count": sites.count(),
+        }
+    )
+
+
+@csrf_exempt
+@require_feature("safety")
+@require_http_methods(["GET"])
+def auditor_list(request):
+    """List employees (auditors) for a site."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    site_id = request.GET.get("site")
+    if not site_id:
+        return JsonResponse({"employees": []})
+
+    from agents_api.models import Employee
+
+    employees = Employee.objects.filter(tenant=tenant, site_id=site_id, is_active=True)
+    return JsonResponse(
+        {
+            "employees": [{"id": str(e.id), "name": e.name} for e in employees],
+        }
+    )
+
+
+# =============================================================================
 # FRONTIER ZONES
 # =============================================================================
 

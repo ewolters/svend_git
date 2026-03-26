@@ -13,6 +13,7 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
 from core.models import Hypothesis, Project
+from core.models.notebook import Notebook, Trial
 
 from .evidence_bridge import create_tool_evidence
 from .models import A3Report, ActionItem, Board, DSWResult, RCASession, Site
@@ -72,14 +73,24 @@ def create_a3_report(request):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
+    # Resolve project — either via notebook_id (preferred) or project_id
+    notebook = None
+    notebook_id = data.get("notebook_id")
     project_id = data.get("project_id")
-    if not project_id:
-        return JsonResponse({"error": "project_id required"}, status=400)
 
-    try:
-        project = Project.objects.get(id=project_id, user=request.user)
-    except Project.DoesNotExist:
-        return JsonResponse({"error": "Study not found"}, status=404)
+    if notebook_id:
+        try:
+            notebook = Notebook.objects.select_related("project").get(id=notebook_id, owner=request.user)
+            project = notebook.project
+        except Notebook.DoesNotExist:
+            return JsonResponse({"error": "Notebook not found"}, status=404)
+    elif project_id:
+        try:
+            project = Project.objects.get(id=project_id, user=request.user)
+        except Project.DoesNotExist:
+            return JsonResponse({"error": "Project not found"}, status=404)
+    else:
+        return JsonResponse({"error": "notebook_id or project_id required"}, status=400)
 
     title = data.get("title", "Untitled A3")
 
@@ -113,6 +124,7 @@ def create_a3_report(request):
 
     report = A3Report(
         project=project,
+        notebook=notebook,
         title=title,
         background=data.get("background", ""),
         current_condition=data.get("current_condition", ""),
@@ -162,10 +174,24 @@ def get_a3_report(request, report_id):
     # Action items linked to this A3
     action_items = ActionItem.objects.filter(source_type="a3", source_id=report.id)
 
+    # Include notebook info if linked
+    notebook_data = None
+    if report.notebook:
+        nb = report.notebook
+        notebook_data = {
+            "id": str(nb.id),
+            "title": nb.title,
+            "status": nb.status,
+            "baseline_metric": nb.baseline_metric,
+            "baseline_value": nb.baseline_value,
+            "current_value": nb.current_value,
+        }
+
     return JsonResponse(
         {
             "report": report.to_dict(),
             "action_items": [i.to_dict() for i in action_items],
+            "notebook": notebook_data,
             "project": {
                 "id": str(project.id),
                 "title": project.title,
@@ -380,8 +406,8 @@ def import_to_a3(request, report_id):
             return JsonResponse({"error": "Whiteboard not found"}, status=404)
 
     elif source_type == "project":
-        # Import project description
-        content = f"**Study:** {report.project.title}\n\n{getattr(report.project, 'problem_statement', '') or ''}"
+        # Import project (charter) description
+        content = f"**Charter:** {report.project.title}\n\n{getattr(report.project, 'problem_statement', '') or ''}"
         import_ref["summary"] = report.project.title
 
     elif source_type == "dsw":
@@ -484,14 +510,32 @@ def auto_populate_a3(request, report_id):
 
     sections = data.get("sections", ["background", "current_condition", "root_cause"])
 
-    # Gather project context
+    # Gather project + notebook context
     project = report.project
     hypotheses = list(Hypothesis.objects.filter(project=project)[:10])
     boards = list(Board.objects.filter(project=project)[:5])
 
-    context_parts = [f"Project: {project.title}"]
+    context_parts = [f"Charter: {project.title}"]
     if getattr(project, "problem_statement", ""):
         context_parts.append(f"Description: {project.problem_statement}")
+
+    # Include notebook trial context when linked
+    if report.notebook:
+        nb = report.notebook
+        context_parts.append(f"\nNotebook: {nb.title} (status: {nb.status})")
+        if nb.baseline_metric:
+            context_parts.append(f"Baseline: {nb.baseline_metric} = {nb.baseline_value} {nb.baseline_unit or ''}")
+        if nb.current_value is not None:
+            context_parts.append(f"Current: {nb.current_value} {nb.baseline_unit or ''}")
+        trials = list(Trial.objects.filter(notebook=nb).order_by("sequence")[:10])
+        if trials:
+            context_parts.append("\nTrials:")
+            for t in trials:
+                verdict = t.verdict or "pending"
+                line = f"- Trial {t.sequence}: {t.title} [{verdict}]"
+                if t.before_value is not None and t.after_value is not None:
+                    line += f" ({t.before_value} → {t.after_value})"
+                context_parts.append(line)
 
     if hypotheses:
         context_parts.append("\nHypotheses:")
@@ -988,3 +1032,353 @@ def export_a3_pdf(request, report_id):
     except Exception as e:
         logger.exception(f"A3 PDF export failed: {e}")
         return JsonResponse({"error": "PDF export failed. WeasyPrint may not be available."}, status=500)
+
+
+# =============================================================================
+# Notebook → A3 Projection (NB-001 §1.3)
+# =============================================================================
+
+
+def _build_background(project, notebook):
+    """Build A3 background from charter + notebook context."""
+    parts = []
+    if project.problem_statement:
+        parts.append(f"**Problem:** {project.problem_statement}")
+
+    # Business impact
+    impacts = []
+    for field, label in [
+        ("impact_financial", "Financial"),
+        ("impact_customer", "Customer"),
+        ("impact_safety", "Safety"),
+        ("impact_quality", "Quality"),
+        ("impact_regulatory", "Regulatory"),
+        ("impact_delivery", "Delivery"),
+    ]:
+        val = getattr(project, field, "")
+        if val:
+            impacts.append(f"- **{label}:** {val}")
+    if impacts:
+        parts.append("\n**Business Impact:**\n" + "\n".join(impacts))
+
+    if notebook.description:
+        parts.append(f"\n**Notebook Context:** {notebook.description}")
+
+    return "\n\n".join(parts) if parts else ""
+
+
+def _build_current_condition(notebook, trials, whiteboard_pages=None):
+    """Build current condition from baseline, trial data, and whiteboard snapshots."""
+    parts = []
+    if notebook.baseline_metric:
+        baseline = f"**Baseline:** {notebook.baseline_metric} = {notebook.baseline_value}"
+        if notebook.baseline_unit:
+            baseline += f" {notebook.baseline_unit}"
+        if notebook.baseline_date:
+            baseline += f" (measured {notebook.baseline_date})"
+        parts.append(baseline)
+
+    if notebook.current_value is not None:
+        current = f"**Current:** {notebook.current_value}"
+        if notebook.baseline_unit:
+            current += f" {notebook.baseline_unit}"
+        if notebook.current_date:
+            current += f" (as of {notebook.current_date})"
+        parts.append(current)
+
+        if notebook.baseline_value is not None and notebook.baseline_value != 0:
+            delta = notebook.current_value - notebook.baseline_value
+            delta_pct = (delta / notebook.baseline_value) * 100
+            parts.append(f"**Change from baseline:** {delta:+.2f} ({delta_pct:+.1f}%)")
+
+    if notebook.baseline_summary:
+        parts.append(f"\n{notebook.baseline_summary}")
+
+    # Include whiteboard snapshots tagged as "before" (current condition)
+    if whiteboard_pages:
+        for page in whiteboard_pages:
+            if page.narrative:
+                parts.append(f"\n{page.narrative}")
+
+    return "\n".join(parts) if parts else ""
+
+
+def _build_goal(project, notebook, whiteboard_pages=None):
+    """Build goal from charter SMART fields and target condition whiteboards."""
+    parts = []
+    if project.goal_statement:
+        parts.append(f"**Goal:** {project.goal_statement}")
+    elif project.goal_metric:
+        goal = f"**Target:** {project.goal_metric}"
+        if project.goal_baseline:
+            goal += f" from {project.goal_baseline}"
+        if project.goal_target:
+            goal += f" to {project.goal_target}"
+        if project.goal_unit:
+            goal += f" {project.goal_unit}"
+        if project.goal_deadline:
+            goal += f" by {project.goal_deadline}"
+        parts.append(goal)
+
+    progress = notebook.progress_pct
+    if progress is not None:
+        parts.append(f"**Progress:** {progress:.0f}%")
+
+    # Include whiteboard snapshots tagged as "after" (target condition)
+    if whiteboard_pages:
+        for page in whiteboard_pages:
+            if page.narrative:
+                parts.append(f"\n{page.narrative}")
+
+    return "\n".join(parts) if parts else ""
+
+
+def _build_root_cause(trials, rca_sessions):
+    """Build root cause from RCA sessions and failed trial learnings."""
+    parts = []
+
+    if rca_sessions:
+        parts.append("**Root Cause Analysis:**")
+        for rca in rca_sessions:
+            parts.append(f"\n*{rca.title or rca.event[:80]}*")
+            if rca.chain:
+                parts.append("Causal chain:")
+                for i, step in enumerate(rca.chain):
+                    parts.append(f"  {i + 1}. {step.get('claim', '')}")
+            if rca.root_cause:
+                parts.append(f"**Root cause:** {rca.root_cause}")
+            if rca.countermeasure:
+                parts.append(f"**Proposed countermeasure:** {rca.countermeasure}")
+
+    # Include learnings from failed/inconclusive trials
+    failed = [t for t in trials if t.verdict in ("degraded", "no_effect", "inconclusive")]
+    if failed:
+        parts.append("\n**Trial Learnings (non-improved):**")
+        for t in failed:
+            line = f"- Trial {t.sequence}: {t.title} — {t.get_verdict_display()}"
+            if t.description:
+                line += f". {t.description[:200]}"
+            parts.append(line)
+
+    return "\n".join(parts) if parts else ""
+
+
+def _build_countermeasures(trials):
+    """Build countermeasures from adopted trials."""
+    adopted = [t for t in trials if t.is_adopted]
+    if not adopted:
+        # Fall back to all improved trials
+        adopted = [t for t in trials if t.verdict == "improved"]
+
+    if not adopted:
+        return ""
+
+    parts = ["**Adopted Countermeasures:**"]
+    for t in adopted:
+        line = f"\n**Trial {t.sequence}: {t.title}**"
+        if t.description:
+            line += f"\n{t.description}"
+        if t.delta is not None:
+            line += f"\nResult: {t.get_verdict_display()}"
+            line += f" (delta: {t.delta:+.2f}"
+            if t.delta_pct is not None:
+                line += f", {t.delta_pct:+.1f}%"
+            line += ")"
+        parts.append(line)
+
+    return "\n".join(parts)
+
+
+def _build_implementation_plan(trials):
+    """Build implementation plan as trial timeline."""
+    if not trials:
+        return ""
+
+    parts = ["**Trial Sequence:**\n"]
+    parts.append("| # | Trial | Period | Verdict | Delta |")
+    parts.append("|---|-------|--------|---------|-------|")
+    for t in trials:
+        started = t.started_at.strftime("%Y-%m-%d") if t.started_at else "—"
+        completed = t.completed_at.strftime("%Y-%m-%d") if t.completed_at else "ongoing"
+        verdict = t.get_verdict_display()
+        delta = f"{t.delta:+.2f}" if t.delta is not None else "—"
+        parts.append(f"| {t.sequence} | {t.title} | {started} → {completed} | {verdict} | {delta} |")
+
+    return "\n".join(parts)
+
+
+def _build_follow_up(trials, hansei_kai, yokoten_items):
+    """Build follow-up from pending trials, reflection, and Yokoten."""
+    parts = []
+
+    # Pending/open trials
+    pending = [t for t in trials if t.verdict == "pending"]
+    if pending:
+        parts.append("**Open Trials:**")
+        for t in pending:
+            parts.append(f"- Trial {t.sequence}: {t.title}")
+
+    # Verification — adopted trial narratives
+    adopted_with_narrative = [t for t in trials if t.is_adopted and t.verdict_narrative]
+    if adopted_with_narrative:
+        parts.append("\n**Verification Results:**")
+        for t in adopted_with_narrative:
+            parts.append(f"- Trial {t.sequence}: {t.verdict_narrative[:300]}")
+
+    # HanseiKai reflection
+    if hansei_kai:
+        parts.append("\n**Reflection (Hansei Kai):**")
+        parts.append(f"- What went well: {hansei_kai.what_went_well}")
+        parts.append(f"- What didn't: {hansei_kai.what_didnt}")
+        parts.append(f"- Next steps: {hansei_kai.what_next}")
+        parts.append(f"- Key learning: {hansei_kai.key_learning}")
+
+    # Yokoten
+    if yokoten_items:
+        parts.append("\n**Learnings Carried Forward (Yokoten):**")
+        for y in yokoten_items:
+            parts.append(f"- {y.learning}")
+            if y.context:
+                parts.append(f"  Context: {y.context}")
+
+    return "\n".join(parts) if parts else ""
+
+
+@gated_paid
+@require_http_methods(["POST"])
+def project_notebook_to_a3(request, notebook_id):
+    """Project a notebook's structure into a new A3 report.
+
+    Creates an A3 pre-filled with deterministic content from the notebook's
+    trials, verdicts, RCA links, and reflection. The user then enriches
+    the A3 in its own interface with narrative and finishing touches.
+
+    NB-001 §1.3: Notebook is the canonical workspace; A3 is an output format.
+    """
+    from core.models.notebook import HanseiKai, Notebook, Trial, TrialToolLink, Yokoten
+
+    try:
+        nb = Notebook.objects.select_related("project").get(id=notebook_id, owner=request.user)
+    except Notebook.DoesNotExist:
+        return JsonResponse({"error": "Notebook not found"}, status=404)
+
+    project = nb.project
+    trials = list(Trial.objects.filter(notebook=nb).order_by("sequence"))
+
+    # Gather RCA sessions linked to trials via TrialToolLink
+    from django.contrib.contenttypes.models import ContentType
+
+    rca_ct = ContentType.objects.get_for_model(RCASession)
+    rca_links = TrialToolLink.objects.filter(trial__notebook=nb, content_type=rca_ct).values_list(
+        "object_id", flat=True
+    )
+    rca_sessions = list(RCASession.objects.filter(id__in=rca_links))
+
+    # Also include RCA sessions directly on the project (not linked to trials)
+    project_rcas = RCASession.objects.filter(project=project).exclude(id__in=[r.id for r in rca_sessions])
+    rca_sessions.extend(project_rcas[:5])
+
+    # HanseiKai and Yokoten
+    hansei_kai = None
+    try:
+        hansei_kai = HanseiKai.objects.get(notebook=nb)
+    except HanseiKai.DoesNotExist:
+        pass
+    yokoten_items = list(Yokoten.objects.filter(source_notebook=nb))
+
+    # Gather whiteboard pages by role
+    from core.models.notebook import NotebookPage
+
+    wb_before = list(NotebookPage.objects.filter(notebook=nb, source_tool="whiteboard", trial_role="before"))
+    wb_after = list(NotebookPage.objects.filter(notebook=nb, source_tool="whiteboard", trial_role="after"))
+
+    # Build A3 sections from notebook structure
+    background = _build_background(project, nb)
+    current_condition = _build_current_condition(nb, trials, whiteboard_pages=wb_before)
+    goal = _build_goal(project, nb, whiteboard_pages=wb_after)
+    root_cause = _build_root_cause(trials, rca_sessions)
+    countermeasures = _build_countermeasures(trials)
+    implementation_plan = _build_implementation_plan(trials)
+    follow_up = _build_follow_up(trials, hansei_kai, yokoten_items)
+
+    # Build traceability refs
+    imported_from = {
+        "background": [{"source": "notebook", "id": str(nb.id), "summary": f"Projected from: {nb.title}"}],
+    }
+    if rca_sessions:
+        imported_from["root_cause"] = [
+            {"source": "rca", "id": str(r.id), "summary": r.title or r.event[:80]} for r in rca_sessions
+        ]
+    adopted = [t for t in trials if t.is_adopted or t.verdict == "improved"]
+    if adopted:
+        imported_from["countermeasures"] = [
+            {"source": "trial", "id": str(t.id), "summary": f"Trial {t.sequence}: {t.title}"} for t in adopted
+        ]
+
+    # Determine title
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        body = {}
+    title = body.get("title", f"A3: {nb.title}")
+
+    # Create the A3
+    site = None
+    if body.get("site_id"):
+        try:
+            site = Site.objects.get(id=body["site_id"])
+        except Site.DoesNotExist:
+            pass
+
+    # Embed whiteboard SVGs as diagrams
+    embedded_diagrams = {}
+    for section_key, pages in [("current_condition", wb_before), ("goal", wb_after)]:
+        for page in pages:
+            if page.rendered_html:
+                if section_key not in embedded_diagrams:
+                    embedded_diagrams[section_key] = []
+                outputs = page.outputs or {}
+                embedded_diagrams[section_key].append(
+                    {
+                        "id": str(page.id)[:8],
+                        "svg": page.rendered_html,
+                        "board_name": page.title.replace("Whiteboard: ", ""),
+                        "room_code": (page.inputs or {}).get("room_code", ""),
+                        "width": outputs.get("svg_width", 600),
+                        "height": outputs.get("svg_height", 400),
+                    }
+                )
+
+    report = A3Report(
+        project=project,
+        notebook=nb,
+        title=title,
+        background=background,
+        current_condition=current_condition,
+        goal=goal,
+        root_cause=root_cause,
+        countermeasures=countermeasures,
+        implementation_plan=implementation_plan,
+        follow_up=follow_up,
+        imported_from=imported_from,
+        embedded_diagrams=embedded_diagrams,
+    )
+    qms_set_ownership(report, request.user, site)
+    report.save()
+
+    project.log_event("a3_projected", f"A3 projected from notebook: {nb.title}", user=request.user)
+
+    return JsonResponse(
+        {
+            "id": str(report.id),
+            "report": report.to_dict(),
+            "projected_from": {
+                "notebook_id": str(nb.id),
+                "notebook_title": nb.title,
+                "trial_count": len(trials),
+                "rca_count": len(rca_sessions),
+                "has_hansei_kai": hansei_kai is not None,
+            },
+        },
+        status=201,
+    )

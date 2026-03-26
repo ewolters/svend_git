@@ -564,7 +564,7 @@
 
         <div class="a3-toolbar-group">
             <select id="project-select" class="a3-btn" onchange="loadProject(this.value)">
-                <option value="">Select Investigation...</option>
+                <option value="">Select Notebook...</option>
             </select>
         </div>
 
@@ -861,10 +861,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Load projects for selector
         await loadProjects();
 
-        // Check for project param in URL
+        // Check for notebook or project param in URL
         const urlParams = new URLSearchParams(window.location.search);
+        const notebookId = urlParams.get('notebook');
         const projectId = urlParams.get('project');
-        if (projectId) {
+        if (notebookId) {
+            document.getElementById('project-select').value = notebookId;
+            await loadProject(notebookId);
+        } else if (projectId) {
+            // Legacy support — project_id still works
             document.getElementById('project-select').value = projectId;
             await loadProject(projectId);
         }
@@ -880,30 +885,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadProjects() {
     try {
-        const resp = await fetch('/api/core/projects/');
+        const resp = await fetch('/api/notebooks/');
         if (!resp.ok) return;
         const data = await resp.json();
 
         const select = document.getElementById('project-select');
-        select.innerHTML = '<option value="">Select Study...</option>';
-        (data.results || data).forEach(p => {
+        select.innerHTML = '<option value="">Select Notebook...</option>';
+        (data.notebooks || []).forEach(nb => {
             const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = p.title;
+            opt.value = nb.id;
+            opt.textContent = `${nb.title} (${nb.project_title || 'No charter'})`;
             select.appendChild(opt);
         });
     } catch (e) {
-        console.error('Failed to load projects:', e);
+        console.error('Failed to load notebooks:', e);
     }
 }
 
-async function loadProject(projectId) {
-    if (!projectId) return;
-    currentProjectId = projectId;
+async function loadProject(notebookId) {
+    if (!notebookId) return;
 
-    // Create new A3 for this project
+    // Create new A3 for this notebook
     try {
-        const a3Body = { project_id: projectId, title: 'New A3 Report' };
+        const a3Body = { notebook_id: notebookId, title: 'New A3 Report' };
         const a3SiteEl = document.getElementById('a3-site');
         if (a3SiteEl && a3SiteEl.value) a3Body.site_id = a3SiteEl.value;
         const resp = await fetch('/api/a3/create/', {
@@ -914,6 +918,7 @@ async function loadProject(projectId) {
         const data = await resp.json();
         if (data.id) {
             currentReportId = data.id;
+            currentProjectId = data.report.project_id;
             window.history.pushState({}, '', `/app/a3/${data.id}/`);
             await loadReport(data.id);
         }
@@ -953,9 +958,13 @@ async function loadReport(reportId) {
         availableImports = data.available_imports || { hypotheses: [], boards: [] };
         currentProjectId = report.project_id;
 
-        // Update project selector
+        // Update selector to show notebook or project context
         const select = document.getElementById('project-select');
-        if (data.project) {
+        if (data.notebook) {
+            select.innerHTML = `<option value="${data.notebook.id}">${data.notebook.title} (${data.project.title})</option>`;
+            document.getElementById('back-link').href = '/app/notebooks/';
+            document.getElementById('back-link').textContent = 'Back to Notebooks';
+        } else if (data.project) {
             select.innerHTML = `<option value="${data.project.id}">${data.project.title}</option>`;
         }
 

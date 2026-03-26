@@ -107,7 +107,7 @@ def create_fmea(request):
         try:
             project = Project.objects.get(id=project_id, user=request.user)
         except Project.DoesNotExist:
-            return JsonResponse({"error": "Study not found"}, status=404)
+            return JsonResponse({"error": "Project not found"}, status=404)
 
     site = None
     if data.get("site_id"):
@@ -213,7 +213,7 @@ def update_fmea(request, fmea_id):
             try:
                 fmea.project = Project.objects.get(id=data["project_id"], user=request.user)
             except Project.DoesNotExist:
-                return JsonResponse({"error": "Study not found"}, status=404)
+                return JsonResponse({"error": "Project not found"}, status=404)
         else:
             fmea.project = None
 
@@ -452,7 +452,7 @@ def link_to_hypothesis(request, fmea_id, row_id):
     row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
 
     if not fmea.project:
-        return JsonResponse({"error": "FMEA must be linked to a study"}, status=400)
+        return JsonResponse({"error": "FMEA must be linked to a project"}, status=400)
 
     try:
         data = json.loads(request.body)

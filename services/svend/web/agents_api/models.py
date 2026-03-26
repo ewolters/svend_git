@@ -598,6 +598,16 @@ class A3Report(models.Model):
         related_name="a3_reports",
     )
 
+    # Link to notebook (tactical execution context — NB-001 §1.3)
+    notebook = models.ForeignKey(
+        "core.Notebook",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="a3_reports",
+        help_text="Notebook this A3 belongs to (tactical execution layer)",
+    )
+
     # Header
     title = models.CharField(max_length=255, help_text="Problem/theme title")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
@@ -649,6 +659,7 @@ class A3Report(models.Model):
         return {
             "id": str(self.id),
             "project_id": str(self.project_id),
+            "notebook_id": str(self.notebook_id) if self.notebook_id else None,
             "title": self.title,
             "status": self.status,
             "site_id": str(self.site_id) if self.site_id else None,

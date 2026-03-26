@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from . import notebook_views
+from . import a3_views, notebook_views
 
 urlpatterns = [
     # Notebooks
@@ -23,10 +23,14 @@ urlpatterns = [
     ),
     # Pages
     path("<uuid:notebook_id>/pages/", notebook_views.list_create_pages, name="page_list_create"),
+    # Pull tool outputs into notebook
+    path("<uuid:notebook_id>/pull/", notebook_views.pull_tool, name="notebook_pull_tool"),
     # Front Page (aggregated knowledge base)
     path("front-page/", notebook_views.front_page, name="front_page"),
     # Front Matter (per-notebook)
     path("<uuid:notebook_id>/front-matter/", notebook_views.add_front_matter, name="front_matter_add"),
+    # Projections — notebook → output formats
+    path("<uuid:notebook_id>/project/a3/", a3_views.project_notebook_to_a3, name="notebook_project_a3"),
     # Yokoten
     path("yokoten/", notebook_views.list_yokoten, name="yokoten_list"),
     path("yokoten/<uuid:yokoten_id>/adopt/", notebook_views.adopt_yokoten, name="yokoten_adopt"),

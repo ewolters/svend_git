@@ -5,6 +5,9 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # Sites & Auditors
+    path("sites/", views.site_list, name="safety_sites"),
+    path("auditors/", views.auditor_list, name="safety_auditors"),
     # Frontier Zones
     path("zones/", views.zone_list_create, name="safety_zones"),
     path("zones/<uuid:zone_id>/", views.zone_detail, name="safety_zone_detail"),

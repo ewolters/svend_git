@@ -18,6 +18,7 @@ pages, conclude with Hansei Kai, and yokoten.
 import json
 import logging
 
+from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
@@ -305,6 +306,7 @@ def _serialize_notebook(nb):
     return {
         "id": str(nb.id),
         "project_id": str(nb.project_id),
+        "project_title": nb.project.title if nb.project else None,
         "title": nb.title,
         "description": nb.description,
         "status": nb.status,
@@ -681,6 +683,588 @@ def list_create_pages(request, notebook_id):
 
 
 # ---------------------------------------------------------------------------
+# Pull Whiteboard
+# ---------------------------------------------------------------------------
+
+
+@require_http_methods(["GET", "POST"])
+@gated_paid
+def pull_tool(request, notebook_id):
+    """
+    GET  — List tool outputs available to pull into this notebook.
+    POST — Pull a tool output into the notebook as a frozen page.
+
+    GET params: source_type=whiteboard|fmea|rca|dsw (required)
+    POST body: {"source_type": str, "source_id": uuid,
+                "role": "before"|"after"|"supporting", "trial_id": uuid?}
+    """
+    try:
+        nb = Notebook.objects.get(id=notebook_id, owner=request.user)
+    except Notebook.DoesNotExist:
+        return JsonResponse({"error": "Notebook not found"}, status=404)
+
+    if request.method == "GET":
+        source_type = request.GET.get("source_type", "")
+        return _list_pullable(source_type, nb, request.user)
+
+    # POST — pull a tool output into the notebook
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    source_type = data.get("source_type", "")
+    source_id = data.get("source_id")
+    role = data.get("role", "supporting")
+    if not source_type or not source_id:
+        return JsonResponse({"error": "source_type and source_id are required"}, status=400)
+
+    valid_roles = ["before", "after", "supporting"]
+    if role not in valid_roles:
+        return JsonResponse({"error": f"role must be one of: {valid_roles}"}, status=400)
+
+    # Optional trial linkage
+    trial = None
+    trial_id = data.get("trial_id")
+    if trial_id:
+        try:
+            trial = Trial.objects.get(id=trial_id, notebook=nb)
+        except Trial.DoesNotExist:
+            return JsonResponse({"error": "Trial not found in this notebook"}, status=404)
+
+    # Dispatch to source-specific pull logic
+    if source_type == "whiteboard":
+        page = _pull_whiteboard(nb, source_id, role, trial, request.user)
+    elif source_type == "fmea":
+        page = _pull_fmea(nb, source_id, role, trial, request.user)
+    elif source_type == "rca":
+        page = _pull_rca(nb, source_id, role, trial, request.user)
+    elif source_type == "dsw":
+        page = _pull_dsw(nb, source_id, role, trial, request.user)
+    elif source_type == "ishikawa":
+        page = _pull_ishikawa(nb, source_id, role, trial, request.user)
+    elif source_type == "ce_matrix":
+        page = _pull_ce_matrix(nb, source_id, role, trial, request.user)
+    elif source_type == "doe":
+        return _pull_doe(nb, source_id, data.get("mode", "loose"), request.user)
+    else:
+        return JsonResponse({"error": f"Unknown source_type: {source_type}"}, status=400)
+
+    if isinstance(page, JsonResponse):
+        return page  # Error response
+
+    logger.info(f"{source_type} pulled into notebook {nb.id} as {role}")
+    return JsonResponse(_serialize_page(page), status=201)
+
+
+def _list_pullable(source_type, nb, user):
+    """List tool outputs available to pull into a notebook."""
+    from core.models import ExperimentDesign
+
+    from .models import FMEA, Board, CEMatrix, DSWResult, IshikawaDiagram, RCASession
+    from .permissions import qms_queryset
+
+    if source_type == "whiteboard":
+        boards = Board.objects.filter(Q(project=nb.project) | Q(owner=user, project__isnull=True)).order_by(
+            "-updated_at"
+        )[:20]
+        return JsonResponse(
+            {
+                "items": [
+                    {
+                        "id": str(b.id),
+                        "title": b.name,
+                        "subtitle": f"{len(b.elements or [])} elements",
+                        "updated_at": b.updated_at.isoformat(),
+                    }
+                    for b in boards
+                ]
+            }
+        )
+
+    elif source_type == "fmea":
+        fmeas = qms_queryset(FMEA, user)[0].order_by("-updated_at")[:20]
+        return JsonResponse(
+            {
+                "items": [
+                    {
+                        "id": str(f.id),
+                        "title": f.title,
+                        "subtitle": f"{f.fmea_type} — {f.rows.count()} rows",
+                        "updated_at": f.updated_at.isoformat(),
+                    }
+                    for f in fmeas
+                ]
+            }
+        )
+
+    elif source_type == "rca":
+        rcas = qms_queryset(RCASession, user)[0].order_by("-updated_at")[:20]
+        return JsonResponse(
+            {
+                "items": [
+                    {
+                        "id": str(r.id),
+                        "title": r.title or r.event[:60],
+                        "subtitle": r.status,
+                        "updated_at": r.updated_at.isoformat(),
+                    }
+                    for r in rcas
+                ]
+            }
+        )
+
+    elif source_type == "dsw":
+        results = DSWResult.objects.filter(user=user).order_by("-created_at")[:20]
+        return JsonResponse(
+            {
+                "items": [
+                    {
+                        "id": str(r.id),
+                        "title": r.title,
+                        "subtitle": r.result_type,
+                        "updated_at": r.created_at.isoformat(),
+                    }
+                    for r in results
+                ]
+            }
+        )
+
+    elif source_type == "ishikawa":
+        diagrams = qms_queryset(IshikawaDiagram, user)[0].order_by("-updated_at")[:20]
+        return JsonResponse(
+            {
+                "items": [
+                    {
+                        "id": str(d.id),
+                        "title": d.title or d.effect[:60],
+                        "subtitle": f"{len(d.branches or [])} categories",
+                        "updated_at": d.updated_at.isoformat(),
+                    }
+                    for d in diagrams
+                ]
+            }
+        )
+
+    elif source_type == "ce_matrix":
+        matrices = qms_queryset(CEMatrix, user)[0].order_by("-updated_at")[:20]
+        return JsonResponse(
+            {
+                "items": [
+                    {
+                        "id": str(m.id),
+                        "title": m.title or "Untitled",
+                        "subtitle": f"{len(m.inputs or [])} inputs × {len(m.outputs or [])} outputs",
+                        "updated_at": m.updated_at.isoformat(),
+                    }
+                    for m in matrices
+                ]
+            }
+        )
+
+    elif source_type == "doe":
+        designs = ExperimentDesign.objects.filter(project__user=user).order_by("-created_at")[:20]
+        return JsonResponse(
+            {
+                "items": [
+                    {
+                        "id": str(d.id),
+                        "title": d.name,
+                        "subtitle": f"{d.get_design_type_display()} — {d.num_runs} runs",
+                        "updated_at": d.updated_at.isoformat(),
+                    }
+                    for d in designs
+                ]
+            }
+        )
+
+    return JsonResponse({"error": f"Unknown source_type: {source_type}"}, status=400)
+
+
+def _pull_whiteboard(nb, source_id, role, trial, user):
+    """Snapshot a whiteboard into a notebook page."""
+    from .models import Board
+    from .whiteboard_views import _generate_svg
+
+    try:
+        board = Board.objects.get(id=source_id)
+    except Board.DoesNotExist:
+        return JsonResponse({"error": "Board not found"}, status=404)
+
+    svg_content, width, height = _generate_svg(board)
+
+    # Extract text content
+    text_parts = []
+    for el in board.elements or []:
+        text = el.get("text") or el.get("title") or el.get("effect")
+        if text:
+            text_parts.append(f"[{el.get('type', 'item')}] {text}")
+
+    # Extract causal connections
+    causal_lines = []
+    for conn in board.connections or []:
+        if conn.get("type") == "causal":
+            elements = board.elements or []
+            from_el = next((e for e in elements if e.get("id") == conn.get("from", {}).get("elementId")), None)
+            to_el = next((e for e in elements if e.get("id") == conn.get("to", {}).get("elementId")), None)
+            if from_el and to_el:
+                from_text = from_el.get("text") or from_el.get("title") or "?"
+                to_text = to_el.get("text") or to_el.get("title") or "?"
+                causal_lines.append(f"If {from_text} → Then {to_text}")
+
+    narrative = f"**Whiteboard:** {board.name}\n\n"
+    if text_parts:
+        narrative += "**Elements:**\n" + "\n".join(f"- {t}" for t in text_parts[:20]) + "\n"
+    if causal_lines:
+        narrative += "\n**Causal Relationships:**\n" + "\n".join(f"- {c}" for c in causal_lines[:10]) + "\n"
+
+    return NotebookPage.objects.create(
+        notebook=nb,
+        page_type="analysis",
+        title=f"Whiteboard: {board.name}",
+        source_tool="whiteboard",
+        inputs={"board_id": str(board.id), "room_code": board.room_code},
+        outputs={
+            "elements": board.elements or [],
+            "connections": board.connections or [],
+            "svg_width": width,
+            "svg_height": height,
+        },
+        rendered_html=svg_content or "",
+        narrative=narrative,
+        trial=trial,
+        trial_role=role,
+        created_by=user,
+    )
+
+
+def _pull_fmea(nb, source_id, role, trial, user):
+    """Snapshot an FMEA into a notebook page."""
+    from .models import FMEA
+    from .permissions import qms_queryset
+
+    try:
+        fmea = qms_queryset(FMEA, user)[0].get(id=source_id)
+    except FMEA.DoesNotExist:
+        return JsonResponse({"error": "FMEA not found"}, status=404)
+
+    rows = list(fmea.rows.order_by("-rpn"))
+    narrative = f"**FMEA:** {fmea.title} ({fmea.fmea_type})\n\n"
+    if rows:
+        narrative += "| Failure Mode | Severity | Occurrence | Detection | RPN |\n"
+        narrative += "|---|---|---|---|---|\n"
+        for r in rows[:20]:
+            narrative += f"| {r.failure_mode} | {r.severity} | {r.occurrence} | {r.detection} | {r.rpn} |\n"
+        top_rpn = rows[0]
+        narrative += f"\n**Highest risk:** {top_rpn.failure_mode} (RPN={top_rpn.rpn})"
+        if top_rpn.cause:
+            narrative += f"\n**Cause:** {top_rpn.cause}"
+        if top_rpn.recommended_action:
+            narrative += f"\n**Recommended action:** {top_rpn.recommended_action}"
+
+    return NotebookPage.objects.create(
+        notebook=nb,
+        page_type="analysis",
+        title=f"FMEA: {fmea.title}",
+        source_tool="fmea",
+        inputs={"fmea_id": str(fmea.id), "fmea_type": fmea.fmea_type, "row_count": len(rows)},
+        outputs={"rows": [r.to_dict() for r in rows[:30]]},
+        narrative=narrative,
+        trial=trial,
+        trial_role=role,
+        created_by=user,
+    )
+
+
+def _pull_rca(nb, source_id, role, trial, user):
+    """Snapshot an RCA session into a notebook page."""
+    from .models import RCASession
+    from .permissions import qms_queryset
+
+    try:
+        rca = qms_queryset(RCASession, user)[0].get(id=source_id)
+    except RCASession.DoesNotExist:
+        return JsonResponse({"error": "RCA session not found"}, status=404)
+
+    narrative = f"**Root Cause Analysis:** {rca.title or rca.event[:80]}\n\n"
+    narrative += f"**Event:** {rca.event}\n\n"
+    if rca.chain:
+        narrative += "**Causal Chain:**\n"
+        for i, step in enumerate(rca.chain):
+            narrative += f"{i + 1}. {step.get('claim', '')}\n"
+    if rca.root_cause:
+        narrative += f"\n**Root Cause:** {rca.root_cause}\n"
+    if rca.countermeasure:
+        narrative += f"\n**Countermeasure:** {rca.countermeasure}\n"
+    if rca.evaluation:
+        narrative += f"\n**Evaluation:** {rca.evaluation}\n"
+
+    return NotebookPage.objects.create(
+        notebook=nb,
+        page_type="analysis",
+        title=f"RCA: {rca.title or rca.event[:60]}",
+        source_tool="rca",
+        inputs={"rca_id": str(rca.id), "status": rca.status},
+        outputs={"chain": rca.chain or [], "root_cause": rca.root_cause, "countermeasure": rca.countermeasure},
+        narrative=narrative,
+        trial=trial,
+        trial_role=role,
+        created_by=user,
+    )
+
+
+def _pull_dsw(nb, source_id, role, trial, user):
+    """Snapshot a DSW analysis result into a notebook page."""
+    from .models import DSWResult
+
+    try:
+        result = DSWResult.objects.get(id=source_id, user=user)
+    except DSWResult.DoesNotExist:
+        return JsonResponse({"error": "DSW result not found"}, status=404)
+
+    import json as json_module
+
+    try:
+        result_data = json_module.loads(result.data) if isinstance(result.data, str) else result.data
+    except (json_module.JSONDecodeError, TypeError):
+        result_data = {}
+
+    narrative = f"**Analysis:** {result.title}\n\n"
+    summary = result_data.get("summary") or result_data.get("guide_observation") or ""
+    if summary:
+        import re
+
+        clean = re.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", summary)
+        narrative += f"{clean}\n"
+
+    stats = result_data.get("statistics", {})
+    if isinstance(stats, dict) and stats:
+        narrative += "\n**Key Statistics:**\n"
+        for key, val in list(stats.items())[:10]:
+            if isinstance(val, float):
+                narrative += f"- {key}: {val:.4f}\n"
+            else:
+                narrative += f"- {key}: {val}\n"
+
+    return NotebookPage.objects.create(
+        notebook=nb,
+        page_type="analysis",
+        title=f"DSW: {result.title}",
+        source_tool="dsw",
+        inputs={"dsw_id": str(result.id), "analysis_id": result_data.get("analysis_id", "")},
+        outputs={"statistics": stats, "analysis_id": result_data.get("analysis_id", "")},
+        narrative=narrative,
+        trial=trial,
+        trial_role=role,
+        created_by=user,
+    )
+
+
+def _pull_ishikawa(nb, source_id, role, trial, user):
+    """Snapshot an Ishikawa (fishbone) diagram into a notebook page."""
+    from .models import IshikawaDiagram
+    from .permissions import qms_queryset
+
+    try:
+        diagram = qms_queryset(IshikawaDiagram, user)[0].get(id=source_id)
+    except IshikawaDiagram.DoesNotExist:
+        return JsonResponse({"error": "Ishikawa diagram not found"}, status=404)
+
+    narrative = f"**Ishikawa Diagram:** {diagram.title or 'Untitled'}\n"
+    if diagram.effect:
+        narrative += f"**Effect:** {diagram.effect}\n\n"
+
+    for branch in diagram.branches or []:
+        category = branch.get("category", "Unknown")
+        causes = branch.get("causes", [])
+        if causes:
+            narrative += f"**{category}:**\n"
+            for cause in causes:
+                narrative += f"- {cause.get('text', '')}\n"
+                for child in cause.get("children", []):
+                    narrative += f"  - {child.get('text', '')}\n"
+
+    return NotebookPage.objects.create(
+        notebook=nb,
+        page_type="analysis",
+        title=f"Ishikawa: {diagram.title or diagram.effect[:60]}",
+        source_tool="ishikawa",
+        inputs={"ishikawa_id": str(diagram.id), "effect": diagram.effect},
+        outputs={"branches": diagram.branches or []},
+        narrative=narrative,
+        trial=trial,
+        trial_role=role,
+        created_by=user,
+    )
+
+
+def _pull_ce_matrix(nb, source_id, role, trial, user):
+    """Snapshot a C&E matrix into a notebook page."""
+    from .models import CEMatrix
+    from .permissions import qms_queryset
+
+    try:
+        matrix = qms_queryset(CEMatrix, user)[0].get(id=source_id)
+    except CEMatrix.DoesNotExist:
+        return JsonResponse({"error": "C&E matrix not found"}, status=404)
+
+    totals = matrix.compute_totals()
+
+    narrative = f"**C&E Matrix:** {matrix.title or 'Untitled'}\n\n"
+
+    if matrix.outputs:
+        narrative += "**Outputs (Y's):**\n"
+        for out in matrix.outputs:
+            narrative += f"- {out.get('name', '')} (weight: {out.get('weight', 1)})\n"
+
+    if totals:
+        narrative += "\n**Input Rankings (weighted total):**\n"
+        narrative += "| Rank | Input | Score |\n|---|---|---|\n"
+        for rank, t in enumerate(totals[:15], 1):
+            narrative += f"| {rank} | {t['input_name']} | {t['total']:.0f} |\n"
+
+    return NotebookPage.objects.create(
+        notebook=nb,
+        page_type="analysis",
+        title=f"C&E Matrix: {matrix.title or 'Untitled'}",
+        source_tool="ce_matrix",
+        inputs={
+            "ce_matrix_id": str(matrix.id),
+            "input_count": len(matrix.inputs or []),
+            "output_count": len(matrix.outputs or []),
+        },
+        outputs={"totals": totals, "outputs": matrix.outputs or [], "inputs": matrix.inputs or []},
+        narrative=narrative,
+        trial=trial,
+        trial_role=role,
+        created_by=user,
+    )
+
+
+def _pull_doe(nb, source_id, mode, user):
+    """Pull a DOE design into a notebook. Returns JsonResponse directly.
+
+    mode="loose" — design as front matter page only.
+    mode="strict" — front matter page + auto-generate trials from design matrix.
+    """
+    from core.models import ExperimentDesign
+
+    try:
+        design = ExperimentDesign.objects.get(id=source_id, project__user=user)
+    except ExperimentDesign.DoesNotExist:
+        return JsonResponse({"error": "Experiment design not found"}, status=404)
+
+    spec = design.design_spec or {}
+    runs = spec.get("runs", [])
+    factors = design.factors or spec.get("factors", [])
+
+    # Build narrative
+    narrative = f"**DOE Design:** {design.name}\n"
+    narrative += f"**Type:** {design.get_design_type_display()}\n"
+    narrative += f"**Runs:** {design.num_runs}"
+    if design.num_replicates > 1:
+        narrative += f" ({design.num_replicates} replicates)"
+    if design.num_center_points:
+        narrative += f" + {design.num_center_points} center points"
+    narrative += "\n"
+    if design.resolution:
+        narrative += f"**Resolution:** {design.resolution}\n"
+
+    if factors:
+        narrative += "\n**Factors:**\n"
+        for f in factors:
+            name = f.get("name", "")
+            levels = f.get("levels", [])
+            units = f.get("units", "")
+            narrative += f"- {name}: {levels}"
+            if units:
+                narrative += f" {units}"
+            narrative += "\n"
+
+    if runs:
+        narrative += f"\n**Design Matrix ({len(runs)} runs):**\n"
+        # Header
+        factor_names = [f.get("name", f"X{i}") for i, f in enumerate(factors)]
+        narrative += "| Run | " + " | ".join(factor_names) + " |\n"
+        narrative += "|---" * (len(factor_names) + 1) + "|\n"
+        for run in sorted(runs, key=lambda r: r.get("run_order", r.get("run_id", 0))):
+            levels = run.get("levels", {})
+            row = f"| {run.get('run_order', run.get('run_id', '?'))} | "
+            row += " | ".join(str(levels.get(fn, "—")) for fn in factor_names)
+            row += " |"
+            if run.get("center_point"):
+                row += " *(center)*"
+            narrative += row + "\n"
+
+    if mode == "strict":
+        narrative += "\n**Mode:** Strict — trials auto-generated from design matrix.\n"
+    else:
+        narrative += "\n**Mode:** Loose — trials created manually.\n"
+
+    # Create front matter page (negative sequence = sorts first)
+    page = NotebookPage.objects.create(
+        notebook=nb,
+        page_type="analysis",
+        title=f"DOE: {design.name}",
+        source_tool="doe",
+        inputs={
+            "design_id": str(design.id),
+            "design_type": design.design_type,
+            "mode": mode,
+            "num_runs": design.num_runs,
+        },
+        outputs={"factors": factors, "runs": runs, "properties": spec.get("properties", {})},
+        narrative=narrative,
+        trial=None,
+        trial_role="front_matter",
+        sequence=-10,
+        created_by=user,
+    )
+
+    result = {"page": _serialize_page(page), "mode": mode, "trials_created": 0}
+
+    # Strict mode: auto-generate trials from design matrix
+    if mode == "strict" and runs:
+        factor_names = [f.get("name", f"X{i}") for i, f in enumerate(factors)]
+        trials_created = 0
+
+        for run in sorted(runs, key=lambda r: r.get("run_order", r.get("run_id", 0))):
+            levels = run.get("levels", {})
+            run_order = run.get("run_order", run.get("run_id", 0))
+
+            # Build trial title from factor settings
+            settings_str = ", ".join(f"{fn}={levels.get(fn, '?')}" for fn in factor_names)
+            title = f"Run {run_order}: {settings_str}"
+
+            # Build description
+            desc_parts = [f"**DOE Run {run_order}** (standard order: {run.get('standard_order', '?')})"]
+            desc_parts.append(f"**Factor Settings:** {settings_str}")
+            coded = run.get("coded", {})
+            if coded:
+                coded_str = ", ".join(f"{fn}={coded.get(fn, '?')}" for fn in factor_names)
+                desc_parts.append(f"**Coded:** {coded_str}")
+            if run.get("center_point"):
+                desc_parts.append("**Center point run**")
+            if run.get("replicate", 1) > 1:
+                desc_parts.append(f"**Replicate:** {run['replicate']}")
+
+            Trial.objects.create(
+                notebook=nb,
+                sequence=run_order,
+                title=title,
+                description="\n".join(desc_parts),
+                created_by=user,
+            )
+            trials_created += 1
+
+        result["trials_created"] = trials_created
+        logger.info(f"DOE strict mode: created {trials_created} trials for notebook {nb.id}")
+
+    logger.info(f"DOE '{design.name}' pulled into notebook {nb.id} (mode={mode})")
+    return JsonResponse(result, status=201)
+
+
+# ---------------------------------------------------------------------------
 # Conclude + Hansei Kai
 # ---------------------------------------------------------------------------
 
@@ -711,6 +1295,26 @@ def conclude_notebook(request, notebook_id):
     missing = [f for f in required if not data.get(f, "").strip()]
     if missing:
         return JsonResponse({"error": f"Required fields: {missing}"}, status=400)
+
+    # DOE conclude gate — warn on incomplete strict DOE runs
+    doe_page = NotebookPage.objects.filter(notebook=nb, source_tool="doe", trial_role="front_matter").first()
+    if doe_page and (doe_page.inputs or {}).get("mode") == "strict":
+        total_runs = (doe_page.inputs or {}).get("num_runs", 0)
+        completed_trials = Trial.objects.filter(notebook=nb).exclude(verdict="pending").count()
+        pending_trials = Trial.objects.filter(notebook=nb, verdict="pending").count()
+        if pending_trials > 0 and not data.get("confirm_incomplete_doe"):
+            return JsonResponse(
+                {
+                    "error": "incomplete_doe",
+                    "message": f"This notebook has a strict DOE design with {pending_trials} of {total_runs} runs still pending. "
+                    f"Concluding now means the design matrix is incomplete — effects and interactions may not be estimable.",
+                    "pending_runs": pending_trials,
+                    "completed_runs": completed_trials,
+                    "total_runs": total_runs,
+                    "requires_confirmation": True,
+                },
+                status=409,
+            )
 
     # Transition notebook
     nb.transition_to("concluded")

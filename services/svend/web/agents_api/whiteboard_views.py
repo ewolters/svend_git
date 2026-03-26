@@ -91,7 +91,7 @@ def create_board(request):
         try:
             project = Project.objects.get(id=project_id, user=request.user)
         except Project.DoesNotExist:
-            return JsonResponse({"error": "Study not found"}, status=404)
+            return JsonResponse({"error": "Project not found"}, status=404)
 
     board = Board.objects.create(
         owner=request.user,
@@ -511,7 +511,7 @@ def export_hypotheses(request, room_code):
         return JsonResponse({"error": "Access denied"}, status=403)
 
     if not board.project:
-        return JsonResponse({"error": "Board must be linked to a study to export hypotheses"}, status=400)
+        return JsonResponse({"error": "Board must be linked to a project to export hypotheses"}, status=400)
 
     try:
         data = json.loads(request.body) if request.body else {}
