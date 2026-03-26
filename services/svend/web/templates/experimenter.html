@@ -19,6 +19,8 @@
             <select id="project-selector" onchange="onProjectChange(this.value)">
                 <option value="">No Investigation Linked</option>
             </select>
+            <button class="btn btn-secondary btn-sm" onclick="showSavedDesigns()">My Designs</button>
+            <button class="btn btn-primary btn-sm" id="save-design-btn" onclick="saveCurrentDesign()" data-loading-text="Saving\u2026" style="display:none;">Save Design</button>
             <button class="btn btn-secondary btn-sm" onclick="toggleContextPanel(); showContextTab('chat');">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon-svg">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -85,6 +87,17 @@
         <p>Processing...</p>
     </div>
 </div>
+
+<!-- Saved Designs Modal -->
+<div class="modal-overlay" id="saved-designs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--card-bg,#1a1a2e);border-radius:10px;padding:24px;max-width:550px;width:90%;max-height:80vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="margin:0;">My Designs</h3>
+            <button onclick="hideSavedDesigns()" style="background:none;border:none;color:var(--text-secondary);font-size:18px;cursor:pointer;">&times;</button>
+        </div>
+        <div id="saved-designs-list" style="font-size:13px;">Loading...</div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -97,5 +110,142 @@
 window.addEventListener('svendUserReady', function(e) {
     if (!e.detail.features || !e.detail.features.full_tools) showUpgradeModal();
 });
+
+// ── Saved Designs ───────────────────────────────────────────────────────
+
+// Show save button once a design is generated
+var _origShowDesign = window.showDesignOutput;
+if (typeof _origShowDesign === 'function') {
+    window.showDesignOutput = function() {
+        _origShowDesign.apply(this, arguments);
+        document.getElementById('save-design-btn').style.display = '';
+    };
+}
+// Also show on step transition to design
+document.addEventListener('DOMContentLoaded', function() {
+    var observer = new MutationObserver(function() {
+        var designStep = document.getElementById('step-design');
+        if (designStep && designStep.classList.contains('active')) {
+            document.getElementById('save-design-btn').style.display = '';
+        }
+    });
+    var stepDesign = document.getElementById('step-design');
+    if (stepDesign) observer.observe(stepDesign, { attributes: true, attributeFilter: ['class'] });
+});
+
+async function saveCurrentDesign() {
+    var projectId = document.getElementById('project-selector').value;
+    if (!projectId) {
+        svToast('Link an investigation first to save the design.', 'warning');
+        return;
+    }
+
+    var name = await svendPrompt('Design name:');
+    if (!name) return;
+
+    // Collect current state from DOE state module
+    var state = window.doeState || {};
+    var btn = document.getElementById('save-design-btn');
+    await withLoading(btn, async function() {
+        try {
+            await svendFetch('/api/experimenter/designs/', {
+                method: 'POST',
+                body: JSON.stringify({
+                    project_id: projectId,
+                    name: name,
+                    design_type: state.designType || 'full_factorial',
+                    design_spec: state.designMatrix || {},
+                    factors: state.factors || [],
+                    responses: state.responses || [],
+                    num_runs: state.numRuns || 0,
+                    num_replicates: state.replicates || 1,
+                    num_center_points: state.centerPoints || 0,
+                    resolution: state.resolution || null,
+                }),
+            });
+            svToast('Design saved', 'success');
+        } catch (e) { /* svendFetch already toasted */ }
+    });
+}
+
+async function showSavedDesigns() {
+    var modal = document.getElementById('saved-designs-modal');
+    modal.style.display = 'flex';
+    document.getElementById('saved-designs-list').innerHTML = 'Loading...';
+
+    try {
+        var data = await svendFetch('/api/experimenter/designs/');
+        var designs = data.designs || [];
+        if (designs.length === 0) {
+            document.getElementById('saved-designs-list').innerHTML = '<div style="color:var(--text-secondary);">No saved designs yet. Generate a design and click Save.</div>';
+        } else {
+            document.getElementById('saved-designs-list').innerHTML = designs.map(function(d) {
+                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid var(--border,#333);gap:12px;">' +
+                    '<div>' +
+                        '<strong>' + escapeHtml(d.name) + '</strong><br>' +
+                        '<span style="font-size:11px;color:var(--text-secondary);">' + escapeHtml(d.design_type.replace(/_/g, ' ')) + ' \u2022 ' + d.num_runs + ' runs \u2022 ' + escapeHtml(d.project_title) + '</span>' +
+                    '</div>' +
+                    '<div style="display:flex;gap:6px;">' +
+                        '<button class="btn btn-primary btn-sm" onclick="loadSavedDesign(\'' + d.id + '\')">Load</button>' +
+                        '<button class="btn btn-secondary btn-sm" onclick="deleteSavedDesign(\'' + d.id + '\')">Del</button>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+    } catch (e) {
+        document.getElementById('saved-designs-list').innerHTML = '<div style="color:var(--error);">Failed to load designs.</div>';
+    }
+}
+
+function hideSavedDesigns() {
+    document.getElementById('saved-designs-modal').style.display = 'none';
+}
+
+async function loadSavedDesign(designId) {
+    try {
+        var data = await svendFetch('/api/experimenter/designs/' + designId + '/');
+        var d = data.design;
+
+        // Restore state
+        if (window.doeState) {
+            window.doeState.designType = d.design_type;
+            window.doeState.factors = d.factors;
+            window.doeState.responses = d.responses;
+            window.doeState.designMatrix = d.design_spec;
+            window.doeState.numRuns = d.num_runs;
+            window.doeState.replicates = d.num_replicates;
+            window.doeState.centerPoints = d.num_center_points;
+            window.doeState.resolution = d.resolution;
+        }
+
+        // Set project selector
+        var sel = document.getElementById('project-selector');
+        if (d.project_id) {
+            for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value === d.project_id) {
+                    sel.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        // Restore UI by re-rendering if functions exist
+        if (typeof restoreDesignUI === 'function') restoreDesignUI(d);
+        if (typeof renderDesignTable === 'function') renderDesignTable(d.design_spec);
+
+        hideSavedDesigns();
+        svToast('Design loaded: ' + d.name, 'success');
+        document.getElementById('save-design-btn').style.display = '';
+    } catch (e) { /* svendFetch already toasted */ }
+}
+
+async function deleteSavedDesign(designId) {
+    if (!await svendConfirm('Delete this saved design?', 'Delete')) return;
+    try {
+        await svendFetch('/api/experimenter/designs/' + designId + '/', { method: 'DELETE' });
+        svToast('Design deleted', 'success');
+        await showSavedDesigns();
+    } catch (e) { /* svendFetch already toasted */ }
+}
 </script>
 {% endblock %}

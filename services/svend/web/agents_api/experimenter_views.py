@@ -2218,3 +2218,111 @@ def available_models(request):
             ),
         }
     )
+
+
+# ── Saved Designs CRUD ──────────────────────────────────────────────────
+
+
+@require_http_methods(["GET", "POST"])
+@require_auth
+@gated_paid
+def saved_designs(request):
+    """List or create saved experiment designs."""
+    from core.models import ExperimentDesign, Project
+
+    if request.method == "GET":
+        designs = ExperimentDesign.objects.filter(
+            project__user=request.user
+        ).select_related("project")[:50]
+        return JsonResponse(
+            {
+                "designs": [
+                    {
+                        "id": str(d.id),
+                        "name": d.name,
+                        "design_type": d.design_type,
+                        "status": d.status,
+                        "num_runs": d.num_runs,
+                        "factors": d.factors,
+                        "project_title": d.project.title if d.project else "",
+                        "created_at": d.created_at.isoformat(),
+                    }
+                    for d in designs
+                ]
+            }
+        )
+
+    # POST — create
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    project_id = data.get("project_id")
+    if not project_id:
+        return JsonResponse({"error": "project_id required"}, status=400)
+
+    try:
+        project = Project.objects.get(id=project_id, user=request.user)
+    except Project.DoesNotExist:
+        return JsonResponse({"error": "Project not found"}, status=404)
+
+    design = ExperimentDesign.objects.create(
+        project=project,
+        name=data.get("name", "Untitled Design"),
+        description=data.get("description", ""),
+        design_type=data.get("design_type", "full_factorial"),
+        design_spec=data.get("design_spec", {}),
+        factors=data.get("factors", []),
+        responses=data.get("responses", []),
+        num_runs=data.get("num_runs", 0),
+        num_replicates=data.get("num_replicates", 1),
+        num_center_points=data.get("num_center_points", 0),
+        resolution=data.get("resolution"),
+    )
+
+    return JsonResponse(
+        {"id": str(design.id), "name": design.name, "status": design.status},
+        status=201,
+    )
+
+
+@require_http_methods(["GET", "DELETE"])
+@require_auth
+@gated_paid
+def saved_design_detail(request, design_id):
+    """Load or delete a saved experiment design."""
+    from core.models import ExperimentDesign
+
+    try:
+        design = ExperimentDesign.objects.select_related("project").get(
+            id=design_id, project__user=request.user
+        )
+    except ExperimentDesign.DoesNotExist:
+        return JsonResponse({"error": "Design not found"}, status=404)
+
+    if request.method == "DELETE":
+        design.delete()
+        return JsonResponse({"deleted": True})
+
+    return JsonResponse(
+        {
+            "design": {
+                "id": str(design.id),
+                "name": design.name,
+                "description": design.description,
+                "design_type": design.design_type,
+                "status": design.status,
+                "design_spec": design.design_spec,
+                "factors": design.factors,
+                "responses": design.responses,
+                "num_runs": design.num_runs,
+                "num_replicates": design.num_replicates,
+                "num_center_points": design.num_center_points,
+                "resolution": design.resolution,
+                "project_id": str(design.project_id),
+                "project_title": design.project.title if design.project else "",
+                "created_at": design.created_at.isoformat(),
+            }
+        }
+    )

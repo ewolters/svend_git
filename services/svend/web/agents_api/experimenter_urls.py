@@ -19,4 +19,7 @@ urlpatterns = [
     # DOE Guidance Chat (LLM)
     path("chat/", views.doe_guidance_chat, name="experimenter_chat"),
     path("models/", views.available_models, name="experimenter_models"),
+    # Saved designs
+    path("designs/", views.saved_designs, name="experimenter_saved_designs"),
+    path("designs/<uuid:design_id>/", views.saved_design_detail, name="experimenter_saved_design_detail"),
 ]
