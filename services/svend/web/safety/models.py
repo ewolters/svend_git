@@ -22,6 +22,48 @@ from django.db import models
 # =============================================================================
 
 
+ZONE_TYPE_CHOICES = [
+    ("transition", "Transition Zone"),
+    ("hidden_infra", "Hidden Infrastructure"),
+    ("overhead_below", "Overhead & Below"),
+    ("temporal", "Temporal Frontier"),
+    ("general", "General"),
+]
+
+RISK_LEVEL_CHOICES = [
+    ("low", "Low"),
+    ("medium", "Medium"),
+    ("high", "High"),
+    ("critical", "Critical"),
+]
+
+AUDIT_FREQUENCY_CHOICES = [
+    ("weekly", "Weekly"),
+    ("biweekly", "Biweekly"),
+    ("monthly", "Monthly"),
+    ("quarterly", "Quarterly"),
+]
+
+HAZARD_TYPE_OPTIONS = [
+    "electrical",
+    "chemical",
+    "fall",
+    "ergonomic",
+    "confined_space",
+    "machine_guarding",
+    "lockout_tagout",
+    "fire",
+    "noise",
+    "thermal",
+    "biological",
+    "struck_by",
+    "caught_in",
+    "slip_trip",
+    "radiation",
+    "pressure",
+]
+
+
 class FrontierZone(models.Model):
     """A defined area targeted for Frontier Card audits.
 
@@ -33,6 +75,12 @@ class FrontierZone(models.Model):
     - Hidden Infrastructure: electrical/MCC, utility chases, behind equipment, maintenance cribs, chem storage
     - Overhead & Below: mezzanine/catwalks, under conveyors, above ceilings, pits, roof access, cable trays
     - Temporal: shift changeover, seasonal storage, temporary staging, break rooms, training areas, contractor zones
+
+    Metadata fields support automation:
+    - Risk profile → audit frequency, FMEA severity seeding, hazard-matched card items
+    - 5S baseline/target → trend tracking, red/green status per zone
+    - Scheduling → frequency, last_audited, preferred auditors
+    - Physical context → location detail, photo reference, zone hierarchy
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -43,19 +91,91 @@ class FrontierZone(models.Model):
     )
     name = models.CharField(max_length=255, help_text="e.g., 'Press mezzanine', 'Loading dock transition'")
     description = models.TextField(blank=True, default="")
-    zone_type = models.CharField(
-        max_length=30,
-        choices=[
-            ("transition", "Transition Zone"),
-            ("hidden_infra", "Hidden Infrastructure"),
-            ("overhead_below", "Overhead & Below"),
-            ("temporal", "Temporal Frontier"),
-            ("general", "General"),
-        ],
-        default="general",
-    )
+    zone_type = models.CharField(max_length=30, choices=ZONE_TYPE_CHOICES, default="general")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # --- Risk Profile ---
+    risk_level = models.CharField(
+        max_length=20,
+        choices=RISK_LEVEL_CHOICES,
+        default="medium",
+        help_text="Baseline HIRARC risk. Drives audit frequency and FMEA severity seeding.",
+    )
+    hazard_types = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="e.g. ['electrical', 'fall', 'confined_space']. Auto-surfaces relevant card items.",
+    )
+    hierarchy_controls = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Controls in place per hierarchy level: {elimination: '', substitution: '', engineering: '', administrative: '', ppe: ''}",
+    )
+
+    # --- 5S Baseline ---
+    five_s_baseline = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Initial 5S scores: {sort: 1-5, set_in_order: 1-5, shine: 1-5, standardize: 1-5, sustain: 1-5}",
+    )
+    five_s_target = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Target 5S scores per pillar. Enables delta tracking and red/green status.",
+    )
+
+    # --- Scheduling Intelligence ---
+    audit_frequency = models.CharField(
+        max_length=20,
+        choices=AUDIT_FREQUENCY_CHOICES,
+        default="weekly",
+        help_text="How often this zone should appear in audit schedules.",
+    )
+    last_audited = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Denormalized from latest card. Enables overdue-zone queries.",
+    )
+    preferred_auditors = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Employee UUIDs of auditors who know this zone best.",
+    )
+
+    # --- Physical Context ---
+    location_detail = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Building/floor/area code. e.g. 'Bldg 3, 2nd floor, east wing'",
+    )
+    photo_reference = models.URLField(
+        blank=True,
+        default="",
+        help_text="Photo URL showing normal/baseline condition of the zone.",
+    )
+    parent_zone = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="sub_zones",
+        help_text="Parent zone for hierarchy rollup. e.g. mezzanine → press area.",
+    )
+
+    # --- Automation Hooks ---
+    auto_fmea_severity = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Override default FMEA severity (5) for cards from this zone. Critical zones seed at 8-10.",
+    )
+    tags = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Freeform tags for filtering/grouping. e.g. ['new_process', 'contractor', 'night_shift']",
+    )
 
     class Meta:
         db_table = "safety_frontier_zones"
@@ -63,6 +183,43 @@ class FrontierZone(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.site.name})"
+
+    @property
+    def is_overdue(self):
+        """True if zone hasn't been audited within its frequency window."""
+        if not self.last_audited:
+            return True
+        from datetime import date
+
+        freq_days = {"weekly": 7, "biweekly": 14, "monthly": 30, "quarterly": 90}
+        window = freq_days.get(self.audit_frequency, 7)
+        return (date.today() - self.last_audited).days > window
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "site_id": str(self.site_id),
+            "name": self.name,
+            "description": self.description,
+            "zone_type": self.zone_type,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "risk_level": self.risk_level,
+            "hazard_types": self.hazard_types,
+            "hierarchy_controls": self.hierarchy_controls,
+            "five_s_baseline": self.five_s_baseline,
+            "five_s_target": self.five_s_target,
+            "audit_frequency": self.audit_frequency,
+            "last_audited": self.last_audited.isoformat() if self.last_audited else None,
+            "preferred_auditors": self.preferred_auditors,
+            "location_detail": self.location_detail,
+            "photo_reference": self.photo_reference,
+            "parent_zone_id": str(self.parent_zone_id) if self.parent_zone_id else None,
+            "auto_fmea_severity": self.auto_fmea_severity,
+            "tags": self.tags,
+            "is_overdue": self.is_overdue,
+        }
 
 
 # =============================================================================

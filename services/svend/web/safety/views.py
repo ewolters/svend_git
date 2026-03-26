@@ -105,19 +105,7 @@ def zone_list_create(request):
         site_id = request.GET.get("site")
         if site_id:
             qs = qs.filter(site_id=site_id)
-        return JsonResponse(
-            [
-                {
-                    "id": str(z.id),
-                    "site_id": str(z.site_id),
-                    "name": z.name,
-                    "description": z.description,
-                    "zone_type": z.zone_type,
-                }
-                for z in qs
-            ],
-            safe=False,
-        )
+        return JsonResponse([z.to_dict() for z in qs], safe=False)
 
     data = json.loads(request.body)
     from agents_api.models import Site
@@ -128,8 +116,24 @@ def zone_list_create(request):
         name=data["name"],
         description=data.get("description", ""),
         zone_type=data.get("zone_type", "general"),
+        risk_level=data.get("risk_level", "medium"),
+        hazard_types=data.get("hazard_types", []),
+        hierarchy_controls=data.get("hierarchy_controls", {}),
+        five_s_baseline=data.get("five_s_baseline", {}),
+        five_s_target=data.get("five_s_target", {}),
+        audit_frequency=data.get("audit_frequency", "weekly"),
+        preferred_auditors=data.get("preferred_auditors", []),
+        location_detail=data.get("location_detail", ""),
+        photo_reference=data.get("photo_reference", ""),
+        auto_fmea_severity=data.get("auto_fmea_severity"),
+        tags=data.get("tags", []),
     )
-    return JsonResponse({"id": str(zone.id), "name": zone.name}, status=201)
+    if data.get("parent_zone_id"):
+        parent = FrontierZone.objects.filter(id=data["parent_zone_id"], site=site).first()
+        if parent:
+            zone.parent_zone = parent
+            zone.save(update_fields=["parent_zone"])
+    return JsonResponse(zone.to_dict(), status=201)
 
 
 @csrf_exempt
@@ -144,16 +148,7 @@ def zone_detail(request, zone_id):
     zone = get_object_or_404(FrontierZone, id=zone_id, site__tenant=tenant)
 
     if request.method == "GET":
-        return JsonResponse(
-            {
-                "id": str(zone.id),
-                "site_id": str(zone.site_id),
-                "name": zone.name,
-                "description": zone.description,
-                "zone_type": zone.zone_type,
-                "is_active": zone.is_active,
-            }
-        )
+        return JsonResponse(zone.to_dict())
 
     if request.method == "DELETE":
         zone.is_active = False
@@ -161,11 +156,33 @@ def zone_detail(request, zone_id):
         return JsonResponse({"ok": True})
 
     data = json.loads(request.body)
-    for field in ("name", "description", "zone_type"):
+    EDITABLE_FIELDS = [
+        "name",
+        "description",
+        "zone_type",
+        "risk_level",
+        "hazard_types",
+        "hierarchy_controls",
+        "five_s_baseline",
+        "five_s_target",
+        "audit_frequency",
+        "preferred_auditors",
+        "location_detail",
+        "photo_reference",
+        "auto_fmea_severity",
+        "tags",
+    ]
+    for field in EDITABLE_FIELDS:
         if field in data:
             setattr(zone, field, data[field])
+    if "parent_zone_id" in data:
+        if data["parent_zone_id"]:
+            parent = FrontierZone.objects.filter(id=data["parent_zone_id"], site=zone.site).first()
+            zone.parent_zone = parent
+        else:
+            zone.parent_zone = None
     zone.save()
-    return JsonResponse({"id": str(zone.id), "name": zone.name})
+    return JsonResponse(zone.to_dict())
 
 
 # =============================================================================

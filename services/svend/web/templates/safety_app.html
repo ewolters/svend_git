@@ -261,6 +261,37 @@
 /* Empty state */
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); font-size: 14px; }
 
+/* Zone list */
+.zone-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px;
+    margin-bottom: 12px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
+.zone-card:hover { border-color: var(--accent-primary); }
+.zone-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.zone-meta { font-size: 11px; color: var(--text-secondary); margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+.zone-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.zone-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.zone-badge.risk-low { background: var(--bg-secondary); color: var(--text-secondary); }
+.zone-badge.risk-medium { background: #e8c54722; color: #e8c547; }
+.zone-badge.risk-high { background: #e0833322; color: #e08333; }
+.zone-badge.risk-critical { background: var(--error-bg, #ff4d4d22); color: var(--error, #ff4d4d); }
+.zone-badge.overdue { background: var(--error-bg, #ff4d4d22); color: var(--error, #ff4d4d); }
+.zone-actions { display: flex; gap: 8px; }
+.zone-actions button { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 12px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
+.zone-actions button:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+.zone-desc { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+.zone-controls { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.zone-photo-thumb { margin-top: 6px; }
+.zone-photo-thumb img { max-height: 60px; border-radius: 4px; border: 1px solid var(--border); }
+
+/* Hazard grid */
+.hazard-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.hazard-chip { padding: 4px 10px; border-radius: 14px; font-size: 11px; cursor: pointer; border: 1px solid var(--border);
+    background: var(--bg-secondary); color: var(--text-secondary); transition: all 0.15s; user-select: none; }
+.hazard-chip.selected { background: var(--accent-primary); color: #fff; border-color: var(--accent-primary); }
+
+/* 5S inputs in modal */
+.zm5s { width: 60px; text-align: center; }
+
 /* Responsive */
 @media (max-width: 768px) {
     .kpi-row { grid-template-columns: repeat(2, 1fr); }
@@ -284,6 +315,7 @@
 
     <div class="safety-tabs">
         <button class="safety-tab active" data-tab="dashboard">Dashboard</button>
+        <button class="safety-tab" data-tab="zones">Zones</button>
         <button class="safety-tab" data-tab="cards">Cards</button>
         <button class="safety-tab" data-tab="schedules">Schedules</button>
         <button class="safety-tab" data-tab="fmea">FMEA Bridge</button>
@@ -328,6 +360,111 @@
                 <div class="total-card"><div class="total-value" id="totalZones">0</div><div class="total-label">Total Zones</div></div>
                 <div class="total-card"><div class="total-value" id="totalProcessed">0</div><div class="total-label">Total Processed</div></div>
             </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB: ZONES                                                      -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div class="safety-panel" id="panel-zones">
+        <div class="filter-bar">
+            <label>Site:</label>
+            <select id="zoneSiteFilter" onchange="loadZones()"><option value="">All Sites</option></select>
+            <button class="add-btn" onclick="openZoneModal()" style="margin:0">+ New Zone</button>
+        </div>
+        <div class="zone-list" id="zoneList">
+            <div class="empty-state">No frontier zones defined yet. Create zones to begin scheduling audits.</div>
+        </div>
+    </div>
+
+    <!-- ZONE MODAL -->
+    <div class="modal-overlay" id="zoneModal">
+        <div class="modal" style="max-width:720px">
+            <button class="modal-close" onclick="closeZoneModal()">&times;</button>
+            <h2 id="zoneModalTitle">New Frontier Zone</h2>
+
+            <div class="card-section">
+                <div class="card-section-title">Identity</div>
+                <div class="form-row">
+                    <div class="form-group"><label>Site</label><select id="zmSite"></select></div>
+                    <div class="form-group"><label>Name</label><input type="text" id="zmName" placeholder="e.g. Press mezzanine, Loading dock transition"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Zone Type</label>
+                        <select id="zmType">
+                            <option value="transition">Transition Zone</option>
+                            <option value="hidden_infra">Hidden Infrastructure</option>
+                            <option value="overhead_below">Overhead &amp; Below</option>
+                            <option value="temporal">Temporal Frontier</option>
+                            <option value="general" selected>General</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Parent Zone</label><select id="zmParent"><option value="">None (top-level)</option></select></div>
+                </div>
+                <div class="form-group"><label>Description</label><textarea id="zmDesc" placeholder="What makes this a frontier? What should auditors watch for?"></textarea></div>
+                <div class="form-group"><label>Location Detail</label><input type="text" id="zmLocation" placeholder="e.g. Bldg 3, 2nd floor, east wing"></div>
+            </div>
+
+            <div class="card-section">
+                <div class="card-section-title">Risk Profile</div>
+                <div class="form-row">
+                    <div class="form-group"><label>Risk Level</label>
+                        <select id="zmRisk">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Audit Frequency</label>
+                        <select id="zmFreq">
+                            <option value="weekly" selected>Weekly</option>
+                            <option value="biweekly">Biweekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>FMEA Severity Override</label>
+                        <input type="number" id="zmFmeaSev" min="1" max="10" placeholder="Default: 5">
+                    </div>
+                </div>
+                <div class="form-group"><label>Hazard Types</label>
+                    <div class="hazard-grid" id="zmHazards"></div>
+                </div>
+            </div>
+
+            <div class="card-section">
+                <div class="card-section-title">Hierarchy of Controls (current state)</div>
+                <div class="form-group"><label>Elimination</label><input type="text" id="zmCtrlElim" placeholder="Hazards eliminated?"></div>
+                <div class="form-group"><label>Substitution</label><input type="text" id="zmCtrlSub" placeholder="Less hazardous alternatives?"></div>
+                <div class="form-group"><label>Engineering</label><input type="text" id="zmCtrlEng" placeholder="Guards, ventilation, barriers?"></div>
+                <div class="form-group"><label>Administrative</label><input type="text" id="zmCtrlAdmin" placeholder="SOPs, signage, training?"></div>
+                <div class="form-group"><label>PPE</label><input type="text" id="zmCtrlPPE" placeholder="Required PPE?"></div>
+            </div>
+
+            <div class="card-section">
+                <div class="card-section-title">5S Baseline &amp; Target</div>
+                <table class="obs-form-table" style="margin-bottom:8px">
+                    <thead><tr><th>Pillar</th><th style="width:80px">Baseline (1-5)</th><th style="width:80px">Target (1-5)</th></tr></thead>
+                    <tbody>
+                        <tr><td>Sort (Seiri)</td><td><input type="number" min="1" max="5" id="zm5sB_sort" class="zm5s"></td><td><input type="number" min="1" max="5" id="zm5sT_sort" class="zm5s"></td></tr>
+                        <tr><td>Set in Order (Seiton)</td><td><input type="number" min="1" max="5" id="zm5sB_set_in_order" class="zm5s"></td><td><input type="number" min="1" max="5" id="zm5sT_set_in_order" class="zm5s"></td></tr>
+                        <tr><td>Shine (Seiso)</td><td><input type="number" min="1" max="5" id="zm5sB_shine" class="zm5s"></td><td><input type="number" min="1" max="5" id="zm5sT_shine" class="zm5s"></td></tr>
+                        <tr><td>Standardize (Seiketsu)</td><td><input type="number" min="1" max="5" id="zm5sB_standardize" class="zm5s"></td><td><input type="number" min="1" max="5" id="zm5sT_standardize" class="zm5s"></td></tr>
+                        <tr><td>Sustain (Shitsuke)</td><td><input type="number" min="1" max="5" id="zm5sB_sustain" class="zm5s"></td><td><input type="number" min="1" max="5" id="zm5sT_sustain" class="zm5s"></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card-section">
+                <div class="card-section-title">Reference</div>
+                <div class="form-group"><label>Photo Reference (URL)</label><input type="url" id="zmPhoto" placeholder="https://..."></div>
+                <div id="zmPhotoPreview" style="margin-top:8px"></div>
+                <div class="form-group" style="margin-top:12px"><label>Tags (comma-separated)</label><input type="text" id="zmTags" placeholder="e.g. new_process, contractor, night_shift"></div>
+            </div>
+
+            <input type="hidden" id="zmEditId" value="">
+            <button class="submit-btn" id="zmSubmitBtn" onclick="submitZone()">Create Zone</button>
         </div>
     </div>
 
@@ -659,7 +796,7 @@ document.querySelectorAll('.safety-tab').forEach(tab => {
         document.querySelectorAll('.safety-panel').forEach(p => p.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
-        const loader = { dashboard: loadDashboard, cards: loadCards, schedules: loadSchedules, fmea: loadFmeaBridge, pareto: loadPareto };
+        const loader = { dashboard: loadDashboard, zones: loadZones, cards: loadCards, schedules: loadSchedules, fmea: loadFmeaBridge, pareto: loadPareto };
         if (loader[tab.dataset.tab]) loader[tab.dataset.tab]();
     });
 });
@@ -673,11 +810,11 @@ async function loadSites() {
     try {
         const data = await api('/sites/');
         sites = data.sites || data || [];
-        const selectors = ['dashSiteFilter','cardSiteFilter','schedSiteFilter','paretoSiteFilter','ncSite','nsSite'];
+        const selectors = ['dashSiteFilter','zoneSiteFilter','cardSiteFilter','schedSiteFilter','paretoSiteFilter','ncSite','nsSite','zmSite'];
         selectors.forEach(id => {
             const sel = document.getElementById(id);
             if (!sel) return;
-            const isFilter = id !== 'ncSite' && id !== 'nsSite';
+            const isFilter = !['ncSite','nsSite','zmSite'].includes(id);
             sel.innerHTML = isFilter ? '<option value="">All Sites</option>' : '<option value="">Select site</option>';
             sites.forEach(s => { sel.innerHTML += '<option value="'+esc(s.id)+'">'+esc(s.name)+'</option>'; });
         });
@@ -704,6 +841,243 @@ async function loadAuditorsForSite(siteSelId, audSelId) {
         const data = await api('/auditors/?site=' + siteId);
         (data.employees || data || []).forEach(e => { aSel.innerHTML += '<option value="'+esc(e.id)+'">'+esc(e.name)+'</option>'; });
     } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════
+// ZONES TAB
+// ═══════════════════════════════════════════════════════
+const HAZARD_TYPES = [
+    'electrical','chemical','fall','ergonomic','confined_space','machine_guarding',
+    'lockout_tagout','fire','noise','thermal','biological','struck_by',
+    'caught_in','slip_trip','radiation','pressure'
+];
+const ZONE_TYPE_LABELS = {transition:'Transition',hidden_infra:'Hidden Infra',overhead_below:'Overhead/Below',temporal:'Temporal',general:'General'};
+const RISK_COLORS = {low:'risk-low',medium:'risk-medium',high:'risk-high',critical:'risk-critical'};
+let allZones = [];
+
+async function loadZones() {
+    const siteId = document.getElementById('zoneSiteFilter').value;
+    try {
+        const data = await api('/zones/' + (siteId ? '?site=' + siteId : ''));
+        allZones = Array.isArray(data) ? data : (data.zones || []);
+        renderZoneList();
+    } catch(e) {
+        console.error('Failed to load zones', e);
+        document.getElementById('zoneList').innerHTML = '<div class="empty-state">Failed to load zones.</div>';
+    }
+}
+
+function renderZoneList() {
+    const container = document.getElementById('zoneList');
+    if (!allZones.length) {
+        container.innerHTML = '<div class="empty-state">No frontier zones defined yet. Create zones to begin scheduling audits.</div>';
+        return;
+    }
+    container.innerHTML = allZones.map(z => {
+        const siteName = sites.find(s => s.id === z.site_id)?.name || '';
+        const typeLbl = ZONE_TYPE_LABELS[z.zone_type] || z.zone_type;
+        const riskCls = RISK_COLORS[z.risk_level] || 'risk-medium';
+        const overdue = z.is_overdue ? ' <span class="zone-badge overdue">Overdue</span>' : '';
+        const lastAud = z.last_audited ? 'Last: ' + z.last_audited : 'Never audited';
+        const hazards = (z.hazard_types || []).map(h => h.replace(/_/g,' ')).join(', ');
+        const photoHtml = z.photo_reference ? '<div class="zone-photo-thumb"><img src="'+esc(z.photo_reference)+'" alt="Zone photo" loading="lazy"></div>' : '';
+        const descHtml = z.description ? '<div class="zone-desc">'+esc(z.description)+'</div>' : '';
+        const tagsHtml = (z.tags || []).length ? '<span>Tags: '+(z.tags||[]).join(', ')+'</span>' : '';
+
+        return '<div class="zone-card">' +
+            '<div>' +
+                '<div class="zone-name">'+esc(z.name)+'</div>' +
+                '<div class="zone-meta">' +
+                    '<span class="zone-badge '+riskCls+'">'+z.risk_level+'</span>' +
+                    '<span>'+esc(typeLbl)+'</span>' +
+                    '<span>'+esc(siteName)+'</span>' +
+                    (z.location_detail ? '<span>'+esc(z.location_detail)+'</span>' : '') +
+                    '<span>'+esc(z.audit_frequency)+'</span>' +
+                    '<span>'+lastAud+'</span>' +
+                    overdue +
+                '</div>' +
+                (hazards ? '<div class="zone-meta" style="margin-top:2px"><span>Hazards: '+esc(hazards)+'</span></div>' : '') +
+                descHtml + tagsHtml + photoHtml +
+            '</div>' +
+            '<div class="zone-actions">' +
+                '<button onclick="editZone(\''+z.id+'\')">Edit</button>' +
+                '<button onclick="deactivateZone(\''+z.id+'\',\''+esc(z.name)+'\')">Deactivate</button>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function buildHazardGrid(selected) {
+    const sel = new Set(selected || []);
+    document.getElementById('zmHazards').innerHTML = HAZARD_TYPES.map(h =>
+        '<div class="hazard-chip'+(sel.has(h)?' selected':'')+'" data-hazard="'+h+'" onclick="toggleHazard(this)">'+h.replace(/_/g,' ')+'</div>'
+    ).join('');
+}
+function toggleHazard(el) { el.classList.toggle('selected'); }
+function getSelectedHazards() {
+    return [...document.querySelectorAll('#zmHazards .hazard-chip.selected')].map(el => el.dataset.hazard);
+}
+
+function openZoneModal(zone) {
+    const isEdit = !!zone;
+    document.getElementById('zoneModalTitle').textContent = isEdit ? 'Edit Zone' : 'New Frontier Zone';
+    document.getElementById('zmSubmitBtn').textContent = isEdit ? 'Save Changes' : 'Create Zone';
+    document.getElementById('zmEditId').value = isEdit ? zone.id : '';
+
+    // Populate site selector for modal
+    const zmSite = document.getElementById('zmSite');
+    zmSite.innerHTML = '<option value="">Select site</option>';
+    sites.forEach(s => { zmSite.innerHTML += '<option value="'+esc(s.id)+'">'+esc(s.name)+'</option>'; });
+
+    // Populate parent zone selector
+    const zmParent = document.getElementById('zmParent');
+    zmParent.innerHTML = '<option value="">None (top-level)</option>';
+    allZones.forEach(z => {
+        if (!isEdit || z.id !== zone.id) {
+            zmParent.innerHTML += '<option value="'+esc(z.id)+'">'+esc(z.name)+'</option>';
+        }
+    });
+
+    if (isEdit) {
+        zmSite.value = zone.site_id || '';
+        document.getElementById('zmName').value = zone.name || '';
+        document.getElementById('zmType').value = zone.zone_type || 'general';
+        document.getElementById('zmDesc').value = zone.description || '';
+        document.getElementById('zmLocation').value = zone.location_detail || '';
+        document.getElementById('zmRisk').value = zone.risk_level || 'medium';
+        document.getElementById('zmFreq').value = zone.audit_frequency || 'weekly';
+        document.getElementById('zmFmeaSev').value = zone.auto_fmea_severity || '';
+        zmParent.value = zone.parent_zone_id || '';
+        document.getElementById('zmPhoto').value = zone.photo_reference || '';
+        document.getElementById('zmTags').value = (zone.tags || []).join(', ');
+        buildHazardGrid(zone.hazard_types);
+        // 5S scores
+        const pillars = ['sort','set_in_order','shine','standardize','sustain'];
+        pillars.forEach(p => {
+            document.getElementById('zm5sB_'+p).value = (zone.five_s_baseline || {})[p] || '';
+            document.getElementById('zm5sT_'+p).value = (zone.five_s_target || {})[p] || '';
+        });
+        // Hierarchy controls
+        const hc = zone.hierarchy_controls || {};
+        document.getElementById('zmCtrlElim').value = hc.elimination || '';
+        document.getElementById('zmCtrlSub').value = hc.substitution || '';
+        document.getElementById('zmCtrlEng').value = hc.engineering || '';
+        document.getElementById('zmCtrlAdmin').value = hc.administrative || '';
+        document.getElementById('zmCtrlPPE').value = hc.ppe || '';
+    } else {
+        document.getElementById('zmName').value = '';
+        document.getElementById('zmType').value = 'general';
+        document.getElementById('zmDesc').value = '';
+        document.getElementById('zmLocation').value = '';
+        document.getElementById('zmRisk').value = 'medium';
+        document.getElementById('zmFreq').value = 'weekly';
+        document.getElementById('zmFmeaSev').value = '';
+        document.getElementById('zmPhoto').value = '';
+        document.getElementById('zmTags').value = '';
+        buildHazardGrid([]);
+        ['sort','set_in_order','shine','standardize','sustain'].forEach(p => {
+            document.getElementById('zm5sB_'+p).value = '';
+            document.getElementById('zm5sT_'+p).value = '';
+        });
+        document.getElementById('zmCtrlElim').value = '';
+        document.getElementById('zmCtrlSub').value = '';
+        document.getElementById('zmCtrlEng').value = '';
+        document.getElementById('zmCtrlAdmin').value = '';
+        document.getElementById('zmCtrlPPE').value = '';
+    }
+    updatePhotoPreview();
+    document.getElementById('zoneModal').classList.add('open');
+}
+
+function closeZoneModal() { document.getElementById('zoneModal').classList.remove('open'); }
+
+function updatePhotoPreview() {
+    const url = document.getElementById('zmPhoto').value.trim();
+    const preview = document.getElementById('zmPhotoPreview');
+    if (url) {
+        preview.innerHTML = '<img src="'+esc(url)+'" alt="Preview" style="max-height:120px;border-radius:6px;border:1px solid var(--border)">';
+    } else {
+        preview.innerHTML = '';
+    }
+}
+document.getElementById('zmPhoto')?.addEventListener('change', updatePhotoPreview);
+
+function collect5sScores(prefix) {
+    const pillars = ['sort','set_in_order','shine','standardize','sustain'];
+    const scores = {};
+    let hasAny = false;
+    pillars.forEach(p => {
+        const v = parseInt(document.getElementById(prefix+p).value);
+        if (v >= 1 && v <= 5) { scores[p] = v; hasAny = true; }
+    });
+    return hasAny ? scores : {};
+}
+
+async function submitZone() {
+    const editId = document.getElementById('zmEditId').value;
+    const siteId = document.getElementById('zmSite').value;
+    const name = document.getElementById('zmName').value.trim();
+    if (!name) { toast('Zone name is required', true); return; }
+    if (!editId && !siteId) { toast('Select a site', true); return; }
+
+    const sevVal = parseInt(document.getElementById('zmFmeaSev').value);
+    const tagsRaw = document.getElementById('zmTags').value.trim();
+
+    const body = {
+        site_id: siteId,
+        name: name,
+        description: document.getElementById('zmDesc').value.trim(),
+        zone_type: document.getElementById('zmType').value,
+        risk_level: document.getElementById('zmRisk').value,
+        audit_frequency: document.getElementById('zmFreq').value,
+        hazard_types: getSelectedHazards(),
+        hierarchy_controls: {
+            elimination: document.getElementById('zmCtrlElim').value.trim(),
+            substitution: document.getElementById('zmCtrlSub').value.trim(),
+            engineering: document.getElementById('zmCtrlEng').value.trim(),
+            administrative: document.getElementById('zmCtrlAdmin').value.trim(),
+            ppe: document.getElementById('zmCtrlPPE').value.trim(),
+        },
+        five_s_baseline: collect5sScores('zm5sB_'),
+        five_s_target: collect5sScores('zm5sT_'),
+        location_detail: document.getElementById('zmLocation').value.trim(),
+        photo_reference: document.getElementById('zmPhoto').value.trim(),
+        parent_zone_id: document.getElementById('zmParent').value || null,
+        auto_fmea_severity: (sevVal >= 1 && sevVal <= 10) ? sevVal : null,
+        tags: tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [],
+    };
+
+    const btn = document.getElementById('zmSubmitBtn');
+    btn.disabled = true;
+    try {
+        if (editId) {
+            await api('/zones/' + editId + '/', { method: 'PUT', body: JSON.stringify(body) });
+            toast('Zone updated');
+        } else {
+            await api('/zones/', { method: 'POST', body: JSON.stringify(body) });
+            toast('Zone created');
+        }
+        closeZoneModal();
+        loadZones();
+    } catch(e) {
+        toast('Failed to save zone', true);
+    } finally { btn.disabled = false; }
+}
+
+async function editZone(zoneId) {
+    try {
+        const zone = await api('/zones/' + zoneId + '/');
+        openZoneModal(zone);
+    } catch(e) { toast('Failed to load zone', true); }
+}
+
+async function deactivateZone(zoneId, name) {
+    if (!confirm('Deactivate zone "' + name + '"? Existing cards will be preserved.')) return;
+    try {
+        await api('/zones/' + zoneId + '/', { method: 'DELETE' });
+        toast('Zone deactivated');
+        loadZones();
+    } catch(e) { toast('Failed to deactivate zone', true); }
 }
 
 // ═══════════════════════════════════════════════════════
