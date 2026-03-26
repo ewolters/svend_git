@@ -9127,7 +9127,8 @@ async function executeDOEDesign(designType, config, displayName) {
             _currentDOEDesign = result.design;
             _currentDOEDesign.response_name = responseName;
             _currentDOEDesign.factors_spec = factors;
-            appendSession('summary', `<strong>${displayName}</strong>: ${result.design.runs || '?'} runs generated`);
+            var numRuns = (result.design.runs || []).length || (result.design.properties || {}).num_runs || '?';
+            appendSession('summary', `<strong>${displayName}</strong>: ${numRuns} runs generated`);
             renderDOEMatrix(result.design, responseName);
         }
         if (result.summary) appendSession('summary', result.summary);
@@ -9137,21 +9138,28 @@ async function executeDOEDesign(designType, config, displayName) {
 }
 
 function renderDOEMatrix(design, responseName) {
-    if (!design.matrix || !design.columns) return;
+    var runs = design.runs || [];
+    if (runs.length === 0) return;
     var session = document.getElementById('session-output');
 
-    var cols = design.columns;
+    // Extract factor names from design.factors or from first run's levels
+    var factorNames = (design.factors || []).map(function(f) { return f.name; });
+    if (factorNames.length === 0 && runs[0] && runs[0].levels) {
+        factorNames = Object.keys(runs[0].levels);
+    }
+
     var html = '<div class="doe-matrix-container" style="margin:8px 0;">';
     html += '<table class="aw-table" id="doe-matrix-table">';
     html += '<thead><tr><th>#</th>';
-    cols.forEach(function(c) { html += '<th>' + escapeHtml(c) + '</th>'; });
+    factorNames.forEach(function(c) { html += '<th>' + escapeHtml(c) + '</th>'; });
     html += '<th style="background:rgba(74,159,110,0.15);color:var(--aw-accent);">' + escapeHtml(responseName) + '</th>';
     html += '<th style="font-size:10px;color:var(--aw-text-muted);">Status</th></tr></thead>';
     html += '<tbody>';
-    design.matrix.forEach(function(row, i) {
+    runs.forEach(function(run, i) {
+        var levels = run.levels || {};
         html += '<tr>';
-        html += '<td style="color:var(--aw-text-muted);font-size:11px;">' + (i + 1) + '</td>';
-        row.forEach(function(v) { html += '<td>' + v + '</td>'; });
+        html += '<td style="color:var(--aw-text-muted);font-size:11px;">' + (run.run_order || i + 1) + '</td>';
+        factorNames.forEach(function(f) { html += '<td>' + (levels[f] != null ? levels[f] : '') + '</td>'; });
         html += '<td><input type="number" class="doe-response-input" data-run="' + i + '" step="any" style="width:80px;padding:2px 4px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;color:var(--text);font-size:12px;"></td>';
         html += '<td class="doe-run-status" data-run="' + i + '" style="font-size:10px;color:var(--aw-text-muted);">\u2022 pending</td>';
         html += '</tr>';
@@ -9195,28 +9203,27 @@ function analyzeDOEFromMatrix() {
     });
     if (!allFilled) { svToast('Fill in all response values before analyzing', 'warning'); return; }
 
-    // Build data payload for analysis endpoint
-    var cols = _currentDOEDesign.columns;
-    var matrix = _currentDOEDesign.matrix;
+    var runs = _currentDOEDesign.runs || [];
     var responseName = _currentDOEDesign.response_name || 'Response';
+    var factorNames = (_currentDOEDesign.factors || []).map(function(f) { return f.name; });
+    if (factorNames.length === 0 && runs[0] && runs[0].levels) factorNames = Object.keys(runs[0].levels);
 
-    // Build column data
-    var data = {};
-    cols.forEach(function(col, ci) {
-        data[col] = matrix.map(function(row) { return row[ci]; });
+    // Build results array matching the analyze endpoint format
+    var results = runs.map(function(run, i) {
+        return { run_id: i + 1, response: responses[i] };
     });
-    data[responseName] = responses;
 
     appendSession('separator');
     appendSession('cmd', 'DOE ANOVA Analysis');
-    appendSession('info', 'Analyzing ' + matrix.length + ' runs...');
+    appendSession('info', 'Analyzing ' + runs.length + ' runs...');
 
     svendFetch('/api/experimenter/analyze/', {
         method: 'POST',
         body: JSON.stringify({
-            data: data,
-            response: responseName,
-            factors: cols,
+            design: _currentDOEDesign,
+            results: results,
+            response_name: responseName,
+            factors: factorNames,
             analysis_type: 'main_effects',
         }),
     }).then(function(result) {
@@ -9242,13 +9249,17 @@ function analyzeDOEFromMatrix() {
 
 function exportDOEMatrixCSV() {
     if (!_currentDOEDesign) return;
-    var cols = _currentDOEDesign.columns;
+    var runs = _currentDOEDesign.runs || [];
+    var factorNames = (_currentDOEDesign.factors || []).map(function(f) { return f.name; });
+    if (factorNames.length === 0 && runs[0] && runs[0].levels) factorNames = Object.keys(runs[0].levels);
     var responseName = _currentDOEDesign.response_name || 'Response';
-    var lines = [cols.concat([responseName]).join(',')];
-    _currentDOEDesign.matrix.forEach(function(row, i) {
+    var lines = [['Run'].concat(factorNames).concat([responseName]).join(',')];
+    runs.forEach(function(run, i) {
+        var levels = run.levels || {};
+        var vals = factorNames.map(function(f) { return levels[f] != null ? levels[f] : ''; });
         var inp = document.querySelector('.doe-response-input[data-run="' + i + '"]');
-        var val = inp ? inp.value : '';
-        lines.push(row.join(',') + ',' + val);
+        var resp = inp ? inp.value : '';
+        lines.push([(run.run_order || i + 1)].concat(vals).concat([resp]).join(','));
     });
     var blob = new Blob([lines.join('\n')], { type: 'text/csv' });
     var a = document.createElement('a');
