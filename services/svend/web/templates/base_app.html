@@ -2240,6 +2240,70 @@
         window.svendAlert=function(msg){return new Promise(function(res){resolver=res;show(msg,{showCancel:false,okLabel:'OK'});});};
     })();
     </script>
+
+    <!-- Global JS Utilities -->
+    <script>
+    (function(){
+        /* ── svendFetch: JSON fetch wrapper with auto error toasting ── */
+        window.svendFetch = async function(url, opts) {
+            opts = opts || {};
+            var headers = Object.assign({'Content-Type': 'application/json'}, opts.headers || {});
+            var response = await fetch(url, Object.assign({}, opts, {headers: headers, credentials: 'include'}));
+            var body;
+            try { body = await response.json(); } catch(e) { body = null; }
+            if (!response.ok) {
+                var msg = (body && (body.error || body.message)) || ('Error: ' + response.status);
+                if (typeof msg === 'object') msg = msg.message || JSON.stringify(msg);
+                if (window.svToast) window.svToast(msg, 'error');
+                var err = new Error(msg);
+                err.status = response.status;
+                err.body = body;
+                throw err;
+            }
+            return body;
+        };
+
+        /* ── debounce ── */
+        window.debounce = function(fn, ms) {
+            var timer;
+            return function() {
+                var ctx = this, args = arguments;
+                clearTimeout(timer);
+                timer = setTimeout(function(){ fn.apply(ctx, args); }, ms);
+            };
+        };
+
+        /* ── withLoading: disable button + show text during async op ── */
+        window.withLoading = async function(el, promise) {
+            var orig = el.textContent;
+            el.disabled = true;
+            el.textContent = el.dataset.loadingText || 'Loading\u2026';
+            try {
+                return await (typeof promise === 'function' ? promise() : promise);
+            } finally {
+                el.disabled = false;
+                el.textContent = orig;
+            }
+        };
+
+        /* ── svendForm: dirty-tracking + beforeunload guard ── */
+        window.svendForm = {
+            _dirty: false,
+            get isDirty() { return this._dirty; },
+            setDirty: function(state) {
+                this._dirty = state !== false;
+            },
+            markClean: function() { this._dirty = false; },
+        };
+        window.addEventListener('beforeunload', function(e) {
+            if (window.svendForm._dirty) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes.';
+            }
+        });
+    })();
+    </script>
+
     {% block scripts %}{% endblock %}
     <!-- Time-on-page tracking -->
     <script>
