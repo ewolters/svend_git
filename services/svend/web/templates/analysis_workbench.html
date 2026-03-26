@@ -8211,15 +8211,40 @@ function generateConfigForm(type, id) {
                 </div>
             `;
         }
-        // Design creation — no data needed, just factor count + design type
+        // Design creation — factor builder (name + low + high levels)
         return `
             <div class="aw-form-group">
-                <label>Number of factors:</label>
-                <input type="number" id="cfg-factors" value="3" min="2" max="15">
+                <label>Factors:</label>
+                <div id="doe-factor-rows">
+                    <div class="doe-factor-row" style="display:flex;gap:6px;margin-bottom:4px;">
+                        <input type="text" class="doe-fname" placeholder="Name" value="Factor A" style="flex:2;">
+                        <input type="text" class="doe-flow" placeholder="Low" value="-1" style="flex:1;">
+                        <input type="text" class="doe-fhigh" placeholder="High" value="1" style="flex:1;">
+                    </div>
+                    <div class="doe-factor-row" style="display:flex;gap:6px;margin-bottom:4px;">
+                        <input type="text" class="doe-fname" placeholder="Name" value="Factor B" style="flex:2;">
+                        <input type="text" class="doe-flow" placeholder="Low" value="-1" style="flex:1;">
+                        <input type="text" class="doe-fhigh" placeholder="High" value="1" style="flex:1;">
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:4px;">
+                    <button type="button" class="aw-btn-sm" onclick="addDOEFactor()" style="font-size:11px;padding:2px 8px;background:var(--aw-accent);color:white;border:none;border-radius:3px;cursor:pointer;">+ Factor</button>
+                    <button type="button" class="aw-btn-sm" onclick="removeDOEFactor()" style="font-size:11px;padding:2px 8px;background:transparent;color:var(--aw-text-muted);border:1px solid var(--aw-border);border-radius:3px;cursor:pointer;">\u2212 Factor</button>
+                </div>
+            </div>
+            <div class="aw-form-row" style="display:flex;gap:8px;">
+                <div class="aw-form-group" style="flex:1;">
+                    <label>Replicates:</label>
+                    <input type="number" id="cfg-replicates" value="1" min="1" max="10">
+                </div>
+                <div class="aw-form-group" style="flex:1;">
+                    <label>Center points:</label>
+                    <input type="number" id="cfg-center_points" value="0" min="0" max="10">
+                </div>
             </div>
             <div class="aw-form-group">
-                <label>Center points:</label>
-                <input type="number" id="cfg-center_points" value="3" min="0" max="10">
+                <label>Response name:</label>
+                <input type="text" id="cfg-response_name" value="Response" placeholder="e.g. Yield, Strength">
             </div>
         `;
     }
@@ -9041,41 +9066,220 @@ async function saveModel(modelKey) {
     }
 }
 
+// DOE Factor builder helpers
+function addDOEFactor() {
+    var rows = document.getElementById('doe-factor-rows');
+    var n = rows.children.length;
+    var letters = 'ABCDEFGHIJKLMNO';
+    var label = n < letters.length ? 'Factor ' + letters[n] : 'Factor ' + (n + 1);
+    var div = document.createElement('div');
+    div.className = 'doe-factor-row';
+    div.style.cssText = 'display:flex;gap:6px;margin-bottom:4px;';
+    div.innerHTML = '<input type="text" class="doe-fname" placeholder="Name" value="' + label + '" style="flex:2;">' +
+        '<input type="text" class="doe-flow" placeholder="Low" value="-1" style="flex:1;">' +
+        '<input type="text" class="doe-fhigh" placeholder="High" value="1" style="flex:1;">';
+    rows.appendChild(div);
+}
+function removeDOEFactor() {
+    var rows = document.getElementById('doe-factor-rows');
+    if (rows.children.length > 2) rows.removeChild(rows.lastChild);
+}
+function collectDOEFactors() {
+    var factors = [];
+    document.querySelectorAll('#doe-factor-rows .doe-factor-row').forEach(function(row) {
+        var name = row.querySelector('.doe-fname').value.trim() || ('Factor ' + (factors.length + 1));
+        var lo = row.querySelector('.doe-flow').value.trim();
+        var hi = row.querySelector('.doe-fhigh').value.trim();
+        var loNum = parseFloat(lo), hiNum = parseFloat(hi);
+        var levels = (!isNaN(loNum) && !isNaN(hiNum)) ? [loNum, hiNum] : [lo, hi];
+        var isCat = isNaN(loNum) || isNaN(hiNum);
+        factors.push({ name: name, levels: levels, categorical: isCat });
+    });
+    return factors;
+}
+
+// Stored design matrix for analysis
+var _currentDOEDesign = null;
+
 // Execute DOE design creation via /api/experimenter/design/
 async function executeDOEDesign(designType, config, displayName) {
     try {
         appendSession('info', `Creating ${displayName || designType} design...`);
-        const payload = {
+        var factors = collectDOEFactors();
+        if (factors.length < 2) {
+            appendSession('error', 'At least 2 factors are required');
+            return;
+        }
+        var responseName = (config.response_name || 'Response').trim();
+        var payload = {
             design_type: designType,
-            factors: parseInt(config.factors) || 3,
+            factors: factors,
+            replicates: parseInt(config.replicates) || 1,
             center_points: parseInt(config.center_points) || 0,
         };
-        if (config.levels) payload.levels = parseInt(config.levels);
         if (config.resolution) payload.resolution = config.resolution;
-        const response = await fetch('/api/experimenter/design/', {
+
+        var result = await svendFetch('/api/experimenter/design/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
         });
-        const result = await response.json();
-        if (!response.ok) throw new Error(safeStr(result.error, 'Design generation failed'));
         if (result.design) {
+            _currentDOEDesign = result.design;
+            _currentDOEDesign.response_name = responseName;
+            _currentDOEDesign.factors_spec = factors;
             appendSession('summary', `<strong>${displayName}</strong>: ${result.design.runs || '?'} runs generated`);
-            if (result.design.matrix) {
-                const tbl = '<table class="aw-table">' +
-                    '<tr>' + result.design.columns.map(c => `<th>${c}</th>`).join('') + '</tr>' +
-                    result.design.matrix.slice(0, 20).map(row =>
-                        '<tr>' + row.map(v => `<td>${v}</td>`).join('') + '</tr>'
-                    ).join('') +
-                    (result.design.matrix.length > 20 ? `<tr><td colspan="${result.design.columns.length}">... ${result.design.matrix.length - 20} more rows</td></tr>` : '') +
-                    '</table>';
-                appendSession('html', tbl);
-            }
+            renderDOEMatrix(result.design, responseName);
         }
         if (result.summary) appendSession('summary', result.summary);
     } catch (e) {
-        appendSession('error', `DOE Design error: ${e.message}`);
+        appendSession('error', `DOE Design error: ${safeStr(e, 'Unknown error')}`);
     }
+}
+
+function renderDOEMatrix(design, responseName) {
+    if (!design.matrix || !design.columns) return;
+    var session = document.getElementById('session-output');
+
+    var cols = design.columns;
+    var html = '<div class="doe-matrix-container" style="margin:8px 0;">';
+    html += '<table class="aw-table" id="doe-matrix-table">';
+    html += '<thead><tr><th>#</th>';
+    cols.forEach(function(c) { html += '<th>' + escapeHtml(c) + '</th>'; });
+    html += '<th style="background:rgba(74,159,110,0.15);color:var(--aw-accent);">' + escapeHtml(responseName) + '</th>';
+    html += '<th style="font-size:10px;color:var(--aw-text-muted);">Status</th></tr></thead>';
+    html += '<tbody>';
+    design.matrix.forEach(function(row, i) {
+        html += '<tr>';
+        html += '<td style="color:var(--aw-text-muted);font-size:11px;">' + (i + 1) + '</td>';
+        row.forEach(function(v) { html += '<td>' + v + '</td>'; });
+        html += '<td><input type="number" class="doe-response-input" data-run="' + i + '" step="any" style="width:80px;padding:2px 4px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:3px;color:var(--text);font-size:12px;"></td>';
+        html += '<td class="doe-run-status" data-run="' + i + '" style="font-size:10px;color:var(--aw-text-muted);">\u2022 pending</td>';
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    html += '<div style="display:flex;gap:8px;margin-top:8px;">';
+    html += '<button class="aw-btn" onclick="analyzeDOEFromMatrix()" style="padding:5px 12px;font-size:12px;background:var(--aw-accent);color:white;border:none;border-radius:4px;cursor:pointer;">Analyze</button>';
+    html += '<button class="aw-btn" onclick="exportDOEMatrixCSV()" style="padding:5px 12px;font-size:12px;background:transparent;color:var(--aw-text-muted);border:1px solid var(--aw-border);border-radius:4px;cursor:pointer;">Export CSV</button>';
+    html += '<label style="padding:5px 12px;font-size:12px;background:transparent;color:var(--aw-text-muted);border:1px solid var(--aw-border);border-radius:4px;cursor:pointer;">Import Results <input type="file" accept=".csv" onchange="importDOEResults(event)" style="display:none;"></label>';
+    html += '</div></div>';
+
+    var wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    session.appendChild(wrapper);
+    session.scrollTop = session.scrollHeight;
+
+    // Mark runs as complete when response entered
+    wrapper.querySelectorAll('.doe-response-input').forEach(function(inp) {
+        inp.addEventListener('input', function() {
+            var run = this.dataset.run;
+            var status = wrapper.querySelector('.doe-run-status[data-run="' + run + '"]');
+            if (this.value) {
+                status.textContent = '\u2713 done';
+                status.style.color = 'var(--success)';
+            } else {
+                status.textContent = '\u2022 pending';
+                status.style.color = 'var(--aw-text-muted)';
+            }
+        });
+    });
+}
+
+function analyzeDOEFromMatrix() {
+    if (!_currentDOEDesign) { svToast('Generate a design first', 'warning'); return; }
+    var responses = [];
+    var allFilled = true;
+    document.querySelectorAll('.doe-response-input').forEach(function(inp) {
+        var val = parseFloat(inp.value);
+        if (isNaN(val)) { allFilled = false; responses.push(null); }
+        else responses.push(val);
+    });
+    if (!allFilled) { svToast('Fill in all response values before analyzing', 'warning'); return; }
+
+    // Build data payload for analysis endpoint
+    var cols = _currentDOEDesign.columns;
+    var matrix = _currentDOEDesign.matrix;
+    var responseName = _currentDOEDesign.response_name || 'Response';
+
+    // Build column data
+    var data = {};
+    cols.forEach(function(col, ci) {
+        data[col] = matrix.map(function(row) { return row[ci]; });
+    });
+    data[responseName] = responses;
+
+    appendSession('separator');
+    appendSession('cmd', 'DOE ANOVA Analysis');
+    appendSession('info', 'Analyzing ' + matrix.length + ' runs...');
+
+    svendFetch('/api/experimenter/analyze/', {
+        method: 'POST',
+        body: JSON.stringify({
+            data: data,
+            response: responseName,
+            factors: cols,
+            analysis_type: 'main_effects',
+        }),
+    }).then(function(result) {
+        if (result.summary) {
+            var div = document.createElement('div');
+            div.className = 'result';
+            div.innerHTML = result.summary;
+            document.getElementById('session-output').appendChild(div);
+        }
+        if (result.plots && result.plots.length > 0) displayGraphs(result.plots);
+        if (result.anova_table) {
+            var tbl = '<table class="aw-table"><thead><tr><th>Source</th><th>DF</th><th>SS</th><th>MS</th><th>F</th><th>p</th></tr></thead><tbody>';
+            result.anova_table.forEach(function(r) {
+                tbl += '<tr><td>' + r.source + '</td><td>' + r.df + '</td><td>' + (r.ss != null ? r.ss.toFixed(4) : '') + '</td><td>' + (r.ms != null ? r.ms.toFixed(4) : '') + '</td><td>' + (r.f != null ? r.f.toFixed(4) : '') + '</td><td>' + (r.p != null ? r.p.toFixed(4) : '') + '</td></tr>';
+            });
+            tbl += '</tbody></table>';
+            appendSession('html', tbl);
+        }
+    }).catch(function(e) {
+        appendSession('error', 'Analysis error: ' + safeStr(e, 'Unknown error'));
+    });
+}
+
+function exportDOEMatrixCSV() {
+    if (!_currentDOEDesign) return;
+    var cols = _currentDOEDesign.columns;
+    var responseName = _currentDOEDesign.response_name || 'Response';
+    var lines = [cols.concat([responseName]).join(',')];
+    _currentDOEDesign.matrix.forEach(function(row, i) {
+        var inp = document.querySelector('.doe-response-input[data-run="' + i + '"]');
+        var val = inp ? inp.value : '';
+        lines.push(row.join(',') + ',' + val);
+    });
+    var blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'doe_design.csv';
+    a.click();
+}
+
+function importDOEResults(event) {
+    var file = event.target.files[0];
+    if (!file || !_currentDOEDesign) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var lines = e.target.result.trim().split('\n');
+        if (lines.length < 2) { svToast('CSV must have header + data rows', 'warning'); return; }
+        var header = lines[0].split(',').map(function(s) { return s.trim(); });
+        var responseName = _currentDOEDesign.response_name || 'Response';
+        var respIdx = header.indexOf(responseName);
+        if (respIdx < 0) respIdx = header.length - 1; // assume last column
+        var inputs = document.querySelectorAll('.doe-response-input');
+        for (var i = 1; i < lines.length && i - 1 < inputs.length; i++) {
+            var vals = lines[i].split(',');
+            var v = vals[respIdx] ? vals[respIdx].trim() : '';
+            if (v) {
+                inputs[i - 1].value = v;
+                inputs[i - 1].dispatchEvent(new Event('input'));
+            }
+        }
+        svToast('Imported ' + (lines.length - 1) + ' results from CSV', 'success');
+    };
+    reader.readAsText(file);
 }
 
 // Execute DOE power analysis via /api/experimenter/power/
