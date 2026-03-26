@@ -242,10 +242,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     const currentInvestigationId = new URLSearchParams(window.location.search).get('investigation_id') || null;
 
     function apiFetch(url, opts = {}) {
-        return fetch(url, {
-            ...opts,
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, ...opts.headers },
-        }).then(r => r.json());
+        return svendFetch(url, opts);
     }
 
     // --- Sidebar ---
@@ -305,11 +302,12 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     };
 
     // --- Save ---
+    var _debouncedSaveMatrix = debounce(saveMatrix, 800);
     window.scheduleSave = function() {
-        if (saveTimer) clearTimeout(saveTimer);
+        svendForm.setDirty();
         document.getElementById('save-indicator').textContent = 'Saving...';
         document.getElementById('save-indicator').classList.remove('saved');
-        saveTimer = setTimeout(saveMatrix, 800);
+        _debouncedSaveMatrix();
     };
 
     function saveMatrix() {
@@ -328,6 +326,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
             method: 'PUT',
             body: JSON.stringify(payload),
         }).then(data => {
+            svendForm.markClean();
             // Update totals from server
             if (data.matrix && data.matrix.totals) {
                 currentMatrix.totals = data.matrix.totals;

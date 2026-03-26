@@ -1439,37 +1439,17 @@ async function getCritique(stepIndex) {
     }
 
     try {
-        const response = await fetch('/api/rca/critique/', {
+        const data = await svendFetch('/api/rca/critique/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 event: event,
                 chain: contextChain,
-                current_claim: step.claim
-            })
+                current_claim: step.claim,
+            }),
         });
-
-        // Check if response is OK before parsing
-        if (!response.ok) {
-            const text = await response.text();
-            console.error('RCA API error:', response.status, text.substring(0, 500));
-            alert(`Error ${response.status}: ${response.statusText}`);
-            chain.pop();
-            renderChain();
-            return;
-        }
-
-        const data = await response.json();
-
-        if (data.error) {
-            alert('Error: ' + safeStr(data.error, 'Unknown error'));
-            chain.pop();
-        } else {
-            step.critique = data.critique;
-        }
+        step.critique = data.critique;
     } catch (err) {
-        console.error('RCA fetch error:', err);
-        alert('Failed to get critique: ' + safeStr(err, 'Unknown error'));
+        // svendFetch already toasted the error
         chain.pop();
     }
 
@@ -1669,7 +1649,7 @@ async function evaluateChain() {
 async function saveSession() {
     const event = document.getElementById('event-input').value.trim();
     if (!event) {
-        alert('Please describe the incident before saving.');
+        svToast('Please describe the incident before saving.', 'warning');
         return;
     }
 
@@ -1687,39 +1667,33 @@ async function saveSession() {
         const method = currentSessionId ? 'PUT' : 'POST';
 
         const payload = {
-                title: event.substring(0, 100),
-                event: event,
-                chain: chain,
-                root_cause: rootCause,
-                countermeasure: countermeasure,
-                status: rootCause ? 'in_progress' : 'draft',
-            };
+            title: event.substring(0, 100),
+            event: event,
+            chain: chain,
+            root_cause: rootCause,
+            countermeasure: countermeasure,
+            status: rootCause ? 'in_progress' : 'draft',
+        };
         if (currentInvestigationId) payload.investigation_id = currentInvestigationId;
 
-        const response = await fetch(url, {
+        const data = await svendFetch(url, {
             method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
         });
-
-        const data = await response.json();
-        if (data.error) {
-            alert('Error saving: ' + safeStr(data.error, 'Unknown error'));
-        } else {
-            currentSessionId = data.session.id;
-            // Keep URL in sync so reload preserves the session
-            const newUrl = new URL(window.location);
-            newUrl.searchParams.set('session', currentSessionId);
-            window.history.replaceState({}, '', newUrl);
-            document.getElementById('link-a3-btn').style.display = 'flex';
-            document.getElementById('action-items-section').style.display = 'block';
-            saveBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Saved!';
-            setTimeout(() => {
-                saveBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
-            }, 2000);
-        }
+        currentSessionId = data.session.id;
+        // Keep URL in sync so reload preserves the session
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('session', currentSessionId);
+        window.history.replaceState({}, '', newUrl);
+        document.getElementById('link-a3-btn').style.display = 'flex';
+        document.getElementById('action-items-section').style.display = 'block';
+        svendForm.markClean();
+        saveBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Saved!';
+        setTimeout(() => {
+            saveBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
+        }, 2000);
     } catch (err) {
-        alert('Failed to save: ' + safeStr(err, 'Unknown error'));
+        // svendFetch already toasted the error
     }
 
     saveBtn.disabled = false;
@@ -1767,14 +1741,7 @@ async function loadSession(sessionId) {
     closeSessionsModal();
 
     try {
-        const response = await fetch(`/api/rca/sessions/${sessionId}/`);
-        const data = await response.json();
-
-        if (data.error) {
-            alert('Error loading: ' + safeStr(data.error, 'Unknown error'));
-            return;
-        }
-
+        const data = await svendFetch(`/api/rca/sessions/${sessionId}/`);
         const session = data.session;
         currentSessionId = session.id;
 
@@ -1798,7 +1765,7 @@ async function loadSession(sessionId) {
         renderRcaActionItems(data.action_items || []);
 
     } catch (err) {
-        alert('Failed to load: ' + safeStr(err, 'Unknown error'));
+        // svendFetch already toasted
     }
 }
 
@@ -1820,7 +1787,7 @@ function formatDate(dateStr) {
 
 async function showLinkA3Modal() {
     if (!currentSessionId) {
-        alert('Please save the session first.');
+        svToast('Please save the session first.', 'warning');
         return;
     }
 

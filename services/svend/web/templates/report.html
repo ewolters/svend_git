@@ -401,7 +401,7 @@
                 <select id="report-status" class="report-status" onchange="updateStatus()"></select>
             </div>
             <div class="report-toolbar-group">
-                <button class="report-btn" onclick="autoPopulate()">Auto-Fill Empty</button>
+                <button class="report-btn" onclick="autoPopulate()" data-loading-text="Generating\u2026">Auto-Fill Empty</button>
                 <button class="report-btn" id="preview-toggle" onclick="togglePreview()">Preview</button>
                 <button class="report-btn" onclick="exportPDF()">Export PDF</button>
             </div>
@@ -679,29 +679,29 @@ function renderEditor() {
 // =========================================================================
 
 function scheduleSave(sectionKey, value) {
-    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    svendForm.setDirty();
     document.getElementById('save-indicator').textContent = 'Unsaved...';
-    autoSaveTimer = setTimeout(() => saveSection(sectionKey, value), 1000);
+    _debouncedSaveSection(sectionKey, value);
 }
+
+var _debouncedSaveSection = debounce(function(sectionKey, value) {
+    saveSection(sectionKey, value);
+}, 1000);
 
 async function saveSection(sectionKey, value) {
     if (!currentReport) return;
     try {
-        const resp = await fetch(`/api/reports/${currentReport.id}/update/`, {
+        var data = await svendFetch(`/api/reports/${currentReport.id}/update/`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
             body: JSON.stringify({ sections: { [sectionKey]: value } }),
         });
-        if (resp.ok) {
-            const data = await resp.json();
-            currentReport = data.report;
-            document.getElementById('save-indicator').textContent = 'Saved';
-            setTimeout(() => {
-                const el = document.getElementById('save-indicator');
-                if (el.textContent === 'Saved') el.textContent = '';
-            }, 2000);
-        }
+        currentReport = data.report;
+        svendForm.markClean();
+        document.getElementById('save-indicator').textContent = 'Saved';
+        setTimeout(() => {
+            const el = document.getElementById('save-indicator');
+            if (el.textContent === 'Saved') el.textContent = '';
+        }, 2000);
     } catch (e) {
         document.getElementById('save-indicator').textContent = 'Save failed';
     }
@@ -710,13 +710,11 @@ async function saveSection(sectionKey, value) {
 async function saveField(field, value) {
     if (!currentReport) return;
     try {
-        await fetch(`/api/reports/${currentReport.id}/update/`, {
+        await svendFetch(`/api/reports/${currentReport.id}/update/`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
             body: JSON.stringify({ [field]: value }),
         });
-    } catch (e) { console.error(e); }
+    } catch (e) { /* svendFetch already toasted */ }
 }
 
 async function updateStatus() {
@@ -731,34 +729,21 @@ async function updateStatus() {
 async function autoPopulate() {
     if (!currentReport) return;
     const btn = event.target;
-    btn.textContent = 'Generating...';
-    btn.disabled = true;
-
-    try {
-        const resp = await fetch(`/api/reports/${currentReport.id}/auto-populate/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({}),
-        });
-
-        const data = await resp.json();
-        if (resp.ok) {
+    await withLoading(btn, async () => {
+        try {
+            var data = await svendFetch(`/api/reports/${currentReport.id}/auto-populate/`, {
+                method: 'POST',
+                body: JSON.stringify({}),
+            });
             currentReport = data.report;
             renderEditor();
-        } else {
-            alert(safeStr(data.error, 'Auto-populate failed'));
-            if (data.partial_results) {
-                currentReport.sections = { ...currentReport.sections, ...data.partial_results };
+        } catch (e) {
+            if (e.body && e.body.partial_results) {
+                currentReport.sections = { ...currentReport.sections, ...e.body.partial_results };
                 renderEditor();
             }
         }
-    } catch (e) {
-        alert('Error: ' + safeStr(e, 'Unknown error'));
-    } finally {
-        btn.textContent = 'Auto-Fill Empty';
-        btn.disabled = false;
-    }
+    });
 }
 
 // =========================================================================

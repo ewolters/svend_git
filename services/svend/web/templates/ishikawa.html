@@ -339,10 +339,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 
     // --- API helpers ---
     function apiFetch(url, opts = {}) {
-        return fetch(url, {
-            ...opts,
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, ...opts.headers },
-        }).then(r => r.json());
+        return svendFetch(url, opts);
     }
 
     // --- Sidebar ---
@@ -422,11 +419,12 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     };
 
     // --- Save (debounced) ---
+    var _debouncedSaveDiagram = debounce(saveDiagram, 800);
     window.scheduleSave = function() {
-        if (saveTimer) clearTimeout(saveTimer);
+        svendForm.setDirty();
         document.getElementById('save-indicator').textContent = 'Saving...';
         document.getElementById('save-indicator').classList.remove('saved');
-        saveTimer = setTimeout(saveDiagram, 800);
+        _debouncedSaveDiagram();
     };
 
     function saveDiagram() {
@@ -443,6 +441,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
             method: 'PUT',
             body: JSON.stringify(payload),
         }).then(() => {
+            svendForm.markClean();
             const ind = document.getElementById('save-indicator');
             ind.textContent = 'Saved';
             ind.classList.add('saved');

@@ -1339,14 +1339,13 @@ async function saveEditField(rowId, field, el) {
     const value = el.type === 'number' ? (parseInt(el.value) || 1) : el.value;
     const payload = {[field]: value};
 
-    const resp = await fetch(API + currentFmea.id + '/rows/' + rowId + '/', {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload),
-    });
-    if (!resp.ok) return;
-    const data = await resp.json();
+    var data;
+    try {
+        data = await svendFetch(API + currentFmea.id + '/rows/' + rowId + '/', {
+            method: 'PATCH',
+            body: JSON.stringify(payload),
+        });
+    } catch (e) { return; }
 
     const idx = currentRows.findIndex(r => r.id === rowId);
     if (idx >= 0) currentRows[idx] = data.row;
@@ -1366,37 +1365,37 @@ async function saveRevisionFromModal(rowId) {
     if (!rs && !ro && !rd) return;
     if (!rs || !ro || !rd) return;
 
-    const resp = await fetch(API + currentFmea.id + '/rows/' + rowId + '/revise/', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            revised_severity: parseInt(rs),
-            revised_occurrence: parseInt(ro),
-            revised_detection: parseInt(rd),
-        }),
-    });
-    if (!resp.ok) return;
-    const data = await resp.json();
+    var data;
+    try {
+        data = await svendFetch(API + currentFmea.id + '/rows/' + rowId + '/revise/', {
+            method: 'POST',
+            body: JSON.stringify({
+                revised_severity: parseInt(rs),
+                revised_occurrence: parseInt(ro),
+                revised_detection: parseInt(rd),
+            }),
+        });
+    } catch (e) { return; }
 
     const idx = currentRows.findIndex(r => r.id === rowId);
     if (idx >= 0) currentRows[idx] = data.row;
 
     if (data.hypothesis_probability !== undefined) {
-        showToast(`Hypothesis updated: ${(data.hypothesis_probability * 100).toFixed(0)}%`);
+        svToast(`Hypothesis updated: ${(data.hypothesis_probability * 100).toFixed(0)}%`);
     }
 }
 
 async function deleteRowFromModal(rowId) {
-    if (!confirm('Delete this failure mode?')) return;
+    if (!await svendConfirm('Delete this failure mode? This cannot be undone.', 'Delete')) return;
 
-    await fetch(API + currentFmea.id + '/rows/' + rowId + '/delete/', {
-        method: 'DELETE',
-        credentials: 'include',
-    });
-    currentRows = currentRows.filter(r => r.id !== rowId);
-    closeEditModal();
-    renderRows();
+    try {
+        await svendFetch(API + currentFmea.id + '/rows/' + rowId + '/delete/', {
+            method: 'DELETE',
+        });
+        currentRows = currentRows.filter(r => r.id !== rowId);
+        closeEditModal();
+        renderRows();
+    } catch (e) { /* svendFetch already toasted */ }
 }
 
 function closeEditModal() {
@@ -1408,37 +1407,35 @@ function closeEditModal() {
 // ====== ROW OPERATIONS ======
 
 async function addRow() {
-    const payload = {failure_mode: 'New failure mode'};
-    const resp = await fetch(API + currentFmea.id + '/rows/', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload),
-    });
-    if (!resp.ok) return;
-    const data = await resp.json();
-    currentRows.push(data.row);
-    renderRows();
-    openEditModal(data.row.id);
+    try {
+        const data = await svendFetch(API + currentFmea.id + '/rows/', {
+            method: 'POST',
+            body: JSON.stringify({failure_mode: 'New failure mode'}),
+        });
+        currentRows.push(data.row);
+        renderRows();
+        openEditModal(data.row.id);
+    } catch (e) { /* svendFetch already toasted */ }
 }
 
 // ====== META ======
 
-async function saveMeta() {
+var _debouncedSaveMeta = debounce(async function() {
     if (!currentFmea) return;
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(async () => {
-        const metaPayload = {
-            title: document.getElementById('fmea-title').value,
-            status: document.getElementById('fmea-status').value,
-        };
-        await fetch(API + currentFmea.id + '/update/', {
+    try {
+        await svendFetch(API + currentFmea.id + '/update/', {
             method: 'PATCH',
-            credentials: 'include',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(metaPayload),
+            body: JSON.stringify({
+                title: document.getElementById('fmea-title').value,
+                status: document.getElementById('fmea-status').value,
+            }),
         });
-    }, 500);
+    } catch (e) { /* svendFetch already toasted */ }
+}, 500);
+
+function saveMeta() {
+    svendForm.setDirty();
+    _debouncedSaveMeta();
 }
 
 // ====== CREATE ======
@@ -1448,7 +1445,7 @@ function hideCreateModal() { document.getElementById('create-modal').classList.r
 
 async function createFmea() {
     const title = document.getElementById('create-title').value.trim();
-    if (!title) { alert('Title required'); return; }
+    if (!title) { svToast('Title required', 'warning'); return; }
 
     const createPayload = {
         title,
@@ -1457,31 +1454,22 @@ async function createFmea() {
     };
     const fmeaSiteEl = document.getElementById('fmea-site');
     if (fmeaSiteEl && fmeaSiteEl.value) createPayload.site_id = fmeaSiteEl.value;
-    const resp = await fetch(API + 'create/', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(createPayload),
-    });
-
-    if (!resp.ok) {
-        const err = await resp.json();
-        alert(safeStr(err.error, 'Failed to create FMEA'));
-        return;
-    }
-
-    const data = await resp.json();
-    hideCreateModal();
-    window.location.href = `/app/fmea/${data.id}/`;
+    try {
+        const data = await svendFetch(API + 'create/', {
+            method: 'POST',
+            body: JSON.stringify(createPayload),
+        });
+        hideCreateModal();
+        window.location.href = `/app/fmea/${data.id}/`;
+    } catch (e) { /* svendFetch already toasted */ }
 }
 
 async function confirmDeleteFmea() {
-    if (!confirm('Delete this entire FMEA? This cannot be undone.')) return;
-    await fetch(API + currentFmea.id + '/delete/', {
-        method: 'DELETE',
-        credentials: 'include',
-    });
-    window.location.href = '/app/fmea/';
+    if (!await svendConfirm('Delete this entire FMEA? This cannot be undone.', 'Delete')) return;
+    try {
+        await svendFetch(API + currentFmea.id + '/delete/', { method: 'DELETE' });
+        window.location.href = '/app/fmea/';
+    } catch (e) { /* svendFetch already toasted */ }
 }
 
 // ====== HYPOTHESIS LINKING ======
@@ -1516,26 +1504,17 @@ function hideLinkModal() {
 async function linkHypothesis(hypothesisId) {
     if (!linkingRowId) return;
 
-    const resp = await fetch(API + currentFmea.id + '/rows/' + linkingRowId + '/link/', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({hypothesis_id: hypothesisId}),
-    });
-
-    if (!resp.ok) {
-        const err = await resp.json();
-        alert(safeStr(err.error, 'Failed to link'));
-        return;
-    }
-
-    const data = await resp.json();
-    const idx = currentRows.findIndex(r => r.id === linkingRowId);
-    if (idx >= 0) currentRows[idx] = data.row;
-
-    hideLinkModal();
-    renderRows();
-    showToast(`Linked! Hypothesis P = ${(data.hypothesis_probability * 100).toFixed(0)}% (LR=${data.likelihood_ratio})`);
+    try {
+        const data = await svendFetch(API + currentFmea.id + '/rows/' + linkingRowId + '/link/', {
+            method: 'POST',
+            body: JSON.stringify({hypothesis_id: hypothesisId}),
+        });
+        const idx = currentRows.findIndex(r => r.id === linkingRowId);
+        if (idx >= 0) currentRows[idx] = data.row;
+        hideLinkModal();
+        renderRows();
+        svToast(`Linked! Hypothesis P = ${(data.hypothesis_probability * 100).toFixed(0)}% (LR=${data.likelihood_ratio})`, 'success');
+    } catch (e) { /* svendFetch already toasted */ }
 }
 
 // ====== SUMMARY ======
@@ -1633,52 +1612,39 @@ function isRowTracked(rowId) {
 }
 
 async function promoteFmeaAction(fmeaId, rowId) {
-    const resp = await fetch(API + fmeaId + '/rows/' + rowId + '/promote-action/', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({}),
-    });
+    try {
+        const data = await svendFetch(API + fmeaId + '/rows/' + rowId + '/promote-action/', {
+            method: 'POST',
+            body: JSON.stringify({}),
+        });
+        const item = data.action_item;
 
-    if (!resp.ok) {
-        const err = await resp.json();
-        alert(safeStr(err.error, 'Failed to promote action'));
-        return;
-    }
+        if (!currentActionItems.find(a => a.id === item.id)) {
+            currentActionItems.push(item);
+        }
 
-    const data = await resp.json();
-    const item = data.action_item;
-
-    if (!currentActionItems.find(a => a.id === item.id)) {
-        currentActionItems.push(item);
-    }
-
-    // Re-render the modal to show "Tracked" badge
-    if (editingRowId === rowId) {
-        openEditModal(rowId);
-    }
-    renderRows();
-    renderFmeaActionItems(currentActionItems);
-    showToast('Action item tracked');
+        // Re-render the modal to show "Tracked" badge
+        if (editingRowId === rowId) {
+            openEditModal(rowId);
+        }
+        renderRows();
+        renderFmeaActionItems(currentActionItems);
+        svToast('Action item tracked', 'success');
+    } catch (e) { /* svendFetch already toasted */ }
 }
 
 async function promoteFmeaRisk(fmeaId, rowId) {
-    const resp = await fetch(API + fmeaId + '/rows/' + rowId + '/promote-risk/', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({}),
-    });
-    const data = await resp.json();
-    if (!resp.ok) {
-        alert(safeStr(data.error, 'Failed to promote to risk'));
-        return;
-    }
-    if (data.risk) {
-        showToast('Promoted to Risk Register (score: ' + data.risk.risk_score + ')');
-    } else {
-        showToast('Already in Risk Register');
-    }
+    try {
+        const data = await svendFetch(API + fmeaId + '/rows/' + rowId + '/promote-risk/', {
+            method: 'POST',
+            body: JSON.stringify({}),
+        });
+        if (data.risk) {
+            svToast('Promoted to Risk Register (score: ' + data.risk.risk_score + ')', 'success');
+        } else {
+            svToast('Already in Risk Register', 'info');
+        }
+    } catch (e) { /* svendFetch already toasted */ }
 }
 
 function renderFmeaActionItems(items) {
@@ -1706,22 +1672,14 @@ function renderFmeaActionItems(items) {
 }
 
 async function updateActionStatus(actionId, newStatus) {
-    const resp = await fetch('/api/actions/' + actionId + '/update/', {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({status: newStatus}),
-    });
-
-    if (!resp.ok) {
-        const err = await resp.json();
-        alert(safeStr(err.error, 'Failed to update action'));
-        return;
-    }
-
-    const data = await resp.json();
-    const idx = currentActionItems.findIndex(a => a.id === actionId);
-    if (idx >= 0) currentActionItems[idx] = data.action_item;
+    try {
+        const data = await svendFetch('/api/actions/' + actionId + '/update/', {
+            method: 'PUT',
+            body: JSON.stringify({status: newStatus}),
+        });
+        const idx = currentActionItems.findIndex(a => a.id === actionId);
+        if (idx >= 0) currentActionItems[idx] = data.action_item;
+    } catch (e) { /* svendFetch already toasted */ }
 }
 
 // ====== HELPERS ======
@@ -1743,12 +1701,6 @@ function truncate(s, len) {
     return s.length > len ? s.slice(0, len - 3) + '...' : s;
 }
 
-function showToast(msg) {
-    const t = document.createElement('div');
-    t.textContent = msg;
-    t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:var(--accent);color:white;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;transition:opacity 0.3s;';
-    document.body.appendChild(t);
-    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
-}
+// showToast aliased to global svToast from base_app.html
 </script>
 {% endblock %}

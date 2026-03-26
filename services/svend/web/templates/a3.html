@@ -875,20 +875,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Auto-save on change
+    // Auto-save on input (debounced to prevent API flooding)
+    var _debouncedA3Save = debounce(function() {
+        if (currentReportId) saveReport(true);
+    }, 1000);
     document.querySelectorAll('.a3-section-content textarea').forEach(ta => {
-        ta.addEventListener('change', () => {
-            if (currentReportId) saveReport(true);
+        ta.addEventListener('input', () => {
+            svendForm.setDirty();
+            _debouncedA3Save();
         });
     });
 });
 
 async function loadProjects() {
     try {
-        const resp = await fetch('/api/notebooks/');
-        if (!resp.ok) return;
-        const data = await resp.json();
-
+        const data = await svendFetch('/api/notebooks/');
         const select = document.getElementById('project-select');
         select.innerHTML = '<option value="">Select Notebook...</option>';
         (data.notebooks || []).forEach(nb => {
@@ -898,7 +899,7 @@ async function loadProjects() {
             select.appendChild(opt);
         });
     } catch (e) {
-        console.error('Failed to load notebooks:', e);
+        /* svendFetch already toasted */
     }
 }
 
@@ -910,12 +911,10 @@ async function loadProject(notebookId) {
         const a3Body = { notebook_id: notebookId, title: 'New A3 Report' };
         const a3SiteEl = document.getElementById('a3-site');
         if (a3SiteEl && a3SiteEl.value) a3Body.site_id = a3SiteEl.value;
-        const resp = await fetch('/api/a3/create/', {
+        const data = await svendFetch('/api/a3/create/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(a3Body)
+            body: JSON.stringify(a3Body),
         });
-        const data = await resp.json();
         if (data.id) {
             currentReportId = data.id;
             currentProjectId = data.report.project_id;
@@ -923,18 +922,13 @@ async function loadProject(notebookId) {
             await loadReport(data.id);
         }
     } catch (e) {
-        console.error('Failed to create A3:', e);
+        /* svendFetch already toasted */
     }
 }
 
 async function loadReport(reportId) {
     try {
-        const resp = await fetch(`/api/a3/${reportId}/`);
-        if (!resp.ok) {
-            alert('Report not found');
-            return;
-        }
-        const data = await resp.json();
+        const data = await svendFetch(`/api/a3/${reportId}/`);
         const report = data.report;
 
         // Populate fields
@@ -991,18 +985,16 @@ async function saveReport(quiet = false) {
     };
 
     try {
-        const resp = await fetch(`/api/a3/${currentReportId}/update/`, {
+        await svendFetch(`/api/a3/${currentReportId}/update/`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
         });
-        if (resp.ok) {
-            svendTrack('feature_use', {category: 'a3', action: 'save_report'});
-            if (!quiet) alert('Saved!');
-        }
+        svendForm.markClean();
+        svendTrack('feature_use', {category: 'a3', action: 'save_report'});
+        if (!quiet) svToast('Saved!', 'success');
     } catch (e) {
-        console.error('Save failed:', e);
-        if (!quiet) alert('Save failed');
+        // svendFetch already toasted the error
+        if (!quiet) console.error('Save failed:', e);
     }
 }
 
@@ -1010,18 +1002,13 @@ async function updateStatus(newStatus) {
     if (!currentReportId) return;
 
     try {
-        const resp = await fetch(`/api/a3/${currentReportId}/update/`, {
+        await svendFetch(`/api/a3/${currentReportId}/update/`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus })
+            body: JSON.stringify({ status: newStatus }),
         });
-        if (!resp.ok) {
-            alert('Failed to update status');
-            // Reset to previous value
-            await loadReport(currentReportId);
-        }
     } catch (e) {
-        console.error('Status update failed:', e);
+        // svendFetch already toasted — reset to previous value
+        await loadReport(currentReportId);
     }
 }
 
