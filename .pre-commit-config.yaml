@@ -11,6 +11,14 @@ repos:
         always_run: true
         pass_filenames: false
         stages: [pre-commit]
+      # SEC-001 §6.6: Tenant isolation lint — catches unscoped Site/Project lookups
+      - id: tenant-isolation-lint
+        name: SEC-001 tenant isolation lint
+        entry: python3 ops/hooks/check_tenant_isolation.py
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages: [pre-commit]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.4
     hooks:
