@@ -490,6 +490,7 @@ urlpatterns = [
     path("api/qms/", include("agents_api.qms_urls")),  # QMS cross-module dashboard (Phase 3)
     path("api/iso/", include("agents_api.iso_urls")),  # ISO 9001 QMS (Team/Enterprise)
     path("api/notifications/", include("notifications.urls")),  # NTF-001
+    path("api/loop/", include("loop.urls")),  # LOOP-001: Signals, Commitments, Transitions
     path("api/safety/", include("safety.urls")),  # HIRARC Safety (Enterprise)
     path("api/privacy/", include("accounts.privacy_urls")),  # PRIV-001 (SOC 2 P1.8)
     path("api/capa/", include("agents_api.capa_urls")),  # CAPA standalone (ISO 10.2, FEAT-004)
