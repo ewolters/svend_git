@@ -17,10 +17,13 @@ class AgentsApiConfig(AppConfig):
     verbose_name = "Agents API"
 
     def ready(self):
-        """Called when Django starts - preload LLMs."""
+        """Called when Django starts - register event handlers and preload LLMs."""
+        # Register ToolEventBus handlers (ARCH-001 §10.2)
         import sys
 
-        # Skip during migrations, shell, or other management commands
+        import agents_api.tool_event_handlers  # noqa: F401
+
+        # Skip LLM preload during migrations, shell, or other management commands
         if any(
             cmd in sys.argv
             for cmd in [

@@ -7,7 +7,6 @@ lazy root causes before they make it into the final narrative.
 import json
 import logging
 
-from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
@@ -16,49 +15,23 @@ from accounts.permissions import gated_paid, require_enterprise
 from core.models import Project
 
 from .evidence_bridge import create_tool_evidence
-from .llm_manager import CLAUDE_MODELS
-from .models import ActionItem, CAPAReport, RCASession, Site, check_rate_limit
+from .llm_service import llm_service
+from .models import ActionItem, CAPAReport, RCASession, Site
 from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
 logger = logging.getLogger(__name__)
 
 
-def _rca_llm_call(request, system_prompt, messages, max_tokens=500):
-    """Shared RCA LLM call with rate limiting and model from LLM-001 constants."""
-    allowed, remaining, limit = check_rate_limit(request.user)
-    if not allowed:
-        return JsonResponse(
-            {"error": f"Rate limit exceeded ({limit}/day). Try again tomorrow."},
-            status=429,
-        )
-    try:
-        import anthropic
-    except ImportError:
-        return JsonResponse({"error": "Anthropic library not installed"}, status=503)
-    api_key = getattr(settings, "ANTHROPIC_API_KEY", None)
-    if not api_key:
-        return JsonResponse({"error": "Anthropic API key not configured"}, status=503)
-    try:
-        client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(
-            model=CLAUDE_MODELS["sonnet"],
-            max_tokens=max_tokens,
-            system=system_prompt,
-            messages=messages,
-        )
-        return response
-    except anthropic.APIError as e:
-        logger.error("Anthropic API error in RCA: %s", e)
+def _rca_llm_result_to_response(result, response_key="critique"):
+    """Convert LLMResult to JsonResponse, handling rate limits and failures."""
+    if result.rate_limited:
+        return JsonResponse({"error": result.error or "Rate limit exceeded."}, status=429)
+    if not result.success:
         return JsonResponse(
             {"error": "Analysis service temporarily unavailable. Please retry."},
             status=502,
         )
-    except Exception as e:
-        logger.exception("RCA error: %s", e)
-        return JsonResponse(
-            {"error": "Analysis failed. Please check your inputs and try again."},
-            status=500,
-        )
+    return None  # Success — caller builds response from result.content
 
 
 def _rca_connect_investigation(request, investigation_id, session, data):
@@ -264,9 +237,7 @@ def critique(request):
         for i, step in enumerate(chain, 1):
             chain_lines.append(f"{i}. Claim: {step.get('claim', '')[:2000]}")
             if step.get("response"):
-                chain_lines.append(
-                    f"   Your critique: {step.get('response', '')[:2000]}"
-                )
+                chain_lines.append(f"   Your critique: {step.get('response', '')[:2000]}")
         context += "<causal_chain>\n" + "\n".join(chain_lines) + "\n</causal_chain>\n"
         context += "\nNow they're proposing the next step in the chain:"
     else:
@@ -276,16 +247,23 @@ def critique(request):
 
     messages.append({"role": "user", "content": context})
 
-    # Call Claude via shared helper (rate limited, model from LLM-001)
-    result = _rca_llm_call(request, RCA_SYSTEM_PROMPT, messages, max_tokens=500)
-    if isinstance(result, JsonResponse):
-        return result
+    # Call Claude via LLMService (LLM-001 §11)
+    result = llm_service.chat(
+        request.user,
+        messages=messages,
+        system=RCA_SYSTEM_PROMPT,
+        context="critique",
+        max_tokens=500,
+    )
+    error_resp = _rca_llm_result_to_response(result)
+    if error_resp:
+        return error_resp
     return JsonResponse(
         {
-            "critique": result.content[0].text,
+            "critique": result.content,
             "usage": {
-                "input_tokens": result.usage.input_tokens,
-                "output_tokens": result.usage.output_tokens,
+                "input_tokens": result.input_tokens,
+                "output_tokens": result.output_tokens,
             },
         }
     )
@@ -319,14 +297,10 @@ def evaluate_chain(request):
     countermeasure = data.get("proposed_countermeasure", "").strip()[:2000]
 
     if not event or not chain or not root_cause:
-        return JsonResponse(
-            {"error": "Event, chain, and root cause required"}, status=400
-        )
+        return JsonResponse({"error": "Event, chain, and root cause required"}, status=400)
 
     # Build evaluation prompt with XML-delimited user data
-    chain_text = "\n".join(
-        [f"{i + 1}. {step.get('claim', '')[:2000]}" for i, step in enumerate(chain)]
-    )
+    chain_text = "\n".join([f"{i + 1}. {step.get('claim', '')[:2000]}" for i, step in enumerate(chain)])
 
     prompt = f"""Evaluate this complete root cause analysis:
 
@@ -349,21 +323,23 @@ Evaluate:
 
 Be direct. If it's solid, say so. If it's garbage dressed up as analysis, say that too."""
 
-    result = _rca_llm_call(
-        request,
-        RCA_SYSTEM_PROMPT,
-        [{"role": "user", "content": prompt}],
+    result = llm_service.chat(
+        request.user,
+        prompt,
+        system=RCA_SYSTEM_PROMPT,
+        context="analysis",
         max_tokens=800,
     )
-    if isinstance(result, JsonResponse):
-        return result
+    error_resp = _rca_llm_result_to_response(result)
+    if error_resp:
+        return error_resp
 
     return JsonResponse(
         {
-            "evaluation": result.content[0].text,
+            "evaluation": result.content,
             "usage": {
-                "input_tokens": result.usage.input_tokens,
-                "output_tokens": result.usage.output_tokens,
+                "input_tokens": result.input_tokens,
+                "output_tokens": result.output_tokens,
             },
         }
     )
@@ -391,9 +367,7 @@ def critique_countermeasure(request):
     countermeasure = data.get("countermeasure", "").strip()[:2000]
 
     if not event or not root_cause or not countermeasure:
-        return JsonResponse(
-            {"error": "Event, root cause, and countermeasure required"}, status=400
-        )
+        return JsonResponse({"error": "Event, root cause, and countermeasure required"}, status=400)
 
     prompt = f"""Evaluate this proposed countermeasure:
 
@@ -412,21 +386,23 @@ Critique this countermeasure:
 
 Be specific. If it's weak, say why and suggest stronger alternatives from higher in the hierarchy (elimination > substitution > engineering > administrative > warnings)."""
 
-    result = _rca_llm_call(
-        request,
-        COUNTERMEASURE_SYSTEM_PROMPT,
-        [{"role": "user", "content": prompt}],
+    result = llm_service.chat(
+        request.user,
+        prompt,
+        system=COUNTERMEASURE_SYSTEM_PROMPT,
+        context="critique",
         max_tokens=600,
     )
-    if isinstance(result, JsonResponse):
-        return result
+    error_resp = _rca_llm_result_to_response(result)
+    if error_resp:
+        return error_resp
 
     return JsonResponse(
         {
-            "critique": result.content[0].text,
+            "critique": result.content,
             "usage": {
-                "input_tokens": result.usage.input_tokens,
-                "output_tokens": result.usage.output_tokens,
+                "input_tokens": result.input_tokens,
+                "output_tokens": result.output_tokens,
             },
         }
     )
@@ -485,9 +461,7 @@ def guided_questions(request):
     if not chain:
         return JsonResponse({"error": "At least one chain step required"}, status=400)
 
-    chain_text = "\n".join(
-        [f"{i + 1}. {step.get('claim', '')[:2000]}" for i, step in enumerate(chain)]
-    )
+    chain_text = "\n".join([f"{i + 1}. {step.get('claim', '')[:2000]}" for i, step in enumerate(chain)])
 
     prompt = f"""<incident>{event}</incident>
 
@@ -500,16 +474,18 @@ def guided_questions(request):
 
     prompt += "\n\nGenerate 3-5 targeted follow-up questions that would deepen this investigation. Return as JSON."
 
-    result = _rca_llm_call(
-        request,
-        GUIDED_QUESTIONING_PROMPT,
-        [{"role": "user", "content": prompt}],
+    result = llm_service.chat(
+        request.user,
+        prompt,
+        system=GUIDED_QUESTIONING_PROMPT,
+        context="analysis",
         max_tokens=600,
     )
-    if isinstance(result, JsonResponse):
-        return result
+    error_resp = _rca_llm_result_to_response(result)
+    if error_resp:
+        return error_resp
 
-    content = result.content[0].text
+    content = result.content
 
     # Try to parse structured response
     parsed = None
@@ -523,8 +499,8 @@ def guided_questions(request):
 
     response = {
         "usage": {
-            "input_tokens": result.usage.input_tokens,
-            "output_tokens": result.usage.output_tokens,
+            "input_tokens": result.input_tokens,
+            "output_tokens": result.output_tokens,
         },
     }
 
@@ -639,9 +615,7 @@ def cluster_root_causes(request):
                         "title": m[0].title,
                         "root_cause": m[0].root_cause,
                         "status": m[0].status,
-                        "similarity_to_centroid": round(
-                            cosine_similarity(centroid, m[1]), 3
-                        ),
+                        "similarity_to_centroid": round(cosine_similarity(centroid, m[1]), 3),
                     }
                     for m in members
                 ],
@@ -739,9 +713,7 @@ def get_session(request, session_id):
     """Get a single RCA session."""
     try:
         session = qms_queryset(RCASession, request.user)[0].get(id=session_id)
-        action_items = ActionItem.objects.filter(
-            source_type="rca", source_id=session.id
-        )
+        action_items = ActionItem.objects.filter(source_type="rca", source_id=session.id)
         result = {
             "session": session.to_dict(),
             "action_items": [i.to_dict() for i in action_items],
@@ -895,12 +867,7 @@ def link_to_a3(request, session_id):
     # Optionally populate A3 root cause field
     if data.get("populate_root_cause", False) and session.root_cause:
         # Build a formatted summary of the RCA
-        chain_summary = "\n".join(
-            [
-                f"{i + 1}. {step.get('claim', '')}"
-                for i, step in enumerate(session.chain)
-            ]
-        )
+        chain_summary = "\n".join([f"{i + 1}. {step.get('claim', '')}" for i, step in enumerate(session.chain)])
 
         rca_content = f"**Event:** {session.event}\n\n"
         rca_content += f"**Causal Chain:**\n{chain_summary}\n\n"
@@ -1052,9 +1019,7 @@ def reindex_embeddings(request):
 @require_http_methods(["GET"])
 def list_rca_actions(request, session_id):
     """List action items linked to an RCA session."""
-    session = get_object_or_404(
-        qms_queryset(RCASession, request.user)[0], id=session_id
-    )
+    session = get_object_or_404(qms_queryset(RCASession, request.user)[0], id=session_id)
     items = ActionItem.objects.filter(source_type="rca", source_id=session.id)
     return JsonResponse({"action_items": [i.to_dict() for i in items]})
 
@@ -1063,14 +1028,10 @@ def list_rca_actions(request, session_id):
 @require_http_methods(["POST"])
 def create_rca_action(request, session_id):
     """Create a tracked action item from an RCA session."""
-    session = get_object_or_404(
-        qms_queryset(RCASession, request.user)[0], id=session_id
-    )
+    session = get_object_or_404(qms_queryset(RCASession, request.user)[0], id=session_id)
 
     if not session.project:
-        return JsonResponse(
-            {"error": "RCA session must be linked to a project first"}, status=400
-        )
+        return JsonResponse({"error": "RCA session must be linked to a project first"}, status=400)
 
     data = json.loads(request.body)
     title = data.get("title", "").strip()

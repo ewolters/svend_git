@@ -65,6 +65,8 @@ class ToolRouter:
         actions: dict | None = None,
         collection_actions: dict | None = None,
         nested_resources: list | None = None,
+        path_prefix: str = "",
+        pk_name: str = "pk",
     ) -> None:
         """Register a QMS tool module.
 
@@ -80,6 +82,10 @@ class ToolRouter:
             actions:            Instance-level action views keyed by URL suffix.
             collection_actions: Collection-level action views keyed by URL suffix.
             nested_resources:   List of nested resource names.
+            path_prefix:        Extra path prefix after slug, e.g. ``"sessions"``
+                                for legacy ``{slug}/sessions/`` URL structure.
+            pk_name:            URL parameter name for primary key, default ``"pk"``.
+                                Use for legacy patterns like ``"diagram_id"``.
         """
         if slug in cls._registry:
             raise ValueError(f"Tool slug '{slug}' is already registered")
@@ -99,6 +105,8 @@ class ToolRouter:
             "actions": actions or {},
             "collection_actions": collection_actions or {},
             "nested_resources": nested_resources or [],
+            "path_prefix": path_prefix,
+            "pk_name": pk_name,
         }
 
     # ------------------------------------------------------------------
@@ -138,55 +146,40 @@ class ToolRouter:
     @classmethod
     def _patterns_for_tool(cls, slug: str, cfg: dict) -> list:
         perm = cfg["permission"]
+        prefix = cfg.get("path_prefix", "")
+        pk = cfg.get("pk_name", "pk")
+        # Build base path: "{slug}/" or "{slug}/{prefix}/" if prefix set
+        base = f"{slug}/{prefix}/" if prefix else f"{slug}/"
+        item = f"{base}<uuid:{pk}>/"
         patterns = [
-            path(
-                f"{slug}/",
-                cls._wrap(cfg["list_view"], perm),
-                name=f"{slug}-list",
-            ),
-            path(
-                f"{slug}/create/",
-                cls._wrap(cfg["create_view"], perm),
-                name=f"{slug}-create",
-            ),
-            path(
-                f"{slug}/<uuid:pk>/",
-                cls._wrap(cfg["detail_view"], perm),
-                name=f"{slug}-detail",
-            ),
-            path(
-                f"{slug}/<uuid:pk>/update/",
-                cls._wrap(cfg["update_view"], perm),
-                name=f"{slug}-update",
-            ),
-            path(
-                f"{slug}/<uuid:pk>/delete/",
-                cls._wrap(cfg["delete_view"], perm),
-                name=f"{slug}-delete",
-            ),
+            path(base, cls._wrap(cfg["list_view"], perm), name=f"{slug}-list"),
+            path(f"{base}create/", cls._wrap(cfg["create_view"], perm), name=f"{slug}-create"),
+            path(item, cls._wrap(cfg["detail_view"], perm), name=f"{slug}-detail"),
+            path(f"{item}update/", cls._wrap(cfg["update_view"], perm), name=f"{slug}-update"),
+            path(f"{item}delete/", cls._wrap(cfg["delete_view"], perm), name=f"{slug}-delete"),
         ]
 
-        # Instance-level actions: <uuid:pk>/{action_name}/
+        # Instance-level actions: {item}{action_name}/
         for action_name, action_view in cfg["actions"].items():
             patterns.append(
                 path(
-                    f"{slug}/<uuid:pk>/{action_name}/",
+                    f"{item}{action_name}/",
                     cls._wrap(action_view, perm),
                     name=f"{slug}-{action_name.replace('/', '-')}",
                 )
             )
 
-        # Collection-level actions: {slug}/{action_name}/
+        # Collection-level actions: {base}{action_name}/
         for action_name, action_view in cfg["collection_actions"].items():
             patterns.append(
                 path(
-                    f"{slug}/{action_name}/",
+                    f"{base}{action_name}/",
                     cls._wrap(action_view, perm),
                     name=f"{slug}-{action_name.replace('/', '-')}",
                 )
             )
 
-        # Nested resources: <uuid:pk>/{resource}/ and <uuid:pk>/{resource}/<uuid:item_id>/
+        # Nested resources: {item}{resource}/ and {item}{resource}/<uuid:item_id>/
         for nested in cfg["nested_resources"]:
             if isinstance(nested, str):
                 resource_name = nested
@@ -202,7 +195,7 @@ class ToolRouter:
             if nested_list_view:
                 patterns.append(
                     path(
-                        f"{slug}/<uuid:pk>/{resource_name}/",
+                        f"{item}{resource_name}/",
                         cls._wrap(nested_list_view, perm),
                         name=f"{slug}-{resource_name}-list",
                     )
@@ -210,7 +203,7 @@ class ToolRouter:
             if nested_detail_view:
                 patterns.append(
                     path(
-                        f"{slug}/<uuid:pk>/{resource_name}/<uuid:item_id>/",
+                        f"{item}{resource_name}/<uuid:item_id>/",
                         cls._wrap(nested_detail_view, perm),
                         name=f"{slug}-{resource_name}-detail",
                     )

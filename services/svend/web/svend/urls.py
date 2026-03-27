@@ -35,6 +35,25 @@ from api.views import compliance_data, compliance_page
 from api.whitepaper_views import whitepaper_detail, whitepaper_list, whitepaper_pdf
 
 # ---------------------------------------------------------------------------
+# ToolRouter (ARCH-001 §10.1) — pluggable QMS tool URL registration
+# ---------------------------------------------------------------------------
+
+
+def _get_tool_router_urls():
+    """Import tool registry and return generated URL patterns.
+
+    Deferred to function to avoid circular imports at module load time.
+    Each ToolRouter pattern already has the slug prefix (e.g. ishikawa/sessions/),
+    so we mount them under api/ to get /api/ishikawa/sessions/.
+    """
+    from agents_api.tool_registry import register_tools
+    from agents_api.tool_router import ToolRouter
+
+    register_tools()
+    return ToolRouter.get_urlpatterns()
+
+
+# ---------------------------------------------------------------------------
 # Sitemaps
 # ---------------------------------------------------------------------------
 
@@ -458,8 +477,7 @@ urlpatterns = [
     path("api/plantsim/", include("agents_api.plantsim_urls")),  # Plant Simulator (DES)
     path("api/learn/", include("agents_api.learn_urls")),  # Learning module & certification
     path("api/rca/", include("agents_api.rca_urls")),  # Root cause analysis critique
-    path("api/ishikawa/", include("agents_api.ishikawa_urls")),  # Ishikawa (fishbone) diagrams
-    path("api/ce/", include("agents_api.ce_urls")),  # Cause & Effect matrices
+    path("api/", include(_get_tool_router_urls())),  # Ishikawa + C&E via ToolRouter (ARCH-001 §10.1)
     path("api/fmea/", include("agents_api.fmea_urls")),  # FMEA with Bayesian evidence linking
     path("api/hoshin/", include("agents_api.hoshin_urls")),  # Hoshin Kanri CI (Enterprise)
     path("api/qms/", include("agents_api.qms_urls")),  # QMS cross-module dashboard (Phase 3)
