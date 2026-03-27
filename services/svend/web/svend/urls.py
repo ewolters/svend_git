@@ -53,6 +53,14 @@ def _get_tool_router_urls():
     return ToolRouter.get_urlpatterns()
 
 
+def _a3_remove_diagram(request, report_id, diagram_id):
+    """Thin proxy for A3 remove_diagram — parameterized action can't use ToolRouter."""
+    from accounts.permissions import gated_paid
+    from agents_api.a3_views import remove_diagram
+
+    return gated_paid(remove_diagram)(request, report_id, diagram_id)
+
+
 # ---------------------------------------------------------------------------
 # Sitemaps
 # ---------------------------------------------------------------------------
@@ -471,13 +479,12 @@ urlpatterns = [
     path("api/synara/", include("agents_api.synara_urls")),
     path("api/whiteboard/", include("agents_api.whiteboard_urls")),  # Collaborative whiteboards
     path("api/guide/", include("agents_api.guide_urls")),  # AI guide (rate-limited)
-    path("api/a3/", include("agents_api.a3_urls")),  # A3 problem-solving reports
     path("api/reports/", include("agents_api.report_urls")),  # CAPA, 8D reports
-    path("api/vsm/", include("agents_api.vsm_urls")),  # Value Stream Mapping
     path("api/plantsim/", include("agents_api.plantsim_urls")),  # Plant Simulator (DES)
     path("api/learn/", include("agents_api.learn_urls")),  # Learning module & certification
-    path("api/rca/", include("agents_api.rca_urls")),  # Root cause analysis critique
-    path("api/", include(_get_tool_router_urls())),  # Ishikawa + C&E via ToolRouter (ARCH-001 §10.1)
+    path("api/", include(_get_tool_router_urls())),  # ToolRouter: Ishikawa, C&E, A3, VSM, RCA (ARCH-001 §10.1)
+    # A3 remove_diagram — parameterized action, not expressible in ToolRouter
+    path("api/a3/<uuid:report_id>/diagram/<str:diagram_id>/", _a3_remove_diagram, name="a3-remove-diagram"),
     path("api/fmea/", include("agents_api.fmea_urls")),  # FMEA with Bayesian evidence linking
     path("api/hoshin/", include("agents_api.hoshin_urls")),  # Hoshin Kanri CI (Enterprise)
     path("api/qms/", include("agents_api.qms_urls")),  # QMS cross-module dashboard (Phase 3)

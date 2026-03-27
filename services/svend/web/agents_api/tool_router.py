@@ -169,11 +169,14 @@ class ToolRouter:
                 )
             )
 
-        # Collection-level actions: {base}{action_name}/
+        # Collection-level actions: {slug}/{action_name}/
+        # Mounted at slug level (not base/prefix level) so they're accessible
+        # without the path_prefix. E.g. rca/critique/ not rca/sessions/critique/.
+        slug_base = f"{slug}/"
         for action_name, action_view in cfg["collection_actions"].items():
             patterns.append(
                 path(
-                    f"{base}{action_name}/",
+                    f"{slug_base}{action_name}/",
                     cls._wrap(action_view, perm),
                     name=f"{slug}-{action_name.replace('/', '-')}",
                 )
