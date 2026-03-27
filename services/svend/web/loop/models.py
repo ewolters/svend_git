@@ -1116,3 +1116,372 @@ class ForcedFailureTest(SynaraEntity):
         if self.injection_count == 0:
             return None
         return self.detection_count / self.injection_count
+
+
+# =============================================================================
+# FMIS — Failure Modes Investigation System (LOOP-001 §8)
+# =============================================================================
+
+
+class FMIS(SynaraEntity):
+    """Investigation-native FMEA container.
+
+    Coexists with the standalone AIAG FMEA tool (agents_api.FMEA).
+    FMIS participates in the Investigate → Standardize → Verify loop
+    with Bayesian S/O/D scoring.
+
+    LOOP-001 §8.6, §8.7
+    """
+
+    class Methodology(models.TextChoices):
+        AIAG_4TH = "aiag_4th", "AIAG 4th Edition (manual 1-10)"
+        SVEND_BAYESIAN = "svend_bayesian", "Svend Bayesian (posteriors + integer mapping)"
+        SVEND_FULL = "svend_full", "Svend Full (posteriors + operational definitions required)"
+
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="fmis_documents",
+    )
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True, default="")
+    methodology = models.CharField(
+        max_length=20,
+        choices=Methodology.choices,
+        default=Methodology.SVEND_BAYESIAN,
+    )
+
+    # Source investigation
+    investigation = models.ForeignKey(
+        "core.Investigation",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="fmis_documents",
+    )
+
+    # Owner
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="fmis_documents",
+    )
+
+    class Meta:
+        db_table = "loop_fmis"
+        ordering = ["-updated_at"]
+        verbose_name = "FMIS"
+        verbose_name_plural = "FMIS Documents"
+
+    def __str__(self):
+        return f"FMIS: {self.title} ({self.methodology})"
+
+
+class FMISRow(SynaraEntity):
+    """A single failure mode entry with Bayesian posteriors.
+
+    Detection: Beta-Binomial, updated by forced failure tests.
+    Occurrence: Beta-Binomial, updated by production data / SPC.
+    Severity: Categorical-Dirichlet (5 categories), updated by consequence observations.
+
+    LOOP-001 §8.3, §8.4, §8.5, §8.7
+    """
+
+    fmis = models.ForeignKey(
+        FMIS,
+        on_delete=models.CASCADE,
+        related_name="rows",
+    )
+    investigation = models.ForeignKey(
+        "core.Investigation",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="fmis_rows",
+    )
+
+    # ── Failure mode description ──
+    # Text fields for human-readable description
+    failure_mode_text = models.CharField(max_length=500)
+    effect_text = models.CharField(max_length=500, blank=True, default="")
+    cause_text = models.CharField(max_length=500, blank=True, default="")
+
+    # Operational definition links to knowledge graph entities
+    # Null = not yet defined (knowledge gap surfaced in §9.4)
+    failure_mode_entity = models.ForeignKey(
+        "core.Entity",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="fmis_failure_modes",
+    )
+    effect_entity = models.ForeignKey(
+        "core.Entity",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="fmis_effects",
+    )
+    cause_entity = models.ForeignKey(
+        "core.Entity",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="fmis_causes",
+    )
+
+    # ── Controls ──
+    prevention_control = models.TextField(blank=True, default="")
+    detection_control = models.TextField(blank=True, default="")
+
+    # ── Severity: Categorical-Dirichlet (§8.5) ──
+    # 5 categories: [negligible, minor, moderate, severe, catastrophic]
+    severity_alpha = models.JSONField(
+        default=list,
+        help_text="Dirichlet alpha vector [α₁, α₂, α₃, α₄, α₅]. Default: [1,1,1,1,1]",
+    )
+    severity_manual = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Manual override / initial committee estimate (1-10)",
+    )
+    severity_method = models.CharField(
+        max_length=10,
+        default="manual",
+        help_text="manual or bayesian — determines which value is displayed",
+    )
+
+    # ── Occurrence: Beta-Binomial (§8.4) ──
+    occurrence_alpha = models.FloatField(default=1.0, help_text="Beta prior α")
+    occurrence_beta = models.FloatField(default=1.0, help_text="Beta prior β")
+    occurrence_failures = models.IntegerField(default=0, help_text="Cumulative failure count")
+    occurrence_units = models.IntegerField(default=0, help_text="Cumulative units observed")
+    occurrence_manual = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Manual override (1-10)",
+    )
+    occurrence_method = models.CharField(max_length=10, default="manual")
+
+    # ── Detection: Beta-Binomial (§8.3) ──
+    detection_alpha = models.FloatField(default=1.0, help_text="Beta prior α")
+    detection_beta = models.FloatField(default=1.0, help_text="Beta prior β")
+    detection_detected = models.IntegerField(default=0, help_text="Cumulative detections from FFTs")
+    detection_injected = models.IntegerField(default=0, help_text="Cumulative injections from FFTs")
+    detection_manual = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Manual override (1-10)",
+    )
+    detection_method = models.CharField(max_length=10, default="manual")
+
+    # ── Computed ──
+    rpn = models.IntegerField(default=0, help_text="S × O × D (computed on save)")
+    last_evidence_date = models.DateTimeField(null=True, blank=True)
+
+    # ── Migration bridge ──
+    legacy_fmea_row = models.ForeignKey(
+        "agents_api.FMEARow",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="fmis_row",
+        help_text="Link to legacy AIAG FMEARow for migration",
+    )
+
+    class Meta:
+        db_table = "loop_fmis_row"
+        ordering = ["-rpn", "created_at"]
+
+    def __str__(self):
+        return f"{self.failure_mode_text[:50]} (RPN={self.rpn})"
+
+    def save(self, *args, **kwargs):
+        # Initialize severity_alpha if empty
+        if not self.severity_alpha:
+            self.severity_alpha = [1, 1, 1, 1, 1]
+
+        # Compute RPN from active method (manual or bayesian)
+        self.rpn = self._compute_rpn()
+        super().save(*args, **kwargs)
+
+    def _compute_rpn(self):
+        """Compute RPN from the active scoring method."""
+        s = self.severity_score
+        o = self.occurrence_score
+        d = self.detection_score
+        if s is None or o is None or d is None:
+            return 0
+        return s * o * d
+
+    # ── Computed properties ──
+
+    @property
+    def severity_score(self):
+        """Active severity score (1-10) based on method."""
+        if self.severity_method == "bayesian" and self.severity_alpha:
+            from .bayesian import dirichlet_to_aiag_10
+
+            return dirichlet_to_aiag_10(self.severity_alpha)
+        return self.severity_manual
+
+    @property
+    def occurrence_score(self):
+        """Active occurrence score (1-10) based on method."""
+        if self.occurrence_method == "bayesian":
+            from .bayesian import beta_mean, beta_mean_to_aiag_10
+
+            rate = beta_mean(self.occurrence_alpha, self.occurrence_beta)
+            # For occurrence: high rate = high score
+            return beta_mean_to_aiag_10(1.0 - rate)  # Invert: high rate → high score
+        return self.occurrence_manual
+
+    @property
+    def detection_score(self):
+        """Active detection score (1-10) based on method."""
+        if self.detection_method == "bayesian":
+            from .bayesian import beta_mean, beta_mean_to_aiag_10
+
+            rate = beta_mean(self.detection_alpha, self.detection_beta)
+            # For detection: high rate = low score (good detection)
+            return beta_mean_to_aiag_10(rate)
+        return self.detection_manual
+
+    @property
+    def severity_distribution(self):
+        """Severity posterior as category probabilities."""
+        if not self.severity_alpha:
+            return None
+        from .bayesian import SEVERITY_CATEGORIES, dirichlet_mean
+
+        probs = dirichlet_mean(self.severity_alpha)
+        return dict(zip(SEVERITY_CATEGORIES, probs))
+
+    @property
+    def detection_credible_interval(self):
+        """90% credible interval for detection rate."""
+        from .bayesian import beta_credible_interval
+
+        return beta_credible_interval(self.detection_alpha, self.detection_beta)
+
+    @property
+    def occurrence_credible_interval(self):
+        """90% credible interval for occurrence rate."""
+        from .bayesian import beta_credible_interval
+
+        return beta_credible_interval(self.occurrence_alpha, self.occurrence_beta)
+
+    @property
+    def has_operational_definitions(self):
+        """True if all three entities are linked."""
+        return all(
+            [
+                self.failure_mode_entity_id,
+                self.effect_entity_id,
+                self.cause_entity_id,
+            ]
+        )
+
+    @property
+    def undefined_terms(self):
+        """List of terms without operational definitions (knowledge gaps)."""
+        gaps = []
+        if not self.failure_mode_entity_id:
+            gaps.append("failure_mode")
+        if not self.effect_entity_id:
+            gaps.append("effect")
+        if not self.cause_entity_id:
+            gaps.append("cause")
+        return gaps
+
+    # ── Evidence update methods ──
+
+    def update_detection_from_fft(self, fft):
+        """Update detection posterior from a ForcedFailureTest.
+
+        Beta(α + d, β + (n - d)) where d = detected, n = injected.
+
+        LOOP-001 §8.3 (Sunrise Problem)
+        """
+        from .bayesian import beta_update
+
+        self.detection_detected += fft.detection_count
+        self.detection_injected += fft.injection_count
+        self.detection_alpha, self.detection_beta = beta_update(
+            self.detection_alpha,
+            self.detection_beta,
+            fft.detection_count,
+            fft.injection_count,
+        )
+        self.detection_method = "bayesian"
+        self.last_evidence_date = timezone.now()
+        self.save(
+            update_fields=[
+                "detection_detected",
+                "detection_injected",
+                "detection_alpha",
+                "detection_beta",
+                "detection_method",
+                "last_evidence_date",
+                "rpn",
+                "updated_at",
+            ]
+        )
+
+    def update_occurrence_from_data(self, failures, units):
+        """Update occurrence posterior from production data.
+
+        Beta(α + f, β + (n - f)) where f = failures, n = units.
+
+        LOOP-001 §8.4 (Sunrise Problem)
+        """
+        from .bayesian import beta_update
+
+        self.occurrence_failures += failures
+        self.occurrence_units += units
+        self.occurrence_alpha, self.occurrence_beta = beta_update(
+            self.occurrence_alpha,
+            self.occurrence_beta,
+            failures,
+            units,
+        )
+        self.occurrence_method = "bayesian"
+        self.last_evidence_date = timezone.now()
+        self.save(
+            update_fields=[
+                "occurrence_failures",
+                "occurrence_units",
+                "occurrence_alpha",
+                "occurrence_beta",
+                "occurrence_method",
+                "last_evidence_date",
+                "rpn",
+                "updated_at",
+            ]
+        )
+
+    def update_severity_from_observation(self, category_name):
+        """Update severity posterior from a consequence observation.
+
+        Dirichlet(α₁, ..., αᵢ + 1, ..., αₖ) where i = observed category.
+
+        LOOP-001 §8.5 (Categorical-Dirichlet)
+        """
+        from .bayesian import dirichlet_update_by_name
+
+        if not self.severity_alpha:
+            self.severity_alpha = [1, 1, 1, 1, 1]
+        self.severity_alpha = dirichlet_update_by_name(self.severity_alpha, category_name)
+        self.severity_method = "bayesian"
+        self.last_evidence_date = timezone.now()
+        self.save(
+            update_fields=[
+                "severity_alpha",
+                "severity_method",
+                "last_evidence_date",
+                "rpn",
+                "updated_at",
+            ]
+        )
