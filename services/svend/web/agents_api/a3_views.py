@@ -12,10 +12,10 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
-from core.models import Hypothesis, Project
+from core.models import Hypothesis
 from core.models.notebook import Notebook, Trial
 
-from .models import A3Report, ActionItem, Board, DSWResult, RCASession, Site
+from .models import A3Report, ActionItem, Board, DSWResult, RCASession
 from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
 from .tool_events import tool_events
 
@@ -85,9 +85,12 @@ def create_a3_report(request):
         except Notebook.DoesNotExist:
             return JsonResponse({"error": "Notebook not found"}, status=404)
     elif project_id:
-        try:
-            project = Project.objects.get(id=project_id, user=request.user)
-        except Project.DoesNotExist:
+        from .permissions import resolve_project
+
+        project, err = resolve_project(request.user, project_id)
+        if err:
+            return err
+        if not project:
             return JsonResponse({"error": "Project not found"}, status=404)
     else:
         return JsonResponse({"error": "notebook_id or project_id required"}, status=400)
@@ -115,12 +118,11 @@ def create_a3_report(request):
         except RCASession.DoesNotExist:
             pass
 
-    site = None
-    if data.get("site_id"):
-        try:
-            site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            return JsonResponse({"error": "Site not found"}, status=404)
+    from .permissions import resolve_site
+
+    site, err = resolve_site(request.user, data.get("site_id"))
+    if err:
+        return err
 
     report = A3Report(
         project=project,
@@ -1314,12 +1316,10 @@ def project_notebook_to_a3(request, notebook_id):
     title = body.get("title", f"A3: {nb.title}")
 
     # Create the A3
-    site = None
-    if body.get("site_id"):
-        try:
-            site = Site.objects.get(id=body["site_id"])
-        except Site.DoesNotExist:
-            pass
+    from .permissions import resolve_site
+
+    site, _err = resolve_site(request.user, body.get("site_id"))
+    # Silent fallback — site is optional here
 
     # Embed whiteboard SVGs as diagrams
     embedded_diagrams = {}

@@ -85,9 +85,9 @@ def _sanitize(obj):
     return obj
 
 
-from agents.experimenter.agent import ExperimenterAgent, ExperimentRequest
-from agents.experimenter.doe import DOEGenerator, Factor
-from agents.experimenter.stats import PowerAnalyzer, interpret_effect_size
+from agents.experimenter.agent import ExperimenterAgent, ExperimentRequest  # noqa: E402
+from agents.experimenter.doe import DOEGenerator, Factor  # noqa: E402
+from agents.experimenter.stats import PowerAnalyzer, interpret_effect_size  # noqa: E402
 
 
 def _compute_power_curve(test_type, alpha, power, groups):
@@ -2075,7 +2075,7 @@ def available_models(request):
 @gated_paid
 def saved_designs(request):
     """List or create saved experiment designs."""
-    from core.models import ExperimentDesign, Project
+    from core.models import ExperimentDesign
 
     if request.method == "GET":
         designs = ExperimentDesign.objects.filter(project__user=request.user).select_related("project")[:50]
@@ -2107,9 +2107,12 @@ def saved_designs(request):
     if not project_id:
         return JsonResponse({"error": "project_id required"}, status=400)
 
-    try:
-        project = Project.objects.get(id=project_id, user=request.user)
-    except Project.DoesNotExist:
+    from .permissions import resolve_project
+
+    project, err = resolve_project(request.user, project_id)
+    if err:
+        return err
+    if not project:
         return JsonResponse({"error": "Project not found"}, status=404)
 
     design = ExperimentDesign.objects.create(

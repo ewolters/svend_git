@@ -12,7 +12,6 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
-from core.models import Project
 
 from .models import DEFAULT_6M_BRANCHES, IshikawaDiagram
 
@@ -52,9 +51,7 @@ def _ishikawa_connect_investigation(request, investigation_id, diagram):
                 spec=specs,
             )
     except Exception:
-        logger.exception(
-            "Ishikawa investigation bridge error for diagram %s", diagram.id
-        )
+        logger.exception("Ishikawa investigation bridge error for diagram %s", diagram.id)
 
 
 # --- CRUD Endpoints ---
@@ -64,9 +61,7 @@ def _ishikawa_connect_investigation(request, investigation_id, diagram):
 @require_http_methods(["GET"])
 def list_diagrams(request):
     """List user's Ishikawa diagrams."""
-    diagrams = IshikawaDiagram.objects.filter(owner=request.user).order_by(
-        "-updated_at"
-    )[:50]
+    diagrams = IshikawaDiagram.objects.filter(owner=request.user).order_by("-updated_at")[:50]
     return JsonResponse({"diagrams": [d.to_dict() for d in diagrams]})
 
 
@@ -97,12 +92,12 @@ def create_diagram(request):
     # Link to project if provided, otherwise auto-create
     project_id = data.get("project_id")
     if project_id:
-        try:
-            project = Project.objects.get(id=project_id, user=request.user)
+        from .permissions import resolve_project
+
+        project, _err = resolve_project(request.user, project_id)
+        if project:
             diagram.project = project
             diagram.save(update_fields=["project"])
-        except Project.DoesNotExist:
-            pass
 
     return JsonResponse({"diagram": diagram.to_dict()}, status=201)
 

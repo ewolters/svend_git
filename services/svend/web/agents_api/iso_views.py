@@ -48,7 +48,6 @@ from .models import (
     QMSFieldChange,
     RCASession,
     Risk,
-    Site,
     SupplierRecord,
     SupplierStatusChange,
     TrainingRecord,
@@ -146,11 +145,7 @@ def _ncr_connect_investigation(request, investigation_id, ncr, data):
         )
         specs = []
         if data.get("root_cause"):
-            specs.append(
-                HypothesisSpec(
-                    description=f"NCR root cause: {data['root_cause'][:300]}", prior=0.6
-                )
-            )
+            specs.append(HypothesisSpec(description=f"NCR root cause: {data['root_cause'][:300]}", prior=0.6))
         if data.get("corrective_action"):
             specs.append(
                 HypothesisSpec(
@@ -188,10 +183,7 @@ def qms_sites(request):
     sites, is_admin = get_accessible_sites(request.user, tenant)
     return JsonResponse(
         {
-            "sites": [
-                {"id": str(s.id), "name": s.name, "code": s.code}
-                for s in sites.order_by("name")
-            ],
+            "sites": [{"id": str(s.id), "name": s.name, "code": s.code} for s in sites.order_by("name")],
             "has_org": True,
             "is_org_admin": is_admin,
         }
@@ -235,9 +227,7 @@ def iso_dashboard(request):
     for i in range(4):
         week_end = today - timedelta(days=i * 7)
         week_start = week_end - timedelta(days=7)
-        cnt = ncrs.filter(
-            created_at__date__gte=week_start, created_at__date__lt=week_end
-        ).count()
+        cnt = ncrs.filter(created_at__date__gte=week_start, created_at__date__lt=week_end).count()
         trend.append({"week": str(week_start), "count": cnt})
     trend.reverse()
 
@@ -260,9 +250,7 @@ def iso_dashboard(request):
     all_records = TrainingRecord.objects.filter(requirement__in=reqs)
     total_records = all_records.count()
     complete_records = all_records.filter(status="complete").count()
-    compliance_rate = (
-        round(complete_records / total_records * 100) if total_records else 100
-    )
+    compliance_rate = round(complete_records / total_records * 100) if total_records else 100
     gaps_count = all_records.exclude(status="complete").count()
     expiring_count = all_records.filter(
         expires_at__isnull=False,
@@ -311,9 +299,7 @@ def iso_dashboard(request):
     risks_qs = qms_queryset(Risk, user)[0]
     active_risks = risks_qs.exclude(status="closed")
     high_risks = active_risks.filter(risk_score__gte=12).count()
-    risks_review_overdue = active_risks.filter(
-        review_date__isnull=False, review_date__lt=today
-    ).count()
+    risks_review_overdue = active_risks.filter(review_date__isnull=False, review_date__lt=today).count()
 
     # ---- Calibration Equipment KPIs ----
     equipment_qs = qms_queryset(MeasurementEquipment, user)[0]
@@ -385,9 +371,7 @@ def iso_dashboard(request):
             status = "framed"
         else:
             status = "planned"
-        clause_coverage.append(
-            {"clause": clause_num, "name": clause_name, "status": status}
-        )
+        clause_coverage.append({"clause": clause_num, "name": clause_name, "status": status})
 
     return JsonResponse(
         {
@@ -405,10 +389,7 @@ def iso_dashboard(request):
                 "expiring_count": expiring_count,
             },
             "last_review": last_review_data,
-            "capa_due_soon": [
-                {"id": str(c[0]), "title": c[1], "due_date": str(c[2])}
-                for c in capa_due_soon
-            ],
+            "capa_due_soon": [{"id": str(c[0]), "title": c[1], "due_date": str(c[2])} for c in capa_due_soon],
             "documents": {
                 "total": docs_qs.count(),
                 "approved": docs_qs.filter(status="approved").count(),
@@ -538,9 +519,7 @@ def ncr_list_create(request):
         offset = int(request.GET.get("offset", 0))
         total = ncrs.count()
         results = [n.to_dict() for n in ncrs[offset : offset + limit]]
-        return JsonResponse(
-            {"results": results, "total": total, "limit": limit, "offset": offset}
-        )
+        return JsonResponse({"results": results, "total": total, "limit": limit, "offset": offset})
 
     data = json.loads(request.body)
     assigned_to_user = None
@@ -551,13 +530,11 @@ def ncr_list_create(request):
             pass
 
     # Resolve site if provided (ORG-001 §5.2)
-    site = None
-    site_id = data.get("site_id")
-    if site_id:
-        try:
-            site = Site.objects.get(id=site_id)
-        except Site.DoesNotExist:
-            return JsonResponse({"error": "Site not found"}, status=404)
+    from .permissions import resolve_site
+
+    site, err = resolve_site(request.user, data.get("site_id"))
+    if err:
+        return err
 
     # Resolve supplier if provided
     supplier = None
@@ -603,9 +580,7 @@ def ncr_list_create(request):
     # Auto-create Study (invisible)
     _ensure_ncr_project(ncr, user)
     if ncr.project:
-        ncr.project.log_event(
-            "ncr_created", f"NCR raised: {ncr.title} [{ncr.severity}]", user=user
-        )
+        ncr.project.log_event("ncr_created", f"NCR raised: {ncr.title} [{ncr.severity}]", user=user)
 
     return JsonResponse(ncr.to_dict(), status=201)
 
@@ -641,9 +616,7 @@ def ncr_detail(request, ncr_id):
                 try:
                     ncr.assigned_to = User.objects.get(id=data["assigned_to"])
                 except User.DoesNotExist:
-                    return JsonResponse(
-                        {"error": "Assigned user not found"}, status=400
-                    )
+                    return JsonResponse({"error": "Assigned user not found"}, status=400)
             else:
                 ncr.assigned_to = None
         if "approved_by" in data:
@@ -742,11 +715,7 @@ def ncr_detail(request, ncr_id):
         ncr.capa_due_date = data["capa_due_date"] or None
     # Handle assigned_to/approved_by if not already handled by transition
     if "assigned_to" in data and not new_status:
-        old_name = (
-            (ncr.assigned_to.display_name or ncr.assigned_to.email)
-            if ncr.assigned_to
-            else ""
-        )
+        old_name = (ncr.assigned_to.display_name or ncr.assigned_to.email) if ncr.assigned_to else ""
         if data["assigned_to"]:
             try:
                 assignee = User.objects.get(id=data["assigned_to"])
@@ -784,11 +753,7 @@ def ncr_detail(request, ncr_id):
                 )
             ncr.assigned_to = None
     if "approved_by" in data and not new_status:
-        old_name = (
-            (ncr.approved_by.display_name or ncr.approved_by.email)
-            if ncr.approved_by
-            else ""
-        )
+        old_name = (ncr.approved_by.display_name or ncr.approved_by.email) if ncr.approved_by else ""
         if data["approved_by"]:
             try:
                 approver = User.objects.get(id=data["approved_by"])
@@ -821,9 +786,7 @@ def ncr_detail(request, ncr_id):
         old_rca = str(ncr.rca_session_id) if ncr.rca_session_id else ""
         if data["rca_session_id"]:
             try:
-                rca = qms_queryset(RCASession, request.user)[0].get(
-                    id=data["rca_session_id"]
-                )
+                rca = qms_queryset(RCASession, request.user)[0].get(id=data["rca_session_id"])
                 ncr.rca_session = rca
                 new_rca = str(rca.id)
                 if old_rca != new_rca:
@@ -892,9 +855,7 @@ def ncr_detail(request, ncr_id):
             source_tool="ncr",
             source_id=str(ncr.id),
             source_field="status_closed",
-            details=(
-                f"Resolution: {ncr.corrective_action or 'N/A'}\nVerification: {ncr.verification_result or 'N/A'}"
-            ),
+            details=(f"Resolution: {ncr.corrective_action or 'N/A'}\nVerification: {ncr.verification_result or 'N/A'}"),
             source_type="observation",
         )
 
@@ -917,24 +878,16 @@ def ncr_stats(request):
     # Average close time
     from django.db.models import Avg, F
 
-    avg_close = ncrs.filter(closed_at__isnull=False).aggregate(
-        avg_days=Avg(F("closed_at") - F("created_at"))
-    )["avg_days"]
+    avg_close = ncrs.filter(closed_at__isnull=False).aggregate(avg_days=Avg(F("closed_at") - F("created_at")))[
+        "avg_days"
+    ]
     avg_close_days = avg_close.days if avg_close else None
 
     from django.db.models import Count
 
-    by_severity = dict(
-        ncrs.values_list("severity")
-        .annotate(c=Count("id"))
-        .values_list("severity", "c")
-    )
-    by_source = dict(
-        ncrs.values_list("source").annotate(c=Count("id")).values_list("source", "c")
-    )
-    by_status = dict(
-        ncrs.values_list("status").annotate(c=Count("id")).values_list("status", "c")
-    )
+    by_severity = dict(ncrs.values_list("severity").annotate(c=Count("id")).values_list("severity", "c"))
+    by_source = dict(ncrs.values_list("source").annotate(c=Count("id")).values_list("source", "c"))
+    by_status = dict(ncrs.values_list("status").annotate(c=Count("id")).values_list("status", "c"))
 
     return JsonResponse(
         {
@@ -987,31 +940,19 @@ def ncr_analytics(request):
                 "source": row["source"],
                 "count": row["count"],
                 "percent": round(row["count"] / total * 100, 1) if total else 0,
-                "cumulative_percent": (
-                    round(cumulative / total * 100, 1) if total else 0
-                ),
+                "cumulative_percent": (round(cumulative / total * 100, 1) if total else 0),
             }
         )
 
     # --- Pareto by severity ---
-    severity_counts = (
-        ncrs.values("severity").annotate(count=Count("id")).order_by("-count")
-    )
-    severity_pareto = [
-        {"severity": row["severity"], "count": row["count"]} for row in severity_counts
-    ]
+    severity_counts = ncrs.values("severity").annotate(count=Count("id")).order_by("-count")
+    severity_pareto = [{"severity": row["severity"], "count": row["count"]} for row in severity_counts]
 
     # --- Monthly trending ---
     monthly = (
-        ncrs.annotate(month=TruncMonth("created_at"))
-        .values("month")
-        .annotate(count=Count("id"))
-        .order_by("month")
+        ncrs.annotate(month=TruncMonth("created_at")).values("month").annotate(count=Count("id")).order_by("month")
     )
-    trending = [
-        {"month": row["month"].strftime("%Y-%m"), "count": row["count"]}
-        for row in monthly
-    ]
+    trending = [{"month": row["month"].strftime("%Y-%m"), "count": row["count"]} for row in monthly]
 
     return JsonResponse(
         {
@@ -1054,9 +995,7 @@ def ncr_launch_rca(request, ncr_id):
     ncr.rca_session = session
     ncr.save(update_fields=["rca_session"])
     if ncr.project:
-        ncr.project.log_event(
-            "rca_launched", f"RCA started for NCR: {ncr.title}", user=request.user
-        )
+        ncr.project.log_event("rca_launched", f"RCA started for NCR: {ncr.title}", user=request.user)
     return JsonResponse({"rca_session_id": str(session.id)}, status=201)
 
 
@@ -1111,12 +1050,11 @@ def audit_list_create(request):
         return JsonResponse([a.to_dict() for a in audits[:50]], safe=False)
 
     data = json.loads(request.body)
-    site = None
-    if data.get("site_id"):
-        try:
-            site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            return JsonResponse({"error": "Site not found"}, status=404)
+    from .permissions import resolve_site
+
+    site, err = resolve_site(request.user, data.get("site_id"))
+    if err:
+        return err
     audit = InternalAudit(
         title=data.get("title", ""),
         scheduled_date=data.get("scheduled_date", date.today()),
@@ -1155,17 +1093,13 @@ def audit_detail(request, audit_id):
 
     # Enforce: "complete" requires >= 1 finding
     if new_status == "complete" and audit.findings.count() == 0:
-        return JsonResponse(
-            {"error": "Cannot complete audit with no findings"}, status=400
-        )
+        return JsonResponse({"error": "Cannot complete audit with no findings"}, status=400)
     # Enforce: "report_issued" requires all findings not "open"
     if new_status == "report_issued":
         open_findings = audit.findings.filter(status="open").count()
         if open_findings > 0:
             return JsonResponse(
-                {
-                    "error": f"Cannot issue report: {open_findings} finding(s) still open"
-                },
+                {"error": f"Cannot issue report: {open_findings} finding(s) still open"},
                 status=400,
             )
 
@@ -1385,10 +1319,7 @@ def audit_apply_checklist(request, audit_id):
                 entity_id=audit.id,
                 defaults={
                     "executor": request.user,
-                    "responses": [
-                        {"value": r.get("result"), "notes": r.get("notes", "")}
-                        for r in results
-                    ],
+                    "responses": [{"value": r.get("result"), "notes": r.get("notes", "")} for r in results],
                     "status": "complete",
                     "completed_at": timezone.now(),
                 },
@@ -1456,15 +1387,8 @@ def audit_clause_coverage(request):
                     "audits": [],
                 }
             coverage[key]["audit_count"] += 1
-            audit_date = (
-                str(audit.scheduled_date)
-                if audit.scheduled_date
-                else str(audit.created_at.date())
-            )
-            if (
-                not coverage[key]["last_audit_date"]
-                or audit_date > coverage[key]["last_audit_date"]
-            ):
+            audit_date = str(audit.scheduled_date) if audit.scheduled_date else str(audit.created_at.date())
+            if not coverage[key]["last_audit_date"] or audit_date > coverage[key]["last_audit_date"]:
                 coverage[key]["last_audit_date"] = audit_date
 
             # Also track at the specific sub-clause level
@@ -1478,10 +1402,7 @@ def audit_clause_coverage(request):
                     "audits": [],
                 }
             coverage[clause]["audit_count"] += 1
-            if (
-                not coverage[clause]["last_audit_date"]
-                or audit_date > coverage[clause]["last_audit_date"]
-            ):
+            if not coverage[clause]["last_audit_date"] or audit_date > coverage[clause]["last_audit_date"]:
                 coverage[clause]["last_audit_date"] = audit_date
 
     # Count findings per clause
@@ -1504,9 +1425,7 @@ def audit_clause_coverage(request):
                 "open_findings": 0,
             }
 
-    return JsonResponse(
-        {"coverage": sorted(coverage.values(), key=lambda c: c["clause"])}
-    )
+    return JsonResponse({"coverage": sorted(coverage.values(), key=lambda c: c["clause"])})
 
 
 # =========================================================================
@@ -1576,12 +1495,11 @@ def training_list_create(request):
         return JsonResponse([r.to_dict() for r in reqs], safe=False)
 
     data = json.loads(request.body)
-    site = None
-    if data.get("site_id"):
-        try:
-            site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            return JsonResponse({"error": "Site not found"}, status=404)
+    from .permissions import resolve_site
+
+    site, err = resolve_site(request.user, data.get("site_id"))
+    if err:
+        return err
     req = TrainingRequirement(
         name=data.get("name", ""),
         description=data.get("description", ""),
@@ -1681,9 +1599,7 @@ def training_record_files(request, record_id):
     else:
         record.artifacts.remove(uf)
 
-    return JsonResponse(
-        {"ok": True, "artifact_ids": [str(f.id) for f in record.artifacts.all()]}
-    )
+    return JsonResponse({"ok": True, "artifact_ids": [str(f.id) for f in record.artifacts.all()]})
 
 
 @require_team
@@ -1708,9 +1624,7 @@ def training_record_create(request, req_id):
     if record.status == "complete":
         record.completed_at = timezone.now()
         if req.frequency_months > 0:
-            record.expires_at = timezone.now() + timedelta(
-                days=req.frequency_months * 30
-            )
+            record.expires_at = timezone.now() + timedelta(days=req.frequency_months * 30)
         record.save()
 
     return JsonResponse(record.to_dict(), status=201)
@@ -1755,9 +1669,7 @@ def training_record_update(request, record_id):
         record.status = "complete"
         record.completed_at = timezone.now()
         record.expires_at = (
-            timezone.now() + timedelta(days=req.frequency_months * 30)
-            if req.frequency_months > 0
-            else None
+            timezone.now() + timedelta(days=req.frequency_months * 30) if req.frequency_months > 0 else None
         )
 
         log_change("status", old_status, "complete")
@@ -1791,9 +1703,7 @@ def training_record_update(request, record_id):
             record.completed_at = timezone.now()
             req = record.requirement
             if req.frequency_months > 0:
-                record.expires_at = timezone.now() + timedelta(
-                    days=req.frequency_months * 30
-                )
+                record.expires_at = timezone.now() + timedelta(days=req.frequency_months * 30)
             log_change("completed_at", "", record.completed_at.isoformat())
             if record.expires_at:
                 log_change("expires_at", "", record.expires_at.isoformat())
@@ -1865,9 +1775,7 @@ def review_list_create(request):
     # Training summary
     gap_count = records.exclude(status="complete").count()
     training_summary = {
-        "compliance_rate": (
-            round(complete_records / total_records * 100) if total_records else 100
-        ),
+        "compliance_rate": (round(complete_records / total_records * 100) if total_records else 100),
         "gap_count": gap_count,
     }
 
@@ -1877,10 +1785,7 @@ def review_list_create(request):
     complaint_summary = {
         "total": complaints.count(),
         "open": open_complaints.count(),
-        "by_severity": {
-            s: open_complaints.filter(severity=s).count()
-            for s in ["low", "medium", "high", "critical"]
-        },
+        "by_severity": {s: open_complaints.filter(severity=s).count() for s in ["low", "medium", "high", "critical"]},
     }
 
     # Risk summary (§6.1)
@@ -1890,9 +1795,7 @@ def review_list_create(request):
         "total": risks.count(),
         "active": active_risks.count(),
         "high_risk": active_risks.filter(risk_score__gte=12).count(),
-        "review_overdue": active_risks.filter(
-            review_date__isnull=False, review_date__lt=date.today()
-        ).count(),
+        "review_overdue": active_risks.filter(review_date__isnull=False, review_date__lt=date.today()).count(),
     }
 
     # Equipment summary (§7.1.5)
@@ -1941,11 +1844,7 @@ def review_list_create(request):
         }
         for section in template.sections:
             key = section["key"]
-            auto_data = (
-                auto_data_map.get(section.get("auto_query"))
-                if section.get("data_source") == "auto"
-                else None
-            )
+            auto_data = auto_data_map.get(section.get("auto_query")) if section.get("data_source") == "auto" else None
             inputs[key] = {
                 "title": section["title"],
                 "content": "",
@@ -1955,9 +1854,7 @@ def review_list_create(request):
     review = ManagementReview.objects.create(
         owner=user,
         template=template,
-        title=data.get(
-            "title", f"Management Review — {date.today().strftime('%B %Y')}"
-        ),
+        title=data.get("title", f"Management Review — {date.today().strftime('%B %Y')}"),
         meeting_date=data.get("meeting_date", date.today()),
         inputs=inputs or data.get("inputs", {}),
         data_snapshot=snapshot,
@@ -1992,22 +1889,16 @@ def review_detail(request, review_id):
     if review.status == "complete":
         if not review.attendees:
             return JsonResponse(
-                {
-                    "error": "Attendees are required to complete a management review (ISO 9001 §9.3)"
-                },
+                {"error": "Attendees are required to complete a management review (ISO 9001 §9.3)"},
                 status=400,
             )
         if not review.outputs:
             return JsonResponse(
-                {
-                    "error": "Outputs are required to complete a management review (ISO 9001 §9.3.3)"
-                },
+                {"error": "Outputs are required to complete a management review (ISO 9001 §9.3.3)"},
                 status=400,
             )
         # D4: Auto-create completion signature on management review
-        _create_workflow_signature(
-            request, "review", review.id, "approved", record=review
-        )
+        _create_workflow_signature(request, "review", review.id, "approved", record=review)
 
     review.save()
     return JsonResponse(review.to_dict())
@@ -2068,9 +1959,7 @@ def review_narrative(request, review_id):
 
     prior = snapshot.get("prior_actions", {})
     if prior:
-        context_parts.append(
-            f"Prior review actions: {json.dumps(prior, indent=2)[:500]}"
-        )
+        context_parts.append(f"Prior review actions: {json.dumps(prior, indent=2)[:500]}")
 
     # Manual inputs
     for key, val in inputs.items():
@@ -2179,9 +2068,7 @@ def review_template_list_create(request):
 def review_template_detail(request, template_id):
     """Get, update, or delete a review template."""
     try:
-        template = ManagementReviewTemplate.objects.get(
-            id=template_id, owner=request.user
-        )
+        template = ManagementReviewTemplate.objects.get(id=template_id, owner=request.user)
     except ManagementReviewTemplate.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
@@ -2241,9 +2128,7 @@ def document_list_create(request):
         if search:
             from django.db.models import Q
 
-            docs = docs.filter(
-                Q(title__icontains=search) | Q(document_number__icontains=search)
-            )
+            docs = docs.filter(Q(title__icontains=search) | Q(document_number__icontains=search))
         allowed_sorts = {
             "title",
             "-title",
@@ -2265,12 +2150,11 @@ def document_list_create(request):
         return JsonResponse([d.to_dict() for d in docs[:100]], safe=False)
 
     data = json.loads(request.body)
-    site = None
-    if data.get("site_id"):
-        try:
-            site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            return JsonResponse({"error": "Site not found"}, status=404)
+    from .permissions import resolve_site
+
+    site, err = resolve_site(request.user, data.get("site_id"))
+    if err:
+        return err
     doc = ControlledDocument(
         title=data.get("title", ""),
         document_number=data.get("document_number", ""),
@@ -2364,13 +2248,9 @@ def document_detail(request, doc_id):
         if new_status == "approved":
             doc.approved_at = timezone.now()
             if doc.approved_by_user:
-                doc.approved_by = (
-                    doc.approved_by_user.display_name or doc.approved_by_user.email
-                )
+                doc.approved_by = doc.approved_by_user.display_name or doc.approved_by_user.email
             # D1: Auto-create approval signature
-            _create_workflow_signature(
-                request, "document", doc.id, "approved", record=doc
-            )
+            _create_workflow_signature(request, "document", doc.id, "approved", record=doc)
 
         # Clear approved_at when leaving approved state
         if old_status == "approved" and new_status != "approved":
@@ -2481,9 +2361,7 @@ def supplier_list_create(request):
         if search:
             from django.db.models import Q
 
-            suppliers = suppliers.filter(
-                Q(name__icontains=search) | Q(contact_name__icontains=search)
-            )
+            suppliers = suppliers.filter(Q(name__icontains=search) | Q(contact_name__icontains=search))
         allowed_sorts = {
             "name",
             "-name",
@@ -2566,9 +2444,7 @@ def supplier_detail(request, supplier_id):
         )
 
     # Update other fields (skip fields already set during transition), with change logging
-    transition_fields = (
-        {"notes", "quality_rating", "disqualification_reason"} if new_status else set()
-    )
+    transition_fields = {"notes", "quality_rating", "disqualification_reason"} if new_status else set()
     supplier_fields = [
         "name",
         "supplier_type",
@@ -2580,9 +2456,7 @@ def supplier_detail(request, supplier_id):
         "notes",
         "disqualification_reason",
     ]
-    non_transition = {
-        f: data[f] for f in supplier_fields if f in data and f not in transition_fields
-    }
+    non_transition = {f: data[f] for f in supplier_fields if f in data and f not in transition_fields}
     _log_field_changes(
         "supplier",
         supplier.id,
@@ -2600,9 +2474,7 @@ def supplier_detail(request, supplier_id):
     # Evaluation scores — auto-compute quality_rating from average
     if "evaluation_scores" in data:
         supplier.evaluation_scores = data["evaluation_scores"]
-        scores = [
-            v for v in data["evaluation_scores"].values() if isinstance(v, (int, float))
-        ]
+        scores = [v for v in data["evaluation_scores"].values() if isinstance(v, (int, float))]
         if scores:
             avg = sum(scores) / len(scores)
             supplier.quality_rating = round(avg)
@@ -2613,9 +2485,7 @@ def supplier_detail(request, supplier_id):
                 supplier.notes = supplier.notes or ""
                 if supplier.notes:
                     supplier.notes += "\n"
-                supplier.notes += (
-                    f"Auto-suspended: evaluation average {avg:.1f} below threshold"
-                )
+                supplier.notes += f"Auto-suspended: evaluation average {avg:.1f} below threshold"
                 SupplierStatusChange.objects.create(
                     supplier=supplier,
                     from_status=old_status,
@@ -2646,9 +2516,12 @@ def _get_study_for_action(request):
     if not project_id:
         return None, data, JsonResponse({"error": "project_id required"}, status=400)
 
-    try:
-        project = Project.objects.get(id=project_id, user=request.user)
-    except Project.DoesNotExist:
+    from .permissions import resolve_project
+
+    project, err = resolve_project(request.user, project_id)
+    if err:
+        return None, data, err
+    if not project:
         return None, data, JsonResponse({"error": "Study not found"}, status=404)
 
     return project, data, None
@@ -2664,17 +2537,11 @@ def _get_study_context(project):
         context["problem"] = "; ".join(whats)
 
     # Pull directly from linked RCA sessions first (richer than evidence summary)
-    rca = (
-        RCASession.objects.filter(project=project, root_cause__gt="")
-        .order_by("-updated_at")
-        .first()
-    )
+    rca = RCASession.objects.filter(project=project, root_cause__gt="").order_by("-updated_at").first()
     if rca:
         parts = []
         if rca.chain:
-            chain_str = "\n".join(
-                f"{i + 1}. {s.get('claim', '')}" for i, s in enumerate(rca.chain)
-            )
+            chain_str = "\n".join(f"{i + 1}. {s.get('claim', '')}" for i, s in enumerate(rca.chain))
             parts.append(f"**Causal Chain:**\n{chain_str}")
         parts.append(f"**Root Cause:** {rca.root_cause}")
         if rca.countermeasure:
@@ -2683,9 +2550,7 @@ def _get_study_context(project):
     else:
         # Fall back to evidence-based root cause
         rca_evidence = (
-            Evidence.objects.filter(
-                project=project, source_description__contains=":root_cause"
-            )
+            Evidence.objects.filter(project=project, source_description__contains=":root_cause")
             .order_by("-created_at")
             .first()
         )
@@ -2793,9 +2658,7 @@ def study_raise_ncr(request):
     if ooc:
         desc_parts.append(f"\n**Out-of-control points ({len(ooc)}):**")
         for pt in ooc[:10]:
-            desc_parts.append(
-                f"  • Index {pt.get('index')}: value={pt.get('value')} ({pt.get('reason')})"
-            )
+            desc_parts.append(f"  • Index {pt.get('index')}: value={pt.get('value')} ({pt.get('reason')})")
     if run_viols:
         desc_parts.append(f"\n**Run rule violations ({len(run_viols)}):**")
         for rv in run_viols[:5]:
@@ -2820,9 +2683,7 @@ def study_raise_ncr(request):
         if len(ooc) >= 3 or (cpk is not None and cpk < 0.67):
             severity = "critical"
 
-    title = data.get(
-        "title", f"SPC Signal — {chart_type or 'Process'} — {project.title}"[:300]
-    )
+    title = data.get("title", f"SPC Signal — {chart_type or 'Process'} — {project.title}"[:300])
 
     ncr = NonconformanceRecord(
         title=title,
@@ -2833,10 +2694,11 @@ def study_raise_ncr(request):
     )
     qms_set_ownership(ncr, request.user)
     if data.get("site_id"):
-        try:
-            ncr.site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            pass
+        from .permissions import resolve_site
+
+        _site, _err = resolve_site(request.user, data["site_id"])
+        if _site:
+            ncr.site = _site
     ncr.save()
 
     StudyAction.objects.create(
@@ -2848,9 +2710,7 @@ def study_raise_ncr(request):
         created_by=request.user,
     )
 
-    project.log_event(
-        "ncr_raised", f"NCR created from SPC: {ncr.title}", user=request.user
-    )
+    project.log_event("ncr_raised", f"NCR created from SPC: {ncr.title}", user=request.user)
     logger.info("Study %s: raised NCR %s from SPC", project.id, ncr.id)
     return JsonResponse(
         {
@@ -2961,9 +2821,7 @@ def study_request_doc_update(request):
         created_by=request.user,
     )
 
-    project.log_event(
-        "doc_update_requested", f"Document update requested: {title}", user=request.user
-    )
+    project.log_event("doc_update_requested", f"Document update requested: {title}", user=request.user)
     logger.info("Study %s: requested document update %s", project.id, doc.id)
     return JsonResponse(
         {
@@ -2989,9 +2847,7 @@ def study_flag_training_gap(request):
 
     name = data.get("name", "")
     if not name:
-        return JsonResponse(
-            {"error": "Training requirement name is required"}, status=400
-        )
+        return JsonResponse({"error": "Training requirement name is required"}, status=400)
 
     description = data.get("description", "")
     if not description:
@@ -3016,9 +2872,7 @@ def study_flag_training_gap(request):
         created_by=request.user,
     )
 
-    project.log_event(
-        "training_gap_flagged", f"Training gap: {name}", user=request.user
-    )
+    project.log_event("training_gap_flagged", f"Training gap: {name}", user=request.user)
     logger.info("Study %s: flagged training gap %s", project.id, req.id)
     return JsonResponse(
         {
@@ -3118,9 +2972,7 @@ def _resolve_tenant_id(user):
     return m.tenant_id if m else None
 
 
-def _create_workflow_signature(
-    request, document_type, document_id, meaning, record=None
-):
+def _create_workflow_signature(request, document_type, document_id, meaning, record=None):
     """D-helper: Create an electronic signature from a QMS workflow transition.
 
     Called automatically when key transitions occur (document approval, NCR/CAPA
@@ -3180,9 +3032,7 @@ def _create_workflow_signature(
         )
         return sig.to_dict()
     except Exception:
-        logger.exception(
-            "Failed to create workflow signature for %s/%s", document_type, document_id
-        )
+        logger.exception("Failed to create workflow signature for %s/%s", document_type, document_id)
         return None
 
 
@@ -3231,9 +3081,7 @@ def signature_list_or_sign(request):
     # Validate document_type
     if document_type not in _SIGNABLE_MODELS:
         return JsonResponse(
-            {
-                "error": f"Invalid document_type: {document_type}. Valid: {', '.join(_SIGNABLE_MODELS.keys())}"
-            },
+            {"error": f"Invalid document_type: {document_type}. Valid: {', '.join(_SIGNABLE_MODELS.keys())}"},
             status=400,
         )
 
@@ -3241,9 +3089,7 @@ def signature_list_or_sign(request):
     valid_meanings = [c[0] for c in ElectronicSignature.Meaning.choices]
     if meaning not in valid_meanings:
         return JsonResponse(
-            {
-                "error": f"Invalid meaning: {meaning}. Valid: {', '.join(valid_meanings)}"
-            },
+            {"error": f"Invalid meaning: {meaning}. Valid: {', '.join(valid_meanings)}"},
             status=400,
         )
 
@@ -3372,14 +3218,10 @@ def qms_attachment_list_create(request):
         entity_type = request.GET.get("entity_type")
         entity_id = request.GET.get("entity_id")
         if not entity_type or not entity_id:
-            return JsonResponse(
-                {"error": "entity_type and entity_id required"}, status=400
-            )
+            return JsonResponse({"error": "entity_type and entity_id required"}, status=400)
         if entity_type not in QMSAttachment.ENTITY_MODEL_MAP:
             return JsonResponse(
-                {
-                    "error": f"Invalid entity_type. Valid: {list(QMSAttachment.ENTITY_MODEL_MAP.keys())}"
-                },
+                {"error": f"Invalid entity_type. Valid: {list(QMSAttachment.ENTITY_MODEL_MAP.keys())}"},
                 status=400,
             )
         attachments = QMSAttachment.objects.filter(
@@ -3396,15 +3238,11 @@ def qms_attachment_list_create(request):
     file_id = data.get("file_id")
 
     if not entity_type or not entity_id or not file_id:
-        return JsonResponse(
-            {"error": "entity_type, entity_id, and file_id required"}, status=400
-        )
+        return JsonResponse({"error": "entity_type, entity_id, and file_id required"}, status=400)
 
     if entity_type not in QMSAttachment.ENTITY_MODEL_MAP:
         return JsonResponse(
-            {
-                "error": f"Invalid entity_type. Valid: {list(QMSAttachment.ENTITY_MODEL_MAP.keys())}"
-            },
+            {"error": f"Invalid entity_type. Valid: {list(QMSAttachment.ENTITY_MODEL_MAP.keys())}"},
             status=400,
         )
 
@@ -3448,9 +3286,7 @@ def qms_attachment_list_create(request):
 def qms_attachment_delete(request, attachment_id):
     """Delete a QMS attachment (does not delete the underlying file)."""
     try:
-        attachment = QMSAttachment.objects.get(
-            id=attachment_id, uploaded_by=request.user
-        )
+        attachment = QMSAttachment.objects.get(id=attachment_id, uploaded_by=request.user)
     except QMSAttachment.DoesNotExist:
         return JsonResponse({"error": "Attachment not found"}, status=404)
 
@@ -3497,10 +3333,11 @@ def complaint_list_create(request):
     )
     qms_set_ownership(complaint, user)
     if data.get("site_id"):
-        try:
-            complaint.site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            pass
+        from .permissions import resolve_site
+
+        _site, _err = resolve_site(user, data["site_id"])
+        if _site:
+            complaint.site = _site
     complaint.save()
     return JsonResponse(complaint.to_dict(), status=201)
 
@@ -3588,9 +3425,7 @@ def complaint_detail(request, complaint_id):
             entity_type="complaint",
             entity_id=complaint.id,
         )
-    elif (
-        new_status == "resolved" and complaint.owner and complaint.owner != request.user
-    ):
+    elif new_status == "resolved" and complaint.owner and complaint.owner != request.user:
         notify(
             recipient=complaint.owner,
             notification_type="complaint_status",
@@ -3644,10 +3479,11 @@ def risk_list_create(request):
     )
     qms_set_ownership(risk, user)
     if data.get("site_id"):
-        try:
-            risk.site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            pass
+        from .permissions import resolve_site
+
+        _site, _err = resolve_site(user, data["site_id"])
+        if _site:
+            risk.site = _site
     if data.get("risk_owner"):
         try:
             risk.risk_owner = User.objects.get(id=data["risk_owner"])
@@ -3696,9 +3532,7 @@ def risk_detail(request, risk_id):
         risk.review_date = data["review_date"]
     if "risk_owner" in data:
         try:
-            risk.risk_owner = (
-                User.objects.get(id=data["risk_owner"]) if data["risk_owner"] else None
-            )
+            risk.risk_owner = User.objects.get(id=data["risk_owner"]) if data["risk_owner"] else None
         except User.DoesNotExist:
             pass
 
@@ -3752,10 +3586,11 @@ def equipment_list_create(request):
     )
     qms_set_ownership(eq, user)
     if data.get("site_id"):
-        try:
-            eq.site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            pass
+        from .permissions import resolve_site
+
+        _site, _err = resolve_site(user, data["site_id"])
+        if _site:
+            eq.site = _site
     eq.save()
     return JsonResponse(eq.to_dict(), status=201)
 
@@ -3861,10 +3696,11 @@ def afe_list_create(request):
         if data.get(fk_field):
             setattr(afe, fk_field, data[fk_field])
     if data.get("site_id"):
-        try:
-            afe.site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            pass
+        from .permissions import resolve_site
+
+        _site, _err = resolve_site(request.user, data["site_id"])
+        if _site:
+            afe.site = _site
     afe.save()
 
     # Auto-generate AFE number
@@ -3876,9 +3712,7 @@ def afe_list_create(request):
     levels = data.get("approval_levels", [])
     if not levels:
         # Default: single site-level approval
-        levels = [
-            {"level_name": "Site Approver", "level_order": 0, "cost_threshold": 0}
-        ]
+        levels = [{"level_name": "Site Approver", "level_order": 0, "cost_threshold": 0}]
     for lv in levels:
         AFEApprovalLevel.objects.create(
             afe=afe,
@@ -3897,9 +3731,7 @@ def afe_list_create(request):
 def afe_detail(request, afe_id):
     """Get, update, or delete an AFE."""
     try:
-        afe = AFE.objects.prefetch_related("approval_levels").get(
-            id=afe_id, owner=request.user
-        )
+        afe = AFE.objects.prefetch_related("approval_levels").get(id=afe_id, owner=request.user)
     except AFE.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
@@ -3968,9 +3800,7 @@ def afe_detail(request, afe_id):
 def afe_submit(request, afe_id):
     """Submit an AFE for approval. Auto-determines required levels from thresholds."""
     try:
-        afe = AFE.objects.prefetch_related("approval_levels").get(
-            id=afe_id, owner=request.user
-        )
+        afe = AFE.objects.prefetch_related("approval_levels").get(id=afe_id, owner=request.user)
     except AFE.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
@@ -3989,9 +3819,7 @@ def afe_submit(request, afe_id):
     afe.save(update_fields=["status", "submitted_date"])
 
     # NTF-001: notify first pending approver(s)
-    first_level = (
-        afe.approval_levels.filter(status="pending").order_by("level_order").first()
-    )
+    first_level = afe.approval_levels.filter(status="pending").order_by("level_order").first()
     if first_level and first_level.approver:
         notify(
             recipient=first_level.approver,
@@ -4021,9 +3849,7 @@ def afe_approve(request, afe_id):
         return JsonResponse({"error": "Not found"}, status=404)
 
     if afe.status not in ("submitted", "in_review"):
-        return JsonResponse(
-            {"error": f"Cannot approve from '{afe.status}'"}, status=400
-        )
+        return JsonResponse({"error": f"Cannot approve from '{afe.status}'"}, status=400)
 
     data = json.loads(request.body)
     action = data.get("action", "")
@@ -4031,9 +3857,7 @@ def afe_approve(request, afe_id):
         return JsonResponse({"error": "action must be 'approve' or 'deny'"}, status=400)
 
     # Find current pending level
-    current = (
-        afe.approval_levels.filter(status="pending").order_by("level_order").first()
-    )
+    current = afe.approval_levels.filter(status="pending").order_by("level_order").first()
     if not current:
         return JsonResponse({"error": "No pending approval levels"}, status=400)
 
@@ -4042,9 +3866,7 @@ def afe_approve(request, afe_id):
         return JsonResponse({"error": "Cannot approve your own AFE"}, status=403)
     if current.approver and current.approver != request.user:
         return JsonResponse(
-            {
-                "error": f"This level is assigned to {current.approver_name or 'another approver'}"
-            },
+            {"error": f"This level is assigned to {current.approver_name or 'another approver'}"},
             status=403,
         )
 
@@ -4179,10 +4001,11 @@ def checklist_v2_list_create(request):
         items=data.get("items", []),
     )
     if data.get("site_id"):
-        try:
-            cl.site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            pass
+        from .permissions import resolve_site
+
+        _site, _err = resolve_site(request.user, data["site_id"])
+        if _site:
+            cl.site = _site
     cl.save()
     return JsonResponse(cl.to_dict(), status=201)
 
@@ -4323,9 +4146,7 @@ def checklist_execute(request):
 def checklist_execution_detail(request, exec_id):
     """Get, update, or delete a checklist execution."""
     try:
-        execution = ChecklistExecution.objects.select_related("checklist").get(
-            id=exec_id, executor=request.user
-        )
+        execution = ChecklistExecution.objects.select_related("checklist").get(id=exec_id, executor=request.user)
     except ChecklistExecution.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
@@ -4354,9 +4175,7 @@ def checklist_execution_detail(request, exec_id):
 @require_http_methods(["GET"])
 def checklist_execution_list(request):
     """List executions, optionally filtered by entity_type + entity_id."""
-    qs = ChecklistExecution.objects.filter(executor=request.user).select_related(
-        "checklist"
-    )
+    qs = ChecklistExecution.objects.filter(executor=request.user).select_related("checklist")
     entity_type = request.GET.get("entity_type")
     entity_id = request.GET.get("entity_id")
     if entity_type:
@@ -4401,9 +4220,7 @@ def _score_ncrs(user):
         findings.append(f"{open_count} open NCRs (consider prioritization)")
     if no_ca > 0:
         score -= min(20, no_ca * 10)
-        findings.append(
-            f"{no_ca} NCR(s) in progress without corrective action documented"
-        )
+        findings.append(f"{no_ca} NCR(s) in progress without corrective action documented")
 
     rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
     return (
@@ -4498,9 +4315,7 @@ def _score_documents(user):
 
     approved = qs.filter(status="approved").count()
     today = timezone.now().date()
-    review_overdue = qs.filter(
-        review_due_date__isnull=False, review_due_date__lt=today, status="approved"
-    ).count()
+    review_overdue = qs.filter(review_due_date__isnull=False, review_due_date__lt=today, status="approved").count()
 
     findings = []
     score = 100
@@ -4510,9 +4325,7 @@ def _score_documents(user):
     draft_ratio = (total - approved) / total if total else 0
     if draft_ratio > 0.3:
         score -= 15
-        findings.append(
-            f"{total - approved} of {total} documents not in approved status"
-        )
+        findings.append(f"{total - approved} of {total} documents not in approved status")
 
     rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
     return (
@@ -4536,9 +4349,7 @@ def _score_audits(user):
     complete = qs.filter(status__in=["complete", "report_issued"]).count()
     findings_qs = AuditFinding.objects.filter(audit__in=qs)
     open_major = findings_qs.filter(finding_type="nc_major", is_resolved=False).count()
-    open_findings_no_ncr = findings_qs.filter(
-        finding_type="nc_major", ncr__isnull=True, is_resolved=False
-    ).count()
+    open_findings_no_ncr = findings_qs.filter(finding_type="nc_major", ncr__isnull=True, is_resolved=False).count()
 
     findings = []
     score = 100
@@ -4576,9 +4387,7 @@ def _score_management_review(user):
     score = 100
     if days_ago > 365:
         score -= 40
-        findings.append(
-            f"Last review was {days_ago} days ago — annual minimum required"
-        )
+        findings.append(f"Last review was {days_ago} days ago — annual minimum required")
     elif days_ago > 180:
         score -= 15
         findings.append(f"Last review was {days_ago} days ago")
@@ -4676,12 +4485,8 @@ def _score_risks(user):
     active = qs.exclude(status="closed")
     high = active.filter(risk_score__gte=12).count()
     today = timezone.now().date()
-    review_overdue = active.filter(
-        review_date__isnull=False, review_date__lt=today
-    ).count()
-    no_mitigation = (
-        active.filter(mitigation_actions=[]).exclude(status="accepted").count()
-    )
+    review_overdue = active.filter(review_date__isnull=False, review_date__lt=today).count()
+    no_mitigation = active.filter(mitigation_actions=[]).exclude(status="accepted").count()
 
     findings = []
     score = 100
@@ -4726,9 +4531,7 @@ def _score_calibration(user):
         findings.append(f"{overdue} instrument(s) past calibration due date")
     if out_of_cal > 0:
         score -= min(30, out_of_cal * 10)
-        findings.append(
-            f"{out_of_cal} instrument(s) out of calibration — impact assessment required"
-        )
+        findings.append(f"{out_of_cal} instrument(s) out of calibration — impact assessment required")
 
     rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
     return (
@@ -4800,9 +4603,7 @@ def audit_readiness(request):
         total_weight += weight
 
     overall_score = round(weighted_sum / total_weight) if total_weight else 0
-    overall_rag = (
-        "green" if overall_score >= 80 else "amber" if overall_score >= 50 else "red"
-    )
+    overall_rag = "green" if overall_score >= 80 else "amber" if overall_score >= 50 else "red"
 
     red_count = sum(1 for c in clauses if c["rag"] == "red")
     amber_count = sum(1 for c in clauses if c["rag"] == "amber")
@@ -4889,25 +4690,15 @@ def _build_interpretation(score, rag, red_count, amber_count, clauses, top_findi
         clause = f["clause"]
         detail = f["detail"]
         if "No " in detail and "recorded" in detail:
-            next_actions.append(
-                f"Create your first record in {f['name']} (clause {clause})"
-            )
+            next_actions.append(f"Create your first record in {f['name']} (clause {clause})")
         elif "No " in detail and "scheduled" in detail:
-            next_actions.append(
-                f"Schedule your first activity in {f['name']} (clause {clause})"
-            )
+            next_actions.append(f"Schedule your first activity in {f['name']} (clause {clause})")
         elif "No " in detail and "defined" in detail:
-            next_actions.append(
-                f"Define requirements for {f['name']} (clause {clause})"
-            )
+            next_actions.append(f"Define requirements for {f['name']} (clause {clause})")
         elif "No " in detail and "identified" in detail:
-            next_actions.append(
-                f"Identify and register items for {f['name']} (clause {clause})"
-            )
+            next_actions.append(f"Identify and register items for {f['name']} (clause {clause})")
         elif "overdue" in detail.lower() or "past due" in detail.lower():
-            next_actions.append(
-                f"Address overdue items in {f['name']} (clause {clause})"
-            )
+            next_actions.append(f"Address overdue items in {f['name']} (clause {clause})")
         else:
             next_actions.append(f"Review {f['name']} (clause {clause}): {detail}")
 

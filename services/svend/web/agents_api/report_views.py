@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
-from core.models import Hypothesis, Project
+from core.models import Hypothesis
 
 from .evidence_bridge import create_tool_evidence
 from .models import Board, DSWResult, RCASession, Report
@@ -116,9 +116,12 @@ def create_report(request):
             status=400,
         )
 
-    try:
-        project = Project.objects.get(id=project_id, user=request.user)
-    except Project.DoesNotExist:
+    from .permissions import resolve_project
+
+    project, err = resolve_project(request.user, project_id)
+    if err:
+        return err
+    if not project:
         return JsonResponse({"error": "Project not found"}, status=404)
 
     type_def = REPORT_TYPES[report_type]

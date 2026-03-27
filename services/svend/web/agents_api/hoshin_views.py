@@ -1964,10 +1964,11 @@ def template_list_create(request):
         default_actions=data.get("default_actions", []),
     )
     if data.get("site_id"):
-        try:
-            tpl.site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            pass
+        from .permissions import resolve_site
+
+        _site, _err = resolve_site(request.user, data["site_id"])
+        if _site:
+            tpl.site = _site
     tpl.save()
     return JsonResponse(tpl.to_dict(), status=201)
 
@@ -2037,10 +2038,9 @@ def create_from_template(request):
     # Create HoshinProject with template defaults
     site = None
     if data.get("site_id"):
-        try:
-            site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            pass
+        from .permissions import resolve_site
+
+        site, _err = resolve_site(request.user, data["site_id"])
     elif tpl.site:
         site = tpl.site
 

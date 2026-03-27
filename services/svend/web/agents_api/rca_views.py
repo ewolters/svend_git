@@ -12,11 +12,10 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_enterprise
-from core.models import Project
 
 from .evidence_bridge import create_tool_evidence
 from .llm_service import llm_service
-from .models import ActionItem, CAPAReport, RCASession, Site
+from .models import ActionItem, CAPAReport, RCASession
 from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
 logger = logging.getLogger(__name__)
@@ -659,12 +658,11 @@ def create_session(request):
     if not event:
         return JsonResponse({"error": "Event description required"}, status=400)
 
-    site = None
-    if data.get("site_id"):
-        try:
-            site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            return JsonResponse({"error": "Site not found"}, status=404)
+    from .permissions import resolve_site
+
+    site, err = resolve_site(request.user, data.get("site_id"))
+    if err:
+        return err
 
     session = RCASession(
         title=data.get("title", "").strip(),
@@ -685,12 +683,12 @@ def create_session(request):
     # Link to project if provided, otherwise auto-create one
     project_id = data.get("project_id")
     if project_id:
-        try:
-            project = Project.objects.get(id=project_id, user=request.user)
+        from .permissions import resolve_project
+
+        project, _err = resolve_project(request.user, project_id)
+        if project:
             session.project = project
             session.save(update_fields=["project"])
-        except Project.DoesNotExist:
-            pass
 
     # Link to A3 if provided
     a3_id = data.get("a3_report_id")

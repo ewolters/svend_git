@@ -26,7 +26,6 @@ from .models import (
     NonconformanceRecord,
     QMSFieldChange,
     RCASession,
-    Site,
 )
 from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
@@ -63,9 +62,7 @@ def _ensure_capa_project(capa, user):
     )
     capa.project = project
     capa.save(update_fields=["project"])
-    project.log_event(
-        "study_created", f"Auto-created from CAPA: {capa.title}", user=user
-    )
+    project.log_event("study_created", f"Auto-created from CAPA: {capa.title}", user=user)
     logger.info("Auto-created project %s for CAPA %s", project.id, capa.id)
     return project
 
@@ -165,12 +162,11 @@ def capa_list_create(request):
         except User.DoesNotExist:
             pass
 
-    site = None
-    if data.get("site_id"):
-        try:
-            site = Site.objects.get(id=data["site_id"])
-        except Site.DoesNotExist:
-            return JsonResponse({"error": "Site not found"}, status=404)
+    from .permissions import resolve_site
+
+    site, err = resolve_site(request.user, data.get("site_id"))
+    if err:
+        return err
 
     capa = CAPAReport(
         assigned_to=assigned_to_user,
@@ -320,9 +316,7 @@ def capa_detail(request, capa_id):
     if "rca_session_id" in data:
         if data["rca_session_id"]:
             try:
-                rca = qms_queryset(RCASession, request.user)[0].get(
-                    id=data["rca_session_id"]
-                )
+                rca = qms_queryset(RCASession, request.user)[0].get(id=data["rca_session_id"])
                 capa.rca_session = rca
             except RCASession.DoesNotExist:
                 pass
@@ -335,11 +329,7 @@ def capa_detail(request, capa_id):
 
     # CANON-002 §12 — investigation bridge
     investigation_id = data.get("investigation_id")
-    if investigation_id and (
-        data.get("root_cause")
-        or data.get("corrective_action")
-        or data.get("preventive_action")
-    ):
+    if investigation_id and (data.get("root_cause") or data.get("corrective_action") or data.get("preventive_action")):
         _capa_connect_investigation(request, investigation_id, capa, data)
 
     # Recurrence detection on close (FEAT-012)
@@ -381,9 +371,9 @@ def capa_stats(request):
     open_capas = capas.exclude(status="closed")
     overdue = open_capas.filter(due_date__lt=date.today()).count()
 
-    avg_close = capas.filter(closed_at__isnull=False).aggregate(
-        avg_days=Avg(F("closed_at") - F("created_at"))
-    )["avg_days"]
+    avg_close = capas.filter(closed_at__isnull=False).aggregate(avg_days=Avg(F("closed_at") - F("created_at")))[
+        "avg_days"
+    ]
     avg_close_days = avg_close.days if avg_close else None
 
     by_status = {}
@@ -397,9 +387,7 @@ def capa_stats(request):
     # Aging: average time spent in each state (from CAPAStatusChange records)
     aging = {}
     capa_qs = qms_queryset(CAPAReport, user)[0]
-    changes = CAPAStatusChange.objects.filter(capa__in=capa_qs).order_by(
-        "capa_id", "created_at"
-    )
+    changes = CAPAStatusChange.objects.filter(capa__in=capa_qs).order_by("capa_id", "created_at")
     # Group by capa, compute time between consecutive transitions
     state_durations = defaultdict(list)
     prev_by_capa = {}
@@ -449,9 +437,7 @@ def copq_summary(request):
     # By cost category
     by_category = [
         {"category": row["copq_category"] or "unclassified", "total": str(row["total"])}
-        for row in capas.values("copq_category")
-        .annotate(total=Sum("cost_of_poor_quality"))
-        .order_by("-total")
+        for row in capas.values("copq_category").annotate(total=Sum("cost_of_poor_quality")).order_by("-total")
     ]
 
     # By PAF class
@@ -460,9 +446,7 @@ def copq_summary(request):
             "paf_class": row["copq_paf_class"] or "unclassified",
             "total": str(row["total"]),
         }
-        for row in capas.values("copq_paf_class")
-        .annotate(total=Sum("cost_of_poor_quality"))
-        .order_by("-total")
+        for row in capas.values("copq_paf_class").annotate(total=Sum("cost_of_poor_quality")).order_by("-total")
     ]
 
     # Monthly trending
@@ -515,9 +499,7 @@ def capa_launch_rca(request, capa_id):
             ncr = qms_queryset(NonconformanceRecord, request.user)[0].get(
                 id=capa.source_id,
             )
-            event_text = (
-                f"{ncr.title}\n\n{ncr.description}" if ncr.description else ncr.title
-            )
+            event_text = f"{ncr.title}\n\n{ncr.description}" if ncr.description else ncr.title
             # Seed chain with NCR containment if present
             if ncr.containment_action:
                 rca_chain.append(
@@ -601,11 +583,7 @@ def _check_recurrence(capa, user):
     if not capa_keywords:
         return
 
-    historical = (
-        qms_queryset(CAPAReport, user)[0]
-        .filter(status="closed", root_cause__gt="")
-        .exclude(id=capa.id)
-    )
+    historical = qms_queryset(CAPAReport, user)[0].filter(status="closed", root_cause__gt="").exclude(id=capa.id)
 
     # Score each historical CAPA by root cause similarity
     matches = []
@@ -651,15 +629,11 @@ def recurrence_report(request):
     """
     user = request.user
     capas = list(
-        qms_queryset(CAPAReport, user)[0]
-        .filter(status="closed", root_cause__gt="")
-        .order_by("-closed_at")[:200]
+        qms_queryset(CAPAReport, user)[0].filter(status="closed", root_cause__gt="").order_by("-closed_at")[:200]
     )
 
     if not capas:
-        return JsonResponse(
-            {"clusters": [], "total_closed_capas": 0, "total_flagged": 0}
-        )
+        return JsonResponse({"clusters": [], "total_closed_capas": 0, "total_flagged": 0})
 
     # Extract keywords for each CAPA
     capa_data = []
@@ -696,22 +670,13 @@ def recurrence_report(request):
                 assigned.add(j)
         if len(cluster) >= 2:
             # Find shared keywords across the cluster
-            shared = (
-                set.intersection(*(c["keywords"] for c in cluster))
-                if cluster
-                else set()
-            )
+            shared = set.intersection(*(c["keywords"] for c in cluster)) if cluster else set()
             clusters.append(
                 {
                     "size": len(cluster),
                     "shared_keywords": sorted(shared)[:10],
-                    "escalated": any(
-                        c["priority"] == "critical" and c["is_recurrence"]
-                        for c in cluster
-                    ),
-                    "capas": [
-                        {k: v for k, v in c.items() if k != "keywords"} for c in cluster
-                    ],
+                    "escalated": any(c["priority"] == "critical" and c["is_recurrence"] for c in cluster),
+                    "capas": [{k: v for k, v in c.items() if k != "keywords"} for c in cluster],
                 }
             )
 

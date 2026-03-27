@@ -11,7 +11,7 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.constants import GUEST_INVITE_EXPIRY_DAYS, GUEST_INVITE_LIMITS
 from accounts.permissions import allow_guest, gated_paid
-from core.models import Hypothesis, Project
+from core.models import Hypothesis
 
 from .models import Board, BoardGuestInvite, BoardParticipant, BoardVote
 
@@ -86,12 +86,11 @@ def create_board(request):
     project_id = data.get("project_id")
 
     # Link to project if provided
-    project = None
-    if project_id:
-        try:
-            project = Project.objects.get(id=project_id, user=request.user)
-        except Project.DoesNotExist:
-            return JsonResponse({"error": "Project not found"}, status=404)
+    from .permissions import resolve_project
+
+    project, err = resolve_project(request.user, project_id)
+    if err:
+        return err
 
     board = Board.objects.create(
         owner=request.user,
@@ -265,15 +264,12 @@ def update_board(request, room_code):
     if "pan_y" in data:
         board.pan_y = data["pan_y"]
     if "project_id" in data:
-        project_id = data["project_id"]
-        if project_id:
-            from core.models import Project
+        if data["project_id"]:
+            from .permissions import resolve_project
 
-            try:
-                project = Project.objects.get(id=project_id, user=request.user)
-                board.project = project
-            except Project.DoesNotExist:
-                pass
+            proj, _err = resolve_project(request.user, data["project_id"])
+            if proj:
+                board.project = proj
         else:
             board.project = None
 

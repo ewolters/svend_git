@@ -52,13 +52,11 @@ def create_simulation(request):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    project = None
-    project_id = data.get("project_id")
-    if project_id:
-        try:
-            project = Project.objects.get(id=project_id, user=request.user)
-        except Project.DoesNotExist:
-            return JsonResponse({"error": "Project not found"}, status=404)
+    from .permissions import resolve_project
+
+    project, err = resolve_project(request.user, data.get("project_id"))
+    if err:
+        return err
 
     sim = PlantSimulation.objects.create(
         owner=request.user,
@@ -130,13 +128,12 @@ def update_simulation(request, sim_id):
 
     # Project link
     if "project_id" in data:
-        project_id = data["project_id"]
-        if project_id:
-            try:
-                project = Project.objects.get(id=project_id, user=request.user)
-                sim.project = project
-            except Project.DoesNotExist:
-                pass
+        if data["project_id"]:
+            from .permissions import resolve_project
+
+            proj, _err = resolve_project(request.user, data["project_id"])
+            if proj:
+                sim.project = proj
         else:
             sim.project = None
 

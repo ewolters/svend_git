@@ -199,13 +199,15 @@ def summarize_project(request):
     include = body.get("include", {})
 
     # Load project data
-    try:
-        from core.models import Hypothesis, Project
+    from core.models import Hypothesis
 
-        from .models import Board
+    from .models import Board
+    from .permissions import resolve_project
 
-        project = Project.objects.get(id=project_id, user=request.user)
-    except Project.DoesNotExist:
+    project, err = resolve_project(request.user, project_id)
+    if err:
+        return err
+    if not project:
         return JsonResponse({"error": "Study not found"}, status=404)
 
     # Gather context

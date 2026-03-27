@@ -27,7 +27,6 @@ from core.models import (
     HanseiKai,
     Notebook,
     NotebookPage,
-    Project,
     Trial,
     Yokoten,
     YokotenAdoption,
@@ -69,9 +68,7 @@ def _trigger_digest(user):
         )
         logger.info("Front page digest task submitted for user %s", user.email)
     except Exception:
-        logger.warning(
-            "Failed to submit digest task for user %s", user.email, exc_info=True
-        )
+        logger.warning("Failed to submit digest task for user %s", user.email, exc_info=True)
 
 
 # ---------------------------------------------------------------------------
@@ -102,19 +99,11 @@ def generate_verdict_narrative(trial):
     improving = True
     try:
         goal_target = float(nb.project.goal_target) if nb.project.goal_target else None
-        goal_baseline = (
-            float(nb.project.goal_baseline) if nb.project.goal_baseline else None
-        )
+        goal_baseline = float(nb.project.goal_baseline) if nb.project.goal_baseline else None
         if goal_target is not None and goal_baseline is not None:
-            improving = (goal_target > goal_baseline and delta > 0) or (
-                goal_target < goal_baseline and delta < 0
-            )
+            improving = (goal_target > goal_baseline and delta > 0) or (goal_target < goal_baseline and delta < 0)
     except (ValueError, TypeError, AttributeError):
-        improving = (
-            delta < 0
-            if "rate" in metric.lower() or "defect" in metric.lower()
-            else delta > 0
-        )
+        improving = delta < 0 if "rate" in metric.lower() or "defect" in metric.lower() else delta > 0
 
     # Collect statistics from ALL linked pages (before + after + supporting)
     all_pages = NotebookPage.objects.filter(trial=trial).order_by("-created_at")
@@ -193,9 +182,7 @@ def generate_verdict_narrative(trial):
             if bf10 is None:
                 bf10 = bs.get("bf10") or bs.get("bayes_factor")
             if posterior_prob is None:
-                posterior_prob = bs.get("posterior_probability") or bs.get(
-                    "posterior_prob"
-                )
+                posterior_prob = bs.get("posterior_probability") or bs.get("posterior_prob")
 
     # Also check before pages for comparison capability values
     cpk_before = None
@@ -232,9 +219,7 @@ def generate_verdict_narrative(trial):
         import math
 
         if math.isfinite(cohens_d):
-            parts.append(
-                f"Cohen's d={abs(cohens_d):.2f} ({effect_mag or 'see below'} effect)."
-            )
+            parts.append(f"Cohen's d={abs(cohens_d):.2f} ({effect_mag or 'see below'} effect).")
     elif effect_mag:
         parts.append(f"Effect size: {effect_mag}.")
 
@@ -245,9 +230,7 @@ def generate_verdict_narrative(trial):
     # 5. Capability indices (the precision manufacturing story)
     cap_parts = []
     if cpk is not None:
-        label = (
-            "capable" if cpk >= 1.33 else "marginal" if cpk >= 1.0 else "not capable"
-        )
+        label = "capable" if cpk >= 1.33 else "marginal" if cpk >= 1.0 else "not capable"
         cap_parts.append(f"Cpk={cpk:.2f} ({label})")
     if cp is not None:
         cap_parts.append(f"Cp={cp:.2f}")
@@ -300,9 +283,7 @@ def generate_verdict_narrative(trial):
     # 10. Verdict summary
     if trial.verdict == "improved":
         if improving:
-            parts.append(
-                "Change moved the metric toward the goal — recommend adoption."
-            )
+            parts.append("Change moved the metric toward the goal — recommend adoption.")
         else:
             parts.append("Change moved the metric, but away from the goal direction.")
     elif trial.verdict == "no_effect":
@@ -411,12 +392,8 @@ def list_create_notebooks(request):
                 "baseline_unit": str?}
     """
     if request.method == "GET":
-        notebooks = Notebook.objects.filter(owner=request.user).select_related(
-            "project"
-        )
-        return JsonResponse(
-            {"notebooks": [_serialize_notebook(nb) for nb in notebooks]}
-        )
+        notebooks = Notebook.objects.filter(owner=request.user).select_related("project")
+        return JsonResponse({"notebooks": [_serialize_notebook(nb) for nb in notebooks]})
 
     try:
         data = json.loads(request.body)
@@ -431,9 +408,12 @@ def list_create_notebooks(request):
     if not project_id:
         return JsonResponse({"error": "project_id is required"}, status=400)
 
-    try:
-        project = Project.objects.get(id=project_id, user=request.user)
-    except Project.DoesNotExist:
+    from .permissions import resolve_project
+
+    project, err = resolve_project(request.user, project_id)
+    if err:
+        return err
+    if not project:
         return JsonResponse({"error": "Project not found"}, status=404)
 
     nb = Notebook.objects.create(
@@ -463,12 +443,8 @@ def notebook_detail(request, notebook_id):
         result = _serialize_notebook(nb)
         result["trials"] = [_serialize_trial(t) for t in nb.trials.all()]
         all_pages = list(nb.pages.all())
-        result["front_matter"] = [
-            _serialize_page(p) for p in all_pages if p.trial_role == "front_matter"
-        ]
-        result["pages"] = [
-            _serialize_page(p) for p in all_pages if p.trial_role != "front_matter"
-        ]
+        result["front_matter"] = [_serialize_page(p) for p in all_pages if p.trial_role == "front_matter"]
+        result["pages"] = [_serialize_page(p) for p in all_pages if p.trial_role != "front_matter"]
         # Include hansei kai if concluded
         try:
             hk = nb.hansei_kai
@@ -567,9 +543,7 @@ def list_create_trials(request, notebook_id):
 def trial_detail(request, notebook_id, trial_id):
     """GET/PATCH a trial."""
     try:
-        trial = Trial.objects.get(
-            id=trial_id, notebook_id=notebook_id, notebook__owner=request.user
-        )
+        trial = Trial.objects.get(id=trial_id, notebook_id=notebook_id, notebook__owner=request.user)
     except Trial.DoesNotExist:
         return JsonResponse({"error": "Trial not found"}, status=404)
 
@@ -608,9 +582,7 @@ def complete_trial(request, notebook_id, trial_id):
     POST body: {"verdict": str, "adopted": bool? (maps to is_adopted), "verdict_narrative": str?}
     """
     try:
-        trial = Trial.objects.get(
-            id=trial_id, notebook_id=notebook_id, notebook__owner=request.user
-        )
+        trial = Trial.objects.get(id=trial_id, notebook_id=notebook_id, notebook__owner=request.user)
     except Trial.DoesNotExist:
         return JsonResponse({"error": "Trial not found"}, status=404)
 
@@ -622,9 +594,7 @@ def complete_trial(request, notebook_id, trial_id):
     verdict = data.get("verdict")
     if verdict not in [c[0] for c in Trial.Verdict.choices]:
         return JsonResponse(
-            {
-                "error": f"Invalid verdict. Must be one of: {[c[0] for c in Trial.Verdict.choices]}"
-            },
+            {"error": f"Invalid verdict. Must be one of: {[c[0] for c in Trial.Verdict.choices]}"},
             status=400,
         )
 
@@ -647,9 +617,7 @@ def complete_trial(request, notebook_id, trial_id):
         nb.active_trial = None
         nb.save(update_fields=["active_trial", "updated_at"])
 
-    logger.info(
-        f"Trial {trial.sequence} completed: {verdict}, is_adopted={trial.is_adopted}"
-    )
+    logger.info(f"Trial {trial.sequence} completed: {verdict}, is_adopted={trial.is_adopted}")
     return JsonResponse(_serialize_trial(trial))
 
 
@@ -696,9 +664,7 @@ def list_create_pages(request, notebook_id):
         try:
             trial = Trial.objects.get(id=trial_id, notebook=nb)
         except Trial.DoesNotExist:
-            return JsonResponse(
-                {"error": "Trial not found in this notebook"}, status=404
-            )
+            return JsonResponse({"error": "Trial not found in this notebook"}, status=404)
 
     page = NotebookPage.objects.create(
         notebook=nb,
@@ -753,15 +719,11 @@ def pull_tool(request, notebook_id):
     source_id = data.get("source_id")
     role = data.get("role", "supporting")
     if not source_type or not source_id:
-        return JsonResponse(
-            {"error": "source_type and source_id are required"}, status=400
-        )
+        return JsonResponse({"error": "source_type and source_id are required"}, status=400)
 
     valid_roles = ["before", "after", "supporting"]
     if role not in valid_roles:
-        return JsonResponse(
-            {"error": f"role must be one of: {valid_roles}"}, status=400
-        )
+        return JsonResponse({"error": f"role must be one of: {valid_roles}"}, status=400)
 
     # Optional trial linkage
     trial = None
@@ -770,9 +732,7 @@ def pull_tool(request, notebook_id):
         try:
             trial = Trial.objects.get(id=trial_id, notebook=nb)
         except Trial.DoesNotExist:
-            return JsonResponse(
-                {"error": "Trial not found in this notebook"}, status=404
-            )
+            return JsonResponse({"error": "Trial not found in this notebook"}, status=404)
 
     # Dispatch to source-specific pull logic
     if source_type == "whiteboard":
@@ -790,9 +750,7 @@ def pull_tool(request, notebook_id):
     elif source_type == "doe":
         return _pull_doe(nb, source_id, data.get("mode", "loose"), request.user)
     else:
-        return JsonResponse(
-            {"error": f"Unknown source_type: {source_type}"}, status=400
-        )
+        return JsonResponse({"error": f"Unknown source_type: {source_type}"}, status=400)
 
     if isinstance(page, JsonResponse):
         return page  # Error response
@@ -809,9 +767,9 @@ def _list_pullable(source_type, nb, user):
     from .permissions import qms_queryset
 
     if source_type == "whiteboard":
-        boards = Board.objects.filter(
-            Q(project=nb.project) | Q(owner=user, project__isnull=True)
-        ).order_by("-updated_at")[:20]
+        boards = Board.objects.filter(Q(project=nb.project) | Q(owner=user, project__isnull=True)).order_by(
+            "-updated_at"
+        )[:20]
         return JsonResponse(
             {
                 "items": [
@@ -907,9 +865,7 @@ def _list_pullable(source_type, nb, user):
         )
 
     elif source_type == "doe":
-        designs = ExperimentDesign.objects.filter(project__user=user).order_by(
-            "-created_at"
-        )[:20]
+        designs = ExperimentDesign.objects.filter(project__user=user).order_by("-created_at")[:20]
         return JsonResponse(
             {
                 "items": [
@@ -952,19 +908,11 @@ def _pull_whiteboard(nb, source_id, role, trial, user):
         if conn.get("type") == "causal":
             elements = board.elements or []
             from_el = next(
-                (
-                    e
-                    for e in elements
-                    if e.get("id") == conn.get("from", {}).get("elementId")
-                ),
+                (e for e in elements if e.get("id") == conn.get("from", {}).get("elementId")),
                 None,
             )
             to_el = next(
-                (
-                    e
-                    for e in elements
-                    if e.get("id") == conn.get("to", {}).get("elementId")
-                ),
+                (e for e in elements if e.get("id") == conn.get("to", {}).get("elementId")),
                 None,
             )
             if from_el and to_el:
@@ -974,15 +922,9 @@ def _pull_whiteboard(nb, source_id, role, trial, user):
 
     narrative = f"**Whiteboard:** {board.name}\n\n"
     if text_parts:
-        narrative += (
-            "**Elements:**\n" + "\n".join(f"- {t}" for t in text_parts[:20]) + "\n"
-        )
+        narrative += "**Elements:**\n" + "\n".join(f"- {t}" for t in text_parts[:20]) + "\n"
     if causal_lines:
-        narrative += (
-            "\n**Causal Relationships:**\n"
-            + "\n".join(f"- {c}" for c in causal_lines[:10])
-            + "\n"
-        )
+        narrative += "\n**Causal Relationships:**\n" + "\n".join(f"- {c}" for c in causal_lines[:10]) + "\n"
 
     return NotebookPage.objects.create(
         notebook=nb,
@@ -1099,11 +1041,7 @@ def _pull_dsw(nb, source_id, role, trial, user):
     import json as json_module
 
     try:
-        result_data = (
-            json_module.loads(result.data)
-            if isinstance(result.data, str)
-            else result.data
-        )
+        result_data = json_module.loads(result.data) if isinstance(result.data, str) else result.data
     except (json_module.JSONDecodeError, TypeError):
         result_data = {}
 
@@ -1325,21 +1263,15 @@ def _pull_doe(nb, source_id, mode, user):
             run_order = run.get("run_order", run.get("run_id", 0))
 
             # Build trial title from factor settings
-            settings_str = ", ".join(
-                f"{fn}={levels.get(fn, '?')}" for fn in factor_names
-            )
+            settings_str = ", ".join(f"{fn}={levels.get(fn, '?')}" for fn in factor_names)
             title = f"Run {run_order}: {settings_str}"
 
             # Build description
-            desc_parts = [
-                f"**DOE Run {run_order}** (standard order: {run.get('standard_order', '?')})"
-            ]
+            desc_parts = [f"**DOE Run {run_order}** (standard order: {run.get('standard_order', '?')})"]
             desc_parts.append(f"**Factor Settings:** {settings_str}")
             coded = run.get("coded", {})
             if coded:
-                coded_str = ", ".join(
-                    f"{fn}={coded.get(fn, '?')}" for fn in factor_names
-                )
+                coded_str = ", ".join(f"{fn}={coded.get(fn, '?')}" for fn in factor_names)
                 desc_parts.append(f"**Coded:** {coded_str}")
             if run.get("center_point"):
                 desc_parts.append("**Center point run**")
@@ -1356,9 +1288,7 @@ def _pull_doe(nb, source_id, mode, user):
             trials_created += 1
 
         result["trials_created"] = trials_created
-        logger.info(
-            f"DOE strict mode: created {trials_created} trials for notebook {nb.id}"
-        )
+        logger.info(f"DOE strict mode: created {trials_created} trials for notebook {nb.id}")
 
     logger.info(f"DOE '{design.name}' pulled into notebook {nb.id} (mode={mode})")
     return JsonResponse(result, status=201)
@@ -1384,9 +1314,7 @@ def conclude_notebook(request, notebook_id):
         return JsonResponse({"error": "Notebook not found"}, status=404)
 
     if nb.status != Notebook.Status.ACTIVE:
-        return JsonResponse(
-            {"error": "Only active notebooks can be concluded"}, status=400
-        )
+        return JsonResponse({"error": "Only active notebooks can be concluded"}, status=400)
 
     try:
         data = json.loads(request.body)
@@ -1399,14 +1327,10 @@ def conclude_notebook(request, notebook_id):
         return JsonResponse({"error": f"Required fields: {missing}"}, status=400)
 
     # DOE conclude gate — warn on incomplete strict DOE runs
-    doe_page = NotebookPage.objects.filter(
-        notebook=nb, source_tool="doe", trial_role="front_matter"
-    ).first()
+    doe_page = NotebookPage.objects.filter(notebook=nb, source_tool="doe", trial_role="front_matter").first()
     if doe_page and (doe_page.inputs or {}).get("mode") == "strict":
         total_runs = (doe_page.inputs or {}).get("num_runs", 0)
-        completed_trials = (
-            Trial.objects.filter(notebook=nb).exclude(verdict="pending").count()
-        )
+        completed_trials = Trial.objects.filter(notebook=nb).exclude(verdict="pending").count()
         pending_trials = Trial.objects.filter(notebook=nb, verdict="pending").count()
         if pending_trials > 0 and not data.get("confirm_incomplete_doe"):
             return JsonResponse(
@@ -1450,9 +1374,7 @@ def conclude_notebook(request, notebook_id):
     if yokoten:
         result["yokoten"] = _serialize_yokoten(yokoten)
 
-    logger.info(
-        f"Notebook {nb.id} concluded with Hansei Kai (is_carry_forward={hk.is_carry_forward})"
-    )
+    logger.info(f"Notebook {nb.id} concluded with Hansei Kai (is_carry_forward={hk.is_carry_forward})")
     _trigger_digest(request.user)
     return JsonResponse(result)
 
@@ -1521,9 +1443,7 @@ def front_page(request):
             "themes": digest.themes,
             "contradictions": digest.contradictions,
             "digest": digest.digest,
-            "generated_at": (
-                digest.generated_at.isoformat() if digest.generated_at else None
-            ),
+            "generated_at": (digest.generated_at.isoformat() if digest.generated_at else None),
             "source_items": digest.source_items,
         }
     except FrontPageDigest.DoesNotExist:
@@ -1630,9 +1550,7 @@ def add_front_matter(request, notebook_id):
 def list_yokoten(request):
     """List yokoten visible to the current user (NB-001 §2.7.1 tier gating)."""
     # Pro: own notebooks only. Team/Enterprise: broader visibility.
-    yokoten = Yokoten.objects.filter(source_notebook__owner=request.user).order_by(
-        "-created_at"
-    )
+    yokoten = Yokoten.objects.filter(source_notebook__owner=request.user).order_by("-created_at")
     return JsonResponse({"yokoten": [_serialize_yokoten(y) for y in yokoten]})
 
 

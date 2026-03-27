@@ -18,7 +18,6 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_feature
-from core.models import Project
 
 from .hoshin_calculations import estimate_savings_monte_carlo
 from .models import HoshinProject, ValueStreamMap
@@ -123,13 +122,11 @@ def create_vsm(request):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     # Optional project link
-    project = None
-    project_id = data.get("project_id")
-    if project_id:
-        try:
-            project = Project.objects.get(id=project_id, user=request.user)
-        except Project.DoesNotExist:
-            return JsonResponse({"error": "Project not found"}, status=404)
+    from .permissions import resolve_project
+
+    project, err = resolve_project(request.user, data.get("project_id"))
+    if err:
+        return err
 
     vsm = ValueStreamMap.objects.create(
         owner=request.user,
@@ -223,13 +220,12 @@ def update_vsm(request, vsm_id):
 
     # Update project link
     if "project_id" in data:
-        project_id = data["project_id"]
-        if project_id:
-            try:
-                project = Project.objects.get(id=project_id, user=request.user)
-                vsm.project = project
-            except Project.DoesNotExist:
-                pass
+        if data["project_id"]:
+            from .permissions import resolve_project
+
+            proj, _err = resolve_project(request.user, data["project_id"])
+            if proj:
+                vsm.project = proj
         else:
             vsm.project = None
 

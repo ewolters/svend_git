@@ -11,7 +11,6 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
-from core.models import Project
 
 from .models import CEMatrix
 
@@ -51,9 +50,7 @@ def _ce_connect_investigation(request, investigation_id, matrix):
                 spec=specs,
             )
     except Exception:
-        logger.exception(
-            "C&E Matrix investigation bridge error for matrix %s", matrix.id
-        )
+        logger.exception("C&E Matrix investigation bridge error for matrix %s", matrix.id)
 
 
 # --- CRUD Endpoints ---
@@ -90,12 +87,12 @@ def create_matrix(request):
     # Link to project if provided, otherwise auto-create
     project_id = data.get("project_id")
     if project_id:
-        try:
-            project = Project.objects.get(id=project_id, user=request.user)
+        from .permissions import resolve_project
+
+        project, _err = resolve_project(request.user, project_id)
+        if project:
             matrix.project = project
             matrix.save(update_fields=["project"])
-        except Project.DoesNotExist:
-            pass
 
     return JsonResponse({"matrix": matrix.to_dict()}, status=201)
 

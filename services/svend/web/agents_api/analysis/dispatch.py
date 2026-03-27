@@ -95,28 +95,18 @@ def _resolve_data(request, body, analysis_type, analysis_id):
         try:
             df = pd.DataFrame(inline_data)
             if len(df) > 10000:
-                _log_rejection(
-                    request, "inline_data_too_large", analysis_type, analysis_id
-                )
-                return None, JsonResponse(
-                    {"error": "Inline data limited to 10,000 rows"}, status=400
-                )
+                _log_rejection(request, "inline_data_too_large", analysis_type, analysis_id)
+                return None, JsonResponse({"error": "Inline data limited to 10,000 rows"}, status=400)
         except Exception as e:
-            _log_rejection(
-                request, f"invalid_inline_data: {e}", analysis_type, analysis_id
-            )
-            return None, JsonResponse(
-                {"error": f"Invalid inline data: {e}"}, status=400
-            )
+            _log_rejection(request, f"invalid_inline_data: {e}", analysis_type, analysis_id)
+            return None, JsonResponse({"error": f"Invalid inline data: {e}"}, status=400)
 
     data_id = body.get("data_id")
 
     # Source 1: Uploaded via upload_data endpoint (data_xxx format)
     if df is None and data_id and data_id.startswith("data_"):
         try:
-            data_dir = (
-                Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
-            )
+            data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
             data_path = data_dir / f"{data_id}.csv"
             if data_path.exists():
                 df = _read_csv_safe(data_path)
@@ -148,9 +138,7 @@ def _resolve_data(request, body, analysis_type, analysis_id):
         df = pd.DataFrame()
     elif df is None:
         _log_rejection(request, "no_data_loaded", analysis_type, analysis_id)
-        return None, JsonResponse(
-            {"error": "No data loaded. Please load a dataset first."}, status=400
-        )
+        return None, JsonResponse({"error": "No data loaded. Please load a dataset first."}, status=400)
 
     return df, None
 
@@ -210,9 +198,7 @@ def _dispatch_analysis(analysis_type, df, analysis_id, config, request):
             if cached:
                 model_obj = cached.get("model")
                 model_feats = cached.get("meta", {}).get("features", [])
-        return func(
-            df, analysis_id, config, model=model_obj, model_features=model_feats
-        )
+        return func(df, analysis_id, config, model=model_obj, model_features=model_feats)
     else:
         return func(df, analysis_id, config)
 
@@ -222,20 +208,16 @@ def _dispatch_analysis(analysis_type, df, analysis_id, config, request):
 # =============================================================================
 
 
-def _persist_result(
-    request, result, analysis_type, analysis_id, config, project_id, result_title
-):
+def _persist_result(request, result, analysis_type, analysis_id, config, project_id, result_title):
     """Save DSWResult for A3/method import if requested."""
     try:
         result_id = f"dsw_{uuid.uuid4().hex[:8]}"
-        from core.models import Project
 
         project = None
         if project_id:
-            try:
-                project = Project.objects.get(id=project_id, user=request.user)
-            except Project.DoesNotExist:
-                pass
+            from agents_api.permissions import resolve_project
+
+            project, _err = resolve_project(request.user, project_id)
 
         DSWResult.objects.create(
             id=result_id,
@@ -265,9 +247,7 @@ def _persist_result(
 # =============================================================================
 
 
-def _connect_investigation(
-    request, investigation_id, result, analysis_type, analysis_id, config
-):
+def _connect_investigation(request, investigation_id, result, analysis_type, analysis_id, config):
     """Connect analysis output to an investigation via the bridge.
 
     Extracts statistical metrics from the standardized result, builds an
@@ -366,9 +346,7 @@ def _sanitize_json(obj):
     return obj
 
 
-def _create_notebook_page(
-    request, notebook_id, trial_id, result, analysis_type, analysis_id, config
-):
+def _create_notebook_page(request, notebook_id, trial_id, result, analysis_type, analysis_id, config):
     """Create a frozen NotebookPage from an analysis result."""
     try:
         from core.models import Notebook, NotebookPage, Trial
@@ -487,9 +465,7 @@ def run_analysis(request):
                 analysis_type,
                 analysis_id,
             )
-            return JsonResponse(
-                {"error": f"Unknown analysis type: {analysis_type}"}, status=400
-            )
+            return JsonResponse({"error": f"Unknown analysis type: {analysis_type}"}, status=400)
 
         latency = int((time.time() - start_time) * 1000)
         log_agent_action(request.user, "analysis", analysis_id, latency_ms=latency)
@@ -545,7 +521,5 @@ def run_analysis(request):
 
     except Exception as e:
         logger.exception(f"Analysis error: {e}")
-        log_agent_action(
-            request.user, "analysis", analysis_id, success=False, error_message=str(e)
-        )
+        log_agent_action(request.user, "analysis", analysis_id, success=False, error_message=str(e))
         return JsonResponse({"error": str(e)}, status=500)
