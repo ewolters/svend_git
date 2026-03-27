@@ -19,6 +19,22 @@ repos:
         always_run: true
         pass_filenames: false
         stages: [pre-commit]
+      # SEC-001 §7: Secret leak prevention — blocks hardcoded keys/passwords
+      - id: check-secrets
+        name: SEC-001 secret leak prevention
+        entry: python3 ops/hooks/check_secrets.py
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages: [pre-commit]
+      # OPS-001: Debug statement detection — blocks breakpoint/pdb/print
+      - id: check-debug
+        name: OPS-001 debug statement detection
+        entry: python3 ops/hooks/check_debug.py
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages: [pre-commit]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.4
     hooks:
