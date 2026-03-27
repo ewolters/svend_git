@@ -355,32 +355,118 @@ All auto-trigger capabilities are deferred to a future version. The rationale:
 
 The traditional CAPA process (DRAFT → CONTAINMENT → INVESTIGATION → CORRECTIVE → VERIFICATION → CLOSED) is replaced by the Investigate → Standardize → Verify loop. The CAPA is not the work — it is a generated report that satisfies regulatory requirements.
 
-### **5.2 CAPA Report Generation**
+### **5.2 Report Engine**
 
-When an investigation is concluded and its commitment chain is fulfilled through Standardize and Verify, the system can generate a CAPA report. The report template is org-defined via QMS Policy (§4) and rendered using the document editor engine.
+The report engine replaces all manual report authoring (CAPA, 8D, A3 summary, management review narrative). The investigator never writes a report. The system assembles it from the atoms of work already done.
 
-**Report content is assembled from investigation data:**
+**Principle:** Every action in the investigation workspace, every commitment fulfilled, every verification activity completed — these are structured data. The report engine maps this structured data to report sections. The engineer spends time thinking about root causes and countermeasures, not formatting documents.
 
-| CAPA field (auditor expects) | Source in Svend |
-|---|---|
-| Problem description | Investigation title + description + signal source |
-| Containment action | Early-stage commitments from investigation |
-| Root cause | Concluded hypothesis with evidence summary |
-| Corrective action | Mode transitions to Standardize (document revisions, FMEA updates, new controls) |
-| Implementation evidence | Fulfilled commitments with linked artifacts (published documents, completed training) |
-| Effectiveness verification | Verify mode artifacts (PC results, forced failure results, SPC data post-fix) |
-| Recurrence prevention | The loop itself — ongoing PCs, monitoring, forced failure schedule |
+**5.2.1 Investigation → Report Mapping**
+
+Every investigation stores structured atoms. The report engine queries these atoms and assembles them into sections based on the selected report template.
+
+| Investigation atom | Data type | How it's captured | Report sections it feeds |
+|---|---|---|---|
+| **Signal source** | FK → Signal | Auto-linked when investigation opens from signal | Problem description, background, scope |
+| **Investigation entries** | Ordered list of InvestigationEntry | Investigator adds narrative, data, photos as they work | Chronological investigation record, methodology |
+| **Tool outputs** | InvestigationToolLink (generic FK) | Auto-linked when tool runs in investigation context | Analysis results, data tables, charts |
+| **Hypotheses** | Synara causal graph nodes | Built interactively in investigation workspace | Root cause analysis, causal chain |
+| **Evidence** | Evidence records linked to hypotheses | Auto-created by tool outputs per CANON-002 | Evidence summary, statistical support |
+| **Concluded hypothesis** | Hypothesis with P > threshold | Investigator marks conclusion | Root cause statement, confidence level |
+| **Commitments** | Commitment records with transition_type | Created at investigation conclusion | Corrective actions, preventive actions, action plan |
+| **Fulfilled commitments** | Commitment.status = fulfilled | Marked by owner when work is done | Implementation evidence, completion dates |
+| **Mode transitions** | ModeTransition records | Auto-created when commitments fulfilled | Document revisions made, controls added, training assigned |
+| **Document revisions** | ControlledDocument version links | Created by revise_document transition | Standard work changes, before/after |
+| **Training records** | TrainingRecord + TrainingReflection | Created by train transition, reflections by operators | Training evidence, effectiveness |
+| **PC results** | ProcessConfirmation records | Created by verification activities | Effectiveness verification, standard work compliance |
+| **Forced failure results** | ForcedFailureTest records | Created by verification activities | Detection verification, control validation |
+| **SPC data post-fix** | SPC results with timestamps after fix | Queried by date range relative to fix implementation | Process stability evidence, statistical proof of improvement |
+| **Horizontal deployment** | Commitment records for similar processes | Created at investigation conclusion per §14.2 | Horizontal deployment evidence (IATF) |
+| **FMIS updates** | FMISRow posterior changes | Auto-updated by evidence from investigation | Risk reduction evidence, before/after RPN |
+
+**5.2.2 Report Templates**
+
+Each template defines: which atoms are required, how they map to sections, what formatting to apply. Templates are org-selectable via QMS Policy.
+
+**ISO 9001 CAPA Template:**
+
+| Section | Source atoms | Required? |
+|---|---|---|
+| 1. Problem Description | Signal source + investigation description | Yes |
+| 2. Immediate Containment | Commitments with early timestamps + containment-tagged entries | If applicable |
+| 3. Root Cause Analysis | Concluded hypothesis + evidence chain + methodology (which tools used) | Yes |
+| 4. Corrective Action | Mode transitions to Standardize: document revisions, FMIS updates, new controls | Yes |
+| 5. Implementation Evidence | Fulfilled commitments with dates + linked artifacts | Yes |
+| 6. Effectiveness Verification | PC results + forced failure results + SPC post-fix data | Yes |
+| 7. Recurrence Prevention | Ongoing verification schedule (PCs, monitoring, forced failure) | Yes |
+
+**IATF 16949 8D Template (extends ISO 9001):**
+
+| Section | Source atoms | Required? |
+|---|---|---|
+| D0. Symptom/Emergency Response | Signal source + first investigation entry | Yes |
+| D1. Team | Investigation membership with roles | Yes |
+| D2. Problem Definition | Is/Is Not analysis from investigation entries (tagged) | Yes |
+| D3. Interim Containment | Early commitments + containment evidence | Yes |
+| D4. Root Cause | Concluded hypothesis + causal graph visualization | Yes |
+| D5. Permanent Corrective Action | Mode transitions + fulfilled commitments | Yes |
+| D6. Implementation/Validation | PC results + SPC data + training records | Yes |
+| D7. Preventive Action / Horizontal Deployment | Horizontal deployment commitments + similar process evaluation | Yes |
+| D8. Team Recognition / Lessons Learned | Investigation conclusion notes + knowledge graph entities created | Yes |
+
+**AS9100D Template (extends ISO 9001):**
+
+| Section | Source atoms | Required? |
+|---|---|---|
+| RCA Method Documentation | Tool types used (5-why, fishbone, DOE, etc.) from InvestigationToolLink | Yes |
+| Risk Assessment | FMIS row before/after + residual risk | Yes |
+| Configuration Impact | Linked configuration items affected | If applicable |
+| Investigator Qualification | Lead's training records for investigation methodology | Yes (§14.8) |
+
+**FDA 21 CFR 820 Template (extends ISO 9001):**
+
+| Section | Source atoms | Required? |
+|---|---|---|
+| Statistical Trending | PolicySweepEvaluator trending data for this failure mode category | Yes (mandatory) |
+| Risk Analysis per ISO 14971 | FMIS row with severity posterior + risk acceptability per policy | Yes |
+| Design History Impact | Linked design files/changes if product-related | If applicable |
+| Regulatory Reporting | Complaint linkage, MDR assessment | If applicable |
+
+**5.2.3 Report Assembly Mechanics**
+
+1. **Trigger:** User clicks "Generate Report" on a concluded investigation (or system auto-generates per QMS Policy schedule)
+2. **Template selection:** Per QMS Policy `capa.report_standard` — or user selects if multiple are configured
+3. **Atom query:** Report engine queries all atoms from the investigation's UUID chain — follows every FK, every mode transition, every commitment
+4. **Section assembly:** For each template section, the engine:
+   - Collects the mapped atoms
+   - Renders them into markdown (narratives stay as-is, tool outputs render as summary + chart reference, evidence renders as structured cards)
+   - Flags missing atoms: "Section 6 (Effectiveness Verification): NO PC data found — investigation may not be ready for report generation"
+5. **Completeness check:** Report shows a completeness indicator per section. 100% = all required atoms present. <100% = flags what's missing. The user can generate an incomplete report (draft) or wait for atoms to arrive.
+6. **Review and publish:** Generated report opens in the document editor (§16.6) for human review. The engineer reviews what the system assembled — corrects emphasis, adds context, approves. Then publishes as a ControlledDocument with e-signature.
+7. **Living report:** If new verification data arrives after report generation (more PCs, SPC data), the system can re-generate with updated atoms. The previous version is retained as a revision.
+
+**5.2.4 What the Engineer Does NOT Do**
+
+- Does not write the problem description (auto-populated from signal + investigation)
+- Does not list the team members (auto-populated from investigation membership)
+- Does not summarize the root cause analysis (auto-populated from concluded hypothesis + evidence)
+- Does not list corrective actions (auto-populated from commitments and mode transitions)
+- Does not paste evidence (auto-linked from tool outputs)
+- Does not track implementation dates (auto-populated from commitment fulfillment timestamps)
+- Does not write the effectiveness section (auto-populated from PC/SPC/forced failure data)
+
+**What the engineer DOES do:** Reviews the auto-assembled report for accuracy, adds contextual narrative where the data alone doesn't tell the story, and approves for publication. The 40-60% of quality engineering time currently spent on report writing is reclaimed for investigation and thinking.
 
 ### **5.3 Standard Selection**
 
-Organizations select which reporting standard(s) their CAPA reports must satisfy. This is a QMS Policy setting:
+Organizations select which reporting standard(s) their reports must satisfy. This is a QMS Policy setting:
 - **ISO 9001**: standard CAPA fields
-- **IATF 16949**: adds 8D structure, lesson learned, horizontal deployment
-- **AS9100D**: adds root cause analysis method documentation, risk assessment
-- **21 CFR Part 820**: adds risk analysis per ISO 14971, DHF linkage
-- **Custom**: org-defined template
+- **IATF 16949**: 8D structure with lessons learned, horizontal deployment
+- **AS9100D**: RCA method documentation, risk assessment, investigator qualification
+- **21 CFR Part 820**: statistical trending (mandatory), risk analysis per ISO 14971
+- **Custom**: org-defined template with custom section-to-atom mapping
 
-The system auto-populates what it can and flags what's missing. "Aerospace grade with interactivity" means the system can produce an AS9100-compliant CAPA report from investigation data without the investigator filling out an AS9100 form.
+The system auto-populates what it can and flags what's missing. The report is never a blank form — it always starts from the work already done.
 
 ### **5.4 The Chain Beyond CAPA**
 
@@ -1144,6 +1230,8 @@ LOOP-001 defines system behavior. This section defines how that behavior surface
 6. **Uncertainty is visible.** When Bayesian posteriors have wide credible intervals, the UI shows that uncertainty — a faded bar, a "low confidence" label. The system never presents a number without context.
 
 7. **Compute, don't collect.** Wherever possible, the system computes values from interactions rather than asking the user to type them. Severity posteriors update from categorical taps, not number entry. Detection rates accumulate from forced failure test pass/fail buttons, not manual scoring. The user makes judgments. The system does arithmetic.
+
+8. **Zero manual reporting.** Engineers do not write reports. They investigate, standardize, and verify. The report engine (§5.2) assembles compliance artifacts automatically from the atoms of work already done. If an engineer is formatting a document instead of thinking about root causes, the system has failed. Every surface must have a minimum interaction density equivalent to the operations calculators — if a screen can be replaced by a spreadsheet, it's not done.
 
 ### **16.2 Accountability Dashboard (Daily Management Surface)**
 
