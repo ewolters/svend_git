@@ -8,7 +8,18 @@ User=eric
 Group=eric
 WorkingDirectory=/home/eric/kjerne/services/svend/web
 Environment="PATH=/home/eric/.local/bin:/usr/local/bin:/usr/bin"
+EnvironmentFile=/etc/svend/env
 ExecStart=/home/eric/kjerne/services/svend/web/ops/start_prod.sh
+
+# Security: restrict what the service can do
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/log/svend /home/eric/kjerne/services/svend/web/media /home/eric/kjerne/services/svend/web/staticfiles /tmp
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
 ExecReload=/bin/kill -s HUP $MAINPID
 Restart=always
 RestartSec=5

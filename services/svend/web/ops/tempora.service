@@ -9,6 +9,7 @@ Type=simple
 User=eric
 Group=eric
 WorkingDirectory=/home/eric/kjerne/services/svend/web
+EnvironmentFile=/etc/svend/env
 Environment=DJANGO_SETTINGS_MODULE=svend.settings
 Environment=TEMPORA_NODE_ID=tempora-1
 Environment=TEMPORA_HOST=0.0.0.0

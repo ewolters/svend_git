@@ -10,16 +10,18 @@ cd "$WEB_ROOT"
 
 export PATH="$HOME/.local/bin:$PATH"
 
-# Load environment
-if [ -f .env ]; then
+# Secrets loaded via systemd EnvironmentFile=/etc/svend/env
+# Fallback: source .env if running outside systemd (e.g., dev/debug)
+if [ -z "${SVEND_SECRET_KEY:-}" ] && [ -f .env ]; then
+    echo "WARNING: Loading .env fallback — secrets should be in /etc/svend/env"
     set -a
     source .env
     set +a
 fi
 
-# Load field-level encryption key
+# Load field-level encryption key from separate keyfile if not already set
 KEYFILE="$HOME/.svend_encryption_key"
-if [ -f "$KEYFILE" ]; then
+if [ -z "${SVEND_FIELD_ENCRYPTION_KEY:-}" ] && [ -f "$KEYFILE" ]; then
     export SVEND_FIELD_ENCRYPTION_KEY=$(cat "$KEYFILE")
 fi
 
