@@ -68,6 +68,80 @@ This standard does NOT cover:
 
 5. **Policy is structured data, not documentation.** Org-defined policies are machine-readable models that inform system behavior. Human-readable documentation is auto-generated as a compliance artifact. No drift between what's enforced and what's documented.
 
+### **1.4 Information-Theoretic Foundation**
+
+The closed loop is an information engine. Every action — every investigation, every PC, every forced failure test, every DOE — is evaluated by how much uncertainty it reduces, not by whether a form was filled out. Shannon's information theory (1948) provides the mathematical frame. Shewhart's control chart (1931) is a special case. The unification is overdue.
+
+**The core identity:** The value of an observation is the entropy it eliminates.
+
+A forced failure test that confirms 8/8 detection tells you almost nothing — the posterior barely moves. A test that finds 6/8 detection compresses significant uncertainty about the control's effectiveness. The "failure" is the high-information event. The system must recognize this: surprising results are more valuable than confirming ones, and the system should surface which actions would yield the most information next.
+
+**Applied to each mode:**
+
+| Mode | Information-theoretic purpose | Metric |
+|---|---|---|
+| **Investigate** | Reduce entropy over the process model. Every tool use, DOE, and evidence observation is selected to maximize expected information gain over the causal graph. | Mutual information between candidate action and unknown process parameters |
+| **Standardize** | Encode compressed knowledge as standard work. A good standard is a low-entropy representation of "how to run this process" — it minimizes the information the operator needs to reconstruct correct behavior. | Entropy of the standard-to-practice channel (how much ambiguity remains after reading the SOP) |
+| **Verify** | Measure the channel capacity of the standard-to-reality transmission. PCs measure: is the standard being received (followed)? Is the channel working (outcome correct)? Forced failures measure: is the detection channel operative? | Mutual information between true process state and observed verification signal |
+
+**Applied to the process model (§9):**
+
+The Dynamic Process Model is an entropy map of the organization's knowledge about a process. Calibrated edges (from DOEs, investigations) are low-entropy regions — we know what X does to Y with measured confidence. Uncalibrated edges are high-entropy regions — we think X affects Y but don't know how much.
+
+The model's primary diagnostic is: **where is entropy highest, and which action would reduce it most?**
+
+```
+Expected information gain of action A = H(model) - E[H(model | outcome of A)]
+```
+
+If running a DOE on temperature × feed rate would reduce model entropy by 2.1 bits, and running one on coolant flow would reduce it by 0.4 bits, the investigator should run the temperature DOE first. The system computes this. The user decides.
+
+This is not optimization for its own sake. It is the mathematical expression of "don't waste investigation effort on things you already know." Every hour an engineer spends confirming the obvious is an hour not spent discovering the unknown.
+
+**Applied to FMIS (§8):**
+
+The Bayesian S/O/D posteriors ARE entropy measures:
+- A Beta(1,1) prior on detection has maximum entropy — we know nothing. Every forced failure test reduces this entropy.
+- A Dirichlet(1,1,1,1,1) prior on severity has maximum categorical entropy. Each consequence observation reduces it.
+- The posterior credible interval width IS a measure of remaining uncertainty. Narrow interval = low entropy = we know this. Wide interval = high entropy = investigate here.
+
+When the FMIS view (§16.5) shows a wide posterior bar with "??" for no data, it is showing the user where entropy is concentrated. The system is saying: "This is where your next action should be."
+
+**Applied to verification (§7):**
+
+A Process Confirmation where the standard is followed and the outcome is correct yields near-zero information — it confirms the prior with high probability. The entropy reduction is minimal.
+
+A PC where the standard is followed but the outcome is wrong yields MAXIMUM information — the standard faithfully encodes a broken process. This is the highest-information observation possible in Verify mode, because it tells you something no other signal source can: the documented knowledge itself is wrong.
+
+The diagnostic matrix (§7.1) already captures this intuitively:
+
+| Observation | Entropy reduction | Why |
+|---|---|---|
+| Followed + correct outcome | Low | Confirms prior (standard works). Expected result. |
+| Not followed + any outcome | Medium | Reveals training/clarity gap. Somewhat expected for new standards. |
+| Followed + wrong outcome | **Maximum** | Reveals the standard itself is wrong. Highly surprising. Highly informative. |
+
+**Applied to the APC Frontiers (§13):**
+
+- **Frontier 1** (info-theoretic charts): directly applies — chart design that maximizes mutual information per sample instead of minimizing ARL.
+- **Frontier 2** (reaction plan stability): loop gain analysis is information-theoretic — an overreactive operator ADDS entropy to the process by amplifying noise.
+- **Frontier 3** (Cpk as distribution): Wasserstein drift between capability distributions is a measure of distributional entropy change.
+- **Frontier 5** (Bayesian fault classifier): the classifier's posterior concentration on a fault mode IS the entropy collapsing around a diagnosis. Detection = entropy reduction. Diagnosis = identifying which entropy was reduced.
+
+**The key finding from APC research (documented in ADVANCED_PROCESS_CONTROL.md):** The EWMA forgetting factor λ and the Bayesian classifier forgetting factor α are the same mathematical object — exponential forgetting at different levels of the inference hierarchy. The optimal forgetting rate ≈ 1/τ where τ is mean time between fault transitions. Frontiers 1 and 5 are the same optimization problem: maximize information transmission rate through a noisy, non-stationary channel.
+
+**What this means for the system:**
+
+1. Every surface that shows a posterior distribution (FMIS, process model, fault classifier) is showing an entropy map. The user learns to read wide bars as "investigate here" and narrow bars as "this is known."
+
+2. The process model gap exposure (§9.4) is not a feature list — it is the system computing expected information gain for candidate investigations and surfacing the highest-gain opportunities.
+
+3. The CI Readiness Score (§10) should include an information-theoretic dimension: "How much entropy has the loop reduced this quarter?" A system that runs lots of PCs but never discovers anything surprising has low information throughput — the verification channel capacity is being wasted on confirmatory observations.
+
+4. The report engine (§5.2) should include the information narrative: "This investigation reduced process model entropy by X bits. The highest-information finding was Y (posterior shifted from Z to W)." This is the mathematical proof that the investigation was worth doing.
+
+This framing is NOT optional philosophy. It is the engineering principle that connects every component of LOOP-001 into a coherent system. The loop exists to reduce entropy about how processes work. Everything else is mechanism.
+
 ---
 
 ## **2. THE THREE MODES**
