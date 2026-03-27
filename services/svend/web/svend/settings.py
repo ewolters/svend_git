@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "workbench",
     "notifications",
     "safety",
+    "loop",  # LOOP-001: Closed-loop operating model (Signal, Commitment, ModeTransition, QMSPolicy)
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"
@@ -116,9 +117,7 @@ LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/app/"
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -144,9 +143,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
-    },
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 
 # Media files (user uploads)
@@ -205,9 +202,7 @@ REST_FRAMEWORK = {
 }
 
 # Tempora (distributed task scheduling)
-TEMPORA_CLUSTER_SECRET = hashlib.sha256(
-    (config.secret_key + ":tempora-cluster").encode()
-).hexdigest()
+TEMPORA_CLUSTER_SECRET = hashlib.sha256((config.secret_key + ":tempora-cluster").encode()).hexdigest()
 TEMPORA_NODE_ID = "svend-1"
 TEMPORA_SETTINGS = {
     "election_timeout_min": 150,
