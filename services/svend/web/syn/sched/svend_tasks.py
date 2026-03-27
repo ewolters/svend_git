@@ -371,6 +371,19 @@ def register_svend_tasks():
         max_attempts=1,
     )
 
+    # ---- Loop policy sweep (LOOP-001 §4.6.3) ----
+
+    from loop.evaluator import run_policy_sweep
+
+    TaskRegistry.register(
+        task_name="loop.policy_sweep",
+        handler=run_policy_sweep,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.NORMAL,
+        timeout_seconds=300,
+        max_attempts=1,
+    )
+
     logger.info("[syn.sched] Registered %d Svend task handlers", len(TaskRegistry._handlers))
 
 
@@ -506,6 +519,14 @@ SVEND_SCHEDULES = [
         "schedule_id": "harada-daily-reminders",
         "task_name": "api.harada_daily_reminders",
         "cron": "0 8 * * *",  # Daily 08:00 UTC
+        "priority": TaskPriority.NORMAL,
+        "queue": "batch",
+    },
+    # ---- Loop policy sweep (LOOP-001 §4.6.3) ----
+    {
+        "schedule_id": "loop-policy-sweep",
+        "task_name": "loop.policy_sweep",
+        "cron": "0 6 * * *",  # Daily 06:00 UTC
         "priority": TaskPriority.NORMAL,
         "queue": "batch",
     },
