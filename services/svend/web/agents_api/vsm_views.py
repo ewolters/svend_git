@@ -142,6 +142,10 @@ def create_vsm(request):
         supply_frequency=data.get("supply_frequency", ""),
     )
 
+    from .tool_events import tool_events
+
+    tool_events.emit("vsm.created", vsm, user=request.user)
+
     return JsonResponse(
         {
             "id": str(vsm.id),
@@ -261,6 +265,10 @@ def update_vsm(request, vsm_id):
     vsm.calculate_metrics()
     bottleneck_info = detect_bottleneck(vsm)
     vsm.save()
+
+    from .tool_events import tool_events
+
+    tool_events.emit("vsm.updated", vsm, user=request.user)
 
     return JsonResponse(
         {
@@ -462,6 +470,10 @@ def create_future_state(request, vsm_id):
     future.paired_with = vsm
     future.save(update_fields=["paired_with"])
 
+    from .tool_events import tool_events
+
+    tool_events.emit("vsm.future_state_created", future, user=request.user, current_vsm_id=str(vsm.id))
+
     return JsonResponse(
         {
             "success": True,
@@ -521,10 +533,7 @@ def compare_vsm(request, vsm_id):
             "future": future.total_process_time,
             "improvement": (
                 (
-                    (
-                        (current.total_process_time or 0)
-                        - (future.total_process_time or 0)
-                    )
+                    ((current.total_process_time or 0) - (future.total_process_time or 0))
                     / (current.total_process_time or 1)
                     * 100
                 )
@@ -845,9 +854,7 @@ def generate_proposals(request, vsm_id):
                 "p_positive": estimate.get("p_positive", 0),
                 "suggested_title": f"{burst_text} — {step_name}",
                 "suggested_type": (
-                    "labor"
-                    if estimate["suggested_method"] in ("time_reduction", "headcount")
-                    else "material"
+                    "labor" if estimate["suggested_method"] in ("time_reduction", "headcount") else "material"
                 ),
             }
         )
@@ -897,9 +904,7 @@ def approve_proposal(request, vsm_id):
 
     # Duplicate check — prevent approving same burst twice
     if burst_id:
-        existing = HoshinProject.objects.filter(
-            source_vsm=vsm, source_burst_id=burst_id
-        ).first()
+        existing = HoshinProject.objects.filter(source_vsm=vsm, source_burst_id=burst_id).first()
         if existing:
             return JsonResponse(
                 {
@@ -911,9 +916,7 @@ def approve_proposal(request, vsm_id):
 
     title = data.get("title", "").strip()
     if not title:
-        burst_text = (
-            burst.get("text", "VSM Improvement") if burst else "VSM Improvement"
-        )
+        burst_text = burst.get("text", "VSM Improvement") if burst else "VSM Improvement"
         title = f"CI — {burst_text}"[:300]
 
     project = Project.objects.create(title=title, user=request.user)

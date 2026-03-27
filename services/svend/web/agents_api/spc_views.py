@@ -142,6 +142,21 @@ def control_chart(request):
                 sample_size=len(data),
             )
 
+        # Emit SPC signal event (out-of-control detection)
+        if not result.in_control:
+            from .tool_events import tool_events
+
+            tool_events.emit(
+                "spc.signal",
+                result,
+                user=request.user,
+                chart_type=chart_type,
+                ooc_count=len(result.out_of_control),
+                total_points=len(getattr(result, "data_points", data)),
+                fmea_row_id=fmea_row_id,
+                project_id=project_id,
+            )
+
         # Phase 3: SPC → FMEA auto-trigger (QMS-001 §11.4)
         fmea_update = None
         if fmea_row_id and not result.in_control:

@@ -40,9 +40,7 @@ def get_participant_color(board, user):
 
 def _build_participants_list(board, cutoff):
     """Build combined participants list (users + guests) for board responses."""
-    active_users = board.participants.filter(last_seen__gte=cutoff).select_related(
-        "user"
-    )
+    active_users = board.participants.filter(last_seen__gte=cutoff).select_related("user")
     active_guests = board.guest_invites.filter(
         is_active=True,
         last_seen__gte=cutoff,
@@ -108,6 +106,10 @@ def create_board(request):
         color=PARTICIPANT_COLORS[0],
     )
 
+    from .tool_events import tool_events
+
+    tool_events.emit("whiteboard.created", board, user=request.user)
+
     return JsonResponse(
         {
             "id": str(board.id),
@@ -137,9 +139,7 @@ def get_board(request, room_code):
         if invite.board_id != board.id:
             return JsonResponse({"error": "Access denied"}, status=403)
 
-        guest_votes = list(
-            board.votes.filter(guest_invite=invite).values_list("element_id", flat=True)
-        )
+        guest_votes = list(board.votes.filter(guest_invite=invite).values_list("element_id", flat=True))
 
         return JsonResponse(
             {
@@ -175,9 +175,7 @@ def get_board(request, room_code):
         defaults={"color": get_participant_color(board, request.user)},
     )
 
-    user_votes = list(
-        board.votes.filter(user=request.user).values_list("element_id", flat=True)
-    )
+    user_votes = list(board.votes.filter(user=request.user).values_list("element_id", flat=True))
 
     return JsonResponse(
         {
@@ -250,13 +248,9 @@ def update_board(request, room_code):
         return JsonResponse({"success": True, "version": board.version})
 
     # Normal user path — must be owner or existing participant
-    is_participant = BoardParticipant.objects.filter(
-        board=board, user=request.user
-    ).exists()
+    is_participant = BoardParticipant.objects.filter(board=board, user=request.user).exists()
     if request.user.id != board.owner_id and not is_participant:
-        return JsonResponse(
-            {"error": "You must join this board before editing"}, status=403
-        )
+        return JsonResponse({"error": "You must join this board before editing"}, status=403)
 
     if "elements" in data:
         board.elements = data["elements"]
@@ -285,9 +279,11 @@ def update_board(request, room_code):
 
     board.save()
 
-    BoardParticipant.objects.filter(board=board, user=request.user).update(
-        last_seen=timezone.now()
-    )
+    BoardParticipant.objects.filter(board=board, user=request.user).update(last_seen=timezone.now())
+
+    from .tool_events import tool_events
+
+    tool_events.emit("whiteboard.updated", board, user=request.user)
 
     return JsonResponse(
         {
@@ -382,16 +378,12 @@ def add_vote(request, room_code):
         if invite.board_id != board.id:
             return JsonResponse({"error": "Access denied"}, status=403)
         if invite.permission != "edit_vote":
-            return JsonResponse(
-                {"error": "You don't have voting permission"}, status=403
-            )
+            return JsonResponse({"error": "You don't have voting permission"}, status=403)
         user_vote_count = board.votes.filter(guest_invite=invite).count()
         if user_vote_count >= board.votes_per_user:
             return JsonResponse({"error": "Vote limit reached"}, status=400)
         try:
-            BoardVote.objects.create(
-                board=board, guest_invite=invite, element_id=element_id
-            )
+            BoardVote.objects.create(board=board, guest_invite=invite, element_id=element_id)
         except IntegrityError:
             return JsonResponse({"error": "Already voted on this element"}, status=400)
     else:
@@ -399,9 +391,7 @@ def add_vote(request, room_code):
         if user_vote_count >= board.votes_per_user:
             return JsonResponse({"error": "Vote limit reached"}, status=400)
         try:
-            BoardVote.objects.create(
-                board=board, user=request.user, element_id=element_id
-            )
+            BoardVote.objects.create(board=board, user=request.user, element_id=element_id)
         except IntegrityError:
             return JsonResponse({"error": "Already voted on this element"}, status=400)
 
@@ -469,9 +459,7 @@ def list_boards(request):
 
     owned = Board.objects.filter(owner=request.user).select_related("project")
     participated = (
-        Board.objects.filter(participants__user=request.user)
-        .exclude(owner=request.user)
-        .select_related("project")
+        Board.objects.filter(participants__user=request.user).exclude(owner=request.user).select_related("project")
     )
 
     # Filter by project if specified
@@ -512,9 +500,7 @@ def delete_board(request, room_code):
     board = get_object_or_404(Board, room_code=room_code.upper())
 
     if request.user.id != board.owner_id:
-        return JsonResponse(
-            {"error": "Only the owner can delete the board"}, status=403
-        )
+        return JsonResponse({"error": "Only the owner can delete the board"}, status=403)
 
     board.delete()
 
@@ -532,9 +518,7 @@ def export_hypotheses(request, room_code):
     board = get_object_or_404(Board, room_code=room_code.upper())
 
     # Must be owner or participant to export
-    is_participant = BoardParticipant.objects.filter(
-        board=board, user=request.user
-    ).exists()
+    is_participant = BoardParticipant.objects.filter(board=board, user=request.user).exists()
     if request.user.id != board.owner_id and not is_participant:
         return JsonResponse({"error": "Access denied"}, status=403)
 
@@ -564,9 +548,7 @@ def export_hypotheses(request, room_code):
             continue
 
         # Check for duplicates (same statement in same project)
-        existing = Hypothesis.objects.filter(
-            project=board.project, statement=statement
-        ).first()
+        existing = Hypothesis.objects.filter(project=board.project, statement=statement).first()
 
         if existing:
             # Skip duplicates but note them
@@ -605,12 +587,8 @@ def export_hypotheses(request, room_code):
             "project_id": str(board.project.id),
             "project_title": board.project.title,
             "hypotheses": created_hypotheses,
-            "created_count": len(
-                [h for h in created_hypotheses if h["status"] == "created"]
-            ),
-            "existing_count": len(
-                [h for h in created_hypotheses if h["status"] == "existing"]
-            ),
+            "created_count": len([h for h in created_hypotheses if h["status"] == "created"]),
+            "existing_count": len([h for h in created_hypotheses if h["status"] == "existing"]),
         }
     )
 
@@ -634,13 +612,7 @@ def _escape_xml(text):
     """Escape text for XML/SVG."""
     if not text:
         return ""
-    return (
-        str(text)
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
+    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
 def _render_element_svg(el, offset_x=0, offset_y=0):
@@ -699,9 +671,7 @@ def _render_element_svg(el, offset_x=0, offset_y=0):
 
         # Spine
         spine_len = 500
-        svg_parts.append(
-            f'<line x1="50" y1="150" x2="{50 + spine_len}" y2="150" stroke="#4a9f6e" stroke-width="3"/>'
-        )
+        svg_parts.append(f'<line x1="50" y1="150" x2="{50 + spine_len}" y2="150" stroke="#4a9f6e" stroke-width="3"/>')
 
         # Effect head
         svg_parts.append(
@@ -892,9 +862,7 @@ def create_guest_invite(request, room_code):
     board = get_object_or_404(Board, room_code=room_code.upper())
 
     if request.user.id != board.owner_id:
-        return JsonResponse(
-            {"error": "Only the board owner can create invites"}, status=403
-        )
+        return JsonResponse({"error": "Only the board owner can create invites"}, status=403)
 
     try:
         data = json.loads(request.body) if request.body else {}
@@ -903,9 +871,7 @@ def create_guest_invite(request, room_code):
 
     permission = data.get("permission", "view")
     if permission not in ("view", "edit", "edit_vote"):
-        return JsonResponse(
-            {"error": "Invalid permission. Use: view, edit, edit_vote"}, status=400
-        )
+        return JsonResponse({"error": "Invalid permission. Use: view, edit, edit_vote"}, status=400)
 
     # Check tier limit
     tier = request.user.tier
@@ -932,9 +898,7 @@ def create_guest_invite(request, room_code):
 
     # Assign color from pool (avoid collisions with existing participants/guests)
     used_colors = set(board.participants.values_list("color", flat=True)) | set(
-        BoardGuestInvite.objects.filter(board=board, is_active=True).values_list(
-            "color", flat=True
-        )
+        BoardGuestInvite.objects.filter(board=board, is_active=True).values_list("color", flat=True)
     )
     color = "#ff7eb9"
     for c in PARTICIPANT_COLORS:
@@ -971,9 +935,7 @@ def list_guest_invites(request, room_code):
     board = get_object_or_404(Board, room_code=room_code.upper())
 
     if request.user.id != board.owner_id:
-        return JsonResponse(
-            {"error": "Only the board owner can view invites"}, status=403
-        )
+        return JsonResponse({"error": "Only the board owner can view invites"}, status=403)
 
     invites = BoardGuestInvite.objects.filter(board=board).order_by("-created_at")
     cutoff = timezone.now() - timedelta(seconds=30)
@@ -1006,9 +968,7 @@ def revoke_guest_invite(request, room_code, invite_id):
     board = get_object_or_404(Board, room_code=room_code.upper())
 
     if request.user.id != board.owner_id:
-        return JsonResponse(
-            {"error": "Only the board owner can revoke invites"}, status=403
-        )
+        return JsonResponse({"error": "Only the board owner can revoke invites"}, status=403)
 
     try:
         invite = BoardGuestInvite.objects.get(id=invite_id, board=board)

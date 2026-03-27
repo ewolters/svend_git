@@ -704,6 +704,10 @@ def create_session(request):
         except A3Report.DoesNotExist:
             pass
 
+    from .tool_events import tool_events
+
+    tool_events.emit("rca.created", session, user=request.user)
+
     return JsonResponse({"session": session.to_dict()}, status=201)
 
 
@@ -816,6 +820,10 @@ def update_session(request, session_id):
                         details=data["root_cause"],
                         source_type="analysis",
                     )
+
+    from .tool_events import tool_events
+
+    tool_events.emit("rca.updated", session, user=request.user, data=data)
 
     return JsonResponse({"session": session.to_dict()})
 

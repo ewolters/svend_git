@@ -126,6 +126,10 @@ def create_fmea(request):
     qms_set_ownership(fmea, request.user, site)
     fmea.save()
 
+    from .tool_events import tool_events
+
+    tool_events.emit("fmea.created", fmea, user=request.user)
+
     return JsonResponse(
         {
             "id": str(fmea.id),
@@ -312,6 +316,10 @@ def add_row(request, fmea_id):
         hypothesis_link=hypothesis,
     )
 
+    from .tool_events import tool_events
+
+    tool_events.emit("fmea.row_created", row, user=request.user, fmea_id=str(fmea.id))
+
     return JsonResponse(
         {
             "success": True,
@@ -378,6 +386,10 @@ def update_row(request, fmea_id, row_id):
         )
 
     row.save()  # auto-computes rpn and revised_rpn
+
+    from .tool_events import tool_events
+
+    tool_events.emit("fmea.row_updated", row, user=request.user, fmea_id=str(fmea.id))
 
     return JsonResponse(
         {
