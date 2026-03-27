@@ -9,10 +9,13 @@
 - XRF-001 ≥ 1.0 (Cross-Reference Syntax)
 - ARCH-001 ≥ 1.0 (Architecture & Structure — layer boundaries)
 **Related Standards:**
-- QMS-001 ≥ 1.4 (Quality Management System — tooling layer)
+- LOOP-001 ≥ 0.1 (Closed-Loop Operating Model — tools operate standalone OR as mode-transition artifacts within investigations)
+- QMS-001 ≥ 1.7 (Quality Management System — tooling layer)
 - DSW-001 ≥ 1.0 (Decision Science Workbench — analysis layer)
 - MAP-001 ≥ 1.0 (Architecture Map — module registry)
 - CANON-002 (Integration Contracts — tool chaining schemas, evidence weighting methodology, source-method epistemology)
+
+> **Tool coupling note (LOOP-001 §3.2):** CANON-001 defines two modes of tool operation: standalone (calculator) and investigation-active (feeds causal graph). LOOP-001 adds a third mode: **mode-transition artifact** — when a Commitment of type `add_control` is fulfilled, the system creates an FMIS row (investigation-native FMEA) with investigation linkage. The standalone AIAG FMEA tool (QMS-001 §4.1) remains fully supported as a calculator. FMIS is the investigation-native variant that participates in the Investigate → Standardize → Verify loop. Both coexist — standalone for proactive risk assessment, FMIS for investigation-driven risk analysis with Bayesian S/O/D.
 
 ---
 

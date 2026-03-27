@@ -9,10 +9,16 @@
 - XRF-001 ≥ 1.0 (Cross-Reference Syntax)
 - CANON-001 ≥ 3.0 (System Architecture — three-layer model, tool functions, investigation engine)
 **Related Standards:**
+- LOOP-001 ≥ 0.1 (Closed-Loop Operating Model — FMIS Bayesian S/O/D uses separate posteriors from Synara evidence weights)
 - STAT-001 ≥ 1.2 (Statistical Methodology — mathematical correctness)
 - QUAL-001 ≥ 1.1 (Output Quality Assurance — bounds, coherence)
-- QMS-001 ≥ 1.4 (Quality Management System — tool specifications)
+- QMS-001 ≥ 1.7 (Quality Management System — tool specifications)
 - DSW-001 ≥ 1.0 (Decision Science Workbench — analysis architecture)
+
+> **Note on dual posteriors (LOOP-001 §8):** When a tool output (e.g., forced failure test) links to BOTH an FMIS row AND a Synara investigation, two separate Bayesian updates occur:
+> 1. **FMIS Detection posterior** (Beta-Binomial): raw detection count / injection count updates the FMEA row's detection distribution directly. No evidence weighting applied — this is occurrence-based counting per the Sunrise Problem.
+> 2. **Synara hypothesis posterior** (Bayesian on weighted evidence): the evidence weight from §2.3 (source rank) applies to the investigation's causal graph. This determines how much the test result should shift belief in the investigated hypothesis.
+> These are mathematically independent operations on the same data. FMIS scoring and Synara belief updating serve different purposes and use different models.
 
 ---
 

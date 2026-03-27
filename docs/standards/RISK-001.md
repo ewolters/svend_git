@@ -40,6 +40,8 @@ Each risk entry uses FMEA-style scoring across three dimensions (1-5 each):
 
 **RPN = Likelihood × Severity × Detectability** (max 125).
 
+> **Bayesian compatibility (LOOP-001 §8.6):** When FMIS uses Bayesian scoring (`svend_bayesian` or `svend_full` policy), the risk registry accepts posterior-mean-derived scores. The system maps the Beta posterior mean to the 1-5 integer scale for this registry. Both the point estimate (for deterministic RPN) and the full posterior credible interval are available via API. The RPN displayed is computed from the point estimates; the uncertainty is available for risk-informed decision making.
+
 <!-- assert: RiskEntry model auto-computes RPN on save | check=risk-rpn-auto -->
 <!-- impl: syn/audit/models.py:RiskEntry.save -->
 <!-- test: syn.audit.tests.test_risk_registry.RiskEntryModelTest.test_rpn_auto_computed -->
