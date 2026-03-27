@@ -150,10 +150,7 @@ def create_report(request):
             elif "root_cause" in sections:
                 sections["root_cause"] = rca_content
             # For 8D, also pre-fill problem description from event
-            if (
-                "problem_description" in sections
-                and not sections["problem_description"]
-            ):
+            if "problem_description" in sections and not sections["problem_description"]:
                 sections["problem_description"] = rca.event
         except RCASession.DoesNotExist:
             pass
@@ -169,9 +166,7 @@ def create_report(request):
     # Track the RCA import reference
     if rca_linked:
         report.imported_from = report.imported_from or {}
-        section_key = (
-            "root_cause_analysis" if "root_cause_analysis" in sections else "root_cause"
-        )
+        section_key = "root_cause_analysis" if "root_cause_analysis" in sections else "root_cause"
         report.imported_from[section_key] = [
             {
                 "source": "rca",
@@ -181,9 +176,7 @@ def create_report(request):
         ]
         report.save(update_fields=["imported_from"])
 
-    project.log_event(
-        "report_created", f"{report_type.upper()} report: {title}", user=request.user
-    )
+    project.log_event("report_created", f"{report_type.upper()} report: {title}", user=request.user)
     return JsonResponse(
         {
             "id": str(report.id),
@@ -200,17 +193,11 @@ def get_report(request, report_id):
 
     project = report.project
     hypotheses = list(
-        Hypothesis.objects.filter(project=project).values(
-            "id", "statement", "current_probability", "status"
-        )[:20]
+        Hypothesis.objects.filter(project=project).values("id", "statement", "current_probability", "status")[:20]
     )
-    boards = list(
-        Board.objects.filter(project=project).values("id", "name", "room_code")[:10]
-    )
+    boards = list(Board.objects.filter(project=project).values("id", "name", "room_code")[:10])
     dsw_results = DSWResult.objects.filter(project=project).order_by("-created_at")[:20]
-    rca_sessions = RCASession.objects.filter(project=project).order_by("-updated_at")[
-        :10
-    ]
+    rca_sessions = RCASession.objects.filter(project=project).order_by("-updated_at")[:10]
 
     # Get the type definition for the frontend
     type_def = REPORT_TYPES.get(report.report_type, {})
@@ -234,10 +221,7 @@ def get_report(request, report_id):
                     }
                     for h in hypotheses
                 ],
-                "boards": [
-                    {"id": str(b["id"]), "name": b["name"], "room_code": b["room_code"]}
-                    for b in boards
-                ],
+                "boards": [{"id": str(b["id"]), "name": b["name"], "room_code": b["room_code"]} for b in boards],
                 "dsw_results": [
                     {
                         "id": r.id,
@@ -289,9 +273,7 @@ def update_report(request, report_id):
         for key, content in data["sections"].items():
             if valid_keys and key not in valid_keys:
                 return JsonResponse(
-                    {
-                        "error": f"Invalid section key '{key}' for report type '{report.report_type}'"
-                    },
+                    {"error": f"Invalid section key '{key}' for report type '{report.report_type}'"},
                     status=400,
                 )
             sections[key] = content
@@ -367,9 +349,7 @@ def import_to_report(request, report_id):
     type_def = REPORT_TYPES.get(report.report_type, {})
     valid_keys = [s["key"] for s in type_def.get("sections", [])]
     if section not in valid_keys:
-        return JsonResponse(
-            {"error": f"Invalid section for {report.report_type}"}, status=400
-        )
+        return JsonResponse({"error": f"Invalid section for {report.report_type}"}, status=400)
 
     content = ""
     import_ref = {"source": source_type, "id": str(source_id) if source_id else ""}
@@ -395,18 +375,12 @@ def import_to_report(request, report_id):
                 if text:
                     el_type = el.get("type", "item")
                     content += f"- [{el_type}] {text}\n"
-            causal_conns = [
-                c for c in (board.connections or []) if c.get("type") == "causal"
-            ]
+            causal_conns = [c for c in (board.connections or []) if c.get("type") == "causal"]
             if causal_conns:
                 content += "\n**Causal Relationships:**\n"
                 for conn in causal_conns[:10]:
                     from_el = next(
-                        (
-                            e
-                            for e in elements
-                            if e.get("id") == conn["from"]["elementId"]
-                        ),
+                        (e for e in elements if e.get("id") == conn["from"]["elementId"]),
                         None,
                     )
                     to_el = next(
@@ -437,14 +411,10 @@ def import_to_report(request, report_id):
             content_parts = [f"**DSW Analysis:** {dsw_result.title}"]
 
             if result_data.get("analysis_id"):
-                content_parts.append(
-                    f"**Type:** {result_data['analysis_id'].replace('_', ' ').title()}"
-                )
+                content_parts.append(f"**Type:** {result_data['analysis_id'].replace('_', ' ').title()}")
 
             if "narrative" in include:
-                summary = result_data.get("summary", "") or result_data.get(
-                    "guide_observation", ""
-                )
+                summary = result_data.get("summary", "") or result_data.get("guide_observation", "")
                 if summary:
                     clean = re.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", summary)
                     content_parts.append(f"\n{clean}")
@@ -490,9 +460,7 @@ def import_to_report(request, report_id):
             return JsonResponse({"error": "RCA session not found"}, status=404)
 
     else:
-        return JsonResponse(
-            {"error": f"Unknown source_type: {source_type}"}, status=400
-        )
+        return JsonResponse({"error": f"Unknown source_type: {source_type}"}, status=400)
 
     # Update section content
     sections = report.sections or {}
@@ -567,9 +535,7 @@ def auto_populate_report(request, report_id):
     if hypotheses:
         context_parts.append("\nHypotheses:")
         for h in hypotheses:
-            context_parts.append(
-                f"- [{h.status}] {h.statement} (P={h.current_probability:.0%})"
-            )
+            context_parts.append(f"- [{h.status}] {h.statement} (P={h.current_probability:.0%})")
     for board in boards:
         if board.elements:
             context_parts.append(f"\nWhiteboard '{board.name}':")
@@ -580,7 +546,7 @@ def auto_populate_report(request, report_id):
 
     context = "\n".join(context_parts)
 
-    from .llm_manager import LLMManager
+    from .llm_service import llm_service
 
     results = {}
     sections = report.sections or {}
@@ -601,29 +567,28 @@ Report Title: {report.title}
 
 Write a concise but thorough response (3-5 sentences) suitable for this report section."""
 
-        response = LLMManager.chat(
-            user=request.user,
-            messages=[{"role": "user", "content": prompt}],
+        result = llm_service.chat(
+            request.user,
+            prompt,
             system=f"You are helping create a {type_def['name']}. Be concise, professional, and actionable.",
+            context="generation",
             max_tokens=600,
-            temperature=0.7,
         )
 
-        if response and not response.get("rate_limited"):
-            content = response.get("content", "")
-            sections[section_key] = content
-            results[section_key] = content
-        elif response and response.get("rate_limited"):
+        if result.rate_limited:
             report.sections = sections
             report.save()
             return JsonResponse(
                 {
-                    "error": response["error"],
+                    "error": result.error,
                     "rate_limited": True,
                     "partial_results": results,
                 },
                 status=429,
             )
+        if result.success:
+            sections[section_key] = result.content
+            results[section_key] = result.content
 
     report.sections = sections
     report.save()
@@ -831,6 +796,4 @@ def export_report_pdf(request, report_id):
         return response
     except Exception as e:
         logger.exception(f"PDF export failed: {e}")
-        return JsonResponse(
-            {"error": "PDF export failed. WeasyPrint may not be available."}, status=500
-        )
+        return JsonResponse({"error": "PDF export failed. WeasyPrint may not be available."}, status=500)

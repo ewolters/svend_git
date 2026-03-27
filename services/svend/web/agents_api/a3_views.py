@@ -558,7 +558,7 @@ def auto_populate_a3(request, report_id):
     context = "\n".join(context_parts)
 
     # Use LLM to generate content
-    from .llm_manager import LLMManager
+    from .llm_service import llm_service
 
     section_prompts = {
         "background": "Write a brief Background section explaining why this problem matters. Include business impact.",
@@ -584,27 +584,22 @@ A3 Title: {report.title}
 
 Write a concise response (2-4 sentences) suitable for an A3 report section."""
 
-        response = LLMManager.chat(
-            user=request.user,
-            messages=[{"role": "user", "content": prompt}],
+        result = llm_service.chat(
+            request.user,
+            prompt,
             system="You are helping create an A3 problem-solving report. Be concise and actionable.",
+            context="generation",
             max_tokens=500,
-            temperature=0.7,
         )
 
-        if response and not response.get("rate_limited"):
-            content = response.get("content", "")
-            setattr(report, section, content)
-            results[section] = content
-        elif response and response.get("rate_limited"):
+        if result.rate_limited:
             return JsonResponse(
-                {
-                    "error": response["error"],
-                    "rate_limited": True,
-                    "partial_results": results,
-                },
+                {"error": result.error, "rate_limited": True, "partial_results": results},
                 status=429,
             )
+        if result.success:
+            setattr(report, section, result.content)
+            results[section] = result.content
 
     report.save()
 
@@ -696,22 +691,22 @@ def critique_a3(request, report_id):
 
 Critique these A3 sections. Return as JSON with ratings and feedback per section."""
 
-    from .llm_manager import LLMManager
+    from .llm_service import llm_service
 
-    response = LLMManager.chat(
-        user=request.user,
-        messages=[{"role": "user", "content": prompt}],
+    llm_result = llm_service.chat(
+        request.user,
+        prompt,
         system=A3_CRITIQUE_PROMPT,
+        context="critique",
         max_tokens=800,
-        temperature=0.7,
     )
 
-    if not response:
+    if llm_result.rate_limited:
+        return JsonResponse({"error": llm_result.error, "rate_limited": True}, status=429)
+    if not llm_result.success:
         return JsonResponse({"error": "LLM service not available"}, status=503)
-    if response.get("rate_limited"):
-        return JsonResponse({"error": response["error"], "rate_limited": True}, status=429)
 
-    content = response.get("content", "")
+    content = llm_result.content
 
     # Try to parse structured response
     parsed = None
@@ -723,7 +718,7 @@ Critique these A3 sections. Return as JSON with ratings and feedback per section
     except (json.JSONDecodeError, ValueError):
         pass
 
-    result = {"usage": response.get("usage", {})}
+    result = {}
 
     if parsed:
         result["sections"] = parsed.get("sections", {})

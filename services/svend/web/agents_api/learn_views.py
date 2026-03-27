@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .learn_content import SHARED_DATASET, get_section_content
-from .llm_manager import LLMManager
+from .llm_service import llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -970,14 +970,10 @@ def list_modules(request):
     modules = []
     user_progress = _get_user_progress(request.user)
 
-    for module_id, module in sorted(
-        COURSE_MODULES.items(), key=lambda x: x[1]["order"]
-    ):
+    for module_id, module in sorted(COURSE_MODULES.items(), key=lambda x: x[1]["order"]):
         module_progress = user_progress.get(module_id, {})
         completed_sections = sum(
-            1
-            for s in module["sections"]
-            if module_progress.get(s["id"], {}).get("completed", False)
+            1 for s in module["sections"] if module_progress.get(s["id"], {}).get("completed", False)
         )
 
         modules.append(
@@ -988,9 +984,7 @@ def list_modules(request):
                 "order": module["order"],
                 "section_count": len(module["sections"]),
                 "completed_sections": completed_sections,
-                "progress_pct": round(
-                    completed_sections / len(module["sections"]) * 100
-                ),
+                "progress_pct": round(completed_sections / len(module["sections"]) * 100),
             }
         )
 
@@ -1074,9 +1068,7 @@ def get_section(request, module_id: str, section_id: str):
         response_data["sandbox_config"] = rich_content.get("sandbox_config", {})
         response_data["workflow"] = rich_content.get("workflow", {})
 
-        session = LearnSession.objects.filter(
-            user=request.user, module_id=module_id, section_id=section_id
-        ).first()
+        session = LearnSession.objects.filter(user=request.user, module_id=module_id, section_id=section_id).first()
         if session:
             response_data["active_session"] = {
                 "id": str(session.id),
@@ -1106,9 +1098,7 @@ def get_progress(request):
 
     for module_id, module in COURSE_MODULES.items():
         mp = user_progress.get(module_id, {})
-        completed_in_module = sum(
-            1 for s in module["sections"] if mp.get(s["id"], {}).get("completed", False)
-        )
+        completed_in_module = sum(1 for s in module["sections"] if mp.get(s["id"], {}).get("completed", False))
         completed_sections += completed_in_module
         module_progress[module_id] = {
             "total": len(module["sections"]),
@@ -1116,9 +1106,7 @@ def get_progress(request):
         }
 
     # Check if eligible for assessment
-    eligible_for_assessment = (
-        completed_sections >= total_sections * 0.8
-    )  # 80% completion required
+    eligible_for_assessment = completed_sections >= total_sections * 0.8  # 80% completion required
 
     # Get assessment history
     assessment_data = _get_assessment_data(request.user)
@@ -1166,9 +1154,7 @@ def mark_section_complete(request, module_id: str):
     if rich_content.get("tool_steps") and rich_content.get("workflow"):
         workflow = rich_content["workflow"]
         if workflow.get("completion_requires") == "all_steps":
-            session = LearnSession.objects.filter(
-                user=request.user, module_id=module_id, section_id=section_id
-            ).first()
+            session = LearnSession.objects.filter(user=request.user, module_id=module_id, section_id=section_id).first()
             required = {s["id"] for s in rich_content["tool_steps"]}
             completed = set(session.steps_completed) if session else set()
             remaining = required - completed
@@ -1203,12 +1189,7 @@ def generate_assessment(request):
     # Check eligibility
     progress = _get_user_progress(request.user)
     total_sections = sum(len(m["sections"]) for m in COURSE_MODULES.values())
-    completed = sum(
-        1
-        for mid, mp in progress.items()
-        for sid, sp in mp.items()
-        if sp.get("completed", False)
-    )
+    completed = sum(1 for mid, mp in progress.items() for sid, sp in mp.items() if sp.get("completed", False))
 
     if completed < total_sections * 0.8:
         return JsonResponse(
@@ -1288,9 +1269,7 @@ def submit_assessment(request):
             {
                 "id": i,
                 "question": q["question"],
-                "your_answer": (
-                    q["options"][user_answer] if user_answer is not None else None
-                ),
+                "your_answer": (q["options"][user_answer] if user_answer is not None else None),
                 "correct_answer": q["options"][q["correct_index"]],
                 "is_correct": is_correct,
                 "explanation": q.get("explanation", ""),
@@ -1403,11 +1382,7 @@ def _get_assessment_session(user, assessment_id: str) -> dict | None:
 
 def _record_assessment_attempt(user, score: float, passed: bool):
     """Record score on the most recent pending assessment."""
-    attempt = (
-        AssessmentAttempt.objects.filter(user=user, score__isnull=True)
-        .order_by("-started_at")
-        .first()
-    )
+    attempt = AssessmentAttempt.objects.filter(user=user, score__isnull=True).order_by("-started_at").first()
     if attempt:
         attempt.score = score
         attempt.is_passed = passed
@@ -1459,21 +1434,20 @@ Format as JSON array:
 
 Return ONLY the JSON array, no other text."""
 
-    response = LLMManager.chat(
-        user=user,
-        messages=[{"role": "user", "content": prompt}],
+    result = llm_service.chat(
+        user,
+        prompt,
         system="You are an expert educator creating rigorous assessment questions for a data science certification. Questions should be challenging and test real understanding.",
-        temperature=0.8,  # Some variation for uniqueness
+        context="generation",
+        temperature=0.8,
     )
 
-    if not response:
-        logger.error("Failed to generate assessment questions - no response from LLM")
+    if not result.success:
+        logger.error("Failed to generate assessment questions - LLM error: %s", result.error)
         return None
 
     try:
-        # Parse JSON from response
-        content = response["content"]
-        # Handle potential markdown code blocks
+        content = result.content
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0]
         elif "```" in content:
@@ -1509,11 +1483,7 @@ def _sanitize_session_state(state: dict) -> dict:
             if k == "data" and isinstance(v, (dict, list)):
                 clean[k] = {
                     "_truncated": True,
-                    "row_count": (
-                        len(v)
-                        if isinstance(v, list)
-                        else len(next(iter(v.values()), []))
-                    ),
+                    "row_count": (len(v) if isinstance(v, list) else len(next(iter(v.values()), []))),
                 }
             else:
                 clean[k] = v
@@ -1569,16 +1539,12 @@ def start_session(request):
     # Validate the section exists and has tool_steps
     rich_content = get_section_content(section_id)
     if not rich_content or not rich_content.get("tool_steps"):
-        return JsonResponse(
-            {"error": "Section does not support interactive sessions"}, status=400
-        )
+        return JsonResponse({"error": "Section does not support interactive sessions"}, status=400)
 
     sandbox_config = rich_content.get("sandbox_config", {})
 
     # Resume existing session
-    session = LearnSession.objects.filter(
-        user=request.user, module_id=module_id, section_id=section_id
-    ).first()
+    session = LearnSession.objects.filter(user=request.user, module_id=module_id, section_id=section_id).first()
 
     if session:
         return JsonResponse(
@@ -1603,9 +1569,7 @@ def start_session(request):
             description=f"Sandbox project for learning session: {section_id}",
             tags=["learn-sandbox", module_id, section_id],
         )
-        logger.info(
-            f"Created sandbox project {project.id} for learn session {section_id}"
-        )
+        logger.info(f"Created sandbox project {project.id} for learn session {section_id}")
 
         # Initialize Synara if needed
         if sandbox_config.get("synara_enabled") and project:
@@ -1678,9 +1642,7 @@ def execute_step(request, session_id, step_id):
         if step_idx > 0:
             prev_step_id = tool_steps[step_idx - 1]["id"]
             if prev_step_id not in (session.steps_completed or []):
-                return JsonResponse(
-                    {"error": f"Complete step '{prev_step_id}' first"}, status=400
-                )
+                return JsonResponse({"error": f"Complete step '{prev_step_id}' first"}, status=400)
 
     # Already completed — return cached result
     if step_id in (session.steps_completed or []):
@@ -1723,9 +1685,7 @@ def execute_step(request, session_id, step_id):
     # Merge edits into config
     config = step.get("config", {})
     editable_fields = step.get("editable_fields", [])
-    merged_config = (
-        _merge_edits(config, edits, editable_fields) if editable_fields else config
-    )
+    merged_config = _merge_edits(config, edits, editable_fields) if editable_fields else config
 
     # Apply auto_fill from prior step outputs
     if step.get("auto_fill"):
@@ -1907,15 +1867,10 @@ def _execute_synara_step(session, step, config, user):
         return {
             "type": "evidence_update",
             "posteriors": result.posteriors if hasattr(result, "posteriors") else {},
-            "most_supported": (
-                result.most_supported if hasattr(result, "most_supported") else None
-            ),
-            "most_weakened": (
-                result.most_weakened if hasattr(result, "most_weakened") else None
-            ),
+            "most_supported": (result.most_supported if hasattr(result, "most_supported") else None),
+            "most_weakened": (result.most_weakened if hasattr(result, "most_weakened") else None),
             "all_hypotheses": [
-                {"id": h.id, "description": h.description, "probability": h.prior}
-                for h in synara.get_all_hypotheses()
+                {"id": h.id, "description": h.description, "probability": h.prior} for h in synara.get_all_hypotheses()
             ],
         }
 
@@ -1929,9 +1884,7 @@ def _execute_synara_step(session, step, config, user):
         save_synara(project_id, synara, user=user)
         return {
             "type": "causal_link",
-            "from_id": (
-                link.from_id if hasattr(link, "from_id") else config.get("from_id")
-            ),
+            "from_id": (link.from_id if hasattr(link, "from_id") else config.get("from_id")),
             "to_id": link.to_id if hasattr(link, "to_id") else config.get("to_id"),
             "mechanism": config.get("mechanism", ""),
         }
@@ -1940,15 +1893,8 @@ def _execute_synara_step(session, step, config, user):
         hypotheses = synara.get_all_hypotheses()
         return {
             "type": "synara_state",
-            "hypotheses": [
-                {"id": h.id, "description": h.description, "probability": h.prior}
-                for h in hypotheses
-            ],
-            "most_likely": (
-                synara.get_most_likely_cause().id
-                if synara.get_most_likely_cause()
-                else None
-            ),
+            "hypotheses": [{"id": h.id, "description": h.description, "probability": h.prior} for h in hypotheses],
+            "most_likely": (synara.get_most_likely_cause().id if synara.get_most_likely_cause() else None),
         }
 
     else:
@@ -1973,9 +1919,7 @@ def _execute_experimenter_step(session, step, config, user):
         if test_type in ("ttest_ind", "ttest_paired"):
             pa = analyzer.power_ttest_ind(effect_size, alpha=alpha, power=power)
         elif test_type == "anova":
-            pa = analyzer.power_anova(
-                effect_size, groups=groups, alpha=alpha, power=power
-            )
+            pa = analyzer.power_anova(effect_size, groups=groups, alpha=alpha, power=power)
         elif test_type == "correlation":
             pa = analyzer.power_correlation(effect_size, alpha=alpha, power=power)
         else:
@@ -1985,19 +1929,13 @@ def _execute_experimenter_step(session, step, config, user):
 
         return {
             "type": "power_analysis",
-            "sample_size": (
-                pa.sample_size if hasattr(pa, "sample_size") else pa.get("sample_size")
-            ),
+            "sample_size": (pa.sample_size if hasattr(pa, "sample_size") else pa.get("sample_size")),
             "sample_size_per_group": getattr(pa, "sample_size_per_group", None),
             "effect_size": effect_size,
             "alpha": alpha,
             "power": power,
             "test_type": test_type,
-            "interpretation": (
-                interpretation
-                if isinstance(interpretation, str)
-                else str(interpretation)
-            ),
+            "interpretation": (interpretation if isinstance(interpretation, str) else str(interpretation)),
         }
 
     elif action == "design_experiment":
@@ -2018,13 +1956,9 @@ def _execute_experimenter_step(session, step, config, user):
         design_type = config.get("design_type", "full_factorial")
 
         if design_type == "full_factorial":
-            design = generator.full_factorial(
-                factors, replicates=config.get("replicates", 1)
-            )
+            design = generator.full_factorial(factors, replicates=config.get("replicates", 1))
         elif design_type == "fractional_factorial":
-            design = generator.fractional_factorial(
-                factors, resolution=config.get("resolution", 3)
-            )
+            design = generator.fractional_factorial(factors, resolution=config.get("resolution", 3))
         elif design_type == "ccd":
             design = generator.central_composite(factors)
         elif design_type == "plackett_burman":
@@ -2035,9 +1969,7 @@ def _execute_experimenter_step(session, step, config, user):
         return {
             "type": "doe_design",
             "design_type": design_type,
-            "num_runs": (
-                design.num_runs if hasattr(design, "num_runs") else len(design.runs)
-            ),
+            "num_runs": (design.num_runs if hasattr(design, "num_runs") else len(design.runs)),
             "factors": [{"name": f.name, "levels": f.levels} for f in factors],
             "runs": design.runs if hasattr(design, "runs") else [],
             "markdown": design.to_markdown() if hasattr(design, "to_markdown") else "",
@@ -2126,22 +2058,12 @@ def _execute_forge_step(session, step, config, user):
         "type": "generated_data",
         "data": data,
         "row_count": n_rows,
-        "columns": [
-            {"name": c["name"], "type": c.get("type", "numeric")} for c in columns
-        ],
+        "columns": [{"name": c["name"], "type": c.get("type", "numeric")} for c in columns],
         "preview": preview,
         "summary": {
             col: {
-                "mean": (
-                    round(float(np.mean(data[col])), 4)
-                    if isinstance(data[col][0], (int, float))
-                    else None
-                ),
-                "std": (
-                    round(float(np.std(data[col])), 4)
-                    if isinstance(data[col][0], (int, float))
-                    else None
-                ),
+                "mean": (round(float(np.mean(data[col])), 4) if isinstance(data[col][0], (int, float)) else None),
+                "std": (round(float(np.std(data[col])), 4) if isinstance(data[col][0], (int, float)) else None),
                 "unique": len(set(data[col])),
             }
             for col in data
@@ -2177,9 +2099,7 @@ def _execute_rca_step(session, step, config, user):
         }
 
     elif action == "add_chain_step":
-        rca_id = config.get("rca_id") or _get_from_state(
-            session.state, "rca_session", "id"
-        )
+        rca_id = config.get("rca_id") or _get_from_state(session.state, "rca_session", "id")
         if not rca_id:
             raise ValueError("No RCA session found. Run create_session first.")
 
@@ -2203,9 +2123,7 @@ def _execute_rca_step(session, step, config, user):
         }
 
     elif action == "set_root_cause":
-        rca_id = config.get("rca_id") or _get_from_state(
-            session.state, "rca_session", "id"
-        )
+        rca_id = config.get("rca_id") or _get_from_state(session.state, "rca_session", "id")
         if not rca_id:
             raise ValueError("No RCA session found.")
 
@@ -2406,19 +2324,18 @@ def _execute_guide_step(session, step, config, user):
     # Include session state summary as context
     if session.state:
         data["session_state"] = {
-            k: v.get("type", "unknown") if isinstance(v, dict) else str(v)
-            for k, v in session.state.items()
+            k: v.get("type", "unknown") if isinstance(v, dict) else str(v) for k, v in session.state.items()
         }
 
-    response = LLMManager.chat(
-        user=user,
-        messages=[{"role": "user", "content": message}],
+    result = llm_service.chat(
+        user,
+        message,
         system="You are the Guide agent for a learning session. The student is working through an interactive tutorial and needs guidance. Be concise, supportive, and educational.",
+        context="chat",
         max_tokens=1024,
-        temperature=0.7,
     )
 
-    if not response:
+    if not result.success:
         return {
             "type": "guide_response",
             "response": "Guide is currently unavailable. Please continue with the next step.",
@@ -2426,7 +2343,7 @@ def _execute_guide_step(session, step, config, user):
 
     return {
         "type": "guide_response",
-        "response": response.get("content", ""),
+        "response": result.content,
     }
 
 

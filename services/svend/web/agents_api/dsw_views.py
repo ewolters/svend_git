@@ -130,9 +130,7 @@ def explain_selection(request):
     remaining = df.drop(df.index[valid_idx])
 
     sel_desc = selected.describe(include="all").to_string()
-    rem_desc = (
-        remaining.describe(include="all").to_string() if len(remaining) > 0 else "N/A"
-    )
+    rem_desc = remaining.describe(include="all").to_string() if len(remaining) > 0 else "N/A"
     sel_sample = selected.head(20).to_string()
 
     prompt = (
@@ -148,20 +146,18 @@ def explain_selection(request):
         "Be specific and cite column names and values. 2-3 sentences max."
     )
 
-    try:
-        from .llm_manager import LLMManager
+    from .llm_service import llm_service
 
-        response = LLMManager.chat(
-            user=request.user,
-            messages=[{"role": "user", "content": prompt}],
-            system="You are a data analyst explaining patterns in selected data points. Be concise, specific, and cite evidence from the data.",
-            max_tokens=300,
-            temperature=0.3,
-        )
-        return JsonResponse({"explanation": response})
-    except Exception as e:
-        logger.warning(f"Explain selection LLM call failed: {e}")
+    result = llm_service.chat(
+        request.user,
+        prompt,
+        system="You are a data analyst explaining patterns in selected data points. Be concise, specific, and cite evidence from the data.",
+        context="analysis",
+        max_tokens=300,
+    )
+    if not result.success:
         return JsonResponse({"error": "Explanation service unavailable"}, status=503)
+    return JsonResponse({"explanation": result.content})
 
 
 @require_http_methods(["GET"])
@@ -176,13 +172,9 @@ def hypothesis_timeline(request):
     project_id = request.GET.get("project_id")
     hypothesis_id = request.GET.get("hypothesis_id")
     if not project_id or not hypothesis_id:
-        return JsonResponse(
-            {"error": "Missing project_id or hypothesis_id"}, status=400
-        )
+        return JsonResponse({"error": "Missing project_id or hypothesis_id"}, status=400)
 
-    hypothesis = Hypothesis.objects.filter(
-        id=hypothesis_id, project_id=project_id, project__user=request.user
-    ).first()
+    hypothesis = Hypothesis.objects.filter(id=hypothesis_id, project_id=project_id, project__user=request.user).first()
     if not hypothesis:
         return JsonResponse({"error": "Hypothesis not found"}, status=404)
 
@@ -218,21 +210,15 @@ def hypothesis_timeline(request):
             "hypothesis": {
                 "id": str(hypothesis.id),
                 "statement": (
-                    hypothesis.statement
-                    if hasattr(hypothesis, "statement")
-                    else str(hypothesis.description or "")
+                    hypothesis.statement if hasattr(hypothesis, "statement") else str(hypothesis.description or "")
                 ),
                 "prior": float(hypothesis.prior_probability),
                 "current": float(hypothesis.current_probability),
                 "status": hypothesis.status,
             },
             "timeline": timeline,
-            "confirmation_threshold": float(
-                getattr(hypothesis, "confirmation_threshold", 0.95)
-            ),
-            "rejection_threshold": float(
-                getattr(hypothesis, "rejection_threshold", 0.05)
-            ),
+            "confirmation_threshold": float(getattr(hypothesis, "confirmation_threshold", 0.95)),
+            "rejection_threshold": float(getattr(hypothesis, "rejection_threshold", 0.05)),
         }
     )
 
