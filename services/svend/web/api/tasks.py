@@ -43,11 +43,7 @@ LEARNING_PATH_LABELS = {
 # Email content keyed by email_key. Each returns (subject, body_html) given user + survey.
 def _email_welcome(user, survey):
     name = _esc(user.display_name or user.username)
-    path_label = (
-        LEARNING_PATH_LABELS.get(survey.learning_path, "Getting Started")
-        if survey
-        else "Getting Started"
-    )
+    path_label = LEARNING_PATH_LABELS.get(survey.learning_path, "Getting Started") if survey else "Getting Started"
     return (
         "Welcome to Svend!",
         f"""<h2>Hey {name},</h2>
@@ -252,7 +248,9 @@ def _email_learning_path(user, survey):
 
     items_html = ""
     for title, url, desc in path_data["items"]:
-        items_html += f'<li><a href="https://svend.ai{url}" style="color:#4a9f6e;font-weight:600;">{title}</a> — {desc}</li>\n'
+        items_html += (
+            f'<li><a href="https://svend.ai{url}" style="color:#4a9f6e;font-weight:600;">{title}</a> — {desc}</li>\n'
+        )
 
     return (
         f"{path_data['title']}",
@@ -329,9 +327,7 @@ def send_onboarding_email(payload, context):
         return {"error": "no_email"}
 
     if getattr(user, "is_email_opted_out", False):
-        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(
-            status="skipped"
-        )
+        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(status="skipped")
         return {"skipped": "opted_out"}
 
     # Get survey data
@@ -368,18 +364,12 @@ def send_onboarding_email(payload, context):
             html_message=full_html,
         )
         # Mark as sent
-        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(
-            status="sent", sent_at=timezone.now()
-        )
+        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(status="sent", sent_at=timezone.now())
         logger.info(f"Sent onboarding email '{email_key}' to {user.email}")
         return {"sent": True, "email_key": email_key}
     except Exception as e:
-        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(
-            status="failed"
-        )
-        logger.error(
-            f"Failed to send onboarding email '{email_key}' to {user.email}: {e}"
-        )
+        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(status="failed")
+        logger.error(f"Failed to send onboarding email '{email_key}' to {user.email}: {e}")
         return {"error": str(e)}
 
 
@@ -689,9 +679,9 @@ def process_automations(payload, context):
             )
         elif trigger_type == "query_limit_near":
             threshold_pct = cfg.get("threshold", 80)
-            for user in User.objects.filter(
-                is_active=True, tier="free", is_email_opted_out=False
-            ).exclude(id__in=staff_ids):
+            for user in User.objects.filter(is_active=True, tier="free", is_email_opted_out=False).exclude(
+                id__in=staff_ids
+            ):
                 limit = TIER_LIMITS.get(user.tier, 5)
                 if limit > 0 and user.queries_today >= (limit * threshold_pct / 100):
                     matched.add(user.id)
@@ -847,8 +837,6 @@ def claude_growth_review(payload, context):
     """Weekly Claude-powered growth review. Generates insights and recommendations."""
     import json
 
-    import anthropic
-
     from api.internal_views import _build_data_snapshot
     from api.models import (
         AutomationLog,
@@ -863,9 +851,7 @@ def claude_growth_review(payload, context):
 
     # Experiment results
     exp_data = []
-    for exp in Experiment.objects.filter(status__in=["running", "concluded"]).order_by(
-        "-created_at"
-    )[:10]:
+    for exp in Experiment.objects.filter(status__in=["running", "concluded"]).order_by("-created_at")[:10]:
         exp_data.append(
             {
                 "name": exp.name,
@@ -882,9 +868,7 @@ def claude_growth_review(payload, context):
     rule_stats = []
     for rule in AutomationRule.objects.filter(is_active=True):
         fires = AutomationLog.objects.filter(rule=rule, fired_at__gte=week_ago).count()
-        successes = AutomationLog.objects.filter(
-            rule=rule, fired_at__gte=week_ago, result="success"
-        ).count()
+        successes = AutomationLog.objects.filter(rule=rule, fired_at__gte=week_ago, result="success").count()
         rule_stats.append(
             {
                 "name": rule.name,
@@ -896,9 +880,7 @@ def claude_growth_review(payload, context):
 
     # Email campaign stats
     campaign_stats = []
-    for campaign in EmailCampaign.objects.filter(created_at__gte=week_ago).order_by(
-        "-created_at"
-    )[:10]:
+    for campaign in EmailCampaign.objects.filter(created_at__gte=week_ago).order_by("-created_at")[:10]:
         total = campaign.recipients.count()
         opened = campaign.recipients.filter(opened_at__isnull=False).count()
         clicked = campaign.recipients.filter(clicked_at__isnull=False).count()
@@ -916,9 +898,7 @@ def claude_growth_review(payload, context):
     from api.models import Feedback
 
     feedback_data = []
-    for fb in Feedback.objects.filter(created_at__gte=week_ago).order_by("-created_at")[
-        :20
-    ]:
+    for fb in Feedback.objects.filter(created_at__gte=week_ago).order_by("-created_at")[:20]:
         feedback_data.append(
             {
                 "category": fb.category,
@@ -967,16 +947,20 @@ For rule_tweak recommendations: {"rule_name": "...", "change": "..."}"""
 {json.dumps(prompt_data, indent=2, default=str)}"""
 
     try:
-        from django.conf import settings as django_settings
+        from agents_api.llm_service import llm_service
 
-        client = anthropic.Anthropic(api_key=django_settings.ANTHROPIC_API_KEY)
-        response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=2000,
+        llm_result = llm_service.chat(
+            None,
+            user_prompt,
             system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
+            context="analysis",
+            max_tokens=2000,
+            model_override="claude-sonnet-4-20250514",
+            skip_rate_limit=True,
         )
-        raw = response.content[0].text.strip()
+        if not llm_result.success:
+            raise RuntimeError(llm_result.error)
+        raw = llm_result.content.strip()
         result = json.loads(raw)
     except json.JSONDecodeError:
         logger.error("Claude growth review returned invalid JSON")
@@ -1079,9 +1063,7 @@ def crm_send_one_email(payload, context):
 
     # Tracking pixel
     pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
-    full_html = EMAIL_TEMPLATE.format(
-        body=body_html + pixel, unsub_url="https://svend.ai"
-    )
+    full_html = EMAIL_TEMPLATE.format(body=body_html + pixel, unsub_url="https://svend.ai")
 
     try:
         send_mail(

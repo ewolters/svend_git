@@ -23,12 +23,13 @@ import os
 import subprocess
 import sys
 
-# Add the Django project to the path
+# Add the Django project to the path and chdir so pydantic-settings finds .env
 WEB_DIR = os.path.join(
     os.path.dirname(__file__), "..", "..", "services", "svend", "web"
 )
 WEB_DIR = os.path.normpath(WEB_DIR)
 sys.path.insert(0, WEB_DIR)
+os.chdir(WEB_DIR)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "svend.settings")
 
 # Suppress all Django startup logging

@@ -62,9 +62,7 @@ def upload_data(request):
     MAX_UPLOAD_BYTES = 50 * 1024 * 1024
     if file.size and file.size > MAX_UPLOAD_BYTES:
         return JsonResponse(
-            {
-                "error": f"File too large ({file.size // (1024 * 1024)} MB). Maximum is 50 MB."
-            },
+            {"error": f"File too large ({file.size // (1024 * 1024)} MB). Maximum is 50 MB."},
             status=413,
         )
 
@@ -131,18 +129,14 @@ def upload_data(request):
 
         if df is None:
             return JsonResponse(
-                {
-                    "error": f"Could not parse file. Tried: {'; '.join(parse_errors) or 'all formats'}"
-                },
+                {"error": f"Could not parse file. Tried: {'; '.join(parse_errors) or 'all formats'}"},
                 status=400,
             )
 
         # Save to temp storage for session use
         data_id = f"data_{uuid.uuid4().hex[:12]}"
         try:
-            data_dir = (
-                Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
-            )
+            data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
             data_dir.mkdir(parents=True, exist_ok=True)
             data_path = data_dir / f"{data_id}.csv"
             df.to_csv(data_path, index=False)
@@ -175,9 +169,7 @@ def upload_data(request):
         # Generate preview (first 100 rows)
         preview = df.head(100).replace({np.nan: None}).to_dict(orient="records")
 
-        logger.info(
-            f"Data uploaded: {request.user.username} - {file.name} ({df.shape[0]} rows, {df.shape[1]} cols)"
-        )
+        logger.info(f"Data uploaded: {request.user.username} - {file.name} ({df.shape[0]} rows, {df.shape[1]} cols)")
 
         # Preload LLM in background so it's ready when user asks questions
         _preload_llm_background()
@@ -195,9 +187,7 @@ def upload_data(request):
     except Exception as e:
         logger.exception(f"Data upload error: {e}")
         return JsonResponse(
-            {
-                "error": "Failed to parse uploaded file. Please check the file format and try again."
-            },
+            {"error": "Failed to parse uploaded file. Please check the file format and try again."},
             status=400,
         )
 
@@ -404,9 +394,7 @@ def execute_code(request):
             # Assume it's a plotly figure
             try:
                 fig = namespace["fig"]
-                plots.append(
-                    {"title": "Output", "data": fig.data, "layout": fig.layout}
-                )
+                plots.append({"title": "Output", "data": fig.data, "layout": fig.layout})
             except Exception:
                 pass
 
@@ -419,9 +407,7 @@ def execute_code(request):
 
     except Exception as e:
         logger.exception(f"Code execution error: {e}")
-        return JsonResponse(
-            {"error": "Code execution failed. Please check your inputs."}, status=400
-        )
+        return JsonResponse({"error": "Code execution failed. Please check your inputs."}, status=400)
 
 
 @require_http_methods(["POST"])
@@ -465,18 +451,13 @@ def generate_code(request):
     # Check if using Anthropic models (Enterprise only)
     if model in ("sonnet", "opus", "haiku"):
         # Check enterprise access
-        if (
-            not hasattr(request.user, "subscription")
-            or request.user.subscription.plan != "enterprise"
-        ):
+        if not hasattr(request.user, "subscription") or request.user.subscription.plan != "enterprise":
             return JsonResponse(
                 {"error": "Anthropic models require Enterprise subscription"},
                 status=403,
             )
 
         try:
-            import anthropic
-
             system_prompt = """You are an expert Python code generator for data science and simulation.
 Generate clean, executable Python code based on the user's request.
 
@@ -489,26 +470,23 @@ Rules:
 
 Available libraries: numpy (np), pandas (pd), scipy, matplotlib (plt), random, math, statistics"""
 
-            model_map = {
-                "opus": "claude-opus-4-20250514",
-                "sonnet": "claude-sonnet-4-20250514",
-                "haiku": "claude-3-5-haiku-20241022",
-            }
+            from agents_api.llm_manager import CLAUDE_MODELS
+            from agents_api.llm_service import llm_service
 
-            client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-            response = client.messages.create(
-                model=model_map.get(model, "claude-sonnet-4-20250514"),
-                max_tokens=2048,
+            model_id = CLAUDE_MODELS.get(model, "claude-sonnet-4-20250514")
+
+            result = llm_service.chat(
+                request.user,
+                f"{context_prefix}<request>{prompt}</request>",
                 system=system_prompt,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": f"{context_prefix}<request>{prompt}</request>",
-                    }
-                ],
+                context="generation",
+                max_tokens=2048,
+                model_override=model_id,
             )
+            if not result.success:
+                return JsonResponse({"error": result.error}, status=500)
 
-            code = response.content[0].text
+            code = result.content
 
             # Extract code from markdown if present
             import re
@@ -526,9 +504,7 @@ Available libraries: numpy (np), pandas (pd), scipy, matplotlib (plt), random, m
 
         except Exception as e:
             logger.exception(f"Anthropic code generation error: {e}")
-            return JsonResponse(
-                {"error": "Code generation failed. Please try again."}, status=500
-            )
+            return JsonResponse({"error": "Code generation failed. Please try again."}, status=500)
 
     # Default: Use Qwen Coder
     code_prompt = f"""{context_prefix}<request>{prompt}</request>
@@ -554,9 +530,7 @@ import pandas as pd
 
 # Qwen Coder is loading, please try again in a moment
 """
-            return JsonResponse(
-                {"code": code, "note": "Qwen Coder is loading, try again shortly"}
-            )
+            return JsonResponse({"code": code, "note": "Qwen Coder is loading, try again shortly"})
 
         # Generate code with Qwen
         code = llm.generate(code_prompt, max_tokens=1024, temperature=0.2)
@@ -623,11 +597,7 @@ def analyst_assistant(request):
                 import pandas as pd
 
                 if data_id and _validate_data_id(data_id):
-                    data_dir = (
-                        Path(settings.MEDIA_ROOT)
-                        / "analysis_data"
-                        / str(request.user.id)
-                    )
+                    data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                     data_path = data_dir / f"{data_id}.csv"
                     if data_path.exists():
                         df = _read_csv_safe(data_path)
@@ -640,9 +610,7 @@ def analyst_assistant(request):
                     from ..models import TriageResult
 
                     try:
-                        triage_result = TriageResult.objects.get(
-                            id=data_id, user=request.user
-                        )
+                        triage_result = TriageResult.objects.get(id=data_id, user=request.user)
                         df = pd.read_csv(StringIO(triage_result.cleaned_csv))
                     except Exception:
                         pass
@@ -674,9 +642,7 @@ def analyst_assistant(request):
                 # Check if LLM is already loaded - don't block on first load
                 if agent_views._shared_llm_loaded:
                     llm = agent_views._shared_llm
-                    logger.info(
-                        f"LLM already loaded: type={type(llm).__name__ if llm else 'None'}"
-                    )
+                    logger.info(f"LLM already loaded: type={type(llm).__name__ if llm else 'None'}")
                 else:
                     # LLM not loaded yet - trigger background loading
                     llm_loading = True
@@ -701,28 +667,22 @@ def analyst_assistant(request):
         # Handle different agent types
         if agent_type == "researcher":
             # Researcher agent: web search for domain knowledge
-            response, sources = generate_researcher_response(
-                message, df, columns, data_preview
-            )
+            response, sources = generate_researcher_response(message, df, columns, data_preview)
             log_agent_action(request.user, "researcher", "research", success=True)
             return JsonResponse({"response": response, "sources": sources})
 
         elif agent_type == "writer":
             # Writer agent: generate downloadable documents
-            response, document, filename = generate_writer_response(
-                message, df, columns, session_history
-            )
+            response, document, filename = generate_writer_response(message, df, columns, session_history)
             log_agent_action(request.user, "writer", "write", success=True)
-            return JsonResponse(
-                {"response": response, "document": document, "filename": filename}
-            )
+            return JsonResponse({"response": response, "document": document, "filename": filename})
 
         # Default: Analyst agent
         # Check for enterprise model selection (Opus/Sonnet/Haiku)
         if selected_model in ("opus", "sonnet", "haiku"):
             try:
                 response = generate_anthropic_response(
-                    selected_model, message, df, columns, session_history
+                    selected_model, message, df, columns, session_history, user=request.user
                 )
                 log_agent_action(request.user, "analyst", "question", success=True)
                 return JsonResponse({"response": response, "model": selected_model})
@@ -735,19 +695,14 @@ def analyst_assistant(request):
             # LLM is loading in background - provide helpful response with keyword fallback
             logger.info("LLM loading in background, using enhanced fallback")
             response = generate_analyst_response(message.lower(), df, columns)
-            response = (
-                "*(Qwen LLM is loading in the background - using quick response mode)*\n\n"
-                + response
-            )
+            response = "*(Qwen LLM is loading in the background - using quick response mode)*\n\n" + response
         elif llm is None:
             logger.info("Using keyword-based fallback response")
             response = generate_analyst_response(message.lower(), df, columns)
         else:
             logger.info(f"Using LLM for response, message: {message[:50]}...")
             try:
-                response = generate_llm_response(
-                    llm, message, df, columns, session_history
-                )
+                response = generate_llm_response(llm, message, df, columns, session_history)
             except Exception as e:
                 logger.error(f"LLM generation failed: {e}")
                 import traceback
@@ -763,16 +718,11 @@ def analyst_assistant(request):
         return JsonResponse({"response": f"Error: {str(e)}"})
 
 
-def generate_anthropic_response(model, message, df, columns, session_history=None):
+def generate_anthropic_response(model, message, df, columns, session_history=None, user=None):
     """Generate analyst response using Anthropic API (Opus/Sonnet/Haiku)."""
-    import anthropic
     import numpy as np
 
-    model_map = {
-        "opus": "claude-opus-4-20250514",
-        "sonnet": "claude-sonnet-4-20250514",
-        "haiku": "claude-3-5-haiku-20241022",
-    }
+    from agents_api.llm_manager import CLAUDE_MODELS
 
     # Build data context
     if df is None:
@@ -800,16 +750,20 @@ Current data context:
 
 Be concise but thorough. Use markdown formatting for clarity."""
 
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    from agents_api.llm_service import llm_service
 
-    response = client.messages.create(
-        model=model_map.get(model, "claude-sonnet-4-20250514"),
-        max_tokens=2048,
+    model_id = CLAUDE_MODELS.get(model, "claude-sonnet-4-20250514")
+    result = llm_service.chat(
+        user,
+        message,
         system=system_prompt,
-        messages=[{"role": "user", "content": message}],
+        context="analysis",
+        max_tokens=2048,
+        model_override=model_id,
+        skip_rate_limit=user is None,
     )
 
-    return response.content[0].text
+    return result.content if result.success else f"Error: {result.error}"
 
 
 def generate_llm_response(llm, message, df, columns, session_history=None):
@@ -840,15 +794,9 @@ def generate_llm_response(llm, message, df, columns, session_history=None):
             if corr_pairs:
                 corr_info = "\n\nNOTABLE CORRELATIONS:\n"
                 for col1, col2, r in corr_pairs[:10]:
-                    strength = (
-                        "strong"
-                        if abs(r) > 0.7
-                        else "moderate" if abs(r) > 0.5 else "weak"
-                    )
+                    strength = "strong" if abs(r) > 0.7 else "moderate" if abs(r) > 0.5 else "weak"
                     direction = "positive" if r > 0 else "negative"
-                    corr_info += (
-                        f"- {col1} ↔ {col2}: r={r:.3f} ({strength} {direction})\n"
-                    )
+                    corr_info += f"- {col1} ↔ {col2}: r={r:.3f} ({strength} {direction})\n"
         except Exception:
             pass
 
@@ -870,7 +818,9 @@ Sample data (first 3 rows):
     if session_history:
         session_context = "\n\nSESSION HISTORY (analyses run this session):\n"
         for item in session_history[-10:]:
-            session_context += f"- {item.get('type', 'unknown')}: {item.get('name', '')} - {item.get('summary', '')[:200]}\n"
+            session_context += (
+                f"- {item.get('type', 'unknown')}: {item.get('name', '')} - {item.get('summary', '')[:200]}\n"
+            )
 
     # Build prompt - lab assistant persona
     prompt = f"""You are a lab assistant helping a scientist analyze their data. You're knowledgeable, helpful, and speak like a colleague - not a generic chatbot.
@@ -900,9 +850,7 @@ Respond as a helpful lab assistant. Be specific to this data. If they ask about 
 
         # Use a thread with timeout to prevent hanging
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(
-                llm.generate, prompt, max_tokens=500, temperature=0.7
-            )
+            future = executor.submit(llm.generate, prompt, max_tokens=500, temperature=0.7)
             try:
                 response = future.result(timeout=30)  # 30 second timeout
                 return response
@@ -931,35 +879,24 @@ def generate_analyst_response(message, df, columns):
     cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
 
     # Keywords for different intents
-    if any(
-        w in message
-        for w in ["describe", "summary", "overview", "tell me about", "what is"]
-    ):
+    if any(w in message for w in ["describe", "summary", "overview", "tell me about", "what is"]):
         summary = f"Your dataset has {n_rows:,} rows and {n_cols} columns.\n\n"
-        summary += (
-            f"**Numeric columns ({len(numeric_cols)}):** {', '.join(numeric_cols[:5])}"
-        )
+        summary += f"**Numeric columns ({len(numeric_cols)}):** {', '.join(numeric_cols[:5])}"
         if len(numeric_cols) > 5:
             summary += f" (+{len(numeric_cols) - 5} more)"
-        summary += (
-            f"\n\n**Categorical columns ({len(cat_cols)}):** {', '.join(cat_cols[:5])}"
-        )
+        summary += f"\n\n**Categorical columns ({len(cat_cols)}):** {', '.join(cat_cols[:5])}"
         if len(cat_cols) > 5:
             summary += f" (+{len(cat_cols) - 5} more)"
 
         if numeric_cols:
             summary += "\n\n**Quick stats for numeric columns:**\n"
             for col in numeric_cols[:3]:
-                summary += (
-                    f"- {col}: mean={df[col].mean():.2f}, std={df[col].std():.2f}\n"
-                )
+                summary += f"- {col}: mean={df[col].mean():.2f}, std={df[col].std():.2f}\n"
 
         summary += "\n\nUse **Stat > Descriptive Statistics** for detailed analysis."
         return summary
 
-    if any(
-        w in message for w in ["correlation", "relationship", "related", "correlated"]
-    ):
+    if any(w in message for w in ["correlation", "relationship", "related", "correlated"]):
         if len(numeric_cols) < 2:
             return "You need at least 2 numeric columns to analyze correlations."
 
@@ -975,22 +912,14 @@ def generate_analyst_response(message, df, columns):
         response = "**Correlation Analysis:**\n\n"
         response += "Strongest relationships:\n"
         for col1, col2, corr in pairs[:5]:
-            strength = (
-                "strong"
-                if abs(corr) > 0.7
-                else "moderate" if abs(corr) > 0.4 else "weak"
-            )
+            strength = "strong" if abs(corr) > 0.7 else "moderate" if abs(corr) > 0.4 else "weak"
             direction = "positive" if corr > 0 else "negative"
             response += f"- {col1} & {col2}: r={corr:.3f} ({strength} {direction})\n"
 
-        response += (
-            "\n\nTo visualize, use **Graph > Scatterplot** with these variable pairs."
-        )
+        response += "\n\nTo visualize, use **Graph > Scatterplot** with these variable pairs."
         return response
 
-    if any(
-        w in message for w in ["predict", "forecast", "ml", "machine learning", "model"]
-    ):
+    if any(w in message for w in ["predict", "forecast", "ml", "machine learning", "model"]):
         response = "**ML Recommendations:**\n\n"
 
         if cat_cols:
@@ -1036,9 +965,7 @@ def generate_analyst_response(message, df, columns):
             for col, count in missing.head(10).items():
                 response += f"- **{col}**: {count} ({count / len(df) * 100:.1f}%)\n"
 
-            response += (
-                "\n\nUse **Triage** to handle missing values (imputation, removal)."
-            )
+            response += "\n\nUse **Triage** to handle missing values (imputation, removal)."
         return response
 
     if any(w in message for w in ["compare", "difference", "group", "between"]):
@@ -1061,11 +988,7 @@ def generate_analyst_response(message, df, columns):
         response = "**Distribution Analysis:**\n\n"
         for col in numeric_cols[:3]:
             skew = df[col].skew()
-            skew_desc = (
-                "right-skewed"
-                if skew > 0.5
-                else "left-skewed" if skew < -0.5 else "approximately symmetric"
-            )
+            skew_desc = "right-skewed" if skew > 0.5 else "left-skewed" if skew < -0.5 else "approximately symmetric"
             response += f"- **{col}**: {skew_desc} (skewness={skew:.2f})\n"
 
         response += "\n\n**To visualize:**\n"
@@ -1074,9 +997,7 @@ def generate_analyst_response(message, df, columns):
         return response
 
     # Default response
-    response = (
-        f"I can help you analyze your dataset ({n_rows:,} rows, {n_cols} columns).\n\n"
-    )
+    response = f"I can help you analyze your dataset ({n_rows:,} rows, {n_cols} columns).\n\n"
     response += "**Try asking about:**\n"
     response += '- "Describe my data" - Get an overview\n'
     response += '- "Find correlations" - Discover relationships\n'
@@ -1098,9 +1019,7 @@ def generate_researcher_response(message, df, columns, data_preview):
     # Build context about the data for better search
     data_context = ""
     if df is not None:
-        data_context = (
-            f"Dataset has {len(df)} rows with columns: {', '.join(columns[:10])}"
-        )
+        data_context = f"Dataset has {len(df)} rows with columns: {', '.join(columns[:10])}"
         if data_preview:
             sample_vals = []
             for col in columns[:5]:
@@ -1146,9 +1065,7 @@ def generate_researcher_response(message, df, columns, data_preview):
         "water",
         "samples",
     }
-    technical_terms = [
-        t.lower() for t in technical_terms if t.lower() not in common_words
-    ]
+    technical_terms = [t.lower() for t in technical_terms if t.lower() not in common_words]
 
     sources = []
     search_results = []
@@ -1170,9 +1087,7 @@ def generate_researcher_response(message, df, columns, data_preview):
                 f'"{technical_terms[0]}" "{technical_terms[1]}" correlation co-occurrence site:epa.gov OR site:pubmed OR site:ncbi.nlm.nih.gov'
             )
             searches.append(f"{term_combo} water contamination research")
-            searches.append(
-                f'"{technical_terms[0]}" "{technical_terms[1]}" drinking water study'
-            )
+            searches.append(f'"{technical_terms[0]}" "{technical_terms[1]}" drinking water study')
         else:
             # Fallback to cleaned query
             searches.append(f"{query_clean} EPA research")
@@ -1193,9 +1108,7 @@ def generate_researcher_response(message, df, columns, data_preview):
                                 "url": url,
                             }
                         )
-                        sources.append(
-                            {"title": r.get("title", "Source")[:60], "url": url}
-                        )
+                        sources.append({"title": r.get("title", "Source")[:60], "url": url})
             except Exception as e:
                 logger.warning(f"Search query failed: {e}")
                 continue
@@ -1211,9 +1124,7 @@ def generate_researcher_response(message, df, columns, data_preview):
 
             # Use DuckDuckGo HTML search
             search_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query_clean + ' scientific')}"
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            }
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
             resp = requests.get(search_url, headers=headers, timeout=15)
 
             if resp.status_code == 200:
@@ -1228,9 +1139,7 @@ def generate_researcher_response(message, df, columns, data_preview):
                         snippet = snippet_el.get_text(strip=True)
                         url = link_el.get("href", "") if link_el else ""
 
-                        search_results.append(
-                            {"title": title, "snippet": snippet, "url": url}
-                        )
+                        search_results.append({"title": title, "snippet": snippet, "url": url})
                         if url:
                             sources.append({"title": title[:60], "url": url})
 
@@ -1255,11 +1164,7 @@ def generate_researcher_response(message, df, columns, data_preview):
         if llm:
             # Build context for LLM synthesis
             search_context = "\n\n".join(
-                [
-                    f"Source: {r['title']}\n{r['snippet']}"
-                    for r in search_results[:5]
-                    if r.get("snippet")
-                ]
+                [f"Source: {r['title']}\n{r['snippet']}" for r in search_results[:5] if r.get("snippet")]
             )
 
             synthesis_prompt = f"""You are a research assistant helping analyze data. The user asked: "{message}"
@@ -1282,9 +1187,7 @@ Keep response under 250 words. Be specific and scientific, not generic."""
                 import concurrent.futures
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(
-                        llm.generate, synthesis_prompt, max_tokens=400, temperature=0.7
-                    )
+                    future = executor.submit(llm.generate, synthesis_prompt, max_tokens=400, temperature=0.7)
                     synthesized = future.result(timeout=30)
 
                 response = f"**Research Analysis:** *{message}*\n\n"
@@ -1294,9 +1197,7 @@ Keep response under 250 words. Be specific and scientific, not generic."""
                     response += "**Sources:**\n"
                     for src in sources[:5]:
                         if src.get("url"):
-                            response += (
-                                f"- [{src.get('title', 'Link')[:50]}]({src['url']})\n"
-                            )
+                            response += f"- [{src.get('title', 'Link')[:50]}]({src['url']})\n"
 
                 return response, sources
 
@@ -1324,9 +1225,7 @@ Keep response under 250 words. Be specific and scientific, not generic."""
         response = f"I searched for information about *{message}* but didn't find specific results.\n\n"
         response += "**Suggestions:**\n"
         response += "- Try rephrasing your question with more specific terms\n"
-        response += (
-            "- Ask about specific chemicals, processes, or scientific concepts\n"
-        )
+        response += "- Ask about specific chemicals, processes, or scientific concepts\n"
         response += "- Use the Analyst agent for data-specific questions\n"
 
         if data_context:
@@ -1362,10 +1261,7 @@ def generate_writer_response(message, df, columns, session_history):
     history_text = ""
     if session_history:
         history_text = "\n".join(
-            [
-                f"- {item.get('name', 'Analysis')}: {item.get('summary', '')[:150]}"
-                for item in session_history[-10:]
-            ]
+            [f"- {item.get('name', 'Analysis')}: {item.get('summary', '')[:150]}" for item in session_history[-10:]]
         )
 
     # Try to use LLM for intelligent document generation
@@ -1405,9 +1301,7 @@ Keep it concise but informative (under 500 words)."""
             import concurrent.futures
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(
-                    llm.generate, writer_prompt, max_tokens=800, temperature=0.7
-                )
+                future = executor.submit(llm.generate, writer_prompt, max_tokens=800, temperature=0.7)
                 llm_content = future.result(timeout=45)
 
             document = "# Analysis Report\n\n"
@@ -1459,7 +1353,9 @@ Keep it concise but informative (under 500 words)."""
         document += "|----------|------|---------|-----|-----|\n"
         for col in numeric_cols[:10]:
             stats = df[col].describe()
-            document += f"| {col} | {stats['mean']:.2f} | {stats['std']:.2f} | {stats['min']:.2f} | {stats['max']:.2f} |\n"
+            document += (
+                f"| {col} | {stats['mean']:.2f} | {stats['std']:.2f} | {stats['min']:.2f} | {stats['max']:.2f} |\n"
+            )
 
     if session_history:
         document += "\n## Analyses Performed\n\n"
@@ -1511,9 +1407,7 @@ def transform_data(request):
 
         if data_id and _validate_data_id(data_id):
             try:
-                data_dir = (
-                    Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
-                )
+                data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"
                 if data_path.exists():
                     df = _read_csv_safe(data_path)
@@ -1550,20 +1444,14 @@ def transform_data(request):
             expression = config.get("expression", "").strip()
 
             if not new_col or not expression:
-                return JsonResponse(
-                    {"error": "Column name and expression required"}, status=400
-                )
+                return JsonResponse({"error": "Column name and expression required"}, status=400)
 
             # Safe evaluation using pandas.eval (no arbitrary code execution)
             try:
-                result_df[new_col] = pd.eval(
-                    expression, local_dict={"df": df}, engine="numexpr"
-                )
+                result_df[new_col] = pd.eval(expression, local_dict={"df": df}, engine="numexpr")
                 message = f"Created column '{new_col}'"
             except Exception as e:
-                return JsonResponse(
-                    {"error": f"Expression error: {str(e)}"}, status=400
-                )
+                return JsonResponse({"error": f"Expression error: {str(e)}"}, status=400)
 
         elif tool == "subset":
             filter_col = config.get("filter_col")
@@ -1595,11 +1483,7 @@ def transform_data(request):
                 elif condition == "lte":
                     result_df = df[df[filter_col] <= filter_value]
                 elif condition == "contains":
-                    result_df = df[
-                        df[filter_col]
-                        .astype(str)
-                        .str.contains(str(filter_value), na=False)
-                    ]
+                    result_df = df[df[filter_col].astype(str).str.contains(str(filter_value), na=False)]
 
             message = f"Filtered to {len(result_df)} rows where {filter_col} {condition} {filter_value}"
 
@@ -1607,17 +1491,13 @@ def transform_data(request):
             sort_col = config.get("sort_col")
             order = config.get("order", "asc")
 
-            result_df = df.sort_values(
-                by=sort_col, ascending=(order == "asc")
-            ).reset_index(drop=True)
+            result_df = df.sort_values(by=sort_col, ascending=(order == "asc")).reset_index(drop=True)
             message = f"Sorted by {sort_col} ({order}ending)"
 
         elif tool == "transpose":
             result_df = df.set_index(df.columns[0]).T.reset_index()
             result_df.columns = ["Variable"] + list(result_df.columns[1:])
-            message = (
-                f"Transposed: {len(result_df)} rows × {len(result_df.columns)} columns"
-            )
+            message = f"Transposed: {len(result_df)} rows × {len(result_df.columns)} columns"
 
         elif tool == "stack":
             operation = config.get("operation", "melt")
@@ -1635,9 +1515,7 @@ def transform_data(request):
                 pivot_col = config.get("pivot_col")
                 values_col = config.get("values")
 
-                result_df = df.pivot(
-                    index=index_col, columns=pivot_col, values=values_col
-                ).reset_index()
+                result_df = df.pivot(index=index_col, columns=pivot_col, values=values_col).reset_index()
                 result_df.columns.name = None
                 message = f"Pivoted to {len(result_df)} rows × {len(result_df.columns)} columns"
 
@@ -1651,9 +1529,7 @@ def transform_data(request):
             columns = [c for c in columns if c in df.columns]
 
             if method == "onehot":
-                result_df = pd.get_dummies(
-                    result_df, columns=columns, drop_first=drop_first, dtype=int
-                )
+                result_df = pd.get_dummies(result_df, columns=columns, drop_first=drop_first, dtype=int)
                 n_new = len(result_df.columns) - len(df.columns)
                 message = f"One-hot encoded {len(columns)} column(s) → {n_new} new dummy columns"
             elif method == "label":
@@ -1664,9 +1540,7 @@ def transform_data(request):
                     result_df[col] = result_df[col].astype(str).map(mapping)
                 message = f"Label encoded {len(columns)} column(s)"
             else:
-                return JsonResponse(
-                    {"error": f"Unknown encoding method: {method}"}, status=400
-                )
+                return JsonResponse({"error": f"Unknown encoding method: {method}"}, status=400)
 
         elif tool == "scale":
             columns = config.get("columns", [])
@@ -1674,11 +1548,7 @@ def transform_data(request):
 
             if not columns:
                 return JsonResponse({"error": "Select columns to scale"}, status=400)
-            columns = [
-                c
-                for c in columns
-                if c in df.columns and pd.api.types.is_numeric_dtype(df[c])
-            ]
+            columns = [c for c in columns if c in df.columns and pd.api.types.is_numeric_dtype(df[c])]
 
             for col in columns:
                 vals = result_df[col]
@@ -1693,18 +1563,14 @@ def transform_data(request):
                     iqr = q3 - q1
                     result_df[col] = (vals - vals.median()) / iqr if iqr > 0 else 0
                 else:
-                    return JsonResponse(
-                        {"error": f"Unknown scaling method: {method}"}, status=400
-                    )
+                    return JsonResponse({"error": f"Unknown scaling method: {method}"}, status=400)
 
             method_names = {
                 "zscore": "Z-score",
                 "minmax": "Min-Max [0,1]",
                 "robust": "Robust (IQR)",
             }
-            message = (
-                f"{method_names.get(method, method)} scaled {len(columns)} column(s)"
-            )
+            message = f"{method_names.get(method, method)} scaled {len(columns)} column(s)"
 
         elif tool == "bin":
             column = config.get("column", "")
@@ -1714,16 +1580,12 @@ def transform_data(request):
             labels = config.get("labels", [])
 
             if not column or column not in df.columns:
-                return JsonResponse(
-                    {"error": "Select a valid column to bin"}, status=400
-                )
+                return JsonResponse({"error": "Select a valid column to bin"}, status=400)
 
             new_col = f"{column}_binned"
             try:
                 if method == "equal_width":
-                    result_df[new_col] = pd.cut(
-                        result_df[column], bins=n_bins, labels=labels or False
-                    )
+                    result_df[new_col] = pd.cut(result_df[column], bins=n_bins, labels=labels or False)
                 elif method == "equal_frequency":
                     result_df[new_col] = pd.qcut(
                         result_df[column],
@@ -1733,9 +1595,7 @@ def transform_data(request):
                     )
                 elif method == "custom":
                     if len(custom_bins) < 2:
-                        return JsonResponse(
-                            {"error": "Provide at least 2 breakpoints"}, status=400
-                        )
+                        return JsonResponse({"error": "Provide at least 2 breakpoints"}, status=400)
                     result_df[new_col] = pd.cut(
                         result_df[column],
                         bins=custom_bins,
@@ -1743,9 +1603,7 @@ def transform_data(request):
                         include_lowest=True,
                     )
                 else:
-                    return JsonResponse(
-                        {"error": f"Unknown binning method: {method}"}, status=400
-                    )
+                    return JsonResponse({"error": f"Unknown binning method: {method}"}, status=400)
 
                 result_df[new_col] = result_df[new_col].astype(str)
                 message = f"Binned {column} into '{new_col}' ({method}, {n_bins if method != 'custom' else len(custom_bins) - 1} bins)"
@@ -1758,9 +1616,7 @@ def transform_data(request):
         # Save transformed data
         new_data_id = f"data_{uuid.uuid4().hex[:12]}"
         try:
-            data_dir = (
-                Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
-            )
+            data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
             data_dir.mkdir(parents=True, exist_ok=True)
             data_path = data_dir / f"{new_data_id}.csv"
             result_df.to_csv(data_path, index=False)
@@ -1824,9 +1680,7 @@ def download_data(request):
 
         if data_id and _validate_data_id(data_id):
             try:
-                data_dir = (
-                    Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
-                )
+                data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"
                 if data_path.exists():
                     df = _read_csv_safe(data_path)
@@ -1895,9 +1749,7 @@ def triage_data(request):
 
         if data_id and _validate_data_id(data_id):
             try:
-                data_dir = (
-                    Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
-                )
+                data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"
                 if data_path.exists():
                     df = _read_csv_safe(data_path)
@@ -1973,29 +1825,19 @@ def triage_data(request):
             for col in df_clean.columns:
                 if df_clean[col].dtype == object:
                     try:
-                        converted = pd.to_numeric(
-                            df_clean[col].str.replace(",", ""), errors="coerce"
-                        )
+                        converted = pd.to_numeric(df_clean[col].str.replace(",", ""), errors="coerce")
                         non_null_original = df_clean[col].notna().sum()
                         non_null_converted = converted.notna().sum()
                         # Only convert if no values are lost (coerce didn't create new NaNs)
-                        if (
-                            non_null_original > 0
-                            and non_null_converted == non_null_original
-                        ):
+                        if non_null_original > 0 and non_null_converted == non_null_original:
                             df_clean[col] = converted
                             changes["types_converted"] += 1
-                        elif (
-                            non_null_original > 0
-                            and non_null_converted / non_null_original > 0.95
-                        ):
+                        elif non_null_original > 0 and non_null_converted / non_null_original > 0.95:
                             # >95% converted — apply but warn about lost values
                             lost = int(non_null_original - non_null_converted)
                             df_clean[col] = converted
                             changes["types_converted"] += 1
-                            warnings.append(
-                                f"Type conversion: '{col}' — {lost} non-numeric values became empty"
-                            )
+                            warnings.append(f"Type conversion: '{col}' — {lost} non-numeric values became empty")
                     except Exception:
                         pass
 
@@ -2009,9 +1851,7 @@ def triage_data(request):
                     rows_to_drop = row_missing_pct[row_missing_pct > 0.8].index
                     if len(rows_to_drop) > 0:
                         changes["missing_dropped"] = len(rows_to_drop)
-                        warnings.append(
-                            f"Dropped {len(rows_to_drop)} rows with >80% missing values"
-                        )
+                        warnings.append(f"Dropped {len(rows_to_drop)} rows with >80% missing values")
                         df_clean = df_clean.drop(rows_to_drop)
 
                     # Impute remaining missing values instead of dropping their rows
@@ -2027,9 +1867,7 @@ def triage_data(request):
                             else:
                                 mode_val = df_clean[col].mode()
                                 if len(mode_val) > 0:
-                                    df_clean[col] = df_clean[col].fillna(
-                                        mode_val.iloc[0]
-                                    )
+                                    df_clean[col] = df_clean[col].fillna(mode_val.iloc[0])
                             changes["missing_filled"] += missing_count
             elif missing_action in ["impute_mean", "impute_median"]:
                 for col in df_clean.columns:
@@ -2077,9 +1915,7 @@ def triage_data(request):
                         elif outlier_action == "remove":
                             df_clean = df_clean[~outlier_mask]
                             changes["outliers_removed"] += outlier_count
-                            warnings.append(
-                                f"Removed {outlier_count} outlier rows from '{col}'"
-                            )
+                            warnings.append(f"Removed {outlier_count} outlier rows from '{col}'")
                         elif outlier_action == "clip":
                             df_clean[col] = df_clean[col].clip(lower=lower, upper=upper)
                             changes["outliers_clipped"] += outlier_count
@@ -2182,9 +2018,7 @@ def triage_scan(request):
 
         if data_id and _validate_data_id(data_id):
             try:
-                data_dir = (
-                    Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
-                )
+                data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"
                 if data_path.exists():
                     df = _read_csv_safe(data_path)

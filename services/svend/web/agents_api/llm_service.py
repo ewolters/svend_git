@@ -73,12 +73,20 @@ class LLMService:
         max_tokens: int = 4096,
         temperature: float | None = None,
         messages: list[dict] | None = None,
+        model_override: str | None = None,
+        skip_rate_limit: bool = False,
     ) -> LLMResult:
         """Single LLM call. Returns LLMResult (never None).
 
         If ``messages`` is provided, uses it directly (multi-turn).
         Otherwise, wraps ``prompt`` as a single user message.
         Temperature defaults based on context if not explicitly set.
+
+        Args:
+            model_override: Force a specific model ID (bypasses tier selection).
+                Use for internal/staff endpoints that need a specific model.
+            skip_rate_limit: Skip rate limit check. Use for system/scheduled
+                tasks and internal endpoints only.
         """
         # Resolve temperature
         if temperature is None:
@@ -91,7 +99,7 @@ class LLMService:
             msg_list = [{"role": "user", "content": prompt}]
 
         # Determine model (for result reporting on failure)
-        model = self.get_model_for_user(user)
+        model = model_override or self.get_model_for_user(user)
 
         try:
             raw = LLMManager.chat(
@@ -100,6 +108,8 @@ class LLMService:
                 system=system,
                 max_tokens=max_tokens,
                 temperature=temperature,
+                skip_rate_limit=skip_rate_limit,
+                model=model_override,
             )
         except Exception as exc:
             logger.exception("LLMManager.chat() raised unexpectedly")

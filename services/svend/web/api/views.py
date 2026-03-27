@@ -68,13 +68,9 @@ class EnterpriseModelResult:
         self.inference_time_ms = inference_time_ms
 
 
-def call_enterprise_model(
-    query: str, model: str, conversation
-) -> EnterpriseModelResult:
+def call_enterprise_model(query: str, model: str, conversation) -> EnterpriseModelResult:
     """Call a specific model for enterprise users."""
     import time
-
-    from django.conf import settings
 
     start = time.time()
 
@@ -94,34 +90,30 @@ def call_enterprise_model(
     if model == "qwen":
         # Use local Qwen via cognition pipeline
         result = process_query(query, mode="auto")
-        return EnterpriseModelResult(
-            response=result.response, inference_time_ms=int(result.inference_time_ms)
-        )
+        return EnterpriseModelResult(response=result.response, inference_time_ms=int(result.inference_time_ms))
 
-    # Call Anthropic API
-    try:
-        import anthropic
+    # Call via centralized LLMService
+    from agents_api.llm_service import llm_service
 
-        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-
-        response = client.messages.create(
-            model=ENTERPRISE_MODELS.get(model, "claude-sonnet-4-20250514"),
-            max_tokens=4096,
-            system="You are SVEND, a helpful AI assistant specializing in reasoning, problem-solving, and data analysis.",
-            messages=messages,
-        )
-
+    model_id = ENTERPRISE_MODELS.get(model, "claude-sonnet-4-20250514")
+    if model_id == "qwen":
+        # Should not reach here (handled above), but guard anyway
         time_ms = int((time.time() - start) * 1000)
-        return EnterpriseModelResult(
-            response=response.content[0].text, inference_time_ms=time_ms
-        )
+        return EnterpriseModelResult(response="Qwen model unavailable", inference_time_ms=time_ms)
 
-    except Exception as e:
-        logger.error(f"Enterprise model call failed: {e}")
-        time_ms = int((time.time() - start) * 1000)
-        return EnterpriseModelResult(
-            response=f"Model call failed: {str(e)}", inference_time_ms=time_ms
-        )
+    result = llm_service.chat(
+        None,  # No user object needed — enterprise model selection is explicit
+        system="You are SVEND, a helpful AI assistant specializing in reasoning, problem-solving, and data analysis.",
+        messages=messages,
+        model_override=model_id,
+        skip_rate_limit=True,
+    )
+
+    time_ms = int((time.time() - start) * 1000)
+    if result.success:
+        return EnterpriseModelResult(response=result.content, inference_time_ms=time_ms)
+    else:
+        return EnterpriseModelResult(response=f"Model call failed: {result.error}", inference_time_ms=time_ms)
 
 
 # Correctness gate thresholds
@@ -357,16 +349,12 @@ def chat(request):
             trace_log.has_safety_passed = not result.blocked
             trace_log.domain = result.domain or ""
             trace_log.difficulty = result.difficulty
-            trace_log.reasoning_trace = (
-                flywheel_result.final_trace or result.reasoning_trace
-            )
+            trace_log.reasoning_trace = flywheel_result.final_trace or result.reasoning_trace
             trace_log.tool_calls = result.tool_calls
             trace_log.is_verified = result.verified
             trace_log.verification_confidence = result.verification_confidence
             trace_log.response = flywheel_result.final_response
-            trace_log.total_time_ms = (
-                flywheel_result.total_time_ms or result.inference_time_ms
-            )
+            trace_log.total_time_ms = flywheel_result.total_time_ms or result.inference_time_ms
 
             # === FAIL-CLOSED CORRECTNESS GATE ===
             if result.blocked:
@@ -377,9 +365,7 @@ def chat(request):
 
             elif flywheel_result.used_opus:
                 # Opus was used - flywheel handled it
-                gate_passed = flywheel_result.synara_success or bool(
-                    flywheel_result.opus_response
-                )
+                gate_passed = flywheel_result.synara_success or bool(flywheel_result.opus_response)
                 gate_reason = f"Escalated to Opus: {flywheel_result.escalation_reason.value if flywheel_result.escalation_reason else 'unknown'}"
                 fallback_used = True
                 final_response = flywheel_result.final_response
@@ -397,10 +383,7 @@ def chat(request):
                 gate_reason = f"Low confidence: {flywheel_result.synara_confidence:.2f}"
                 final_response = flywheel_result.final_response
 
-            elif (
-                not flywheel_result.final_response
-                or len(flywheel_result.final_response.strip()) < 1
-            ):
+            elif not flywheel_result.final_response or len(flywheel_result.final_response.strip()) < 1:
                 # Empty response
                 gate_passed = False
                 gate_reason = "Empty response"
@@ -425,9 +408,7 @@ def chat(request):
 
         gate_passed = False
         fallback_used = True
-        final_response = (
-            "I encountered an error processing your request. Please try again."
-        )
+        final_response = "I encountered an error processing your request. Please try again."
 
         # Create result-like object for the message
         class ErrorResult:
@@ -499,9 +480,7 @@ def chat(request):
             verification_confidence=result.verification_confidence,
             error_type=trace_log.error_stage if trace_log.error_stage else "",
         )
-        logger.info(
-            f"Created training candidate: {candidate_type} for input: {message_text[:50]}..."
-        )
+        logger.info(f"Created training candidate: {candidate_type} for input: {message_text[:50]}...")
 
     # Update conversation title if first message
     if conversation.messages.count() == 2:
@@ -515,9 +494,7 @@ def chat(request):
         "conversation_id": str(conversation.id),
         "user_message": MessageSerializer(user_message).data,
         "assistant_message": MessageSerializer(assistant_message).data,
-        "pipeline_type": (
-            result.pipeline_type if hasattr(result, "pipeline_type") else "synara"
-        ),
+        "pipeline_type": (result.pipeline_type if hasattr(result, "pipeline_type") else "synara"),
     }
 
     # Include cognition mode info
@@ -552,9 +529,7 @@ def chat(request):
             "used_opus": flywheel_result.used_opus,
             "synara_confidence": flywheel_result.synara_confidence,
             "escalation_reason": (
-                flywheel_result.escalation_reason.value
-                if flywheel_result.escalation_reason
-                else None
+                flywheel_result.escalation_reason.value if flywheel_result.escalation_reason else None
             ),
         }
 
@@ -604,8 +579,7 @@ def user_info(request):
             "tier": user.tier,
             "queries_today": user.queries_today,
             "daily_limit": user.daily_limit,
-            "subscription_active": hasattr(user, "subscription")
-            and user.subscription.is_active,
+            "subscription_active": hasattr(user, "subscription") and user.subscription.is_active,
         }
     )
 
@@ -637,9 +611,7 @@ def flag_message(request, message_id):
         trace_log = TraceLog.objects.create(
             message=message,
             input_text=(
-                message.conversation.messages.filter(
-                    role=Message.Role.USER, created_at__lt=message.created_at
-                )
+                message.conversation.messages.filter(role=Message.Role.USER, created_at__lt=message.created_at)
                 .last()
                 .content
                 if message.role == Message.Role.ASSISTANT
@@ -687,19 +659,13 @@ def trace_stats(request):
     since = timezone.now() - timedelta(hours=24)
 
     total = TraceLog.objects.filter(created_at__gte=since).count()
-    gate_passed = TraceLog.objects.filter(
-        created_at__gte=since, has_gate_passed=True
-    ).count()
-    gate_failed = TraceLog.objects.filter(
-        created_at__gte=since, has_gate_passed=False
-    ).count()
-    errors = (
-        TraceLog.objects.filter(created_at__gte=since).exclude(error_stage="").count()
-    )
+    gate_passed = TraceLog.objects.filter(created_at__gte=since, has_gate_passed=True).count()
+    gate_failed = TraceLog.objects.filter(created_at__gte=since, has_gate_passed=False).count()
+    errors = TraceLog.objects.filter(created_at__gte=since).exclude(error_stage="").count()
 
-    avg_time = TraceLog.objects.filter(
-        created_at__gte=since, total_time_ms__isnull=False
-    ).aggregate(avg=Avg("total_time_ms"))["avg"]
+    avg_time = TraceLog.objects.filter(created_at__gte=since, total_time_ms__isnull=False).aggregate(
+        avg=Avg("total_time_ms")
+    )["avg"]
 
     # Domain breakdown
     domains = (
@@ -715,9 +681,7 @@ def trace_stats(request):
         "total": candidates.count(),
         "pending": candidates.filter(status=TrainingCandidate.Status.PENDING).count(),
         "by_type": dict(
-            candidates.values("candidate_type")
-            .annotate(count=Count("id"))
-            .values_list("candidate_type", "count")
+            candidates.values("candidate_type").annotate(count=Count("id")).values_list("candidate_type", "count")
         ),
     }
 
@@ -780,9 +744,7 @@ def login(request):
     if LoginAttempt.is_locked_out(username):
         logger.warning(f"Locked out login attempt for: {username}")
         return Response(
-            {
-                "error": "Account temporarily locked due to too many failed attempts. Try again in 15 minutes."
-            },
+            {"error": "Account temporarily locked due to too many failed attempts. Try again in 15 minutes."},
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
@@ -797,9 +759,7 @@ def login(request):
         User = get_user_model()
         try:
             user_by_email = User.objects.get(email=username)
-            user = authenticate(
-                request, username=user_by_email.username, password=password
-            )
+            user = authenticate(request, username=user_by_email.username, password=password)
         except User.DoesNotExist:
             pass
 
@@ -881,8 +841,7 @@ def me(request):
             "queries_today": user.queries_today,
             "daily_limit": user.daily_limit,
             "total_queries": user.total_queries,
-            "subscription_active": hasattr(user, "subscription")
-            and user.subscription.is_active,
+            "subscription_active": hasattr(user, "subscription") and user.subscription.is_active,
             "preferences": user.preferences or {},
             "current_theme": user.current_theme,
             "onboarding_completed": user.onboarding_completed_at is not None,
@@ -1212,9 +1171,7 @@ def export_pdf(request):
         try:
             import markdown as md_lib
 
-            html_content = md_lib.markdown(
-                content, extensions=["tables", "fenced_code", "toc"]
-            )
+            html_content = md_lib.markdown(content, extensions=["tables", "fenced_code", "toc"])
         except ImportError:
             # Fallback: basic HTML escaping
             import html
@@ -1242,9 +1199,7 @@ def export_pdf(request):
         flags=re.IGNORECASE,
     )
     # Strip event handlers (onclick, onerror, onload, etc.)
-    html_content = re.sub(
-        r'\s+on\w+\s*=\s*["\'][^"\']*["\']', "", html_content, flags=re.IGNORECASE
-    )
+    html_content = re.sub(r'\s+on\w+\s*=\s*["\'][^"\']*["\']', "", html_content, flags=re.IGNORECASE)
     html_content = re.sub(r"\s+on\w+\s*=\s*\S+", "", html_content, flags=re.IGNORECASE)
     # Strip javascript: URLs
     html_content = re.sub(
@@ -1315,9 +1270,7 @@ def export_pdf(request):
 
     # Try to generate PDF with wkhtmltopdf or weasyprint
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".html", delete=False
-        ) as html_file:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as html_file:
             html_file.write(html_doc)
             html_path = html_file.name
 
@@ -1355,12 +1308,8 @@ def export_pdf(request):
                 # Last resort: return HTML for browser printing
                 os.unlink(html_path)
                 response = HttpResponse(html_doc, content_type="text/html")
-                safe_title = (
-                    re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', "_", title) or "export"
-                )
-                response["Content-Disposition"] = (
-                    f'inline; filename="{safe_title}.html"'
-                )
+                safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', "_", title) or "export"
+                response["Content-Disposition"] = f'inline; filename="{safe_title}.html"'
                 return response
 
         # Read and return PDF
@@ -1441,9 +1390,7 @@ def email_track_open(request, recipient_id):
     try:
         from django.utils import timezone as tz
 
-        EmailRecipient.objects.filter(id=recipient_id, opened_at__isnull=True).update(
-            opened_at=tz.now()
-        )
+        EmailRecipient.objects.filter(id=recipient_id, opened_at__isnull=True).update(opened_at=tz.now())
     except Exception:
         pass
 
@@ -1477,12 +1424,8 @@ def email_track_click(request, recipient_id):
 
         now = tz.now()
         # Atomic update: set clicked_at and opened_at in a single query
-        EmailRecipient.objects.filter(id=recipient_id, clicked_at__isnull=True).update(
-            clicked_at=now
-        )
-        EmailRecipient.objects.filter(id=recipient_id, opened_at__isnull=True).update(
-            opened_at=now
-        )
+        EmailRecipient.objects.filter(id=recipient_id, clicked_at__isnull=True).update(clicked_at=now)
+        EmailRecipient.objects.filter(id=recipient_id, opened_at__isnull=True).update(opened_at=now)
     except Exception:
         pass
 
@@ -1506,9 +1449,7 @@ def email_unsubscribe(request):
     try:
         user_id = signer.unsign(token)
     except BadSignature:
-        return HttpResponse(
-            "Invalid or expired link.", status=400, content_type="text/plain"
-        )
+        return HttpResponse("Invalid or expired link.", status=400, content_type="text/plain")
 
     try:
         user = User.objects.get(id=user_id)
@@ -1599,9 +1540,7 @@ def site_duration(request):
     if duration < 1000 or duration > 1_800_000:
         return Response(status=204)
 
-    ip = request.META.get("HTTP_CF_CONNECTING_IP", "") or request.META.get(
-        "REMOTE_ADDR", ""
-    )
+    ip = request.META.get("HTTP_CF_CONNECTING_IP", "") or request.META.get("REMOTE_ADDR", "")
     if not ip:
         return Response(status=204)
 
@@ -1660,9 +1599,7 @@ def funnel_event(request):
     if not page or action not in FUNNEL_ACTIONS:
         return Response(status=204)
 
-    ip = request.META.get("HTTP_CF_CONNECTING_IP", "") or request.META.get(
-        "REMOTE_ADDR", ""
-    )
+    ip = request.META.get("HTTP_CF_CONNECTING_IP", "") or request.META.get("REMOTE_ADDR", "")
     if not ip:
         return Response(status=204)
 
@@ -1747,16 +1684,10 @@ def onboarding_status(request):
                 else None
             ),
             "options": {
-                "industries": [
-                    {"value": c[0], "label": c[1]} for c in Industry.choices
-                ],
+                "industries": [{"value": c[0], "label": c[1]} for c in Industry.choices],
                 "roles": [{"value": c[0], "label": c[1]} for c in Role.choices],
-                "experience_levels": [
-                    {"value": c[0], "label": c[1]} for c in ExperienceLevel.choices
-                ],
-                "organization_sizes": [
-                    {"value": c[0], "label": c[1]} for c in OrganizationSize.choices
-                ],
+                "experience_levels": [{"value": c[0], "label": c[1]} for c in ExperienceLevel.choices],
+                "organization_sizes": [{"value": c[0], "label": c[1]} for c in OrganizationSize.choices],
                 "goals": [{"value": g[0], "label": g[1]} for g in ONBOARDING_GOALS],
                 "tools": TOOLS_OPTIONS,
             },
@@ -1880,11 +1811,7 @@ def compliance_page(request):
 
     current_checks = []
     for check_name in sorted(ALL_CHECKS.keys()):
-        latest = (
-            ComplianceCheck.objects.filter(check_name=check_name)
-            .order_by("-run_at")
-            .first()
-        )
+        latest = ComplianceCheck.objects.filter(check_name=check_name).order_by("-run_at").first()
         if latest:
             current_checks.append(latest)
 
@@ -1901,9 +1828,7 @@ def compliance_page(request):
         if c.status == "pass":
             categories[cat]["passed"] += 1
     for cat, data in categories.items():
-        data["pass_rate"] = (
-            round(data["passed"] / data["total"] * 100) if data["total"] else 0
-        )
+        data["pass_rate"] = round(data["passed"] / data["total"] * 100) if data["total"] else 0
         data["status"] = "passing" if data["pass_rate"] >= 90 else "needs_attention"
 
     # Standards library — driven by docs/standards/ files, overlaid with compliance data
@@ -1944,9 +1869,7 @@ def compliance_page(request):
     tests_unique = len(seen_tests)
 
     # Overlay test execution results (pass/fail/skip) from latest stored check
-    standards_check = next(
-        (c for c in current_checks if c.check_name == "standards_compliance"), None
-    )
+    standards_check = next((c for c in current_checks if c.check_name == "standards_compliance"), None)
     if standards_check and standards_check.details.get("by_standard"):
         details = standards_check.details
         tests_passed = details.get("tests_passed", 0)
@@ -1965,19 +1888,13 @@ def compliance_page(request):
                         std_tests_ran += 1
                     elif tc.get("ran"):
                         std_tests_ran += 1
-            entry = standards.setdefault(
-                std_name, {"description": std_descriptions.get(std_name, "")}
-            )
+            entry = standards.setdefault(std_name, {"description": std_descriptions.get(std_name, "")})
             entry.update(
                 {
                     "total": info["total"],
                     "passed": info["passed"],
                     "failed": info["failed"],
-                    "pass_rate": (
-                        round(info["passed"] / info["total"] * 100)
-                        if info["total"]
-                        else 0
-                    ),
+                    "pass_rate": (round(info["passed"] / info["total"] * 100) if info["total"] else 0),
                     "tests_total": std_tests_total,
                     "tests_passed": std_tests_passed,
                     "tests_ran": std_tests_ran,
@@ -1991,9 +1908,7 @@ def compliance_page(request):
     soc2_controls = set(get_all_soc2_controls())
 
     # SLA summary from latest sla_compliance check
-    sla_check = next(
-        (c for c in current_checks if c.check_name == "sla_compliance"), None
-    )
+    sla_check = next((c for c in current_checks if c.check_name == "sla_compliance"), None)
     sla_data = {"total": 0, "met": 0, "breached": 0, "unmeasurable": 0, "slas": []}
     if sla_check and sla_check.details:
         d = sla_check.details
@@ -2052,13 +1967,9 @@ def compliance_page(request):
         if cat in categories:
             categories[cat]["passed"] += 1
             categories[cat]["pass_rate"] = (
-                round(categories[cat]["passed"] / categories[cat]["total"] * 100)
-                if categories[cat]["total"]
-                else 0
+                round(categories[cat]["passed"] / categories[cat]["total"] * 100) if categories[cat]["total"] else 0
             )
-            categories[cat]["status"] = (
-                "passing" if categories[cat]["pass_rate"] >= 90 else "needs_attention"
-            )
+            categories[cat]["status"] = "passing" if categories[cat]["pass_rate"] >= 90 else "needs_attention"
         checks_passed += 1
 
     # Overall pass rate: infrastructure checks + standard assertions
@@ -2070,11 +1981,7 @@ def compliance_page(request):
     latest_report = ComplianceReport.objects.filter(is_published=True).first()
 
     # Most recent check run timestamp
-    last_check_run = (
-        max((c.run_at for c in current_checks), default=None)
-        if current_checks
-        else None
-    )
+    last_check_run = max((c.run_at for c in current_checks), default=None) if current_checks else None
 
     response = render(
         request,
@@ -2110,9 +2017,7 @@ def compliance_data(request):
     """Public API returning published compliance reports (redacted data only)."""
     from syn.audit.models import ComplianceReport
 
-    reports = ComplianceReport.objects.filter(is_published=True).order_by(
-        "-period_start"
-    )[:6]
+    reports = ComplianceReport.objects.filter(is_published=True).order_by("-period_start")[:6]
     data = []
     for r in reports:
         data.append(
