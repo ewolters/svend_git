@@ -190,32 +190,161 @@ def _handle_add_control(commitment, user):
 
 
 def _handle_process_confirmation(commitment, user):
-    """Standardize → Verify: schedule PC. Model comes in Layer 2."""
-    logger.info("process_confirmation transition — deferred to Layer 2. Commitment %s", commitment.id)
-    return None
+    """Standardize → Verify: create a PC shell for the observer to fill in.
+
+    The commitment should reference which document to confirm against.
+    The PC is created as a shell — the observer completes it at the gemba
+    via the mobile UI (LOOP-001 §16.4).
+    """
+    from .models import ProcessConfirmation
+
+    # Try to find a linked ControlledDocument from the commitment's
+    # target artifact chain (the document that was just standardized)
+    doc = _find_document_for_commitment(commitment)
+    if not doc:
+        logger.warning(
+            "process_confirmation: no linked document found for commitment %s. "
+            "Creating PC without document link — observer must select.",
+            commitment.id,
+        )
+
+    pc = ProcessConfirmation.objects.create(
+        tenant=commitment.tenant,
+        controlled_document=doc,
+        document_version=doc.current_version if doc else "",
+        operator_id=None,  # Observer assigns at gemba
+        observer=user,
+    )
+    logger.info("process_confirmation: PC %s created from commitment %s", pc.id, commitment.id)
+    return pc
 
 
 def _handle_forced_failure(commitment, user):
-    """Standardize → Verify: schedule forced failure test. Model comes in Layer 2."""
-    logger.info("forced_failure transition — deferred to Layer 2. Commitment %s", commitment.id)
-    return None
+    """Standardize → Verify: create a forced failure test plan.
+
+    The commitment should reference which FMEA row / failure mode to test.
+    Safety review is NOT auto-approved — someone must confirm before execution.
+    """
+    from .models import ForcedFailureTest
+
+    # Try to find linked FMEA row
+    fmea_row = _find_fmea_row_for_commitment(commitment)
+
+    fft = ForcedFailureTest.objects.create(
+        tenant=commitment.tenant,
+        test_mode=(
+            ForcedFailureTest.TestMode.HYPOTHESIS_DRIVEN if fmea_row else ForcedFailureTest.TestMode.EXPLORATORY
+        ),
+        fmea_row=fmea_row,
+        test_plan=commitment.description or commitment.title,
+        safety_reviewed=False,  # Must be reviewed before execution
+        conducted_by=user,
+    )
+    logger.info("forced_failure: FFT %s created from commitment %s", fft.id, commitment.id)
+    return fft
+
+
+def _handle_train(commitment, user):
+    """Standardize → Verify: create training requirement from document.
+
+    When a document is published, training is assigned. The commitment
+    captures who should be trained and on what.
+    """
+    from agents_api.models import TrainingRequirement
+
+    doc = _find_document_for_commitment(commitment)
+    if not doc:
+        logger.warning("train: no linked document for commitment %s", commitment.id)
+        return None
+
+    req = TrainingRequirement.objects.create(
+        title=f"Training: {doc.title}",
+        description=commitment.description or f"Training required on {doc.title}",
+        document=doc,
+        document_version=doc.current_version,
+        user=user,
+    )
+    logger.info("train: TrainingRequirement %s created from commitment %s", req.id, commitment.id)
+    return req
 
 
 def _handle_monitor(commitment, user):
-    """Standardize → Verify: set up SPC monitoring."""
-    logger.info("monitor transition — deferred to Layer 2. Commitment %s", commitment.id)
+    """Standardize → Verify: set up SPC monitoring. Deferred — SPC config is complex."""
+    logger.info("monitor transition — SPC monitoring setup. Commitment %s", commitment.id)
     return None
 
 
 def _handle_audit_zone(commitment, user):
     """Standardize → Verify: schedule frontier card audit."""
-    logger.info("audit_zone transition — deferred to Layer 2. Commitment %s", commitment.id)
+    # Wire to safety app's AuditAssignment when ready
+    logger.info("audit_zone transition — frontier card scheduling. Commitment %s", commitment.id)
     return None
 
 
 def _handle_first_article(commitment, user):
-    """Standardize → Verify: first article inspection. Deferred."""
+    """Standardize → Verify: first article inspection. Model deferred to §14.5."""
     logger.info("first_article transition — deferred. Commitment %s", commitment.id)
+    return None
+
+
+# =============================================================================
+# HELPERS FOR TRANSITION HANDLERS
+# =============================================================================
+
+
+def _find_document_for_commitment(commitment):
+    """Walk the commitment's source chain to find a linked ControlledDocument."""
+    from agents_api.models import ControlledDocument
+
+    # Check if the commitment's target is already a document
+    if commitment.target_content_type:
+        ct = commitment.target_content_type
+        if ct.model_class() == ControlledDocument:
+            try:
+                return ControlledDocument.objects.get(id=commitment.target_object_id)
+            except ControlledDocument.DoesNotExist:
+                pass
+
+    # Check sibling commitments from the same investigation for a document
+    if commitment.source_investigation:
+        from .models import Commitment as CommitmentModel
+
+        siblings = CommitmentModel.objects.filter(
+            source_investigation=commitment.source_investigation,
+            status=CommitmentModel.Status.FULFILLED,
+        ).exclude(id=commitment.id)
+
+        for sibling in siblings:
+            if sibling.target_content_type and sibling.target_content_type.model == "controlleddocument":
+                try:
+                    return ControlledDocument.objects.get(id=sibling.target_object_id)
+                except ControlledDocument.DoesNotExist:
+                    pass
+
+    return None
+
+
+def _find_fmea_row_for_commitment(commitment):
+    """Walk the commitment's source chain to find a linked FMEARow."""
+    from agents_api.models import FMEARow
+
+    # Check sibling commitments for an add_control that created a row
+    if commitment.source_investigation:
+        from .models import Commitment as CommitmentModel
+
+        siblings = CommitmentModel.objects.filter(
+            source_investigation=commitment.source_investigation,
+            transition_type=CommitmentModel.TransitionType.ADD_CONTROL,
+            status=CommitmentModel.Status.FULFILLED,
+        ).exclude(id=commitment.id)
+
+        for sibling in siblings:
+            if sibling.target_content_type and sibling.target_content_type.model == "fmearow":
+                try:
+                    return FMEARow.objects.get(id=sibling.target_object_id)
+                except FMEARow.DoesNotExist:
+                    pass
+
     return None
 
 
@@ -223,6 +352,7 @@ TRANSITION_HANDLERS = {
     Commitment.TransitionType.REVISE_DOCUMENT: _handle_revise_document,
     Commitment.TransitionType.CREATE_DOCUMENT: _handle_create_document,
     Commitment.TransitionType.ADD_CONTROL: _handle_add_control,
+    Commitment.TransitionType.TRAIN: _handle_train,
     Commitment.TransitionType.PROCESS_CONFIRMATION: _handle_process_confirmation,
     Commitment.TransitionType.FORCED_FAILURE: _handle_forced_failure,
     Commitment.TransitionType.MONITOR: _handle_monitor,

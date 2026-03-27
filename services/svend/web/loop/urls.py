@@ -1,4 +1,4 @@
-"""URL routes for Loop API — LOOP-001 §3."""
+"""URL routes for Loop API — LOOP-001 §3, §6, §7."""
 
 from django.urls import path
 
@@ -19,4 +19,12 @@ urlpatterns = [
         views.investigation_commitments,
         name="loop_investigation_commitments",
     ),
+    # Process Confirmations (§7.1)
+    path("pcs/", views.pc_list_create, name="loop_pc_list_create"),
+    path("pcs/<uuid:pc_id>/", views.pc_detail, name="loop_pc_detail"),
+    # Forced Failure Tests (§7.2)
+    path("ffts/", views.fft_list_create, name="loop_fft_list_create"),
+    path("ffts/<uuid:fft_id>/", views.fft_detail, name="loop_fft_detail"),
+    # Training Reflections (§6.2)
+    path("reflections/", views.reflection_list_create, name="loop_reflection_list_create"),
 ]

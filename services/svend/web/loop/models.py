@@ -794,18 +794,22 @@ class ProcessConfirmation(SynaraEntity):
     # What's being confirmed
     controlled_document = models.ForeignKey(
         "agents_api.ControlledDocument",
+        null=True,
+        blank=True,
         on_delete=models.CASCADE,
         related_name="process_confirmations",
-        help_text="The standard being confirmed — REQUIRED",
+        help_text="The standard being confirmed — required before observation can begin",
     )
     document_version = models.CharField(max_length=20)
 
     # Who
     operator = models.ForeignKey(
         "agents_api.Employee",
+        null=True,
+        blank=True,
         on_delete=models.CASCADE,
         related_name="process_confirmations_as_operator",
-        help_text="The operator being observed",
+        help_text="The operator being observed — assigned at gemba, not at scheduling time",
     )
     observer = models.ForeignKey(
         settings.AUTH_USER_MODEL,

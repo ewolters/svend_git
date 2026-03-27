@@ -12,7 +12,15 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
 
-from .models import Commitment, ModeTransition, Signal
+from .models import (
+    Commitment,
+    ForcedFailureTest,
+    ModeTransition,
+    PCObservationItem,
+    ProcessConfirmation,
+    Signal,
+    TrainingReflection,
+)
 from .services import fulfill_commitment
 
 logger = logging.getLogger("svend.loop")
@@ -406,3 +414,318 @@ def investigation_commitments(request, investigation_id):
         },
     )
     return JsonResponse({"commitment": _serialize_commitment(commitment)}, status=201)
+
+
+# =============================================================================
+# SERIALIZERS — Verify mode
+# =============================================================================
+
+
+def _serialize_pc(pc):
+    return {
+        "id": str(pc.id),
+        "controlled_document_id": str(pc.controlled_document_id) if pc.controlled_document_id else None,
+        "document_version": pc.document_version,
+        "operator_id": str(pc.operator_id) if pc.operator_id else None,
+        "observer_id": str(pc.observer_id),
+        "process_area": pc.process_area,
+        "diagnosis": pc.diagnosis,
+        "pass_rate": pc.pass_rate,
+        "comfort_level": pc.comfort_level,
+        "close_loop_method": pc.close_loop_method,
+        "created_at": pc.created_at.isoformat() if pc.created_at else None,
+        "items": [
+            {
+                "id": str(item.id),
+                "step_text": item.step_text,
+                "key_point": item.key_point,
+                "followed": item.followed,
+                "followed_na": item.followed_na,
+                "outcome_pass": item.outcome_pass,
+                "outcome_na": item.outcome_na,
+                "deviation_severity": item.deviation_severity,
+                "notes": item.notes,
+            }
+            for item in pc.observation_items.all()
+        ],
+    }
+
+
+def _serialize_fft(fft):
+    return {
+        "id": str(fft.id),
+        "test_mode": fft.test_mode,
+        "fmea_row_id": str(fft.fmea_row_id) if fft.fmea_row_id else None,
+        "test_plan": fft.test_plan,
+        "control_being_tested": fft.control_being_tested,
+        "safety_reviewed": fft.safety_reviewed,
+        "result": fft.result,
+        "detection_count": fft.detection_count,
+        "injection_count": fft.injection_count,
+        "detection_rate": fft.detection_rate,
+        "conducted_by_id": str(fft.conducted_by_id),
+        "conducted_at": fft.conducted_at.isoformat() if fft.conducted_at else None,
+        "created_at": fft.created_at.isoformat() if fft.created_at else None,
+    }
+
+
+def _serialize_reflection(r):
+    return {
+        "id": str(r.id),
+        "training_record_id": str(r.training_record_id),
+        "controlled_document_id": str(r.controlled_document_id),
+        "document_version": r.document_version,
+        "reflection_text": r.reflection_text,
+        "self_assessed_level": r.self_assessed_level,
+        "flagged_section_ids": [str(s.id) for s in r.flagged_sections.all()],
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+    }
+
+
+# =============================================================================
+# PROCESS CONFIRMATIONS (LOOP-001 §7.1)
+# =============================================================================
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def pc_list_create(request):
+    """
+    GET  — List PCs (filterable by document, operator).
+    POST — Create a PC with observation items.
+    """
+    if request.method == "GET":
+        qs = ProcessConfirmation.objects.filter(observer=request.user).select_related("controlled_document", "operator")
+        doc_id = request.GET.get("document_id")
+        if doc_id:
+            qs = qs.filter(controlled_document_id=doc_id)
+        return JsonResponse({"process_confirmations": [_serialize_pc(pc) for pc in qs[:50]]})
+
+    # POST
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    pc = ProcessConfirmation.objects.create(
+        tenant=getattr(request.user, "active_tenant", None),
+        controlled_document_id=data.get("controlled_document_id"),
+        document_version=data.get("document_version", ""),
+        operator_id=data.get("operator_id"),
+        observer=request.user,
+        process_area=data.get("process_area", ""),
+        shift=data.get("shift", ""),
+    )
+
+    # Create observation items
+    for item_data in data.get("items", []):
+        PCObservationItem.objects.create(
+            process_confirmation=pc,
+            sort_order=item_data.get("sort_order", 0),
+            step_text=item_data.get("step_text", ""),
+            key_point=item_data.get("key_point", ""),
+            reason_why=item_data.get("reason_why", ""),
+            linked_section_id=item_data.get("linked_section_id"),
+            followed=item_data.get("followed", True),
+            followed_na=item_data.get("followed_na", False),
+            outcome_pass=item_data.get("outcome_pass", True),
+            outcome_na=item_data.get("outcome_na", False),
+            deviation_severity=item_data.get("deviation_severity", ""),
+            notes=item_data.get("notes", ""),
+        )
+
+    # Compute diagnosis from items
+    pc.compute_diagnosis()
+    pc.save(update_fields=["diagnosis"])
+
+    logger.info("pc.created", extra={"pc_id": str(pc.id), "diagnosis": pc.diagnosis})
+    return JsonResponse({"process_confirmation": _serialize_pc(pc)}, status=201)
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def pc_detail(request, pc_id):
+    """
+    GET  — PC detail with items.
+    POST — Update PC (add interaction, close loop, recompute diagnosis).
+    """
+    try:
+        pc = ProcessConfirmation.objects.prefetch_related("observation_items").get(id=pc_id)
+    except ProcessConfirmation.DoesNotExist:
+        return JsonResponse({"error": "Process confirmation not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse({"process_confirmation": _serialize_pc(pc)})
+
+    # POST — update
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    for field in (
+        "operator_id",
+        "process_area",
+        "shift",
+        "observer_notes",
+        "improvements_observed",
+        "operator_interaction",
+        "comfort_level",
+        "close_loop_method",
+        "close_loop_notes",
+    ):
+        if field in data:
+            setattr(pc, field, data[field])
+
+    pc.compute_diagnosis()
+    pc.save()
+
+    logger.info("pc.updated", extra={"pc_id": str(pc.id), "diagnosis": pc.diagnosis})
+    return JsonResponse({"process_confirmation": _serialize_pc(pc)})
+
+
+# =============================================================================
+# FORCED FAILURE TESTS (LOOP-001 §7.2)
+# =============================================================================
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def fft_list_create(request):
+    """
+    GET  — List FFTs.
+    POST — Create an FFT plan (safety review required before recording results).
+    """
+    if request.method == "GET":
+        qs = ForcedFailureTest.objects.filter(conducted_by=request.user)
+        return JsonResponse({"forced_failure_tests": [_serialize_fft(f) for f in qs[:50]]})
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    test_plan = data.get("test_plan", "").strip()
+    if not test_plan:
+        return JsonResponse({"error": "test_plan is required"}, status=400)
+
+    fft = ForcedFailureTest.objects.create(
+        tenant=getattr(request.user, "active_tenant", None),
+        test_mode=data.get("test_mode", "hypothesis_driven"),
+        fmea_row_id=data.get("fmea_row_id"),
+        test_plan=test_plan,
+        control_being_tested=data.get("control_being_tested", ""),
+        conducted_by=request.user,
+    )
+
+    logger.info("fft.created", extra={"fft_id": str(fft.id)})
+    return JsonResponse({"forced_failure_test": _serialize_fft(fft)}, status=201)
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def fft_detail(request, fft_id):
+    """
+    GET  — FFT detail.
+    POST — Actions: safety_review, record_results.
+    """
+    try:
+        fft = ForcedFailureTest.objects.get(id=fft_id)
+    except ForcedFailureTest.DoesNotExist:
+        return JsonResponse({"error": "Forced failure test not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse({"forced_failure_test": _serialize_fft(fft)})
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    action = data.get("action")
+
+    if action == "safety_review":
+        fft.safety_reviewed = True
+        fft.safety_reviewer = request.user
+        fft.save(update_fields=["safety_reviewed", "safety_reviewer", "updated_at"])
+
+    elif action == "record_results":
+        if not fft.safety_reviewed:
+            return JsonResponse(
+                {"error": "Safety review required before recording results"},
+                status=400,
+            )
+        fft.detection_count = data.get("detection_count", 0)
+        fft.injection_count = data.get("injection_count", 0)
+        fft.evidence_notes = data.get("evidence_notes", "")
+        from django.utils import timezone
+
+        fft.conducted_at = timezone.now()
+        try:
+            fft.save()
+        except ValueError as e:
+            return JsonResponse({"error": str(e)}, status=400)
+
+    else:
+        return JsonResponse(
+            {"error": f"Unknown action '{action}'. Valid: safety_review, record_results"},
+            status=400,
+        )
+
+    logger.info("fft.action", extra={"fft_id": str(fft.id), "action": action})
+    return JsonResponse({"forced_failure_test": _serialize_fft(fft)})
+
+
+# =============================================================================
+# TRAINING REFLECTIONS (LOOP-001 §6.2)
+# =============================================================================
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def reflection_list_create(request):
+    """
+    GET  — List reflections (filterable by document).
+    POST — Create a reflection for a training record.
+    """
+    if request.method == "GET":
+        qs = TrainingReflection.objects.all()
+        doc_id = request.GET.get("document_id")
+        if doc_id:
+            qs = qs.filter(controlled_document_id=doc_id)
+        return JsonResponse({"reflections": [_serialize_reflection(r) for r in qs[:50]]})
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    training_record_id = data.get("training_record_id")
+    if not training_record_id:
+        return JsonResponse({"error": "training_record_id is required"}, status=400)
+
+    reflection_text = data.get("reflection_text", "").strip()
+    if not reflection_text:
+        return JsonResponse({"error": "reflection_text is required"}, status=400)
+
+    controlled_document_id = data.get("controlled_document_id")
+    if not controlled_document_id:
+        return JsonResponse({"error": "controlled_document_id is required"}, status=400)
+
+    reflection = TrainingReflection.objects.create(
+        training_record_id=training_record_id,
+        controlled_document_id=controlled_document_id,
+        document_version=data.get("document_version", ""),
+        reflection_text=reflection_text,
+        self_assessed_level=data.get("self_assessed_level", 0),
+    )
+
+    flagged_ids = data.get("flagged_section_ids", [])
+    if flagged_ids:
+        from agents_api.models import ISOSection
+
+        sections = ISOSection.objects.filter(id__in=flagged_ids)
+        reflection.flagged_sections.set(sections)
+
+    logger.info("reflection.created", extra={"reflection_id": str(reflection.id)})
+    return JsonResponse({"reflection": _serialize_reflection(reflection)}, status=201)
