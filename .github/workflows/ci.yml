@@ -1,3 +1,13 @@
+# ⚠ COMPLIANCE-CRITICAL: This CI pipeline is an advisory layer beneath the
+# compliance runner (TST-001 §10.4). The compliance runner is the single
+# source of truth for compliance status. A green CI badge does NOT mean
+# compliant — only the compliance runner determines compliance status.
+#
+# DO NOT:
+#   - Treat this as the authoritative compliance gate
+#   - Skip compliance runner checks because CI passed
+#   - Remove test_execution or test_coverage steps without a CR (CHG-001)
+
 name: CI
 
 on:
@@ -55,6 +65,52 @@ jobs:
       - run: python manage.py migrate
       - run: python manage.py check --deploy
         continue-on-error: true
+
+  # -----------------------------------------------------------------------
+  # Test execution — TST-001 §10.4
+  # Runs full pytest suite via the compliance runner. This is the CI
+  # counterpart to the nightly 2:00 AM EST run on the production server.
+  # -----------------------------------------------------------------------
+  test:
+    name: Test execution
+    runs-on: ubuntu-latest
+    needs: [lint]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: svend
+          POSTGRES_PASSWORD: svend
+          POSTGRES_DB: svend_ci
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    defaults:
+      run:
+        working-directory: services/svend/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -e ".[dev,prod]" dj-database-url pip-audit
+      - run: python manage.py migrate
+      - name: test_execution
+        run: python manage.py run_compliance --check=test_execution --json --exit-code | tee compliance-test-execution.json
+      - name: test_coverage
+        run: python manage.py run_compliance --check=test_coverage --json | tee compliance-test-coverage.json
+        continue-on-error: true
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: services/svend/web/compliance-test-*.json
+          retention-days: 90
 
   compliance:
     name: Compliance checks

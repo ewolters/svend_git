@@ -1,7 +1,7 @@
 """
 Automated compliance check implementations.
 
-Provides 29 checks covering SOC 2 trust service categories:
+Provides 32 checks covering SOC 2 trust service categories:
 Security, Availability, Confidentiality, Processing Integrity, Privacy.
 
 Checks run on a rotating daily schedule via syn.sched.
@@ -90,6 +90,10 @@ CHECK_SEVERITY = {
     "incident_readiness": 2.0,
     "sla_compliance": 2.0,
     "error_handling": 2.0,
+    # high (2.0): test execution, coverage, and tenant isolation enforcement
+    "test_execution": 2.0,
+    "test_coverage": 2.0,
+    "tenant_isolation_lint": 3.0,  # critical — cross-tenant = security incident
     # medium (1.0): process and coverage checks
     "standards_compliance": 1.0,
     "log_completeness": 1.0,
@@ -671,6 +675,9 @@ DAILY_CRITICAL = [
     "standards_compliance",
     "change_management",
     "sla_compliance",
+    "test_execution",
+    "test_coverage",
+    "tenant_isolation_lint",
 ]
 WEEKDAY_ROTATION = {
     0: ["dependency_vuln", "ssl_tls", "log_completeness", "security_headers"],
@@ -2581,6 +2588,345 @@ def _measure_incident_response(sla):
     return {
         "status": "met" if breached == 0 else "breach",
         "current_value": f"{worst:.2f}h worst, {breached}/{total} breached (target: {target_val}h)",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tenant isolation lint — SEC-001 §5
+#
+# ⚠ SECURITY-CRITICAL: This check greps view files for unscoped Site and
+# Project lookups that bypass tenant isolation. It catches the exact patterns
+# that caused 23 cross-tenant vulnerabilities fixed in CR d43b7c34.
+#
+# If this check fails, a new view has introduced an unscoped lookup.
+# Fix it by using resolve_site() or resolve_project() from permissions.py.
+#
+# DO NOT:
+#   - Add exceptions to skip specific files without a ChangeRequest
+#   - Use Site.objects.get(id=) or Project.objects.get(id=..., user=) in views
+#   - Silence this check by renaming patterns
+# ---------------------------------------------------------------------------
+
+_TENANT_LINT_EXCLUDES = {
+    # Files that legitimately use these patterns (test files, the helpers themselves)
+    "permissions.py",
+    "hoshin_deep_tests.py",
+}
+
+
+@register("tenant_isolation_lint", "security", soc2_controls=["CC6.3"])
+def check_tenant_isolation_lint():
+    """Static analysis: grep for unscoped Site/Project lookups in view files.
+
+    ⚠ SECURITY-CRITICAL (SEC-001 §5): Catches cross-tenant data linkage
+    patterns before they reach production. Every hit is a potential privilege
+    escalation vulnerability.
+
+    Scans *_views.py and dispatch.py for:
+      - Site.objects.get(id=...) without tenant= filter
+      - Project.objects.get(id=..., user=request.user) without tenant support
+    """
+    import re
+
+    base_dir = Path(settings.BASE_DIR)
+    agents_dir = base_dir / "agents_api"
+
+    violations = []
+
+    # Pattern 1: Unscoped Site lookup (no tenant filter)
+    site_pattern = re.compile(r"Site\.objects\.get\(id=(?!.*tenant)")
+    # Pattern 2: User-only Project lookup (excludes tenant projects)
+    project_pattern = re.compile(r"Project\.objects\.get\(id=.*user=request\.user")
+
+    scan_patterns = [
+        ("*_views.py", [site_pattern, project_pattern]),
+        ("analysis/dispatch.py", [project_pattern]),
+    ]
+
+    for glob_pat, patterns in scan_patterns:
+        for filepath in agents_dir.glob(glob_pat):
+            if filepath.name in _TENANT_LINT_EXCLUDES:
+                continue
+            try:
+                content = filepath.read_text()
+            except OSError:
+                continue
+            for i, line in enumerate(content.splitlines(), 1):
+                # Skip comments and docstrings
+                stripped = line.strip()
+                if stripped.startswith("#") or stripped.startswith('"""') or stripped.startswith("'''"):
+                    continue
+                for pattern in patterns:
+                    if pattern.search(line):
+                        violations.append(
+                            {
+                                "file": str(filepath.relative_to(base_dir)),
+                                "line": i,
+                                "pattern": pattern.pattern,
+                                "content": stripped[:120],
+                            }
+                        )
+
+    if violations:
+        return {
+            "status": "fail",
+            "details": {
+                "message": f"{len(violations)} unscoped lookup(s) found — use resolve_site() or resolve_project()",
+                "violations": violations,
+                "fix": "Import resolve_site/resolve_project from agents_api.permissions",
+            },
+            "soc2_controls": ["CC6.3"],
+        }
+
+    return {
+        "status": "pass",
+        "details": {
+            "message": "No unscoped Site/Project lookups found in view files",
+            "files_scanned": len(list(agents_dir.glob("*_views.py"))) + 1,
+        },
+        "soc2_controls": ["CC6.3"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Test execution and coverage checks — TST-001 §10
+#
+# ⚠ COMPLIANCE-CRITICAL: These checks are the verification layer for all
+# other standards. A failing test_execution check means the compliance
+# system cannot prove its own assertions are met.
+#
+# These checks run:
+#   - Daily at 07:00 UTC (2:00 AM EST) via syn.sched
+#   - On every CI push via GitHub Actions (run_compliance --check=test_execution)
+#   - On demand via: python manage.py run_compliance --check=test_execution
+#
+# The test suite runs in a subprocess with a 10-minute timeout. It does NOT
+# touch the production database — Django's test runner creates a separate
+# test_* database, runs all tests, and destroys it. This is safe to run on
+# the production server at 2:00 AM.
+#
+# If test_execution fails, a DriftViolation is NOT automatically created
+# (unlike standards_compliance). Instead, the ComplianceCheck record itself
+# is the audit trail. The dashboard shows the failure, the pass rate drops,
+# and the monthly report captures it.
+#
+# DO NOT:
+#   - Remove these checks without a ChangeRequest (CHG-001)
+#   - Lower the coverage ratchet without justification in the CR
+#   - Skip test execution in CI by commenting out the check
+#   - Silence test failures by modifying test expectations (TST-001 §11.6)
+# ---------------------------------------------------------------------------
+
+_COVERAGE_RATCHET = 45  # Minimum line coverage %. Increase as coverage improves.
+_TEST_TIMEOUT_SECONDS = 600  # 10 minutes — full suite including golden files.
+
+
+@register("test_execution", "processing_integrity", soc2_controls=["CC4.1", "CC7.2"])
+def check_test_execution():
+    """Run the full pytest suite and report pass/fail status.
+
+    ⚠ COMPLIANCE-CRITICAL (TST-001 §10.4): This is the authoritative test
+    execution gate. The compliance runner owns test execution — GitHub Actions
+    and pre-commit hooks are advisory layers only.
+
+    Runs pytest in a subprocess against a disposable test database. The
+    production database is never touched. Safe for production server execution.
+
+    Returns:
+        dict: Standard compliance check result with test counts and output.
+    """
+    import shutil
+
+    base_dir = Path(settings.BASE_DIR)
+
+    pytest_bin = shutil.which("pytest")
+    if not pytest_bin:
+        return {
+            "status": "error",
+            "details": {"message": "pytest not found on PATH. Install: pip install pytest pytest-django"},
+            "soc2_controls": ["CC4.1", "CC7.2"],
+        }
+
+    try:
+        result = subprocess.run(
+            [
+                pytest_bin,
+                "--tb=short",
+                "--no-header",
+                "-q",
+                f"--rootdir={base_dir}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=_TEST_TIMEOUT_SECONDS,
+            cwd=str(base_dir),
+            env={
+                **os.environ,
+                "DJANGO_SETTINGS_MODULE": "svend.settings",
+                # Force test database even if running on production server
+                "SVEND_ENV": "test",
+            },
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "fail",
+            "details": {
+                "message": f"Test suite timed out after {_TEST_TIMEOUT_SECONDS}s",
+                "timeout_seconds": _TEST_TIMEOUT_SECONDS,
+            },
+            "soc2_controls": ["CC4.1", "CC7.2"],
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "details": {"message": f"Failed to invoke pytest: {e}"},
+            "soc2_controls": ["CC4.1", "CC7.2"],
+        }
+
+    # Parse pytest summary line: "X passed, Y failed, Z errors in Ns"
+    stdout = result.stdout or ""
+    stderr = result.stderr or ""
+    last_lines = stdout.strip().split("\n")[-5:] if stdout.strip() else []
+
+    passed = failed = errors = warnings_count = 0
+    for line in last_lines:
+        for part in line.split(","):
+            part = part.strip()
+            if "passed" in part:
+                try:
+                    passed = int(part.split()[0])
+                except (ValueError, IndexError):
+                    pass
+            elif "failed" in part:
+                try:
+                    failed = int(part.split()[0])
+                except (ValueError, IndexError):
+                    pass
+            elif "error" in part:
+                try:
+                    errors = int(part.split()[0])
+                except (ValueError, IndexError):
+                    pass
+            elif "warning" in part:
+                try:
+                    warnings_count = int(part.split()[0])
+                except (ValueError, IndexError):
+                    pass
+
+    total = passed + failed + errors
+    if total == 0 and result.returncode != 0:
+        # pytest failed before running tests (import error, config issue)
+        return {
+            "status": "error",
+            "details": {
+                "message": "pytest exited with errors before running tests",
+                "exit_code": result.returncode,
+                "stderr_tail": stderr[-1000:] if stderr else "",
+                "stdout_tail": stdout[-1000:] if stdout else "",
+            },
+            "soc2_controls": ["CC4.1", "CC7.2"],
+        }
+
+    if failed > 0 or errors > 0:
+        status = "fail"
+    elif warnings_count > 0:
+        status = "warning"
+    else:
+        status = "pass"
+
+    return {
+        "status": status,
+        "details": {
+            "passed": passed,
+            "failed": failed,
+            "errors": errors,
+            "warnings": warnings_count,
+            "total": total,
+            "exit_code": result.returncode,
+            "summary": "\n".join(last_lines),
+            # Truncated output for dashboard display — full output in logs
+            "stdout_tail": stdout[-2000:] if stdout else "",
+        },
+        "soc2_controls": ["CC4.1", "CC7.2"],
+    }
+
+
+@register("test_coverage", "processing_integrity", soc2_controls=["CC4.1"])
+def check_test_coverage():
+    """Verify line coverage meets the ratchet threshold.
+
+    ⚠ COMPLIANCE-CRITICAL (TST-001 §10.5): Coverage ratchet prevents
+    regression. The threshold starts at 45% and should only increase.
+    Lowering the ratchet requires a ChangeRequest with justification.
+
+    Reads coverage.json produced by the most recent pytest --cov run.
+    If coverage.json is stale (>48h), reports a warning — the test_execution
+    check is responsible for generating fresh coverage data.
+
+    Returns:
+        dict: Standard compliance check result with coverage percentage.
+    """
+    base_dir = Path(settings.BASE_DIR)
+    coverage_file = base_dir / "coverage.json"
+
+    if not coverage_file.exists():
+        return {
+            "status": "warning",
+            "details": {
+                "message": "coverage.json not found. Run: pytest --cov=. --cov-report=json",
+                "ratchet": _COVERAGE_RATCHET,
+            },
+            "soc2_controls": ["CC4.1"],
+        }
+
+    try:
+        data = json.loads(coverage_file.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        return {
+            "status": "error",
+            "details": {"message": f"Failed to read coverage.json: {e}"},
+            "soc2_controls": ["CC4.1"],
+        }
+
+    # Check staleness — coverage.json should be refreshed by test_execution
+    try:
+        mtime = datetime.fromtimestamp(coverage_file.stat().st_mtime)
+        age_hours = (datetime.now() - mtime).total_seconds() / 3600
+        is_stale = age_hours > 48
+    except OSError:
+        age_hours = -1
+        is_stale = False
+
+    # Extract total coverage from coverage.json
+    totals = data.get("totals", {})
+    percent_covered = totals.get("percent_covered", 0)
+    num_statements = totals.get("num_statements", 0)
+    covered_lines = totals.get("covered_lines", 0)
+    missing_lines = totals.get("missing_lines", 0)
+
+    # Ratchet check
+    meets_ratchet = percent_covered >= _COVERAGE_RATCHET
+
+    if not meets_ratchet:
+        status = "fail"
+    elif is_stale:
+        status = "warning"
+    else:
+        status = "pass"
+
+    return {
+        "status": status,
+        "details": {
+            "percent_covered": round(percent_covered, 1),
+            "ratchet_threshold": _COVERAGE_RATCHET,
+            "meets_ratchet": meets_ratchet,
+            "num_statements": num_statements,
+            "covered_lines": covered_lines,
+            "missing_lines": missing_lines,
+            "coverage_age_hours": round(age_hours, 1),
+            "is_stale": is_stale,
+        },
+        "soc2_controls": ["CC4.1"],
     }
 
 

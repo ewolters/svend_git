@@ -479,7 +479,7 @@ Run `python manage.py run_compliance --standards` to verify all assertions + tes
 Run `python manage.py run_compliance --standards --run-tests` to execute linked tests.
 Run `python manage.py run_compliance --all` to run all 28 infrastructure checks.
 
-## Compliance Checks (28)
+## Compliance Checks (32)
 
 | Check | Category | Schedule | SOC 2 |
 |-------|----------|----------|-------|
@@ -488,6 +488,9 @@ Run `python manage.py run_compliance --all` to run all 28 infrastructure checks.
 | access_logging | security | Daily (critical) | CC6.1, CC7.1 |
 | standards_compliance | processing_integrity | Daily (critical) | CC4.1, CC9.1 |
 | change_management | processing_integrity | Daily (critical) | CC8.1, CC3.4 |
+| test_execution | processing_integrity | Daily (critical) | CC4.1, CC7.2 |
+| test_coverage | processing_integrity | Daily (critical) | CC4.1 |
+| tenant_isolation_lint | security | Daily (critical) | CC6.3 |
 | dependency_vuln | security | Mon/Fri | CC6.2 |
 | ssl_tls | confidentiality | Mon/Fri | CC6.2 |
 | encryption_status | confidentiality | Tuesday | CC6.1 |
@@ -630,6 +633,18 @@ add_finding_to_problem(user, problem_id, summary, evidence_type, source, support
 - **Gunicorn** behind **Cloudflare Tunnel**
 - Static files served by Django + WhiteNoise (collectstatic)
 - PostgreSQL database (production — on this machine)
+
+## Environment
+
+**⚠ Source the env file before any Django command (manage.py, pytest, run_compliance):**
+
+```bash
+set -a && source /etc/svend/env && set +a
+```
+
+The `.env` file was moved from the project directory to `/etc/svend/env` for server hardening. It contains database URLs, API keys, and secrets — **never read or cat this file, only source it.** The file is owned by root with restricted permissions. If you cannot source it, ask Eric.
+
+No venv needed — Django + deps installed system-wide at `~/.local/lib/python3.10/`.
 
 ## Working Conventions
 

@@ -38,6 +38,35 @@ prod = [
     "psycopg2-binary>=2.9",
 ]
 
+[tool.pytest.ini_options]
+# TST-001 §4.3 — pytest configuration for compliance-integrated test execution.
+# The compliance runner (run_compliance --check=test_execution) is the authoritative
+# CI/CD pipeline per TST-001 §10.4. This config ensures pytest discovery works
+# consistently whether invoked directly or via the compliance check.
+DJANGO_SETTINGS_MODULE = "svend.settings"
+pythonpath = ["."]
+testpaths = [
+    "accounts",
+    "agents_api",
+    "api",
+    "chat",
+    "core",
+    "files",
+    "forge",
+    "notifications",
+    "safety",
+    "workbench",
+    "syn",
+]
+python_files = ["tests.py", "tests_*.py", "test_*.py", "*_tests.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--tb=short",
+    "--no-header",
+    "-q",
+]
+
 [tool.ruff]
 # STY-001 §9.1, INIT-010 FEAT-078
 line-length = 120

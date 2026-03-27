@@ -114,9 +114,7 @@ class AssertionDataclassTest(SimpleTestCase):
     def test_fields_mutable(self):
         a = Assertion(text="Test", check_id="t")
         a.impls.append("syn/err/exceptions.py")
-        a.tests.append(
-            "syn.audit.tests.test_error_handling.ErrorHierarchyTest.test_all"
-        )
+        a.tests.append("syn.audit.tests.test_error_handling.ErrorHierarchyTest.test_all")
         self.assertEqual(len(a.impls), 1)
         self.assertEqual(len(a.tests), 1)
 
@@ -230,13 +228,14 @@ class AllChecksRegistryTest(SimpleTestCase):
         "access_logging",
         "standards_compliance",
         "change_management",
+        "test_execution",
+        "test_coverage",
+        "tenant_isolation_lint",
     ]
 
     def test_expected_checks_registered(self):
         for check_name in self.EXPECTED_CHECKS:
-            self.assertIn(
-                check_name, ALL_CHECKS, f"Check '{check_name}' not in ALL_CHECKS"
-            )
+            self.assertIn(check_name, ALL_CHECKS, f"Check '{check_name}' not in ALL_CHECKS")
 
     def test_all_checks_are_callable(self):
         for name, entry in ALL_CHECKS.items():
@@ -312,9 +311,7 @@ class DailyRotationTest(SimpleTestCase):
 
     def test_daily_critical_are_in_all_checks(self):
         for name in DAILY_CRITICAL:
-            self.assertIn(
-                name, ALL_CHECKS, f"DAILY_CRITICAL check '{name}' not in ALL_CHECKS"
-            )
+            self.assertIn(name, ALL_CHECKS, f"DAILY_CRITICAL check '{name}' not in ALL_CHECKS")
 
 
 class ManagementCommandTest(SimpleTestCase):
@@ -574,27 +571,21 @@ class VerifyTestExistsTest(SimpleTestCase):
         """A non-existent module path returns False."""
         from syn.audit.standards import verify_test_exists
 
-        ok, msg = verify_test_exists(
-            "syn.audit.tests.nonexistent_module.FakeClass.fake_method"
-        )
+        ok, msg = verify_test_exists("syn.audit.tests.nonexistent_module.FakeClass.fake_method")
         self.assertFalse(ok)
 
     def test_invalid_class_fails(self):
         """A valid module but non-existent class returns False."""
         from syn.audit.standards import verify_test_exists
 
-        ok, msg = verify_test_exists(
-            "syn.audit.tests.test_compliance_system.NonExistentClass.some_method"
-        )
+        ok, msg = verify_test_exists("syn.audit.tests.test_compliance_system.NonExistentClass.some_method")
         self.assertFalse(ok)
 
     def test_invalid_method_fails(self):
         """A valid class but non-existent method returns False."""
         from syn.audit.standards import verify_test_exists
 
-        ok, msg = verify_test_exists(
-            "syn.audit.tests.test_compliance_system.TagVocabularyTest.nonexistent_method"
-        )
+        ok, msg = verify_test_exists("syn.audit.tests.test_compliance_system.TagVocabularyTest.nonexistent_method")
         self.assertFalse(ok)
 
 
@@ -895,9 +886,7 @@ class CalibrationTest(unittest.TestCase):
         self.assertGreaterEqual(len(categories), 5)
         # Every case has expectations
         for case in pool:
-            self.assertTrue(
-                len(case.expectations) > 0, f"{case.case_id} has no expectations"
-            )
+            self.assertTrue(len(case.expectations) > 0, f"{case.case_id} has no expectations")
 
     def test_calibration_runner_returns_results(self):
         """run_calibration returns per-case results with expected fields."""
@@ -971,6 +960,87 @@ class CalibrationTest(unittest.TestCase):
         result = run_calibration(cases=[bad_case], subset_size=0)
         self.assertEqual(result["cases_passed"], 0)
         self.assertIn("CAL-TEST-FAIL", result["drift_cases"])
+
+
+# ---------------------------------------------------------------------------
+# Test execution and coverage check tests — TST-001 §10
+# ---------------------------------------------------------------------------
+
+
+class TestExecutionCheckTest(SimpleTestCase):
+    """TST-001 §10.4: test_execution compliance check is registered and callable."""
+
+    def test_registered_in_all_checks(self):
+        self.assertIn("test_execution", ALL_CHECKS)
+
+    def test_is_daily_critical(self):
+        self.assertIn("test_execution", DAILY_CRITICAL)
+
+    def test_soc2_controls_declared(self):
+        fn, _cat = ALL_CHECKS["test_execution"]
+        controls = getattr(fn, "soc2_controls", [])
+        self.assertIn("CC4.1", controls)
+        self.assertIn("CC7.2", controls)
+
+    def test_category_is_processing_integrity(self):
+        _fn, category = ALL_CHECKS["test_execution"]
+        self.assertEqual(category, "processing_integrity")
+
+    def test_severity_weight_is_high(self):
+        from syn.audit.compliance import get_check_weight
+
+        self.assertEqual(get_check_weight("test_execution"), 2.0)
+
+    def test_returns_valid_schema(self):
+        """Run the check and verify the result conforms to the standard schema."""
+        fn, _cat = ALL_CHECKS["test_execution"]
+        result = fn()
+        self.assertIn(result["status"], ["pass", "fail", "warning", "error"])
+        self.assertIsInstance(result["details"], dict)
+        self.assertIsInstance(result["soc2_controls"], list)
+        # Must report test counts
+        if result["status"] in ("pass", "fail", "warning"):
+            self.assertIn("total", result["details"])
+            self.assertIn("passed", result["details"])
+
+
+class TestCoverageCheckTest(SimpleTestCase):
+    """TST-001 §10.5: test_coverage compliance check is registered and callable."""
+
+    def test_registered_in_all_checks(self):
+        self.assertIn("test_coverage", ALL_CHECKS)
+
+    def test_is_daily_critical(self):
+        self.assertIn("test_coverage", DAILY_CRITICAL)
+
+    def test_soc2_controls_declared(self):
+        fn, _cat = ALL_CHECKS["test_coverage"]
+        controls = getattr(fn, "soc2_controls", [])
+        self.assertIn("CC4.1", controls)
+
+    def test_category_is_processing_integrity(self):
+        _fn, category = ALL_CHECKS["test_coverage"]
+        self.assertEqual(category, "processing_integrity")
+
+    def test_severity_weight_is_high(self):
+        from syn.audit.compliance import get_check_weight
+
+        self.assertEqual(get_check_weight("test_coverage"), 2.0)
+
+    def test_ratchet_threshold_exists(self):
+        from syn.audit.compliance import _COVERAGE_RATCHET
+
+        self.assertGreaterEqual(_COVERAGE_RATCHET, 45)
+
+    def test_returns_valid_schema(self):
+        fn, _cat = ALL_CHECKS["test_coverage"]
+        result = fn()
+        self.assertIn(result["status"], ["pass", "fail", "warning", "error"])
+        self.assertIsInstance(result["details"], dict)
+        self.assertIsInstance(result["soc2_controls"], list)
+        # Must report ratchet threshold
+        if result["status"] != "error":
+            self.assertIn("ratchet_threshold", result["details"])
 
 
 if __name__ == "__main__":

@@ -149,9 +149,7 @@ def register_svend_tasks():
         from syn.audit.models import HealthPing, IntegrityViolation
 
         cutoff = timezone.now() - timedelta(days=90)
-        deleted_violations, _ = IntegrityViolation.objects.filter(
-            is_resolved=True, resolved_at__lt=cutoff
-        ).delete()
+        deleted_violations, _ = IntegrityViolation.objects.filter(is_resolved=True, resolved_at__lt=cutoff).delete()
         deleted_pings, _ = HealthPing.objects.filter(timestamp__lt=cutoff).delete()
         return {
             "deleted_violations": deleted_violations,
@@ -201,6 +199,35 @@ def register_svend_tasks():
             _fire_availability_andon(recent)
 
         return {"is_healthy": is_healthy}
+
+    def test_execution_handler(payload, context):
+        """Run full test suite via compliance check at 2:00 AM EST (07:00 UTC).
+
+        ⚠ COMPLIANCE-CRITICAL: This is the automated nightly test run per
+        TST-001 §10.4. It runs the full pytest suite in a subprocess against
+        a disposable test database. The production database is never touched.
+
+        DO NOT disable this task without a ChangeRequest (CHG-001).
+        """
+        from syn.audit.compliance import run_check
+
+        test_result = run_check("test_execution")
+        coverage_result = run_check("test_coverage")
+        return {
+            "test_status": test_result.status,
+            "test_details": test_result.details,
+            "coverage_status": coverage_result.status,
+            "coverage_details": coverage_result.details,
+        }
+
+    TaskRegistry.register(
+        task_name="audit.test_execution",
+        handler=test_execution_handler,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.NORMAL,
+        timeout_seconds=720,  # 12 min — test suite timeout (600s) + coverage overhead
+        max_attempts=1,  # Do not retry — flaky retries mask real failures
+    )
 
     TaskRegistry.register(
         task_name="audit.compliance_daily",
@@ -344,9 +371,7 @@ def register_svend_tasks():
         max_attempts=1,
     )
 
-    logger.info(
-        "[syn.sched] Registered %d Svend task handlers", len(TaskRegistry._handlers)
-    )
+    logger.info("[syn.sched] Registered %d Svend task handlers", len(TaskRegistry._handlers))
 
 
 def _fire_availability_andon(recent_pings):
@@ -367,9 +392,7 @@ def _fire_availability_andon(recent_pings):
             message=f"Health endpoint /api/health/ failed 3 times in a row. Errors: {'; '.join(errors)}",
             entity_type="health_ping",
         )
-    logger.warning(
-        "[syn.sched] Availability andon fired: 3 consecutive health ping failures"
-    )
+    logger.warning("[syn.sched] Availability andon fired: 3 consecutive health ping failures")
 
 
 # Schedule definitions matching current Tempora configuration.
@@ -421,6 +444,16 @@ SVEND_SCHEDULES = [
         "schedule_id": "compliance-daily",
         "task_name": "audit.compliance_daily",
         "cron": "0 2 * * *",
+        "priority": TaskPriority.NORMAL,
+        "queue": "batch",
+    },
+    # ⚠ COMPLIANCE-CRITICAL: Nightly test execution — TST-001 §10.4
+    # Runs full pytest suite + coverage check at 2:00 AM EST (07:00 UTC).
+    # DO NOT disable without a ChangeRequest (CHG-001).
+    {
+        "schedule_id": "test-execution-nightly",
+        "task_name": "audit.test_execution",
+        "cron": "0 7 * * *",  # 07:00 UTC = 2:00 AM EST
         "priority": TaskPriority.NORMAL,
         "queue": "batch",
     },
