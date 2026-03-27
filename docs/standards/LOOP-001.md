@@ -1125,6 +1125,482 @@ Field data must flow back into the loop as Signals that update FMIS, the process
 
 ---
 
+## **16. USER EXPERIENCE SPECIFICATION**
+
+LOOP-001 defines system behavior. This section defines how that behavior surfaces to humans. Every screen described here maps directly to a mechanism, mode, or model defined above. No UX surface exists without a behavioral anchor.
+
+### **16.1 Design Principles**
+
+1. **Interactive instruments, not forms.** Every surface is an interactive tool that computes, visualizes, and responds — not a text field with a submit button. The reference standard is Svend Safety's frontier cards: 19 observation items across 6 categories with S/AR/U rating, severity tagging, 5S with tally vs detailed modes, operator interaction with comfort level, close-the-loop tracking. The operations calculators (OEE, Cpk, Gage R&R) are the same: interactive widgets with live computation, not data entry screens. Every LOOP-001 surface MUST meet this standard of interactivity or it does not ship.
+
+2. **The daily surface is the accountability dashboard, not a tool.** Most QMS software opens to a document list. Svend opens to "what needs attention today." Tools are accessed FROM context (an investigation, a commitment, a signal), not from a menu.
+
+3. **Mobile-first for verification, desktop-first for investigation.** PCs and frontier cards happen at the gemba on a phone. Investigations and document authoring happen at a desk. Don't force either to be the other.
+
+4. **Show the loop, not the modules.** The user should see where they are in Investigate → Standardize → Verify, not which tool they're using. The loop is the navigation metaphor.
+
+5. **Evidence over forms.** Instead of text fields labeled "root cause" and "corrective action," the system shows: hypothesis → evidence chain → conclusion. The form-shaped CAPA report is generated OUTPUT, not input.
+
+6. **Uncertainty is visible.** When Bayesian posteriors have wide credible intervals, the UI shows that uncertainty — a faded bar, a "low confidence" label. The system never presents a number without context.
+
+7. **Compute, don't collect.** Wherever possible, the system computes values from interactions rather than asking the user to type them. Severity posteriors update from categorical taps, not number entry. Detection rates accumulate from forced failure test pass/fail buttons, not manual scoring. The user makes judgments. The system does arithmetic.
+
+### **16.2 Accountability Dashboard (Daily Management Surface)**
+
+**URL:** `/app/qms/` (or `/app/loop/`)
+**Who uses it:** Everyone. This is the landing page for QMS users.
+**Frequency:** Daily — opened at standup cadence.
+
+**Layout: Three-column responsive grid**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  CI Readiness Score (§10)          [trend sparkline]         │
+│  ███████████░░░ 72/100             ▲ +3 this week            │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────┐│
+│  │ MY COMMITMENTS  │  │ ACTIVE CONDITIONS │  │ OPEN SIGNALS││
+│  │ (§3.3)          │  │ (§4.6)            │  │ (§3.1)      ││
+│  │                 │  │                   │  │             ││
+│  │ ⚡ Due today: 2 │  │ ⚠ 3 active       │  │ 🔴 1 crit   ││
+│  │ 🔴 Overdue: 1   │  │ ℹ 5 info          │  │ 🟡 2 open   ││
+│  │ ⏳ This week: 4 │  │                   │  │             ││
+│  │                 │  │                   │  │             ││
+│  │ [commitment     │  │ [condition list   │  │ [signal list││
+│  │  list with      │  │  with severity    │  │  with source││
+│  │  precondition   │  │  badges and       │  │  and triage ││
+│  │  status]        │  │  "Create Signal"  │  │  status]    ││
+│  │                 │  │  action]          │  │             ││
+│  └─────────────────┘  └──────────────────┘  └─────────────┘│
+│                                                              │
+├──────────────────────────────────────────────────────────────┤
+│  ACTIVE INVESTIGATIONS                   RECENT ACTIVITY     │
+│  [investigation cards with               [timeline feed:     │
+│   mode indicator, owner,                  commitments         │
+│   commitment count,                       fulfilled, signals  │
+│   days active]                            created, docs       │
+│                                           published]          │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Commitment list item:**
+```
+┌────────────────────────────────────────────────────────┐
+│ ● Revise SOP-042 Section 3              Due: Apr 3     │
+│   Owner: Eric Wolters                                   │
+│   Precondition: QA test data (⏳ pending — blocked by   │
+│   Jane's data collection commitment, due Apr 1)         │
+│   Source: Investigation INV-2026-017                     │
+│   Transition: revise_document → Standardize             │
+│                                     [Mark Fulfilled ▸]  │
+└────────────────────────────────────────────────────────┘
+```
+
+**Key interactions:**
+- Click a commitment → opens investigation workspace with that commitment highlighted
+- Click "Mark Fulfilled" → system creates mode transition, opens target artifact (doc editor, FMIS, etc.)
+- Click a condition → shows detail with policy rule reference + "Create Signal" action
+- Click a signal → opens signal detail with "Open Investigation" or "Link to Existing" actions
+- Overdue commitments show in red with duration. Blocked commitments show blocker chain.
+- The precondition chain is THE daily standup artifact: "I'm blocked because X hasn't delivered Y"
+
+### **16.3 Investigation Workspace**
+
+**URL:** `/app/investigations/<id>/`
+**Who uses it:** Quality engineers, process engineers, investigation leads
+**Frequency:** Duration of investigation (days to weeks)
+
+**Layout: Notebook-style with sidebar**
+
+```
+┌──────────┬───────────────────────────────────────────────┐
+│ SIDEBAR  │  INVESTIGATION: INV-2026-017                   │
+│          │  "Dimensional shift on CNC Line 3"             │
+│ ▸ Graph  │  Status: ACTIVE    Lead: Eric W.               │
+│ ▸ Tools  │  Mode: INVESTIGATE ████░░░░░░                  │
+│ ▸ Evid.  │                                                │
+│ ▸ Commit │  ┌─────────────────────────────────────────┐  │
+│ ▸ History│  │ CAUSAL GRAPH (Synara)                    │  │
+│ ▸ Report │  │                                          │  │
+│          │  │  [interactive DAG: hypotheses as nodes,  │  │
+│ ─────────│  │   evidence as edges, posterior probs     │  │
+│ PROCESS  │  │   on each hypothesis, color = strength]  │  │
+│ MODEL    │  │                                          │  │
+│ SUBSET   │  └─────────────────────────────────────────┘  │
+│          │                                                │
+│ [nodes   │  ┌─────────────────────────────────────────┐  │
+│  from    │  │ ENTRIES (notebook-style)                  │  │
+│  process │  │                                          │  │
+│  model   │  │ Mar 15 — Initial observations            │  │
+│  in this │  │   [narrative + photos + data]             │  │
+│  scope]  │  │                                          │  │
+│          │  │ Mar 17 — Gage R&R on CMM #4              │  │
+│ ─────────│  │   [linked tool output: Gage R&R result]  │  │
+│ TOOLS    │  │   Evidence: MSA valid (discrimination     │  │
+│          │  │   ratio = 7.2)                            │  │
+│ RCA      │  │                                          │  │
+│ Ishikawa │  │ Mar 19 — DOE: Temperature × Feed Rate    │  │
+│ DOE      │  │   [linked tool output: factorial design]  │  │
+│ SPC      │  │   Evidence: Temperature β = 0.34 ± 0.06  │  │
+│ Gage R&R │  │   → Process model edge updated           │  │
+│ Analysis │  │                                          │  │
+│          │  │ Mar 20 — CONCLUSION                       │  │
+│          │  │   Root cause: [hypothesis with P=0.92]    │  │
+│          │  │   Commitments created:                    │  │
+│          │  │   • Revise SOP-042 (Eric, Apr 3)          │  │
+│          │  │   • Update FMIS row #47 (Jane, Mar 25)    │  │
+│          │  │   • Schedule 3 PCs (Eric, Apr 10)         │  │
+│          │  └─────────────────────────────────────────┘  │
+└──────────┴───────────────────────────────────────────────┘
+```
+
+**Key interactions:**
+- **Tool launcher (sidebar):** Click a tool → opens in-investigation context. Tool output auto-links to investigation. Evidence auto-extracted per CANON-002 weights.
+- **Process model subset (sidebar):** Shows which entities from the org's process model are scoped to this investigation. Click an entity → see its current distribution, calibrated edges, and knowledge gaps. Entities with no calibrated edges are highlighted as investigation opportunities.
+- **Notebook entries:** Chronological. Each entry is either narrative (written by investigator), tool output (linked from sidebar), or evidence (auto-extracted). Entries are not deletable — only supersedable per CANON-002 §6.
+- **Conclusion panel:** Appears when investigation transitions to CONCLUDED. Requires: (a) a concluded hypothesis with evidence, (b) at least one Commitment created. If horizontal deployment is required per QMS Policy, surfaces "similar processes" check before conclusion.
+- **Report generator (sidebar):** Click → generates CAPA report (§5) from investigation data. User selects standard template (ISO 9001, 8D, AS9100D, etc.) per QMS Policy. Report opens in document editor for review before publishing.
+
+### **16.4 Process Confirmation (Mobile-First)**
+
+**URL:** `/app/pc/<standard_id>/` (responsive, optimized for phone)
+**Who uses it:** Supervisors, team leads, quality engineers — at the gemba
+**Frequency:** Per QMS Policy schedule (e.g., weekly per standard per area)
+
+**Layout: Vertical card stack (mobile)**
+
+```
+┌──────────────────────────────────┐
+│  PC: SOP-042 "CNC Setup v3.2"   │
+│  Operator: Mike R.  Area: CNC 3  │
+│  Observer: Eric W.               │
+│                                  │
+│  ─────────────────────────────── │
+│                                  │
+│  Step 1: Chuck alignment         │
+│  ┌────────────────────────────┐  │
+│  │ Followed?  ✅ Yes  ❌ No  ⬜ NA│
+│  │ Outcome?   ✅ Pass ❌ Fail ⬜ NA│
+│  │ Notes: ___________________│  │
+│  │ 📷 Add photo              │  │
+│  └────────────────────────────┘  │
+│                                  │
+│  Step 2: Tool offset entry       │
+│  ┌────────────────────────────┐  │
+│  │ Followed?  ✅ Yes  ❌ No  ⬜ NA│
+│  │ Outcome?   ✅ Pass ❌ Fail ⬜ NA│
+│  │ Notes: ___________________│  │
+│  │ 📷 Add photo              │  │
+│  └────────────────────────────┘  │
+│                                  │
+│  ... (remaining steps)           │
+│                                  │
+│  ─────────────────────────────── │
+│  Observer Notes:                 │
+│  _______________________________│
+│                                  │
+│  Improvements Observed:          │
+│  _______________________________│
+│                                  │
+│  ─────────────────────────────── │
+│  DIAGNOSTIC SUMMARY              │
+│  Steps followed: 8/10            │
+│  Outcomes correct: 9/10          │
+│  Diagnosis: STANDARD UNCLEAR     │
+│  (Step 4, 7 not followed —       │
+│   outcome still correct both     │
+│   times → standard may be        │
+│   impractical for these steps)   │
+│                                  │
+│              [Submit PC ▸]       │
+└──────────────────────────────────┘
+```
+
+**Interaction model (reference: Frontier Card depth):**
+
+- **Steps auto-populated** from the linked ControlledDocument's key steps. Each step shows the step text, key point, and reason-why from the JIB. The observer reads the standard and watches.
+- **Single-tap rating** — large touch targets. Followed? (Yes/No/NA). Outcome? (Pass/Fail/NA). Two taps per step. No typing required for the core observation.
+- **Deviation classification** — when "No" or "Fail" is tapped, a severity selector slides in (same pattern as frontier card S/AR/U with C/H/M/L severity). Single tap. The system knows "not followed + moderate" vs "not followed + critical."
+- **Photo capture** — device camera, auto-linked to the specific step. Annotate inline (arrow, circle, text callout — same tools as document editor). Photo is evidence, not decoration.
+- **Operator interaction** — after observation, structured interaction prompts (adapted from STOP methodology): "What did you observe going well?", "What challenges do you face with this step?", "Is there anything about this standard you'd change?" Operator responses are captured as structured data, not free text.
+- **Comfort level** — operator comfort with being observed: comfortable / neutral / uncomfortable (same model as frontier card). Tracks observer effectiveness.
+- **Diagnostic summary** — auto-computed LIVE as the observer taps. The matrix (§7.1: followed × outcome) runs in real time. "Standard unclear" diagnosis appears as soon as the pattern emerges — the observer sees the diagnosis forming, not after submission.
+- **Trend overlay** — if this operator has prior PCs on this standard, the trend is visible: "Pass rate: 4/5 → now 3/5 on this standard." Real-time context.
+- **Submit → PolicyEvaluator** checks thresholds (§4.6) immediately. If threshold breach → condition surfaced on accountability dashboard. Observer sees: "This submission triggered a policy condition: [pc.retraining_threshold]."
+- **Close-the-loop** — same pattern as frontier card close-the-loop: was feedback given? (immediate / within 24h / pending / not done). Tracked and visible.
+
+**What this is NOT:** A form with text fields. The observer taps, photographs, and talks. The system computes, diagnoses, and surfaces conditions. The entire PC should take 5-10 minutes on a phone at the gemba, not 30 minutes at a desk filling out a form.
+
+### **16.5 FMIS View (Bayesian FMEA)**
+
+**URL:** `/app/fmis/<id>/` (or within investigation workspace)
+**Who uses it:** Process engineers, quality engineers
+**Frequency:** During investigations, periodic reviews
+
+**Layout: Table with expandable rows + posterior visualizations**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ FMIS: CNC Line 3 Process                     [Methodology: ▼] │
+│ Investigation: INV-2026-017                    svend_bayesian   │
+│                                                                 │
+│ FM │ Effect │ Cause │ Sev │ Occ │ Det │ RPN │ Evid │ Status    │
+│────┼────────┼───────┼─────┼─────┼─────┼─────┼──────┼─────────│
+│ ▸ Tool     │ Dim.  │ Wear│ 4.2 │ 2.8 │ 3.1 │  37 │ 14   │ Active │
+│   wear     │ shift │     │ ██░░│ █░░░│ ██░░│     │      │        │
+│ ▸ Material │ Surf. │ Lot │ 2.1 │ 5.3 │ 1.4 │  16 │  3   │ Active │
+│   hardness │ rough │ var │ █░░░│ ███░│ █░░░│     │      │        │
+│ ▸ Coolant  │ Ther. │ Flow│ 6.8 │ 1.2 │ ??  │  —  │  0   │ Gap    │
+│   failure  │ damage│ loss│ ████│ █░░░│ ░░░░│     │      │        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Expand a row:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ ▾ Tool wear → Dimensional shift                                 │
+│                                                                 │
+│ SEVERITY (Categorical-Dirichlet)        OPERATIONAL DEFINITIONS │
+│ ┌────────────────────────────────┐      Failure mode:           │
+│ │ Negligible ██░░░░░░░░ 12%     │        → Entity: "Tool wear  │
+│ │ Minor      ████████░░ 48%     │           rate" [linked ▸]    │
+│ │ Moderate   ██████░░░░ 30%     │      Effect:                  │
+│ │ Severe     ██░░░░░░░░  8%     │        → Entity: "Part OD     │
+│ │ Catastroph ░░░░░░░░░░  2%     │           dimension" [linked] │
+│ │ E[Sev] = 2.4  (14 observations)│     Cause:                   │
+│ └────────────────────────────────┘       → Entity: "Insert      │
+│                                             life" [linked ▸]    │
+│ OCCURRENCE (Beta-Binomial)                                      │
+│ ┌────────────────────────────────┐     CONTROLS                 │
+│ │ Rate: 2.3% [1.1%, 4.2%]       │     Prevention: Tool life     │
+│ │ 12 failures / 520 units        │       counter with preset     │
+│ │ ████████░░░░░░░░░░░░ 2.3%     │     Detection: CMM 100%       │
+│ └────────────────────────────────┘       inspection post-op     │
+│                                                                 │
+│ DETECTION (Beta-Binomial)              FORCED FAILURE TESTS     │
+│ ┌────────────────────────────────┐     2026-03-10: 6/8 detected │
+│ │ Rate: 75% [55%, 89%]          │     2026-02-15: 5/6 detected │
+│ │ 11 detected / 14 injected      │     → Next test scheduled:   │
+│ │ ████████████████░░░░ 75%       │       2026-04-01             │
+│ └────────────────────────────────┘                              │
+│                                                                 │
+│ [View in Process Model ▸]  [Schedule Forced Failure ▸]          │
+│ [Add Consequence Observation ▸]                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key interactions:**
+- **`??` detection (no data):** Row shows "Gap" status. System surfaces: "No forced failure test data — detection score is unknown." Not a default, not a guess — an explicit gap.
+- **Entity links:** Click an operational definition → navigates to process model entity with its distribution, calibrated edges, measurement system.
+- **Posterior bars:** Horizontal bars show the distribution. Wider = more uncertain. Narrow = more data. The NUMBER is the posterior mean. The BAR is the credible interval. Users learn to trust narrow bars and question wide ones.
+- **"Add Consequence Observation":** Opens a quick-entry form: classify this event into severity category (1-5) + link to investigation/NCR/complaint. One click adds evidence to the Dirichlet posterior.
+- **Methodology selector:** Dropdown switches between `aiag_4th` (manual integers), `svend_bayesian` (posteriors with integer mapping), `svend_full` (posteriors + operational definitions required). Per QMS Policy.
+
+### **16.6 Document Editor**
+
+**URL:** `/app/iso-docs/<id>/edit/`
+**Who uses it:** Process engineers, document authors, quality managers
+**Frequency:** When creating or revising standards (from investigation commitments)
+
+**Layout: Split-pane — editor left, preview right**
+
+```
+┌────────────────────────────┬────────────────────────────┐
+│ EDITOR                     │ LIVE PREVIEW               │
+│                            │                            │
+│ ┌────────────────────────┐ │ ┌────────────────────────┐│
+│ │ ≡ 1. Purpose           │ │ │ SOP-042               ││
+│ │   [paragraph content]  │ │ │ CNC Setup Procedure    ││
+│ │                        │ │ │ Rev 3.2 | Apr 2026     ││
+│ └────────────────────────┘ │ │                        ││
+│ ┌────────────────────────┐ │ │ 1. Purpose             ││
+│ │ ≡ 2. Scope             │ │ │ This procedure...      ││
+│ │   [paragraph content]  │ │ │                        ││
+│ └────────────────────────┘ │ │ 2. Scope               ││
+│ ┌────────────────────────┐ │ │ Applies to...          ││
+│ │ ≡ 3. Important Steps   │ │ │                        ││
+│ │   ┌──────────────────┐ │ │ │ 3. Important Steps     ││
+│ │   │ Step 3.1: Chuck  │ │ │ │                        ││
+│ │   │ alignment         │ │ │ │ 3.1 Chuck alignment   ││
+│ │   │ Key Point: Center │ │ │ │ ┌──────────────────┐  ││
+│ │   │ within 0.002"     │ │ │ │ │ [photo: chuck    │  ││
+│ │   │ Reason: Prevents  │ │ │ │ │  alignment with  │  ││
+│ │   │ runout > spec     │ │ │ │ │  indicator]      │  ││
+│ │   │ [📷 photo]        │ │ │ │ └──────────────────┘  ││
+│ │   │ [🔗 linked to     │ │ │ │ Key Point: Center     ││
+│ │   │  Entity: "Chuck   │ │ │ │ within 0.002"         ││
+│ │   │  runout"]         │ │ │ │ Why: Prevents runout  ││
+│ │   └──────────────────┘ │ │ │ > specification        ││
+│ │   [+ Add Step]         │ │ │                        ││
+│ └────────────────────────┘ │ └────────────────────────┘│
+│                            │                            │
+│ [+ Add Section ▼]         │ [Export PDF] [Export Word]  │
+│  Heading | Paragraph |     │                            │
+│  JIB Step | Checklist |    │                            │
+│  Image | Table |           │                            │
+│  Signature Block           │                            │
+│                            │                            │
+│ ──────────────────────     │                            │
+│ SOURCE INVESTIGATION       │                            │
+│ INV-2026-017 [view ▸]     │                            │
+│ "Dimensional shift on      │                            │
+│  CNC Line 3"               │                            │
+│ This revision addresses    │                            │
+│ root cause: tool wear      │                            │
+│ detection gap.             │                            │
+└────────────────────────────┴────────────────────────────┘
+```
+
+**Key interactions:**
+- **Drag sections** (≡ handle) to reorder. Sections are the unit of authoring — not free-form rich text.
+- **JIB Step template:** Important Steps → Key Points → Reasons Why. TWI format baked in. Each step can have photos with inline annotation (arrows, callouts, highlights).
+- **Photo drop-in:** Drag photo from file system or paste from clipboard. Photo renders inline with the step. Annotation tools overlay on the photo (arrows, boxes, text callouts).
+- **Entity links:** Steps can link to knowledge graph entities. "Center within 0.002" links to the entity "Chuck runout" with its operational definition, measurement method, and linked equipment. These are the same entities FMIS references.
+- **Investigation link:** When the document revision was created from an investigation commitment, the source investigation is shown. Auditors can trace: why did this SOP change → investigation → root cause → evidence.
+- **Publish flow:** Save → Submit for Review → Approve (e-signature) → Publish → auto-creates TrainingRequirement (§3.2 mode transition: Standardize → Verify).
+- **AI drafting (future):** "Draft from investigation" button → Anthropic generates section content from investigation entries, evidence, and conclusion. Author edits. Not auto-published.
+
+### **16.7 QMS Policy Configuration**
+
+**URL:** `/app/qms/settings/policies/` (admin surface)
+**Who uses it:** Quality managers, system administrators
+**Frequency:** Setup and periodic review
+
+**Layout: Cloudflare-style rule list with detail panel**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ QMS POLICIES                                  [+ Add Rule]   │
+│                                                              │
+│ ┌──────────────────────────────────────────────────────────┐│
+│ │ Scope              │ Rule Key              │ Status       ││
+│ ├────────────────────┼───────────────────────┼─────────────┤│
+│ │ Process Confirm.   │ pc.retraining_thresh  │ ● Active     ││
+│ │ Process Confirm.   │ pc.escalation         │ ● Active     ││
+│ │ FMIS               │ fmis.methodology      │ ● Active     ││
+│ │ FMIS               │ fmis.review_frequency │ ● Active     ││
+│ │ Investigation      │ inv.horizontal_deploy │ ● Active     ││
+│ │ Investigation      │ inv.lead_qualification│ ○ Inactive   ││
+│ │ Training           │ trn.reflection_thresh │ ● Active     ││
+│ │ Calibration        │ cal.overdue_threshold │ ● Active     ││
+│ │ CAPA Report        │ capa.report_standard  │ ● Active     ││
+│ │ CAPA Report        │ capa.include_trending │ ● Active     ││
+│ └──────────────────────────────────────────────────────────┘│
+│                                                              │
+│ RULE DETAIL: pc.retraining_threshold                         │
+│ ┌──────────────────────────────────────────────────────────┐│
+│ │ Scope: process_confirmation                               ││
+│ │ Parameters:                                               ││
+│ │   pass_rate_threshold:    [0.80 ▼]                        ││
+│ │   trailing_window:        [5    ▼] PCs                    ││
+│ │   cooldown_days:          [30   ▼]                        ││
+│ │   escalate_after_n:       [3    ▼] operators              ││
+│ │   escalation_window_days: [60   ▼]                        ││
+│ │                                                           ││
+│ │ Linked standard: ISO 9001 §7.2                            ││
+│ │ Effective date: 2026-04-01                                ││
+│ │ Approved by: Eric Wolters                                 ││
+│ │ Version: 1                                                ││
+│ │                                                           ││
+│ │ [Save as Draft]  [Publish (creates ControlledDocument)]   ││
+│ └──────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key interactions:**
+- Each rule has typed parameter fields (numbers, dropdowns, booleans) — not free text
+- "Publish" saves the rule AND generates a ControlledDocument version (the policy artifact for auditors)
+- Inactive rules are saved but not evaluated by PolicyEvaluator
+- Version history: click any rule → see all prior versions with effective dates and who approved
+- Conflict detection: if two rules contradict, the save button shows a warning with explanation
+
+### **16.8 Signal Triage**
+
+**URL:** `/app/qms/signals/` (or from accountability dashboard)
+**Who uses it:** Quality managers, investigation leads
+**Frequency:** As signals are created (daily to weekly)
+
+**Layout: Kanban-style columns**
+
+```
+┌───────────────┬───────────────┬───────────────┬──────────────┐
+│ UNTRIAGED (3) │ ACKNOWLEDGED  │ INVESTIGATING │ RESOLVED (12)│
+│               │ (2)           │ (4)           │              │
+│ ┌───────────┐ │ ┌───────────┐ │ ┌───────────┐ │              │
+│ │🔴 SPC     │ │ │🟡 PC      │ │ │ INV-017   │ │              │
+│ │violation  │ │ │threshold  │ │ │ linked ▸  │ │              │
+│ │CNC Line 3 │ │ │SOP-042    │ │ │           │ │              │
+│ │2 hrs ago  │ │ │3 operators│ │ │           │ │              │
+│ │           │ │ │failing    │ │ │           │ │              │
+│ │[Ack] [Inv]│ │ │           │ │ │           │ │              │
+│ │[Dismiss]  │ │ │[Open Inv] │ │ │           │ │              │
+│ │[Link]     │ │ │[Link]     │ │ │           │ │              │
+│ └───────────┘ │ └───────────┘ │ └───────────┘ │              │
+│ ...           │               │ ...           │              │
+└───────────────┴───────────────┴───────────────┴──────────────┘
+```
+
+**Key interactions:**
+- **Acknowledge:** "I've seen this, will triage later." Moves to acknowledged column. Prevents duplicate signals from the same condition.
+- **Open Investigation:** Creates new investigation pre-populated with signal source data. Signal status → investigating.
+- **Link to Existing:** Select an active investigation. Signal linked via UUID. Status → investigating.
+- **Dismiss:** Requires reason (text field). Dismissals are auditable. High dismiss rates surface in bias detection (§12).
+- Drag-and-drop between columns (desktop). Tap-to-action (mobile).
+
+### **16.9 Auditor Portal**
+
+**URL:** `/audit/<token>/` (no authentication required — time-limited token)
+**Who uses it:** External auditors during certification/surveillance audits
+**Frequency:** 1-2 times per year per auditor
+
+**Layout: Clean read-only view organized by standard clause**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ SVEND — Auditor Portal            [Standard: ISO 9001 ▼]    │
+│ Organization: Acme Manufacturing   Expires: 2026-04-15      │
+│                                                              │
+│ CI READINESS: 78/100 ████████░░ (▲ +12 over 6 months)      │
+│                                                              │
+│ ┌──────────────────────────────────────────────────────────┐│
+│ │ Clause 10.2 — Nonconformity and Corrective Action        ││
+│ │                                                          ││
+│ │ Investigations: 14 (12 concluded, 2 active)              ││
+│ │ Avg time to conclusion: 8.3 days                         ││
+│ │ % with statistical evidence: 71%                         ││
+│ │ Recurrence rate: 8% (↓ from 15%)                         ││
+│ │                                                          ││
+│ │ ▸ INV-2026-017: Dimensional shift CNC Line 3             ││
+│ │   Signal → Investigation → Fix → SOP revision →          ││
+│ │   Training (6/6 complete, reflections captured) →         ││
+│ │   3 PCs completed (all pass)                             ││
+│ │   [View full chain ▸]  [Generated CAPA report ▸]        ││
+│ │                                                          ││
+│ │ ▸ INV-2026-012: Supplier material variability            ││
+│ │   ...                                                    ││
+│ └──────────────────────────────────────────────────────────┘│
+│                                                              │
+│ ┌──────────────────────────────────────────────────────────┐│
+│ │ Clause 7.2 — Competence                                  ││
+│ │                                                          ││
+│ │ Training coverage: 94% current                           ││
+│ │ Reflections captured: 89% of completions                 ││
+│ │ Avg competency level: 2.8 / 4.0                         ││
+│ │ [View training matrix ▸]                                 ││
+│ └──────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key interactions:**
+- Standard selector: switch between ISO 9001, IATF 16949, AS9100D, ISO 13485 — same data reorganized by clause
+- Click "View full chain": expands the signal → investigation → standardize → verify chain with all linked artifacts
+- Click "Generated CAPA report": opens the auto-assembled report for that investigation
+- No edit capability anywhere. Pure evidence presentation.
+- Token expires after org-configured period. Access logged in audit trail.
+
+---
+
 ## **REVISION HISTORY**
 
 | Version | Date | Author | Changes |
