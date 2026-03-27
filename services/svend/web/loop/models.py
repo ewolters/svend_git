@@ -1,4 +1,4 @@
-"""Loop mechanism models — LOOP-001 §3, §4.
+"""Loop mechanism models — LOOP-001 §3, §4, §6, §7.
 
 Three formally defined mechanisms:
 - Signal (§3.1): event that demands attention — entry point to the loop
@@ -8,6 +8,12 @@ Three formally defined mechanisms:
 QMS Policy service (§4):
 - QMSPolicy: org-defined rules as structured data
 - PolicyCondition: surfaced condition from policy evaluation
+
+Verify mode (§6, §7):
+- TrainingReflection (§6.2): hansei response from operator
+- ProcessConfirmation (§7.1): gemba observation with diagnostic matrix
+- PCObservationItem: individual step observation within a PC
+- ForcedFailureTest (§7.2): detection verification
 """
 
 import uuid
@@ -682,3 +688,427 @@ class PolicyCondition(SynaraEntity):
                 "updated_at",
             ]
         )
+
+
+# =============================================================================
+# TRAINING REFLECTION (LOOP-001 §6.2)
+# =============================================================================
+
+
+class TrainingReflection(SynaraEntity):
+    """Hansei response from operator after training completion.
+
+    Reflections are REQUIRED for training completion. A TrainingRecord
+    without a linked TrainingReflection is incomplete.
+
+    Reflections aggregate per-document (not per-operator) to surface
+    standard revision signals when confusion threshold is exceeded.
+
+    LOOP-001 §6.2, TRN-001 §9.3
+    """
+
+    training_record = models.OneToOneField(
+        "agents_api.TrainingRecord",
+        on_delete=models.CASCADE,
+        related_name="reflection",
+    )
+    controlled_document = models.ForeignKey(
+        "agents_api.ControlledDocument",
+        on_delete=models.CASCADE,
+        related_name="training_reflections",
+    )
+    document_version = models.CharField(
+        max_length=20,
+        help_text="Snapshot of document version at training time",
+    )
+
+    # Operator can flag specific sections as confusing
+    flagged_sections = models.ManyToManyField(
+        "agents_api.ISOSection",
+        blank=True,
+        related_name="flagged_in_reflections",
+        help_text="Sections the operator found unclear",
+    )
+
+    # The reflection itself
+    reflection_text = models.TextField(
+        help_text="Free-text reflection prompted by: What was clear? What was confusing? "
+        "What would you change? What's different from how you actually do it?",
+    )
+
+    # Self-assessment
+    self_assessed_level = models.IntegerField(
+        default=0,
+        help_text="Operator's self-assessed TWI competency level (0-4) post-training",
+    )
+
+    class Meta:
+        db_table = "loop_training_reflection"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Reflection on {self.controlled_document} by {self.training_record}"
+
+
+# =============================================================================
+# PROCESS CONFIRMATION (LOOP-001 §7.1)
+# =============================================================================
+
+
+class ProcessConfirmation(SynaraEntity):
+    """Structured gemba observation — answers two questions:
+    1. Was the standard followed?
+    2. Did following the standard produce the expected outcome?
+
+    The diagnostic matrix (followed × outcome) auto-computes a diagnosis.
+    This is an interactive instrument, not a form.
+
+    LOOP-001 §7.1
+    """
+
+    class Diagnosis(models.TextChoices):
+        SYSTEM_WORKS = "system_works", "System Works"
+        STANDARD_UNCLEAR = "standard_unclear", "Standard Unclear / Training Gap"
+        PROCESS_GAP = "process_gap", "Process Design Broken"
+        INCOMPLETE = "incomplete", "Observation Incomplete"
+
+    class CloseLoopMethod(models.TextChoices):
+        IMMEDIATE = "immediate", "Immediate (on the spot)"
+        WITHIN_24H = "within_24h", "Within 24 Hours"
+        PENDING = "pending", "Pending"
+        NOT_DONE = "not_done", "Not Done"
+
+    class ComfortLevel(models.TextChoices):
+        COMFORTABLE = "comfortable", "Comfortable"
+        NEUTRAL = "neutral", "Neutral"
+        UNCOMFORTABLE = "uncomfortable", "Uncomfortable"
+
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="process_confirmations",
+    )
+
+    # What's being confirmed
+    controlled_document = models.ForeignKey(
+        "agents_api.ControlledDocument",
+        on_delete=models.CASCADE,
+        related_name="process_confirmations",
+        help_text="The standard being confirmed — REQUIRED",
+    )
+    document_version = models.CharField(max_length=20)
+
+    # Who
+    operator = models.ForeignKey(
+        "agents_api.Employee",
+        on_delete=models.CASCADE,
+        related_name="process_confirmations_as_operator",
+        help_text="The operator being observed",
+    )
+    observer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="process_confirmations_as_observer",
+        help_text="The person conducting the PC",
+    )
+
+    # Where
+    process_area = models.CharField(max_length=255, blank=True, default="")
+    shift = models.CharField(max_length=20, blank=True, default="")
+
+    # Auto-computed diagnosis from observation items
+    diagnosis = models.CharField(
+        max_length=30,
+        choices=Diagnosis.choices,
+        default=Diagnosis.INCOMPLETE,
+    )
+
+    # Observation notes
+    observer_notes = models.TextField(blank=True, default="")
+    improvements_observed = models.TextField(
+        blank=True,
+        default="",
+        help_text="What's going RIGHT — acknowledge good practice first",
+    )
+
+    # Operator interaction (STOP methodology)
+    operator_interaction = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='{"what_going_well": "...", "challenges": "...", "what_would_change": "..."}',
+    )
+    comfort_level = models.CharField(
+        max_length=20,
+        choices=ComfortLevel.choices,
+        blank=True,
+        default="",
+    )
+
+    # Close-the-loop
+    close_loop_method = models.CharField(
+        max_length=20,
+        choices=CloseLoopMethod.choices,
+        blank=True,
+        default="",
+    )
+    close_loop_notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "loop_process_confirmation"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["operator", "controlled_document"]),
+            models.Index(fields=["tenant", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"PC: {self.controlled_document} — {self.operator} ({self.diagnosis})"
+
+    def compute_diagnosis(self):
+        """Compute diagnosis from observation items using the diagnostic matrix.
+
+        | Followed? | Outcome? | Diagnosis |
+        |-----------|----------|-----------|
+        | Yes       | Yes      | system_works |
+        | No        | —        | standard_unclear (training gap or impractical standard) |
+        | Yes       | No       | process_gap (standard encodes broken process — HIGH VALUE) |
+        """
+        items = self.observation_items.all()
+        if not items.exists():
+            self.diagnosis = self.Diagnosis.INCOMPLETE
+            return self.diagnosis
+
+        has_not_followed = items.filter(followed=False).exclude(followed_na=True).exists()
+        has_bad_outcome = items.filter(outcome_pass=False).exclude(outcome_na=True).exists()
+        all_followed = not has_not_followed
+
+        if has_not_followed:
+            self.diagnosis = self.Diagnosis.STANDARD_UNCLEAR
+        elif all_followed and has_bad_outcome:
+            # Maximum information event: standard followed but outcome wrong
+            self.diagnosis = self.Diagnosis.PROCESS_GAP
+        else:
+            self.diagnosis = self.Diagnosis.SYSTEM_WORKS
+
+        return self.diagnosis
+
+    @property
+    def pass_rate(self):
+        """Fraction of items where standard was followed AND outcome was correct."""
+        items = self.observation_items.exclude(followed_na=True).exclude(outcome_na=True)
+        total = items.count()
+        if total == 0:
+            return None
+        passed = items.filter(followed=True, outcome_pass=True).count()
+        return passed / total
+
+
+class PCObservationItem(models.Model):
+    """Individual step observation within a Process Confirmation.
+
+    Each item corresponds to a key step in the standard.
+    Two questions per step: followed? outcome correct?
+
+    LOOP-001 §7.1
+    """
+
+    class DeviationSeverity(models.TextChoices):
+        CRITICAL = "critical", "Critical"
+        HIGH = "high", "High"
+        MEDIUM = "medium", "Medium"
+        LOW = "low", "Low"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    process_confirmation = models.ForeignKey(
+        ProcessConfirmation,
+        on_delete=models.CASCADE,
+        related_name="observation_items",
+    )
+    sort_order = models.IntegerField(default=0)
+
+    # Which step
+    step_text = models.CharField(max_length=500, help_text="The step being observed")
+    key_point = models.CharField(max_length=500, blank=True, default="")
+    reason_why = models.CharField(max_length=500, blank=True, default="")
+
+    # Linked section from the standard (optional)
+    linked_section = models.ForeignKey(
+        "agents_api.ISOSection",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    # Observation — single-tap on mobile
+    followed = models.BooleanField(default=True, help_text="Was the standard followed?")
+    followed_na = models.BooleanField(default=False, help_text="Not applicable")
+    outcome_pass = models.BooleanField(default=True, help_text="Was the outcome correct?")
+    outcome_na = models.BooleanField(default=False, help_text="Not applicable")
+
+    # Deviation classification (when followed=False or outcome_pass=False)
+    deviation_severity = models.CharField(
+        max_length=10,
+        choices=DeviationSeverity.choices,
+        blank=True,
+        default="",
+    )
+
+    # Notes and evidence
+    notes = models.TextField(blank=True, default="")
+    photo = models.ForeignKey(
+        "files.UserFile",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="Photo evidence linked to this step",
+    )
+
+    class Meta:
+        db_table = "loop_pc_observation_item"
+        ordering = ["sort_order"]
+
+    def __str__(self):
+        status = "✓" if (self.followed and self.outcome_pass) else "✗"
+        return f"{status} {self.step_text[:50]}"
+
+
+# =============================================================================
+# FORCED FAILURE TEST (LOOP-001 §7.2)
+# =============================================================================
+
+
+class ForcedFailureTest(SynaraEntity):
+    """Detection verification — deliberately create failure conditions
+    and observe whether detection controls catch them.
+
+    Results feed directly into FMIS detection posterior (§8.3):
+    Beta(α + detected, β + (injected - detected))
+
+    LOOP-001 §7.2
+    """
+
+    class TestMode(models.TextChoices):
+        HYPOTHESIS_DRIVEN = "hypothesis_driven", "Hypothesis-Driven (linked to FMIS row)"
+        EXPLORATORY = "exploratory", "Exploratory (boundary probing)"
+
+    class Result(models.TextChoices):
+        DETECTED = "detected", "Detected"
+        NOT_DETECTED = "not_detected", "Not Detected"
+        PARTIALLY_DETECTED = "partially_detected", "Partially Detected"
+
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="forced_failure_tests",
+    )
+
+    # What's being tested
+    test_mode = models.CharField(
+        max_length=20,
+        choices=TestMode.choices,
+        default=TestMode.HYPOTHESIS_DRIVEN,
+    )
+    fmea_row = models.ForeignKey(
+        "agents_api.FMEARow",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="forced_failure_tests",
+        help_text="Linked FMEA row for hypothesis-driven tests (nullable for exploratory)",
+    )
+
+    # Test plan
+    test_plan = models.TextField(
+        help_text="What conditions will be created, what's the expected detection response",
+    )
+    control_being_tested = models.TextField(
+        blank=True,
+        default="",
+        help_text="Description of the detection control under test",
+    )
+
+    # Safety review — HARD GATE
+    safety_reviewed = models.BooleanField(
+        default=False,
+        help_text="Confirmation that test can be conducted safely — REQUIRED before execution",
+    )
+    safety_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="safety_reviewed_tests",
+    )
+
+    # Results — integer counts for Sunrise tracking
+    result = models.CharField(
+        max_length=20,
+        choices=Result.choices,
+        blank=True,
+        default="",
+    )
+    detection_count = models.IntegerField(
+        default=0,
+        help_text="How many injected failures were detected",
+    )
+    injection_count = models.IntegerField(
+        default=0,
+        help_text="How many failures were injected",
+    )
+
+    # Evidence
+    evidence_notes = models.TextField(blank=True, default="")
+    evidence_photos = models.ManyToManyField(
+        "files.UserFile",
+        blank=True,
+        related_name="forced_failure_evidence",
+    )
+
+    # Who
+    conducted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="conducted_forced_failure_tests",
+    )
+    conducted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "loop_forced_failure_test"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["fmea_row", "-created_at"]),
+            models.Index(fields=["tenant", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"FFT: {self.detection_count}/{self.injection_count} detected ({self.test_mode})"
+
+    def save(self, *args, **kwargs):
+        # Safety gate: cannot record results without safety review
+        if self.result and not self.safety_reviewed:
+            raise ValueError(
+                "Cannot record forced failure test results without safety review. "
+                "Set safety_reviewed=True and safety_reviewer before recording results."
+            )
+        # Auto-classify result from counts
+        if self.injection_count > 0 and not self.result:
+            if self.detection_count == self.injection_count:
+                self.result = self.Result.DETECTED
+            elif self.detection_count == 0:
+                self.result = self.Result.NOT_DETECTED
+            else:
+                self.result = self.Result.PARTIALLY_DETECTED
+        super().save(*args, **kwargs)
+
+    @property
+    def detection_rate(self):
+        """Empirical detection rate from this test."""
+        if self.injection_count == 0:
+            return None
+        return self.detection_count / self.injection_count
