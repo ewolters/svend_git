@@ -33,9 +33,7 @@ def _read_csv_safe(file_or_path):
         return pd.read_csv(file_or_path, encoding="latin-1")
 
 
-def log_agent_action(
-    user, agent, action, latency_ms=None, success=True, error_message="", metadata=None
-):
+def log_agent_action(user, agent, action, latency_ms=None, success=True, error_message="", metadata=None):
     """Log an agent action to the database."""
     try:
         AgentLog.objects.create(
@@ -150,9 +148,7 @@ def triage_clean(request):
                 },
                 "outliers_flagged": result.outliers.count if result.outliers else 0,
                 "missing_filled": result.missing.total_filled if result.missing else 0,
-                "columns_dropped": (
-                    result.missing.columns_dropped if result.missing else []
-                ),
+                "columns_dropped": (result.missing.columns_dropped if result.missing else []),
                 "rows_dropped": result.missing.rows_dropped if result.missing else 0,
                 "warnings": result.warnings,
             }
@@ -285,9 +281,7 @@ def triage_preview(request):
 
     except Exception as e:
         logger.exception(f"Triage validation error: {e}")
-        return JsonResponse(
-            {"error": "Data validation failed. Please try again."}, status=500
-        )
+        return JsonResponse({"error": "Data validation failed. Please try again."}, status=500)
 
 
 def _detect_data_biases(df) -> list:
@@ -390,9 +384,7 @@ def list_datasets(request):
 
     GET /api/triage/datasets/
     """
-    datasets = TriageResult.objects.filter(user=request.user).order_by("-created_at")[
-        :20
-    ]
+    datasets = TriageResult.objects.filter(user=request.user).order_by("-created_at")[:20]
 
     return JsonResponse(
         {
@@ -454,9 +446,6 @@ def load_dataset(request, job_id):
         # Generate preview (first 100 rows)
         preview = df.head(100).replace({np.nan: None}).to_dict(orient="records")
 
-        # Preload LLM in background for Analysis Workbench assistant
-        _preload_llm_background()
-
         return JsonResponse(
             {
                 "id": job_id,
@@ -470,33 +459,9 @@ def load_dataset(request, job_id):
     except Exception as e:
         logger.exception(f"Dataset load error: {e}")
         return JsonResponse(
-            {
-                "error": "Dataset load failed. Please verify the file is valid and try again."
-            },
+            {"error": "Dataset load failed. Please verify the file is valid and try again."},
             status=500,
         )
-
-
-def _preload_llm_background():
-    """Start loading the LLM in a background thread if not already loaded."""
-    import threading
-
-    try:
-        from . import views as agent_views
-
-        if not agent_views._shared_llm_loaded:
-            logger.info("Preloading LLM in background (triage data loaded)")
-
-            def load():
-                try:
-                    agent_views.get_shared_llm()
-                    logger.info("LLM preload completed")
-                except Exception as e:
-                    logger.error(f"LLM preload failed: {e}")
-
-            threading.Thread(target=load, daemon=True).start()
-    except Exception as e:
-        logger.warning(f"Could not trigger LLM preload: {e}")
 
 
 def _generate_recommendations(issues: dict, bias_warnings: list = None) -> list[str]:
@@ -523,17 +488,11 @@ def _generate_recommendations(issues: dict, bias_warnings: list = None) -> list[
 
     # Missing data recommendations
     if issues["missing"]:
-        high_missing = [
-            col for col, data in issues["missing"].items() if data["percent"] > 50
-        ]
+        high_missing = [col for col, data in issues["missing"].items() if data["percent"] > 50]
         if high_missing:
-            recs.append(
-                f"Consider dropping columns with >50% missing: {', '.join(high_missing)}"
-            )
+            recs.append(f"Consider dropping columns with >50% missing: {', '.join(high_missing)}")
 
-        low_missing = [
-            col for col, data in issues["missing"].items() if data["percent"] <= 50
-        ]
+        low_missing = [col for col, data in issues["missing"].items() if data["percent"] <= 50]
         if low_missing:
             recs.append(f"Imputation recommended for: {', '.join(low_missing[:5])}")
 

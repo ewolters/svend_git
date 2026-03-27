@@ -181,39 +181,6 @@ def log_agent_action(user, agent, action, latency_ms=None, success=True, error_m
         logger.warning(f"Failed to log agent action: {e}")
 
 
-def _preload_llm_background():
-    """Start loading the LLM in a background thread if not already loaded."""
-    import threading
-
-    try:
-        # Quick CUDA check before attempting load
-        try:
-            import torch
-
-            if not torch.cuda.is_available():
-                logger.warning("CUDA not available - skipping LLM preload")
-                return
-        except ImportError:
-            logger.warning("PyTorch not available - skipping LLM preload")
-            return
-
-        from .. import views as agent_views
-
-        if not agent_views._shared_llm_loaded:
-            logger.info("Preloading LLM in background (data loaded)")
-
-            def load():
-                try:
-                    agent_views.get_shared_llm()
-                    logger.info("LLM preload completed")
-                except Exception as e:
-                    logger.error(f"LLM preload failed: {e}")
-
-            threading.Thread(target=load, daemon=True).start()
-    except Exception as e:
-        logger.warning(f"Could not trigger LLM preload: {e}")
-
-
 def save_model_to_disk(
     user,
     model,

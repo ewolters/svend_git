@@ -13,7 +13,7 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, require_auth, require_enterprise
 
-from .common import _preload_llm_background, log_agent_action
+from .common import log_agent_action
 
 # Validate data_id to prevent path traversal (must be data_ + alphanumeric)
 _SAFE_DATA_ID = re.compile(r"^data_[a-f0-9]+$")
@@ -170,9 +170,6 @@ def upload_data(request):
         preview = df.head(100).replace({np.nan: None}).to_dict(orient="records")
 
         logger.info(f"Data uploaded: {request.user.username} - {file.name} ({df.shape[0]} rows, {df.shape[1]} cols)")
-
-        # Preload LLM in background so it's ready when user asks questions
-        _preload_llm_background()
 
         return JsonResponse(
             {
@@ -517,48 +514,13 @@ Rules:
 - Include print() statements for results
 - Keep code concise but complete"""
 
-    try:
-        # Get Qwen Coder LLM
-        from .. import views as agent_views
-
-        llm = agent_views.get_coder_llm()
-
-        if llm is None:
-            # Fallback: return a template
-            code = """import numpy as np
+    # Local LLM code generation (Qwen/DeepSeek) removed — use Claude via LLMService
+    code = """import numpy as np
 import pandas as pd
 
-# Qwen Coder is loading, please try again in a moment
+# Code generation requires Claude API — use the AI assistant instead
 """
-            return JsonResponse({"code": code, "note": "Qwen Coder is loading, try again shortly"})
-
-        # Generate code with Qwen
-        code = llm.generate(code_prompt, max_tokens=1024, temperature=0.2)
-
-        # Extract code from markdown if present
-        import re
-
-        if "```python" in code:
-            match = re.search(r"```python\n?([\s\S]*?)```", code)
-            if match:
-                code = match.group(1)
-        elif "```" in code:
-            match = re.search(r"```\n?([\s\S]*?)```", code)
-            if match:
-                code = match.group(1)
-
-        # Clean up - remove the prompt echo if present
-        if code.startswith(code_prompt[:50]):
-            code = code[len(code_prompt) :].strip()
-
-        return JsonResponse({"code": code.strip(), "model": "qwen"})
-
-    except Exception as e:
-        logger.exception(f"Code generation error: {e}")
-        return JsonResponse(
-            {"error": "Code generation service unavailable. Please try again later."},
-            status=500,
-        )
+    return JsonResponse({"code": code, "note": "Local code generation unavailable. Use the AI assistant."})
 
 
 @require_http_methods(["POST"])
@@ -620,50 +582,6 @@ def analyst_assistant(request):
         # Get session history from context
         session_history = context.get("session_history", [])
 
-        # Get shared LLM (non-blocking check)
-        llm = None
-        llm_loading = False
-        cuda_available = False
-
-        # Quick CUDA check
-        try:
-            import torch
-
-            cuda_available = torch.cuda.is_available()
-            if not cuda_available:
-                logger.warning("CUDA not available - using keyword fallback")
-        except ImportError:
-            logger.warning("PyTorch not available")
-
-        if cuda_available:
-            try:
-                from .. import views as agent_views
-
-                # Check if LLM is already loaded - don't block on first load
-                if agent_views._shared_llm_loaded:
-                    llm = agent_views._shared_llm
-                    logger.info(f"LLM already loaded: type={type(llm).__name__ if llm else 'None'}")
-                else:
-                    # LLM not loaded yet - trigger background loading
-                    llm_loading = True
-                    logger.info("LLM not yet loaded - triggering background load")
-                    import threading
-
-                    def load_llm_background():
-                        try:
-                            agent_views.get_shared_llm()
-                            logger.info("Background LLM load completed")
-                        except Exception as e:
-                            logger.error(f"Background LLM load failed: {e}")
-
-                    threading.Thread(target=load_llm_background, daemon=True).start()
-
-            except Exception as e:
-                logger.error(f"Failed to check LLM status: {e}")
-                import traceback
-
-                traceback.print_exc()
-
         # Handle different agent types
         if agent_type == "researcher":
             # Researcher agent: web search for domain knowledge
@@ -691,24 +609,7 @@ def analyst_assistant(request):
                 response = f"Model error: {str(e)}"
                 return JsonResponse({"response": response})
 
-        if llm_loading:
-            # LLM is loading in background - provide helpful response with keyword fallback
-            logger.info("LLM loading in background, using enhanced fallback")
-            response = generate_analyst_response(message.lower(), df, columns)
-            response = "*(Qwen LLM is loading in the background - using quick response mode)*\n\n" + response
-        elif llm is None:
-            logger.info("Using keyword-based fallback response")
-            response = generate_analyst_response(message.lower(), df, columns)
-        else:
-            logger.info(f"Using LLM for response, message: {message[:50]}...")
-            try:
-                response = generate_llm_response(llm, message, df, columns, session_history)
-            except Exception as e:
-                logger.error(f"LLM generation failed: {e}")
-                import traceback
-
-                traceback.print_exc()
-                response = f"LLM error: {str(e)}"
+        response = generate_analyst_response(message.lower(), df, columns)
 
         log_agent_action(request.user, "analyst", "question", success=True)
         return JsonResponse({"response": response})
@@ -764,106 +665,6 @@ Be concise but thorough. Use markdown formatting for clarity."""
     )
 
     return result.content if result.success else f"Error: {result.error}"
-
-
-def generate_llm_response(llm, message, df, columns, session_history=None):
-    """Generate response using Qwen LLM as a lab assistant."""
-    import numpy as np
-
-    # Build data context
-    if df is None:
-        return "Please load a dataset first. Click the folder icon in the toolbar to load data from Triage or upload a CSV file."
-
-    n_rows, n_cols = df.shape
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
-
-    # Build correlation matrix for numeric columns (helps answer relationship questions)
-    corr_info = ""
-    if len(numeric_cols) >= 2:
-        try:
-            corr_matrix = df[numeric_cols].corr()
-            # Find top correlations
-            corr_pairs = []
-            for i, col1 in enumerate(numeric_cols):
-                for col2 in numeric_cols[i + 1 :]:
-                    corr_val = corr_matrix.loc[col1, col2]
-                    if abs(corr_val) > 0.3:  # Only notable correlations
-                        corr_pairs.append((col1, col2, corr_val))
-            corr_pairs.sort(key=lambda x: abs(x[2]), reverse=True)
-            if corr_pairs:
-                corr_info = "\n\nNOTABLE CORRELATIONS:\n"
-                for col1, col2, r in corr_pairs[:10]:
-                    strength = "strong" if abs(r) > 0.7 else "moderate" if abs(r) > 0.5 else "weak"
-                    direction = "positive" if r > 0 else "negative"
-                    corr_info += f"- {col1} ↔ {col2}: r={r:.3f} ({strength} {direction})\n"
-        except Exception:
-            pass
-
-    # Build data summary for context
-    data_context = f"""Dataset: {n_rows:,} rows × {n_cols} columns
-
-Numeric columns ({len(numeric_cols)}): {", ".join(numeric_cols[:15])}
-Categorical columns ({len(cat_cols)}): {", ".join(cat_cols[:15])}
-
-Summary statistics:
-{df.describe().to_string()}{corr_info}
-
-Sample data (first 3 rows):
-{df.head(3).to_string()}
-"""
-
-    # Build session history context
-    session_context = ""
-    if session_history:
-        session_context = "\n\nSESSION HISTORY (analyses run this session):\n"
-        for item in session_history[-10:]:
-            session_context += (
-                f"- {item.get('type', 'unknown')}: {item.get('name', '')} - {item.get('summary', '')[:200]}\n"
-            )
-
-    # Build prompt - lab assistant persona
-    prompt = f"""You are a lab assistant helping a scientist analyze their data. You're knowledgeable, helpful, and speak like a colleague - not a generic chatbot.
-
-Your role:
-- Answer questions directly and specifically about THIS data
-- Explain patterns, anomalies, or relationships you see
-- Suggest appropriate statistical tests with reasoning
-- Reference specific column names and values
-- Be concise but insightful
-
-Available analysis tools:
-- Stat: Descriptive Stats, t-tests, ANOVA, Regression, Correlation, Normality, Chi-Square
-- ML: Classification (RF, XGBoost, SVM), Clustering (K-Means, DBSCAN), PCA
-- SPC: Control charts (I-MR, Xbar-R), Capability Analysis
-- Graph: Histogram, Boxplot, Scatter, Matrix Plot, Time Series, Pareto
-
-DATA:
-{data_context}{session_context}
-
-USER: {message}
-
-Respond as a helpful lab assistant. Be specific to this data. If they ask about relationships, look at the correlations. If they ask what to analyze, give concrete suggestions based on the actual columns. Keep response under 250 words."""
-
-    try:
-        import concurrent.futures
-
-        # Use a thread with timeout to prevent hanging
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(llm.generate, prompt, max_tokens=500, temperature=0.7)
-            try:
-                response = future.result(timeout=30)  # 30 second timeout
-                return response
-            except concurrent.futures.TimeoutError:
-                logger.warning("LLM generation timed out after 30s")
-                return (
-                    generate_analyst_response(message.lower(), df, columns)
-                    + "\n\n*(Response generated via quick mode due to timeout)*"
-                )
-    except Exception as e:
-        logger.error(f"LLM generation error: {e}")
-        # Fallback
-        return generate_analyst_response(message.lower(), df, columns)
 
 
 def generate_analyst_response(message, df, columns):
@@ -1149,63 +950,7 @@ def generate_researcher_response(message, df, columns, data_preview):
     except Exception as e:
         logger.warning(f"DuckDuckGo search failed: {e}")
 
-    # Use LLM to synthesize search results into intelligent response
     if search_results:
-        # Try to use shared LLM for synthesis
-        llm = None
-        try:
-            from .. import views as agent_views
-
-            if agent_views._shared_llm_loaded:
-                llm = agent_views._shared_llm
-        except Exception:
-            pass
-
-        if llm:
-            # Build context for LLM synthesis
-            search_context = "\n\n".join(
-                [f"Source: {r['title']}\n{r['snippet']}" for r in search_results[:5] if r.get("snippet")]
-            )
-
-            synthesis_prompt = f"""You are a research assistant helping analyze data. The user asked: "{message}"
-
-Here is what web research found:
-
-{search_context}
-
-User's data context: {data_context}
-
-Based on the search results and the user's data, provide a helpful synthesis that:
-1. Directly answers their question about the relationship/topic
-2. Explains any scientific mechanisms or reasons
-3. Relates the findings to their specific data columns if relevant
-4. Notes any important caveats or additional considerations
-
-Keep response under 250 words. Be specific and scientific, not generic."""
-
-            try:
-                import concurrent.futures
-
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(llm.generate, synthesis_prompt, max_tokens=400, temperature=0.7)
-                    synthesized = future.result(timeout=30)
-
-                response = f"**Research Analysis:** *{message}*\n\n"
-                response += synthesized + "\n\n"
-
-                if sources:
-                    response += "**Sources:**\n"
-                    for src in sources[:5]:
-                        if src.get("url"):
-                            response += f"- [{src.get('title', 'Link')[:50]}]({src['url']})\n"
-
-                return response, sources
-
-            except Exception as e:
-                logger.warning(f"LLM synthesis failed: {e}")
-                # Fall through to basic response
-
-        # Fallback: basic response without LLM
         response = f"**Research findings for:** *{message}*\n\n"
 
         for i, result in enumerate(search_results[:4], 1):
@@ -1264,70 +1009,7 @@ def generate_writer_response(message, df, columns, session_history):
             [f"- {item.get('name', 'Analysis')}: {item.get('summary', '')[:150]}" for item in session_history[-10:]]
         )
 
-    # Try to use LLM for intelligent document generation
-    llm = None
-    try:
-        from .. import views as agent_views
-
-        if agent_views._shared_llm_loaded:
-            llm = agent_views._shared_llm
-    except Exception:
-        pass
-
-    if llm:
-        writer_prompt = f"""You are a technical writer creating a data analysis report. The user requested: "{message}"
-
-DATA CONTEXT:
-- Dataset: {n_rows:,} rows × {n_cols} columns
-- Numeric columns ({len(numeric_cols)}): {", ".join(numeric_cols[:10])}
-- Categorical columns ({len(cat_cols)}): {", ".join(cat_cols[:10])}
-
-SUMMARY STATISTICS:
-{stats_summary}
-
-ANALYSES PERFORMED THIS SESSION:
-{history_text if history_text else "No analyses run yet"}
-
-Write a professional markdown report that includes:
-1. Executive Summary (2-3 sentences answering what the user asked for)
-2. Data Overview (brief description of the dataset)
-3. Key Findings (based on the statistics and any analyses performed)
-4. Recommendations (next steps for analysis)
-
-Use proper markdown formatting with headers (##), bullet points, and tables where appropriate.
-Keep it concise but informative (under 500 words)."""
-
-        try:
-            import concurrent.futures
-
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(llm.generate, writer_prompt, max_tokens=800, temperature=0.7)
-                llm_content = future.result(timeout=45)
-
-            document = "# Analysis Report\n\n"
-            document += f"*Generated: {timestamp}*\n\n"
-            document += llm_content + "\n\n"
-            document += "---\n\n"
-            document += "## Appendix: Data Summary\n\n"
-            document += f"**Dataset:** {n_rows:,} rows × {n_cols} columns\n\n"
-            document += "| Variable | Type | Missing | Unique |\n"
-            document += "|----------|------|---------|--------|\n"
-            for col in df.columns[:15]:
-                dtype = "Numeric" if col in numeric_cols else "Categorical"
-                missing = int(df[col].isna().sum())
-                unique = int(df[col].nunique())
-                document += f"| {col} | {dtype} | {missing} | {unique} |\n"
-
-            response = "I've written a detailed analysis report based on your data and session history.\n\n"
-            response += "The document includes an executive summary, key findings, and recommendations.\n\n"
-            response += "Click the download link below to save."
-
-            return response, document, filename
-
-        except Exception as e:
-            logger.warning(f"LLM writer failed: {e}")
-
-    # Fallback: static document
+    # Static document
     document = "# Data Analysis Report\n\n"
     document += f"*Generated: {timestamp}*\n\n"
     document += f"*Request: {message}*\n\n"

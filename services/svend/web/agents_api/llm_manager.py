@@ -259,32 +259,3 @@ class LLMManager:
             "tier_mapping": TIER_MODEL_MAP,
             "custom_llm": "disabled",  # Qwen/DeepSeek temporarily disabled
         }
-
-    # =========================================================================
-    # Deprecated methods - kept for backwards compatibility during transition
-    # =========================================================================
-
-    @classmethod
-    def get_shared(cls) -> Any | None:
-        """DEPRECATED: Custom LLMs disabled. Use get_anthropic() instead."""
-        logger.warning("get_shared() is deprecated - custom LLMs temporarily disabled")
-        return None
-
-    @classmethod
-    def get_coder(cls) -> Any | None:
-        """DEPRECATED: Custom LLMs disabled. Use get_anthropic() instead."""
-        logger.warning("get_coder() is deprecated - custom LLMs temporarily disabled")
-        return None
-
-
-# Convenience functions - deprecated but kept for compatibility
-def get_shared_llm():
-    """DEPRECATED: Use LLMManager.chat() or LLMManager.get_anthropic() instead."""
-    logger.warning("get_shared_llm() is deprecated - custom LLMs temporarily disabled")
-    return None
-
-
-def get_coder_llm():
-    """DEPRECATED: Use LLMManager.chat() or LLMManager.get_anthropic() instead."""
-    logger.warning("get_coder_llm() is deprecated - custom LLMs temporarily disabled")
-    return None

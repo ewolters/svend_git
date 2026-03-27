@@ -69,9 +69,7 @@ def workflow_detail(request, workflow_id):
                 "name": workflow.name,
                 "steps": workflow.steps,
                 "created_at": workflow.created_at.isoformat(),
-                "last_run": (
-                    workflow.last_run.isoformat() if workflow.last_run else None
-                ),
+                "last_run": (workflow.last_run.isoformat() if workflow.last_run else None),
             }
         )
 
@@ -88,11 +86,7 @@ def workflow_detail(request, workflow_id):
     if "name" in data:
         workflow.name = data["name"]
     if "steps" in data:
-        workflow.steps = (
-            json.dumps(data["steps"])
-            if isinstance(data["steps"], list)
-            else data["steps"]
-        )
+        workflow.steps = json.dumps(data["steps"]) if isinstance(data["steps"], list) else data["steps"]
 
     workflow.save()
     return JsonResponse({"success": True})
@@ -108,11 +102,7 @@ def workflow_run(request, workflow_id):
         return JsonResponse({"error": "Workflow not found"}, status=404)
 
     # Parse steps
-    steps = (
-        json.loads(workflow.steps)
-        if isinstance(workflow.steps, str)
-        else workflow.steps
-    )
+    steps = json.loads(workflow.steps) if isinstance(workflow.steps, str) else workflow.steps
 
     # Update last run
     workflow.last_run = datetime.now()
@@ -185,8 +175,6 @@ def workflow_run(request, workflow_id):
 
 def _run_researcher_step(step, context):
     """Run researcher agent step."""
-    from .views import get_shared_llm
-
     query = step.get("query", "")
     if not query:
         return {"status": "skipped", "reason": "No query provided"}
@@ -194,17 +182,14 @@ def _run_researcher_step(step, context):
     try:
         from researcher.agent import ResearchAgent, ResearchQuery
 
-        llm = get_shared_llm()
-        agent = ResearchAgent(llm=llm)
+        agent = ResearchAgent(llm=None)
         result = agent.run(ResearchQuery(question=query))
 
         return {
             "query": query,  # Include original query for downstream steps
             "summary": result.summary if hasattr(result, "summary") else str(result),
             "sources": (
-                [{"title": s.title, "url": s.url} for s in result.sources]
-                if hasattr(result, "sources")
-                else []
+                [{"title": s.title, "url": s.url} for s in result.sources] if hasattr(result, "sources") else []
             ),
         }
     except Exception as e:
@@ -213,8 +198,6 @@ def _run_researcher_step(step, context):
 
 def _run_coder_step(step, context):
     """Run coder agent step."""
-    from .views import get_coder_llm
-
     prompt = step.get("prompt", "")
     if not prompt:
         return {"status": "skipped", "reason": "No prompt provided"}
@@ -222,8 +205,7 @@ def _run_coder_step(step, context):
     try:
         from coder.agent import CodingAgent, CodingTask
 
-        llm = get_coder_llm()
-        agent = CodingAgent(llm=llm)
+        agent = CodingAgent(llm=None)
         result = agent.run(CodingTask(description=prompt))
 
         return {"code": result.code}
@@ -233,8 +215,6 @@ def _run_coder_step(step, context):
 
 def _run_writer_step(step, context):
     """Run writer agent step."""
-    from .views import get_shared_llm
-
     template = step.get("template", "general")
     topic = step.get("topic", "") or step.get("name", "")
 
@@ -275,19 +255,14 @@ Write about the specific findings from this research, not about writing in gener
     try:
         from writer.agent import DocumentRequest, DocumentType, WriterAgent
 
-        llm = get_shared_llm()
-        agent = WriterAgent(llm=llm)
-        doc_type = getattr(
-            DocumentType, template.upper(), DocumentType.EXECUTIVE_SUMMARY
-        )
+        agent = WriterAgent(llm=None)
+        doc_type = getattr(DocumentType, template.upper(), DocumentType.EXECUTIVE_SUMMARY)
         result = agent.write(
             DocumentRequest(topic=full_topic, doc_type=doc_type),
             original_prompt=full_topic,
         )
 
-        return {
-            "content": result.content if hasattr(result, "content") else str(result)
-        }
+        return {"content": result.content if hasattr(result, "content") else str(result)}
     except Exception as e:
         return {"error": str(e)}
 
@@ -407,11 +382,7 @@ def _run_scrub_step(step, context):
             "outliers_flagged": result.outliers_flagged,
             "missing_filled": result.missing_filled,
             "warnings": result.warnings,
-            "data": (
-                result.data.to_dict(orient="records")
-                if hasattr(result.data, "to_dict")
-                else result.data
-            ),
+            "data": (result.data.to_dict(orient="records") if hasattr(result.data, "to_dict") else result.data),
         }
     except Exception as e:
         return {"error": str(e)}
@@ -455,9 +426,7 @@ def _run_analyst_step(step, context):
             "model_type": result.model_type,
             "task_type": result.task_type,
             "metrics": result.metrics,
-            "feature_importance": (
-                result.feature_importance[:10] if result.feature_importance else []
-            ),
+            "feature_importance": (result.feature_importance[:10] if result.feature_importance else []),
             "report": result.report_markdown,
         }
     except Exception as e:
