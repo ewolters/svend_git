@@ -1,8 +1,8 @@
 # ARCH-001: Architecture & Structure Standard
 
-**Version:** 1.0
+**Version:** 1.1
 **Status:** APPROVED
-**Date:** 2026-03-04
+**Date:** 2026-03-27
 **Author:** Eric + Claude (Systems Architect)
 
 **Compliance:**
@@ -253,7 +253,38 @@ To sunset a module:
 
 ---
 
-## **10. ANTI-PATTERNS**
+## **10. PLUGGABLE MODULE INFRASTRUCTURE**
+
+### **10.1 ToolRouter — URL Registration**
+
+<!-- assert: ToolRouter provides central URL pattern generation for QMS tool modules | check=arch-tool-router -->
+<!-- impl: agents_api/tool_router.py:ToolRouter -->
+<!-- test: agents_api.tests.test_tool_router.ToolRouterRegistrationTests.test_register_stores_config -->
+<!-- test: agents_api.tests.test_tool_router.ToolRouterRegistrationTests.test_duplicate_slug_raises -->
+<!-- test: agents_api.tests.test_tool_router.ToolRouterURLTests.test_crud_patterns_generated -->
+<!-- test: agents_api.tests.test_tool_router.ToolRouterURLTests.test_action_patterns -->
+<!-- test: agents_api.tests.test_tool_router.ToolRouterURLTests.test_collection_action_patterns -->
+<!-- test: agents_api.tests.test_tool_router.ToolRouterURLTests.test_nested_resource_patterns -->
+<!-- test: agents_api.tests.test_tool_router.ToolRouterPermissionTests.test_paid_wraps_views -->
+<!-- test: agents_api.tests.test_tool_router.ToolRouterPermissionTests.test_team_wraps_views -->
+
+`ToolRouter` auto-generates Django URL patterns for registered QMS tools. Each tool registers once with `ToolRouter.register(slug, model, views, permission, actions)` and gets CRUD routes, custom action mounts, and nested resource patterns with correct permission decorators applied automatically.
+
+### **10.2 ToolEventBus — Domain Event Integration**
+
+<!-- assert: ToolEventBus provides fault-isolated pub/sub for QMS tool lifecycle events | check=arch-tool-events -->
+<!-- impl: agents_api/tool_events.py:ToolEventBus -->
+<!-- test: agents_api.tests.test_tool_events.ToolEventEmitTests.test_emit_calls_registered_handler -->
+<!-- test: agents_api.tests.test_tool_events.ToolEventEmitTests.test_multiple_handlers_all_called -->
+<!-- test: agents_api.tests.test_tool_events.ToolEventWildcardTests.test_star_dot_pattern_matches -->
+<!-- test: agents_api.tests.test_tool_events.ToolEventWildcardTests.test_exact_and_wildcard_both_called -->
+<!-- test: agents_api.tests.test_tool_events.ToolEventIsolationTests.test_handler_exception_does_not_block_others -->
+
+`ToolEventBus` decouples tools from cross-cutting concerns. Tools emit events (`tool_events.emit("fmea.row_updated", record, user=user)`), handlers subscribe via `@tool_events.on("fmea.*")` decorator. Handler failures are logged but do not propagate — fault isolation ensures one broken handler cannot block others.
+
+---
+
+## **11. ANTI-PATTERNS**
 
 <!-- assert: No unexpected files at web root | check=arch-root-files -->
 <!-- impl: syn/audit/compliance.py -->
@@ -271,7 +302,7 @@ To sunset a module:
 
 ---
 
-## **11. ACCEPTANCE CRITERIA**
+## **12. ACCEPTANCE CRITERIA**
 
 | # | Criterion | Verified By |
 |---|-----------|-------------|
@@ -287,7 +318,7 @@ To sunset a module:
 
 ---
 
-## **12. COMPLIANCE MAPPING**
+## **13. COMPLIANCE MAPPING**
 
 <!-- assert: Architecture compliance check is registered | check=arch-check-registered -->
 <!-- impl: syn/audit/compliance.py -->
@@ -315,3 +346,4 @@ The `architecture` compliance check runs on the Wednesday rotation and validates
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-03-04 | Eric + Claude | Initial release. 5S cleanup: removed tempora/, services/tempora/, services/forge/, forge_results/ |
+| 1.1 | 2026-03-27 | Eric + Claude | §10 added — Pluggable Module Infrastructure: ToolRouter (§10.1, 8 test hooks) and ToolEventBus (§10.2, 5 test hooks). Sections 11-13 renumbered. |
