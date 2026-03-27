@@ -9233,7 +9233,7 @@ function analyzeDOEFromMatrix() {
 
         // Interpretation
         if (result.interpretation) {
-            appendSession('summary', result.interpretation);
+            appendSession('summary', result.interpretation, true);
         }
 
         // Model summary
@@ -9245,12 +9245,12 @@ function analyzeDOEFromMatrix() {
             if (ms.s) modelHtml += ' &nbsp; S = ' + ms.s;
             if (ms.saturated) modelHtml += ' &nbsp; <em style="color:var(--warning);">(saturated \u2014 no residual DF for significance tests)</em>';
             modelHtml += '</div>';
-            appendSession('html', modelHtml);
+            appendSession('html', modelHtml, true);
         }
 
         // Model equation
         if (analysis.model_equation) {
-            appendSession('html', '<div style="font-family:monospace;font-size:11px;padding:6px;background:var(--bg-secondary);border-radius:4px;margin:4px 0;">' + escapeHtml(analysis.model_equation) + '</div>');
+            appendSession('html', '<div style="font-family:monospace;font-size:11px;padding:6px;background:var(--bg-secondary);border-radius:4px;margin:4px 0;">' + escapeHtml(analysis.model_equation) + '</div>', true);
         }
 
         // ANOVA table
@@ -9262,7 +9262,7 @@ function analyzeDOEFromMatrix() {
                 tbl += '<tr' + highlight + '><td>' + (r.source || r.term || '') + '</td><td>' + (r.df != null ? r.df : '') + '</td><td>' + (r.ss != null ? r.ss.toFixed(4) : '') + '</td><td>' + (r.ms != null ? r.ms.toFixed(4) : '') + '</td><td>' + (r.f_value != null ? r.f_value.toFixed(3) : r.f != null ? r.f.toFixed(3) : '') + '</td><td>' + (r.p_value != null ? r.p_value.toFixed(4) : r.p != null ? r.p.toFixed(4) : '') + '</td></tr>';
             });
             tbl += '</tbody></table>';
-            appendSession('html', tbl);
+            appendSession('html', tbl, true);
         }
 
         // Coefficients table
@@ -9274,12 +9274,12 @@ function analyzeDOEFromMatrix() {
                 ctbl += '<tr' + highlight + '><td>' + escapeHtml(c.term) + '</td><td>' + (c.effect != null ? c.effect : '') + '</td><td>' + c.coefficient + '</td><td>' + c.se_coef + '</td><td>' + (c.t_value != null ? c.t_value : '') + '</td><td>' + (c.p_value != null ? c.p_value : '') + '</td></tr>';
             });
             ctbl += '</tbody></table>';
-            appendSession('html', ctbl);
+            appendSession('html', ctbl, true);
         }
 
         // Significant factors
         if (analysis.significant_factors && analysis.significant_factors.length > 0) {
-            appendSession('summary', '<strong>Significant factors:</strong> ' + analysis.significant_factors.join(', '));
+            appendSession('summary', '<strong>Significant factors:</strong> ' + analysis.significant_factors.join(', '), true);
         }
 
         // Optimization
@@ -9289,7 +9289,7 @@ function analyzeDOEFromMatrix() {
             if (opt.maximize) { optHtml += 'Maximize: ' + JSON.stringify(opt.maximize.settings) + ' \u2192 ' + (opt.maximize.predicted != null ? opt.maximize.predicted.toFixed(4) : '?') + '<br>'; }
             if (opt.minimize) { optHtml += 'Minimize: ' + JSON.stringify(opt.minimize.settings) + ' \u2192 ' + (opt.minimize.predicted != null ? opt.minimize.predicted.toFixed(4) : '?'); }
             optHtml += '</div>';
-            appendSession('html', optHtml);
+            appendSession('html', optHtml, true);
         }
 
         // Render Plotly charts for main effects and Pareto
@@ -9298,13 +9298,13 @@ function analyzeDOEFromMatrix() {
             var traces = plots.main_effects.map(function(me) {
                 return { x: me.levels.map(String), y: me.means, name: me.factor, type: 'scatter', mode: 'lines+markers' };
             });
-            plotlyCharts.push({ data: traces, layout: { title: 'Main Effects Plot', xaxis: { title: 'Factor Level' }, yaxis: { title: responseName } } });
+            plotlyCharts.push({ data: traces, layout: { title: 'Main Effects Plot', margin: { t: 40 }, xaxis: { title: 'Factor Level' }, yaxis: { title: responseName } } });
         }
         if (plots.pareto && plots.pareto.length > 0) {
             var pdata = plots.pareto.sort(function(a, b) { return Math.abs(b.standardized_effect || b.t_value || 0) - Math.abs(a.standardized_effect || a.t_value || 0); });
             plotlyCharts.push({
                 data: [{ y: pdata.map(function(p) { return p.term; }), x: pdata.map(function(p) { return Math.abs(p.standardized_effect || p.t_value || 0); }), type: 'bar', orientation: 'h', marker: { color: 'var(--accent)' } }],
-                layout: { title: 'Pareto Chart of Effects', xaxis: { title: '|Standardized Effect|' }, shapes: plots.pareto_reference ? [{ type: 'line', x0: plots.pareto_reference, x1: plots.pareto_reference, y0: -0.5, y1: pdata.length - 0.5, line: { color: 'red', dash: 'dash' } }] : [] }
+                layout: { title: 'Pareto Chart of Effects', margin: { t: 40, l: 120 }, xaxis: { title: '|Standardized Effect|' }, shapes: plots.pareto_reference ? [{ type: 'line', x0: plots.pareto_reference, x1: plots.pareto_reference, y0: -0.5, y1: pdata.length - 0.5, line: { color: 'red', dash: 'dash' } }] : [] }
             });
         }
         if (plotlyCharts.length > 0) displayGraphs(plotlyCharts);
