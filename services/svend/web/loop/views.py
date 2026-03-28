@@ -805,15 +805,19 @@ def dashboard_data(request):
     due_today = [c for c in my_commitments if c.due_date == date.today()]
 
     # Active conditions
-    active_conditions = PolicyCondition.objects.filter(
+    active_conditions_qs = PolicyCondition.objects.filter(
         status=PolicyCondition.Status.ACTIVE,
-    ).order_by("-created_at")[:20]
+    ).order_by("-created_at")
+    conditions_count = active_conditions_qs.count()
+    active_conditions = list(active_conditions_qs[:20])
 
     # Open signals
-    open_signals = Signal.objects.filter(
+    open_signals_qs = Signal.objects.filter(
         created_by=user,
         triage_state__in=[Signal.TriageState.UNTRIAGED, Signal.TriageState.ACKNOWLEDGED],
-    ).order_by("-created_at")[:10]
+    ).order_by("-created_at")
+    untriaged_count = open_signals_qs.filter(triage_state=Signal.TriageState.UNTRIAGED).count()
+    open_signals = list(open_signals_qs[:10])
 
     # Active investigations
     active_investigations = Investigation.objects.filter(
@@ -849,11 +853,11 @@ def dashboard_data(request):
                     }
                     for c in active_conditions
                 ],
-                "count": active_conditions.count(),
+                "count": conditions_count,
             },
             "signals": {
                 "items": [_serialize_signal(s) for s in open_signals],
-                "untriaged_count": open_signals.filter(triage_state=Signal.TriageState.UNTRIAGED).count(),
+                "untriaged_count": untriaged_count,
             },
             "investigations": {
                 "items": [
