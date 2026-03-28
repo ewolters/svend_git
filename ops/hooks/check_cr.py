@@ -32,6 +32,16 @@ sys.path.insert(0, WEB_DIR)
 os.chdir(WEB_DIR)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "svend.settings")
 
+# Load env from /etc/svend/env if it exists (server hardening moved .env there)
+_env_file = "/etc/svend/env"
+if os.path.exists(_env_file):
+    with open(_env_file) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, _, val = line.partition("=")
+                os.environ.setdefault(key.strip(), val.strip())
+
 # Suppress all Django startup logging
 import logging
 

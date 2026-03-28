@@ -15,9 +15,9 @@
 .loop-kpi .label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 .loop-kpi .value { font-size: 26px; font-weight: 600; color: var(--text-primary); margin: 4px 0; font-family: 'JetBrains Mono', monospace; }
 .loop-kpi .sub { font-size: 11px; color: var(--text-dim); }
-.loop-kpi.alert .value { color: #f87171; }
-.loop-kpi.warn .value { color: #facc15; }
-.loop-kpi.good .value { color: #4ade80; }
+.loop-kpi.kpi-alert .value { color: #f87171; }
+.loop-kpi.kpi-warn .value { color: #facc15; }
+.loop-kpi.kpi-good .value { color: #4ade80; }
 
 /* Three-column grid */
 .loop-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
@@ -188,12 +188,12 @@ async function loadDashboard() {
 function renderDashboard(data) {
     // KPIs
     const c = data.commitments;
-    setKPI('kpiDueToday', c.due_today_count, c.due_today_count > 0 ? 'warn' : '');
-    setKPI('kpiOverdue', c.overdue_count, c.overdue_count > 0 ? 'alert' : 'good');
-    setKPI('kpiBlocked', c.blocked_count, c.blocked_count > 0 ? 'warn' : '');
-    setKPI('kpiConditions', data.conditions.count, data.conditions.count > 0 ? 'warn' : 'good');
-    setKPI('kpiSignals', data.signals.untriaged_count, data.signals.untriaged_count > 0 ? 'alert' : 'good');
-    setKPI('kpiFulfilled', c.fulfilled, 'good');
+    setKPI('kpiDueToday', c.due_today_count, c.due_today_count > 0 ? 'kpi-warn' : '');
+    setKPI('kpiOverdue', c.overdue_count, c.overdue_count > 0 ? 'kpi-alert' : 'kpi-good');
+    setKPI('kpiBlocked', c.blocked_count, c.blocked_count > 0 ? 'kpi-warn' : '');
+    setKPI('kpiConditions', data.conditions.count, data.conditions.count > 0 ? 'kpi-warn' : 'kpi-good');
+    setKPI('kpiSignals', data.signals.untriaged_count, data.signals.untriaged_count > 0 ? 'kpi-alert' : 'kpi-good');
+    setKPI('kpiFulfilled', c.fulfilled, 'kpi-good');
 
     // Commitments
     document.getElementById('commitmentCount').textContent = c.items.length;
