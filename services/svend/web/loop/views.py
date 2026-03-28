@@ -20,7 +20,9 @@ from .models import (
     InvestigationEntry,
     ModeTransition,
     PCObservationItem,
+    PolicyCondition,
     ProcessConfirmation,
+    QMSPolicy,
     Signal,
     TrainingReflection,
 )
@@ -792,8 +794,6 @@ def dashboard_data(request):
     """
     from core.models import Investigation
 
-    from .models import PolicyCondition
-
     user = request.user
 
     # My commitments
@@ -1308,3 +1308,493 @@ def readiness_score(request):
 
     result = compute_readiness_score(user=request.user)
     return JsonResponse({"readiness": result})
+
+
+# =============================================================================
+# QMS POLICY MANAGEMENT (LOOP-001 §4)
+# =============================================================================
+
+# Rule key → parameter schema for each scope.
+# The UI uses this to render typed parameter forms.
+POLICY_RULE_REGISTRY = {
+    "process_confirmation": {
+        "pc.retraining_threshold": {
+            "label": "Retraining Threshold",
+            "description": "PC pass rate below which a retraining condition is surfaced",
+            "params": {
+                "threshold": {
+                    "type": "number",
+                    "min": 0,
+                    "max": 1,
+                    "step": 0.05,
+                    "default": 0.80,
+                    "label": "Pass rate threshold",
+                },
+                "trailing_count": {
+                    "type": "integer",
+                    "min": 1,
+                    "max": 50,
+                    "default": 5,
+                    "label": "Trailing observations",
+                },
+                "cooldown_days": {"type": "integer", "min": 0, "max": 365, "default": 30, "label": "Cooldown (days)"},
+            },
+            "linked_standard": "ISO 9001:2015 §7.2",
+        },
+        "pc.escalation_to_revision": {
+            "label": "Escalate to Standard Revision",
+            "description": "When N operators fail the same standard, surface revision signal instead of N retraining signals",
+            "params": {
+                "escalate_after_n_operators": {
+                    "type": "integer",
+                    "min": 2,
+                    "max": 20,
+                    "default": 3,
+                    "label": "Operator threshold",
+                },
+                "escalation_window_days": {
+                    "type": "integer",
+                    "min": 1,
+                    "max": 90,
+                    "default": 30,
+                    "label": "Window (days)",
+                },
+            },
+            "linked_standard": "ISO 9001:2015 §7.5.2",
+        },
+    },
+    "spc_monitoring": {
+        "spc.out_of_control_signal": {
+            "label": "Out-of-Control Signal",
+            "description": "When to surface an OOC condition for investigation",
+            "params": {
+                "rule_violations": {
+                    "type": "integer",
+                    "min": 1,
+                    "max": 8,
+                    "default": 1,
+                    "label": "Western Electric rules violated",
+                },
+                "severity": {
+                    "type": "select",
+                    "options": ["info", "warning", "critical"],
+                    "default": "warning",
+                    "label": "Condition severity",
+                },
+            },
+            "linked_standard": "ISO 9001:2015 §8.5.1",
+        },
+    },
+    "forced_failure": {
+        "fft.detection_gap_threshold": {
+            "label": "Detection Gap Threshold",
+            "description": "Detection rate below which a gap condition is surfaced",
+            "params": {
+                "threshold": {
+                    "type": "number",
+                    "min": 0,
+                    "max": 1,
+                    "step": 0.05,
+                    "default": 0.70,
+                    "label": "Min detection rate",
+                },
+                "min_tests": {
+                    "type": "integer",
+                    "min": 1,
+                    "max": 50,
+                    "default": 3,
+                    "label": "Minimum tests before evaluation",
+                },
+            },
+            "linked_standard": "IATF 16949 §8.5.6.1",
+        },
+    },
+    "review_frequency": {
+        "review.document_review_months": {
+            "label": "Document Review Frequency",
+            "description": "Months between mandatory document reviews",
+            "params": {
+                "months": {"type": "integer", "min": 1, "max": 36, "default": 12, "label": "Review interval (months)"},
+                "severity_on_overdue": {
+                    "type": "select",
+                    "options": ["info", "warning", "critical"],
+                    "default": "warning",
+                    "label": "Overdue severity",
+                },
+            },
+            "linked_standard": "ISO 9001:2015 §7.5.2",
+        },
+        "review.fmea_review_months": {
+            "label": "FMEA Review Frequency",
+            "description": "Months between mandatory FMEA reviews",
+            "params": {
+                "months": {"type": "integer", "min": 1, "max": 24, "default": 6, "label": "Review interval (months)"},
+            },
+            "linked_standard": "AIAG FMEA 4th Ed §2.2",
+        },
+    },
+    "training_coverage": {
+        "training.coverage_threshold": {
+            "label": "Training Coverage Threshold",
+            "description": "Minimum percentage of operators trained on each controlled document",
+            "params": {
+                "threshold": {
+                    "type": "number",
+                    "min": 0,
+                    "max": 1,
+                    "step": 0.05,
+                    "default": 0.90,
+                    "label": "Coverage threshold",
+                },
+            },
+            "linked_standard": "ISO 9001:2015 §7.2",
+        },
+    },
+    "recurrence": {
+        "recurrence.detection_window": {
+            "label": "Recurrence Detection Window",
+            "description": "Time window and count for detecting recurring failure modes",
+            "params": {
+                "window_days": {"type": "integer", "min": 7, "max": 365, "default": 90, "label": "Window (days)"},
+                "min_occurrences": {
+                    "type": "integer",
+                    "min": 2,
+                    "max": 20,
+                    "default": 3,
+                    "label": "Minimum occurrences",
+                },
+            },
+            "linked_standard": "ISO 9001:2015 §10.2.1",
+        },
+    },
+    "commitment_fulfillment": {
+        "commitment.overdue_escalation": {
+            "label": "Commitment Overdue Escalation",
+            "description": "When to escalate overdue commitments",
+            "params": {
+                "warning_days": {
+                    "type": "integer",
+                    "min": 1,
+                    "max": 30,
+                    "default": 3,
+                    "label": "Warning threshold (days overdue)",
+                },
+                "critical_days": {
+                    "type": "integer",
+                    "min": 1,
+                    "max": 60,
+                    "default": 7,
+                    "label": "Critical threshold (days overdue)",
+                },
+            },
+            "linked_standard": "",
+        },
+    },
+    "calibration": {
+        "calibration.overdue_check": {
+            "label": "Calibration Overdue Check",
+            "description": "Surface conditions for equipment past calibration due date",
+            "params": {
+                "warning_days_before": {
+                    "type": "integer",
+                    "min": 0,
+                    "max": 90,
+                    "default": 14,
+                    "label": "Warn days before due",
+                },
+                "severity": {
+                    "type": "select",
+                    "options": ["warning", "critical"],
+                    "default": "critical",
+                    "label": "Overdue severity",
+                },
+            },
+            "linked_standard": "ISO 9001:2015 §7.1.5.2",
+        },
+    },
+    "verification_schedule": {
+        "verification.pc_schedule": {
+            "label": "PC Schedule Requirements",
+            "description": "Minimum process confirmation frequency per area",
+            "params": {
+                "min_per_week": {"type": "integer", "min": 0, "max": 50, "default": 3, "label": "Min PCs per week"},
+                "min_per_month": {"type": "integer", "min": 0, "max": 200, "default": 12, "label": "Min PCs per month"},
+            },
+            "linked_standard": "David Mann — Creating a Lean Culture §4",
+        },
+    },
+    "fmis": {
+        "fmis.methodology": {
+            "label": "FMEA Methodology",
+            "description": "Which scoring methodology this org uses",
+            "params": {
+                "method": {
+                    "type": "select",
+                    "options": ["aiag_4th", "svend_bayesian", "svend_full"],
+                    "default": "svend_bayesian",
+                    "label": "Scoring method",
+                },
+            },
+            "linked_standard": "AIAG FMEA 4th Ed",
+        },
+    },
+    "investigation": {
+        "investigation.required_tools": {
+            "label": "Required Investigation Tools",
+            "description": "Tools that must be run before an investigation can be concluded",
+            "params": {
+                "require_5_why": {"type": "boolean", "default": True, "label": "Require 5-Why analysis"},
+                "require_fmea_row": {"type": "boolean", "default": False, "label": "Require FMIS row linkage"},
+                "min_entries": {
+                    "type": "integer",
+                    "min": 1,
+                    "max": 20,
+                    "default": 3,
+                    "label": "Minimum investigation entries",
+                },
+            },
+            "linked_standard": "ISO 9001:2015 §10.2.1",
+        },
+    },
+    "complaint": {
+        "complaint.auto_signal": {
+            "label": "Customer Complaint Signal Policy",
+            "description": "Severity thresholds for complaint-triggered conditions",
+            "params": {
+                "auto_critical_on_safety": {
+                    "type": "boolean",
+                    "default": True,
+                    "label": "Safety complaints → critical",
+                },
+                "auto_signal_on_repeat": {"type": "boolean", "default": True, "label": "Repeat complaints → signal"},
+                "repeat_window_days": {
+                    "type": "integer",
+                    "min": 7,
+                    "max": 365,
+                    "default": 90,
+                    "label": "Repeat window (days)",
+                },
+            },
+            "linked_standard": "ISO 9001:2015 §8.2.1",
+        },
+    },
+    "training": {
+        "training.hansei_threshold": {
+            "label": "Hansei Reflection Threshold",
+            "description": "When to trigger document revision from reflection data",
+            "params": {
+                "threshold": {
+                    "type": "number",
+                    "min": 0,
+                    "max": 1,
+                    "step": 0.05,
+                    "default": 0.60,
+                    "label": "Comprehension threshold",
+                },
+                "min_reflections": {
+                    "type": "integer",
+                    "min": 2,
+                    "max": 50,
+                    "default": 5,
+                    "label": "Min reflections before evaluation",
+                },
+            },
+            "linked_standard": "TRN-001 §9.3",
+        },
+    },
+}
+
+
+def _serialize_policy(p):
+    return {
+        "id": str(p.id),
+        "scope": p.scope,
+        "scope_display": p.get_scope_display(),
+        "rule_key": p.rule_key,
+        "parameters": p.parameters,
+        "linked_standard": p.linked_standard,
+        "effective_date": p.effective_date.isoformat(),
+        "approved_by_id": str(p.approved_by_id),
+        "approved_by_name": p.approved_by.get_full_name() or p.approved_by.email if p.approved_by else "",
+        "version": p.version,
+        "is_active": p.is_active,
+        "conditions_count": p.conditions.filter(status=PolicyCondition.Status.ACTIVE).count(),
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+    }
+
+
+@gated_paid
+@require_http_methods(["GET"])
+def policy_registry(request):
+    """Return the rule registry — scope→rule_key→parameter schema.
+
+    The UI uses this to render typed parameter forms dynamically.
+    """
+    return JsonResponse({"registry": POLICY_RULE_REGISTRY})
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def policy_list_create(request):
+    """
+    GET  — List policies (filterable by scope, is_active).
+    POST — Create a new policy rule.
+    """
+    if request.method == "GET":
+        qs = QMSPolicy.objects.select_related("approved_by").all()
+
+        scope = request.GET.get("scope")
+        if scope:
+            qs = qs.filter(scope=scope)
+
+        active_only = request.GET.get("active")
+        if active_only == "true":
+            qs = qs.filter(is_active=True)
+
+        return JsonResponse({"policies": [_serialize_policy(p) for p in qs[:200]]})
+
+    # POST — create
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    scope = data.get("scope", "").strip()
+    rule_key = data.get("rule_key", "").strip()
+
+    if not scope or scope not in QMSPolicy.Scope.values:
+        return JsonResponse({"error": f"Invalid scope. Valid: {list(QMSPolicy.Scope.values)}"}, status=400)
+    if not rule_key:
+        return JsonResponse({"error": "rule_key is required"}, status=400)
+
+    # Validate rule_key belongs to scope
+    scope_rules = POLICY_RULE_REGISTRY.get(scope, {})
+    if rule_key not in scope_rules:
+        return JsonResponse(
+            {"error": f"Unknown rule_key for scope '{scope}'. Valid: {list(scope_rules.keys())}"}, status=400
+        )
+
+    # Merge defaults with provided parameters
+    rule_def = scope_rules[rule_key]
+    defaults = {k: v["default"] for k, v in rule_def["params"].items()}
+    params = data.get("parameters", {})
+    merged = {**defaults, **params}
+
+    effective_date = data.get("effective_date", date.today().isoformat())
+
+    # Determine version (next version for this rule_key)
+    latest_version = (
+        QMSPolicy.objects.filter(rule_key=rule_key).order_by("-version").values_list("version", flat=True).first()
+    )
+    version = (latest_version or 0) + 1
+
+    # Deactivate previous versions
+    QMSPolicy.objects.filter(rule_key=rule_key, is_active=True).update(is_active=False)
+
+    policy = QMSPolicy.objects.create(
+        scope=scope,
+        rule_key=rule_key,
+        parameters=merged,
+        linked_standard=rule_def.get("linked_standard", data.get("linked_standard", "")),
+        effective_date=effective_date,
+        approved_by=request.user,
+        version=version,
+        is_active=True,
+    )
+
+    logger.info(
+        "policy.created",
+        extra={"policy_id": str(policy.id), "rule_key": rule_key, "version": version},
+    )
+    return JsonResponse({"policy": _serialize_policy(policy)}, status=201)
+
+
+@gated_paid
+@require_http_methods(["GET", "PUT", "DELETE"])
+def policy_detail(request, policy_id):
+    """
+    GET    — Policy detail with version history and active conditions.
+    PUT    — Update parameters (creates new version).
+    DELETE — Deactivate policy (soft delete).
+    """
+    try:
+        policy = QMSPolicy.objects.select_related("approved_by").get(id=policy_id)
+    except QMSPolicy.DoesNotExist:
+        return JsonResponse({"error": "Policy not found"}, status=404)
+
+    if request.method == "GET":
+        # Include version history
+        versions = QMSPolicy.objects.filter(rule_key=policy.rule_key).order_by("-version")
+        conditions = PolicyCondition.objects.filter(policy_rule=policy).order_by("-created_at")[:20]
+
+        return JsonResponse(
+            {
+                "policy": _serialize_policy(policy),
+                "versions": [
+                    {
+                        "id": str(v.id),
+                        "version": v.version,
+                        "is_active": v.is_active,
+                        "effective_date": v.effective_date.isoformat(),
+                        "parameters": v.parameters,
+                        "created_at": v.created_at.isoformat() if v.created_at else None,
+                    }
+                    for v in versions
+                ],
+                "conditions": [
+                    {
+                        "id": str(c.id),
+                        "condition_type": c.condition_type,
+                        "severity": c.severity,
+                        "title": c.title,
+                        "status": c.status,
+                        "created_at": c.created_at.isoformat() if c.created_at else None,
+                    }
+                    for c in conditions
+                ],
+            }
+        )
+
+    if request.method == "PUT":
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+        new_params = data.get("parameters", {})
+        merged = {**policy.parameters, **new_params}
+        effective_date = data.get("effective_date", date.today().isoformat())
+
+        # Deactivate current
+        policy.is_active = False
+        policy.save(update_fields=["is_active", "updated_at"])
+
+        # Create new version
+        new_policy = QMSPolicy.objects.create(
+            scope=policy.scope,
+            rule_key=policy.rule_key,
+            parameters=merged,
+            linked_standard=data.get("linked_standard", policy.linked_standard),
+            effective_date=effective_date,
+            approved_by=request.user,
+            version=policy.version + 1,
+            is_active=True,
+        )
+
+        logger.info(
+            "policy.updated",
+            extra={
+                "policy_id": str(new_policy.id),
+                "rule_key": policy.rule_key,
+                "version": new_policy.version,
+                "previous_version": policy.version,
+            },
+        )
+        return JsonResponse({"policy": _serialize_policy(new_policy)})
+
+    # DELETE — soft deactivate
+    policy.is_active = False
+    policy.save(update_fields=["is_active", "updated_at"])
+    logger.info("policy.deactivated", extra={"policy_id": str(policy.id), "rule_key": policy.rule_key})
+    return JsonResponse({"status": "deactivated"})

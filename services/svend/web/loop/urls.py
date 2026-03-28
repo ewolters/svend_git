@@ -53,4 +53,8 @@ urlpatterns = [
     path("ffts/<uuid:fft_id>/", views.fft_detail, name="loop_fft_detail"),
     # Training Reflections (§6.2)
     path("reflections/", views.reflection_list_create, name="loop_reflection_list_create"),
+    # QMS Policy Management (§4)
+    path("policies/registry/", views.policy_registry, name="loop_policy_registry"),
+    path("policies/", views.policy_list_create, name="loop_policy_list_create"),
+    path("policies/<uuid:policy_id>/", views.policy_detail, name="loop_policy_detail"),
 ]

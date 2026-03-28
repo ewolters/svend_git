@@ -518,6 +518,11 @@ urlpatterns = varta_urls + [
         TemplateView.as_view(template_name="loop_pc.html"),
         name="loop_pc_new",
     ),  # New PC
+    path(
+        "app/loop/policies/",
+        TemplateView.as_view(template_name="loop_policy.html"),
+        name="loop_policy_config",
+    ),  # LOOP-001 §4: QMS Policy Configuration
     path("api/safety/", include("safety.urls")),  # HIRARC Safety (Enterprise)
     path("api/privacy/", include("accounts.privacy_urls")),  # PRIV-001 (SOC 2 P1.8)
     path("api/capa/", include("agents_api.capa_urls")),  # CAPA standalone (ISO 10.2, FEAT-004)
