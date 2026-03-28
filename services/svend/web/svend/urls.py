@@ -501,6 +501,11 @@ urlpatterns = [
         TemplateView.as_view(template_name="loop_investigation.html"),
         name="loop_investigation_workspace",
     ),  # LOOP-001 §16.3: Investigation Workspace
+    path(
+        "app/loop/fmis/<uuid:fmis_id>/",
+        TemplateView.as_view(template_name="loop_fmis.html"),
+        name="loop_fmis_view",
+    ),  # LOOP-001 §16.5: FMIS View
     path("api/safety/", include("safety.urls")),  # HIRARC Safety (Enterprise)
     path("api/privacy/", include("accounts.privacy_urls")),  # PRIV-001 (SOC 2 P1.8)
     path("api/capa/", include("agents_api.capa_urls")),  # CAPA standalone (ISO 10.2, FEAT-004)

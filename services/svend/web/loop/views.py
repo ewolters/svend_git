@@ -1021,3 +1021,242 @@ def investigation_entries(request, investigation_id):
         },
     )
     return JsonResponse({"entry": _serialize_entry(entry)}, status=201)
+
+
+# =============================================================================
+# FMIS (LOOP-001 §8, §16.5)
+# =============================================================================
+
+
+def _serialize_fmis(f):
+    return {
+        "id": str(f.id),
+        "title": f.title,
+        "description": f.description,
+        "methodology": f.methodology,
+        "investigation_id": str(f.investigation_id) if f.investigation_id else None,
+        "row_count": f.rows.count(),
+        "created_at": f.created_at.isoformat() if f.created_at else None,
+    }
+
+
+def _serialize_fmis_row(r):
+    from .bayesian import (
+        SEVERITY_CATEGORIES,
+        beta_credible_interval,
+        beta_mean,
+        dirichlet_mean,
+    )
+
+    sev_dist = None
+    if r.severity_alpha:
+        probs = dirichlet_mean(r.severity_alpha)
+        sev_dist = dict(zip(SEVERITY_CATEGORIES, [round(p, 3) for p in probs]))
+
+    det_ci = beta_credible_interval(r.detection_alpha, r.detection_beta)
+    occ_ci = beta_credible_interval(r.occurrence_alpha, r.occurrence_beta)
+    det_rate = beta_mean(r.detection_alpha, r.detection_beta)
+    occ_rate = beta_mean(r.occurrence_alpha, r.occurrence_beta)
+
+    return {
+        "id": str(r.id),
+        "failure_mode_text": r.failure_mode_text,
+        "effect_text": r.effect_text,
+        "cause_text": r.cause_text,
+        "prevention_control": r.prevention_control,
+        "detection_control": r.detection_control,
+        # Scores (active method)
+        "severity_score": r.severity_score,
+        "occurrence_score": r.occurrence_score,
+        "detection_score": r.detection_score,
+        "rpn": r.rpn,
+        # Severity posterior
+        "severity_method": r.severity_method,
+        "severity_manual": r.severity_manual,
+        "severity_distribution": sev_dist,
+        "severity_alpha": r.severity_alpha,
+        # Occurrence posterior
+        "occurrence_method": r.occurrence_method,
+        "occurrence_manual": r.occurrence_manual,
+        "occurrence_rate": round(occ_rate, 4),
+        "occurrence_ci": list(occ_ci),
+        "occurrence_failures": r.occurrence_failures,
+        "occurrence_units": r.occurrence_units,
+        # Detection posterior
+        "detection_method": r.detection_method,
+        "detection_manual": r.detection_manual,
+        "detection_rate": round(det_rate, 4),
+        "detection_ci": list(det_ci),
+        "detection_detected": r.detection_detected,
+        "detection_injected": r.detection_injected,
+        # Metadata
+        "has_operational_definitions": r.has_operational_definitions,
+        "undefined_terms": r.undefined_terms,
+        "last_evidence_date": r.last_evidence_date.isoformat() if r.last_evidence_date else None,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+    }
+
+
+from .models import FMIS, FMISRow
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def fmis_list_create(request):
+    """
+    GET  — List FMIS documents.
+    POST — Create FMIS.
+    """
+    if request.method == "GET":
+        qs = FMIS.objects.filter(created_by=request.user)
+        return JsonResponse({"fmis_documents": [_serialize_fmis(f) for f in qs[:50]]})
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    title = data.get("title", "").strip()
+    if not title:
+        return JsonResponse({"error": "title is required"}, status=400)
+
+    fmis = FMIS.objects.create(
+        title=title,
+        description=data.get("description", ""),
+        methodology=data.get("methodology", "svend_bayesian"),
+        investigation_id=data.get("investigation_id"),
+        created_by=request.user,
+    )
+    return JsonResponse({"fmis": _serialize_fmis(fmis)}, status=201)
+
+
+@gated_paid
+@require_http_methods(["GET"])
+def fmis_detail(request, fmis_id):
+    """FMIS detail with all rows."""
+    try:
+        fmis = FMIS.objects.get(id=fmis_id)
+    except FMIS.DoesNotExist:
+        return JsonResponse({"error": "FMIS not found"}, status=404)
+
+    rows = FMISRow.objects.filter(fmis=fmis)
+    return JsonResponse(
+        {
+            "fmis": _serialize_fmis(fmis),
+            "rows": [_serialize_fmis_row(r) for r in rows],
+        }
+    )
+
+
+@gated_paid
+@require_http_methods(["POST"])
+def fmis_add_row(request, fmis_id):
+    """Add a row to FMIS."""
+    try:
+        fmis = FMIS.objects.get(id=fmis_id)
+    except FMIS.DoesNotExist:
+        return JsonResponse({"error": "FMIS not found"}, status=404)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    fm = data.get("failure_mode_text", "").strip()
+    if not fm:
+        return JsonResponse({"error": "failure_mode_text is required"}, status=400)
+
+    row = FMISRow.objects.create(
+        fmis=fmis,
+        investigation_id=fmis.investigation_id,
+        failure_mode_text=fm,
+        effect_text=data.get("effect_text", ""),
+        cause_text=data.get("cause_text", ""),
+        prevention_control=data.get("prevention_control", ""),
+        detection_control=data.get("detection_control", ""),
+        severity_manual=data.get("severity_manual"),
+        severity_method=data.get("severity_method", "manual"),
+        occurrence_manual=data.get("occurrence_manual"),
+        occurrence_method=data.get("occurrence_method", "manual"),
+        detection_manual=data.get("detection_manual"),
+        detection_method=data.get("detection_method", "manual"),
+    )
+    return JsonResponse({"row": _serialize_fmis_row(row)}, status=201)
+
+
+@gated_paid
+@require_http_methods(["POST"])
+def fmis_row_update_posterior(request, fmis_id, row_id):
+    """Update a row's posterior from evidence.
+
+    POST body:
+      {"type": "detection", "detected": 6, "injected": 8}
+      {"type": "occurrence", "failures": 3, "units": 500}
+      {"type": "severity", "category": "moderate"}
+    """
+    try:
+        row = FMISRow.objects.get(id=row_id, fmis_id=fmis_id)
+    except FMISRow.DoesNotExist:
+        return JsonResponse({"error": "Row not found"}, status=404)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    update_type = data.get("type")
+
+    if update_type == "detection":
+        detected = data.get("detected", 0)
+        injected = data.get("injected", 0)
+        if injected <= 0:
+            return JsonResponse({"error": "injected must be > 0"}, status=400)
+        from .bayesian import beta_update
+
+        row.detection_detected += detected
+        row.detection_injected += injected
+        row.detection_alpha, row.detection_beta = beta_update(
+            row.detection_alpha, row.detection_beta, detected, injected
+        )
+        row.detection_method = "bayesian"
+
+    elif update_type == "occurrence":
+        failures = data.get("failures", 0)
+        units = data.get("units", 0)
+        if units <= 0:
+            return JsonResponse({"error": "units must be > 0"}, status=400)
+        from .bayesian import beta_update
+
+        row.occurrence_failures += failures
+        row.occurrence_units += units
+        row.occurrence_alpha, row.occurrence_beta = beta_update(
+            row.occurrence_alpha, row.occurrence_beta, failures, units
+        )
+        row.occurrence_method = "bayesian"
+
+    elif update_type == "severity":
+        category = data.get("category", "")
+        from .bayesian import SEVERITY_VALUES, dirichlet_update_by_name
+
+        if category not in SEVERITY_VALUES:
+            return JsonResponse(
+                {"error": f"Invalid category. Valid: {list(SEVERITY_VALUES.keys())}"},
+                status=400,
+            )
+        if not row.severity_alpha:
+            row.severity_alpha = [1, 1, 1, 1, 1]
+        row.severity_alpha = dirichlet_update_by_name(row.severity_alpha, category)
+        row.severity_method = "bayesian"
+
+    else:
+        return JsonResponse(
+            {"error": "type must be: detection, occurrence, or severity"},
+            status=400,
+        )
+
+    from django.utils import timezone
+
+    row.last_evidence_date = timezone.now()
+    row.save()
+
+    return JsonResponse({"row": _serialize_fmis_row(row)})

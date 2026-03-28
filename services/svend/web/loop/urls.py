@@ -33,6 +33,15 @@ urlpatterns = [
         views.generate_report,
         name="loop_generate_report",
     ),
+    # FMIS (§8)
+    path("fmis/", views.fmis_list_create, name="loop_fmis_list_create"),
+    path("fmis/<uuid:fmis_id>/", views.fmis_detail, name="loop_fmis_detail"),
+    path("fmis/<uuid:fmis_id>/rows/", views.fmis_add_row, name="loop_fmis_add_row"),
+    path(
+        "fmis/<uuid:fmis_id>/rows/<uuid:row_id>/posterior/",
+        views.fmis_row_update_posterior,
+        name="loop_fmis_row_posterior",
+    ),
     # Process Confirmations (§7.1)
     path("pcs/", views.pc_list_create, name="loop_pc_list_create"),
     path("pcs/<uuid:pc_id>/", views.pc_detail, name="loop_pc_detail"),
