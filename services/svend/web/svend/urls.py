@@ -508,6 +508,16 @@ urlpatterns = varta_urls + [
         TemplateView.as_view(template_name="loop_fmis.html"),
         name="loop_fmis_view",
     ),  # LOOP-001 §16.5: FMIS Global Risk Landscape
+    path(
+        "app/loop/pc/<uuid:pc_id>/",
+        TemplateView.as_view(template_name="loop_pc.html"),
+        name="loop_pc_view",
+    ),  # LOOP-001 §16.4: Process Confirmation (mobile)
+    path(
+        "app/loop/pc/new/",
+        TemplateView.as_view(template_name="loop_pc.html"),
+        name="loop_pc_new",
+    ),  # New PC
     path("api/safety/", include("safety.urls")),  # HIRARC Safety (Enterprise)
     path("api/privacy/", include("accounts.privacy_urls")),  # PRIV-001 (SOC 2 P1.8)
     path("api/capa/", include("agents_api.capa_urls")),  # CAPA standalone (ISO 10.2, FEAT-004)
