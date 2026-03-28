@@ -5,10 +5,7 @@ Builds single and digest notification emails using the shared EMAIL_TEMPLATE.
 
 import logging
 
-from django.core.mail import send_mail as django_send_mail
-
-from api.internal_views import EMAIL_TEMPLATE
-from api.views import make_unsubscribe_url
+# send_mail moved to email_service.py — all email routes through EmailService
 
 logger = logging.getLogger(__name__)
 
@@ -38,18 +35,14 @@ def build_notification_email(notification, token):
     subject = f"[Svend] {notification.title}"
 
     action_url = _notification_action_url(token.token)
-    type_unsub_url = _notification_type_unsub_url(
-        token.user, notification.notification_type
-    )
+    type_unsub_url = _notification_type_unsub_url(token.user, notification.notification_type)
 
     body_parts = [
         f"<h2 style='margin:0 0 16px;font-size:18px;color:#1a2a1a;'>{notification.title}</h2>",
     ]
 
     if notification.message:
-        body_parts.append(
-            f"<p style='margin:8px 0;color:#333;'>{notification.message}</p>"
-        )
+        body_parts.append(f"<p style='margin:8px 0;color:#333;'>{notification.message}</p>")
 
     # Action button
     body_parts.append(
@@ -85,10 +78,8 @@ def build_digest_email(user, notifications_with_tokens, period):
     subject = f"[Svend] {period.title()} digest — {count} notification{'s' if count != 1 else ''}"
 
     body_parts = [
-        f"<h2 style='margin:0 0 16px;font-size:18px;color:#1a2a1a;'>"
-        f"Your {period} notification summary</h2>",
-        f"<p style='margin:8px 0;color:#555;'>"
-        f"You have {count} unread notification{'s' if count != 1 else ''}.</p>",
+        f"<h2 style='margin:0 0 16px;font-size:18px;color:#1a2a1a;'>Your {period} notification summary</h2>",
+        f"<p style='margin:8px 0;color:#555;'>You have {count} unread notification{'s' if count != 1 else ''}.</p>",
     ]
 
     for notif, token in notifications_with_tokens[:20]:  # Cap at 20 in digest
@@ -98,17 +89,11 @@ def build_digest_email(user, notifications_with_tokens, period):
             f"<strong style='color:#1a2a1a;'>{notif.title}</strong>"
         )
         if notif.message:
-            body_parts.append(
-                f"<br><span style='color:#555;font-size:13px;'>{notif.message}</span>"
-            )
-        body_parts.append(
-            f'<br><a href="{action_url}" style="color:#4a9f6e;font-size:13px;">Acknowledge</a>'
-            f"</div>"
-        )
+            body_parts.append(f"<br><span style='color:#555;font-size:13px;'>{notif.message}</span>")
+        body_parts.append(f'<br><a href="{action_url}" style="color:#4a9f6e;font-size:13px;">Acknowledge</a></div>')
 
     body_parts.append(
-        "<p style='margin:16px 0;'>"
-        '<a href="https://svend.ai/app/" style="color:#4a9f6e;">View all in Svend</a></p>'
+        '<p style=\'margin:16px 0;\'><a href="https://svend.ai/app/" style="color:#4a9f6e;">View all in Svend</a></p>'
     )
 
     body_html = "\n".join(body_parts)
@@ -127,18 +112,12 @@ def send_notification_email(user, subject, body_html, notification_type=None):
     Returns:
         True if sent, False on failure.
     """
-    unsub_url = make_unsubscribe_url(user)
-    full_html = EMAIL_TEMPLATE.format(body=body_html, unsub_url=unsub_url)
+    from .email_service import email_service
 
-    try:
-        django_send_mail(
-            subject=subject,
-            message="",
-            from_email=None,  # Uses DEFAULT_FROM_EMAIL
-            recipient_list=[user.email],
-            html_message=full_html,
-        )
-        return True
-    except Exception:
-        logger.exception("Failed to send notification email to %s", user.email)
-        return False
+    result = email_service.send(
+        to=user.email,
+        subject=subject,
+        body_html=body_html,
+        unsubscribe_url=email_service.make_unsubscribe_url(user),
+    )
+    return result.sent

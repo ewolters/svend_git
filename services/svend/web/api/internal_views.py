@@ -1096,8 +1096,7 @@ def api_send_email(request):
     """Send HTML email to customers with tracking. Supports individual, tier-based, or all."""
     import re
 
-    from django.core.mail import send_mail as django_send_mail
-
+    # send_mail consolidated into email_service — see NTF-001 §5.4
     from api.models import EmailCampaign, EmailRecipient
 
     target = request.data.get("to", "")
@@ -1139,7 +1138,6 @@ def api_send_email(request):
 
     # Check for active email_subject experiment
     from api.experiments import assign_variant
-    from api.views import make_unsubscribe_url
 
     active_subject_exp = Experiment.objects.filter(experiment_type="email_subject", status="running").first()
 
@@ -1192,19 +1190,19 @@ def api_send_email(request):
         pixel = (
             f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
         )
-        unsub_url = make_unsubscribe_url(user) if user else "https://svend.ai"
-        full_html = EMAIL_TEMPLATE.format(body=personalized + pixel, unsub_url=unsub_url)
+        from notifications.email_service import email_service
 
-        try:
-            django_send_mail(
-                subject=actual_subject,
-                message="",
-                from_email=None,
-                recipient_list=[email],
-                html_message=full_html,
-            )
+        unsub_url = email_service.make_unsubscribe_url(user) if user else None
+
+        result = email_service.send(
+            to=email,
+            subject=actual_subject,
+            body_html=personalized + pixel,
+            unsubscribe_url=unsub_url,
+        )
+        if result.sent:
             sent += 1
-        except Exception:
+        else:
             rcpt.has_failed = True
             rcpt.save(update_fields=["has_failed"])
             failed += 1
@@ -2930,8 +2928,7 @@ def api_crm_send_one(request):
     """Send a single ad-hoc email to a CRM lead."""
     import re
 
-    from django.core.mail import send_mail as django_send_mail
-
+    # send_mail consolidated into email_service — see NTF-001 §5.4
     from api.models import EmailRecipient
 
     lead_id = request.data.get("lead_id")
@@ -2977,18 +2974,15 @@ def api_crm_send_one(request):
 
     # Add tracking pixel
     pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
-    unsub_url = "https://svend.ai"
-    full_html = EMAIL_TEMPLATE.format(body=body_html + pixel, unsub_url=unsub_url)
 
-    try:
-        django_send_mail(
-            subject=subject.replace("{{name}}", lead.name),
-            message="",
-            from_email=None,
-            recipient_list=[lead.email],
-            html_message=full_html,
-        )
-        # Update lead tracking
+    from notifications.email_service import email_service
+
+    result = email_service.send(
+        to=lead.email,
+        subject=subject.replace("{{name}}", lead.name),
+        body_html=body_html + pixel,
+    )
+    if result.sent:
         lead.last_contacted_at = timezone.now()
         if lead.stage == "prospect":
             lead.stage = "contacted"
@@ -3001,10 +2995,10 @@ def api_crm_send_one(request):
                 "recipient_id": str(rcpt.id),
             }
         )
-    except Exception as e:
+    else:
         rcpt.has_failed = True
         rcpt.save(update_fields=["has_failed"])
-        return Response({"error": str(e)}, status=500)
+        return Response({"error": result.error}, status=500)
 
 
 @api_view(["POST"])
@@ -3013,8 +3007,7 @@ def api_crm_process_queue(request):
     """Process all due outreach sends: advance enrollments, send emails."""
     import re
 
-    from django.core.mail import send_mail as django_send_mail
-
+    # send_mail consolidated into email_service — see NTF-001 §5.4
     from api.models import EmailRecipient
 
     now = timezone.now()
@@ -3080,17 +3073,19 @@ def api_crm_process_queue(request):
         pixel = (
             f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
         )
-        unsub_url = "https://svend.ai"
-        full_html = EMAIL_TEMPLATE.format(body=body_html + pixel, unsub_url=unsub_url)
+
+        from notifications.email_service import email_service
+
+        _result = email_service.send(
+            to=lead.email,
+            subject=subject,
+            body_html=body_html + pixel,
+        )
 
         try:
-            django_send_mail(
-                subject=subject,
-                message="",
-                from_email=None,
-                recipient_list=[lead.email],
-                html_message=full_html,
-            )
+            if not _result.sent:
+                raise Exception(_result.error)
+
             sent_count += 1
 
             # Update lead

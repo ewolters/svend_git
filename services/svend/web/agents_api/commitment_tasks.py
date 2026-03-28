@@ -6,7 +6,7 @@ Registered with syn.sched in svend_tasks.py.
 
 import logging
 
-from django.core.mail import send_mail as django_send_mail
+# send_mail moved to email_service.py — all email routes through EmailService
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +20,7 @@ def build_commitment_request_email(commitment, confirm_token, decline_token):
     employee = commitment.employee
     project_title = commitment.project.project.title
     requester = commitment.requested_by
-    requester_name = (
-        requester.get_full_name() or requester.email
-        if requester
-        else "A project coordinator"
-    )
+    requester_name = requester.get_full_name() or requester.email if requester else "A project coordinator"
     role_display = commitment.get_role_display()
 
     subject = f"[Svend] Resource commitment request: {project_title}"
@@ -67,13 +63,8 @@ def send_commitment_request_email_task(payload, context=None):
     Expected payload args: commitment_id, confirm_token_id, decline_token_id
     """
     from agents_api.models import ActionToken, ResourceCommitment
-    from api.internal_views import EMAIL_TEMPLATE
 
-    args = (
-        payload.get("args", {})
-        if isinstance(payload, dict)
-        else getattr(payload, "args", {}) or {}
-    )
+    args = payload.get("args", {}) if isinstance(payload, dict) else getattr(payload, "args", {}) or {}
     commitment_id = args.get("commitment_id")
     confirm_token_id = args.get("confirm_token_id")
     decline_token_id = args.get("decline_token_id")
@@ -82,32 +73,25 @@ def send_commitment_request_email_task(payload, context=None):
         return {"error": "Missing required args"}
 
     try:
-        commitment = ResourceCommitment.objects.select_related(
-            "employee", "project__project", "requested_by"
-        ).get(id=commitment_id)
+        commitment = ResourceCommitment.objects.select_related("employee", "project__project", "requested_by").get(
+            id=commitment_id
+        )
         confirm_tok = ActionToken.objects.get(id=confirm_token_id)
         decline_tok = ActionToken.objects.get(id=decline_token_id)
     except (ResourceCommitment.DoesNotExist, ActionToken.DoesNotExist) as e:
         return {"error": str(e)}
 
-    subject, body_html = build_commitment_request_email(
-        commitment, confirm_tok, decline_tok
+    subject, body_html = build_commitment_request_email(commitment, confirm_tok, decline_tok)
+
+    from notifications.email_service import email_service
+
+    result = email_service.send(
+        to=commitment.employee.email,
+        subject=subject,
+        body_html=body_html,
     )
-
-    # Wrap in branded template — no unsubscribe for transactional non-user email
-    full_html = EMAIL_TEMPLATE.format(body=body_html, unsub_url="https://svend.ai")
-
-    try:
-        django_send_mail(
-            subject=subject,
-            message="",
-            from_email=None,
-            recipient_list=[commitment.employee.email],
-            html_message=full_html,
-        )
+    if result.sent:
         return {"sent": True, "email": commitment.employee.email}
-    except Exception:
-        logger.exception(
-            "Failed to send commitment email to %s", commitment.employee.email
-        )
+    else:
+        logger.error("Failed to send commitment email to %s: %s", commitment.employee.email, result.error)
         return {"sent": False, "error": "SMTP failure"}

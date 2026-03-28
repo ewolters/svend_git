@@ -306,12 +306,10 @@ EMAIL_BUILDERS = {
 
 def send_onboarding_email(payload, context):
     """Send a single onboarding drip email."""
-    from django.conf import settings as django_settings
-    from django.core.mail import send_mail
+    # send_mail consolidated into email_service — see NTF-001 §5.4
 
     from accounts.constants import get_founder_availability
     from accounts.models import User
-    from api.internal_views import EMAIL_TEMPLATE
     from api.models import OnboardingEmail, OnboardingSurvey
 
     user_id = payload.get("user_id")
@@ -350,27 +348,22 @@ def send_onboarding_email(payload, context):
         avail = get_founder_availability()
         body_html = body_html.replace("{remaining}", str(avail["remaining"]))
 
-    from api.views import make_unsubscribe_url
+    from notifications.email_service import email_service
 
-    unsub_url = make_unsubscribe_url(user)
-    full_html = EMAIL_TEMPLATE.format(body=body_html, unsub_url=unsub_url)
-
-    try:
-        send_mail(
-            subject=subject,
-            message="",
-            from_email=django_settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            html_message=full_html,
-        )
-        # Mark as sent
+    result = email_service.send(
+        to=user.email,
+        subject=subject,
+        body_html=body_html,
+        unsubscribe_url=email_service.make_unsubscribe_url(user),
+    )
+    if result.sent:
         OnboardingEmail.objects.filter(user=user, email_key=email_key).update(status="sent", sent_at=timezone.now())
         logger.info(f"Sent onboarding email '{email_key}' to {user.email}")
         return {"sent": True, "email_key": email_key}
-    except Exception as e:
+    else:
         OnboardingEmail.objects.filter(user=user, email_key=email_key).update(status="failed")
-        logger.error(f"Failed to send onboarding email '{email_key}' to {user.email}: {e}")
-        return {"error": str(e)}
+        logger.error(f"Failed to send onboarding email '{email_key}' to {user.email}: {result.error}")
+        return {"error": result.error}
 
 
 def process_onboarding_drip(payload, context):
@@ -569,10 +562,8 @@ LIFECYCLE_BUILDERS = {
 
 def _send_lifecycle_email(user, template_key, **kwargs):
     """Send a lifecycle email using the standard email infrastructure."""
-    from django.conf import settings as django_settings
-    from django.core.mail import send_mail
+    # send_mail consolidated into email_service — see NTF-001 §5.4
 
-    from api.internal_views import EMAIL_TEMPLATE
     from api.models import EmailCampaign, EmailRecipient
 
     builder = LIFECYCLE_BUILDERS.get(template_key)
@@ -615,25 +606,22 @@ def _send_lifecycle_email(user, template_key, **kwargs):
     tracked = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
 
     # Tracking pixel + unsubscribe
-    from api.views import make_unsubscribe_url
+    from notifications.email_service import email_service
 
     pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
-    unsub_url = make_unsubscribe_url(user)
-    full_html = EMAIL_TEMPLATE.format(body=tracked + pixel, unsub_url=unsub_url)
 
-    try:
-        send_mail(
-            subject=subject,
-            message="",
-            from_email=django_settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            html_message=full_html,
-        )
+    result = email_service.send(
+        to=user.email,
+        subject=subject,
+        body_html=tracked + pixel,
+        unsubscribe_url=email_service.make_unsubscribe_url(user),
+    )
+    if result.sent:
         return True
-    except Exception as e:
+    else:
         rcpt.has_failed = True
         rcpt.save(update_fields=["has_failed"])
-        logger.error("Lifecycle email failed for %s: %s", user.email, e)
+        logger.error("Lifecycle email failed for %s: %s", user.email, result.error)
         return False
 
 
@@ -997,10 +985,8 @@ def crm_send_one_email(payload, context):
     """Send a single outreach email to a CRM lead. Scheduled by bulk-send."""
     import re
 
-    from django.conf import settings as django_settings
-    from django.core.mail import send_mail
-
-    from api.internal_views import EMAIL_TEMPLATE, _markdown_to_html
+    # send_mail consolidated into email_service — see NTF-001 §5.4
+    from api.internal_views import _markdown_to_html
     from api.models import CRMLead, EmailCampaign, EmailRecipient
 
     lead_id = payload.get("lead_id")
@@ -1063,26 +1049,23 @@ def crm_send_one_email(payload, context):
 
     # Tracking pixel
     pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
-    full_html = EMAIL_TEMPLATE.format(body=body_html + pixel, unsub_url="https://svend.ai")
 
-    try:
-        send_mail(
-            subject=subject,
-            message="",
-            from_email=django_settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[lead.email],
-            html_message=full_html,
-        )
-        # Update lead tracking
+    from notifications.email_service import email_service
+
+    result = email_service.send(
+        to=lead.email,
+        subject=subject,
+        body_html=body_html + pixel,
+    )
+    if result.sent:
         lead.last_contacted_at = timezone.now()
         if lead.stage == "prospect":
             lead.stage = "contacted"
         lead.save(update_fields=["last_contacted_at", "stage", "updated_at"])
-
         logger.info("CRM email sent to %s (%s)", lead.email, lead.name)
         return {"sent": True, "recipient_id": str(rcpt.id)}
-    except Exception as e:
+    else:
         rcpt.has_failed = True
         rcpt.save(update_fields=["has_failed"])
-        logger.error("CRM email failed for %s: %s", lead.email, e)
-        return {"error": str(e)}
+        logger.error("CRM email failed for %s: %s", lead.email, result.error)
+        return {"error": result.error}

@@ -341,8 +341,7 @@ class User(AbstractUser):
 
     def send_verification_email(self):
         """Send verification email to user."""
-        from django.conf import settings as django_settings
-        from django.core.mail import send_mail
+        from notifications.email_service import email_service
 
         if not self.email:
             return False
@@ -350,22 +349,16 @@ class User(AbstractUser):
         token = self.generate_verification_token()
         verify_url = f"https://svend.ai/verify?token={token}"
 
-        send_mail(
+        result = email_service.send(
+            to=self.email,
             subject="Verify your SVEND account",
-            message=f"""Welcome to SVEND!
-
-Please verify your email by clicking this link:
-{verify_url}
-
-If you didn't create this account, you can ignore this email.
-
-- The SVEND Team
-""",
-            from_email=django_settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[self.email],
-            fail_silently=False,
+            body_text=f"Welcome to SVEND!\n\n"
+            f"Please verify your email by clicking this link:\n{verify_url}\n\n"
+            f"If you didn't create this account, you can ignore this email.\n\n"
+            f"- The SVEND Team\n",
+            wrap_template=False,
         )
-        return True
+        return result.sent
 
     def verify_email(self, token: str) -> bool:
         """Verify email with token. Compares hash of input to stored hash.
