@@ -33,7 +33,8 @@ urlpatterns = [
         views.generate_report,
         name="loop_generate_report",
     ),
-    # FMIS (§8)
+    # FMIS (§8) — global risk landscape
+    path("fmis/global/", views.fmis_global, name="loop_fmis_global"),
     path("fmis/", views.fmis_list_create, name="loop_fmis_list_create"),
     path("fmis/<uuid:fmis_id>/", views.fmis_detail, name="loop_fmis_detail"),
     path("fmis/<uuid:fmis_id>/rows/", views.fmis_add_row, name="loop_fmis_add_row"),

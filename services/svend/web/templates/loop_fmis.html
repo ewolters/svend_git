@@ -80,14 +80,11 @@ textarea.fmis-input { resize: vertical; min-height: 60px; }
 <div class="fmis-app" id="fmisApp">
     <div class="fmis-header">
         <div>
-            <h1 id="fmisTitle">Loading...</h1>
-            <div class="subtitle" id="fmisSubtitle"></div>
+            <h1>Failure Modes — Risk Landscape</h1>
+            <div class="subtitle" id="fmisSubtitle">All failure modes across the organization</div>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-            <div class="fmis-methodology">
-                <span>Methodology:</span>
-                <span id="fmisMethodology"></span>
-            </div>
+            <div id="fmisStats" style="font-size:12px; color:var(--text-secondary);"></div>
             <button class="fmis-btn" onclick="addRow()">+ Add Failure Mode</button>
             <button class="fmis-btn sm" onclick="window.location='/app/loop/'">← Dashboard</button>
         </div>
@@ -111,23 +108,26 @@ textarea.fmis-input { resize: vertical; min-height: 60px; }
 </div>
 
 <script>
-const FMIS_ID = window.location.pathname.match(/fmis\/([\w-]+)/)?.[1];
 const LOOP_API = '/api/loop';
 const CSRF = '{{ csrf_token }}';
 
-let fmisData = null;
+let globalData = null;
+let defaultFmisId = null;
 
 async function loadFMIS() {
-    if (!FMIS_ID) return;
-    const data = await apiFetch(`${LOOP_API}/fmis/${FMIS_ID}/`);
-    fmisData = data;
+    const data = await apiFetch(`${LOOP_API}/fmis/global/`);
+    globalData = data;
+
+    // Remember a default FMIS ID for adding rows
+    if (data.fmis_documents && data.fmis_documents.length > 0) {
+        defaultFmisId = data.fmis_documents[0].id;
+    }
+
+    document.getElementById('fmisStats').textContent = `${data.total_rows} failure modes · ${data.gaps} undefined`;
     renderFMIS(data);
 }
 
 function renderFMIS(data) {
-    document.getElementById('fmisTitle').textContent = `FMIS: ${data.fmis.title}`;
-    document.getElementById('fmisSubtitle').textContent = data.fmis.description || '';
-    document.getElementById('fmisMethodology').textContent = data.fmis.methodology.replace(/_/g, ' ');
 
     const tbody = document.getElementById('fmisRows');
     if (!data.rows.length) {
@@ -145,7 +145,10 @@ function renderFMIS(data) {
                 ${r.undefined_terms.length ? `<span class="fmis-gap">${r.undefined_terms.length} undefined</span>` : ''}
             </td>
             <td>${esc(r.effect_text)}</td>
-            <td>${esc(r.cause_text)}</td>
+            <td>
+                <div>${esc(r.cause_text)}</div>
+                ${r.investigation_title ? `<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">via: ${esc(r.investigation_title)}</div>` : ''}
+            </td>
             <td>
                 <div class="fmis-score${r.severity_score === null ? ' unknown' : ''}">${r.severity_score ?? '??'}</div>
                 ${r.severity_distribution ? renderSeverityDist(r.severity_distribution) : ''}
@@ -169,9 +172,9 @@ function renderFMIS(data) {
                     ${renderDetailSection('Detection (Beta)', r, 'detection')}
                 </div>
                 <div style="margin-top:12px; display:flex; gap:8px;">
-                    <button class="fmis-evidence-btn" onclick="event.stopPropagation(); addEvidence('${r.id}', 'severity')">+ Severity Observation</button>
-                    <button class="fmis-evidence-btn" onclick="event.stopPropagation(); addEvidence('${r.id}', 'occurrence')">+ Occurrence Data</button>
-                    <button class="fmis-evidence-btn" onclick="event.stopPropagation(); addEvidence('${r.id}', 'detection')">+ Detection Test</button>
+                    <button class="fmis-evidence-btn" onclick="event.stopPropagation(); addEvidence('${r.id}', '${r.fmis_id}', 'severity')">+ Severity Observation</button>
+                    <button class="fmis-evidence-btn" onclick="event.stopPropagation(); addEvidence('${r.id}', '${r.fmis_id}', 'occurrence')">+ Occurrence Data</button>
+                    <button class="fmis-evidence-btn" onclick="event.stopPropagation(); addEvidence('${r.id}', '${r.fmis_id}', 'detection')">+ Detection Test</button>
                 </div>
             </td>
         </tr>
@@ -271,7 +274,18 @@ function addRow() {
     `, async () => {
         const fm = document.getElementById('fm-text').value.trim();
         if (!fm) return;
-        await apiFetch(`${LOOP_API}/fmis/${FMIS_ID}/rows/`, 'POST', {
+
+        // Ensure we have an FMIS doc to add to
+        if (!defaultFmisId) {
+            const created = await apiFetch(`${LOOP_API}/fmis/`, 'POST', {
+                title: 'Organization Risk Landscape',
+                methodology: 'svend_bayesian',
+            });
+            if (created.fmis) defaultFmisId = created.fmis.id;
+        }
+        if (!defaultFmisId) return;
+
+        await apiFetch(`${LOOP_API}/fmis/${defaultFmisId}/rows/`, 'POST', {
             failure_mode_text: fm,
             effect_text: document.getElementById('fm-effect').value,
             cause_text: document.getElementById('fm-cause').value,
@@ -286,13 +300,13 @@ function addRow() {
     });
 }
 
-function addEvidence(rowId, type) {
+function addEvidence(rowId, fmisId, type) {
     if (type === 'severity') {
         showModal('Add Severity Observation', `
             <div style="display:grid; gap:8px;">
                 <div style="font-size:12px; color:var(--text-secondary);">Classify the consequence of this failure mode observation:</div>
                 ${['negligible', 'minor', 'moderate', 'severe', 'catastrophic'].map(c => `
-                    <button class="fmis-btn" style="text-align:left;" onclick="submitSeverity('${rowId}', '${c}')"
+                    <button class="fmis-btn" style="text-align:left;" onclick="submitSeverity('${rowId}', '${fmisId}', '${c}')"
                         >${c.charAt(0).toUpperCase() + c.slice(1)}</button>
                 `).join('')}
             </div>
@@ -312,7 +326,7 @@ function addEvidence(rowId, type) {
             const failures = parseInt(document.getElementById('occ-fail').value) || 0;
             const units = parseInt(document.getElementById('occ-units').value) || 0;
             if (units <= 0) return;
-            await apiFetch(`${LOOP_API}/fmis/${FMIS_ID}/rows/${rowId}/posterior/`, 'POST', {
+            await apiFetch(`${LOOP_API}/fmis/${fmisId}/rows/${rowId}/posterior/`, 'POST', {
                 type: 'occurrence', failures, units
             });
             closeModal();
@@ -333,7 +347,7 @@ function addEvidence(rowId, type) {
             const detected = parseInt(document.getElementById('det-detected').value) || 0;
             const injected = parseInt(document.getElementById('det-injected').value) || 0;
             if (injected <= 0) return;
-            await apiFetch(`${LOOP_API}/fmis/${FMIS_ID}/rows/${rowId}/posterior/`, 'POST', {
+            await apiFetch(`${LOOP_API}/fmis/${fmisId}/rows/${rowId}/posterior/`, 'POST', {
                 type: 'detection', detected, injected
             });
             closeModal();
@@ -342,8 +356,8 @@ function addEvidence(rowId, type) {
     }
 }
 
-async function submitSeverity(rowId, category) {
-    await apiFetch(`${LOOP_API}/fmis/${FMIS_ID}/rows/${rowId}/posterior/`, 'POST', {
+async function submitSeverity(rowId, fmisId, category) {
+    await apiFetch(`${LOOP_API}/fmis/${fmisId}/rows/${rowId}/posterior/`, 'POST', {
         type: 'severity', category
     });
     closeModal();

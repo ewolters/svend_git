@@ -1094,10 +1094,40 @@ def _serialize_fmis_row(r):
         "undefined_terms": r.undefined_terms,
         "last_evidence_date": r.last_evidence_date.isoformat() if r.last_evidence_date else None,
         "created_at": r.created_at.isoformat() if r.created_at else None,
+        # Parent context
+        "fmis_id": str(r.fmis_id),
+        "fmis_title": r.fmis.title if hasattr(r, "fmis") and r.fmis else None,
+        "investigation_id": str(r.investigation_id) if r.investigation_id else None,
+        "investigation_title": r.investigation.title if hasattr(r, "investigation") and r.investigation else None,
     }
 
 
 from .models import FMIS, FMISRow
+
+
+@gated_paid
+@require_http_methods(["GET"])
+def fmis_global(request):
+    """Global FMIS view — all failure modes across the org.
+
+    Returns all FMIS rows with their parent FMIS document info,
+    sorted by RPN descending. This is the org's risk landscape.
+    """
+    rows = FMISRow.objects.select_related("fmis", "investigation").order_by("-rpn")
+
+    # Get or create a default FMIS for the org
+    fmis_docs = FMIS.objects.filter(created_by=request.user)
+
+    return JsonResponse(
+        {
+            "rows": [_serialize_fmis_row(r) for r in rows[:200]],
+            "fmis_documents": [_serialize_fmis(f) for f in fmis_docs],
+            "total_rows": rows.count(),
+            "gaps": rows.filter(
+                failure_mode_entity__isnull=True,
+            ).count(),
+        }
+    )
 
 
 @gated_paid
