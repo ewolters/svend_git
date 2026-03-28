@@ -120,6 +120,7 @@ textarea.loop-input { resize: vertical; min-height: 60px; }
         <div class="loop-kpi" id="kpiConditions"><div class="label">Conditions</div><div class="value">—</div><div class="sub">active</div></div>
         <div class="loop-kpi" id="kpiSignals"><div class="label">Signals</div><div class="value">—</div><div class="sub">untriaged</div></div>
         <div class="loop-kpi" id="kpiFulfilled"><div class="label">Fulfilled</div><div class="value">—</div><div class="sub">total</div></div>
+        <div class="loop-kpi" id="kpiReadiness"><div class="label">Readiness</div><div class="value">—</div><div class="sub">/ 100</div></div>
     </div>
 
     <!-- Three-column grid -->
@@ -194,6 +195,15 @@ function renderDashboard(data) {
     setKPI('kpiConditions', data.conditions.count, data.conditions.count > 0 ? 'kpi-warn' : 'kpi-good');
     setKPI('kpiSignals', data.signals.untriaged_count, data.signals.untriaged_count > 0 ? 'kpi-alert' : 'kpi-good');
     setKPI('kpiFulfilled', c.fulfilled, 'kpi-good');
+
+    // Load readiness score (separate fetch — may be slower)
+    loopFetch('readiness/').then(r => {
+        if (r.readiness) {
+            const score = r.readiness.score;
+            const cls = score >= 70 ? 'kpi-good' : score >= 40 ? 'kpi-warn' : 'kpi-alert';
+            setKPI('kpiReadiness', score, cls);
+        }
+    }).catch(() => {});
 
     // Commitments
     document.getElementById('commitmentCount').textContent = c.items.length;

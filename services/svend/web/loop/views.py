@@ -13,7 +13,9 @@ from django.views.decorators.http import require_http_methods
 from accounts.permissions import gated_paid
 
 from .models import (
+    FMIS,
     Commitment,
+    FMISRow,
     ForcedFailureTest,
     InvestigationEntry,
     ModeTransition,
@@ -1102,9 +1104,6 @@ def _serialize_fmis_row(r):
     }
 
 
-from .models import FMIS, FMISRow
-
-
 @gated_paid
 @require_http_methods(["GET"])
 def fmis_global(request):
@@ -1290,3 +1289,22 @@ def fmis_row_update_posterior(request, fmis_id, row_id):
     row.save()
 
     return JsonResponse({"row": _serialize_fmis_row(row)})
+
+
+# =============================================================================
+# CI READINESS SCORE (LOOP-001 §10)
+# =============================================================================
+
+
+@gated_paid
+@require_http_methods(["GET"])
+def readiness_score(request):
+    """Compute and return the CI Readiness Score.
+
+    Returns: score (0-100), 10 indicators with individual scores,
+    weights used, computation timestamp.
+    """
+    from .readiness import compute_readiness_score
+
+    result = compute_readiness_score(user=request.user)
+    return JsonResponse({"readiness": result})

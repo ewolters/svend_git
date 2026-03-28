@@ -7,6 +7,8 @@ from . import views
 urlpatterns = [
     # Dashboard data (§16.2)
     path("dashboard/", views.dashboard_data, name="loop_dashboard_data"),
+    # CI Readiness Score (§10)
+    path("readiness/", views.readiness_score, name="loop_readiness_score"),
     # Signals (§3.1)
     path("signals/", views.signal_list_create, name="loop_signal_list_create"),
     path("signals/<uuid:signal_id>/", views.signal_detail, name="loop_signal_detail"),
