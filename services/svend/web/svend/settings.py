@@ -73,6 +73,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # API key credential resolver (SEC-001 §4.5) — resolves Bearer sv_... → request.user
+    "accounts.api_key_auth.APIKeyAuthMiddleware",
     "accounts.middleware.SiteVisitMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",

@@ -61,7 +61,14 @@ EXEMPT_PATHS = {
     "CLAUDE.md",
     "check_secrets.py",  # This file itself
     "check_cr.py",  # CR hook references secret patterns in docs
+    "conftest.py",  # Test fixtures use test passwords
 }
+
+# Paths where password patterns are expected (test files use test credentials)
+EXEMPT_PATH_PREFIXES = (
+    "tests",
+    "test_",
+)
 
 # File extensions to scan (skip binaries, images, etc.)
 SCAN_EXTENSIONS = {
@@ -123,6 +130,9 @@ def main():
         except Exception:
             continue
 
+        # Test files are exempt from password patterns (test credentials are not secrets)
+        is_test_file = any(p in filename for p in EXEMPT_PATH_PREFIXES)
+
         for i, line in enumerate(content.splitlines(), 1):
             stripped = line.strip()
             # Skip comments
@@ -130,6 +140,9 @@ def main():
                 continue
 
             for pattern, description in SECRET_PATTERNS:
+                # Skip password patterns in test files
+                if is_test_file and "password" in description.lower():
+                    continue
                 if pattern.search(line):
                     # Redact the actual secret in output
                     safe_line = (

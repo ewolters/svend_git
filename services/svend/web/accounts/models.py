@@ -46,9 +46,7 @@ class Subscription(models.Model):
     )
 
     # Stripe IDs
-    stripe_subscription_id = models.CharField(
-        max_length=255, unique=True, db_index=True
-    )
+    stripe_subscription_id = models.CharField(max_length=255, unique=True, db_index=True)
     stripe_price_id = models.CharField(max_length=255, blank=True)
 
     # Status
@@ -61,9 +59,7 @@ class Subscription(models.Model):
     # Billing period
     current_period_start = models.DateTimeField(null=True, blank=True)
     current_period_end = models.DateTimeField(null=True, blank=True)
-    is_cancel_at_period_end = models.BooleanField(
-        default=False, db_column="cancel_at_period_end"
-    )
+    is_cancel_at_period_end = models.BooleanField(default=False, db_column="cancel_at_period_end")
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -135,9 +131,7 @@ class InviteCode(models.Model):
         return True
 
     @classmethod
-    def generate(
-        cls, count: int = 1, max_uses: int = 1, note: str = ""
-    ) -> list["InviteCode"]:
+    def generate(cls, count: int = 1, max_uses: int = 1, note: str = "") -> list["InviteCode"]:
         """Generate new invite codes."""
         codes = []
         for _ in range(count):
@@ -230,9 +224,7 @@ class User(AbstractUser):
     stripe_customer_id_hash = models.CharField(max_length=64, blank=True, db_index=True)
 
     # Legacy fields (kept for backwards compat, use Subscription model instead)
-    is_subscription_active = models.BooleanField(
-        default=False, db_column="subscription_active"
-    )
+    is_subscription_active = models.BooleanField(default=False, db_column="subscription_active")
     subscription_ends_at = models.DateTimeField(null=True, blank=True)
 
     # === Future features (nullable, no migration needed to enable) ===
@@ -255,12 +247,8 @@ class User(AbstractUser):
     # Profile — demographics (for personalized onboarding + learning paths)
     industry = models.CharField(max_length=20, choices=Industry.choices, blank=True)
     role = models.CharField(max_length=20, choices=Role.choices, blank=True)
-    experience_level = models.CharField(
-        max_length=20, choices=ExperienceLevel.choices, blank=True
-    )
-    organization_size = models.CharField(
-        max_length=20, choices=OrganizationSize.choices, blank=True
-    )
+    experience_level = models.CharField(max_length=20, choices=ExperienceLevel.choices, blank=True)
+    organization_size = models.CharField(max_length=20, choices=OrganizationSize.choices, blank=True)
 
     # Preferences (JSON blob for flexibility)
     preferences = models.JSONField(null=True, blank=True)  # theme, shortcuts, etc.
@@ -271,18 +259,14 @@ class User(AbstractUser):
     total_tokens_used = models.BigIntegerField(default=0)
 
     # Halloween/seasonal (for your mockup!)
-    current_theme = models.CharField(
-        max_length=50, blank=True
-    )  # "halloween", "winter", etc.
+    current_theme = models.CharField(max_length=50, blank=True)  # "halloween", "winter", etc.
 
     # Onboarding
     onboarding_completed_at = models.DateTimeField(null=True, blank=True)
 
     # Email verification (token stored as SHA-256 hash)
     is_email_verified = models.BooleanField(default=False, db_column="email_verified")
-    email_verification_token = models.CharField(
-        max_length=64, blank=True, db_index=True
-    )
+    email_verification_token = models.CharField(max_length=64, blank=True, db_index=True)
     email_verification_token_sent_at = models.DateTimeField(null=True, blank=True)
     is_email_opted_out = models.BooleanField(default=False, db_column="email_opted_out")
 
@@ -319,9 +303,9 @@ class User(AbstractUser):
         # Reset daily counter if needed
         if self.queries_reset_at is None or self.queries_reset_at < timezone.now():
             self.queries_today = 0
-            self.queries_reset_at = timezone.now().replace(
-                hour=0, minute=0, second=0, microsecond=0
-            ) + timedelta(days=1)
+            self.queries_reset_at = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(
+                days=1
+            )
             self.save(update_fields=["queries_today", "queries_reset_at"])
 
         return self.queries_today < self.daily_limit
@@ -468,3 +452,145 @@ class DataExportRequest(models.Model):
 
     def __str__(self):
         return f"Export {self.id} ({self.status})"
+
+
+# ---------------------------------------------------------------------------
+# API Key Authentication — SEC-001 §4.5
+# ---------------------------------------------------------------------------
+
+# Tier limits for active API keys
+API_KEY_LIMITS = {
+    Tier.FREE: 0,
+    Tier.FOUNDER: 2,
+    Tier.PRO: 5,
+    Tier.TEAM: 10,
+    Tier.ENTERPRISE: 50,
+}
+
+
+class APIKey(models.Model):
+    """Platform-wide API key for programmatic access.
+
+    ⚠ SECURITY-CRITICAL: Keys are bearer credentials. The raw key is returned
+    exactly once at creation and never stored. Only the SHA-256 hash is persisted.
+    All existing auth decorators work transparently — the credential resolver
+    middleware sets request.user from the key.
+
+    Standard: SEC-001 §4.5
+    Compliance: SOC 2 CC6.1 (Logical Access Security)
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.CASCADE,
+        related_name="api_keys",
+    )
+
+    # Key stored as hash — plaintext never persisted
+    key_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    key_prefix = models.CharField(max_length=11)  # sv_ + 8 chars for display
+
+    # Metadata
+    name = models.CharField(max_length=100, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    # Lifecycle
+    is_active = models.BooleanField(default=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "api_keys"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "is_active"], name="apikey_user_active"),
+        ]
+
+    def __str__(self):
+        return f"{self.key_prefix}... ({self.name or 'unnamed'})"
+
+    @property
+    def is_expired(self):
+        if self.expires_at is None:
+            return False
+        from django.utils import timezone
+
+        return self.expires_at < timezone.now()
+
+    @property
+    def is_usable(self):
+        return self.is_active and not self.is_expired and self.revoked_at is None
+
+    def revoke(self):
+        """Revoke this key. Immediate effect."""
+        from django.utils import timezone
+
+        self.is_active = False
+        self.revoked_at = timezone.now()
+        self.save(update_fields=["is_active", "revoked_at"])
+
+    def bump_last_used(self):
+        """Update last_used_at, throttled to 1h intervals to reduce DB writes."""
+        from django.utils import timezone
+
+        now = timezone.now()
+        if self.last_used_at is None or (now - self.last_used_at) > timedelta(hours=1):
+            type(self).objects.filter(pk=self.pk).update(last_used_at=now)
+
+    @staticmethod
+    def generate_raw_key():
+        """Generate a raw API key with sv_ prefix."""
+        return f"sv_{secrets.token_urlsafe(32)}"
+
+    @classmethod
+    def create_for_user(cls, user, name="", expires_at=None):
+        """Create a new API key for a user.
+
+        Returns (plaintext_key, api_key_instance). The plaintext is shown
+        exactly once — if lost, revoke and create a new one.
+
+        Raises ValueError if user has reached their tier's key limit.
+        """
+        # Check tier limit
+        limit = API_KEY_LIMITS.get(user.tier, 0)
+        active_count = cls.objects.filter(user=user, is_active=True, revoked_at__isnull=True).count()
+        if active_count >= limit:
+            raise ValueError(
+                f"API key limit reached ({limit} for {user.tier} tier). Revoke an existing key or upgrade your plan."
+            )
+
+        plaintext = cls.generate_raw_key()
+        key_obj = cls.objects.create(
+            user=user,
+            key_hash=hash_token(plaintext),
+            key_prefix=plaintext[:11],  # sv_ + 8 chars
+            name=name,
+            expires_at=expires_at,
+        )
+        return plaintext, key_obj
+
+    @classmethod
+    def resolve(cls, raw_key):
+        """Resolve a raw API key to its APIKey instance, or None.
+
+        Returns None if the key is invalid, revoked, or expired.
+        """
+        from django.utils import timezone
+
+        key_hash = hash_token(raw_key)
+        try:
+            api_key = cls.objects.select_related("user").get(
+                key_hash=key_hash,
+                is_active=True,
+                revoked_at__isnull=True,
+            )
+        except cls.DoesNotExist:
+            return None
+
+        if api_key.expires_at and api_key.expires_at < timezone.now():
+            return None
+
+        api_key.bump_last_used()
+        return api_key

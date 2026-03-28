@@ -2,6 +2,8 @@
 
 from django.urls import path
 
+from accounts import api_key_views
+
 from . import internal_views, training_views, views
 
 app_name = "api"
@@ -46,6 +48,9 @@ urlpatterns = [
         views.onboarding_complete,
         name="onboarding_complete",
     ),
+    # API key management (SEC-001 §4.5)
+    path("auth/keys/", api_key_views.key_list_create, name="api_key_list_create"),
+    path("auth/keys/<uuid:key_id>/", api_key_views.key_revoke, name="api_key_revoke"),
     # Event tracking
     path("events/", views.track_event, name="track_event"),
     # Export
@@ -63,9 +68,7 @@ urlpatterns = [
         internal_views.api_hypothesis_health,
         name="internal_hypothesis_health",
     ),
-    path(
-        "internal/anthropic/", internal_views.api_anthropic, name="internal_anthropic"
-    ),
+    path("internal/anthropic/", internal_views.api_anthropic, name="internal_anthropic"),
     path(
         "internal/rate-limit-override/",
         internal_views.api_rate_limit_override,
@@ -130,9 +133,7 @@ urlpatterns = [
     path("feedback/", views.submit_feedback, name="submit_feedback"),
     # Blog management (staff-only)
     path("internal/blog/", internal_views.api_blog_list, name="internal_blog_list"),
-    path(
-        "internal/blog/save/", internal_views.api_blog_save, name="internal_blog_save"
-    ),
+    path("internal/blog/save/", internal_views.api_blog_save, name="internal_blog_save"),
     path(
         "internal/blog/generate/",
         internal_views.api_blog_generate,
@@ -223,9 +224,7 @@ urlpatterns = [
         name="internal_automation_log",
     ),
     # Automation: Autopilot
-    path(
-        "internal/autopilot/", internal_views.api_autopilot, name="internal_autopilot"
-    ),
+    path("internal/autopilot/", internal_views.api_autopilot, name="internal_autopilot"),
     path(
         "internal/autopilot/<uuid:report_id>/approve/",
         internal_views.api_autopilot_approve,
@@ -239,9 +238,7 @@ urlpatterns = [
     # Feedback (staff)
     path("internal/feedback/", internal_views.api_feedback, name="internal_feedback"),
     # CRM — Outbound Outreach
-    path(
-        "internal/crm/leads/", internal_views.api_crm_leads, name="internal_crm_leads"
-    ),
+    path("internal/crm/leads/", internal_views.api_crm_leads, name="internal_crm_leads"),
     path(
         "internal/crm/leads/<uuid:lead_id>/",
         internal_views.api_crm_lead_delete,
@@ -303,9 +300,7 @@ urlpatterns = [
         internal_views.api_site_analytics,
         name="internal_site_analytics",
     ),
-    path(
-        "internal/site-live/", internal_views.api_site_live, name="internal_site_live"
-    ),
+    path("internal/site-live/", internal_views.api_site_live, name="internal_site_live"),
     # Infrastructure (Synara OS layer, staff-only)
     path("internal/infra/", internal_views.api_infra, name="internal_infra"),
     path(
@@ -411,9 +406,7 @@ urlpatterns = [
         name="internal_incident_transition",
     ),
     # Standards library
-    path(
-        "internal/standards/", internal_views.api_standards, name="internal_standards"
-    ),
+    path("internal/standards/", internal_views.api_standards, name="internal_standards"),
     # Roadmap management (staff-only)
     path(
         "internal/roadmap/",
