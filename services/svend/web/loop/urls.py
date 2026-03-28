@@ -1,10 +1,12 @@
-"""URL routes for Loop API — LOOP-001 §3, §6, §7."""
+"""URL routes for Loop API — LOOP-001 §3, §6, §7, §16."""
 
 from django.urls import path
 
 from . import views
 
 urlpatterns = [
+    # Dashboard data (§16.2)
+    path("dashboard/", views.dashboard_data, name="loop_dashboard_data"),
     # Signals (§3.1)
     path("signals/", views.signal_list_create, name="loop_signal_list_create"),
     path("signals/<uuid:signal_id>/", views.signal_detail, name="loop_signal_detail"),

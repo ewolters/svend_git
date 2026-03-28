@@ -491,6 +491,11 @@ urlpatterns = [
     path("api/iso/", include("agents_api.iso_urls")),  # ISO 9001 QMS (Team/Enterprise)
     path("api/notifications/", include("notifications.urls")),  # NTF-001
     path("api/loop/", include("loop.urls")),  # LOOP-001: Signals, Commitments, Transitions
+    path(
+        "app/loop/",
+        TemplateView.as_view(template_name="loop_dashboard.html"),
+        name="loop_dashboard",
+    ),  # LOOP-001 §16.2: Accountability Dashboard
     path("api/safety/", include("safety.urls")),  # HIRARC Safety (Enterprise)
     path("api/privacy/", include("accounts.privacy_urls")),  # PRIV-001 (SOC 2 P1.8)
     path("api/capa/", include("agents_api.capa_urls")),  # CAPA standalone (ISO 10.2, FEAT-004)

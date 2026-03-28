@@ -739,3 +739,105 @@ def reflection_list_create(request):
 
     logger.info("reflection.created", extra={"reflection_id": str(reflection.id)})
     return JsonResponse({"reflection": _serialize_reflection(reflection)}, status=201)
+
+
+# =============================================================================
+# ACCOUNTABILITY DASHBOARD (LOOP-001 §16.2)
+# =============================================================================
+
+
+@gated_paid
+@require_http_methods(["GET"])
+def dashboard_data(request):
+    """Dashboard data endpoint — aggregates loop state for the daily surface.
+
+    Returns: commitments (my, overdue, blocked), conditions (active),
+    signals (open), investigations (active), recent transitions.
+    """
+    from core.models import Investigation
+
+    from .models import PolicyCondition
+
+    user = request.user
+
+    # My commitments
+    my_commitments = (
+        Commitment.objects.filter(owner=user)
+        .exclude(status__in=[Commitment.Status.FULFILLED, Commitment.Status.CANCELLED])
+        .order_by("due_date")[:20]
+    )
+
+    overdue_commitments = [c for c in my_commitments if c.is_overdue]
+    blocked_commitments = [c for c in my_commitments if c.is_blocked]
+    due_today = [c for c in my_commitments if c.due_date == date.today()]
+
+    # Active conditions
+    active_conditions = PolicyCondition.objects.filter(
+        status=PolicyCondition.Status.ACTIVE,
+    ).order_by("-created_at")[:20]
+
+    # Open signals
+    open_signals = Signal.objects.filter(
+        created_by=user,
+        triage_state__in=[Signal.TriageState.UNTRIAGED, Signal.TriageState.ACKNOWLEDGED],
+    ).order_by("-created_at")[:10]
+
+    # Active investigations
+    active_investigations = Investigation.objects.filter(
+        status__in=[Investigation.Status.OPEN, Investigation.Status.ACTIVE],
+        owner=user,
+    ).order_by("-updated_at")[:10]
+
+    # Recent transitions (audit trail)
+    recent_transitions = ModeTransition.objects.all().order_by("-created_at")[:10]
+
+    # Summary counts
+    total_commitments = Commitment.objects.filter(owner=user).exclude(status__in=[Commitment.Status.CANCELLED]).count()
+    fulfilled_commitments = Commitment.objects.filter(owner=user, status=Commitment.Status.FULFILLED).count()
+
+    return JsonResponse(
+        {
+            "commitments": {
+                "items": [_serialize_commitment(c) for c in my_commitments],
+                "overdue_count": len(overdue_commitments),
+                "blocked_count": len(blocked_commitments),
+                "due_today_count": len(due_today),
+                "total": total_commitments,
+                "fulfilled": fulfilled_commitments,
+            },
+            "conditions": {
+                "items": [
+                    {
+                        "id": str(c.id),
+                        "condition_type": c.condition_type,
+                        "severity": c.severity,
+                        "title": c.title,
+                        "created_at": c.created_at.isoformat() if c.created_at else None,
+                    }
+                    for c in active_conditions
+                ],
+                "count": active_conditions.count(),
+            },
+            "signals": {
+                "items": [_serialize_signal(s) for s in open_signals],
+                "untriaged_count": open_signals.filter(triage_state=Signal.TriageState.UNTRIAGED).count(),
+            },
+            "investigations": {
+                "items": [
+                    {
+                        "id": str(inv.id),
+                        "title": inv.title,
+                        "status": inv.status,
+                        "updated_at": inv.updated_at.isoformat() if inv.updated_at else None,
+                        "commitment_count": Commitment.objects.filter(source_investigation=inv)
+                        .exclude(status=Commitment.Status.CANCELLED)
+                        .count(),
+                    }
+                    for inv in active_investigations
+                ],
+            },
+            "transitions": {
+                "items": [_serialize_transition(t) for t in recent_transitions],
+            },
+        }
+    )
