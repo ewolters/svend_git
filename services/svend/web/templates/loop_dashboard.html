@@ -223,7 +223,7 @@ function setKPI(id, value, cls) {
 function renderCommitments(items) {
     const el = document.getElementById('commitmentList');
     if (!items.length) {
-        el.innerHTML = '<div class="loop-empty"><div class="empty-icon">✓</div>No open commitments</div>';
+        el.innerHTML = '<div class="loop-empty"><div class="empty-icon">◉</div>No open commitments</div>';
         return;
     }
     el.innerHTML = items.map(c => {
@@ -250,7 +250,7 @@ function renderCommitments(items) {
 function renderConditions(items) {
     const el = document.getElementById('conditionList');
     if (!items.length) {
-        el.innerHTML = '<div class="loop-empty"><div class="empty-icon">✓</div>No active conditions</div>';
+        el.innerHTML = '<div class="loop-empty"><div class="empty-icon">◉</div>No active conditions</div>';
         return;
     }
     el.innerHTML = items.map(c => `
@@ -264,7 +264,7 @@ function renderConditions(items) {
 function renderSignals(items) {
     const el = document.getElementById('signalList');
     if (!items.length) {
-        el.innerHTML = '<div class="loop-empty"><div class="empty-icon">✓</div>No open signals</div>';
+        el.innerHTML = '<div class="loop-empty"><div class="empty-icon">◉</div>No open signals</div>';
         return;
     }
     el.innerHTML = items.map(s => `
@@ -278,7 +278,7 @@ function renderSignals(items) {
 function renderInvestigations(items) {
     const el = document.getElementById('investigationList');
     if (!items.length) {
-        el.innerHTML = '<div class="loop-empty"><div class="empty-icon">🔍</div>No active investigations</div>';
+        el.innerHTML = '<div class="loop-empty"><div class="empty-icon">◉</div>No active investigations</div>';
         return;
     }
     el.innerHTML = items.map(inv => `
