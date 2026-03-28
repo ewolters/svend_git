@@ -1,0 +1,383 @@
+{% extends "base_app.html" %}
+{% block title %}Investigation — SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+.inv-app { display: grid; grid-template-columns: 240px 1fr; height: calc(100vh - 60px); overflow: hidden; }
+
+/* Sidebar */
+.inv-sidebar { background: var(--bg-secondary); border-right: 1px solid var(--border); padding: 16px; overflow-y: auto; }
+.inv-sidebar-section { margin-bottom: 20px; }
+.inv-sidebar-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; }
+.inv-sidebar-item { padding: 6px 10px; border-radius: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer; transition: all 0.1s; margin-bottom: 2px; }
+.inv-sidebar-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.inv-sidebar-item.active { background: rgba(99,102,241,0.15); color: var(--accent); }
+
+/* Main content */
+.inv-main { padding: 24px; overflow-y: auto; }
+.inv-header { margin-bottom: 20px; }
+.inv-header h1 { font-size: 20px; font-weight: 500; color: var(--text-primary); margin: 0; }
+.inv-header .inv-meta { font-size: 12px; color: var(--text-secondary); margin-top: 4px; display: flex; gap: 12px; align-items: center; }
+
+/* Status badge */
+.inv-status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.inv-status.open { background: rgba(96,165,250,0.15); color: #60a5fa; }
+.inv-status.active { background: rgba(74,222,128,0.15); color: #4ade80; }
+.inv-status.concluded { background: rgba(250,204,21,0.15); color: #facc15; }
+
+/* Cards */
+.inv-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.inv-card-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 12px; }
+
+/* Commitment list in investigation */
+.inv-commitment { padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--bg-secondary); }
+.inv-commitment .cmt-title { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+.inv-commitment .cmt-meta { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+.inv-commitment .cmt-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px; background: rgba(74,222,128,0.1); color: #4ade80; font-weight: 500; }
+
+/* Causal graph placeholder */
+.inv-graph-placeholder { background: var(--bg-secondary); border: 2px dashed var(--border); border-radius: 10px; padding: 40px; text-align: center; color: var(--text-dim); font-size: 13px; min-height: 200px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; }
+
+/* Buttons */
+.inv-btn { padding: 8px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-primary); cursor: pointer; font-size: 13px; transition: all 0.15s; }
+.inv-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
+.inv-btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+.inv-btn.sm { padding: 4px 10px; font-size: 12px; }
+
+/* Modal (shared with dashboard) */
+#invModal { display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center; }
+.inv-modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); }
+.inv-modal-content { position: relative; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+.inv-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.inv-modal-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.inv-input { width: 100%; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); font-size: 13px; box-sizing: border-box; font-family: inherit; }
+.inv-input:focus { border-color: var(--accent); outline: none; }
+select.inv-input { appearance: none; padding-right: 28px; }
+textarea.inv-input { resize: vertical; min-height: 60px; }
+
+/* Tool list */
+.inv-tool-item { padding: 8px 10px; border-radius: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.inv-tool-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.inv-tool-icon { width: 20px; text-align: center; opacity: 0.5; }
+
+/* Entries */
+.inv-entry { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.inv-entry-time { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+.inv-entry-content { font-size: 13px; color: var(--text-primary); margin-top: 4px; line-height: 1.5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="inv-app" id="invApp">
+    <!-- Sidebar -->
+    <div class="inv-sidebar">
+        <div class="inv-sidebar-section">
+            <div class="inv-sidebar-label">Navigation</div>
+            <div class="inv-sidebar-item active" onclick="scrollTo('graph')">Causal Graph</div>
+            <div class="inv-sidebar-item" onclick="scrollTo('entries')">Entries</div>
+            <div class="inv-sidebar-item" onclick="scrollTo('commitments')">Commitments</div>
+        </div>
+
+        <div class="inv-sidebar-section">
+            <div class="inv-sidebar-label">Tools</div>
+            <div class="inv-tool-item" onclick="launchTool('rca')"><span class="inv-tool-icon">🔍</span> Root Cause Analysis</div>
+            <div class="inv-tool-item" onclick="launchTool('ishikawa')"><span class="inv-tool-icon">🐟</span> Ishikawa Diagram</div>
+            <div class="inv-tool-item" onclick="launchTool('doe')"><span class="inv-tool-icon">🧪</span> Design of Experiments</div>
+            <div class="inv-tool-item" onclick="launchTool('spc')"><span class="inv-tool-icon">📊</span> SPC Analysis</div>
+            <div class="inv-tool-item" onclick="launchTool('gage')"><span class="inv-tool-icon">📐</span> Gage R&R</div>
+            <div class="inv-tool-item" onclick="launchTool('analysis')"><span class="inv-tool-icon">📈</span> Statistical Analysis</div>
+        </div>
+
+        <div class="inv-sidebar-section">
+            <div class="inv-sidebar-label">Actions</div>
+            <button class="inv-btn sm" style="width:100%; margin-bottom:6px;" onclick="transitionInvestigation()">Transition Status</button>
+            <button class="inv-btn sm" style="width:100%;" onclick="window.location='/app/loop/'">← Back to Dashboard</button>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="inv-main">
+        <div class="inv-header">
+            <h1 id="invTitle">Loading...</h1>
+            <div class="inv-meta">
+                <span class="inv-status" id="invStatus"></span>
+                <span id="invVersion"></span>
+                <span id="invDates"></span>
+            </div>
+        </div>
+
+        <!-- Causal Graph -->
+        <div class="inv-card" id="graph">
+            <div class="inv-card-title">Causal Graph</div>
+            <div class="inv-graph-placeholder" id="graphArea">
+                <div style="font-size: 24px; opacity: 0.3;">◉</div>
+                <div>Synara causal graph</div>
+                <div style="font-size: 11px;">Link tools to build hypotheses and evidence</div>
+            </div>
+        </div>
+
+        <!-- Entries -->
+        <div class="inv-card" id="entries">
+            <div class="inv-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+                Entries
+                <button class="inv-btn sm" onclick="addEntry()">+ Add Entry</button>
+            </div>
+            <div id="entryList">
+                <div style="text-align:center; padding:20px; color:var(--text-dim); font-size:13px;">No entries yet. Add narrative, data, or link a tool output.</div>
+            </div>
+        </div>
+
+        <!-- Commitments -->
+        <div class="inv-card" id="commitments">
+            <div class="inv-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+                Commitments
+                <button class="inv-btn sm" onclick="addCommitment()">+ Add Commitment</button>
+            </div>
+            <div id="commitmentList">
+                <div style="text-align:center; padding:20px; color:var(--text-dim); font-size:13px;">No commitments yet. Create commitments to drive mode transitions.</div>
+            </div>
+        </div>
+
+        <!-- Source Signal -->
+        <div class="inv-card" id="sourceSignal" style="display:none;">
+            <div class="inv-card-title">Source Signal</div>
+            <div id="signalInfo"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Extract investigation ID from URL
+const INV_ID = window.location.pathname.match(/investigations\/([\w-]+)/)?.[1];
+const LOOP_API = '/api/loop';
+const INV_API = '/api/investigations';
+const CSRF = '{{ csrf_token }}';
+
+let currentInv = null;
+
+async function loadInvestigation() {
+    if (!INV_ID) return;
+
+    try {
+        // Load investigation detail
+        const invResp = await fetch(`${INV_API}/${INV_ID}/`, {
+            headers: { 'X-CSRFToken': CSRF }
+        });
+        if (!invResp.ok) throw new Error(`${invResp.status}`);
+        const invData = await invResp.json();
+        currentInv = invData.investigation;
+        renderInvestigation(currentInv);
+
+        // Load commitments
+        const cmtResp = await fetch(`${LOOP_API}/investigations/${INV_ID}/commitments/`, {
+            headers: { 'X-CSRFToken': CSRF }
+        });
+        if (cmtResp.ok) {
+            const cmtData = await cmtResp.json();
+            renderCommitments(cmtData.commitments);
+        }
+
+        // Load linked tools
+        const toolResp = await fetch(`${INV_API}/${INV_ID}/tools/`, {
+            headers: { 'X-CSRFToken': CSRF }
+        });
+        if (toolResp.ok) {
+            const toolData = await toolResp.json();
+            if (toolData.tools && toolData.tools.length > 0) {
+                renderToolLinks(toolData.tools);
+            }
+        }
+
+    } catch (e) {
+        console.error('Failed to load investigation:', e);
+        document.getElementById('invTitle').textContent = 'Investigation not found';
+    }
+}
+
+function renderInvestigation(inv) {
+    document.getElementById('invTitle').textContent = inv.title;
+
+    const statusEl = document.getElementById('invStatus');
+    statusEl.textContent = inv.status;
+    statusEl.className = `inv-status ${inv.status}`;
+
+    document.getElementById('invVersion').textContent = `v${inv.version}`;
+    document.getElementById('invDates').textContent = `Created: ${inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '—'}`;
+
+    // Render graph if present
+    if (inv.graph && (inv.graph.hypotheses && Object.keys(inv.graph.hypotheses).length > 0)) {
+        renderGraph(inv.graph);
+    }
+}
+
+function renderGraph(graph) {
+    const area = document.getElementById('graphArea');
+    const hypotheses = Object.entries(graph.hypotheses || {});
+    if (!hypotheses.length) return;
+
+    area.innerHTML = hypotheses.map(([id, h]) => {
+        const prob = h.probability !== undefined ? `P=${(h.probability * 100).toFixed(0)}%` : '';
+        const barWidth = h.probability !== undefined ? (h.probability * 100) : 50;
+        return `<div style="width:100%; text-align:left; padding:8px 12px; background:var(--bg-secondary); border-radius:6px; margin-bottom:6px;">
+            <div style="font-size:13px; color:var(--text-primary); font-weight:500;">${esc(h.label || id)}</div>
+            <div style="margin-top:4px; height:4px; background:var(--border); border-radius:2px;">
+                <div style="height:100%; width:${barWidth}%; background:var(--accent); border-radius:2px;"></div>
+            </div>
+            <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">${prob}</div>
+        </div>`;
+    }).join('');
+}
+
+function renderCommitments(commitments) {
+    const el = document.getElementById('commitmentList');
+    if (!commitments.length) {
+        el.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim); font-size:13px;">No commitments yet.</div>';
+        return;
+    }
+    el.innerHTML = commitments.map(c => `
+        <div class="inv-commitment">
+            <div class="cmt-title">${esc(c.title)}</div>
+            <div class="cmt-meta">
+                ${c.transition_type ? `<span class="cmt-badge">${c.transition_type.replace(/_/g, ' ')}</span> · ` : ''}
+                Due: ${c.due_date || '—'} · Status: ${c.status}
+                ${c.is_overdue ? ' · <span style="color:#f87171;font-weight:600;">OVERDUE</span>' : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderToolLinks(tools) {
+    const area = document.getElementById('graphArea');
+    const toolHtml = tools.map(t =>
+        `<div style="font-size:12px; padding:4px 8px; background:var(--bg-secondary); border-radius:4px; display:inline-block; margin:2px;">
+            ${t.tool_type} (${t.tool_function})
+        </div>`
+    ).join('');
+    area.innerHTML += `<div style="margin-top:12px; text-align:left; width:100%;"><div style="font-size:10px; text-transform:uppercase; color:var(--text-dim); margin-bottom:4px;">Linked Tools</div>${toolHtml}</div>`;
+}
+
+function addCommitment() {
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    showInvModal('Create Commitment', `
+        <div style="display:grid; gap:12px;">
+            <input id="cmt-title" class="inv-input" placeholder="Specific deliverable" autofocus>
+            <input id="cmt-due" class="inv-input" type="date" value="${tomorrow}">
+            <select id="cmt-transition" class="inv-input">
+                <option value="">No transition (general)</option>
+                <option value="revise_document">Revise Document → Standardize</option>
+                <option value="create_document">Create Document → Standardize</option>
+                <option value="add_control">Add Control (FMIS) → Standardize</option>
+                <option value="train">Training → Verify</option>
+                <option value="process_confirmation">Schedule PC → Verify</option>
+                <option value="forced_failure">Schedule Forced Failure → Verify</option>
+                <option value="monitor">Set Up Monitoring → Verify</option>
+            </select>
+            <textarea id="cmt-desc" class="inv-input" rows="3" placeholder="Description"></textarea>
+        </div>
+    `, async () => {
+        const title = document.getElementById('cmt-title').value.trim();
+        const due = document.getElementById('cmt-due').value;
+        if (!title || !due) return alert('Title and due date are required');
+        const resp = await fetch(`${LOOP_API}/investigations/${INV_ID}/commitments/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({
+                title,
+                due_date: due,
+                transition_type: document.getElementById('cmt-transition').value,
+                description: document.getElementById('cmt-desc').value,
+            }),
+        });
+        const data = await resp.json();
+        if (data.commitment) { closeInvModal(); loadInvestigation(); }
+    });
+}
+
+function addEntry() {
+    showInvModal('Add Entry', `
+        <textarea id="entry-text" class="inv-input" rows="6" placeholder="Narrative, observation, or note..." autofocus></textarea>
+    `, () => {
+        const text = document.getElementById('entry-text').value.trim();
+        if (!text) return;
+        // For now, just render locally — full entry persistence comes with notebook integration
+        const el = document.getElementById('entryList');
+        const now = new Date().toLocaleString();
+        el.innerHTML = `<div class="inv-entry">
+            <div class="inv-entry-time">${now}</div>
+            <div class="inv-entry-content">${esc(text)}</div>
+        </div>` + (el.innerHTML.includes('No entries') ? '' : el.innerHTML);
+        closeInvModal();
+    });
+}
+
+async function transitionInvestigation() {
+    if (!currentInv) return;
+    const valid = { open: 'active', active: 'concluded' };
+    const next = valid[currentInv.status];
+    if (!next) return alert(`Cannot transition from '${currentInv.status}'`);
+
+    if (!confirm(`Transition to '${next}'?`)) return;
+
+    const resp = await fetch(`${INV_API}/${INV_ID}/transition/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ target_status: next }),
+    });
+    if (resp.ok) loadInvestigation();
+    else {
+        const err = await resp.json();
+        alert(err.error || 'Transition failed');
+    }
+}
+
+function launchTool(toolType) {
+    // Route to existing tool surfaces with investigation context
+    const routes = {
+        rca: '/app/rca/',
+        ishikawa: '/app/ishikawa/',
+        doe: '/app/experimenter/',
+        spc: '/app/analysis/',
+        gage: '/app/analysis/',
+        analysis: '/app/analysis/',
+    };
+    const url = routes[toolType] || '/app/analysis/';
+    window.open(`${url}?investigation_id=${INV_ID}`, '_blank');
+}
+
+function scrollTo(id) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Modal
+function showInvModal(title, body, onConfirm) {
+    let m = document.getElementById('invModal');
+    if (!m) {
+        m = document.createElement('div');
+        m.id = 'invModal';
+        m.innerHTML = `<div class="inv-modal-overlay" onclick="closeInvModal()"></div>
+            <div class="inv-modal-content">
+                <div class="inv-modal-header"><div class="inv-modal-title"></div><button class="inv-btn sm" onclick="closeInvModal()" style="opacity:0.5;">✕</button></div>
+                <div id="invModalBody"></div>
+                <div id="invModalFooter" style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;"></div>
+            </div>`;
+        document.body.appendChild(m);
+    }
+    m.querySelector('.inv-modal-title').textContent = title;
+    document.getElementById('invModalBody').innerHTML = body;
+    document.getElementById('invModalFooter').innerHTML = onConfirm
+        ? '<button class="inv-btn primary" id="invModalConfirm">Confirm</button>' : '';
+    if (onConfirm) document.getElementById('invModalConfirm').onclick = onConfirm;
+    m.style.display = 'flex';
+    setTimeout(() => { const i = m.querySelector('input,textarea'); if(i) i.focus(); }, 50);
+}
+function closeInvModal() { const m = document.getElementById('invModal'); if(m) m.style.display='none'; }
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+document.addEventListener('DOMContentLoaded', loadInvestigation);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeInvModal(); });
+</script>
+{% endblock %}

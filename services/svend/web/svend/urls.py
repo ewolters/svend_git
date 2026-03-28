@@ -496,6 +496,11 @@ urlpatterns = [
         TemplateView.as_view(template_name="loop_dashboard.html"),
         name="loop_dashboard",
     ),  # LOOP-001 §16.2: Accountability Dashboard
+    path(
+        "app/loop/investigations/<uuid:investigation_id>/",
+        TemplateView.as_view(template_name="loop_investigation.html"),
+        name="loop_investigation_workspace",
+    ),  # LOOP-001 §16.3: Investigation Workspace
     path("api/safety/", include("safety.urls")),  # HIRARC Safety (Enterprise)
     path("api/privacy/", include("accounts.privacy_urls")),  # PRIV-001 (SOC 2 P1.8)
     path("api/capa/", include("agents_api.capa_urls")),  # CAPA standalone (ISO 10.2, FEAT-004)

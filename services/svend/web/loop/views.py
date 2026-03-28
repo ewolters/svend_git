@@ -173,6 +173,36 @@ def signal_detail(request, signal_id):
             return JsonResponse({"error": "Investigation not found"}, status=404)
         signal.link_investigation(inv)
 
+    elif action == "open_investigation":
+        from core.models import Investigation, InvestigationMembership
+
+        inv_title = data.get("investigation_title", signal.title)
+        inv = Investigation.objects.create(
+            title=inv_title,
+            description=f"Opened from signal: {signal.title}\n\n{signal.description}",
+            owner=request.user,
+        )
+        InvestigationMembership.objects.create(
+            investigation=inv,
+            user=request.user,
+            role=Investigation.MemberRole.OWNER,
+        )
+        signal.link_investigation(inv)
+        logger.info(
+            "signal.opened_investigation",
+            extra={"signal_id": str(signal.id), "investigation_id": str(inv.id)},
+        )
+        return JsonResponse(
+            {
+                "signal": _serialize_signal(signal),
+                "investigation": {
+                    "id": str(inv.id),
+                    "title": inv.title,
+                    "status": inv.status,
+                },
+            }
+        )
+
     elif action == "resolve":
         signal.resolve()
 
@@ -185,7 +215,10 @@ def signal_detail(request, signal_id):
 
     else:
         return JsonResponse(
-            {"error": f"Unknown action '{action}'. Valid: acknowledge, link_investigation, resolve, dismiss"},
+            {
+                "error": f"Unknown action '{action}'. "
+                "Valid: acknowledge, open_investigation, link_investigation, resolve, dismiss"
+            },
             status=400,
         )
 

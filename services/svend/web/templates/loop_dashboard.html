@@ -77,6 +77,24 @@
 .loop-mode.investigate .dot { background: #60a5fa; }
 .loop-mode.standardize .dot { background: #facc15; }
 .loop-mode.verify .dot { background: #4ade80; }
+
+/* Modal */
+#loopModal { display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center; }
+.loop-modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); }
+.loop-modal-content { position: relative; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+.loop-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.loop-modal-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.loop-modal-body { margin-bottom: 16px; }
+.loop-modal-footer { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Form inputs */
+.loop-input { width: 100%; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); font-size: 13px; box-sizing: border-box; font-family: inherit; }
+.loop-input:focus { border-color: var(--accent); outline: none; }
+select.loop-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+textarea.loop-input { resize: vertical; min-height: 60px; }
 </style>
 {% endblock %}
 
@@ -302,13 +320,217 @@ function timeAgo(iso) {
     return `${Math.floor(diff/86400)}d ago`;
 }
 
-// Actions (stubs — will wire to modals)
-function createSignal() { alert('Signal creation — coming soon'); }
-function createCommitment() { alert('Commitment creation — coming soon'); }
-function openCommitment(id) { console.log('Open commitment:', id); }
-function openSignal(id) { console.log('Open signal:', id); }
+// =============================================================================
+// ACTIONS
+// =============================================================================
+
+function createSignal() {
+    showModal('Create Signal', `
+        <div style="display:grid; gap:12px;">
+            <input id="sig-title" class="loop-input" placeholder="What happened?" autofocus>
+            <select id="sig-source" class="loop-input">
+                <option value="spc_violation">SPC Violation</option>
+                <option value="customer_complaint">Customer Complaint</option>
+                <option value="audit_finding">Audit Finding</option>
+                <option value="operator_report">Operator Report</option>
+                <option value="forced_failure_miss">Forced Failure Miss</option>
+                <option value="frontier_card">Frontier Card Finding</option>
+                <option value="supplier_issue">Supplier Issue</option>
+                <option value="other" selected>Other</option>
+            </select>
+            <select id="sig-severity" class="loop-input">
+                <option value="info">Info</option>
+                <option value="warning" selected>Warning</option>
+                <option value="critical">Critical</option>
+            </select>
+            <textarea id="sig-desc" class="loop-input" rows="3" placeholder="Description (optional)"></textarea>
+        </div>
+    `, async () => {
+        const title = document.getElementById('sig-title').value.trim();
+        if (!title) return alert('Title is required');
+        const resp = await loopFetch('signals/', 'POST', {
+            title,
+            source_type: document.getElementById('sig-source').value,
+            severity: document.getElementById('sig-severity').value,
+            description: document.getElementById('sig-desc').value,
+        });
+        if (resp.signal) { closeModal(); loadDashboard(); }
+    });
+}
+
+function createCommitment() {
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    showModal('Create Commitment', `
+        <div style="display:grid; gap:12px;">
+            <input id="cmt-title" class="loop-input" placeholder="Specific deliverable — not a vague task" autofocus>
+            <input id="cmt-due" class="loop-input" type="date" value="${tomorrow}">
+            <select id="cmt-transition" class="loop-input">
+                <option value="">No transition (general task)</option>
+                <option value="revise_document">Revise Document → Standardize</option>
+                <option value="create_document">Create Document → Standardize</option>
+                <option value="add_control">Add Control (FMIS) → Standardize</option>
+                <option value="train">Training → Verify</option>
+                <option value="process_confirmation">Schedule PC → Verify</option>
+                <option value="forced_failure">Schedule Forced Failure → Verify</option>
+                <option value="monitor">Set Up Monitoring → Verify</option>
+            </select>
+            <textarea id="cmt-desc" class="loop-input" rows="3" placeholder="Description (optional)"></textarea>
+        </div>
+    `, async () => {
+        const title = document.getElementById('cmt-title').value.trim();
+        const due = document.getElementById('cmt-due').value;
+        if (!title) return alert('Title is required');
+        if (!due) return alert('Due date is required — a commitment without a date is a wish');
+        const resp = await loopFetch('commitments/', 'POST', {
+            title,
+            due_date: due,
+            transition_type: document.getElementById('cmt-transition').value,
+            description: document.getElementById('cmt-desc').value,
+        });
+        if (resp.commitment) { closeModal(); loadDashboard(); }
+    });
+}
+
+function openSignal(id) {
+    // Fetch signal detail then show triage modal
+    loopFetch(`signals/${id}/`).then(data => {
+        if (!data.signal) return;
+        const s = data.signal;
+        showModal(`Signal: ${esc(s.title)}`, `
+            <div style="margin-bottom: 16px;">
+                <span class="loop-tag ${s.severity}">${s.severity}</span>
+                <span style="margin-left:8px; font-size:12px; color:var(--text-secondary);">${s.source_type.replace(/_/g, ' ')}</span>
+            </div>
+            <div style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;">${esc(s.description || 'No description')}</div>
+            <div style="font-size:11px; color:var(--text-dim); margin-bottom:16px;">Status: ${s.triage_state} · Created: ${timeAgo(s.created_at)}</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                ${s.triage_state === 'untriaged' ? '<button class="loop-btn" onclick="triageSignal(\'' + s.id + '\', \'acknowledge\')">Acknowledge</button>' : ''}
+                <button class="loop-btn" style="background:var(--accent);color:white;border-color:var(--accent);" onclick="openInvestigationFromSignal('${s.id}', '${esc(s.title).replace(/'/g, "\\'")}')">Open Investigation</button>
+                <button class="loop-btn" onclick="dismissSignal('${s.id}')">Dismiss</button>
+            </div>
+        `, null);
+    });
+}
+
+async function triageSignal(id, action) {
+    await loopFetch(`signals/${id}/`, 'POST', { action });
+    closeModal();
+    loadDashboard();
+}
+
+async function openInvestigationFromSignal(signalId, title) {
+    const resp = await loopFetch(`signals/${signalId}/`, 'POST', {
+        action: 'open_investigation',
+        investigation_title: title,
+    });
+    if (resp.investigation) {
+        closeModal();
+        window.location.href = `/app/loop/investigations/${resp.investigation.id}/`;
+    }
+}
+
+function dismissSignal(id) {
+    const reason = prompt('Reason for dismissal (required):');
+    if (!reason || !reason.trim()) return;
+    loopFetch(`signals/${id}/`, 'POST', { action: 'dismiss', reason }).then(() => {
+        closeModal();
+        loadDashboard();
+    });
+}
+
+function openCommitment(id) {
+    loopFetch(`commitments/${id}/`).then(data => {
+        if (!data.commitment) return;
+        const c = data.commitment;
+        showModal(`Commitment: ${esc(c.title)}`, `
+            <div style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">${esc(c.description || 'No description')}</div>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:8px;">
+                Due: ${c.due_date} · Status: ${c.status}
+                ${c.transition_type ? ' · Transition: ' + c.transition_type.replace(/_/g, ' ') : ''}
+                ${c.source_investigation_id ? ' · From investigation' : ''}
+            </div>
+            ${c.is_overdue ? '<div style="color:#f87171; font-size:12px; font-weight:600; margin-bottom:8px;">OVERDUE</div>' : ''}
+            ${c.is_blocked ? '<div style="color:#facc15; font-size:12px; margin-bottom:8px;">BLOCKED — preconditions not met</div>' : ''}
+            <div style="display:flex; gap:8px; margin-top:16px;">
+                ${c.status === 'open' ? '<button class="loop-btn" onclick="commitmentAction(\'' + c.id + '\', \'start\')">Start</button>' : ''}
+                ${c.status === 'in_progress' ? '<button class="loop-btn" style="background:#4ade80;color:#000;border-color:#4ade80;" onclick="commitmentAction(\'' + c.id + '\', \'fulfill\')">Fulfill</button>' : ''}
+                <button class="loop-btn" style="color:#f87171;border-color:#f87171;" onclick="commitmentAction('${c.id}', 'cancel')">Cancel</button>
+            </div>
+        `, null);
+    });
+}
+
+async function commitmentAction(id, action) {
+    const payload = { action };
+    if (action === 'break') {
+        const reason = prompt('Why is this commitment broken?');
+        if (!reason) return;
+        payload.reason = reason;
+    }
+    await loopFetch(`commitments/${id}/`, 'POST', payload);
+    closeModal();
+    loadDashboard();
+}
+
+// =============================================================================
+// MODAL SYSTEM
+// =============================================================================
+
+function showModal(title, bodyHtml, onConfirm) {
+    let modal = document.getElementById('loopModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'loopModal';
+        modal.innerHTML = `
+            <div class="loop-modal-overlay" onclick="closeModal()"></div>
+            <div class="loop-modal-content">
+                <div class="loop-modal-header">
+                    <div class="loop-modal-title"></div>
+                    <button class="loop-btn small" onclick="closeModal()" style="opacity:0.5;">✕</button>
+                </div>
+                <div class="loop-modal-body"></div>
+                <div class="loop-modal-footer"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    modal.querySelector('.loop-modal-title').textContent = title;
+    modal.querySelector('.loop-modal-body').innerHTML = bodyHtml;
+    modal.querySelector('.loop-modal-footer').innerHTML = onConfirm
+        ? '<button class="loop-btn" style="background:var(--accent);color:white;border-color:var(--accent);" id="modalConfirm">Confirm</button>'
+        : '';
+    if (onConfirm) {
+        modal.querySelector('#modalConfirm').onclick = onConfirm;
+    }
+    modal.style.display = 'flex';
+    const firstInput = modal.querySelector('input, textarea, select');
+    if (firstInput) setTimeout(() => firstInput.focus(), 50);
+}
+
+function closeModal() {
+    const modal = document.getElementById('loopModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// =============================================================================
+// FETCH HELPER
+// =============================================================================
+
+async function loopFetch(path, method = 'GET', body = null) {
+    const opts = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const resp = await fetch(`${LOOP_API}/${path}`, opts);
+    return resp.json();
+}
 
 // Load on page ready
 document.addEventListener('DOMContentLoaded', loadDashboard);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 </script>
 {% endblock %}
