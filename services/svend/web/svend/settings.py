@@ -55,6 +55,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     # Django security
     "django.middleware.security.SecurityMiddleware",
+    # Варта active defense (before everything else — block threats early)
+    "syn.varta.middleware.VartaMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     # HTTP telemetry (early — captures full middleware chain timing)
     "syn.log.middleware.PerformanceMiddleware",
@@ -287,6 +289,13 @@ LOGGING = {
             "backupCount": 10,
             "formatter": "verbose",
         },
+        "varta": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": "/var/log/svend/varta.log",
+            "maxBytes": 10 * 1024 * 1024,
+            "backupCount": 10,
+            "formatter": "verbose",
+        },
     },
     "loggers": {
         "django": {
@@ -318,6 +327,17 @@ LOGGING = {
         "syn.audit": {
             "handlers": ["console", "security"],
             "level": "INFO",
+            "propagate": False,
+        },
+        # Варта active defense
+        "syn.varta": {
+            "handlers": ["console", "security"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "syn.varta.actions": {
+            "handlers": ["varta"],
+            "level": "WARNING",
             "propagate": False,
         },
         "syn.sched": {

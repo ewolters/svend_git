@@ -33,6 +33,7 @@ from api.landing_views import (
 from api.models import BlogPost, WhitePaper
 from api.views import compliance_data, compliance_page
 from api.whitepaper_views import whitepaper_detail, whitepaper_list, whitepaper_pdf
+from syn.varta.urls import urlpatterns as varta_urls
 
 # ---------------------------------------------------------------------------
 # ToolRouter (ARCH-001 §10.1) — pluggable QMS tool URL registration
@@ -152,7 +153,8 @@ sitemaps = {
 }
 
 
-urlpatterns = [
+# Варта honeypot URLs (must be before real routes to catch scanner paths)
+urlpatterns = varta_urls + [
     path("", landing_view, name="home"),
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
     path("register/", register_view, name="register"),
