@@ -57,4 +57,9 @@ urlpatterns = [
     path("policies/registry/", views.policy_registry, name="loop_policy_registry"),
     path("policies/", views.policy_list_create, name="loop_policy_list_create"),
     path("policies/<uuid:policy_id>/", views.policy_detail, name="loop_policy_detail"),
+    # Auditor Portal — token management (§11, authenticated)
+    path("auditor-tokens/", views.auditor_token_list_create, name="loop_auditor_token_list"),
+    path("auditor-tokens/<uuid:token_id>/", views.auditor_token_revoke, name="loop_auditor_token_revoke"),
+    # Auditor Portal — data API (§11, token-authenticated)
+    path("portal/<str:token>/data/", views.auditor_portal_data, name="loop_auditor_portal_data"),
 ]

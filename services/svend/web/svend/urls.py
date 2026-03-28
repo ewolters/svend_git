@@ -33,6 +33,7 @@ from api.landing_views import (
 from api.models import BlogPost, WhitePaper
 from api.views import compliance_data, compliance_page
 from api.whitepaper_views import whitepaper_detail, whitepaper_list, whitepaper_pdf
+from loop.views import auditor_portal_view
 from syn.varta.urls import urlpatterns as varta_urls
 
 # ---------------------------------------------------------------------------
@@ -523,6 +524,16 @@ urlpatterns = varta_urls + [
         TemplateView.as_view(template_name="loop_policy.html"),
         name="loop_policy_config",
     ),  # LOOP-001 §4: QMS Policy Configuration
+    path(
+        "app/loop/auditor/",
+        TemplateView.as_view(template_name="loop_auditor_manage.html"),
+        name="loop_auditor_manage",
+    ),  # LOOP-001 §11: Auditor Token Management
+    path(
+        "audit/<str:token>/",
+        auditor_portal_view,
+        name="loop_auditor_portal",
+    ),  # LOOP-001 §11: Auditor Portal (no auth — token in URL)
     path("api/safety/", include("safety.urls")),  # HIRARC Safety (Enterprise)
     path("api/privacy/", include("accounts.privacy_urls")),  # PRIV-001 (SOC 2 P1.8)
     path("api/capa/", include("agents_api.capa_urls")),  # CAPA standalone (ISO 10.2, FEAT-004)

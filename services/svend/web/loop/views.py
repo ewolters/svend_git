@@ -1,19 +1,23 @@
-"""Loop API views — LOOP-001 §3.
+"""Loop API views — LOOP-001 §3, §4, §11.
 
-Endpoints for Signals, Commitments, and ModeTransitions.
+Endpoints for Signals, Commitments, ModeTransitions, QMS Policy, and Auditor Portal.
 """
 
 import json
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 from django.http import JsonResponse
+from django.shortcuts import render
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
 
 from .models import (
     FMIS,
+    AuditorPortalToken,
     Commitment,
     FMISRow,
     ForcedFailureTest,
@@ -1798,3 +1802,472 @@ def policy_detail(request, policy_id):
     policy.save(update_fields=["is_active", "updated_at"])
     logger.info("policy.deactivated", extra={"policy_id": str(policy.id), "rule_key": policy.rule_key})
     return JsonResponse({"status": "deactivated"})
+
+
+# =============================================================================
+# AUDITOR PORTAL (LOOP-001 §11, §16.9)
+# =============================================================================
+
+# ISO 9001:2015 clause structure for organizing evidence
+ISO_9001_CLAUSES = {
+    "4.4": {
+        "title": "Quality Management System and its Processes",
+        "queries": ["policies", "process_model"],
+    },
+    "5.2": {
+        "title": "Quality Policy",
+        "queries": ["policies"],
+    },
+    "6.1": {
+        "title": "Actions to Address Risks and Opportunities",
+        "queries": ["fmis_rows"],
+    },
+    "7.1.5": {
+        "title": "Monitoring and Measuring Resources",
+        "queries": ["calibration"],
+    },
+    "7.2": {
+        "title": "Competence",
+        "queries": ["training"],
+    },
+    "7.5": {
+        "title": "Documented Information",
+        "queries": ["documents"],
+    },
+    "8.2.1": {
+        "title": "Customer Communication",
+        "queries": ["complaints"],
+    },
+    "8.5.1": {
+        "title": "Control of Production and Service Provision",
+        "queries": ["process_confirmations", "spc"],
+    },
+    "9.1.2": {
+        "title": "Customer Satisfaction",
+        "queries": ["complaints"],
+    },
+    "9.1.3": {
+        "title": "Analysis and Evaluation",
+        "queries": ["readiness"],
+    },
+    "9.2": {
+        "title": "Internal Audit",
+        "queries": ["compliance"],
+    },
+    "10.2": {
+        "title": "Nonconformity and Corrective Action",
+        "queries": ["investigations", "signals"],
+    },
+    "10.3": {
+        "title": "Continual Improvement",
+        "queries": ["readiness", "commitments"],
+    },
+}
+
+
+def _resolve_auditor_token(request, token_str):
+    """Validate an auditor portal token. Returns (token, error_response)."""
+    try:
+        tok = AuditorPortalToken.objects.select_related("created_by").get(token=token_str)
+    except AuditorPortalToken.DoesNotExist:
+        return None, JsonResponse({"error": "Invalid token"}, status=404)
+
+    if not tok.is_valid:
+        reason = "revoked" if tok.revoked_at else "expired"
+        return None, JsonResponse({"error": f"Token {reason}"}, status=403)
+
+    tok.record_access()
+    return tok, None
+
+
+# ── Token Management (authenticated) ──────────────────────────────────
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def auditor_token_list_create(request):
+    """
+    GET  — List auditor portal tokens.
+    POST — Create a new token.
+    """
+    if request.method == "GET":
+        tokens = AuditorPortalToken.objects.filter(created_by=request.user)
+        return JsonResponse(
+            {
+                "tokens": [
+                    {
+                        "id": str(t.id),
+                        "label": t.label,
+                        "token": t.token,
+                        "expires_at": t.expires_at.isoformat(),
+                        "is_valid": t.is_valid,
+                        "access_count": t.access_count,
+                        "last_accessed_at": t.last_accessed_at.isoformat() if t.last_accessed_at else None,
+                        "created_at": t.created_at.isoformat(),
+                        "revoked_at": t.revoked_at.isoformat() if t.revoked_at else None,
+                        "portal_url": f"/audit/{t.token}/",
+                    }
+                    for t in tokens
+                ]
+            }
+        )
+
+    # POST — create token
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    label = data.get("label", "").strip()
+    if not label:
+        return JsonResponse({"error": "label is required"}, status=400)
+
+    expires_days = data.get("expires_days", 30)
+    expires_days = min(max(int(expires_days), 1), 365)
+
+    tok = AuditorPortalToken.objects.create(
+        label=label,
+        created_by=request.user,
+        expires_at=timezone.now() + timedelta(days=expires_days),
+    )
+
+    logger.info(
+        "auditor_token.created",
+        extra={"token_id": str(tok.id), "label": label, "expires_days": expires_days},
+    )
+    return JsonResponse(
+        {
+            "token": {
+                "id": str(tok.id),
+                "label": tok.label,
+                "token": tok.token,
+                "portal_url": f"/audit/{tok.token}/",
+                "expires_at": tok.expires_at.isoformat(),
+            }
+        },
+        status=201,
+    )
+
+
+@gated_paid
+@require_http_methods(["DELETE"])
+def auditor_token_revoke(request, token_id):
+    """Revoke an auditor portal token."""
+    try:
+        tok = AuditorPortalToken.objects.get(id=token_id, created_by=request.user)
+    except AuditorPortalToken.DoesNotExist:
+        return JsonResponse({"error": "Token not found"}, status=404)
+
+    tok.revoke()
+    logger.info("auditor_token.revoked", extra={"token_id": str(tok.id)})
+    return JsonResponse({"status": "revoked"})
+
+
+# ── Portal Data (token-authenticated, read-only) ──────────────────────
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def auditor_portal_data(request, token):
+    """Auditor portal data API — clause-organized evidence.
+
+    Query params:
+        standard: iso_9001 (default)
+        clause: specific clause number (optional, returns all if omitted)
+    """
+    tok, err = _resolve_auditor_token(request, token)
+    if err:
+        return err
+
+    user = tok.created_by  # Scope data to the token creator's org
+    clause_filter = request.GET.get("clause")
+
+    clauses = ISO_9001_CLAUSES
+    if clause_filter:
+        clauses = {k: v for k, v in clauses.items() if k == clause_filter}
+
+    result = {}
+    for clause_num, clause_def in clauses.items():
+        clause_data = {
+            "title": clause_def["title"],
+            "clause": clause_num,
+        }
+
+        for query_type in clause_def["queries"]:
+            clause_data.update(_query_clause_data(query_type, user))
+
+        result[clause_num] = clause_data
+
+    # Also return summary stats
+    from .readiness import compute_readiness_score
+
+    readiness = compute_readiness_score(user=user)
+
+    return JsonResponse(
+        {
+            "organization": user.get_full_name() or user.email,
+            "token_label": tok.label,
+            "expires_at": tok.expires_at.isoformat(),
+            "readiness": readiness,
+            "clauses": result,
+        }
+    )
+
+
+def _query_clause_data(query_type, user):
+    """Fetch data for a specific query type, scoped to user's org."""
+    from core.models import Investigation
+
+    if query_type == "investigations":
+        invs = Investigation.objects.filter(owner=user).order_by("-updated_at")[:50]
+        concluded = invs.filter(status="concluded")
+        active = invs.filter(status__in=["open", "active"])
+
+        inv_list = []
+        for inv in invs[:20]:
+            commitments = Commitment.objects.filter(source_investigation=inv).exclude(
+                status=Commitment.Status.CANCELLED
+            )
+            transitions = ModeTransition.objects.filter(source_object_id=inv.id).order_by("created_at")
+
+            inv_list.append(
+                {
+                    "id": str(inv.id),
+                    "title": inv.title,
+                    "status": inv.status,
+                    "created_at": inv.created_at.isoformat() if inv.created_at else None,
+                    "concluded_at": inv.concluded_at.isoformat() if inv.concluded_at else None,
+                    "commitment_count": commitments.count(),
+                    "fulfilled_count": commitments.filter(status=Commitment.Status.FULFILLED).count(),
+                    "transitions": [
+                        {
+                            "type": t.transition_type,
+                            "from": t.from_mode,
+                            "to": t.to_mode,
+                            "date": t.created_at.isoformat(),
+                        }
+                        for t in transitions[:10]
+                    ],
+                }
+            )
+
+        return {
+            "investigations": {
+                "total": invs.count(),
+                "concluded": concluded.count(),
+                "active": active.count(),
+                "avg_days_to_conclusion": _avg_conclusion_days(concluded),
+                "items": inv_list,
+            }
+        }
+
+    elif query_type == "signals":
+        signals = Signal.objects.filter(created_by=user).order_by("-created_at")[:50]
+        return {
+            "signals": {
+                "total": signals.count(),
+                "resolved": signals.filter(triage_state=Signal.TriageState.RESOLVED).count(),
+                "dismissed": signals.filter(triage_state=Signal.TriageState.DISMISSED).count(),
+                "open": signals.filter(
+                    triage_state__in=[Signal.TriageState.UNTRIAGED, Signal.TriageState.ACKNOWLEDGED]
+                ).count(),
+            }
+        }
+
+    elif query_type == "commitments":
+        comms = Commitment.objects.filter(owner=user).exclude(status=Commitment.Status.CANCELLED)
+        total = comms.count()
+        fulfilled = comms.filter(status=Commitment.Status.FULFILLED).count()
+        return {
+            "commitments": {
+                "total": total,
+                "fulfilled": fulfilled,
+                "fulfillment_rate": round(fulfilled / total, 2) if total > 0 else None,
+                "overdue": sum(1 for c in comms if c.is_overdue),
+            }
+        }
+
+    elif query_type == "documents":
+        from agents_api.models import ControlledDocument
+
+        docs = ControlledDocument.objects.filter(created_by=user).order_by("-updated_at")
+        return {
+            "documents": {
+                "total": docs.count(),
+                "approved": docs.filter(status="approved").count(),
+                "draft": docs.filter(status="draft").count(),
+                "review_overdue": docs.filter(review_due_date__lt=date.today(), status="approved").count(),
+                "items": [
+                    {
+                        "id": str(d.id),
+                        "title": d.title,
+                        "document_number": d.document_number,
+                        "status": d.status,
+                        "version": d.current_version,
+                        "review_due_date": d.review_due_date.isoformat() if d.review_due_date else None,
+                        "approved_at": d.approved_at.isoformat() if d.approved_at else None,
+                    }
+                    for d in docs[:30]
+                ],
+            }
+        }
+
+    elif query_type == "training":
+        from agents_api.models import TrainingRecord, TrainingRequirement
+
+        reqs = TrainingRequirement.objects.filter(owner=user)
+        records = TrainingRecord.objects.filter(requirement__owner=user)
+        total_records = records.count()
+        complete = records.filter(status="complete").count()
+        return {
+            "training": {
+                "requirements": reqs.count(),
+                "total_records": total_records,
+                "complete": complete,
+                "coverage": round(complete / total_records, 2) if total_records > 0 else None,
+                "avg_competency": _avg_competency(records),
+                "expired": records.filter(status="expired").count(),
+            }
+        }
+
+    elif query_type == "complaints":
+        from agents_api.models import CustomerComplaint
+
+        complaints = CustomerComplaint.objects.filter(created_by=user)
+        return {
+            "complaints": {
+                "total": complaints.count(),
+                "open": complaints.filter(status__in=["open", "acknowledged", "investigating"]).count(),
+                "resolved": complaints.filter(status__in=["resolved", "closed"]).count(),
+                "critical": complaints.filter(severity="critical").count(),
+            }
+        }
+
+    elif query_type == "process_confirmations":
+        pcs = ProcessConfirmation.objects.filter(created_by=user)
+        total = pcs.count()
+        passing = pcs.filter(overall_result="pass").count()
+        return {
+            "process_confirmations": {
+                "total": total,
+                "pass_rate": round(passing / total, 2) if total > 0 else None,
+                "this_month": pcs.filter(
+                    created_at__month=date.today().month,
+                    created_at__year=date.today().year,
+                ).count(),
+            }
+        }
+
+    elif query_type == "fmis_rows":
+        rows = FMISRow.objects.select_related("fmis").order_by("-rpn")
+        return {
+            "fmis": {
+                "total_failure_modes": rows.count(),
+                "high_rpn": rows.filter(rpn__gte=200).count(),
+                "medium_rpn": rows.filter(rpn__gte=100, rpn__lt=200).count(),
+                "items": [
+                    {
+                        "failure_mode": r.failure_mode_text,
+                        "rpn": r.rpn,
+                        "severity": r.severity_score,
+                        "occurrence": r.occurrence_score,
+                        "detection": r.detection_score,
+                        "fmis_title": r.fmis.title if r.fmis else None,
+                    }
+                    for r in rows[:20]
+                ],
+            }
+        }
+
+    elif query_type == "policies":
+        policies = QMSPolicy.objects.filter(is_active=True).order_by("scope")
+        return {
+            "policies": {
+                "total": policies.count(),
+                "items": [
+                    {
+                        "scope": p.get_scope_display(),
+                        "rule_key": p.rule_key,
+                        "parameters": p.parameters,
+                        "linked_standard": p.linked_standard,
+                        "effective_date": p.effective_date.isoformat(),
+                        "version": p.version,
+                    }
+                    for p in policies
+                ],
+            }
+        }
+
+    elif query_type == "compliance":
+        from syn.audit.models import ComplianceReport
+
+        reports = ComplianceReport.objects.order_by("-created_at")[:5]
+        return {
+            "compliance": {
+                "latest_reports": [
+                    {
+                        "id": str(r.id),
+                        "passed": r.passed,
+                        "failed": r.failed,
+                        "total": r.total,
+                        "created_at": r.created_at.isoformat(),
+                    }
+                    for r in reports
+                ]
+            }
+        }
+
+    elif query_type == "readiness":
+        from .readiness import compute_readiness_score
+
+        return {"readiness_detail": compute_readiness_score(user=user)}
+
+    return {}
+
+
+def _avg_conclusion_days(concluded_qs):
+    """Average days from creation to conclusion."""
+    days = []
+    for inv in concluded_qs:
+        if inv.concluded_at and inv.created_at:
+            delta = (inv.concluded_at - inv.created_at).days
+            days.append(delta)
+    return round(sum(days) / len(days), 1) if days else None
+
+
+def _avg_competency(records_qs):
+    """Average competency level across training records."""
+    vals = list(records_qs.filter(competency_level__gt=0).values_list("competency_level", flat=True))
+    return round(sum(vals) / len(vals), 1) if vals else None
+
+
+# ── Portal Template View (no auth required — token in URL) ────────────
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def auditor_portal_view(request, token):
+    """Render the auditor portal template.
+
+    Token validation happens client-side via the data API.
+    We do a quick token check here to avoid rendering for bad tokens.
+    """
+    try:
+        tok = AuditorPortalToken.objects.get(token=token)
+    except AuditorPortalToken.DoesNotExist:
+        return render(request, "loop_auditor.html", {"token_error": "Invalid token"})
+
+    if not tok.is_valid:
+        reason = "revoked" if tok.revoked_at else "expired"
+        return render(request, "loop_auditor.html", {"token_error": f"Token {reason}"})
+
+    return render(
+        request,
+        "loop_auditor.html",
+        {
+            "token": token,
+            "token_label": tok.label,
+            "expires_at": tok.expires_at.isoformat(),
+            "org_name": tok.created_by.get_full_name() or tok.created_by.email,
+        },
+    )

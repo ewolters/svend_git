@@ -1,4 +1,4 @@
-"""Loop mechanism models — LOOP-001 §3, §4, §6, §7, §8, §16.
+"""Loop mechanism models — LOOP-001 §3, §4, §6, §7, §8, §11, §16.
 
 Three formally defined mechanisms:
 - Signal (§3.1): event that demands attention — entry point to the loop
@@ -21,8 +21,12 @@ Investigation workspace (§16.3):
 FMIS (§8):
 - FMIS: investigation-native FMEA container
 - FMISRow: failure mode with Bayesian S/O/D posteriors
+
+Auditor Portal (§11):
+- AuditorPortalToken: time-limited, multi-use token for external auditors
 """
 
+import secrets
 import uuid
 
 from django.conf import settings
@@ -1570,3 +1574,69 @@ class InvestigationEntry(SynaraEntity):
 
     def __str__(self):
         return f"[{self.entry_type}] {self.title or self.content[:50]}"
+
+
+# =============================================================================
+# AUDITOR PORTAL TOKEN (LOOP-001 §11)
+# =============================================================================
+
+
+class AuditorPortalToken(models.Model):
+    """Time-limited access token for external auditors.
+
+    Quality manager generates a link, shares with auditor. No account
+    required. Token expires after org-defined period. Multi-use (auditors
+    come back multiple times during an audit). Access logged.
+
+    LOOP-001 §11.2, §16.9
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="auditor_tokens",
+    )
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    label = models.CharField(
+        max_length=200,
+        help_text="Human-readable label, e.g. 'ISO 9001 Surveillance — BSI March 2026'",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="created_auditor_tokens",
+    )
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    last_accessed_at = models.DateTimeField(null=True, blank=True)
+    access_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "loop_auditor_portal_token"
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_urlsafe(32)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_valid(self):
+        return self.revoked_at is None and self.expires_at > timezone.now()
+
+    def record_access(self):
+        self.last_accessed_at = timezone.now()
+        self.access_count += 1
+        self.save(update_fields=["last_accessed_at", "access_count"])
+
+    def revoke(self):
+        self.revoked_at = timezone.now()
+        self.save(update_fields=["revoked_at"])
+
+    def __str__(self):
+        status = "valid" if self.is_valid else "expired/revoked"
+        return f"AuditorToken({self.label}) — {status}"
