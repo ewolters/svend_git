@@ -878,3 +878,77 @@ def dashboard_data(request):
             },
         }
     )
+
+
+# =============================================================================
+# REPORT GENERATION (LOOP-001 §5.2)
+# =============================================================================
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def generate_report(request, investigation_id):
+    """
+    GET  — Preview report with completeness scoring.
+    POST — Generate and return full report.
+
+    Query params / body:
+        template: iso_9001_capa (default), iatf_8d
+    """
+    from core.models import Investigation
+
+    from .report_engine import TEMPLATES, assemble_report
+
+    try:
+        inv = Investigation.objects.get(id=investigation_id)
+    except Investigation.DoesNotExist:
+        return JsonResponse({"error": "Investigation not found"}, status=404)
+
+    if request.method == "GET":
+        # Return available templates + current completeness for each
+        results = {}
+        for tid in TEMPLATES:
+            try:
+                report = assemble_report(inv, tid)
+                results[tid] = {
+                    "name": report["template"]["name"],
+                    "standard": report["template"]["standard"],
+                    "completeness": report["completeness"],
+                    "sections": [
+                        {
+                            "key": s["key"],
+                            "title": s["title"],
+                            "populated": s["populated"],
+                            "required": s["required"],
+                        }
+                        for s in report["sections"]
+                    ],
+                }
+            except Exception as e:
+                results[tid] = {"error": str(e)}
+
+        return JsonResponse({"templates": results})
+
+    # POST — generate full report
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        data = {}
+
+    template_id = data.get("template", request.GET.get("template", "iso_9001_capa"))
+
+    try:
+        report = assemble_report(inv, template_id)
+    except ValueError as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+    logger.info(
+        "report.generated",
+        extra={
+            "investigation_id": str(inv.id),
+            "template": template_id,
+            "completeness": report["completeness"],
+        },
+    )
+
+    return JsonResponse({"report": report})

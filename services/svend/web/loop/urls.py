@@ -1,4 +1,4 @@
-"""URL routes for Loop API — LOOP-001 §3, §6, §7, §16."""
+"""URL routes for Loop API — LOOP-001 §3, §5, §6, §7, §16."""
 
 from django.urls import path
 
@@ -20,6 +20,12 @@ urlpatterns = [
         "investigations/<uuid:investigation_id>/commitments/",
         views.investigation_commitments,
         name="loop_investigation_commitments",
+    ),
+    # Report generation (§5.2)
+    path(
+        "investigations/<uuid:investigation_id>/report/",
+        views.generate_report,
+        name="loop_generate_report",
     ),
     # Process Confirmations (§7.1)
     path("pcs/", views.pc_list_create, name="loop_pc_list_create"),
