@@ -310,6 +310,24 @@ def register_svend_tasks():
         max_attempts=1,
     )
 
+    # ---- Webhook retry processing (NTF-001 §5.4) ----
+
+    def webhook_retry_handler(payload, context):
+        """Process pending webhook delivery retries."""
+        from notifications.webhook_delivery import process_retries
+
+        count = process_retries()
+        return {"retries_processed": count}
+
+    TaskRegistry.register(
+        task_name="notifications.webhook_retries",
+        handler=webhook_retry_handler,
+        queue=QueueType.CORE,
+        priority=TaskPriority.NORMAL,
+        timeout_seconds=120,
+        max_attempts=1,
+    )
+
     # ---- Harada daily reminders ----
 
     from agents_api.harada_tasks import harada_daily_reminders
@@ -483,6 +501,14 @@ SVEND_SCHEDULES = [
         "cron": "0 3 * * 0",  # Weekly Sunday 03:00 UTC
         "priority": TaskPriority.LOW,
         "queue": "batch",
+    },
+    # ---- Webhook retry processing (NTF-001 §5.4) ----
+    {
+        "schedule_id": "webhook-retries",
+        "task_name": "notifications.webhook_retries",
+        "cron": "* * * * *",  # Every minute — retries have their own delay logic
+        "priority": TaskPriority.NORMAL,
+        "queue": "core",
     },
     # ---- Notification email schedules ----
     {

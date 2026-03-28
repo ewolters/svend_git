@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/dsw/chart_defaults.py
+# hypothesis_version: 6.151.9
+
+[-0.25, 0.3, 0.5, 0.7, 0.85, 1.5, 300, 350, 'CL', 'LCL', 'Observations', 'Reference', 'UCL', 'b', 'bar', 'bottom', 'box', 'color', 'colorscale', 'dash', 'data', 'dot', 'family', 'fillcolor', 'font', 'gridcolor', 'h', 'heatmap', 'height', 'histogram', 'l', 'layout', 'left', 'legend', 'line', 'lines', 'lines+markers', 'margin', 'marker', 'markers', 'mode', 'name', 'opacity', 'orientation', 'paper', 'paper_bgcolor', 'plot_bgcolor', 'r', 'rgba(0,0,0,0)', 'scatter', 'scattergl', 'size', 't', 'type', 'width', 'x', 'x0', 'x1', 'xanchor', 'xaxis', 'xref', 'y', 'y0', 'y1', 'yanchor', 'yaxis', 'yref', 'z', 'zerolinecolor']

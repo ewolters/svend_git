@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/viz/engine.py
+# hypothesis_version: 6.151.9
+
+[300, 'None', 'RdBu', 'bar', 'box', 'color_index', 'colorscale', 'data', 'df', 'extra_config', 'extra_traces', 'group', 'groupby', 'heatmap', 'height', 'histogram', 'layout', 'line', 'markers', 'mode', 'name', 'plots', 'post_compute', 'pre_compute', 'result', 'scatter', 'showlegend', 'summary', 'summary_fn', 'title', 'title_grouped', 'trace_kw', 'trace_type', 'x', 'x_labels', 'xaxis', 'y', 'y_cols', 'y_labels', 'yaxis', 'z', 'zmid']

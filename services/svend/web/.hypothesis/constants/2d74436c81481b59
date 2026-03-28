@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0064_add_ncr_supplier_fk.py
+# hypothesis_version: 6.151.9
+
+['agents_api', 'ncrs', 'nonconformancerecord', 'supplier']

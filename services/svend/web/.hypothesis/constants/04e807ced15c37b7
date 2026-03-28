@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0003_user_avatar_url_user_bio_user_current_theme_and_more.py
+# hypothesis_version: 6.151.9
+
+[100, 255, '0002_invitecode', 'Active', 'Canceled', 'Incomplete', 'Past Due', 'Subscription', 'Trialing', 'accounts', 'active', 'avatar_url', 'bio', 'cancel_at_period_end', 'canceled', 'created_at', 'current_period_end', 'current_period_start', 'current_theme', 'db_table', 'display_name', 'id', 'incomplete', 'last_active_at', 'past_due', 'preferences', 'referral_code', 'referrals', 'referred_by', 'status', 'stripe_customer_id', 'stripe_price_id', 'subscription', 'subscriptions', 'total_queries', 'total_tokens_used', 'trialing', 'updated_at', 'user']

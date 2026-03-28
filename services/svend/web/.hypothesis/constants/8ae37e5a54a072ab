@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/notifications/migrations/0002_notificationtoken.py
+# hypothesis_version: 6.151.9
+
+['-created_at', '0001_initial', 'Acknowledge', 'NotificationToken', 'View', 'acknowledge', 'action_type', 'created_at', 'db_table', 'email_failed_at', 'email_opened_at', 'email_sent_at', 'expires_at', 'id', 'indexes', 'notification', 'notification_tokens', 'notifications', 'token', 'tokens', 'used_at', 'user', 'view']

@@ -15,6 +15,7 @@ from accounts.permissions import gated_paid
 from .models import (
     Commitment,
     ForcedFailureTest,
+    InvestigationEntry,
     ModeTransition,
     PCObservationItem,
     ProcessConfirmation,
@@ -952,3 +953,71 @@ def generate_report(request, investigation_id):
     )
 
     return JsonResponse({"report": report})
+
+
+# =============================================================================
+# INVESTIGATION ENTRIES (LOOP-001 §16.3)
+# =============================================================================
+
+
+def _serialize_entry(e):
+    return {
+        "id": str(e.id),
+        "entry_type": e.entry_type,
+        "title": e.title,
+        "content": e.content,
+        "structured_data": e.structured_data,
+        "tool_link_id": str(e.tool_link_id) if e.tool_link_id else None,
+        "author_id": str(e.author_id),
+        "created_at": e.created_at.isoformat() if e.created_at else None,
+    }
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def investigation_entries(request, investigation_id):
+    """
+    GET  — List entries for an investigation (chronological).
+    POST — Create an entry (narrative, tool output, evidence, data).
+    """
+    from core.models import Investigation
+
+    try:
+        inv = Investigation.objects.get(id=investigation_id)
+    except Investigation.DoesNotExist:
+        return JsonResponse({"error": "Investigation not found"}, status=404)
+
+    if request.method == "GET":
+        entries = InvestigationEntry.objects.filter(investigation=inv)
+        return JsonResponse({"entries": [_serialize_entry(e) for e in entries]})
+
+    # POST — create entry
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    entry_type = data.get("entry_type", "narrative")
+    content = data.get("content", "").strip()
+
+    if entry_type == "narrative" and not content:
+        return JsonResponse({"error": "Content is required for narrative entries"}, status=400)
+
+    entry = InvestigationEntry.objects.create(
+        investigation=inv,
+        entry_type=entry_type,
+        title=data.get("title", ""),
+        content=content,
+        structured_data=data.get("structured_data", {}),
+        author=request.user,
+    )
+
+    logger.info(
+        "entry.created",
+        extra={
+            "entry_id": str(entry.id),
+            "investigation_id": str(inv.id),
+            "type": entry_type,
+        },
+    )
+    return JsonResponse({"entry": _serialize_entry(entry)}, status=201)

@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/api/migrations/0018_add_partner_stage_to_crmlead.py
+# hypothesis_version: 6.151.9
+
+['Bounced', 'Churned', 'Contacted', 'Customer', 'Demo', 'Engaged', 'Invalid', 'Lost', 'Partner', 'Prospect', 'Trial', 'api', 'bounced', 'churned', 'contacted', 'crmlead', 'customer', 'demo', 'engaged', 'invalid', 'lost', 'partner', 'prospect', 'stage', 'trial']

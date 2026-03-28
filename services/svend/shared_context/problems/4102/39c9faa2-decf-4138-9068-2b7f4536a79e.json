@@ -1,0 +1,46 @@
+{
+  "problem_id": "39c9faa2-decf-4138-9068-2b7f4536a79e",
+  "user_id": 4102,
+  "title": "Private Problem",
+  "status": "active",
+  "last_updated": "2026-03-07T00:07:12.087454",
+  "methodology": {
+    "type": "none",
+    "dmaic_phase": "",
+    "phase_history": [],
+    "guidance": null
+  },
+  "effect": {
+    "description": "Secret failure mode",
+    "magnitude": "",
+    "first_observed": "",
+    "confidence": "medium"
+  },
+  "context": {
+    "domain": "",
+    "stakeholders": [],
+    "constraints": [],
+    "prior_beliefs": [],
+    "can_experiment": true,
+    "available_data": ""
+  },
+  "hypotheses": [],
+  "evidence": [],
+  "dead_ends": [],
+  "understanding": {
+    "probable_causes": [],
+    "key_uncertainties": [],
+    "recommended_next_steps": []
+  },
+  "bias_warnings": [],
+  "interview": null,
+  "resolution": null,
+  "agent_context": {
+    "source": "problem_session",
+    "can_update": true,
+    "endpoints": {
+      "add_evidence": "/api/problems/39c9faa2-decf-4138-9068-2b7f4536a79e/evidence/",
+      "add_hypothesis": "/api/problems/39c9faa2-decf-4138-9068-2b7f4536a79e/hypotheses/"
+    }
+  }
+}

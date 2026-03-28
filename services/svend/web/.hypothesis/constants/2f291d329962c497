@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/api/migrations/0020_plandocument.py
+# hypothesis_version: 6.151.9
+
+[200, '-updated_at', '0019_roadmapitem', 'Active', 'Archived', 'Draft', 'Plan', 'PlanDocument', 'RFC', 'Retro', 'Spec', 'active', 'api', 'archived', 'body', 'category', 'created_at', 'db_table', 'draft', 'id', 'ordering', 'plan', 'plan_documents', 'retro', 'rfc', 'roadmap_items', 'spec', 'status', 'title', 'updated_at']

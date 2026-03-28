@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0040_backfill_ncr_projects.py
+# hypothesis_version: 6.151.9
+
+['0001_initial', 'NCR Investigation', 'NonconformanceRecord', 'Project', 'agents_api', 'auto-created', 'core', 'ncr', 'none', 'project']

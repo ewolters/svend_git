@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/agents/experimenter/__init__.py
+# hypothesis_version: 6.151.9
+
+['DOEGenerator', 'ExperimentDesign', 'ExperimentRequest', 'ExperimentResult', 'ExperimentRun', 'ExperimenterAgent', 'Factor', 'PowerAnalyzer', 'PowerResult', 'SampleSizeResult', 'plot_design_matrix', 'plot_factor_effects', 'plot_interaction', 'plot_power_curve', 'plot_residuals', 'quick_factorial', 'quick_power', 'sample_size_for_mean']

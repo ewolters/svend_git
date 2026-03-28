@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0062_qms_site_and_created_by.py
+# hypothesis_version: 6.151.9
+
+['0061_copq_paf_fields', 'a3_records', 'a3_reports', 'a3_reports_created', 'a3report', 'agents_api', 'agents_api.site', 'audit_records', 'audits_created', 'capa_records', 'capa_reports', 'capa_reports_created', 'capareport', 'controlled_documents', 'controlleddocument', 'created_by', 'document_records', 'documents_created', 'fmea', 'fmea_records', 'fmeas', 'fmeas_created', 'internal_audits', 'internalaudit', 'ncr_records', 'ncrs', 'ncrs_created', 'nonconformancerecord', 'owner', 'rca_records', 'rca_sessions', 'rca_sessions_created', 'rcasession', 'site', 'training_created', 'training_records', 'trainingrequirement']

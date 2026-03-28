@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/chat/migrations/0005_alter_message_content_alter_message_reasoning_trace_and_more.py
+# hypothesis_version: 6.151.9
+
+['0004_eventlog', 'chat', 'content', 'corrected_response', 'input_text', 'lm_prompt', 'lm_raw_output', 'message', 'model_response', 'reasoner_raw_output', 'reasoning_trace', 'response', 'tool_calls', 'tracelog', 'trainingcandidate']

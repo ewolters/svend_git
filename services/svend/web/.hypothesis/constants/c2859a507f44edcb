@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/management/commands/migrate.py
+# hypothesis_version: 6.151.9
+
+['\nAborted.', 'database', 'db_name', 'default', 'fake', 'force_allow', 'forced', 'manage.py', 'pending_count', 'production', 'system']

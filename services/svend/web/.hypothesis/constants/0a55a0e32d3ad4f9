@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0018_rca_session.py
+# hypothesis_version: 6.151.9
+
+[255, '-updated_at', 'Complete', 'Draft', 'In Progress', 'RCA Session', 'RCA Sessions', 'RCASession', 'Stated root cause', 'Under Review', 'a3_report', 'agents_api', 'agents_api.a3report', 'chain', 'complete', 'core', 'core.project', 'countermeasure', 'created_at', 'db_table', 'draft', 'evaluation', 'event', 'id', 'in_progress', 'ordering', 'owner', 'project', 'rca_sessions', 'review', 'root_cause', 'status', 'title', 'updated_at', 'verbose_name', 'verbose_name_plural']

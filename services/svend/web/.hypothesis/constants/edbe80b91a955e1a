@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0016_remove_certificate.py
+# hypothesis_version: 6.151.9
+
+['0015_learning_models', 'Certificate', 'agents_api']

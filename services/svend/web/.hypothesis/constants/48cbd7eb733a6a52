@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/clustering.py
+# hypothesis_version: 6.151.9
+
+[0.0, 'Cao', '_session_id', '_version', 'assignments', 'categorical', 'ci_readiness', 'cluster_distances', 'cluster_id', 'cluster_sizes', 'cost', 'created_at', 'dimension', 'feature_vector', 'forced_choice', 'instrument_version', 'k', 'likert', 'max_ts', 'reason', 'session_id', 'skipped', 'svend.clustering', 'timestamp', 'user_id', 'users', 'version']

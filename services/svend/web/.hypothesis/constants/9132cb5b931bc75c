@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/notifications/helpers.py
+# hypothesis_version: 6.151.9
+
+[300, 'acknowledge', 'core', 'daily', 'email_enabled', 'email_mode', 'immediate', 'is_email_opted_out', 'muted_types', 'notification_id', 'notifications', 'preferences', 'token_id', 'value', 'weekly']

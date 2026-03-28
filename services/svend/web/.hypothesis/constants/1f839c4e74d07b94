@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/ml_pipeline.py
+# hypothesis_version: 6.151.9
+
+[0.2, 0.5, 100, 'bool', 'case_style', 'category', 'cleaned_shape', 'columns_dropped', 'columns_generated', 'constraints', 'correct_types', 'count', 'detect_outliers', 'domain_rules', 'drop_threshold', 'features', 'float', 'get_params', 'handle_missing', 'hyperparams', 'input_shape', 'int', 'label_map', 'max', 'max_length', 'min', 'min_length', 'missing_filled', 'model_class', 'normalize_factors', 'original_rows', 'original_shape', 'outliers_flagged', 'precision', 'random_state', 'rows_dropped', 'schema_inferred', 'string', 'synthetic_rows', 'target', 'task_type', 'test_size', 'title', 'total_filled', 'total_rows', 'training_shape', 'true_probability', 'type', 'values', 'warnings']

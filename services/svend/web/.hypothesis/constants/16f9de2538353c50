@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/accounts/permissions.py
+# hypothesis_version: 6.151.9
+
+[400, 401, 403, 429, '/billing/checkout/', 'Invalid guest token', 'Upgrade required', 'X-Guest-Token', 'ai_assistant', 'board', 'collaboration', 'error', 'feature', 'full_tools', 'limit', 'message', 'role', 'tenant', 'tier', 'upgrade_url', 'used']

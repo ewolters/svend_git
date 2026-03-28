@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/notifications/migrations/0003_add_calibration_report.py
+# hypothesis_version: 6.151.9
+
+['Action Item Due', 'Approval Request', 'Assignment Change', 'Audit Scheduled', 'CAPA Status Change', 'E-Signature Request', 'Incident Created', 'Incident Escalated', 'Incident Resolved', 'NCR Assigned', 'NCR Overdue', 'SPC Alarm', 'System Notification', 'Training Due', 'Training Expired', 'action_due', 'approval_request', 'assignment', 'audit_scheduled', 'capa_status', 'doc_review', 'esig_request', 'incident_created', 'incident_escalated', 'incident_resolved', 'ncr_assigned', 'ncr_overdue', 'notification', 'notification_type', 'notifications', 'review_due', 'spc_alarm', 'system', 'training_due', 'training_expired']

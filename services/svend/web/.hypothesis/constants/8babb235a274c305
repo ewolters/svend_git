@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/migrations/0006_tenant_stripe_seat_item.py
+# hypothesis_version: 6.151.9
+
+[255, '0005_org_invitation', 'core', 'stripe_seat_item_id', 'tenant']

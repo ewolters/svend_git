@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/forge/admin.py
+# hypothesis_version: 6.151.9
+
+['api_key', 'api_key__name', 'completed_at', 'cost_cents', 'created_at', 'data_type', 'description', 'domain', 'is_active', 'is_builtin', 'job', 'job_id', 'key_hash', 'key_prefix', 'last_used_at', 'name', 'quality_level', 'record_count', 'started_at', 'status', 'tier', 'user', 'user__email']

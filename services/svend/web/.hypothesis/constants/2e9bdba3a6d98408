@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/migrations/0020_front_page_digest.py
+# hypothesis_version: 6.151.9
+
+['FrontPageDigest', 'contradictions', 'core', 'db_table', 'digest', 'front_page_digest', 'generated_at', 'generation_time_ms', 'id', 'source_hash', 'source_items', 'themes', 'user']

@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/workbench/urls.py
+# hypothesis_version: 6.151.9
+
+['<uuid:workbench_id>/', 'add_edge', 'add_node', 'add_observation', 'advance_phase', 'apply_evidence', 'check_expansion', 'clear_graph', 'connect', 'create', 'create/', 'create_artifact', 'delete', 'delete_artifact', 'detail', 'disconnect', 'export', 'get_artifact', 'get_causal_chain', 'get_edges', 'get_epistemic_log', 'get_graph', 'get_nodes', 'get_upstream_causes', 'import', 'import/', 'list', 'mark_log_outcome', 'remove_node', 'resolve_expansion', 'update', 'update_artifact', 'update_edge_weight', 'workbench']

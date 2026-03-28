@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0056_supplier_preferred_status.py
+# hypothesis_version: 6.151.9
+
+['Approved', 'Conditional', 'Disqualified', 'Pending Approval', 'Preferred', 'Suspended', 'agents_api', 'approved', 'conditional', 'disqualified', 'pending', 'preferred', 'status', 'supplierrecord', 'suspended']

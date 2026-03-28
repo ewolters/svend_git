@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIRARC Program Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --navy: #0f2b3c;
+    --deep: #163b50;
+    --steel: #1e4d6b;
+    --teal: #2a7a8c;
+    --cyan: #3db8c1;
+    --amber: #d4a017;
+    --amber-light: #f0d060;
+    --red: #c0392b;
+    --red-light: #e74c3c;
+    --green: #27ae60;
+    --green-light: #2ecc71;
+    --slate: #94a3b8;
+    --light: #e2e8f0;
+    --white: #f8fafc;
+    --bg: #0a1929;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--white);
+    min-height: 100vh;
+    padding: 24px;
+    overflow-x: hidden;
+  }
+
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 28px;
+    border-bottom: 2px solid var(--amber);
+    padding-bottom: 12px;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--white);
+  }
+  .header h1 span { color: var(--amber); }
+  .header .sub {
+    font-size: 12px;
+    color: var(--slate);
+    text-align: right;
+    line-height: 1.5;
+  }
+  .header .sub strong { color: var(--cyan); }
+
+  /* ── Flow Container ── */
+  .flow {
+    display: grid;
+    grid-template-columns: 260px 40px 380px 40px 260px;
+    grid-template-rows: auto;
+    align-items: start;
+    gap: 0;
+    margin-bottom: 24px;
+  }
+
+  /* ── Panels ── */
+  .panel {
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+  }
+  .panel-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-title .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* ── Left: HI Vectors ── */
+  .hi-col { grid-column: 1; }
+  .hi-panel {
+    background: linear-gradient(135deg, var(--deep) 0%, var(--navy) 100%);
+    border: 1px solid var(--steel);
+    margin-bottom: 12px;
+  }
+  .hi-panel .panel-title { color: var(--cyan); }
+  .hi-panel .panel-title .dot { background: var(--cyan); }
+
+  .hi-active {
+    border: 1.5px solid var(--cyan);
+    box-shadow: 0 0 20px rgba(61, 184, 193, 0.15);
+  }
+  .hi-future {
+    border: 1px dashed var(--steel);
+    opacity: 0.5;
+  }
+  .hi-future .panel-title { color: var(--slate); }
+
+  .vector-item {
+    font-size: 12px;
+    color: var(--light);
+    padding: 5px 0;
+    padding-left: 12px;
+    border-left: 2px solid var(--steel);
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+  .hi-active .vector-item { border-left-color: var(--cyan); }
+
+  .vector-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--amber);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .output-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  .tag-hazard { background: rgba(192, 57, 43, 0.25); color: var(--red-light); border: 1px solid rgba(192, 57, 43, 0.4); }
+  .tag-5s { background: rgba(39, 174, 96, 0.2); color: var(--green-light); border: 1px solid rgba(39, 174, 96, 0.35); }
+  .tag-xfeed { background: rgba(212, 160, 23, 0.2); color: var(--amber-light); border: 1px solid rgba(212, 160, 23, 0.35); }
+
+  /* ── Arrows ── */
+  .arrow-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+  }
+  .arrow-line {
+    width: 100%;
+    height: 2px;
+    position: relative;
+  }
+  .arrow-line::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: -5px;
+    border: 6px solid transparent;
+  }
+  .arrow-in .arrow-line { background: linear-gradient(90deg, var(--cyan), var(--amber)); }
+  .arrow-in .arrow-line::after { border-left-color: var(--amber); }
+  .arrow-out .arrow-line { background: linear-gradient(90deg, var(--amber), var(--green)); }
+  .arrow-out .arrow-line::after { border-left-color: var(--green); }
+
+  .arrow-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--slate);
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
+    letter-spacing: 1px;
+    margin-top: 8px;
+  }
+
+  /* ── Center: FMEA Engine ── */
+  .fmea-col { grid-column: 3; }
+  .fmea-panel {
+    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
+    border: 2px solid var(--amber);
+    box-shadow: 0 0 40px rgba(212, 160, 23, 0.12), inset 0 0 60px rgba(212, 160, 23, 0.04);
+    padding: 20px;
+  }
+  .fmea-panel .panel-title {
+    color: var(--amber);
+    font-size: 13px;
+    justify-content: center;
+    margin-bottom: 4px;
+  }
+  .fmea-panel .panel-title .dot { background: var(--amber); width: 10px; height: 10px; }
+  .fmea-subtitle {
+    text-align: center;
+    font-size: 11px;
+    color: var(--slate);
+    margin-bottom: 16px;
+  }
+
+  .fmea-transform {
+    background: rgba(212, 160, 23, 0.08);
+    border: 1px solid rgba(212, 160, 23, 0.2);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .fmea-transform-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--amber);
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .fmea-eq {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 10px 0;
+  }
+  .fmea-eq-box {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-align: center;
+  }
+  .eq-s { background: rgba(192, 57, 43, 0.25); color: var(--red-light); border: 1px solid rgba(192, 57, 43, 0.4); }
+  .eq-o { background: rgba(212, 160, 23, 0.25); color: var(--amber-light); border: 1px solid rgba(212, 160, 23, 0.4); }
+  .eq-d { background: rgba(61, 184, 193, 0.25); color: var(--cyan); border: 1px solid rgba(61, 184, 193, 0.4); }
+  .eq-rpn { background: rgba(212, 160, 23, 0.3); color: var(--amber); border: 2px solid var(--amber); font-size: 14px; }
+  .eq-op { color: var(--slate); font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+
+  .fmea-note {
+    font-size: 11px;
+    color: var(--slate);
+    line-height: 1.5;
+    text-align: center;
+    font-style: italic;
+  }
+  .fmea-note strong { color: var(--amber-light); font-style: normal; }
+
+  .fmea-section {
+    margin-bottom: 12px;
+  }
+  .fmea-section-head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--light);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+  }
+  .fmea-item {
+    font-size: 11px;
+    color: var(--slate);
+    padding: 3px 0 3px 10px;
+    border-left: 2px solid var(--amber);
+    margin-bottom: 3px;
+    line-height: 1.4;
+  }
+  .fmea-item strong { color: var(--light); }
+
+  /* ── Right: Outputs ── */
+  .out-col { grid-column: 5; }
+  .out-panel {
+    background: linear-gradient(135deg, var(--deep) 0%, var(--navy) 100%);
+    border: 1px solid var(--steel);
+    margin-bottom: 12px;
+  }
+  .out-panel .panel-title .dot { background: var(--green); }
+  .out-panel .panel-title { color: var(--green-light); }
+  .out-item {
+    font-size: 12px;
+    color: var(--light);
+    padding: 4px 0 4px 10px;
+    border-left: 2px solid var(--green);
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+
+  /* ── Bottom: MOS Strip ── */
+  .mos-strip {
+    background: linear-gradient(90deg, var(--navy) 0%, var(--deep) 50%, var(--navy) 100%);
+    border: 1px solid var(--steel);
+    border-radius: 8px;
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 16px;
+    position: relative;
+    margin-bottom: 20px;
+  }
+  .mos-strip::before {
+    content: 'MANAGEMENT OPERATING SYSTEM';
+    position: absolute;
+    top: -9px;
+    left: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--amber);
+    background: var(--bg);
+    padding: 0 8px;
+    letter-spacing: 1.5px;
+  }
+  .mos-tier {
+    text-align: center;
+  }
+  .mos-tier-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .mos-tier-content {
+    font-size: 11px;
+    color: var(--slate);
+    line-height: 1.5;
+  }
+  .tier-daily .mos-tier-label { color: var(--red-light); }
+  .tier-weekly .mos-tier-label { color: var(--amber); }
+  .tier-monthly .mos-tier-label { color: var(--cyan); }
+  .tier-quarterly .mos-tier-label { color: var(--green-light); }
+
+  /* ── 5S Track ── */
+  .track-5s {
+    background: linear-gradient(90deg, rgba(39, 174, 96, 0.08), rgba(39, 174, 96, 0.04));
+    border: 1px solid rgba(39, 174, 96, 0.25);
+    border-radius: 8px;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  .track-5s-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--green-light);
+    letter-spacing: 1.5px;
+    white-space: nowrap;
+  }
+  .track-5s-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .flow-step {
+    font-size: 11px;
+    color: var(--light);
+    padding: 3px 10px;
+    background: rgba(39, 174, 96, 0.12);
+    border: 1px solid rgba(39, 174, 96, 0.2);
+    border-radius: 4px;
+  }
+  .flow-arrow { color: var(--green); font-size: 14px; }
+  .flow-step.xfeed {
+    border-color: var(--amber);
+    background: rgba(212, 160, 23, 0.1);
+    color: var(--amber-light);
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--slate);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .legend-swatch {
+    width: 12px; height: 12px;
+    border-radius: 2px;
+  }
+
+  /* ── Cross-feed callout ── */
+  .xfeed-callout {
+    position: relative;
+    margin: -4px 0 16px 0;
+    padding: 10px 14px;
+    background: rgba(212, 160, 23, 0.06);
+    border-left: 3px solid var(--amber);
+    border-radius: 0 6px 6px 0;
+    font-size: 11px;
+    color: var(--slate);
+    line-height: 1.5;
+  }
+  .xfeed-callout strong { color: var(--amber-light); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>HIRARC <span>Program Architecture</span></h1>
+    <div class="sub">
+      <strong>Hazard Identification → Risk Assessment → Risk Control</strong><br>
+      FMEA as Central Management Tool &nbsp;|&nbsp; v1.0 DRAFT
+    </div>
+  </div>
+
+  <!-- Main Flow: HI → FMEA → RC -->
+  <div class="flow">
+
+    <!-- LEFT: Hazard Identification Vectors -->
+    <div class="hi-col">
+      <div class="panel-title" style="color:var(--cyan); margin-bottom: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px;">
+        <span class="dot" style="background:var(--cyan)"></span>
+        HAZARD IDENTIFICATION
+      </div>
+
+      <!-- Frontier Card - Active -->
+      <div class="panel hi-panel hi-active">
+        <div class="panel-title">
+          <span class="dot"></span> FRONTIER CARD
+        </div>
+        <div class="vector-item" style="border-left-color: var(--amber); background: rgba(212,160,23,0.06); padding: 6px 10px; border-radius: 0 4px 4px 0; margin-bottom: 8px;">
+          <span class="vector-label" style="color: var(--amber-light);">SCHEDULED &amp; ASSIGNED</span>
+          Frequent, planned, assigned to named auditors. Tracked for completion — not voluntary, not ad hoc.
+        </div>
+        <div class="vector-item">
+          <span class="vector-label">FRONT → SAFETY</span>
+          20 observation items across 6 categories. At-risk findings tagged C/H/M/L.
+          <br><span class="output-tag tag-hazard">→ HAZARD to FMEA</span>
+        </div>
+        <div class="vector-item">
+          <span class="vector-label">BACK → 5S</span>
+          25 deficiency tallies across 5 pillars. Frequency → Pareto.
+          <br><span class="output-tag tag-5s">→ 5S PARETO</span>
+          <span class="output-tag tag-xfeed">→ CROSS-FEED if safety</span>
+        </div>
+        <div class="vector-item">
+          <span class="vector-label">INTERACT → OPERATOR</span>
+          3 questions. Operator concern + ergonomic signal captured.
+        </div>
+      </div>
+
+      <!-- Future Vectors -->
+      <div class="panel hi-panel hi-future">
+        <div class="panel-title">
+          <span class="dot" style="background:var(--slate)"></span> BLUE TAG PROGRAM
+        </div>
+        <div class="vector-item" style="border-left-color:var(--slate);">
+          Equipment condition tags → maintenance hazards
+        </div>
+      </div>
+      <div class="panel hi-panel hi-future">
+        <div class="panel-title">
+          <span class="dot" style="background:var(--slate)"></span> BBSO
+        </div>
+        <div class="vector-item" style="border-left-color:var(--slate);">
+          Behavior-based safety observations → behavioral hazards
+        </div>
+      </div>
+      <div class="panel hi-panel hi-future">
+        <div class="panel-title">
+          <span class="dot" style="background:var(--slate)"></span> INCIDENT / NEAR-MISS
+        </div>
+        <div class="vector-item" style="border-left-color:var(--slate);">
+          Post-event investigation → confirmed hazards
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrow In -->
+    <div class="arrow-col arrow-in">
+      <div class="arrow-line"></div>
+      <div class="arrow-label" style="margin-top: 12px;">HAZARDS IN</div>
+    </div>
+
+    <!-- CENTER: FMEA Engine -->
+    <div class="fmea-col">
+      <div class="panel fmea-panel">
+        <div class="panel-title">
+          <span class="dot"></span> FMEA — CENTRAL ENGINE
+        </div>
+        <div class="fmea-subtitle">Risk Assessment + Risk Control</div>
+
+        <!-- Transform -->
+        <div class="fmea-transform">
+          <div class="fmea-transform-title">Hazard → Risk Transformation</div>
+          <div class="fmea-note" style="margin-bottom: 8px;">
+            A <strong>hazard</strong> becomes a <strong>risk</strong> when probability is introduced
+          </div>
+          <div class="fmea-eq">
+            <div class="fmea-eq-box eq-s">S</div>
+            <span class="eq-op">×</span>
+            <div class="fmea-eq-box eq-o">O</div>
+            <span class="eq-op">×</span>
+            <div class="fmea-eq-box eq-d">D</div>
+            <span class="eq-op">=</span>
+            <div class="fmea-eq-box eq-rpn">RPN</div>
+          </div>
+          <div class="fmea-note">
+            Severity × Occurrence × Detection = Risk Priority Number
+          </div>
+        </div>
+
+        <!-- RA Section -->
+        <div class="fmea-section">
+          <div class="fmea-section-head">RISK ASSESSMENT</div>
+          <div class="fmea-item"><strong>Failure Mode</strong> — What can go wrong?</div>
+          <div class="fmea-item"><strong>Effect</strong> — Consequence to worker/process</div>
+          <div class="fmea-item"><strong>Severity</strong> (1–10) — from card finding level</div>
+          <div class="fmea-item"><strong>Occurrence</strong> (1–10) — frequency from tallies</div>
+          <div class="fmea-item"><strong>Detection</strong> (1–10) — current control effectiveness</div>
+          <div class="fmea-item"><strong>RPN</strong> — prioritization index</div>
+        </div>
+
+        <!-- RC Section -->
+        <div class="fmea-section">
+          <div class="fmea-section-head">RISK CONTROL</div>
+          <div class="fmea-item"><strong>Hierarchy of Controls</strong> — E-S-E-A-P</div>
+          <div class="fmea-item"><strong>Recommended Action</strong> — specific, owned</div>
+          <div class="fmea-item"><strong>Responsible</strong> + <strong>Target Date</strong></div>
+          <div class="fmea-item"><strong>Action Taken</strong> — verified completion</div>
+          <div class="fmea-item"><strong>Revised RPN</strong> — confirm reduction</div>
+        </div>
+
+        <div class="fmea-note" style="font-style: normal; color: var(--amber-light); font-size: 10px; text-align: center; padding-top: 6px; border-top: 1px solid rgba(212,160,23,0.2);">
+          FMEA is a living document reviewed at daily MDI huddle
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrow Out -->
+    <div class="arrow-col arrow-out">
+      <div class="arrow-line"></div>
+      <div class="arrow-label" style="margin-top: 12px;">CONTROLS OUT</div>
+    </div>
+
+    <!-- RIGHT: Outputs / Controls -->
+    <div class="out-col">
+      <div class="panel-title" style="color:var(--green-light); margin-bottom: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1.5px;">
+        <span class="dot" style="background:var(--green)"></span>
+        RISK CONTROLS
+      </div>
+
+      <div class="panel out-panel">
+        <div class="panel-title"><span class="dot"></span> ELIMINATION / SUBSTITUTION</div>
+        <div class="out-item">Remove the hazard entirely or replace with lower-risk alternative</div>
+      </div>
+      <div class="panel out-panel">
+        <div class="panel-title"><span class="dot"></span> ENGINEERING CONTROLS</div>
+        <div class="out-item">Physical barriers, interlocks, ventilation, guarding, automation</div>
+      </div>
+      <div class="panel out-panel">
+        <div class="panel-title"><span class="dot"></span> ADMINISTRATIVE CONTROLS</div>
+        <div class="out-item">SOPs, training, signage, job rotation, scheduling, 5S standards</div>
+      </div>
+      <div class="panel out-panel">
+        <div class="panel-title"><span class="dot"></span> PPE</div>
+        <div class="out-item">Last line of defense. Specified, available, enforced at point of use</div>
+      </div>
+      <div class="panel out-panel" style="border-color: var(--amber); opacity: 0.9;">
+        <div class="panel-title" style="color: var(--amber);">
+          <span class="dot" style="background: var(--amber);"></span> VERIFICATION
+        </div>
+        <div class="out-item" style="border-left-color: var(--amber);">
+          Revised S×O×D confirms RPN reduction. Feeds back into FMEA.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Cross-feed callout -->
+  <div class="xfeed-callout">
+    <strong>5S → FMEA Cross-feed rule:</strong> When a 5S deficiency carries safety consequence (e.g., missing LOTO shadow board = 5S-SET failure + energy hazard), it enters the FMEA as a hazard.
+    The 5S Pareto tracks <em>frequency</em> for standardization; the FMEA tracks <em>risk</em> for control. Same observation, two governance paths.
+  </div>
+
+  <!-- 5S Parallel Track -->
+  <div class="track-5s">
+    <div class="track-5s-label">5S TRACK<br>(PARALLEL)</div>
+    <div class="track-5s-flow">
+      <span class="flow-step">Card tallies</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step">Aggregate</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step">Pareto chart</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step">Standardize (top deficiencies)</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step xfeed">Cross-feed safety items → FMEA</span>
+    </div>
+  </div>
+
+  <!-- MOS Strip -->
+  <div class="mos-strip">
+    <div class="mos-tier tier-daily">
+      <div class="mos-tier-label">DAILY — MDI HUDDLE</div>
+      <div class="mos-tier-content">
+        New hazards from cards reviewed<br>
+        Open FMEA actions status<br>
+        RPN > threshold escalated<br>
+        Audit assignments confirmed<br>
+        <strong style="color:var(--red-light);">Owner: Supervisor</strong>
+      </div>
+    </div>
+    <div class="mos-tier tier-weekly">
+      <div class="mos-tier-label">WEEKLY — FMEA REVIEW</div>
+      <div class="mos-tier-content">
+        Full FMEA walk-through<br>
+        Revised RPNs validated<br>
+        5S Pareto updated<br>
+        Audit schedule published<br>
+        Completion rate tracked<br>
+        <strong style="color:var(--amber);">Owner: Area Manager</strong>
+      </div>
+    </div>
+    <div class="mos-tier tier-monthly">
+      <div class="mos-tier-label">MONTHLY — TREND</div>
+      <div class="mos-tier-content">
+        FMEA trend analysis<br>
+        5S Pareto shifts reviewed<br>
+        Systemic patterns identified<br>
+        <strong style="color:var(--cyan);">Owner: Safety/OpEx</strong>
+      </div>
+    </div>
+    <div class="mos-tier tier-quarterly">
+      <div class="mos-tier-label">QUARTERLY — STRATEGIC</div>
+      <div class="mos-tier-content">
+        Program effectiveness review<br>
+        New HI vectors evaluated<br>
+        Capital projects from top RPNs<br>
+        <strong style="color:var(--green-light);">Owner: Plant Manager</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:var(--cyan);"></div>
+      HI Vector (Active)
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:var(--slate); opacity:0.5;"></div>
+      HI Vector (Future)
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:var(--amber);"></div>
+      FMEA Engine
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:var(--green);"></div>
+      Risk Controls
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="border: 1px dashed var(--amber); background: transparent;"></div>
+      Cross-feed Path
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

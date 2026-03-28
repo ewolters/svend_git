@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/learn_content/pbs_mastery.py
+# hypothesis_version: 6.151.9
+
+[24.85, 25.0, 25.15, 'LSL', 'USL', 'analysis', 'answer', 'column', 'config', 'content', 'diameter_mm', 'dsw_config', 'dsw_type', 'exercise', 'hazard_lambda', 'hint', 'id', 'interactive', 'intro', 'key_takeaways', 'pbs-advanced', 'pbs-change-detection', 'pbs-health-fusion', 'pbs-paradigm-shift', 'pbs:pbs_belief', 'pbs:pbs_cpk', 'pbs:pbs_evidence', 'pbs:pbs_full', 'pbs:pbs_predictive', 'pbs_belief', 'pbs_cpk', 'pbs_demo', 'pbs_evidence', 'pbs_full', 'pbs_predictive', 'practice_questions', 'question', 'steps', 'target', 'title', 'type']

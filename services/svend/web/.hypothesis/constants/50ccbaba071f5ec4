@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/audit/migrations/0005_drift_violation_std_choice_and_max_length.py
+# hypothesis_version: 6.151.9
+
+['ENC-001', 'ENC-002', 'ENC-003', 'ENC-004', 'ENC-005', 'ENC-006', 'ENC-007', 'ENC-008', 'ENC-009', 'ENC-010', 'ENC-011', 'STD', 'audit', 'driftviolation', 'enforcement_check']

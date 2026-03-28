@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0063_add_ncr_approved_at.py
+# hypothesis_version: 6.151.9
+
+['agents_api', 'approved_at', 'nonconformancerecord']

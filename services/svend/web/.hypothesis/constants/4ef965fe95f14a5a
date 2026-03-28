@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/migrations/0008_alter_evidence_confidence_and_more.py
+# hypothesis_version: 6.151.9
+
+[0.0, 0.001, 0.1, 0.5, 0.8, 0.9, 1.0, 'confidence', 'core', 'evidence', 'evidencelink', 'hypothesis', 'likelihood_ratio', 'project', 'rejection_threshold']

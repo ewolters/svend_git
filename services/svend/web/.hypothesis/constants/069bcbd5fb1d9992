@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0011_llm_usage_tracking.py
+# hypothesis_version: 6.151.9
+
+['ID', 'LLMUsage', 'agents_api', 'date', 'id', 'indexes', 'input_tokens', 'llm_usage', 'model', 'output_tokens', 'request_count', 'unique_together', 'user']

@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/fmea_urls.py
+# hypothesis_version: 6.151.9
+
+['<uuid:fmea_id>/', '<uuid:fmea_id>/rows/', 'create/', 'fmea_actions', 'fmea_add_row', 'fmea_create', 'fmea_delete', 'fmea_delete_row', 'fmea_get', 'fmea_investigate', 'fmea_link_hypothesis', 'fmea_list', 'fmea_patterns', 'fmea_promote_action', 'fmea_promote_capa', 'fmea_promote_risk', 'fmea_record_revision', 'fmea_reorder', 'fmea_rpn_summary', 'fmea_spc_cpk_update', 'fmea_spc_update', 'fmea_suggest', 'fmea_trending', 'fmea_update', 'fmea_update_row', 'patterns/']

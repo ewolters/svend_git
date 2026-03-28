@@ -21,6 +21,12 @@ urlpatterns = [
         views.investigation_commitments,
         name="loop_investigation_commitments",
     ),
+    # Investigation entries (§16.3)
+    path(
+        "investigations/<uuid:investigation_id>/entries/",
+        views.investigation_entries,
+        name="loop_investigation_entries",
+    ),
     # Report generation (§5.2)
     path(
         "investigations/<uuid:investigation_id>/report/",

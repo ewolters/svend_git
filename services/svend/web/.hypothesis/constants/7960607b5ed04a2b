@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/forecast_views.py
+# hypothesis_version: 6.151.9
+
+[0.02, 0.1, 0.3, 1.65, 100, 365, 400, 500, 1000, '1 year', '1y', '5d', 'CUSTOM', 'Close', 'Custom Data', 'Forecast', 'GET', 'Invalid JSON', 'POST', 'Symbol required', 'USD', 'Volume', 'additive', 'change', 'change_pct', 'currency', 'current_price', 'data', 'data_points', 'days', 'disclaimer', 'error', 'exp_smooth', 'expected_change_pct', 'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'forecast', 'forecast_days', 'forecast_median', 'forecast_range_90', 'high_52w', 'historical', 'holt_winters', 'investigation_id', 'longName', 'low_52w', 'lower_25', 'lower_5', 'marketCap', 'market_cap', 'median', 'method', 'method_description', 'multiplicative', 'name', 'period', 'price', 'prices', 'random_walk', 'season_length', 'seasonal', 'shortName', 'sma', 'suggestion', 'summary', 'symbol', 'symbol_info', 'system_type', 'upper_75', 'upper_95', 'variable', 'volume']

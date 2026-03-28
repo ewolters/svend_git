@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/forge/migrations/0003_job_user_alter_job_api_key.py
+# hypothesis_version: 6.151.9
+
+['api_key', 'forge', 'forge.apikey', 'forge_jobs', 'job', 'jobs', 'user']

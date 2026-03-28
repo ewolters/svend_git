@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/audit/migrations/0002_compliancecheck_compliancereport.py
+# hypothesis_version: 6.151.9
+
+[100, '-period_start', '-run_at', '0001_initial', 'ComplianceCheck', 'ComplianceReport', 'Error', 'Fail', 'Pass', 'Warning', 'audit', 'category', 'check_name', 'db_table', 'details', 'duration_ms', 'error', 'fail', 'failed', 'full_report', 'generated_at', 'id', 'indexes', 'is_published', 'ordering', 'pass', 'pass_rate', 'passed', 'period_end', 'period_start', 'public_report', 'run_at', 'soc2_controls', 'status', 'summary', 'tenant_id', 'total_checks', 'warning', 'warnings']

@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/sched/scheduler.py
+# hypothesis_version: 6.151.9
+
+['attempts', 'cancel_task', 'core', 'created_at', 'cron_day_of_month', 'cron_day_of_week', 'cron_hour', 'cron_minute', 'cron_month', 'error_message', 'get_task_status', 'id', 'name', 'result', 'schedule_task', 'scheduled', 'scheduled_at', 'state']

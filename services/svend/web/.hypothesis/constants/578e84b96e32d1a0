@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/forge/generators/tabular.py
+# hypothesis_version: 6.151.9
+
+[0.1, 0.5, 1000, 'A', 'B', 'C', 'bool', 'category', 'constraints', 'date', 'datetime', 'email', 'float', 'general', 'int', 'max', 'max_length', 'min', 'min_length', 'nullable', 'pattern', 'phone', 'precision', 'probabilities', 'string', 'true_probability', 'type', 'url', 'uuid', 'values']

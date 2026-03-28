@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0044_trainingrecordchange.py
+# hypothesis_version: 6.151.9
+
+['TrainingRecordChange', 'agents_api', 'changed_by', 'changes', 'created_at', 'db_table', 'field_name', 'id', 'new_value', 'old_value', 'ordering', 'record']

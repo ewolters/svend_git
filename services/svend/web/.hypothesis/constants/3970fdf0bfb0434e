@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/chat/migrations/0008_alter_message_blocked_and_more.py
+# hypothesis_version: 6.151.9
+
+['blocked', 'chat', 'fallback_used', 'gate_passed', 'has_fallback_used', 'has_gate_passed', 'has_safety_passed', 'is_blocked', 'is_verified', 'message', 'safety_passed', 'tracelog', 'verified']

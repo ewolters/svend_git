@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/api/migrations/0010_whitepaper_models.py
+# hypothesis_version: 6.151.9
+
+[100, 160, 200, 254, 500, '-created_at', '-downloaded_at', '-published_at', 'Draft', 'Published', 'WhitePaper', 'WhitePaperDownload', 'api', 'api.whitepaper', 'author', 'body', 'created_at', 'db_table', 'description', 'downloaded_at', 'downloads', 'draft', 'email', 'gated', 'id', 'indexes', 'ip_hash', 'is_bot', 'meta_description', 'ordering', 'paper', 'published', 'published_at', 'referrer_domain', 'slug', 'status', 'title', 'topic', 'updated_at', 'user_agent', 'white_papers', 'whitepaper_downloads']

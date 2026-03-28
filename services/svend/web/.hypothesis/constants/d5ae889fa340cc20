@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/models/training.py
+# hypothesis_version: 6.151.9
+
+[255, 300, '+', '-enrolled_at', '-start_date', 'Active', 'Cancelled', 'Completed', 'Converted', 'Enrolled', 'Expired', 'Graduated', 'Planned', 'Withdrawn', 'active', 'cancelled', 'completed', 'conversion_deadline', 'converted', 'converted_at', 'core_training_center', 'enrolled', 'enrollments', 'expired', 'graduated', 'graduated_at', 'name', 'planned', 'program', 'programs', 'status', 'training_centers', 'us', 'user', 'withdrawn']

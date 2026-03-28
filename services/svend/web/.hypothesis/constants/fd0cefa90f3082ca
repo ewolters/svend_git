@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/synara/middleware/csp.py
+# hypothesis_version: 6.151.9
+
+['; ', 'CSP_HEADER']

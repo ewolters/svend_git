@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0008_add_core_project_fk.py
+# hypothesis_version: 6.151.9
+
+['0007_cacheentry', 'agents_api', 'core', 'core.project', 'core_project', 'legacy_problems', 'problem']

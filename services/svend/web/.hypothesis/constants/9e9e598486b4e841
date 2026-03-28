@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/whiteboard_urls.py
+# hypothesis_version: 6.151.9
+
+['boards/', 'boards/create/', 'whiteboard_create', 'whiteboard_cursor', 'whiteboard_delete', 'whiteboard_get', 'whiteboard_list', 'whiteboard_png', 'whiteboard_svg', 'whiteboard_update', 'whiteboard_vote_add', 'whiteboard_voting']

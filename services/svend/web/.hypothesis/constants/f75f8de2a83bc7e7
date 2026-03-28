@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/synara_urls.py
+# hypothesis_version: 6.151.9
+
+['synara_add_evidence', 'synara_add_link', 'synara_chains', 'synara_delete_link', 'synara_dsl_add', 'synara_dsl_evaluate', 'synara_dsl_parse', 'synara_dsl_validate', 'synara_evidence', 'synara_expansions', 'synara_explain', 'synara_export', 'synara_hypotheses', 'synara_import', 'synara_links', 'synara_llm_document', 'synara_llm_generate', 'synara_llm_interpret', 'synara_llm_validate', 'synara_resolve', 'synara_state']

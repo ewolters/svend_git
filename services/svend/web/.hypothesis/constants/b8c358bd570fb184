@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/migrations/0013_add_measurement_system.py
+# hypothesis_version: 6.151.9
+
+[200, 255, '-completed_at', '-created_at', 'Active', 'Attribute', 'Attribute Agreement', 'GRR Crossed', 'GRR Nested', 'GageStudy', 'Inactive', 'MeasurementSystem', 'Quarantined', 'Variable', 'active', 'attribute', 'attribute_agreement', 'calibration_due', 'completed_at', 'core', 'core.tenant', 'core_gage_study', 'correlation_id', 'created_at', 'created_by', 'db_table', 'deleted_at', 'deleted_by', 'gage_studies', 'grr_crossed', 'grr_nested', 'grr_percent', 'id', 'inactive', 'is_deleted', 'kappa', 'measurement_system', 'measurement_systems', 'metadata', 'name', 'ndc', 'ordering', 'owner', 'percent_agreement', 'quarantined', 'status', 'study_type', 'system_type', 'tenant', 'tenant_id', 'updated_at', 'updated_by', 'variable']

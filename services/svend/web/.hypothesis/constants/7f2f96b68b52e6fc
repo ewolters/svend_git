@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0015_learning_models.py
+# hypothesis_version: 6.151.9
+
+[255, '-issued_at', '-started_at', '-updated_at', 'AssessmentAttempt', 'Certificate', 'SectionProgress', 'agents_api', 'analyst', 'answers', 'assessment_attempt', 'assessment_attempts', 'assessment_score', 'assessmentattempt', 'certificate', 'certificate_id', 'certificates', 'completed', 'completed_at', 'created_at', 'db_table', 'holder_name', 'id', 'issued_at', 'learn_certificate', 'level', 'module_id', 'modules_completed', 'ordering', 'passed', 'questions', 'score', 'section_id', 'section_progress', 'sectionprogress', 'started_at', 'time_spent_seconds', 'unique_user_section', 'updated_at', 'user']

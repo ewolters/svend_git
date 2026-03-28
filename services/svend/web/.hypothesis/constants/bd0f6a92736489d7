@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/api/migrations/0023_planning_add_notes.py
+# hypothesis_version: 6.151.9
+
+['api', 'feature', 'initiative', 'notes']

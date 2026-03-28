@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/a3_urls.py
+# hypothesis_version: 6.151.9
+
+['<uuid:report_id>/', 'a3_actions', 'a3_auto_populate', 'a3_create', 'a3_create_action', 'a3_critique', 'a3_delete', 'a3_embed_diagram', 'a3_export_pdf', 'a3_get', 'a3_import', 'a3_list', 'a3_remove_diagram', 'a3_update', 'create/']

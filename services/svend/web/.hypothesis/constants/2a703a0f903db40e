@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/api/migrations/0002_blogpost_scheduled_at.py
+# hypothesis_version: 6.151.9
+
+['0001_blogpost', 'Draft', 'Published', 'Scheduled', 'api', 'blogpost', 'draft', 'published', 'scheduled', 'scheduled_at', 'status']

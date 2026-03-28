@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/models/graph.py
+# hypothesis_version: 6.151.9
+
+[1.0, 100, 255, 'Actor', 'Concept', 'Custom', 'Data Source', 'Event', 'Finding', 'Knowledge Graph', 'Variable', 'actor', 'causes', 'concept', 'contains', 'contradicts', 'core.Tenant', 'core_entity', 'core_knowledge_graph', 'core_relationship', 'correlates with', 'correlates_with', 'created_entities', 'custom', 'data_source', 'depends on', 'depends_on', 'enables', 'entities', 'entity_type', 'event', 'finding', 'graph', 'happens after', 'happens before', 'happens during', 'happens_after', 'happens_before', 'happens_during', 'has type', 'has_type', 'influences', 'inversely_correlates', 'is a type of', 'is part of', 'is_part_of', 'is_type_of', 'knowledge_graph', 'name', 'prevents', 'related to', 'related_to', 'relation_type', 'relationships', 'source', 'supports', 'target', 'triggers', 'variable']

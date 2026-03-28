@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/models/__init__.py
+# hypothesis_version: 6.151.9
+
+['Dataset', 'Entity', 'Evidence', 'EvidenceLink', 'ExperimentDesign', 'Hypothesis', 'KnowledgeGraph', 'Membership', 'OrgInvitation', 'Project', 'Relationship', 'StudyAction', 'Tenant']

@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0011_user_partner_fields.py
+# hypothesis_version: 6.151.9
+
+['accounts', 'partner_code', 'user']

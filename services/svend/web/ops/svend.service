@@ -13,9 +13,7 @@ ExecStart=/home/eric/kjerne/services/svend/web/ops/start_prod.sh
 
 # Security: restrict what the service can do
 NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/var/log/svend /home/eric/kjerne/services/svend/web/media /home/eric/kjerne/services/svend/web/staticfiles /tmp
+ProtectSystem=full
 PrivateTmp=yes
 ProtectKernelTunables=yes
 ProtectKernelModules=yes

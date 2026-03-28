@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/core/secrets.py
+# hypothesis_version: 6.151.9
+
+[255, 'AWS_KMS_KEY_ID', 'CiphertextBlob', 'Plaintext', 'Secret', 'Secrets', 'action', 'core', 'core_secret_store', 'created', 'created_at', 'created_by', 'dek_encrypted', 'kek_version', 'kms', 'last_rotated_at', 'metadata', 'name', 'new_version', 'old_version', 'secret.deleted', 'secret.rotated', 'secret_name', 'secret_rotation', 'secret_tenant_name', 'secret_tenant_time', 'system', 'tenant_id', 'updated', 'value_encrypted']

@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/api/migrations/0011_whitepaper_download_referrer_path.py
+# hypothesis_version: 6.151.9
+
+[300, 500, 'api', 'path', 'referrer', 'whitepaperdownload']

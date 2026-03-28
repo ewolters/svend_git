@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/spc/__init__.py
+# hypothesis_version: 6.151.9
+
+['bayes_doe_', 'bayes_spc_', 'between_within', 'c_chart', 'capability', 'conformal_control', 'conformal_monitor', 'cusum', 'entropy_spc', 'ewma', 'g_chart', 'generalized_variance', 'guide_observation', 'imr', 'laney_p', 'laney_u', 'mewma', 'moving_average', 'nonnormal_capability', 'np_chart', 'p_chart', 'plots', 'summary', 't_chart', 'u_chart', 'xbar_r', 'xbar_s', 'zone_chart']

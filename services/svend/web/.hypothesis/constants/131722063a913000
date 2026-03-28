@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/dsw_views.py
+# hypothesis_version: 6.151.9
+
+[0.05, 0.3, 0.95, 100, 300, 400, 404, 503, 'Dataset not found', 'GET', 'Hypothesis not found', 'Invalid JSON', 'N/A', 'No valid indices', 'POST', 'all', 'analysis_context', 'analysis_data', 'content', 'current', 'data_', 'data_id', 'error', 'evidence', 'evidence_id', 'explanation', 'hypothesis', 'hypothesis_id', 'id', 'indices', 'latin-1', 'likelihood_ratio', 'p_value', 'previous', 'prior', 'probability', 'project_id', 'read', 'rejection_threshold', 'role', 'source_type', 'statement', 'status', 'strength', 'summary', 'svend_analysis', 'timeline', 'timestamp', 'user', 'utf-8']

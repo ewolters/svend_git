@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/bayesian/__init__.py
+# hypothesis_version: 6.151.9
+
+[0.95, 'bayes_ab', 'bayes_alt', 'bayes_anova', 'bayes_changepoint', 'bayes_chi2', 'bayes_comprisk', 'bayes_correlation', 'bayes_demo', 'bayes_equivalence', 'bayes_ewma', 'bayes_logistic', 'bayes_meta', 'bayes_poisson', 'bayes_proportion', 'bayes_regression', 'bayes_repairable', 'bayes_rul', 'bayes_spares', 'bayes_survival', 'bayes_system', 'bayes_ttest', 'bayes_warranty', 'ci', 'guide_observation', 'plots', 'summary']

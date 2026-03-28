@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/err/__init__.py
+# hypothesis_version: 6.151.9
+
+['1.0.0', 'AuthenticationError', 'AuthorizationError', 'BULKHEAD_ACQUIRED', 'BULKHEAD_FULL', 'Bulkhead', 'BulkheadFullError', 'CircuitBreaker', 'CircuitBreakerConfig', 'CircuitBreakerState', 'ConflictError', 'DEFAULT_RETRY_CONFIG', 'DatabaseError', 'DependencyError', 'ERR-001', 'ERR-002', 'ERROR_CRITICAL', 'ERROR_LOGGED', 'ERROR_REGISTRY', 'ERR_EVENTS_CATALOG', 'ErrorCategory', 'ErrorContext', 'ErrorDetail', 'ErrorEnvelope', 'ErrorRegistryEntry', 'ErrorSeverity', 'EventDefinition', 'ExponentialBackoff', 'ISO 27001 A.12.4', 'NotFoundError', 'RATE_LIMIT_EXCEEDED', 'RETRYABLE_CATEGORIES', 'RateLimitError', 'RecoveryMode', 'RetryConfig', 'RetryStrategy', 'SEVERITY_LEVELS', 'SOC 2 CC7.2', 'SOC 2 CC9.1', 'SynaraError', 'SystemError', 'SystemLayer', 'TimeoutError', 'ValidationError', 'get_event_definition', 'list_event_names', 'retry', 'with_circuit_breaker', 'wrap_exception']

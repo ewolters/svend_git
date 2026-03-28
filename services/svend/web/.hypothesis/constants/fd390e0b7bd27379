@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/err/retry.py
+# hypothesis_version: 6.151.9
+
+[1000, 5000, 'T', 'attempt', 'bulkhead_full', 'bulkhead_name', 'category', 'circuit_breaker', 'circuit_breaker_name', 'circuit_breaker_open', 'circuit_metrics', 'circuit_state', 'consecutive_failures', 'delay_ms', 'error', 'event_type', 'extra', 'failed_calls', 'failure_threshold', 'max_attempts', 'max_concurrent', 'metrics', 'new_state', 'old_state', 'recovery_timeout_ms', 'rejected_calls', 'syn.audit', 'total_calls']

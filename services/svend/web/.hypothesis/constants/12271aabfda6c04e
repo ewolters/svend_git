@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/iso_urls.py
+# hypothesis_version: 6.151.9
+
+['audits/', 'checklists/', 'dashboard/', 'documents/', 'iso_audit_detail', 'iso_audit_finding', 'iso_audit_list', 'iso_checklist_detail', 'iso_checklist_list', 'iso_dashboard', 'iso_document_detail', 'iso_document_files', 'iso_document_list', 'iso_ncr_analytics', 'iso_ncr_detail', 'iso_ncr_files', 'iso_ncr_launch_rca', 'iso_ncr_list', 'iso_ncr_stats', 'iso_review_detail', 'iso_review_list', 'iso_signature_verify', 'iso_signatures', 'iso_study_raise_capa', 'iso_supplier_detail', 'iso_supplier_list', 'iso_team_members', 'iso_training_detail', 'iso_training_list', 'iso_training_record', 'ncrs/', 'ncrs/<uuid:ncr_id>/', 'ncrs/analytics/', 'ncrs/stats/', 'review-templates/', 'reviews/', 'signatures/', 'suppliers/', 'team-members/', 'training/']

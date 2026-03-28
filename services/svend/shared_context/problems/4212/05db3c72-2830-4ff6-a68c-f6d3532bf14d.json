@@ -1,0 +1,46 @@
+{
+  "problem_id": "05db3c72-2830-4ff6-a68c-f6d3532bf14d",
+  "user_id": 4212,
+  "title": "Press 3 Downtime",
+  "status": "active",
+  "last_updated": "2026-03-07T00:10:49.871625",
+  "methodology": {
+    "type": "none",
+    "dmaic_phase": "",
+    "phase_history": [],
+    "guidance": null
+  },
+  "effect": {
+    "description": "Unplanned downtime on press 3 averaging 2hrs/week",
+    "magnitude": "",
+    "first_observed": "",
+    "confidence": "medium"
+  },
+  "context": {
+    "domain": "",
+    "stakeholders": [],
+    "constraints": [],
+    "prior_beliefs": [],
+    "can_experiment": true,
+    "available_data": ""
+  },
+  "hypotheses": [],
+  "evidence": [],
+  "dead_ends": [],
+  "understanding": {
+    "probable_causes": [],
+    "key_uncertainties": [],
+    "recommended_next_steps": []
+  },
+  "bias_warnings": [],
+  "interview": null,
+  "resolution": null,
+  "agent_context": {
+    "source": "problem_session",
+    "can_update": true,
+    "endpoints": {
+      "add_evidence": "/api/problems/05db3c72-2830-4ff6-a68c-f6d3532bf14d/evidence/",
+      "add_hypothesis": "/api/problems/05db3c72-2830-4ff6-a68c-f6d3532bf14d/hypotheses/"
+    }
+  }
+}

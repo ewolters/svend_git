@@ -1,0 +1,46 @@
+{
+  "problem_id": "98858d03-8152-46bd-a854-6ee1bc501f43",
+  "user_id": 4214,
+  "title": "Yield Drop Line 4",
+  "status": "active",
+  "last_updated": "2026-03-07T00:10:50.050422",
+  "methodology": {
+    "type": "none",
+    "dmaic_phase": "",
+    "phase_history": [],
+    "guidance": null
+  },
+  "effect": {
+    "description": "First pass yield dropped from 97% to 91% over 2 weeks",
+    "magnitude": "",
+    "first_observed": "",
+    "confidence": "medium"
+  },
+  "context": {
+    "domain": "manufacturing",
+    "stakeholders": [],
+    "constraints": [],
+    "prior_beliefs": [],
+    "can_experiment": true,
+    "available_data": ""
+  },
+  "hypotheses": [],
+  "evidence": [],
+  "dead_ends": [],
+  "understanding": {
+    "probable_causes": [],
+    "key_uncertainties": [],
+    "recommended_next_steps": []
+  },
+  "bias_warnings": [],
+  "interview": null,
+  "resolution": null,
+  "agent_context": {
+    "source": "problem_session",
+    "can_update": true,
+    "endpoints": {
+      "add_evidence": "/api/problems/98858d03-8152-46bd-a854-6ee1bc501f43/evidence/",
+      "add_hypothesis": "/api/problems/98858d03-8152-46bd-a854-6ee1bc501f43/hypotheses/"
+    }
+  }
+}

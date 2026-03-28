@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/notifications/email.py
+# hypothesis_version: 6.151.9
+
+['daily', 'immediate', 'ntf-type-unsub', 'weekly']

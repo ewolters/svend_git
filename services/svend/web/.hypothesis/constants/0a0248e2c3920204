@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0026_site_access.py
+# hypothesis_version: 6.151.9
+
+['+', 'Admin', 'Member', 'SiteAccess', 'Viewer', 'access_list', 'admin', 'agents_api', 'agents_api.site', 'created_at', 'db_table', 'granted_by', 'hoshin_site_access', 'id', 'member', 'role', 'site', 'site_access', 'unique_together', 'user', 'viewer']

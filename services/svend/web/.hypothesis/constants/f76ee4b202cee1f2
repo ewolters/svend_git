@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/urls.py
+# hypothesis_version: 6.151.9
+
+['agents_api', 'eda', 'eda/', 'editor', 'editor/', 'experimenter', 'experimenter/', 'researcher', 'researcher/', 'writer', 'writer/']

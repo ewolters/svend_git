@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/forge/quality/validator.py
+# hypothesis_version: 6.151.9
+
+[0.01, 0.2, 1.0, 100, '; ', '@', 'Distributions valid', 'No data', 'No duplicates', 'No records', 'Schema valid', 'bool', 'category', 'checks', 'constraints', 'date', 'datetime', 'distribution', 'email', 'float', 'int', 'max', 'message', 'min', 'name', 'null_rate', 'nullable', 'overall_score', 'passed', 'phone', 'premium', 'record_count', 'schema', 'score', 'standard', 'string', 'type', 'uniqueness', 'url', 'uuid', 'values']

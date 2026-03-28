@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/action_views.py
+# hypothesis_version: 6.151.9
+
+[100, 'DELETE', 'PATCH', 'PUT', 'action_item', 'depends_on_id', 'description', 'due_date', 'end_date', 'owner_name', 'progress', 'sort_order', 'start_date', 'status', 'success', 'title']

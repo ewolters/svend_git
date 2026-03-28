@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/models/__init__.py
+# hypothesis_version: 6.151.9
+
+['ArchetypeAssignment', 'DailyDiary', 'Dataset', 'Entity', 'Evidence', 'EvidenceLink', 'ExperimentDesign', 'FrontPageDigest', 'GageStudy', 'HanseiKai', 'HaradaGoal', 'Hypothesis', 'Investigation', 'KnowledgeGraph', 'MeasurementSystem', 'Membership', 'Notebook', 'NotebookPage', 'OrgInvitation', 'Project', 'QuestionDimension', 'Relationship', 'RoutineCheck', 'Scenario', 'StudentEnrollment', 'StudyAction', 'Tenant', 'TrainingCenter', 'TrainingProgram', 'Trial', 'TrialAction', 'TrialToolLink', 'Window64', 'Yokoten', 'YokotenAdoption']

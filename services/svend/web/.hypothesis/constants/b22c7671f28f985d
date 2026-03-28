@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/sched/execution/executor.py
+# hypothesis_version: 6.151.9
+
+[0.0, 1.1, 512, 1000, 1024, 'AttributeError', 'KeyError', 'MemoryError', 'TimeoutError', 'TypeError', 'ValueError', 'attempt', 'attempts', 'cancelled', 'completed_at', 'correlation_id', 'cpu_time_ms', 'duration_ms', 'error_message', 'error_traceback', 'error_type', 'failure', 'max_attempts', 'memory_exceeded', 'memory_peak_mb', 'pending', 'result', 'root_correlation_id', 'running', 'started_at', 'status', 'success', 'task_id', 'task_name', 'tenant_id', 'timeout', 'timeout_seconds', 'win32', 'worker_id']

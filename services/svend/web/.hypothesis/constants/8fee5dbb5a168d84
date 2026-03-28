@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/sched/config.py
+# hypothesis_version: 6.151.9
+
+[0.1, 1.0, 2.0, 100, 128, 256, 500, 512, 1000, 1024, 5000, 10000, 50000, 'CircuitBreakerConfig', 'RetryConfig', 'SchedulerConfig', 'TenantQuota', 'WorkerPoolConfig', '_dashboard_instance', '_temporal_instance', 'auto_scale', 'backpressure', 'cascade_budget', 'celery_shadow_mode', 'celery_shadow_tasks', 'core', 'cpu_bound', 'dashboard', 'default_queue', 'default_retry_config', 'dlq_threshold', 'enable_backpressure', 'enable_dashboard', 'enable_metrics', 'get_default_config', 'get_test_config', 'io_bound', 'lightweight', 'max_cascade_depth', 'max_queue_depth', 'max_queue_per_tenant', 'max_workers', 'memory_limit_mb', 'min_workers', 'mixed', 'recycle_after_tasks', 'temporal', 'true', 'worker_configs', 'worker_pool']

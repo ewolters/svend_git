@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/workflow_urls.py
+# hypothesis_version: 6.151.9
+
+['<str:workflow_id>/', 'workflow_detail', 'workflow_run', 'workflows_list']

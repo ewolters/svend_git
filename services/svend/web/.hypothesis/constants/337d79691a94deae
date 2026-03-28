@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/api/boundaries/context.py
+# hypothesis_version: 6.151.9
+
+[',', 'HTTP_USER_AGENT', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_TENANT_ID', 'REMOTE_ADDR', 'actor_id', 'actor_ip', 'actor_type', 'correlation_id', 'id', 'metadata', 'request_ip', 'source', 'system', 'tenant_id', 'timestamp', 'user', 'user_agent', 'user_id']

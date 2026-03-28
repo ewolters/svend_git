@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/files/urls.py
+# hypothesis_version: 6.151.9
+
+['<uuid:file_id>/', 'detail', 'download', 'files', 'folders', 'folders/', 'list', 'quota', 'quota/', 'share', 'shared', 'unshare', 'upload', 'upload/']

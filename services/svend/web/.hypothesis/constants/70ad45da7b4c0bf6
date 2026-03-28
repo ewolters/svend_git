@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/spc_urls.py
+# hypothesis_version: 6.151.9
+
+['analyze/', 'capability/', 'chart/', 'chart/recommend/', 'chart/types/', 'gage-rr/', 'spc_analyze', 'spc_capability', 'spc_chart_types', 'spc_control_chart', 'spc_gage_rr', 'spc_recommend_chart', 'spc_summary', 'spc_upload', 'summary/', 'upload/']

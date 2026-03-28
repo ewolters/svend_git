@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0058_add_ishikawa_and_ce_matrix.py
+# hypothesis_version: 6.151.9
+
+[255, '-updated_at', 'Analyzing', 'C&E Matrices', 'C&E Matrix', 'CEMatrix', 'Complete', 'Draft', 'Ishikawa Diagram', 'Ishikawa Diagrams', 'IshikawaDiagram', 'Scoring', 'agents_api', 'analyzing', 'branches', 'ce_matrices', 'complete', 'core', 'core.project', 'created_at', 'db_table', 'draft', 'effect', 'id', 'inputs', 'ishikawa_diagrams', 'ordering', 'outputs', 'owner', 'project', 'scores', 'scoring', 'status', 'title', 'updated_at', 'verbose_name', 'verbose_name_plural']

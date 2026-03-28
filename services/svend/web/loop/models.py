@@ -1,4 +1,4 @@
-"""Loop mechanism models — LOOP-001 §3, §4, §6, §7.
+"""Loop mechanism models — LOOP-001 §3, §4, §6, §7, §8, §16.
 
 Three formally defined mechanisms:
 - Signal (§3.1): event that demands attention — entry point to the loop
@@ -14,6 +14,13 @@ Verify mode (§6, §7):
 - ProcessConfirmation (§7.1): gemba observation with diagnostic matrix
 - PCObservationItem: individual step observation within a PC
 - ForcedFailureTest (§7.2): detection verification
+
+Investigation workspace (§16.3):
+- InvestigationEntry: notebook-style entries (narrative, tool output, evidence)
+
+FMIS (§8):
+- FMIS: investigation-native FMEA container
+- FMISRow: failure mode with Bayesian S/O/D posteriors
 """
 
 import uuid
@@ -1485,3 +1492,81 @@ class FMISRow(SynaraEntity):
                 "updated_at",
             ]
         )
+
+
+# =============================================================================
+# INVESTIGATION ENTRY (LOOP-001 §16.3)
+# =============================================================================
+
+
+class InvestigationEntry(SynaraEntity):
+    """A notebook-style entry within an investigation workspace.
+
+    Entries are the chronological record of an investigation. They can be:
+    - Narrative: written by the investigator
+    - Tool output: auto-created when a tool runs in investigation context
+    - Evidence: auto-extracted from tool outputs per CANON-002
+
+    Entries are immutable once created — they can be superseded but not edited.
+    This preserves the investigation record for compliance.
+
+    LOOP-001 §16.3
+    """
+
+    class EntryType(models.TextChoices):
+        NARRATIVE = "narrative", "Narrative"
+        TOOL_OUTPUT = "tool_output", "Tool Output"
+        EVIDENCE = "evidence", "Evidence"
+        PHOTO = "photo", "Photo"
+        DATA = "data", "Data"
+
+    investigation = models.ForeignKey(
+        "core.Investigation",
+        on_delete=models.CASCADE,
+        related_name="entries",
+    )
+    entry_type = models.CharField(
+        max_length=20,
+        choices=EntryType.choices,
+        default=EntryType.NARRATIVE,
+    )
+    title = models.CharField(max_length=300, blank=True, default="")
+    content = models.TextField(
+        blank=True,
+        default="",
+        help_text="Markdown content for narrative entries. JSON for tool/evidence/data.",
+    )
+
+    # Tool output linkage (for entry_type=tool_output)
+    tool_link = models.OneToOneField(
+        "core.InvestigationToolLink",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="entry",
+        help_text="Link to InvestigationToolLink for tool output entries",
+    )
+
+    # Structured data (charts, tables, analysis results)
+    structured_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Plotly chart JSON, table data, analysis parameters/results",
+    )
+
+    # Author
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="investigation_entries",
+    )
+
+    # Sort order (for manual reordering — defaults to creation time)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "loop_investigation_entry"
+        ordering = ["sort_order", "created_at"]
+
+    def __str__(self):
+        return f"[{self.entry_type}] {self.title or self.content[:50]}"

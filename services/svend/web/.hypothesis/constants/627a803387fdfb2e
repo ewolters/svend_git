@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/notifications/views.py
+# hypothesis_version: 6.151.9
+
+[110, 200, 400, 404, 429, ':', 'Cache-Control', 'GET', 'HTTP_LAST_EVENT_ID', 'Invalid JSON', 'Malformed token', 'Missing token', 'POST', 'PUT', 'User not found', 'X-Accel-Buffering', 'count', 'created_at', 'email_enabled', 'email_mode', 'entity_id', 'entity_type', 'error', 'immediate', 'is_read', 'limit', 'muted_type', 'muted_types', 'no', 'no-cache', 'notifications', 'ntf-type-unsub', 'offset', 'ok', 'preferences', 'text/event-stream', 'token', 'true', 'type', 'unread', 'updated']

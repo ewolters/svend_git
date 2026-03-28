@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/encryption.py
+# hypothesis_version: 6.151.9
+
+[500, 'FIELD_ENCRYPTION_KEY', 'max_length', 'utf-8']

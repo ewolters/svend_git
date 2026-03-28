@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/viz/custom.py
+# hypothesis_version: 6.151.9
+
+[-0.08, -0.04, 0.0, 0.02, 0.06, 0.5, 0.7, 1.5, 100, 120, 400, 450, '#1a1a2e', '#4a90d9', '#4a9f6e', '#b0b0b0', '#d94a4a', '#e8c547', '#fff', 'Matrix Plot', 'None', 'annotations', 'col_var', 'color', 'colorbar', 'colorscale', 'data', 'dimensions', 'domain', 'fillcolor', 'font', 'height', 'histogram', 'label', 'layout', 'line', 'marker', 'markers', 'matrix', 'mode', 'mosaic', 'name', 'opacity', 'parallel_coordinates', 'parcoords', 'plots', 'range', 'rect', 'row_var', 'scatter', 'shapes', 'showarrow', 'showlegend', 'showscale', 'showticklabels', 'size', 'summary', 'text', 'ticktext', 'tickvals', 'title', 'type', 'values', 'vars', 'width', 'x', 'x0', 'x1', 'xaxis', 'y', 'y0', 'y1', 'yaxis']

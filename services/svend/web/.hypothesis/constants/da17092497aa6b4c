@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/chat/migrations/0007_message_messages_convers_3ebb41_idx.py
+# hypothesis_version: 6.151.9
+
+['chat', 'conversation', 'created_at', 'message']

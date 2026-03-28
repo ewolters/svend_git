@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/log/middleware.py
+# hypothesis_version: 6.151.9
+
+[100, 400, 500, 1000, ',', '-', '.', '/', '/(\\d+)(/|$)', '/+', '/<id>\\2', '/api/', '/favicon.ico', '/health/', '/live/', '/media/', '/metrics/', '/ready/', '/static/', '5xx', '<id>', 'AUDIT_METHODS', 'AUDIT_PATHS', 'DELETE', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'PATCH', 'POST', 'PUT', 'REMOTE_ADDR', 'Syn-Request-Id', 'User-Agent', 'X-Correlation-Id', 'X-Tenant-Id', '\\.+', 'anonymous', 'api/v', 'authorization', 'client_ip', 'content', 'content_length', 'cookie', 'correlation_id', 'duration_ms', 'duration_samples', 'email', 'error_count', 'key', 'max_duration_ms', 'method', 'min_duration_ms', 'password', 'path', 'query_params', 'remote_addr', 'request', 'request_count', 'request_id', 'status_code', 'syn_request_id', 'tenant_id', 'token', 'total_duration_ms', 'traceparent', 'unknown', 'user', 'user_agent', 'username', 'x-api-key', 'x-auth-token']

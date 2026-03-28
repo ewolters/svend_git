@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/synara/middleware/tenant.py
+# hypothesis_version: 6.151.9
+
+['/admin/', '/billing/', '/favicon.ico', '/health/', '/login/', '/logout/', '/register/', '/static/', 'tenant', 'user']

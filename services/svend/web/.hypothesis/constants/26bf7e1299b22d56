@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0049_trainingrecord_competency_level.py
+# hypothesis_version: 6.151.9
+
+['agentlog', 'agents_api', 'assessmentattempt', 'auditfinding', 'board', 'competency_level', 'completed', 'confirmed', 'is_completed', 'is_confirmed', 'is_passed', 'is_resolved', 'is_success', 'is_voting_active', 'passed', 'resolved', 'sectionprogress', 'success', 'trainingrecord', 'user', 'voting_active', 'xmatrixcorrelation']

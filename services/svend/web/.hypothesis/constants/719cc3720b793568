@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/migrations/0009_study_action_model.py
+# hypothesis_version: 6.151.9
+
+['-created_at', 'Flag FMEA Update', 'Flag Training Gap', 'Raise CAPA', 'StudyAction', 'action_type', 'core', 'core.project', 'core_study_action', 'created_at', 'created_by', 'db_table', 'flag_fmea_update', 'flag_training_gap', 'id', 'notes', 'ordering', 'project', 'raise_capa', 'request_doc_update', 'schedule_audit', 'study_actions', 'target_id', 'target_type']

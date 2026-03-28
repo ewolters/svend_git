@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/ml/__init__.py
+# hypothesis_version: 6.151.9
+
+['bayesian_regression', 'classification', 'clustering', 'factor_analysis', 'feature', 'gam', 'gaussian_process', 'guide_observation', 'hyperparameter_tune', 'isolation_forest', 'item_analysis', 'lightgbm', 'model_compare', 'pca', 'plots', 'pls', 'regression_ml', 'sem', 'shap_explain', 'summary', 'xgboost']

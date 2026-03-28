@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0060_qms_attachment.py
+# hypothesis_version: 6.151.9
+
+[500, '-created_at', 'A3 Report', 'CAPA Report', 'Controlled Document', 'Evidence', 'External Document', 'FMEA', 'Form', 'Internal Audit', 'Management Review', 'Photo', 'QMSAttachment', 'RCA Session', 'Report', 'a3', 'agents_api', 'attachment_type', 'audit', 'capa', 'created_at', 'db_table', 'description', 'document', 'entity_id', 'entity_type', 'evidence', 'external_document', 'file', 'files', 'files.userfile', 'fmea', 'form', 'id', 'indexes', 'management_review', 'ncr', 'ordering', 'photo', 'qms_attachments', 'rca', 'report', 'uploaded_by']

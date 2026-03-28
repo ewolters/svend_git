@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/__init__.py
+# hypothesis_version: 6.151.9
+
+['run_ml_analysis', 'run_spc_analysis', 'run_visualization']

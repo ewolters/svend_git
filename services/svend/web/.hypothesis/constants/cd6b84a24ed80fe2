@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/guide_urls.py
+# hypothesis_version: 6.151.9
+
+['chat/', 'guide_chat', 'guide_rate_limit', 'guide_summarize', 'rate-limit/', 'summarize/']

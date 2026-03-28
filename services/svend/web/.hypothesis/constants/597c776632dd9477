@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/report_types.py
+# hypothesis_version: 6.151.9
+
+['8D Report', '8d', 'CAPA Report', 'Corrective Actions', 'D0: Preparation', 'D1: Team Formation', 'D8: Team Recognition', 'Effectiveness Check', 'Preventive Actions', 'Problem Description', 'Root Cause Analysis', 'Verification Plan', 'analysis', 'capa', 'corrective_actions', 'creates_evidence', 'd0_preparation', 'd1_team', 'd2_problem', 'd3_containment', 'd4_root_cause', 'd5_corrective', 'd6_implementation', 'd7_preventive', 'd8_recognition', 'description', 'dsw', 'effectiveness_check', 'evidence_source_type', 'experiment', 'help', 'hypothesis', 'import_sources', 'key', 'label', 'layout', 'name', 'preventive_actions', 'problem_description', 'project', 'rca', 'root_cause_analysis', 'sections', 'single_column', 'verification_plan', 'whiteboard']

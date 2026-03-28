@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/workbench/views.py
+# hypothesis_version: 6.151.9
+
+[201, 400, 'Content-Disposition', 'DELETE', 'GET', 'Invalid JSON', 'Invalid template', 'PATCH', 'POST', 'Title is required', '_', 'acknowledged', 'artifact', 'artifact_count', 'conclusion', 'connections', 'content', 'created_at', 'current_phase', 'datasets', 'description', 'error', 'false', 'from', 'guide_observations', 'id', 'label', 'layout', 'notes', 'observation', 'permanent', 'position', 'probability', 'source', 'status', 'success', 'suggestion', 'supports', 'tags', 'template', 'template_state', 'title', 'to', 'true', 'type', 'updated_at', 'user', 'weakens', 'workbench', 'workbench_id', 'workbenches']

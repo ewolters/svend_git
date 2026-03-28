@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/accounts/models.py
+# hypothesis_version: 6.151.9
+
+[100, 255, 500, 86400, '-created_at', 'Active', 'Canceled', 'Cancelled', 'Completed', 'Expired', 'Failed', 'Incomplete', 'Incomplete Expired', 'InviteCode', 'JSON', 'Past Due', 'Paused', 'Pending', 'Processing', 'Trialing', 'Unpaid', 'User', 'active', 'ai_assistant', 'cancel_at_period_end', 'canceled', 'cancelled', 'collaboration', 'completed', 'data_export_requests', 'email_opted_out', 'email_verified', 'expired', 'expires_at', 'export_user_created', 'failed', 'incomplete', 'incomplete_expired', 'invite_codes', 'invite_codes_used', 'is_email_verified', 'json', 'login_attempts', 'past_due', 'paused', 'pending', 'processing', 'queries_reset_at', 'queries_today', 'referrals', 'self', 'status', 'subscription', 'subscription_active', 'subscriptions', 'times_used', 'total_queries', 'trialing', 'unpaid', 'user', 'users']

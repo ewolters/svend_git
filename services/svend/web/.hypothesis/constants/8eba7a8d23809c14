@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/viz/specs.py
+# hypothesis_version: 6.151.9
+
+[0.7, 350, 400, '3D Surface', 'Box Plot of {y}', 'Contour Overlay', 'Contour Plot', 'Correlation Heatmap', 'Dotplot', 'Histogram of {x}', 'Interval Plot', 'Pareto Chart', 'Probability Plot', 'RdBu', 'Time Series', 'bar', 'barmode', 'box', 'boxplot', 'bubble', 'bubble_sizes', 'bubble_summary', 'by', 'color', 'colorscale', 'contour', 'contour_compute', 'contour_overlay', 'dotplot', 'dotplot_compute', 'groupby', 'heatmap', 'heatmap_correlation', 'height', 'histogram', 'interval_compute', 'interval_plot', 'layout', 'line', 'opacity', 'overlay', 'pareto', 'pareto_compute', 'post_compute', 'pre_compute', 'probability', 'probability_compute', 'scatter', 'scatter_trendline', 'summary_fn', 'surface_3d', 'surface_3d_compute', 'timeseries', 'timeseries_multi_y', 'title', 'title_grouped', 'trace_kw', 'trace_type', 'var', 'x', 'y', 'zmid', '{y} vs {x}']

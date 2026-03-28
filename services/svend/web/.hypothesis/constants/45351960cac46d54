@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/inference/pipeline.py
+# hypothesis_version: 6.151.9
+
+[0.0, 1000, '.', 'KJERNE_PATH', 'analytical', 'auto', 'code', 'coder', 'cognition', 'cognition_workspace', 'confidence', 'critical', 'executive', 'generative', 'has_visualizations', 'inference_time_ms', 'mode_scores', 'output_type', 'pipeline_type', 'query_type', 'response', 'selected_mode', 'success', 'synthetic']

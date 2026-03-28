@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/api/pagination.py
+# hypothesis_version: 6.151.9
+
+[200, ',', '-created_at', ':', '_total_count', 'array', 'cursor', 'data', 'desc', 'description', 'integer', 'items', 'limit', 'next_cursor', 'nullable', 'object', 'properties', 'required', 'sort', 'string', 'total_estimate', 'type', 'utf-8']

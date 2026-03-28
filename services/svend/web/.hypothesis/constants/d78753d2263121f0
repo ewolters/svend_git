@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/api/boundaries/base.py
+# hypothesis_version: 6.151.9
+
+[1000, 'ALLOW', 'BLOCK', 'ESCALATE', 'Meta', 'Serializer', 'T', 'action', 'approvers', 'blocked', 'boundary_action', 'boundary_context', 'bulk_create', 'bulk_delete', 'bulk_update', 'confidence', 'context', 'contract', 'correlation_id', 'create', 'data', 'decision', 'delete', 'duration_ms', 'errors', 'escalated', 'escalation_id', 'failure', 'governance_judgment', 'governance_reason', 'governance_rule_id', 'id', 'instance', 'io.boundary', 'io.validated', 'io.validation.failed', 'judgment', 'many', 'model', 'operation', 'outcome', 'partial', 'payload', 'pk', 'primary_key', 'reason', 'resource_id', 'rule_id', 'success', 'system', 'tenant_id', 'timestamp', 'update', 'user_id', 'uuid', 'validation_outcome', 'version']

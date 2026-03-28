@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/migrations/0011_employee_resourcecommitment_actiontoken.py
+# hypothesis_version: 6.151.9
+
+[255, 'ID', 'Secret', 'SecretStore', 'Secrets', 'core', 'core_secret_store', 'created_at', 'created_by', 'db_table', 'dek_encrypted', 'id', 'indexes', 'interview_completed', 'kek_version', 'last_rotated_at', 'metadata', 'name', 'ordering', 'project', 'secret_rotation', 'secret_tenant_name', 'secret_tenant_time', 'tenant_id', 'unique_together', 'updated_at', 'value_encrypted', 'verbose_name', 'verbose_name_plural']

@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/ishikawa_urls.py
+# hypothesis_version: 6.151.9
+
+['ishikawa_create', 'ishikawa_delete', 'ishikawa_get', 'ishikawa_list', 'ishikawa_update', 'sessions/', 'sessions/create/']

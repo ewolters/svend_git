@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/notifications/tokens.py
+# hypothesis_version: 6.151.9
+
+['-created_at', 'Acknowledge', 'View', 'acknowledge', 'action_type', 'expires_at', 'id', 'is_valid', 'notification_id', 'notification_tokens', 'tokens', 'used_at', 'user', 'view']

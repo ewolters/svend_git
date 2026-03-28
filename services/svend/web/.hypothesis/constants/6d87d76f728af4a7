@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/rca_urls.py
+# hypothesis_version: 6.151.9
+
+['clusters/', 'critique/', 'evaluate/', 'guided-questions/', 'rca_actions', 'rca_clusters', 'rca_create', 'rca_create_action', 'rca_critique', 'rca_delete', 'rca_evaluate', 'rca_get', 'rca_guided_questions', 'rca_link_a3', 'rca_list', 'rca_reindex', 'rca_similar', 'rca_update', 'reindex/', 'sessions/', 'sessions/create/', 'similar/']

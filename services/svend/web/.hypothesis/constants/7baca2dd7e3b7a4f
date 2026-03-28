@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/chat/views.py
+# hypothesis_version: 6.151.9
+
+['content', 'domain', 'messages', 'reasoning_trace', 'role', 'title', 'tool_calls', 'verified', 'view_count']

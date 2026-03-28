@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/api/boundaries/exceptions.py
+# hypothesis_version: 6.151.9
+
+['BLOCK', 'ESCALATE', 'SRX-CFG-001', 'SRX-DB-001', 'SRX-GOV-001', 'SRX-GOV-002', 'SRX-IO-001', 'SRX-VAL-001', 'Validation failed', 'approvers', 'confidence', 'contract_code', 'contract_version', 'correlation_id', 'details', 'error_code', 'error_details', 'error_message', 'escalation_id', 'field_errors', 'judgment', 'message', 'model', 'non_field_errors', 'operation', 'original_error', 'reason', 'rule_id', 'violations']

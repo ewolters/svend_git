@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/triage_urls.py
+# hypothesis_version: 6.151.9
+
+['<str:job_id>/load/', '<str:job_id>/report/', 'clean/', 'datasets/', 'list_datasets', 'load_dataset', 'preview/', 'triage_clean', 'triage_download', 'triage_preview', 'triage_report']

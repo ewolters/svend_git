@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0050_ratelimitoverride.py
+# hypothesis_version: 6.151.9
+
+['ID', 'Max LLM requests/day', 'RateLimitOverride', 'agents_api', 'daily_llm_limit', 'daily_query_limit', 'db_table', 'id', 'tier', 'updated_at', 'updated_by']

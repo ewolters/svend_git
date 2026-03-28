@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/files/migrations/0001_initial.py
+# hypothesis_version: 6.151.9
+
+[100, 255, 1000, 10485760, 104857600, '-created_at', 'Code', 'Data File', 'Document', 'ID', 'Image', 'Other', 'UserFile', 'UserQuota', 'accessed_at', 'checksum', 'code', 'created_at', 'data', 'db_table', 'description', 'document', 'file', 'file_count', 'file_type', 'files', 'folder', 'id', 'image', 'indexes', 'is_public', 'max_file_size_bytes', 'max_files', 'mime_type', 'ordering', 'original_name', 'other', 'quota_bytes', 'share_token', 'size_bytes', 'storage_quota', 'tags', 'updated_at', 'used_bytes', 'user', 'user_files', 'user_quotas']

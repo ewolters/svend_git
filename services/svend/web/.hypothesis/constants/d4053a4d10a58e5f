@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/workbench/migrations/0006_remove_deprecated_project_hypothesis_evidence_conversation.py
+# hypothesis_version: 6.151.9
+
+['Conversation', 'Evidence', 'Hypothesis', 'Project', 'epistemiclog', 'evidence', 'hypothesis', 'knowledgegraph', 'project', 'user', 'workbench']

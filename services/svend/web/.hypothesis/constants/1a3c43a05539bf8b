@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/files/models.py
+# hypothesis_version: 6.151.9
+
+[100.0, 100, 255, 500, 1000, 1024, 5000, 8192, '-created_at', 'Code', 'Data File', 'Document', 'Image', 'Other', 'UserQuota', 'application/json', 'application/msword', 'application/pdf', 'application/xml', 'beta', 'checksum', 'code', 'created_at', 'data', 'document', 'file_count', 'file_type', 'files', 'folder', 'free', 'id', 'image', 'image/', 'javascript', 'other', 'pro', 'python', 'share_token', 'size_bytes', 'storage_quota', 'text/', 'text/csv', 'total_count', 'total_size', 'updated_at', 'used_bytes', 'user', 'user_files', 'user_quotas']

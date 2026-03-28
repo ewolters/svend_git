@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/migrations/0007_alter_hypothesis_current_probability_and_more.py
+# hypothesis_version: 6.151.9
+
+[0.0, 0.5, 1.0, '-created_at', 'core', 'current_probability', 'evidence', 'hypothesis', 'prior_probability', 'project']

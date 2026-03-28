@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/api/blog_views.py
+# hypothesis_version: 6.151.9
+
+[200, 300, 500, '-published_at', 'HTTP_REFERER', 'HTTP_USER_AGENT', 'REMOTE_ADDR', 'blog_detail.html', 'blog_list.html', 'post', 'posts']

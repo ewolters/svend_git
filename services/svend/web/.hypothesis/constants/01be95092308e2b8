@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0002_add_triage_and_logging.py
+# hypothesis_version: 6.151.9
+
+[255, '-created_at', '0001_initial', 'AgentLog', 'TriageResult', 'action', 'agent', 'agent_logs', 'agents_api', 'cleaned_csv', 'created_at', 'error_message', 'id', 'indexes', 'latency_ms', 'metadata', 'ordering', 'original_filename', 'report_markdown', 'success', 'summary_json', 'triage_results', 'user']

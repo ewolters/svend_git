@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/sched/svend_tasks.py
+# hypothesis_version: 6.151.9
+
+[120, 200, 300, 500, 600, 1000, '* * * * *', '*/10 * * * *', '*/15 * * * *', '*/30 * * * *', '-timestamp', '0 2 * * *', '0 20 * * 0', '0 3 * * 0', '0 4 * * 0', '0 4 1 * *', '0 6 * * *', '0 8 * * *', '0 8 * * 1', 'X-Forwarded-Proto', 'audit.health_ping', 'batch', 'checks_run', 'claude_growth_review', 'compliance-daily', 'core', 'cron', 'deleted_pings', 'deleted_violations', 'evaluate_experiments', 'health-ping', 'health_ping', 'https', 'is_healthy', 'ok', 'pass', 'pass_rate', 'passed', 'priority', 'process_automations', 'queue', 'report_id', 'schedule_id', 'status', 'system', 'task_name']

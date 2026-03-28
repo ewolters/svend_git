@@ -1,0 +1,56 @@
+{
+  "problem_id": "7fad6d2b-51f0-4cbb-acb3-44516e83e644",
+  "user_id": 3205,
+  "title": "Gage study problem",
+  "status": "active",
+  "last_updated": "2026-03-08T19:53:42.564167",
+  "methodology": {
+    "type": "none",
+    "dmaic_phase": "",
+    "phase_history": [],
+    "guidance": null
+  },
+  "effect": {
+    "description": "",
+    "magnitude": "",
+    "first_observed": "",
+    "confidence": "medium"
+  },
+  "context": {
+    "domain": "",
+    "stakeholders": [],
+    "constraints": [],
+    "prior_beliefs": [],
+    "can_experiment": true,
+    "available_data": ""
+  },
+  "hypotheses": [],
+  "evidence": [
+    {
+      "id": "48782075",
+      "type": "data_analysis",
+      "summary": "Gage R&R Study: %GRR=4.0% (Acceptable). NDC=35. 3 parts, 2 operators, 2 replicates.",
+      "source": "SPC Gage R&R",
+      "supports": [],
+      "weakens": [],
+      "timestamp": "2026-03-08T19:53:42.563685"
+    }
+  ],
+  "dead_ends": [],
+  "understanding": {
+    "probable_causes": [],
+    "key_uncertainties": [],
+    "recommended_next_steps": []
+  },
+  "bias_warnings": [],
+  "interview": null,
+  "resolution": null,
+  "agent_context": {
+    "source": "problem_session",
+    "can_update": true,
+    "endpoints": {
+      "add_evidence": "/api/problems/7fad6d2b-51f0-4cbb-acb3-44516e83e644/evidence/",
+      "add_hypothesis": "/api/problems/7fad6d2b-51f0-4cbb-acb3-44516e83e644/hypotheses/"
+    }
+  }
+}

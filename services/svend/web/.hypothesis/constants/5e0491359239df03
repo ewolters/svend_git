@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0028_alter_dswresult_data_alter_triageresult_cleaned_csv_and_more.py
+# hypothesis_version: 6.151.9
+
+['agents_api', 'cleaned_csv', 'data', 'dswresult', 'report_markdown', 'summary_json', 'triageresult']

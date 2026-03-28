@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/spc/multivariate.py
+# hypothesis_version: 6.151.9
+
+[0.0, 1e-06, 0.0027, 0.1, 0.12, 1.0, 10000000000.0, 100, 250, 290, 440, '#4a90d9', '#4a9f6e', '#d63031', '#d94a4a', '% Contribution', 'MEWMA Chart', 'MEWMA T²', 'OOC', 'Observation', 'Subgroup', 'T² Statistic', 'Variable', 'bar', 'cl', 'color', 'columns', 'dash', 'data', 'det_values', 'dot', 'group', 'guide_observation', 'height', 'interactive', 'lambda', 'layout', 'lcl', 'line', 'lines', 'lines+markers', 'marker', 'markers', 'mode', 'n_subgroups', 'name', 'narrative', 'ooc_count', 'p', 'plots', 'rangeslider', 'scatter', 'showlegend', 'size', 'spc_inspect', 'statistics', 'subgroup', 'subgroup_size', 'summary', 'symbol', 'thickness', 'title', 'type', 'ucl', 'variables', 'visible', 'width', 'x', 'xaxis', 'y', 'yaxis', '|S|', '|S| (Determinant)']

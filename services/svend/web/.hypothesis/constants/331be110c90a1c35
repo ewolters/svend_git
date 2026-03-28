@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0006_add_interview_state.py
+# hypothesis_version: 6.151.9
+
+['agents_api', 'interview_state', 'problem']

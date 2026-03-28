@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/learn_urls.py
+# hypothesis_version: 6.151.9
+
+['assessment/generate/', 'assessment/history/', 'assessment/submit/', 'assessment_history', 'complete_section', 'execute_step', 'generate_assessment', 'learn', 'module_detail', 'modules', 'modules/', 'progress', 'progress/', 'reset_session', 'section_detail', 'session/start/', 'start_session', 'submit_assessment']

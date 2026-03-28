@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/api/apps.py
+# hypothesis_version: 6.151.9
+
+[100, 168, 336, 720, 'Activate new signup', 'Churn prevention', 'Nudge inactive free', 'Upgrade nudge', 'Win-back', 'action', 'action_config', 'activation', 'api', 'churn_prevention', 'churn_signal', 'cooldown_hours', 'count', 'days', 'description', 'doe', 'feature', 'feature_discovery', 'feature_unused', 'inactive_days', 'inactive_nudge', 'milestone', 'name', 'query_limit_near', 'send_email', 'signup_no_query', 'template', 'threshold', 'trigger', 'trigger_config', 'upgrade_nudge', 'was_paid', 'winback']

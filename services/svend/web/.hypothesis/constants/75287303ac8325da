@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/api/migrations/0005_add_email_campaign_tracking.py
+# hypothesis_version: 6.151.9
+
+[200, 254, '-created_at', '-sent_at', 'EmailCampaign', 'EmailRecipient', 'api', 'api.emailcampaign', 'body_md', 'campaign', 'clicked_at', 'created_at', 'db_table', 'email', 'email_campaigns', 'email_recipients', 'failed', 'id', 'is_test', 'opened_at', 'ordering', 'recipient_count', 'recipients', 'sent_at', 'sent_by', 'subject', 'target', 'user']

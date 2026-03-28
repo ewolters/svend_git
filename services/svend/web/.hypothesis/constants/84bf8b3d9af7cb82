@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/vsm_urls.py
+# hypothesis_version: 6.151.9
+
+['<uuid:vsm_id>/', 'create/', 'vsm_add_inventory', 'vsm_add_kaizen', 'vsm_add_process', 'vsm_compare', 'vsm_create', 'vsm_delete', 'vsm_future_state', 'vsm_get', 'vsm_list', 'vsm_update', 'vsm_waste_analysis']

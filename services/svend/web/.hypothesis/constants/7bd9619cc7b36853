@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/sched/__init__.py
+# hypothesis_version: 6.151.9
+
+['1.0.0', 'SCH-001', 'Tempora', '__codename__', '__standard__', '__version__']

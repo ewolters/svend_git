@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/api/boundaries/__init__.py
+# hypothesis_version: 6.151.9
+
+['1.0.0', 'BoundaryContext', 'BoundaryError', 'IOContract', 'IOContractRegistry', 'PersistenceError', 'SRX-001', 'SerializerBoundary', '__standard__', '__version__', 'io_contract']

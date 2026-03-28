@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/sched/dashboard/views.py
+# hypothesis_version: 6.151.9
+
+[500, '24', 'acknowledged', 'active', 'alert_id', 'alerts', 'error', 'history', 'hours', 'metric', 'overview', 'prometheus', 'queue_depth', 'queues', 'scheduler_dashboard', 'status', 'text/plain', 'throttle', 'timestamp']

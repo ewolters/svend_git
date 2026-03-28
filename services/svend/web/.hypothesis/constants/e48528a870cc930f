@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/apps.py
+# hypothesis_version: 6.151.9
+
+[1000000000.0, '=', 'Agents API', 'LLM PRELOAD COMPLETE', 'agents_api', 'collectstatic', 'dbshell', 'makemigrations', 'migrate', 'shell']

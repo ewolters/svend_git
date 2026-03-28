@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/tool_router.py
+# hypothesis_version: 6.151.9
+
+['actions', 'collection_actions', 'create_view', 'delete_view', 'detail_view', 'enterprise', 'free', 'list_view', 'model', 'name', 'nested_resources', 'paid', 'path_prefix', 'permission', 'pk', 'pk_name', 'slug', 'team', 'update_view']

@@ -1,0 +1,56 @@
+{
+  "problem_id": "b387d207-6b9a-4c6f-9134-3455f344b9f2",
+  "user_id": 11651,
+  "title": "Test Investigation",
+  "status": "active",
+  "last_updated": "2026-03-05T14:37:40.960214",
+  "methodology": {
+    "type": "none",
+    "dmaic_phase": "",
+    "phase_history": [],
+    "guidance": null
+  },
+  "effect": {
+    "description": "Sales dropped 40%",
+    "magnitude": "",
+    "first_observed": "",
+    "confidence": "medium"
+  },
+  "context": {
+    "domain": "",
+    "stakeholders": [],
+    "constraints": [],
+    "prior_beliefs": [],
+    "can_experiment": true,
+    "available_data": ""
+  },
+  "hypotheses": [],
+  "evidence": [
+    {
+      "id": "bc8df411",
+      "type": "data_analysis",
+      "summary": "Helper test finding",
+      "source": "DSW (ttest)",
+      "supports": [],
+      "weakens": [],
+      "timestamp": "2026-03-05T14:37:40.959500"
+    }
+  ],
+  "dead_ends": [],
+  "understanding": {
+    "probable_causes": [],
+    "key_uncertainties": [],
+    "recommended_next_steps": []
+  },
+  "bias_warnings": [],
+  "interview": null,
+  "resolution": null,
+  "agent_context": {
+    "source": "problem_session",
+    "can_update": true,
+    "endpoints": {
+      "add_evidence": "/api/problems/b387d207-6b9a-4c6f-9134-3455f344b9f2/evidence/",
+      "add_hypothesis": "/api/problems/b387d207-6b9a-4c6f-9134-3455f344b9f2/hypotheses/"
+    }
+  }
+}

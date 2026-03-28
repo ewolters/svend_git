@@ -1,0 +1,56 @@
+{
+  "problem_id": "dd744c88-4906-4ba4-8a50-7ab8c3922d76",
+  "user_id": 21,
+  "title": "Test Problem",
+  "status": "active",
+  "last_updated": "2026-03-06T15:29:49.906699",
+  "methodology": {
+    "type": "none",
+    "dmaic_phase": "",
+    "phase_history": [],
+    "guidance": null
+  },
+  "effect": {
+    "description": "",
+    "magnitude": "",
+    "first_observed": "",
+    "confidence": "medium"
+  },
+  "context": {
+    "domain": "",
+    "stakeholders": [],
+    "constraints": [],
+    "prior_beliefs": [],
+    "can_experiment": true,
+    "available_data": ""
+  },
+  "hypotheses": [],
+  "evidence": [
+    {
+      "id": "4a38aa1c",
+      "type": "data_analysis",
+      "summary": "Descriptive statistics for 1 variable(s). x: \u03bc=49.921, \u03c3=2.031, n=50",
+      "source": "DSW (descriptive)",
+      "supports": [],
+      "weakens": [],
+      "timestamp": "2026-03-06T15:29:49.905911"
+    }
+  ],
+  "dead_ends": [],
+  "understanding": {
+    "probable_causes": [],
+    "key_uncertainties": [],
+    "recommended_next_steps": []
+  },
+  "bias_warnings": [],
+  "interview": null,
+  "resolution": null,
+  "agent_context": {
+    "source": "problem_session",
+    "can_update": true,
+    "endpoints": {
+      "add_evidence": "/api/problems/dd744c88-4906-4ba4-8a50-7ab8c3922d76/evidence/",
+      "add_hypothesis": "/api/problems/dd744c88-4906-4ba4-8a50-7ab8c3922d76/hypotheses/"
+    }
+  }
+}

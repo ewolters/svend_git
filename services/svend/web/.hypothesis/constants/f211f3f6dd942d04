@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/api/migrations/0001_blogpost.py
+# hypothesis_version: 6.151.9
+
+[160, 200, '-created_at', '-published_at', 'BlogPost', 'Draft', 'Markdown content', 'Published', 'author', 'blog_posts', 'body', 'created_at', 'db_table', 'draft', 'id', 'meta_description', 'ordering', 'published', 'published_at', 'slug', 'status', 'title', 'updated_at']

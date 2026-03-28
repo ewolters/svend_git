@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/forge/serializers.py
+# hypothesis_version: 6.151.9
+
+[100, 1000000, 'bool', 'category', 'completed_at', 'cost_cents', 'created_at', 'csv', 'data_type', 'date', 'datetime', 'description', 'domain', 'email', 'error_message', 'float', 'id', 'int', 'is_builtin', 'job_id', 'json', 'jsonl', 'name', 'output_format', 'phone', 'progress', 'quality_level', 'quality_score', 'record_count', 'records_generated', 'schema', 'schema_def', 'started_at', 'status', 'string', 'template', 'url', 'uuid']

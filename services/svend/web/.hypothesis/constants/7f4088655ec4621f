@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/migrations/0018_rename_boolean_fields_compliance.py
+# hypothesis_version: 6.151.9
+
+['adopted', 'carry_forward', 'core', 'hanseikai', 'is_adopted', 'is_carry_forward', 'trial']

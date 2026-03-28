@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/commitment_notifications.py
+# hypothesis_version: 6.151.9
+
+['Someone', 'commitment_confirmed', 'commitment_declined', 'commitment_id', 'commitment_requested', 'confirm_availability', 'confirm_token_id', 'confirmed', 'core', 'decline', 'decline_token_id', 'declined', 'hoshin_project', 'requested']

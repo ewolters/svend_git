@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0031_savedmodel_project_training_config.py
+# hypothesis_version: 6.151.9
+
+['agents_api', 'core', 'core.project', 'data_lineage', 'parent_model', 'project', 'retrained_versions', 'saved_models', 'savedmodel', 'training_config', 'version']

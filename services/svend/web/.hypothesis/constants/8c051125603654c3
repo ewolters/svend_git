@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0048_qms_phase2_fmea_rca.py
+# hypothesis_version: 6.151.9
+
+['Closed', 'Detection', 'Draft', 'Fit', 'Form', 'Function', 'Investigating', 'Prevention', 'RCASession', 'Regulatory', 'Risk Priority Number', 'Safety', 'Verified', 'agents_api', 'ap', 'both', 'closed', 'complete', 'control_type', 'detect', 'detection_controls', 'draft', 'failure_mode_class', 'fit', 'fmea', 'fmearow', 'form', 'function', 'in_progress', 'investigating', 'prevent', 'prevention_controls', 'rcasession', 'regulatory', 'reopen_reason', 'review', 'rpn', 'safety', 'scoring_method', 'status', 'verified']

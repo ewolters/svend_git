@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/learn_content/causal_inference.py
+# hypothesis_version: 6.151.9
+
+[25.0, 'Causal Thinking', 'Natural Experiments', 'ab-testing-causal', 'ab_analyzer', 'answer', 'causal-thinking', 'config', 'confounding', 'content', 'dag_builder', 'diameter_mm', 'dsw_config', 'dsw_type', 'exercise', 'hint', 'id', 'interactive', 'intro', 'key_takeaways', 'mu', 'natural-experiments', 'practice_questions', 'predictors', 'question', 'response', 'roughness_ra', 'stats:regression', 'stats:ttest', 'steps', 'title', 'type', 'var1', 'weight_g']

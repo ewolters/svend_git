@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0073_a3_notebook_link.py
+# hypothesis_version: 6.151.9
+
+['a3_reports', 'a3report', 'agents_api', 'core', 'core.notebook', 'notebook']

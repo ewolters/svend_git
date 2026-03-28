@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/synara/logic_engine.py
+# hypothesis_version: 6.151.9
+
+[0.0, 0.5, 0.6, 1.0, 'affirming_consequent', 'circular_reasoning', 'confidence', 'count', 'denying_antecedent', 'description', 'error', 'explanation', 'fallacies', 'false_dichotomy', 'hasty_generalization', 'hypothesis', 'implication chain', 'is_falsifiable', 'llm_review_reason', 'logical expression', 'needs_llm_review', 'nested quantifier', 'overgeneralization', 'parse', 'partial', 'quantifier', 'quantifier pair', 'refuted', 'refuting', 'result', 'samples', 'severity', 'structure', 'suggestion', 'supported', 'supporting', 'total', 'type', 'undetermined', 'unfalsifiable', 'valid', 'variables', 'warning']

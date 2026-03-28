@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/report_urls.py
+# hypothesis_version: 6.151.9
+
+['<uuid:report_id>/', 'create/', 'report_auto_populate', 'report_create', 'report_delete', 'report_embed_diagram', 'report_export_pdf', 'report_get', 'report_import', 'report_list', 'report_types', 'report_update', 'types/']

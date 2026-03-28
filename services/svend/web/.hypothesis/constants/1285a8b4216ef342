@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0013_alter_subscription_cancel_at_period_end_and_more.py
+# hypothesis_version: 6.151.9
+
+['accounts', 'cancel_at_period_end', 'email_opted_out', 'email_verified', 'is_email_opted_out', 'is_email_verified', 'subscription', 'subscription_active', 'user']

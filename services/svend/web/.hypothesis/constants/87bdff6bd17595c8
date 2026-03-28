@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/investigation_views.py
+# hypothesis_version: 6.151.9
+
+[200, 201, 400, 403, 404, 'DELETE', 'GET', 'Invalid JSON body', 'POST', 'User is not a member', 'User not found', 'concluded_at', 'content_type', 'created_at', 'deleted', 'description', 'error', 'event', 'evidence', 'exported_at', 'from_id', 'graph', 'hypotheses', 'id', 'investigation', 'investigation_id', 'investigations', 'joined_at', 'linked_at', 'linked_by_id', 'links', 'mechanism', 'member', 'members', 'new_id', 'object_id', 'old_id', 'owner_id', 'package', 'parent_version_id', 'removed', 'role', 'source', 'status', 'strength', 'svend.investigation', 'target_project_id', 'target_status', 'title', 'title is required', 'to_id', 'tool_function', 'tool_type', 'tools', 'updated_at', 'user', 'user_id', 'user_id is required', 'username', 'version']

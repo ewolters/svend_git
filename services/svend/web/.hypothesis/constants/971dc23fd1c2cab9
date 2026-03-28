@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/audit/__init__.py
+# hypothesis_version: 6.151.9
+
+['1.0.0', 'AUD-001', 'AUDIT_EVENTS', 'AuditConfig', 'DriftViolation', 'IntegrityViolation', 'SysLogEntry', '__standard__', '__version__', 'emit_audit_event', 'generate_entry', 'get_audit_trail']

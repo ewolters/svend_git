@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0061_copq_paf_fields.py
+# hypothesis_version: 6.151.9
+
+['0060_qms_attachment', 'Appraisal', 'Direct cost category', 'External Failure', 'Inspection', 'Internal Failure', 'Other', 'Prevention', 'Rework', 'Scrap', 'Sorting', 'Warranty', 'agents_api', 'appraisal', 'capareport', 'copq_category', 'copq_paf_class', 'external_failure', 'inspection', 'internal_failure', 'other', 'prevention', 'rework', 'scrap', 'sorting', 'warranty']

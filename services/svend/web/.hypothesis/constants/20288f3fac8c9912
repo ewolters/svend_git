@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/tool_registry.py
+# hypothesis_version: 6.151.9
+
+['ce', 'diagram_id', 'ishikawa', 'matrix_id', 'paid', 'sessions']

@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/evidence_bridge.py
+# hypothesis_version: 6.151.9
+
+[0.5, 'details', 'observation', 'qualitative', 'summary', 'updated_at']

@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0052_trainingrecord_artifacts_and_more.py
+# hypothesis_version: 6.151.9
+
+['agents_api', 'artifacts', 'document', 'document_version', 'files', 'files.userfile', 'training_records', 'trainingrecord', 'trainingrequirement']

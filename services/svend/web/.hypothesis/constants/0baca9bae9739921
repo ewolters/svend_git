@@ -1,0 +1,4 @@
+# file: /home/eric/.local/bin/coverage
+# hypothesis_version: 6.151.9
+
+['.exe', '__main__']

@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0008_email_opt_out.py
+# hypothesis_version: 6.151.9
+
+['accounts', 'email_opted_out', 'user']

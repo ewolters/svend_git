@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/notifications/token_views.py
+# hypothesis_version: 6.151.9
+
+[410, 'GET', 'POST', 'acknowledge', 'action', 'error', 'is_read', 'notification', 'ok', 'token']

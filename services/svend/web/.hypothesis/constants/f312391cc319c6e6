@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0042_add_learn_session.py
+# hypothesis_version: 6.151.9
+
+['-started_at', 'LearnSession', 'agents_api', 'completed_at', 'constraints', 'core', 'core.project', 'db_table', 'id', 'indexes', 'learn_session', 'learn_sessions', 'module_id', 'ordering', 'project', 'section_id', 'started_at', 'state', 'steps_completed', 'unique_learn_session', 'user']

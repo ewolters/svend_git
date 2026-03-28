@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0059_remove_problem_model.py
+# hypothesis_version: 6.151.9
+
+['Problem', 'agents_api']

@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/files/views.py
+# hypothesis_version: 6.151.9
+
+[100, '.bat', '.cmd', '.com', '.cpl', '.dll', '.exe', '.hta', '.htm', '.html', '.inf', '.jar', '.jsp', '.msi', '.php', '.ps1', '.py', '.reg', '.scr', '.sh', '.svg', '.vbs', '.ws', '.wsf', '.zip', '/', 'Content-Disposition', 'DELETE', 'File not found', 'GET', 'No file provided', 'PATCH', 'POST', '[\\x00-\\x1f\\x7f"\\\\]', '\\', '_', 'accessed_at', 'checksum', 'created_at', 'description', 'download', 'error', 'file', 'file_count', 'files', 'folder', 'folders', 'id', 'is_public', 'limit', 'max_file_size_bytes', 'max_files', 'mime_type', 'name', 'offset', 'quota_bytes', 'rb', 'remaining_bytes', 'search', 'share_revoked', 'share_token', 'size', 'status', 'tags', 'tier', 'total', 'true', 'type', 'url', 'usage_percent', 'used_bytes']

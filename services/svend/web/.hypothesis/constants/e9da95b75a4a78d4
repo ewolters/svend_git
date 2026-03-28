@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0068_risk_fmea_row_source_type.py
+# hypothesis_version: 6.151.9
+
+['agents_api', 'agents_api.fmearow', 'fmea_row', 'manual', 'risk', 'risks', 'source_type']

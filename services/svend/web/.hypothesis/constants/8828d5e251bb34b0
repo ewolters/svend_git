@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/core/migrations/0003_add_synara_state.py
+# hypothesis_version: 6.151.9
+
+['core', 'project', 'synara_state']

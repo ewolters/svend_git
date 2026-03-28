@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/syn/audit/migrations/0009_add_calibration_report.py
+# hypothesis_version: 6.151.9
+
+[0.0, '-date', 'Calibration Report', 'Calibration Reports', 'CalibrationReport', 'add', 'audit', 'date', 'db_table', 'default_permissions', 'details', 'endpoint_coverage', 'golden_file_count', 'id', 'indexes', 'is_certificate', 'ordering', 'overall_coverage', 'ratchet_baseline', 'tier1_coverage', 'tier2_coverage', 'tier3_coverage', 'tier4_coverage', 'verbose_name', 'verbose_name_plural', 'view']

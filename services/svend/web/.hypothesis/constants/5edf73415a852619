@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/synara/llm_interface.py
+# hypothesis_version: 6.151.9
+
+[0.1, 0.15, 0.3, 1024, 4096, '8d', 'a3', 'behavior_class', 'competing_count', 'content', 'description', 'domain_conditions', 'evidence_count', 'gaps', 'hypotheses', 'hypothesis_count', 'id', 'involved_hypotheses', 'issue_type', 'issues', 'last_update', 'latent_causes', 'link_count', 'llm', 'pending_expansions', 'posterior', 'prior', 'role', 'severity', 'strengths', 'suggested_evidence', 'suggested_fix', 'suggested_hypotheses', 'summary', 'technical', 'top_hypothesis', 'unknown', 'user', 'warning', '{', '}']

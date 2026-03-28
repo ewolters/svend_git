@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0037_kpi_aggregation_fields.py
+# hypothesis_version: 6.151.9
+
+['Manual entry', 'Sum (dollars)', 'agents_api', 'aggregation', 'calculator_field', 'derived_field', 'derived_from', 'derived_kpis', 'hoshinkpi', 'latest', 'manual', 'sum', 'weighted_avg', 'ytd_savings']

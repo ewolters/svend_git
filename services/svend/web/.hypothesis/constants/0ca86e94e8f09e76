@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/hoshin_urls.py
+# hypothesis_version: 6.151.9
+
+['annual-objectives/', 'calculation-methods/', 'calendar/', 'commitments/', 'dashboard/', 'employees/', 'employees/import/', 'hoshin_actions', 'hoshin_alignment', 'hoshin_calc_methods', 'hoshin_calendar', 'hoshin_commitments', 'hoshin_create_action', 'hoshin_create_site', 'hoshin_dashboard', 'hoshin_delete_action', 'hoshin_delete_site', 'hoshin_employees', 'hoshin_get_project', 'hoshin_get_site', 'hoshin_monthly', 'hoshin_projects', 'hoshin_site_members', 'hoshin_sites', 'hoshin_test_formula', 'hoshin_update_action', 'hoshin_update_site', 'kpis/', 'kpis/<uuid:kpi_id>/', 'projects/', 'projects/create/', 'sites/', 'sites/create/', 'test-formula/', 'x-matrix/', 'x-matrix/rollover/', 'xmatrix_annual', 'xmatrix_correlation', 'xmatrix_data', 'xmatrix_kpi_detail', 'xmatrix_kpis', 'xmatrix_rollover', 'xmatrix_strategic', 'xmatrix_vsm_promote']

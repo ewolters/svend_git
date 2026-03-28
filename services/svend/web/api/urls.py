@@ -3,6 +3,7 @@
 from django.urls import path
 
 from accounts import api_key_views
+from notifications import webhook_views
 
 from . import internal_views, training_views, views
 
@@ -51,6 +52,11 @@ urlpatterns = [
     # API key management (SEC-001 §4.5)
     path("auth/keys/", api_key_views.key_list_create, name="api_key_list_create"),
     path("auth/keys/<uuid:key_id>/", api_key_views.key_revoke, name="api_key_revoke"),
+    # Webhook management (NTF-001 §5.4)
+    path("webhooks/", webhook_views.endpoint_list_create, name="webhook_list_create"),
+    path("webhooks/<uuid:endpoint_id>/", webhook_views.endpoint_detail, name="webhook_detail"),
+    path("webhooks/<uuid:endpoint_id>/test/", webhook_views.endpoint_test, name="webhook_test"),
+    path("webhooks/<uuid:endpoint_id>/deliveries/", webhook_views.endpoint_deliveries, name="webhook_deliveries"),
     # Event tracking
     path("events/", views.track_event, name="track_event"),
     # Export

@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/plantsim_urls.py
+# hypothesis_version: 6.151.9
+
+['<uuid:sim_id>/', 'create/', 'plantsim_create', 'plantsim_delete', 'plantsim_export', 'plantsim_get', 'plantsim_import_vsm', 'plantsim_list', 'plantsim_update']

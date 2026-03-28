@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/api/migrations/0008_feedback_internal_notes.py
+# hypothesis_version: 6.151.9
+
+['0007_feedback', 'api', 'feedback', 'internal_notes']

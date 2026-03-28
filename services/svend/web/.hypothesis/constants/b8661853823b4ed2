@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0071_complaint_reopen_reason.py
+# hypothesis_version: 6.151.9
+
+['agents_api', 'customercomplaint', 'reopen_reason']

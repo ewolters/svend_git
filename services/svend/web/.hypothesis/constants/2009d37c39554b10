@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/action_urls.py
+# hypothesis_version: 6.151.9
+
+['action_delete', 'action_update']

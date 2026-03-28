@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/agents_api/iso_doc_urls.py
+# hypothesis_version: 6.151.9
+
+['<uuid:doc_id>/', 'iso_doc_detail', 'iso_doc_embed_wb', 'iso_doc_export_docx', 'iso_doc_export_pdf', 'iso_doc_list', 'iso_doc_publish', 'iso_doc_types', 'types/']

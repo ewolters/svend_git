@@ -1,0 +1,4 @@
+# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0015_dataexportrequest.py
+# hypothesis_version: 6.151.9
+
+[500, '-created_at', 'Cancelled', 'Completed', 'DataExportRequest', 'Expired', 'Failed', 'JSON', 'Pending', 'Processing', 'accounts', 'cancelled', 'completed', 'completed_at', 'created_at', 'data_export_requests', 'db_table', 'downloaded_at', 'error_message', 'expired', 'expires_at', 'export_format', 'export_user_created', 'failed', 'file_path', 'file_size_bytes', 'id', 'indexes', 'json', 'ordering', 'pending', 'processing', 'status', 'user']
