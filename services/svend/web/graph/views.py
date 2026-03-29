@@ -868,3 +868,105 @@ def config_domains(request):
         domains[domain] = domains.get(domain, 0) + 1
 
     return JsonResponse({"domains": [{"name": d, "setting_count": c} for d, c in sorted(domains.items())]})
+
+
+# =============================================================================
+# Document Render Endpoint (ForgeDoc)
+# =============================================================================
+
+FORGEDOC_BUILDERS = {
+    "a3": "forgedoc.builders.a3_sheet.A3Sheet",
+    "eight_d": "forgedoc.builders.eight_d.EightDReport",
+    "control_plan": "forgedoc.builders.control_plan.ControlPlanDoc",
+    "investigation": "forgedoc.builders.investigation.InvestigationReport",
+    "supplier_claim": "forgedoc.builders.supplier_claim.SupplierClaimReport",
+    "knowledge_health": "forgedoc.builders.knowledge_health.KnowledgeHealthReport",
+    "doe_run_cards": "forgedoc.builders.doe_run_cards.DOERunCards",
+}
+
+
+@require_auth
+@require_http_methods(["POST"])
+def document_render(request):
+    """Render a document using ForgeDoc.
+
+    POST body: {
+        "template": "a3" | "eight_d" | "control_plan" | "investigation" | ...,
+        "format": "pdf" | "docx" | "html",
+        "data": { ... template-specific fields ... }
+    }
+
+    Returns: PDF/DOCX bytes as attachment, or HTML as JSON string.
+    """
+    import importlib
+    import json
+
+    from django.http import HttpResponse
+
+    tenant_id = _get_tenant_id(request)
+    if not tenant_id:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    data = json.loads(request.body)
+    template = data.get("template")
+    output_format = data.get("format", "pdf")
+    doc_data = data.get("data", {})
+
+    if template not in FORGEDOC_BUILDERS:
+        return JsonResponse(
+            {"error": f"Unknown template: {template}. Available: {list(FORGEDOC_BUILDERS.keys())}"},
+            status=400,
+        )
+
+    if output_format not in ("pdf", "docx", "html"):
+        return JsonResponse({"error": "format must be pdf, docx, or html"}, status=400)
+
+    # Load branding from config
+    from .config import ConfigService
+
+    branding_kwargs = {}
+    company_name = ConfigService.get(tenant_id, "org.company_name")
+    if company_name:
+        branding_kwargs["company_name"] = company_name
+    footer = ConfigService.get(tenant_id, "org.footer_text")
+    if footer:
+        branding_kwargs["footer_text"] = footer
+
+    try:
+        # Import the builder class
+        module_path, class_name = FORGEDOC_BUILDERS[template].rsplit(".", 1)
+        module = importlib.import_module(module_path)
+        builder_cls = getattr(module, class_name)
+
+        # Build the document
+        builder = builder_cls(**doc_data)
+        doc = builder.build()
+
+        # Apply branding
+        if branding_kwargs:
+            from forgedoc import Branding
+
+            doc.branding = Branding(**branding_kwargs)
+
+        # Render
+        from forgedoc import render
+
+        result = render(doc, format=output_format)
+
+        if output_format == "html":
+            return JsonResponse({"html": result, "template": template})
+
+        content_type = (
+            "application/pdf"
+            if output_format == "pdf"
+            else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        ext = output_format
+
+        response = HttpResponse(result, content_type=content_type)
+        response["Content-Disposition"] = f'attachment; filename="{template}.{ext}"'
+        return response
+
+    except Exception as e:
+        logger.exception("ForgeDoc render failed: %s", e)
+        return JsonResponse({"error": f"Render failed: {str(e)}"}, status=500)

@@ -27,4 +27,6 @@ urlpatterns = [
     path("config/preset/", views.config_apply_preset, name="config_apply_preset"),
     path("config/presets/", views.config_presets, name="config_presets"),
     path("config/domains/", views.config_domains, name="config_domains"),
+    # Document rendering (ForgeDoc)
+    path("documents/render/", views.document_render, name="document_render"),
 ]
