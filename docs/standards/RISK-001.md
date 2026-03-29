@@ -8,6 +8,8 @@
 - SOC 2 CC3.2 (Risk Assessment), CC9.1 (Risk Mitigation)
 - ISO 9001:2015 §6.1 (Actions to Address Risks and Opportunities)
 - AS9100D §6.1 (Actions to Address Risks and Opportunities)
+**Related Standards:**
+- GRAPH-001 ≥ 0.1 (Unified Knowledge Graph — risk entries seed graph nodes and edges)
 
 ---
 

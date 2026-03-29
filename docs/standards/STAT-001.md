@@ -12,6 +12,7 @@
 - SOC 2 CC4.1 (Monitoring of Controls)
 - ISO 9001:2015 §8.5.1 (Production and Service Provision — process control)
 **Related Standards:**
+- GRAPH-001 ≥ 0.1 (Unified Knowledge Graph — DOE/statistical results calibrate graph edges via EdgeEvidence)
 - QMS-001 ≥ 1.2 (Quality Management System — SPC integration, evidence linking)
 - TST-001 ≥ 1.0 (Testing Patterns — statistical test verification)
 - MAP-001 ≥ 1.0 (Architecture Map — STAT-001 registry entry)

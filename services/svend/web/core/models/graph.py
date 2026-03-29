@@ -1,11 +1,12 @@
-"""Knowledge Graph models.
+"""Knowledge Graph models — DEPRECATED.
 
-The knowledge graph stores entities and their relationships.
-- Personal graphs for individual users
-- Shared graphs for tenants (TEAM/ENTERPRISE)
+DEPRECATED by GRAPH-001 (Object 271). Replaced by:
+  graph.ProcessGraph, graph.ProcessNode, graph.ProcessEdge, graph.EdgeEvidence
 
-Entities represent things in the domain (concepts, variables, actors, events, etc.)
-Relationships connect entities with typed edges (causal, correlational, etc.)
+These models are retained temporarily for existing API endpoints.
+Do NOT build new features on these models. Use graph.service.GraphService instead.
+
+Removal scheduled after 30-day deprecation notice on API endpoints.
 """
 
 import uuid
@@ -114,9 +115,7 @@ class Entity(models.Model):
     properties = models.JSONField(default=dict, blank=True)
 
     # For variables: track units and typical range
-    unit = models.CharField(
-        max_length=50, blank=True
-    )  # e.g., "USD", "percent", "count"
+    unit = models.CharField(max_length=50, blank=True)  # e.g., "USD", "percent", "count"
     typical_min = models.FloatField(null=True, blank=True)
     typical_max = models.FloatField(null=True, blank=True)
 

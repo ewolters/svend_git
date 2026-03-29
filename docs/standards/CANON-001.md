@@ -9,8 +9,9 @@
 - XRF-001 ≥ 1.0 (Cross-Reference Syntax)
 - ARCH-001 ≥ 1.0 (Architecture & Structure — layer boundaries)
 **Related Standards:**
+- GRAPH-001 ≥ 0.1 (Unified Knowledge Graph — persistent process model, all tools read/write via GraphService)
 - LOOP-001 ≥ 0.1 (Closed-Loop Operating Model — tools operate standalone OR as mode-transition artifacts within investigations)
-- QMS-001 ≥ 1.7 (Quality Management System — tooling layer)
+- QMS-001 ≥ 1.7 (Quality Management System — compliance lens on graph)
 - DSW-001 ≥ 1.0 (Decision Science Workbench — analysis layer)
 - MAP-001 ≥ 1.0 (Architecture Map — module registry)
 - CANON-002 (Integration Contracts — tool chaining schemas, evidence weighting methodology, source-method epistemology)

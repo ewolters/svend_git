@@ -18,6 +18,7 @@
 - 21 CFR Part 820 §820.90 (Nonconforming Product)
 - AS9100D §8.7 (Control of Nonconforming Outputs)
 **Related Standards:**
+- GRAPH-001 ≥ 0.1 (Unified Knowledge Graph and Process Model — authoritative spec for §9, graph views, Synara integration)
 - CANON-001 ≥ 3.0 (System Architecture — three-layer model)
 - CANON-002 ≥ 1.0 (Evidence Methodology — tool integration contracts)
 - QMS-001 ≥ 1.6 (Quality Management System — tool specifications)
@@ -184,7 +185,7 @@ The system operates through three formally defined mechanisms. They are distinct
 A Signal is an event that demands attention. It is the entry point to the loop.
 
 **Definition:** A Signal is a record that something has been observed which may require investigation. It carries:
-- **Source**: what generated it (SPC violation, PC threshold breach, customer complaint, audit finding, forced failure miss, frontier card finding, operator report, management review action, training reflection pattern)
+- **Source**: what generated it (SPC violation, PC threshold breach, customer complaint, audit finding, forced failure miss, frontier card finding, operator report, management review action, training reflection pattern, graph edge staleness, graph edge contradiction, graph expansion signal)
 - **Severity classification**: per org-defined QMS Policy (§4)
 - **Triage state**: untriaged → acknowledged → investigating → resolved → dismissed
 - **Linked artifacts**: the source record(s) that generated the signal (SPC result UUID, complaint UUID, etc.)
@@ -789,52 +790,33 @@ FMIS (Failure Modes Investigation System) is the investigation-native FMEA. It c
 
 **FMISRow fields:**
 
+> **Note (Object 271, D2):** FMISRow is a thin reference layer pointing at ProcessGraph nodes and edges (GRAPH-001). Bayesian S/O/D state lives on ProcessEdge records, not on FMISRow. S/O/D values are computed at render time from graph edge posteriors.
+
 | Field | Type | Purpose |
 |---|---|---|
 | `id` | UUID PK | Standard identifier |
 | `fmis` | FK → FMIS | Parent FMIS document |
 | `investigation` | FK → Investigation | The investigation that created or last modified this row |
-| `process_model` | FK → ProcessModel (nullable) | Which process model this row's entities belong to |
 | | | |
 | **Failure mode** | | |
-| `failure_mode_entity` | FK → KG Entity (nullable) | Operational definition — links to knowledge graph entity. Null = not yet defined (knowledge gap). |
-| `failure_mode_text` | CharField | Human-readable label. May be derived from entity or manually entered. |
+| `failure_mode_text` | CharField | Human-readable label |
 | **Effect** | | |
-| `effect_entity` | FK → KG Entity (nullable) | Operational definition of the downstream effect |
 | `effect_text` | CharField | Human-readable label |
 | **Cause** | | |
-| `cause_entity` | FK → KG Entity (nullable) | Operational definition of the cause mechanism |
 | `cause_text` | CharField | Human-readable label |
 | | | |
 | **Controls** | | |
 | `prevention_control` | TextField | Current prevention control description |
 | `detection_control` | TextField | Current detection control description |
 | | | |
-| **Severity (Categorical-Dirichlet §8.5)** | | |
-| `severity_alpha` | JSONField | Dirichlet alpha vector [α₁, α₂, α₃, α₄, α₅]. Default: [1,1,1,1,1] |
-| `severity_observation_count` | IntegerField | Total consequence observations across all categories |
-| `severity_manual` | IntegerField (1-10, nullable) | Manual override / initial committee estimate. Used when `severity_method = manual`. |
-| `severity_method` | CharField | `manual` / `bayesian`. Determines which value is displayed. |
-| | | |
-| **Occurrence (Beta-Binomial §8.4)** | | |
-| `occurrence_alpha` | FloatField (default=1) | Beta prior α |
-| `occurrence_beta` | FloatField (default=1) | Beta prior β |
-| `occurrence_failures` | IntegerField (default=0) | Cumulative failure count |
-| `occurrence_units` | IntegerField (default=0) | Cumulative units observed |
+| **Manual overrides (legacy compatibility)** | | |
+| `severity_manual` | IntegerField (1-10, nullable) | Manual override — used when graph edges are uncalibrated |
 | `occurrence_manual` | IntegerField (1-10, nullable) | Manual override |
-| `occurrence_method` | CharField | `manual` / `bayesian` |
-| | | |
-| **Detection (Beta-Binomial §8.3)** | | |
-| `detection_alpha` | FloatField (default=1) | Beta prior α |
-| `detection_beta` | FloatField (default=1) | Beta prior β |
-| `detection_detected` | IntegerField (default=0) | Cumulative detections across all forced failure tests |
-| `detection_injected` | IntegerField (default=0) | Cumulative injections across all forced failure tests |
 | `detection_manual` | IntegerField (1-10, nullable) | Manual override |
-| `detection_method` | CharField | `manual` / `bayesian` |
 | | | |
-| **Computed** | | |
-| `rpn` | IntegerField (computed) | S × O × D using posterior means mapped to 1-10 (or manual values, depending on method) |
-| `last_evidence_date` | DateTimeField (nullable) | When posteriors were last updated from evidence |
+| **Computed (from graph — GRAPH-001 §4, §7.3)** | | |
+| S/O/D values | Derived at render time | Severity: from effect edge posterior. Occurrence: from cause→failure_mode edge posterior. Detection: from most recent FFT evidence on detection edges. Falls back to manual if graph edges are uncalibrated. |
+| `rpn` | Computed | S × O × D from graph posteriors mapped to 1-10 (or manual fallback) |
 | | | |
 | **Temporal state** | | |
 | `created_at` | DateTimeField | Row creation |
@@ -842,26 +824,17 @@ FMIS (Failure Modes Investigation System) is the investigation-native FMEA. It c
 
 **Operational definition enforcement:**
 
-- Entity FKs (`failure_mode_entity`, `effect_entity`, `cause_entity`) are nullable. An FMIS row with null entities is valid but flagged as having undefined terms — a knowledge gap.
-- When `fmis.methodology = svend_full` (QMS Policy), the system requires all three entities to be linked before the row can participate in simulation (§9).
-- Entities are developed inline as the user adds rows. Not front-loaded. The system tracks definition completeness: "3 of 7 failure modes have operational definitions."
-- Entity links enforce semantic consistency. If two rows reference the same `cause_entity`, they share the same operational definition. No semantic drift.
+- FMISRow text fields are the minimum. When the org seeds their ProcessGraph from FMIS (GRAPH-001 §7), each row's cause, failure mode, and effect become ProcessNode records. The graph is the operational definition layer.
+- Entities are developed inline as the user adds rows. The system tracks which rows have been seeded into the graph: "3 of 7 failure modes mapped to ProcessNodes."
+- Graph node links enforce semantic consistency. If two rows reference the same cause text and are seeded, they share the same ProcessNode.
 
 **Forced failure test linkage:**
 
-ForcedFailureTest records (§7.2) link to FMISRow. When a test concludes:
-1. `detection_detected += test.detection_count`
-2. `detection_injected += test.injection_count`
-3. `detection_alpha` and `detection_beta` recomputed from cumulative counts
-4. `last_evidence_date` updated
-5. If multiple controls tested, each test records which control was active — the row tracks aggregate detection, but individual test records preserve the factorial state for control comparison.
+ForcedFailureTest records (§7.2) link to FMISRow. When a test concludes, evidence flows to the graph via `GraphService.add_evidence()` (GRAPH-001 §11). The FFT integration bridge (graph/integrations.py) maps detection results to edge evidence on FMIS-linked edges.
 
 **Migration from standalone FMEA:**
 
-An existing FMEARow can be linked to an FMISRow via `fmea_row` FK (nullable). This allows:
-- Importing manual S/O/D scores as Bayesian priors
-- Preserving existing RPN history
-- Progressive migration: start with AIAG, switch to Bayesian as evidence accumulates
+An existing FMEARow can be linked to an FMISRow via `fmea_row` FK (nullable). Manual S/O/D scores serve as fallback when graph edges are uncalibrated. As evidence accumulates on graph edges, computed S/O/D from posteriors takes precedence.
 
 ---
 
