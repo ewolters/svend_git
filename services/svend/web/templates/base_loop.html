@@ -307,6 +307,27 @@
 .loop-tag.info { background: rgba(96,165,250,0.15); color: #60a5fa; }
 .loop-tag.success { background: rgba(74,222,128,0.15); color: #4ade80; }
 
+/* ── Activity Feed (shared component) ── */
+.activity-feed { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.activity-feed-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); margin-bottom: 8px; cursor: pointer; }
+.activity-entry { display: flex; gap: 8px; padding: 4px 0; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.02); }
+.activity-entry:last-child { border-bottom: none; }
+.activity-entry .act-time { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 10px; min-width: 55px; flex-shrink: 0; }
+.activity-entry .act-icon { width: 14px; text-align: center; flex-shrink: 0; }
+.activity-entry .act-text { color: var(--text-secondary); flex: 1; }
+.activity-entry.system .act-text { font-style: italic; color: var(--text-dim); }
+
+/* ── Workflow Gate Indicators ── */
+.gate-btn { position: relative; }
+.gate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.gate-btn .gate-tooltip {
+    display: none; position: absolute; bottom: 100%; left: 0; right: 0;
+    background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 8px; font-size: 10px; color: var(--text-dim); white-space: nowrap;
+    margin-bottom: 4px; z-index: 10;
+}
+.gate-btn:hover .gate-tooltip { display: block; }
+
 {% block loop_extra_style %}{% endblock %}
 </style>
 {% endblock %}
@@ -317,7 +338,19 @@
     <div class="loop-sidebar">
         <div class="loop-sidebar-header">
             <h2>Loop</h2>
-            <span class="loop-readiness" id="loopReadiness" title="CI Readiness Score">—</span>
+            <span class="loop-readiness" id="loopReadiness" title="Knowledge Health — click to expand" style="cursor:pointer;" onclick="toggleHealthPanel()">—</span>
+        </div>
+
+        <!-- Knowledge Health (collapsible) -->
+        <div id="healthPanel" style="display:none;padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;">
+            <div style="display:grid;grid-template-columns:1fr auto;gap:2px 8px;">
+                <span style="color:var(--text-dim);">Calibrated</span><span id="khCalibrated" style="color:var(--text-primary);font-family:'JetBrains Mono',monospace;">—</span>
+                <span style="color:var(--text-dim);">Stale</span><span id="khStale" style="color:var(--text-primary);font-family:'JetBrains Mono',monospace;">—</span>
+                <span style="color:var(--text-dim);">Contradicted</span><span id="khContradicted" style="color:var(--text-primary);font-family:'JetBrains Mono',monospace;">—</span>
+                <span style="color:var(--text-dim);">Gaps</span><span id="khGaps" style="color:var(--text-primary);font-family:'JetBrains Mono',monospace;">—</span>
+                <span style="color:var(--text-dim);">Maturity</span><span id="khMaturity" style="color:var(--accent-primary);font-family:'JetBrains Mono',monospace;">—</span>
+            </div>
+            <a href="/app/process-map/" style="display:block;margin-top:6px;font-size:10px;color:var(--accent-primary);text-decoration:none;">Full Dashboard →</a>
         </div>
 
         <!-- Detect -->
@@ -446,6 +479,43 @@
     }).catch(() => {});
 })();
 
+// ── Knowledge Health panel ──
+function toggleHealthPanel() {
+    const panel = document.getElementById('healthPanel');
+    if (!panel) return;
+    const visible = panel.style.display !== 'none';
+    panel.style.display = visible ? 'none' : 'block';
+    if (!visible) loadKnowledgeHealth();
+}
+
+function loadKnowledgeHealth() {
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    fetch('/api/graph/health/', { headers: { 'X-CSRFToken': csrf }})
+    .then(r => r.ok ? r.json() : null)
+    .then(h => {
+        if (!h) return;
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('khCalibrated', (h.calibration_rate != null ? Math.round(h.calibration_rate * 100) + '%' : '—'));
+        set('khStale', (h.staleness_rate != null ? Math.round(h.staleness_rate * 100) + '%' : '—'));
+        set('khContradicted', h.contradiction_count ?? h.contradiction_rate ?? '—');
+        set('khGaps', h.knowledge_gap_ratio != null ? Math.round(h.knowledge_gap_ratio * 100) + '%' : '—');
+
+        // Maturity level
+        const mi = h.maturity_indicators || {};
+        let level = 0;
+        if (mi.level_4) level = 4;
+        else if (mi.level_3) level = 3;
+        else if (mi.level_2) level = 2;
+        else if (mi.level_1) level = 1;
+        set('khMaturity', level ? 'L' + level : '—');
+
+        // Update readiness badge with health score
+        const score = h.calibration_rate != null ? Math.round(h.calibration_rate * 100) : null;
+        if (score != null) set('loopReadiness', score);
+    })
+    .catch(() => {});
+}
+
 // ── Focus mode toggle ──
 function toggleFocusMode() {
     const shell = document.querySelector('.loop-shell');
@@ -469,6 +539,66 @@ function setContextBanner(html) {
     if (el) el.innerHTML = html;
     const banner = document.getElementById('loopContextBanner');
     if (banner && html) banner.classList.add('visible');
+}
+
+// ── Activity feed loader ──
+function loadActivityFeed(entityType, entityId, containerId) {
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    fetch(`/api/graph/activity/${entityType}/${entityId}/`, { headers: { 'X-CSRFToken': csrf }})
+    .then(r => r.ok ? r.json() : [])
+    .then(events => {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        if (!Array.isArray(events) || !events.length) {
+            el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);padding:4px 0;">No activity</div>';
+            return;
+        }
+        el.innerHTML = events.slice(0, 50).map(e => {
+            const isSystem = e.source === 'system';
+            const icon = e.event_type === 'status_change' ? '◉' : e.event_type === 'note' ? '✎' : e.event_type === 'evidence' ? '◆' : '·';
+            return `<div class="activity-entry${isSystem ? ' system' : ''}">
+                <span class="act-time">${e.timestamp ? formatActTime(e.timestamp) : ''}</span>
+                <span class="act-icon">${icon}</span>
+                <span class="act-text">${esc(e.description || '')}</span>
+            </div>`;
+        }).join('');
+    })
+    .catch(() => {
+        const el = document.getElementById(containerId);
+        if (el) el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);">Activity unavailable</div>';
+    });
+}
+
+function formatActTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = (now - d) / 1000;
+    if (diff < 3600) return Math.floor(diff/60) + 'm';
+    if (diff < 86400) return Math.floor(diff/3600) + 'h';
+    if (diff < 604800) return Math.floor(diff/86400) + 'd';
+    return d.toLocaleDateString();
+}
+
+function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+
+// ── Workflow gates loader ──
+function loadWorkflowGates(entityType, entityId, containerId) {
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    fetch(`/api/graph/gates/${entityType}/${entityId}/`, { headers: { 'X-CSRFToken': csrf }})
+    .then(r => r.ok ? r.json() : [])
+    .then(gates => {
+        const el = document.getElementById(containerId);
+        if (!el || !Array.isArray(gates)) return;
+        el.innerHTML = gates.map(g => {
+            const met = g.met;
+            return `<button class="btn gate-btn${met ? '' : ' disabled'}" ${met ? '' : 'disabled'}>
+                ${g.action.replace(/_/g, ' ')}
+                ${met ? '' : `<span class="gate-tooltip">${esc(g.description)}</span>`}
+            </button>`;
+        }).join('');
+    })
+    .catch(() => {});
 }
 
 // ── Slash commands for textareas ──

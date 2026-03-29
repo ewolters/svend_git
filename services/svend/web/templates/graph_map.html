@@ -78,6 +78,7 @@
                 <button class="gm-lens-btn" data-lens="fmea" onclick="setLens('fmea')">FMEA View</button>
                 <button class="gm-lens-btn" data-lens="gap" onclick="setLens('gap')">Gap View</button>
                 <button class="gm-lens-btn" data-lens="control" onclick="setLens('control')">Control View</button>
+                <button class="gm-lens-btn" data-lens="customer" onclick="setLens('customer')">Customer View</button>
             </div>
         </div>
 
@@ -166,8 +167,18 @@ function initCy(elements) {
                     'text-margin-y': 6,
                     'width': 28,
                     'height': 28,
-                    'border-width': function(ele) { return ele.data('has_spc') ? 3 : 1; },
-                    'border-color': function(ele) { return ele.data('has_spc') ? '#22c55e' : 'rgba(255,255,255,0.2)'; },
+                    'border-width': function(ele) {
+                        // Classification tier → border thickness (OLR-001 §4.7)
+                        const tier = ele.data('classification_tier');
+                        if (tier === 'critical') return 3;
+                        if (tier === 'major') return 2;
+                        return 1;
+                    },
+                    'border-color': function(ele) {
+                        if (ele.data('customer_facing')) return '#e8c547'; // gold star = customer-facing
+                        if (ele.data('has_spc')) return '#22c55e';
+                        return 'rgba(255,255,255,0.2)';
+                    },
                     'text-outline-width': 2,
                     'text-outline-color': '#0d120d',
                 }
@@ -182,7 +193,14 @@ function initCy(elements) {
                         if (!ele.data('is_calibrated')) return 'rgba(255,255,255,0.15)';
                         return 'rgba(99,102,241,0.6)';
                     },
-                    'line-style': function(ele) { return ele.data('is_calibrated') ? 'solid' : 'dashed'; },
+                    'line-style': function(ele) {
+                        if (!ele.data('is_calibrated')) return 'dashed';
+                        // Detection mechanism level → dash pattern (OLR-001 §9)
+                        const dl = ele.data('detection_level');
+                        if (dl && dl >= 6) return 'dotted';   // unstructured/downstream
+                        if (dl && dl >= 4) return 'solid';     // structured human
+                        return 'solid';                        // automated (1-3) or unknown
+                    },
                     'target-arrow-shape': 'triangle',
                     'target-arrow-color': function(ele) {
                         if (ele.data('is_contradicted')) return '#ef4444';
@@ -284,6 +302,9 @@ async function showNodeDetail(nodeId) {
         <div class="gm-detail-section-title">Properties</div>
         <div class="gm-detail-row"><span class="gm-detail-label">Type</span><span class="gm-detail-value">${d.node_type}</span></div>
         ${d.unit ? `<div class="gm-detail-row"><span class="gm-detail-label">Unit</span><span class="gm-detail-value">${d.unit}</span></div>` : ''}
+        ${d.classification_tier ? `<div class="gm-detail-row"><span class="gm-detail-label">Classification</span><span class="gm-detail-value"><span class="gm-badge ${d.classification_tier === 'critical' ? 'gm-badge-red' : d.classification_tier === 'major' ? 'gm-badge-amber' : 'gm-badge-dim'}">${d.classification_tier}</span></span></div>` : ''}
+        ${d.customer_facing ? `<div class="gm-detail-row"><span class="gm-detail-label">Customer</span><span class="gm-detail-value"><span class="gm-badge gm-badge-amber">Customer-Facing</span></span></div>` : ''}
+        ${d.detection_mechanism_level ? `<div class="gm-detail-row"><span class="gm-detail-label">Detection Level</span><span class="gm-detail-value">${d.detection_mechanism_level}/8</span></div>` : ''}
         ${d.controllability ? `<div class="gm-detail-row"><span class="gm-detail-label">Controllability</span><span class="gm-detail-value">${d.controllability}</span></div>` : ''}
         ${d.control_method ? `<div class="gm-detail-row"><span class="gm-detail-label">Control Method</span><span class="gm-detail-value">${d.control_method}</span></div>` : ''}
         <div class="gm-detail-row"><span class="gm-detail-label">SPC</span><span class="gm-detail-value">${d.has_spc ? '<span class="gm-badge gm-badge-green">Monitored</span>' : '<span class="gm-badge gm-badge-dim">None</span>'}</span></div>
