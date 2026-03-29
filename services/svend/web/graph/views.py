@@ -708,3 +708,163 @@ def workflow_gates(request, entity_type, entity_id):
             gates.append({"action": target, "met": met, "description": desc})
 
     return JsonResponse({"gates": gates, "entity_type": entity_type, "entity_id": str(entity_id)})
+
+
+# =============================================================================
+# Configuration System API
+# =============================================================================
+
+
+@require_auth
+@require_http_methods(["GET"])
+def config_list(request):
+    """Get all configuration settings for the tenant.
+
+    Optional query params:
+        domain: filter to a specific domain (quality, process, safety, etc.)
+        site_id: include site-level overrides
+    """
+    tenant_id = _get_tenant_id(request)
+    if not tenant_id:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    from .config import DEFAULTS, ConfigService
+
+    domain = request.GET.get("domain")
+    site_id = request.GET.get("site_id")
+
+    if domain:
+        settings = ConfigService.get_domain(tenant_id, domain, site_id=site_id)
+    else:
+        settings = ConfigService.get_all(tenant_id, site_id=site_id)
+
+    # Mark which settings are overridden from defaults
+    overrides = {}
+    from .models import TenantConfig
+
+    for entry in TenantConfig.objects.filter(tenant_id=tenant_id):
+        overrides[entry.key] = {
+            "value": entry.value,
+            "site_id": str(entry.site_id) if entry.site_id else None,
+            "updated_by": str(entry.updated_by_id) if entry.updated_by_id else None,
+            "updated_at": entry.updated_at.isoformat(),
+        }
+
+    # Build response with defaults, current values, and override metadata
+    result = []
+    for key, value in sorted(settings.items()):
+        entry = {
+            "key": key,
+            "domain": key.split(".")[0] if "." in key else "general",
+            "value": value,
+            "default": DEFAULTS.get(key),
+            "is_default": key not in overrides,
+        }
+        if key in overrides:
+            entry["override"] = overrides[key]
+        result.append(entry)
+
+    return JsonResponse({"settings": result, "count": len(result)})
+
+
+@require_auth
+@require_http_methods(["PUT"])
+def config_set(request):
+    """Set a configuration value.
+
+    PUT body: {"key": "quality.ncr.require_root_cause", "value": true, "site_id": null}
+    """
+    import json
+
+    tenant_id = _get_tenant_id(request)
+    if not tenant_id:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    data = json.loads(request.body)
+    key = data.get("key")
+    value = data.get("value")
+    site_id = data.get("site_id")
+
+    if not key:
+        return JsonResponse({"error": "key required"}, status=400)
+    if value is None:
+        return JsonResponse({"error": "value required"}, status=400)
+
+    from .config import DEFAULTS, ConfigService
+
+    if key not in DEFAULTS:
+        return JsonResponse({"error": f"Unknown config key: {key}"}, status=400)
+
+    obj = ConfigService.set(tenant_id, key, value, site_id=site_id, updated_by=request.user)
+    return JsonResponse(
+        {
+            "key": key,
+            "value": value,
+            "domain": obj.domain,
+            "site_id": str(site_id) if site_id else None,
+        }
+    )
+
+
+@require_auth
+@require_http_methods(["POST"])
+def config_apply_preset(request):
+    """Apply a configuration preset.
+
+    POST body: {"preset": "iso_9001"}
+    """
+    import json
+
+    tenant_id = _get_tenant_id(request)
+    if not tenant_id:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    data = json.loads(request.body)
+    preset_name = data.get("preset")
+
+    from .config import PRESETS, ConfigService
+
+    if preset_name not in PRESETS:
+        return JsonResponse(
+            {"error": f"Unknown preset: {preset_name}. Available: {list(PRESETS.keys())}"},
+            status=400,
+        )
+
+    count = ConfigService.apply_preset(tenant_id, preset_name, updated_by=request.user)
+    return JsonResponse({"preset": preset_name, "settings_applied": count})
+
+
+@require_auth
+@require_http_methods(["GET"])
+def config_presets(request):
+    """List available configuration presets with their settings."""
+    from .config import DEFAULTS, PRESETS
+
+    result = {}
+    for name, overrides in PRESETS.items():
+        changes = []
+        for key, value in sorted(overrides.items()):
+            default = DEFAULTS.get(key)
+            if value != default:
+                changes.append({"key": key, "value": value, "default": default})
+        result[name] = {
+            "name": name,
+            "total_overrides": len(overrides),
+            "changes_from_default": changes,
+        }
+
+    return JsonResponse({"presets": result})
+
+
+@require_auth
+@require_http_methods(["GET"])
+def config_domains(request):
+    """List all configuration domains with setting counts."""
+    from .config import DEFAULTS
+
+    domains = {}
+    for key in DEFAULTS:
+        domain = key.split(".")[0] if "." in key else "general"
+        domains[domain] = domains.get(domain, 0) + 1
+
+    return JsonResponse({"domains": [{"name": d, "setting_count": c} for d, c in sorted(domains.items())]})

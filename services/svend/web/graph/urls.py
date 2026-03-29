@@ -21,4 +21,10 @@ urlpatterns = [
     path("activity/<str:entity_type>/<uuid:entity_id>/", views.activity_feed, name="activity_feed"),
     # S1-7: Workflow gates
     path("gates/<str:entity_type>/<uuid:entity_id>/", views.workflow_gates, name="workflow_gates"),
+    # Configuration system
+    path("config/", views.config_list, name="config_list"),
+    path("config/set/", views.config_set, name="config_set"),
+    path("config/preset/", views.config_apply_preset, name="config_apply_preset"),
+    path("config/presets/", views.config_presets, name="config_presets"),
+    path("config/domains/", views.config_domains, name="config_domains"),
 ]
