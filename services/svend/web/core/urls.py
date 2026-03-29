@@ -100,12 +100,7 @@ urlpatterns = [
         views.review_design_execution,
         name="review_design_execution",
     ),
-    # Knowledge Graph
-    path("graph/", views.knowledge_graph, name="knowledge_graph"),
-    path("graph/entities/", views.entity_list, name="entity_list"),
-    path("graph/entities/<uuid:entity_id>/", views.entity_detail, name="entity_detail"),
-    path("graph/relationships/", views.relationship_list, name="relationship_list"),
-    path("graph/check-consistency/", views.check_consistency, name="check_consistency"),
+    # Knowledge Graph — REMOVED (Object 271). Replaced by /api/graph/ (GRAPH-001).
     # Organization management
     path("org/", views.org_info, name="org_info"),
     path("org/create/", views.org_create, name="org_create"),

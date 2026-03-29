@@ -23,7 +23,6 @@ from .models import (
     EvidenceLink,
     ExperimentDesign,
     Hypothesis,
-    KnowledgeGraph,
     Membership,
     OrgInvitation,
     Project,
@@ -34,19 +33,16 @@ from .serializers import (
     CreateEvidenceFromAnalysisSerializer,
     CreateEvidenceFromCodeSerializer,
     DatasetSerializer,
-    EntitySerializer,
     EvidenceLinkSerializer,
     EvidenceSerializer,
     ExperimentDesignDetailSerializer,
     ExperimentDesignSerializer,
     HypothesisDetailSerializer,
     HypothesisSerializer,
-    KnowledgeGraphDetailSerializer,
     ProjectDetailSerializer,
     ProjectListSerializer,
-    RelationshipSerializer,
 )
-from .synara import synara
+from .synara import synara  # Used by hypothesis-level Bayesian updates
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +53,10 @@ logger = logging.getLogger(__name__)
 
 
 def get_user_graph(user):
-    """Get or create the user's personal knowledge graph."""
-    graph, created = KnowledgeGraph.objects.get_or_create(
-        user=user,
-        defaults={"name": f"{user.username}'s Knowledge Graph"},
-    )
+    """Legacy: get or create user's old KG for Project FK. Deprecated by graph.ProcessGraph."""
+    from .models import KnowledgeGraph
+
+    graph, _ = KnowledgeGraph.objects.get_or_create(user=user, defaults={"name": f"{user.username}'s Knowledge Graph"})
     return graph
 
 
@@ -756,110 +751,8 @@ def create_evidence_from_analysis(request):
 # =============================================================================
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def knowledge_graph(request):
-    """Get the user's knowledge graph."""
-    graph = get_user_graph(request.user)
-    serializer = KnowledgeGraphDetailSerializer(graph)
-    return Response(serializer.data)
-
-
-@api_view(["GET", "POST"])
-@permission_classes([IsAuthenticated])
-def entity_list(request):
-    """List entities or create a new one."""
-    graph = get_user_graph(request.user)
-
-    if request.method == "GET":
-        entity_type = request.query_params.get("type")
-        entities = graph.entities.all()
-        if entity_type:
-            entities = entities.filter(entity_type=entity_type)
-        serializer = EntitySerializer(entities, many=True)
-        return Response(serializer.data)
-
-    elif request.method == "POST":
-        serializer = EntitySerializer(data=request.data)
-        if serializer.is_valid():
-            entity = serializer.save(graph=graph, created_by=request.user)
-            return Response(EntitySerializer(entity).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(["GET", "PUT", "DELETE"])
-@permission_classes([IsAuthenticated])
-def entity_detail(request, entity_id):
-    """Get, update, or delete an entity."""
-    graph = get_user_graph(request.user)
-    entity = get_object_or_404(graph.entities, id=entity_id)
-
-    if request.method == "GET":
-        serializer = EntitySerializer(entity)
-        return Response(serializer.data)
-
-    elif request.method == "PUT":
-        serializer = EntitySerializer(entity, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == "DELETE":
-        entity.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-@api_view(["GET", "POST"])
-@permission_classes([IsAuthenticated])
-def relationship_list(request):
-    """List relationships or create a new one."""
-    graph = get_user_graph(request.user)
-
-    if request.method == "GET":
-        relation_type = request.query_params.get("type")
-        relationships = graph.relationships.all()
-        if relation_type:
-            relationships = relationships.filter(relation_type=relation_type)
-        serializer = RelationshipSerializer(relationships, many=True)
-        return Response(serializer.data)
-
-    elif request.method == "POST":
-        data = request.data.copy()
-        serializer = RelationshipSerializer(data=data)
-        if serializer.is_valid():
-            relationship = serializer.save(graph=graph, created_by=request.user)
-            return Response(
-                RelationshipSerializer(relationship).data,
-                status=status.HTTP_201_CREATED,
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-@rate_limited
-def check_consistency(request):
-    """Check knowledge graph for logical consistency issues."""
-    graph = get_user_graph(request.user)
-    issues = synara.check_consistency(graph)
-
-    return Response(
-        {
-            "issues": [
-                {
-                    "type": issue.issue_type,
-                    "severity": issue.severity,
-                    "description": issue.description,
-                    "entities": issue.entities_involved,
-                    "suggestions": issue.suggestions,
-                }
-                for issue in issues
-            ],
-            "total_issues": len(issues),
-            "has_errors": any(i.severity == "error" for i in issues),
-        }
-    )
+# KG views REMOVED (Object 271) — knowledge_graph, entity_list, entity_detail,
+# relationship_list, check_consistency all replaced by /api/graph/ (GRAPH-001).
 
 
 # =============================================================================

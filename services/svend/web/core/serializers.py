@@ -4,17 +4,16 @@ from rest_framework import serializers
 
 from .models import (
     Dataset,
-    Entity,
     Evidence,
     EvidenceLink,
     ExperimentDesign,
     Hypothesis,
-    KnowledgeGraph,
     Membership,
     Project,
-    Relationship,
     Tenant,
 )
+
+# Entity, KnowledgeGraph, Relationship imports REMOVED (Object 271) — replaced by graph/ app
 
 # =============================================================================
 # Tenant & Membership
@@ -53,72 +52,9 @@ class TenantSerializer(serializers.ModelSerializer):
 # =============================================================================
 
 
-class EntitySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Entity
-        fields = [
-            "id",
-            "name",
-            "entity_type",
-            "custom_type",
-            "description",
-            "properties",
-            "unit",
-            "typical_min",
-            "typical_max",
-            "occurred_at",
-            "created_at",
-        ]
-        read_only_fields = ["id", "created_at"]
-
-
-class RelationshipSerializer(serializers.ModelSerializer):
-    source_name = serializers.CharField(source="source.name", read_only=True)
-    target_name = serializers.CharField(source="target.name", read_only=True)
-
-    class Meta:
-        model = Relationship
-        fields = [
-            "id",
-            "source",
-            "source_name",
-            "target",
-            "target_name",
-            "relation_type",
-            "custom_type",
-            "strength",
-            "confidence",
-            "effect_size",
-            "evidence_summary",
-            "properties",
-            "created_at",
-        ]
-        read_only_fields = ["id", "created_at"]
-
-
-class KnowledgeGraphSerializer(serializers.ModelSerializer):
-    entity_count = serializers.IntegerField(read_only=True)
-    relationship_count = serializers.IntegerField(read_only=True)
-
-    class Meta:
-        model = KnowledgeGraph
-        fields = [
-            "id",
-            "name",
-            "description",
-            "entity_count",
-            "relationship_count",
-            "created_at",
-        ]
-        read_only_fields = ["id", "created_at"]
-
-
-class KnowledgeGraphDetailSerializer(KnowledgeGraphSerializer):
-    entities = EntitySerializer(many=True, read_only=True)
-    relationships = RelationshipSerializer(many=True, read_only=True)
-
-    class Meta(KnowledgeGraphSerializer.Meta):
-        fields = KnowledgeGraphSerializer.Meta.fields + ["entities", "relationships"]
+# EntitySerializer, RelationshipSerializer, KnowledgeGraphSerializer,
+# KnowledgeGraphDetailSerializer REMOVED (Object 271).
+# Graph data is served by /api/graph/ endpoints (graph/views.py).
 
 
 # =============================================================================
@@ -165,9 +101,7 @@ class EvidenceSerializer(serializers.ModelSerializer):
 
 class EvidenceLinkSerializer(serializers.ModelSerializer):
     evidence_summary = serializers.CharField(source="evidence.summary", read_only=True)
-    evidence_source = serializers.CharField(
-        source="evidence.source_type", read_only=True
-    )
+    evidence_source = serializers.CharField(source="evidence.source_type", read_only=True)
     strength_description = serializers.CharField(source="strength", read_only=True)
 
     class Meta:
@@ -341,9 +275,7 @@ class ExperimentDesignSerializer(serializers.ModelSerializer):
 
 class ExperimentDesignDetailSerializer(ExperimentDesignSerializer):
     result_datasets = DatasetSerializer(many=True, read_only=True)
-    hypothesis_statement = serializers.CharField(
-        source="hypothesis.statement", read_only=True
-    )
+    hypothesis_statement = serializers.CharField(source="hypothesis.statement", read_only=True)
 
     class Meta(ExperimentDesignSerializer.Meta):
         fields = ExperimentDesignSerializer.Meta.fields + [
@@ -521,9 +453,7 @@ class CreateEvidenceFromAnalysisSerializer(serializers.Serializer):
 
     # Evidence details
     summary = serializers.CharField(max_length=500)
-    analysis_type = serializers.CharField(
-        max_length=100
-    )  # "regression", "classification", "correlation", etc.
+    analysis_type = serializers.CharField(max_length=100)  # "regression", "classification", "correlation", etc.
 
     # Analysis results
     results = serializers.JSONField()
