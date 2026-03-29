@@ -826,3 +826,162 @@ def management_review_graph_input(
             },
         ],
     }
+
+
+# =============================================================================
+# CoA → Graph + SPC (Supplier Accountability Phases 6-7)
+# =============================================================================
+
+
+def coa_to_graph_and_spc(
+    tenant_id: UUID,
+    coa_id: UUID,
+    user=None,
+) -> dict:
+    """Ingest CoA measurements into graph nodes and SPC charts.
+
+    For each measurement in the CoA:
+    1. Find a material_property ProcessNode matching part_number + parameter name
+    2. Update node distribution from the measurement value
+    3. Add evidence on edges connected to that node
+    4. If node has a linked SPC chart, push the data point
+
+    Returns dict summarizing what was done.
+    """
+    from loop.models import SupplierCoA
+
+    try:
+        coa = SupplierCoA.objects.select_related("supplier").get(id=coa_id)
+    except SupplierCoA.DoesNotExist:
+        return {"status": "coa_not_found"}
+
+    graph = _find_tenant_graph(tenant_id)
+    if not graph:
+        return {"status": "no_graph"}
+
+    measurements = coa.measurements or []
+    if not measurements:
+        return {"status": "no_measurements"}
+
+    result = {
+        "status": "ok",
+        "nodes_updated": 0,
+        "evidence_created": 0,
+        "spc_points_pushed": 0,
+        "nodes_not_found": [],
+    }
+
+    linked_node_ids = []
+
+    for m in measurements:
+        parameter = m.get("parameter", "")
+        value = m.get("value")
+        if not parameter or value is None:
+            continue
+
+        # Find material property node by name match
+        # Try exact match first, then case-insensitive
+        node = graph.nodes.filter(
+            node_type="material_property",
+            name__iexact=parameter,
+        ).first()
+
+        # Also try matching with part_number context
+        if not node and coa.part_number:
+            node = graph.nodes.filter(
+                name__icontains=parameter,
+            ).first()
+
+        if not node:
+            result["nodes_not_found"].append(parameter)
+            continue
+
+        linked_node_ids.append(str(node.id))
+
+        # Update node distribution
+        existing = node.distribution or {}
+        existing_n = existing.get("n", 0)
+        existing_mean = existing.get("mean", value)
+
+        # Running mean update
+        new_n = existing_n + 1
+        new_mean = existing_mean + (value - existing_mean) / new_n
+
+        GraphService.update_node_distribution(
+            tenant_id,
+            node.id,
+            {
+                "mean": round(new_mean, 6),
+                "n": new_n,
+                "source": f"coa_{coa.coa_number}",
+                "as_of": timezone.now().isoformat(),
+            },
+        )
+
+        # Update spec limits if CoA provides them and node doesn't have them
+        if not node.spec_limits and (m.get("spec_min") is not None or m.get("spec_max") is not None):
+            GraphService.update_node(
+                tenant_id,
+                node.id,
+                spec_limits={
+                    "lsl": m.get("spec_min"),
+                    "usl": m.get("spec_max"),
+                },
+            )
+
+        result["nodes_updated"] += 1
+
+        # Add evidence on edges connected to this node
+        edges = _find_edges_for_node(graph, node.id)
+        for edge in edges:
+            ev = GraphService.add_evidence(
+                tenant_id=tenant_id,
+                edge_id=edge.id,
+                source_type="safety",  # closest available — represents incoming material evidence
+                observed_at=coa.date_issued or timezone.now(),
+                source_description=(
+                    f"CoA {coa.coa_number}: {parameter}={value}"
+                    f"{' ' + m.get('unit', '') if m.get('unit') else ''}"
+                    f" (lot {coa.lot_number})"
+                    f" — {'CONFORMING' if m.get('conforming', True) else 'NONCONFORMING'}"
+                ),
+                effect_size=value,
+                confidence_interval=(
+                    {"lower": m.get("spec_min"), "upper": m.get("spec_max")} if m.get("spec_min") is not None else None
+                ),
+                strength=0.85 if m.get("conforming", True) else 0.5,
+                source_id=coa_id,
+                created_by=user,
+            )
+            if ev:
+                result["evidence_created"] += 1
+
+        # Push to SPC if node has linked chart
+        if node.linked_spc_chart:
+            try:
+                spc_to_graph(
+                    tenant_id=tenant_id,
+                    chart_id=node.linked_spc_chart,
+                    center_line=new_mean,
+                    data_points=[value],
+                    chart_type="coa_incoming",
+                    user=user,
+                )
+                result["spc_points_pushed"] += 1
+            except Exception as e:
+                logger.warning("CoA→SPC push failed for node %s: %s", node.name, e)
+
+    # Update CoA with linked node IDs
+    if linked_node_ids:
+        coa.linked_process_node_ids = linked_node_ids
+        coa.save(update_fields=["linked_process_node_ids", "updated_at"])
+
+    logger.info(
+        "CoA→graph: %d nodes updated, %d evidence, %d SPC points from CoA %s",
+        result["nodes_updated"],
+        result["evidence_created"],
+        result["spc_points_pushed"],
+        coa.coa_number,
+    )
+
+    return result

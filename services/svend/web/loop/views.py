@@ -2966,11 +2966,23 @@ def coa_detail(request, coa_id):
         coa.save(update_fields=["status", "rejection_reason", "reviewed_by", "reviewed_at", "updated_at"])
 
     elif action == "ingest":
-        # Mark as ingested — actual SPC data push is handled by integration layer
+        # Push measurements to graph nodes + SPC charts
+        from graph.integrations import coa_to_graph_and_spc
+
+        ingest_result = coa_to_graph_and_spc(
+            tenant_id=tenant.id,
+            coa_id=coa.id,
+            user=request.user,
+        )
+
         coa.status = SupplierCoA.Status.INGESTED
         coa.spc_data_ingested = True
         coa.spc_ingestion_date = timezone.now()
         coa.save(update_fields=["status", "spc_data_ingested", "spc_ingestion_date", "updated_at"])
+
+        result = _serialize_coa(coa)
+        result["ingest_result"] = ingest_result
+        return JsonResponse(result)
 
     elif action == "update_measurements":
         coa.measurements = data.get("measurements", [])
