@@ -1,0 +1,472 @@
+{% extends "base_loop.html" %}
+
+{% block loop_extra_style %}
+/* ── Supplier filters ── */
+.sup-filter-btn {
+    padding: 3px 6px; font-size: 10px; border: 1px solid var(--border); border-radius: 4px;
+    background: transparent; color: var(--text-secondary); cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+.sup-filter-btn:hover { border-color: var(--accent-primary-border); color: var(--text-primary); }
+.sup-filter-btn.active { background: var(--accent-primary-dim); border-color: var(--accent-primary-border); color: var(--accent-primary); }
+
+/* ── Status badges ── */
+.sup-status { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+.sup-status.pending { background: rgba(96,165,250,0.15); color: #60a5fa; }
+.sup-status.approved { background: rgba(74,222,128,0.15); color: #4ade80; }
+.sup-status.preferred { background: rgba(167,139,250,0.15); color: #a78bfa; }
+.sup-status.conditional { background: rgba(250,204,21,0.15); color: #facc15; }
+.sup-status.suspended { background: rgba(239,68,68,0.15); color: #f87171; }
+.sup-status.disqualified { background: rgba(156,163,175,0.15); color: #9ca3af; }
+
+/* ── Type badge ── */
+.sup-type { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(74,159,175,0.1); color: #4a9faf; font-weight: 500; }
+
+/* ── Scorecard ── */
+.sup-scorecard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+.sup-score-item { text-align: center; }
+.sup-score-item .score-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); margin-bottom: 4px; }
+.sup-score-bar { height: 6px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden; }
+.sup-score-bar .fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.sup-score-value { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--text-primary); margin-top: 2px; }
+
+/* ── Detail sections ── */
+.sup-section { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.sup-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); margin-bottom: 8px; }
+
+/* ── NCR / Claim items ── */
+.sup-record-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 12px;
+}
+.sup-record-item:last-child { border-bottom: none; }
+.sup-record-item .rec-title { color: var(--text-primary); flex: 1; }
+.sup-record-item .rec-status { font-size: 10px; }
+
+/* ── Timeline ── */
+.sup-timeline-item {
+    display: flex; gap: 8px; padding: 4px 0; font-size: 11px;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+.sup-timeline-item:last-child { border-bottom: none; }
+.sup-timeline-item .tl-date { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 10px; min-width: 70px; }
+
+/* ── Contact card ── */
+.sup-contact { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ── Rating stars ── */
+.sup-stars { color: #e8c547; font-size: 14px; letter-spacing: 2px; }
+
+/* ── Create form ── */
+.sup-create-form { padding: 10px 12px; border-top: 1px solid var(--border); }
+.sup-create-form label { font-size: 10px; margin-bottom: 2px; }
+.sup-create-form input, .sup-create-form select, .sup-create-form textarea {
+    font-size: 11px; padding: 4px 6px; margin-bottom: 6px;
+}
+{% endblock %}
+
+{% block loop_content %}
+<div class="loop-list-detail">
+    <!-- Supplier detail workbench (left) -->
+    <div class="loop-detail-panel empty" id="supDetail">
+        Select a supplier to view details
+    </div>
+
+    <!-- Supplier list rail (right) -->
+    <div class="loop-list-rail">
+        <div class="loop-list-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);">
+            <span id="supListCount" style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-dim);">Suppliers</span>
+            <button class="btn btn-primary" onclick="openModal('createSupModal')" style="padding:3px 8px;font-size:10px;">+ New</button>
+        </div>
+        <div style="padding:6px 10px;border-bottom:1px solid var(--border);">
+            <input type="text" id="supSearch" placeholder="Search suppliers..." oninput="renderSupList()" style="font-size:11px;padding:4px 8px;width:100%;box-sizing:border-box;">
+        </div>
+        <div style="padding:6px 10px 4px;display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);">
+            <button class="sup-filter-btn active" data-filter="all" onclick="filterSup(this)">All</button>
+            <button class="sup-filter-btn" data-filter="approved" onclick="filterSup(this)">Approved</button>
+            <button class="sup-filter-btn" data-filter="preferred" onclick="filterSup(this)">Preferred</button>
+            <button class="sup-filter-btn" data-filter="conditional" onclick="filterSup(this)">Conditional</button>
+            <button class="sup-filter-btn" data-filter="suspended" onclick="filterSup(this)">Suspended</button>
+        </div>
+        <div class="loop-list" id="supList">
+            <div id="supListItems">
+                <div style="padding:20px;text-align:center;color:var(--text-dim);font-size:11px;">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Supplier Modal -->
+<div class="sv-modal-overlay" id="createSupModal" style="display:none;">
+    <div class="sv-modal">
+        <h3>New Supplier</h3>
+        <label>Company Name</label>
+        <input type="text" id="newSupName" placeholder="Acme Fasteners Inc.">
+        <label>Type</label>
+        <select id="newSupType">
+            <option value="raw_material">Raw Material</option>
+            <option value="component">Component</option>
+            <option value="service">Service</option>
+            <option value="equipment">Equipment</option>
+            <option value="calibration">Calibration</option>
+            <option value="other">Other</option>
+        </select>
+        <label>Contact Name</label>
+        <input type="text" id="newSupContact" placeholder="John Smith">
+        <label>Contact Email</label>
+        <input type="email" id="newSupEmail" placeholder="john@acme.com">
+        <label>Contact Phone</label>
+        <input type="text" id="newSupPhone" placeholder="+1 555 0100">
+        <label>Products / Services</label>
+        <textarea id="newSupProducts" rows="2" placeholder="What do they supply?"></textarea>
+        <div class="sv-modal-actions">
+            <button class="btn" onclick="closeModal('createSupModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="createSupplier()">Create Supplier</button>
+        </div>
+    </div>
+</div>
+
+<!-- Evaluation Modal -->
+<div class="sv-modal-overlay" id="evalModal" style="display:none;">
+    <div class="sv-modal">
+        <h3>Supplier Evaluation</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div><label>Quality (1-5)</label><input type="number" id="evalQuality" min="1" max="5" value="3"></div>
+            <div><label>Delivery (1-5)</label><input type="number" id="evalDelivery" min="1" max="5" value="3"></div>
+            <div><label>Price (1-5)</label><input type="number" id="evalPrice" min="1" max="5" value="3"></div>
+            <div><label>Communication (1-5)</label><input type="number" id="evalComm" min="1" max="5" value="3"></div>
+        </div>
+        <label>Notes</label>
+        <textarea id="evalNotes" rows="3" placeholder="Evaluation notes..."></textarea>
+        <div class="sv-modal-actions">
+            <button class="btn" onclick="closeModal('evalModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitEvaluation()">Save Evaluation</button>
+        </div>
+    </div>
+</div>
+
+<!-- Status Transition Modal -->
+<div class="sv-modal-overlay" id="transitionModal" style="display:none;">
+    <div class="sv-modal">
+        <h3 id="transitionTitle">Change Status</h3>
+        <label>New Status</label>
+        <select id="transitionStatus"></select>
+        <div id="transitionExtraFields"></div>
+        <label>Notes</label>
+        <textarea id="transitionNotes" rows="2" placeholder="Reason for status change..."></textarea>
+        <div class="sv-modal-actions">
+            <button class="btn" onclick="closeModal('transitionModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitTransition()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let suppliers = [];
+let currentSupFilter = 'all';
+let selectedSupId = null;
+
+function getCSRF() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (el) return el.value;
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+}
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+document.addEventListener('click', e => { if (e.target.classList.contains('sv-modal-overlay')) e.target.style.display = 'none'; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.sv-modal-overlay').forEach(m => m.style.display = 'none'); });
+
+function loadSuppliers() {
+    fetch('/api/iso/suppliers/', { headers: { 'X-CSRFToken': getCSRF() }})
+    .then(r => r.json())
+    .then(data => {
+        suppliers = Array.isArray(data) ? data : [];
+        renderSupList();
+    });
+}
+
+function filterSup(btn) {
+    document.querySelectorAll('.sup-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentSupFilter = btn.dataset.filter;
+    renderSupList();
+}
+
+function renderSupList() {
+    const search = (document.getElementById('supSearch')?.value || '').toLowerCase();
+    let filtered = currentSupFilter === 'all' ? suppliers : suppliers.filter(s => s.status === currentSupFilter);
+    if (search) filtered = filtered.filter(s => s.name.toLowerCase().includes(search) || (s.contact_name || '').toLowerCase().includes(search));
+
+    const el = document.getElementById('supListItems');
+    document.getElementById('supListCount').textContent = `${filtered.length} supplier${filtered.length !== 1 ? 's' : ''}`;
+
+    if (!filtered.length) {
+        el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-dim);font-size:11px;">No suppliers</div>';
+        return;
+    }
+
+    el.innerHTML = filtered.map(s => {
+        const selected = s.id === selectedSupId ? ' selected' : '';
+        const stars = s.quality_rating ? '★'.repeat(s.quality_rating) + '☆'.repeat(5 - s.quality_rating) : '—';
+        return `<div class="loop-list-item${selected}" onclick="selectSup('${s.id}')">
+            <div class="item-main">
+                <div class="item-title">${esc(s.name)}</div>
+                <div class="item-meta">
+                    <span class="sup-status ${s.status}">${s.status}</span>
+                    <span class="sup-type">${(s.supplier_type || '').replace(/_/g,' ')}</span>
+                </div>
+            </div>
+            <span style="font-size:11px;color:#e8c547;">${stars}</span>
+        </div>`;
+    }).join('');
+}
+
+function selectSup(id) {
+    selectedSupId = id;
+    renderSupList();
+    fetch(`/api/iso/suppliers/${id}/`, { headers: { 'X-CSRFToken': getCSRF() }})
+    .then(r => r.json())
+    .then(s => renderSupDetail(s));
+}
+
+function renderSupDetail(s) {
+    const panel = document.getElementById('supDetail');
+    panel.classList.remove('empty');
+
+    const stars = s.quality_rating ? '★'.repeat(s.quality_rating) + '☆'.repeat(5 - s.quality_rating) : 'Not rated';
+    const scores = s.evaluation_scores || {};
+    const evalOverdue = s.next_evaluation_date && new Date(s.next_evaluation_date) < new Date();
+
+    // Scorecard bars
+    function scoreBar(label, val) {
+        const v = val || 0;
+        const pct = (v / 5) * 100;
+        const color = v >= 4 ? '#4ade80' : v >= 3 ? '#facc15' : '#f87171';
+        return `<div class="sup-score-item">
+            <div class="score-label">${label}</div>
+            <div class="sup-score-bar"><div class="fill" style="width:${pct}%;background:${color};"></div></div>
+            <div class="sup-score-value">${v}/5</div>
+        </div>`;
+    }
+
+    // Status transitions available
+    const transitions = {
+        pending: ['approved', 'conditional', 'disqualified'],
+        approved: ['preferred', 'suspended'],
+        preferred: ['suspended'],
+        conditional: ['approved', 'suspended'],
+        suspended: ['approved', 'disqualified'],
+        disqualified: ['pending'],
+    };
+    const available = transitions[s.status] || [];
+
+    // Status history
+    const changes = (s.status_changes || []).reverse();
+
+    // Build claims section (will populate when API exists)
+    let claimsHtml = `<div class="sup-section">
+        <div class="sup-section-title">Claims</div>
+        <div id="supClaimsList" style="font-size:11px;color:var(--text-dim);">Loading...</div>
+    </div>`;
+
+    panel.innerHTML = `
+        <div class="loop-detail-header">
+            <h3>${esc(s.name)}</h3>
+            <div class="detail-meta">
+                <span class="sup-status ${s.status}">${s.status}</span>
+                <span class="sup-type">${(s.supplier_type || '').replace(/_/g,' ')}</span>
+                <span class="sup-stars">${stars}</span>
+                ${evalOverdue ? '<span style="color:#f87171;font-size:10px;font-weight:600;">EVAL OVERDUE</span>' : ''}
+            </div>
+        </div>
+
+        <div class="loop-detail-body">
+            <!-- Contact -->
+            <div class="sup-contact">
+                <div>
+                    <div class="detail-label">Contact</div>
+                    <div class="detail-value">${esc(s.contact_name || '—')}</div>
+                </div>
+                <div>
+                    <div class="detail-label">Email</div>
+                    <div class="detail-value" style="font-size:12px;">${esc(s.contact_email || '—')}</div>
+                </div>
+                <div>
+                    <div class="detail-label">Phone</div>
+                    <div class="detail-value">${esc(s.contact_phone || '—')}</div>
+                </div>
+                <div>
+                    <div class="detail-label">Products / Services</div>
+                    <div class="detail-value" style="font-size:12px;">${esc(s.products_services || '—')}</div>
+                </div>
+            </div>
+
+            <!-- Scorecard -->
+            <div class="sup-section">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div class="sup-section-title">Evaluation Scorecard</div>
+                    <button class="btn" onclick="openEvaluation('${s.id}')" style="padding:3px 8px;font-size:10px;">Run Evaluation</button>
+                </div>
+                <div class="sup-scorecard">
+                    ${scoreBar('Quality', scores.quality)}
+                    ${scoreBar('Delivery', scores.delivery)}
+                    ${scoreBar('Price', scores.price)}
+                    ${scoreBar('Communication', scores.communication)}
+                </div>
+                <div style="display:flex;gap:16px;font-size:11px;color:var(--text-dim);">
+                    <span>Last eval: ${s.last_evaluation_date || '—'}</span>
+                    <span>Next eval: ${s.next_evaluation_date || '—'}</span>
+                </div>
+            </div>
+
+            ${claimsHtml}
+
+            <!-- Status History -->
+            <div class="sup-section">
+                <div class="sup-section-title">Status History</div>
+                ${changes.length ? changes.map(c => `
+                    <div class="sup-timeline-item">
+                        <span class="tl-date">${c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</span>
+                        <span style="color:var(--text-secondary);">
+                            <span class="sup-status ${c.from_status}" style="font-size:9px;">${c.from_status}</span>
+                            → <span class="sup-status ${c.to_status}" style="font-size:9px;">${c.to_status}</span>
+                            ${c.note ? ` — ${esc(c.note)}` : ''}
+                        </span>
+                    </div>
+                `).join('') : '<div style="font-size:11px;color:var(--text-dim);">No status changes recorded</div>'}
+            </div>
+
+            ${s.notes ? `<div class="sup-section"><div class="sup-section-title">Notes</div><div style="font-size:12px;color:var(--text-primary);line-height:1.5;">${esc(s.notes)}</div></div>` : ''}
+
+            ${s.disqualification_reason ? `<div class="sup-section"><div class="sup-section-title" style="color:#f87171;">Disqualification Reason</div><div style="font-size:12px;color:var(--text-primary);">${esc(s.disqualification_reason)}</div></div>` : ''}
+        </div>
+
+        <div class="loop-detail-actions">
+            ${available.length ? `<button class="btn" onclick="openTransition('${s.id}', '${s.status}')">Change Status</button>` : ''}
+            <button class="btn" onclick="openEvaluation('${s.id}')">Evaluate</button>
+        </div>`;
+
+    // Try loading claims (will fail gracefully until API exists)
+    loadSupplierClaims(s.id);
+}
+
+function loadSupplierClaims(supplierId) {
+    fetch(`/api/loop/claims/?supplier_id=${supplierId}`, { headers: { 'X-CSRFToken': getCSRF() }})
+    .then(r => r.ok ? r.json() : { claims: [] })
+    .then(data => {
+        const el = document.getElementById('supClaimsList');
+        const claims = data.claims || [];
+        if (!claims.length) {
+            el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);">No claims filed</div>';
+            return;
+        }
+        el.innerHTML = claims.map(c => `
+            <div class="sup-record-item">
+                <span class="rec-title">${esc(c.title)}</span>
+                <span class="sup-status ${c.status}" style="font-size:9px;">${c.status}</span>
+            </div>
+        `).join('');
+    })
+    .catch(() => {
+        const el = document.getElementById('supClaimsList');
+        if (el) el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);">Claims API not available yet</div>';
+    });
+}
+
+// ── Evaluation ──
+let _evalSupId = null;
+function openEvaluation(id) {
+    _evalSupId = id;
+    const s = suppliers.find(x => x.id === id);
+    const scores = s?.evaluation_scores || {};
+    document.getElementById('evalQuality').value = scores.quality || 3;
+    document.getElementById('evalDelivery').value = scores.delivery || 3;
+    document.getElementById('evalPrice').value = scores.price || 3;
+    document.getElementById('evalComm').value = scores.communication || 3;
+    document.getElementById('evalNotes').value = '';
+    openModal('evalModal');
+}
+function submitEvaluation() {
+    const scores = {
+        quality: parseInt(document.getElementById('evalQuality').value),
+        delivery: parseInt(document.getElementById('evalDelivery').value),
+        price: parseInt(document.getElementById('evalPrice').value),
+        communication: parseInt(document.getElementById('evalComm').value),
+    };
+    const notes = document.getElementById('evalNotes').value;
+    const today = new Date().toISOString().split('T')[0];
+    fetch(`/api/iso/suppliers/${_evalSupId}/`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({
+            evaluation_scores: scores,
+            quality_rating: Math.round((scores.quality + scores.delivery + scores.price + scores.communication) / 4),
+            last_evaluation_date: today,
+            notes: notes ? (suppliers.find(s => s.id === _evalSupId)?.notes || '') + '\n\n--- Evaluation ' + today + ' ---\n' + notes : undefined,
+        }),
+    })
+    .then(r => r.json())
+    .then(() => { closeModal('evalModal'); loadSuppliers(); selectSup(_evalSupId); });
+}
+
+// ── Status Transition ──
+let _transSupId = null;
+function openTransition(id, currentStatus) {
+    _transSupId = id;
+    const transitions = {
+        pending: ['approved', 'conditional', 'disqualified'],
+        approved: ['preferred', 'suspended'],
+        preferred: ['suspended'],
+        conditional: ['approved', 'suspended'],
+        suspended: ['approved', 'disqualified'],
+        disqualified: ['pending'],
+    };
+    const opts = transitions[currentStatus] || [];
+    const sel = document.getElementById('transitionStatus');
+    sel.innerHTML = opts.map(o => `<option value="${o}">${o.replace(/_/g,' ')}</option>`).join('');
+    document.getElementById('transitionNotes').value = '';
+    document.getElementById('transitionTitle').textContent = `Change Status from "${currentStatus}"`;
+    openModal('transitionModal');
+}
+function submitTransition() {
+    const newStatus = document.getElementById('transitionStatus').value;
+    const notes = document.getElementById('transitionNotes').value;
+    fetch(`/api/iso/suppliers/${_transSupId}/`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ status: newStatus, notes: notes }),
+    })
+    .then(r => r.json())
+    .then(() => { closeModal('transitionModal'); loadSuppliers(); selectSup(_transSupId); });
+}
+
+// ── Create ──
+function createSupplier() {
+    const name = document.getElementById('newSupName').value.trim();
+    if (!name) { svToast('Supplier name is required', 'warning'); return; }
+    fetch('/api/iso/suppliers/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({
+            name: name,
+            supplier_type: document.getElementById('newSupType').value,
+            contact_name: document.getElementById('newSupContact').value,
+            contact_email: document.getElementById('newSupEmail').value,
+            contact_phone: document.getElementById('newSupPhone').value,
+            products_services: document.getElementById('newSupProducts').value,
+        }),
+    })
+    .then(r => r.json())
+    .then(() => {
+        closeModal('createSupModal');
+        ['newSupName','newSupContact','newSupEmail','newSupPhone','newSupProducts'].forEach(id => document.getElementById(id).value = '');
+        loadSuppliers();
+    });
+}
+
+function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+
+loadSuppliers();
+</script>
+{% endblock %}
