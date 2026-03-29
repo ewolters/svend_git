@@ -207,11 +207,79 @@ Tensile Strength,485.2,MPa,450,550,ASTM A370"></textarea>
         </div>
         <label>Defect Description</label>
         <textarea id="claimDefect" rows="3" placeholder="What specifically was wrong? How was it detected?"></textarea>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div><label>Response Due Date</label><input type="date" id="claimDueDate"></div>
+            <div><label>Disposition</label>
+                <select id="claimDisposition">
+                    <option value="">Pending</option>
+                    <option value="returned">Return to Supplier</option>
+                    <option value="scrapped">Scrapped</option>
+                    <option value="reworked">Reworked</option>
+                    <option value="use_as_is">Use As-Is</option>
+                    <option value="sorted">100% Sorted</option>
+                </select>
+            </div>
+            <div><label>Cost of Quality ($)</label><input type="number" id="claimCOQ" step="0.01" min="0" placeholder="0.00"></div>
+            <div><label>Credit Requested ($)</label><input type="number" id="claimCredit" step="0.01" min="0" placeholder="0.00"></div>
+        </div>
         <label>Description</label>
         <textarea id="claimDesc" rows="2" placeholder="Additional context..."></textarea>
         <div class="sv-modal-actions">
             <button class="btn" onclick="closeModal('createClaimModal')">Cancel</button>
-            <button class="btn btn-primary" onclick="createClaim()">File Claim (Draft)</button>
+            <button class="btn btn-primary" onclick="createClaim()">Create as Draft</button>
+        </div>
+    </div>
+</div>
+
+<!-- Claim Verification Modal -->
+<div class="sv-modal-overlay" id="verifyClaimModal" style="display:none;">
+    <div class="sv-modal">
+        <h3>Add Verification</h3>
+        <label>Verification Type</label>
+        <select id="verifyType">
+            <option value="next_shipment">Next Shipment Inspection</option>
+            <option value="audit">Supplier Audit</option>
+            <option value="test">Test / Re-Qualification</option>
+            <option value="document_review">Document Review</option>
+        </select>
+        <label>Result</label>
+        <select id="verifyResult">
+            <option value="conforming">Conforming</option>
+            <option value="nonconforming">Nonconforming</option>
+            <option value="partial">Partially Conforming</option>
+        </select>
+        <label>Evidence Notes</label>
+        <textarea id="verifyNotes" rows="3" placeholder="What was checked? What was found?"></textarea>
+        <div class="sv-modal-actions">
+            <button class="btn" onclick="closeModal('verifyClaimModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitVerification()">Add Verification</button>
+        </div>
+    </div>
+</div>
+
+<!-- Claim Review Modal (accept/reject response) -->
+<div class="sv-modal-overlay" id="reviewClaimModal" style="display:none;">
+    <div class="sv-modal">
+        <h3 id="reviewTitle">Review Response</h3>
+        <label>Reviewer Notes</label>
+        <textarea id="reviewNotes" rows="3" placeholder="Feedback on supplier's response..."></textarea>
+        <div class="sv-modal-actions">
+            <button class="btn" onclick="closeModal('reviewClaimModal')">Cancel</button>
+            <button class="btn" onclick="submitReview('reject')" style="border-color:rgba(239,68,68,0.3);color:#f87171;">Reject</button>
+            <button class="btn btn-primary" onclick="submitReview('accept')">Accept</button>
+        </div>
+    </div>
+</div>
+
+<!-- CoA Rejection Modal -->
+<div class="sv-modal-overlay" id="rejectCoAModal" style="display:none;">
+    <div class="sv-modal">
+        <h3>Reject CoA</h3>
+        <label>Rejection Reason</label>
+        <textarea id="rejectCoAReason" rows="3" placeholder="Why is this CoA being rejected?"></textarea>
+        <div class="sv-modal-actions">
+            <button class="btn" onclick="closeModal('rejectCoAModal')">Cancel</button>
+            <button class="btn" onclick="confirmRejectCoA()" style="border-color:rgba(239,68,68,0.3);color:#f87171;">Reject</button>
         </div>
     </div>
 </div>
@@ -514,8 +582,90 @@ function viewClaim(claimId) {
             ${financialHtml}
             ${responsesHtml ? `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);"><div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Supplier Responses (${c.responses.length})</div>${responsesHtml}</div>` : ''}
             ${verificationsHtml}
-            ${c.portal_is_valid ? `<div style="margin-top:10px;font-size:10px;color:var(--text-dim);">Portal link active (expires ${new Date(c.portal_expires_at || '').toLocaleDateString()})</div>` : ''}`;
+            ${c.portal_is_valid ? `<div style="margin-top:10px;font-size:10px;color:var(--text-dim);">Portal: <a href="/supplier-claim/${c.portal_token || ''}/" target="_blank" style="color:var(--accent-primary);">Active</a> (expires ${new Date(c.portal_expires_at || '').toLocaleDateString()})</div>` : ''}
+            <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;">
+                ${claimActionsForStatus(c)}
+            </div>`;
     });
+}
+
+function claimActionsForStatus(c) {
+    const s = c.status;
+    let btns = '';
+    if (s === 'draft') {
+        btns += `<button class="btn btn-primary" onclick="claimAction('${c.id}','file')">File Claim</button>`;
+        btns += `<button class="btn" onclick="deleteClaim('${c.id}')" style="border-color:rgba(239,68,68,0.3);color:#f87171;">Delete Draft</button>`;
+    }
+    if (s === 'responded') {
+        btns += `<button class="btn btn-primary" onclick="claimAction('${c.id}','submit_for_review')">Submit for Review</button>`;
+    }
+    if (s === 'under_review') {
+        btns += `<button class="btn btn-primary" onclick="openReviewModal('${c.id}')">Review Response</button>`;
+        btns += `<button class="btn" onclick="claimAction('${c.id}','escalate')" style="border-color:rgba(239,68,68,0.3);color:#f87171;">Escalate</button>`;
+    }
+    if (s === 'verified') {
+        btns += `<button class="btn btn-primary" onclick="claimAction('${c.id}','verify')">Close Claim</button>`;
+    }
+    if (['filed', 'acknowledged', 'responded', 'under_review', 'verified'].includes(s)) {
+        btns += `<button class="btn" onclick="openVerifyModal('${c.id}')">Add Verification</button>`;
+    }
+    return btns || '<span style="font-size:10px;color:var(--text-dim);">No actions available</span>';
+}
+
+function claimAction(claimId, action) {
+    fetch(`/api/loop/claims/${claimId}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ action: action }),
+    })
+    .then(r => r.json())
+    .then(() => { viewClaim(claimId); });
+}
+
+function deleteClaim(claimId) {
+    fetch(`/api/loop/claims/${claimId}/`, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': getCSRF() },
+    })
+    .then(r => r.json())
+    .then(() => { if (selectedSupId) selectSup(selectedSupId); });
+}
+
+let _reviewClaimId = null;
+function openReviewModal(claimId) {
+    _reviewClaimId = claimId;
+    document.getElementById('reviewNotes').value = '';
+    openModal('reviewClaimModal');
+}
+function submitReview(decision) {
+    fetch(`/api/loop/claims/${_reviewClaimId}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ action: decision, reviewer_notes: document.getElementById('reviewNotes').value }),
+    })
+    .then(r => r.json())
+    .then(() => { closeModal('reviewClaimModal'); viewClaim(_reviewClaimId); });
+}
+
+let _verifyClaimId = null;
+function openVerifyModal(claimId) {
+    _verifyClaimId = claimId;
+    document.getElementById('verifyNotes').value = '';
+    openModal('verifyClaimModal');
+}
+function submitVerification() {
+    fetch(`/api/loop/claims/${_verifyClaimId}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({
+            action: 'add_verification',
+            verification_type: document.getElementById('verifyType').value,
+            result: document.getElementById('verifyResult').value,
+            evidence_notes: document.getElementById('verifyNotes').value,
+        }),
+    })
+    .then(r => r.json())
+    .then(() => { closeModal('verifyClaimModal'); viewClaim(_verifyClaimId); });
 }
 
 let _claimSupplierId = null;
@@ -545,6 +695,10 @@ function createClaim() {
             quantity_affected: parseInt(document.getElementById('claimQtyAffected').value) || 0,
             quantity_rejected: parseInt(document.getElementById('claimQtyRejected').value) || 0,
             defect_description: document.getElementById('claimDefect').value,
+            response_due_date: document.getElementById('claimDueDate').value || null,
+            disposition: document.getElementById('claimDisposition').value || '',
+            cost_of_quality: parseFloat(document.getElementById('claimCOQ').value) || null,
+            credit_requested: parseFloat(document.getElementById('claimCredit').value) || null,
         }),
     })
     .then(r => r.json())
@@ -634,20 +788,30 @@ function viewCoA(coaId) {
     });
 }
 
+let _rejectCoAId = null;
 function coaAction(coaId, action) {
-    let body = { action: action };
     if (action === 'reject') {
-        const reason = document.createElement('div');
-        // Simple prompt for now — modal later
-        body.reason = prompt('Rejection reason:') || '';
+        _rejectCoAId = coaId;
+        document.getElementById('rejectCoAReason').value = '';
+        openModal('rejectCoAModal');
+        return;
     }
     fetch(`/api/loop/coas/${coaId}/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ action: action }),
     })
     .then(r => r.json())
     .then(() => { if (selectedSupId) selectSup(selectedSupId); });
+}
+function confirmRejectCoA() {
+    fetch(`/api/loop/coas/${_rejectCoAId}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ action: 'reject', reason: document.getElementById('rejectCoAReason').value }),
+    })
+    .then(r => r.json())
+    .then(() => { closeModal('rejectCoAModal'); if (selectedSupId) selectSup(selectedSupId); });
 }
 
 let _coaSupplierId = null;
