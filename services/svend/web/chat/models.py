@@ -59,19 +59,24 @@ class ModelVersion(models.Model):
         return f"{self.model_type}: {self.name} ({status})"
 
     def activate(self):
-        """Activate this version, deactivating others of same type."""
+        """Activate this version, deactivating others of same type.
+
+        Uses transaction.atomic to prevent TOCTOU race where concurrent
+        activations could leave no active model (MED-09).
+        """
+        from django.db import transaction
         from django.utils import timezone
 
-        # Deactivate other versions of this type
-        ModelVersion.objects.filter(
-            model_type=self.model_type,
-            is_active=True,
-        ).exclude(pk=self.pk).update(is_active=False)
+        with transaction.atomic():
+            # Lock rows to prevent concurrent activation
+            ModelVersion.objects.select_for_update().filter(
+                model_type=self.model_type,
+                is_active=True,
+            ).exclude(pk=self.pk).update(is_active=False)
 
-        # Activate this one
-        self.is_active = True
-        self.activated_at = timezone.now()
-        self.save(update_fields=["is_active", "activated_at"])
+            self.is_active = True
+            self.activated_at = timezone.now()
+            self.save(update_fields=["is_active", "activated_at"])
 
 
 class UsageLog(models.Model):

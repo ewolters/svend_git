@@ -220,8 +220,18 @@ def capa_detail(request, capa_id):
         return JsonResponse({"error": "Permission denied"}, status=403)
 
     if request.method == "DELETE":
-        capa.delete()
-        return JsonResponse({"ok": True})
+        # Soft-delete: archive instead of destroying quality records (MED-02)
+        old_status = capa.status
+        capa.status = "cancelled"
+        capa.save(update_fields=["status"])
+        CAPAStatusChange.objects.create(
+            capa=capa,
+            from_status=old_status,
+            to_status="cancelled",
+            changed_by=request.user,
+            note="Record archived via DELETE (soft-delete).",
+        )
+        return JsonResponse({"ok": True, "archived": True})
 
     # PUT — update
     data = json.loads(request.body)
@@ -229,8 +239,8 @@ def capa_detail(request, capa_id):
     # Handle status transitions
     new_status = data.get("status")
     if new_status and new_status != capa.status:
-        # Apply field updates before checking transition requirements
-        capa_fields = [
+        # Log field changes BEFORE setting values — captures true old_val (MED-01)
+        transition_fields = [
             "title",
             "description",
             "containment_action",
@@ -240,7 +250,9 @@ def capa_detail(request, capa_id):
             "verification_method",
             "verification_result",
         ]
-        for field in capa_fields:
+        _log_field_changes("capa", capa.id, capa, data, transition_fields, request.user)
+        # Apply field updates before checking transition requirements
+        for field in transition_fields:
             if field in data:
                 setattr(capa, field, data[field])
 

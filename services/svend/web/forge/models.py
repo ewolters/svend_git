@@ -35,9 +35,7 @@ class APIKey(models.Model):
     """API key for Forge access."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="forge_api_keys"
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="forge_api_keys")
     name = models.CharField(max_length=100)
     key_hash = models.CharField(max_length=64, unique=True, db_index=True)
     key_prefix = models.CharField(max_length=8)  # First 8 chars for display
@@ -58,9 +56,7 @@ class Job(models.Model):
     """Synthetic data generation job."""
 
     job_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    api_key = models.ForeignKey(
-        APIKey, on_delete=models.CASCADE, related_name="jobs", null=True, blank=True
-    )
+    api_key = models.ForeignKey(APIKey, on_delete=models.CASCADE, related_name="jobs", null=True, blank=True)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -74,15 +70,11 @@ class Job(models.Model):
     domain = models.CharField(max_length=100, blank=True, default="")
     record_count = models.PositiveIntegerField()
     schema_def = models.JSONField(default=dict)
-    quality_level = models.CharField(
-        max_length=20, choices=QualityLevel.choices, default=QualityLevel.STANDARD
-    )
+    quality_level = models.CharField(max_length=20, choices=QualityLevel.choices, default=QualityLevel.STANDARD)
     output_format = models.CharField(max_length=20, default="jsonl")
 
     # Status
-    status = models.CharField(
-        max_length=20, choices=JobStatus.choices, default=JobStatus.QUEUED
-    )
+    status = models.CharField(max_length=20, choices=JobStatus.choices, default=JobStatus.QUEUED)
     progress = models.PositiveSmallIntegerField(default=0)  # 0-100
     error_message = models.TextField(blank=True, default="")
 
@@ -109,6 +101,12 @@ class Job(models.Model):
         indexes = [
             models.Index(fields=["status", "created_at"]),
             models.Index(fields=["api_key", "created_at"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(api_key__isnull=False) | models.Q(user__isnull=False),
+                name="forge_job_has_owner",
+            ),
         ]
 
     def __str__(self):
@@ -148,9 +146,7 @@ class UsageLog(models.Model):
     """Usage tracking for billing."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    api_key = models.ForeignKey(
-        APIKey, on_delete=models.CASCADE, related_name="usage_logs"
-    )
+    api_key = models.ForeignKey(APIKey, on_delete=models.CASCADE, related_name="usage_logs")
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="usage_logs")
 
     data_type = models.CharField(max_length=20, choices=DataType.choices)
@@ -175,9 +171,7 @@ class SchemaTemplate(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     domain = models.CharField(max_length=100)
-    data_type = models.CharField(
-        max_length=20, choices=DataType.choices, default=DataType.TABULAR
-    )
+    data_type = models.CharField(max_length=20, choices=DataType.choices, default=DataType.TABULAR)
     schema_def = models.JSONField()
     is_builtin = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -349,6 +349,22 @@ class ProcessEdge(models.Model):
             models.Index(fields=["graph", "is_stale"]),
             models.Index(fields=["graph", "is_contradicted"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["graph", "source", "target", "relation_type"],
+                name="unique_edge_per_graph",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.source_id == self.target_id:
+            raise ValidationError("Self-loops are not permitted.")
+        if not self.source.shared and self.source.graph_id != self.graph_id:
+            raise ValidationError("Source node does not belong to this graph.")
+        if not self.target.shared and self.target.graph_id != self.graph_id:
+            raise ValidationError("Target node does not belong to this graph.")
 
     def __str__(self):
         return f"{self.source.name} → {self.target.name} ({self.relation_type})"
@@ -384,7 +400,7 @@ class EdgeEvidence(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     edge = models.ForeignKey(
         ProcessEdge,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="evidence_stack",
     )
 
