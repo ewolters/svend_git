@@ -71,6 +71,20 @@ def control_chart(request):
     lsl = body.get("lsl")
     investigation_id = body.get("investigation_id")
 
+    # Historical limits for Phase 2 monitoring
+    historical_mean = body.get("historical_mean")
+    historical_sigma = body.get("historical_sigma")
+    if historical_mean is not None and str(historical_mean).strip():
+        historical_mean = float(historical_mean)
+    else:
+        historical_mean = None
+    if historical_sigma is not None and str(historical_sigma).strip():
+        historical_sigma = float(historical_sigma)
+        if historical_sigma <= 0:
+            return JsonResponse({"error": "historical_sigma must be positive"}, status=400)
+    else:
+        historical_sigma = None
+
     if not data:
         return JsonResponse({"error": "Data is required"}, status=400)
 
@@ -83,7 +97,13 @@ def control_chart(request):
             # Individuals and Moving Range
             if not isinstance(data[0], (int, float)):
                 return JsonResponse({"error": "I-MR chart requires flat data array"}, status=400)
-            result = spc.individuals_moving_range_chart(data, usl=usl, lsl=lsl)
+            result = spc.individuals_moving_range_chart(
+                data,
+                usl=usl,
+                lsl=lsl,
+                historical_mean=historical_mean,
+                historical_sigma=historical_sigma,
+            )
 
         elif chart_type == "X-bar R":
             # X-bar and R (subgroups)
@@ -92,7 +112,13 @@ def control_chart(request):
                     {"error": "X-bar R chart requires subgroup data (array of arrays)"},
                     status=400,
                 )
-            result = spc.xbar_r_chart(data, usl=usl, lsl=lsl)
+            result = spc.xbar_r_chart(
+                data,
+                usl=usl,
+                lsl=lsl,
+                historical_mean=historical_mean,
+                historical_sigma=historical_sigma,
+            )
 
         elif chart_type == "p":
             # p-chart for proportion defective
@@ -919,24 +945,36 @@ def analyze_uploaded(request):
             chart_type = body.get("chart_type", "I-MR")
             usl = body.get("usl")
             lsl = body.get("lsl")
+            historical_mean = body.get("historical_mean")
+            historical_sigma = body.get("historical_sigma")
+            if historical_mean is not None and str(historical_mean).strip():
+                historical_mean = float(historical_mean)
+            else:
+                historical_mean = None
+            if historical_sigma is not None and str(historical_sigma).strip():
+                historical_sigma = float(historical_sigma)
+            else:
+                historical_sigma = None
+
+            hist_kwargs = {"historical_mean": historical_mean, "historical_sigma": historical_sigma}
 
             if chart_type == "T-squared" and extracted["type"] == "subgroups":
                 # Multivariate: treat subgroups as rows of multi-variable observations
                 result = spc.hotelling_t_squared_chart(extracted["data"], usl=usl, lsl=lsl)
             elif extracted["type"] == "subgroups":
                 if chart_type in ["X-bar R", "xbar_r"]:
-                    result = spc.xbar_r_chart(extracted["data"], usl=usl, lsl=lsl)
+                    result = spc.xbar_r_chart(extracted["data"], usl=usl, lsl=lsl, **hist_kwargs)
                 else:
                     # Flatten for I-MR
                     flat_data = [v for sg in extracted["data"] for v in sg]
-                    result = spc.individuals_moving_range_chart(flat_data, usl=usl, lsl=lsl)
+                    result = spc.individuals_moving_range_chart(flat_data, usl=usl, lsl=lsl, **hist_kwargs)
             else:
                 if chart_type == "I-MR":
-                    result = spc.individuals_moving_range_chart(extracted["data"], usl=usl, lsl=lsl)
+                    result = spc.individuals_moving_range_chart(extracted["data"], usl=usl, lsl=lsl, **hist_kwargs)
                 elif chart_type == "c":
                     result = spc.c_chart([int(x) for x in extracted["data"]])
                 else:
-                    result = spc.individuals_moving_range_chart(extracted["data"], usl=usl, lsl=lsl)
+                    result = spc.individuals_moving_range_chart(extracted["data"], usl=usl, lsl=lsl, **hist_kwargs)
 
             evidence_summary = (
                 f"Control Chart ({result.chart_type}): "

@@ -302,9 +302,7 @@ def z_to_dpmo(z: float) -> float:
 
     # Two-tailed defect rate
     defect_rate = 1 - norm_cdf(z_shifted) + norm_cdf(-z_shifted - 3)  # Simplified
-    defect_rate = max(
-        0, min(1, 1 - norm_cdf(z_shifted))
-    )  # Upper tail only for simplicity
+    defect_rate = max(0, min(1, 1 - norm_cdf(z_shifted)))  # Upper tail only for simplicity
 
     return defect_rate * 1_000_000
 
@@ -395,11 +393,17 @@ def individuals_moving_range_chart(
     data: list[float],
     usl: float | None = None,
     lsl: float | None = None,
+    historical_mean: float | None = None,
+    historical_sigma: float | None = None,
 ) -> ControlChartResult:
     """
     Create I-MR (Individuals and Moving Range) control chart.
 
     Used for continuous data with subgroup size = 1.
+
+    If historical_mean and/or historical_sigma are provided, they override
+    the values calculated from data. This enables Phase 2 monitoring where
+    limits are locked to a baseline period.
     """
     n = len(data)
     if n < 2:
@@ -408,12 +412,12 @@ def individuals_moving_range_chart(
     # Calculate moving ranges
     moving_ranges = [abs(data[i] - data[i - 1]) for i in range(1, n)]
 
-    # Center lines
-    x_bar = statistics.mean(data)
+    # Center lines — use historical if provided
+    x_bar = historical_mean if historical_mean is not None else statistics.mean(data)
     mr_bar = statistics.mean(moving_ranges)
 
-    # Estimate sigma from moving range
-    sigma = mr_bar / IMR_CONSTANTS["d2"]
+    # Estimate sigma — use historical if provided
+    sigma = historical_sigma if historical_sigma is not None else mr_bar / IMR_CONSTANTS["d2"]
 
     # Control limits for Individuals chart
     i_ucl = x_bar + 3 * sigma
@@ -440,9 +444,7 @@ def individuals_moving_range_chart(
     mr_out_of_control = []
     for i, val in enumerate(moving_ranges):
         if val > mr_ucl:
-            mr_out_of_control.append(
-                {"index": i + 1, "value": val, "reason": "Above UCL"}
-            )
+            mr_out_of_control.append({"index": i + 1, "value": val, "reason": "Above UCL"})
 
     mr_chart = ControlChartResult(
         chart_type="MR",
@@ -454,10 +456,11 @@ def individuals_moving_range_chart(
         summary=f"MR Chart: Mean={mr_bar:.4f}, UCL={mr_ucl:.4f}",
     )
 
+    using_historical = historical_mean is not None or historical_sigma is not None
     summary_parts = [
-        f"I-MR Chart Analysis (n={n})",
-        f"Process Mean: {x_bar:.4f}",
-        f"Estimated Sigma: {sigma:.4f}",
+        f"I-MR Chart Analysis (n={n}){' [Historical limits]' if using_historical else ''}",
+        f"Process Mean: {x_bar:.4f}{' (historical)' if historical_mean is not None else ''}",
+        f"Sigma: {sigma:.4f}{' (historical)' if historical_sigma is not None else ' (estimated)'}",
         f"UCL: {i_ucl:.4f}, LCL: {i_lcl:.4f}",
     ]
     if out_of_control:
@@ -485,11 +488,17 @@ def xbar_r_chart(
     subgroups: list[list[float]],
     usl: float | None = None,
     lsl: float | None = None,
+    historical_mean: float | None = None,
+    historical_sigma: float | None = None,
 ) -> ControlChartResult:
     """
     Create X-bar and R control chart.
 
     Used for continuous data with subgroups of size 2-10.
+
+    If historical_mean and/or historical_sigma are provided, control limits
+    use those instead of values computed from data. This enables Phase 2
+    monitoring where limits are locked to a baseline period.
     """
     # Validate subgroups
     n_subgroups = len(subgroups)
@@ -509,20 +518,24 @@ def xbar_r_chart(
     subgroup_means = [statistics.mean(sg) for sg in subgroups]
     subgroup_ranges = [max(sg) - min(sg) for sg in subgroups]
 
-    # Grand mean and average range
-    x_bar_bar = statistics.mean(subgroup_means)
+    # Grand mean and average range — use historical if provided
+    x_bar_bar = historical_mean if historical_mean is not None else statistics.mean(subgroup_means)
     r_bar = statistics.mean(subgroup_ranges)
 
-    # Control limits for X-bar chart
-    xbar_ucl = x_bar_bar + constants["A2"] * r_bar
-    xbar_lcl = x_bar_bar - constants["A2"] * r_bar
+    # Estimate sigma — use historical if provided
+    sigma = historical_sigma if historical_sigma is not None else r_bar / constants["d2"]
+
+    # Control limits for X-bar chart (use sigma-based if historical provided)
+    if historical_sigma is not None:
+        xbar_ucl = x_bar_bar + 3 * sigma / math.sqrt(subgroup_size)
+        xbar_lcl = x_bar_bar - 3 * sigma / math.sqrt(subgroup_size)
+    else:
+        xbar_ucl = x_bar_bar + constants["A2"] * r_bar
+        xbar_lcl = x_bar_bar - constants["A2"] * r_bar
 
     # Control limits for R chart
     r_ucl = constants["D4"] * r_bar
     r_lcl = constants["D3"] * r_bar
-
-    # Estimate sigma
-    sigma = r_bar / constants["d2"]
 
     # Find out of control points (X-bar)
     out_of_control = []
@@ -533,9 +546,7 @@ def xbar_r_chart(
             out_of_control.append({"index": i, "value": val, "reason": "Below LCL"})
 
     # Check run rules
-    run_violations = check_western_electric_rules(
-        subgroup_means, x_bar_bar, sigma / math.sqrt(subgroup_size)
-    )
+    run_violations = check_western_electric_rules(subgroup_means, x_bar_bar, sigma / math.sqrt(subgroup_size))
 
     # R chart out of control
     r_out_of_control = []
@@ -555,17 +566,14 @@ def xbar_r_chart(
         summary=f"R Chart: R-bar={r_bar:.4f}, UCL={r_ucl:.4f}",
     )
 
-    in_control = (
-        len(out_of_control) == 0
-        and len(run_violations) == 0
-        and len(r_out_of_control) == 0
-    )
+    in_control = len(out_of_control) == 0 and len(run_violations) == 0 and len(r_out_of_control) == 0
 
+    using_historical = historical_mean is not None or historical_sigma is not None
     summary_parts = [
-        f"X-bar R Chart Analysis (k={n_subgroups}, n={subgroup_size})",
-        f"Grand Mean (X-bar-bar): {x_bar_bar:.4f}",
+        f"X-bar R Chart Analysis (k={n_subgroups}, n={subgroup_size}){' [Historical limits]' if using_historical else ''}",
+        f"Grand Mean (X-bar-bar): {x_bar_bar:.4f}{' (historical)' if historical_mean is not None else ''}",
         f"Average Range (R-bar): {r_bar:.4f}",
-        f"Estimated Sigma: {sigma:.4f}",
+        f"Sigma: {sigma:.4f}{' (historical)' if historical_sigma is not None else ' (estimated)'}",
         f"X-bar UCL: {xbar_ucl:.4f}, LCL: {xbar_lcl:.4f}",
     ]
     if in_control:
@@ -576,9 +584,7 @@ def xbar_r_chart(
     return ControlChartResult(
         chart_type="X-bar R",
         data_points=subgroup_means,
-        limits=ControlLimits(
-            ucl=xbar_ucl, cl=x_bar_bar, lcl=xbar_lcl, usl=usl, lsl=lsl
-        ),
+        limits=ControlLimits(ucl=xbar_ucl, cl=x_bar_bar, lcl=xbar_lcl, usl=usl, lsl=lsl),
         out_of_control=out_of_control,
         run_violations=run_violations,
         in_control=in_control,
@@ -639,9 +645,7 @@ def p_chart(
     if in_control:
         summary_parts.append("Process is IN CONTROL")
     else:
-        summary_parts.append(
-            f"Process is OUT OF CONTROL ({len(out_of_control)} points)"
-        )
+        summary_parts.append(f"Process is OUT OF CONTROL ({len(out_of_control)} points)")
 
     return ControlChartResult(
         chart_type="p",
@@ -690,9 +694,7 @@ def c_chart(
     if in_control:
         summary_parts.append("Process is IN CONTROL")
     else:
-        summary_parts.append(
-            f"Process is OUT OF CONTROL ({len(out_of_control)} points)"
-        )
+        summary_parts.append(f"Process is OUT OF CONTROL ({len(out_of_control)} points)")
 
     return ControlChartResult(
         chart_type="c",
@@ -956,10 +958,7 @@ def calculate_capability(
         # Use pooled within-subgroup variance
         # Reshape data into subgroups
         n_subgroups = n // subgroup_size
-        subgroups = [
-            data[i * subgroup_size : (i + 1) * subgroup_size]
-            for i in range(n_subgroups)
-        ]
+        subgroups = [data[i * subgroup_size : (i + 1) * subgroup_size] for i in range(n_subgroups)]
 
         if subgroup_size in CONTROL_CHART_CONSTANTS:
             # Use R-bar method
@@ -969,11 +968,7 @@ def calculate_capability(
         else:
             # Use pooled std dev
             within_vars = [statistics.variance(sg) for sg in subgroups if len(sg) > 1]
-            sigma_within = (
-                math.sqrt(statistics.mean(within_vars))
-                if within_vars
-                else sigma_overall
-            )
+            sigma_within = math.sqrt(statistics.mean(within_vars)) if within_vars else sigma_overall
 
     # Specification width
     spec_width = usl - lsl
@@ -1144,9 +1139,7 @@ class ParsedDataset:
             "filename": self.filename,
             "row_count": self.row_count,
             "columns": [c.to_dict() for c in self.columns],
-            "preview": {
-                col: vals[:10] for col, vals in self.data.items()
-            },  # First 10 rows
+            "preview": {col: vals[:10] for col, vals in self.data.items()},  # First 10 rows
             "errors": self.errors,
         }
 
@@ -1331,9 +1324,7 @@ def hotelling_t_squared_chart(
     n, p = X.shape
 
     if n < p + 1:
-        raise ValueError(
-            f"Need at least {p + 1} observations for {p} variables, got {n}"
-        )
+        raise ValueError(f"Need at least {p + 1} observations for {p} variables, got {n}")
 
     # Mean vector and covariance matrix
     x_bar = X.mean(axis=0)
@@ -1406,9 +1397,7 @@ def hotelling_t_squared_chart(
     summary_parts.append("")
     summary_parts.append("Variable Statistics:")
     for j in range(p):
-        summary_parts.append(
-            f"  Var {j + 1}: mean={x_bar[j]:.4f}, std={np.sqrt(S[j, j]):.4f}"
-        )
+        summary_parts.append(f"  Var {j + 1}: mean={x_bar[j]:.4f}, std={np.sqrt(S[j, j]):.4f}")
 
     # Correlation matrix
     if p <= 6:
@@ -1424,9 +1413,7 @@ def hotelling_t_squared_chart(
     return ControlChartResult(
         chart_type="T-squared",
         data_points=t2_values,
-        limits=ControlLimits(
-            ucl=ucl, cl=float(np.mean(t2_values)), lcl=0.0, usl=usl, lsl=lsl
-        ),
+        limits=ControlLimits(ucl=ucl, cl=float(np.mean(t2_values)), lcl=0.0, usl=usl, lsl=lsl),
         out_of_control=out_of_control,
         run_violations=[],  # Standard run rules don't apply to T²
         in_control=in_control,
@@ -1539,9 +1526,7 @@ def gage_rr_crossed(
     for pi_list in cells:
         for cell_list in pi_list:
             if len(cell_list) == 0:
-                raise ValueError(
-                    "Unbalanced design: some part-operator combinations have no measurements"
-                )
+                raise ValueError("Unbalanced design: some part-operator combinations have no measurements")
             replicate_counts.add(len(cell_list))
 
     if len(replicate_counts) > 1:
@@ -1568,12 +1553,7 @@ def gage_rr_crossed(
     ss_total = float(np.sum((data_array - grand_mean) ** 2))
     ss_part = float(o_count * r_count * np.sum((part_means - grand_mean) ** 2))
     ss_operator = float(p_count * r_count * np.sum((op_means - grand_mean) ** 2))
-    ss_interaction = float(
-        r_count
-        * np.sum(
-            (cell_means - part_means[:, None] - op_means[None, :] + grand_mean) ** 2
-        )
-    )
+    ss_interaction = float(r_count * np.sum((cell_means - part_means[:, None] - op_means[None, :] + grand_mean) ** 2))
     ss_error = ss_total - ss_part - ss_operator - ss_interaction
 
     # Degrees of freedom
@@ -1592,9 +1572,7 @@ def gage_rr_crossed(
     # F-test for interaction
     if df_interaction > 0 and ms_error > 0:
         f_interaction = ms_interaction / ms_error
-        p_interaction = float(
-            1 - scipy_stats.f.cdf(f_interaction, df_interaction, df_error)
-        )
+        p_interaction = float(1 - scipy_stats.f.cdf(f_interaction, df_interaction, df_error))
     else:
         f_interaction = 0.0
         p_interaction = 1.0
@@ -1606,22 +1584,14 @@ def gage_rr_crossed(
         # Pool interaction into error
         ss_error_pooled = ss_interaction + ss_error
         df_error_pooled = df_interaction + df_error
-        ms_error_pooled = (
-            ss_error_pooled / df_error_pooled if df_error_pooled > 0 else 0.0
-        )
+        ms_error_pooled = ss_error_pooled / df_error_pooled if df_error_pooled > 0 else 0.0
 
         # F-tests against pooled error
         f_part = ms_part / ms_error_pooled if ms_error_pooled > 0 else 0.0
-        p_part = (
-            float(1 - scipy_stats.f.cdf(f_part, df_part, df_error_pooled))
-            if ms_error_pooled > 0
-            else 1.0
-        )
+        p_part = float(1 - scipy_stats.f.cdf(f_part, df_part, df_error_pooled)) if ms_error_pooled > 0 else 1.0
         f_operator = ms_operator / ms_error_pooled if ms_error_pooled > 0 else 0.0
         p_operator = (
-            float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_error_pooled))
-            if ms_error_pooled > 0
-            else 1.0
+            float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_error_pooled)) if ms_error_pooled > 0 else 1.0
         )
 
         # Variance components (EMS method)
@@ -1632,16 +1602,10 @@ def gage_rr_crossed(
     else:
         # Keep interaction term — test Part and Operator against interaction MS
         f_part = ms_part / ms_interaction if ms_interaction > 0 else 0.0
-        p_part = (
-            float(1 - scipy_stats.f.cdf(f_part, df_part, df_interaction))
-            if ms_interaction > 0
-            else 1.0
-        )
+        p_part = float(1 - scipy_stats.f.cdf(f_part, df_part, df_interaction)) if ms_interaction > 0 else 1.0
         f_operator = ms_operator / ms_interaction if ms_interaction > 0 else 0.0
         p_operator = (
-            float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_interaction))
-            if ms_interaction > 0
-            else 1.0
+            float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_interaction)) if ms_interaction > 0 else 1.0
         )
 
         # Variance components (EMS method)
@@ -1679,9 +1643,7 @@ def gage_rr_crossed(
         ("Part-to-Part", var_part),
         ("Total", var_total),
     ]:
-        pct_study_var[source] = (
-            math.sqrt(var) / sigma_total * 100 if sigma_total > 0 else 0.0
-        )
+        pct_study_var[source] = math.sqrt(var) / sigma_total * 100 if sigma_total > 0 else 0.0
 
     # %Tolerance
     pct_tolerance = {}
@@ -1809,9 +1771,7 @@ def gage_rr_crossed(
     )
 
 
-def _generate_grr_plots(
-    data_array, unique_parts, unique_operators, pct_contribution, cell_means
-):
+def _generate_grr_plots(data_array, unique_parts, unique_operators, pct_contribution, cell_means):
     """Generate the 4 Plotly charts for Gage R&R."""
     p, o, r = data_array.shape
     part_labels = [str(x) for x in unique_parts]

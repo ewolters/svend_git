@@ -4688,12 +4688,28 @@ function generateConfigForm(type, id) {
     }
 
     if (type === 'spc') {
+        // Historical limits fields (shared by I-MR and X-bar R/S)
+        const historicalFields = `
+                <details style="margin-top:8px;">
+                    <summary style="cursor:pointer;font-size:11px;color:#9aaa9a;">Phase 2: Historical limits</summary>
+                    <div style="padding:8px 0 0 12px;">
+                        <div class="aw-form-group">
+                            <label>Historical mean (leave blank to calculate):</label>
+                            <input type="number" id="cfg-historical_mean" step="any" placeholder="Auto">
+                        </div>
+                        <div class="aw-form-group">
+                            <label>Historical sigma (leave blank to estimate):</label>
+                            <input type="number" id="cfg-historical_sigma" step="any" min="0" placeholder="Auto">
+                        </div>
+                    </div>
+                </details>`;
         if (id === 'imr') {
             return `
                 <div class="aw-form-group">
                     <label>Measurement column:</label>
                     <select id="cfg-measurement">${numCols}</select>
                 </div>
+                ${historicalFields}
             `;
         }
         if (id === 'xbar_r' || id === 'xbar_s') {
@@ -4710,6 +4726,7 @@ function generateConfigForm(type, id) {
                     <label>Subgroup size:</label>
                     <input type="number" id="cfg-subgroup_size" value="5" min="2" max="25">
                 </div>
+                ${historicalFields}
             `;
         }
         if (id === 'p_chart') {

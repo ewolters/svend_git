@@ -534,6 +534,12 @@ urlpatterns = varta_urls + [
         auditor_portal_view,
         name="loop_auditor_portal",
     ),  # LOOP-001 §11: Auditor Portal (no auth — token in URL)
+    path(
+        "app/process-map/",
+        TemplateView.as_view(template_name="graph_map.html"),
+        name="graph_map",
+    ),  # GRAPH-001 §15: Process Map (Beta)
+    path("api/graph/", include("graph.urls")),  # GRAPH-001 §11: Graph API
     path("api/safety/", include("safety.urls")),  # HIRARC Safety (Enterprise)
     path("api/privacy/", include("accounts.privacy_urls")),  # PRIV-001 (SOC 2 P1.8)
     path("api/capa/", include("agents_api.capa_urls")),  # CAPA standalone (ISO 10.2, FEAT-004)
