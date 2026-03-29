@@ -744,3 +744,165 @@ Week 11:    Phase 4 (S1) + final polish (S2)
 | 2026-03-28 | S1+Eric | D15: Utilities roadmap. Tier 1-3 quick wins through transformative. Proposed work split: S1 owns graph, S2 owns utilities. |
 | 2026-03-28 | S2 | D15 response: Accepted. Resequenced Tier 1. Flagged recipe system as feature not utility. |
 | 2026-03-28 | S1 | Two-session execution plan: 4 phases + parallel utilities, 3 review gates, ~11 weeks, communication protocol. |
+| 2026-03-29 | S1+S2 | Phases 0-4 shipped. QMS aligned. Control Plans + CommitmentResource + Supplier Claims built. |
+| 2026-03-29 | S1+Eric | OLR-001 standard brief: 25 sections, full ISO mapping, paper implementation, detection hierarchy, See-Do-Teach competency. |
+| 2026-03-29 | S1 | Backend audit against OLR-001: 40% compliant. 16 gaps identified. Proposals below. |
+
+---
+
+## S1 Backend Audit: SVEND vs OLR-001
+
+**Date:** 2026-03-29
+**Methodology:** Full code audit against all 25 OLR-001 sections.
+**Result:** ~40% compliant. Strong graph foundation, strong loop mechanics. Critical gaps in classification, metrics, competency, pre-production, configuration.
+
+### Backend Proposals (S1 → S2 for UX review)
+
+#### BP-1: ProcessNode Classification + Detection + Customer-Facing (CRITICAL)
+
+Add three fields to ProcessNode:
+
+```
+classification_tier: CharField choices=["critical", "major", "minor"] default="minor"
+detection_mechanism_level: IntegerField choices=[1-8] nullable
+customer_facing: BooleanField default=False
+```
+
+These unlock: evidence minimum enforcement, detection distribution metrics, customer satisfaction ratio, maturity auditing. Without these, nothing in §4.7, §9, §12, §13 is auditable.
+
+**S2 question:** How does this surface in the Process Map UI? Color coding? Badge? Filter lens? Node detail panel needs classification + detection level display.
+
+---
+
+#### BP-2: Knowledge Health Metrics Service (CRITICAL)
+
+New method `GraphService.compute_knowledge_health(tenant_id, graph_id)` returning:
+
+```python
+{
+    "calibration_rate": 0.65,           # edges with evidence / total
+    "staleness_rate": 0.12,             # past threshold / calibrated
+    "contradiction_rate": 0.03,         # conflicting evidence / total
+    "knowledge_gap_ratio": 0.35,        # assertion-only / total
+    "signal_resolution_velocity_days": 4.2,  # avg signal → knowledge update
+    "proactive_reactive_ratio": 0.78,   # internal detection / total customer-facing signals
+    "detection_distribution": {         # critical nodes by level
+        "level_1": 2, "level_2": 5, "level_3": 8,
+        "level_4": 12, "level_5": 3, "level_6": 0
+    },
+    "maturity_indicators": {
+        "level_1": true,   # structured knowledge exists
+        "level_2": true,   # evidence accumulating
+        "level_3": false,  # staleness_rate > threshold
+        "level_4": false,  # no predictive validation
+    },
+}
+```
+
+Persist daily as `KnowledgeHealthSnapshot` model. Trend over time = maturity trajectory.
+
+**S2 question:** This needs a dashboard. Where? Loop dashboard KPIs? Process Map sidebar? Dedicated "Knowledge Health" tab? Leadership view?
+
+---
+
+#### BP-3: ControlPlanItem Linkage (HIGH)
+
+Add to ControlPlanItem:
+
+```
+detection_mechanism_level: IntegerField choices=[1-8] nullable
+fmis_row: ForeignKey(FMISRow, nullable)  # links plan to knowledge structure
+competency_stage_required: IntegerField choices=[1,2,3] default=1
+```
+
+The control plan IS the knowledge structure filtered to "what to monitor." Every item should trace to an FMIS row and declare what detection mechanism and competency level it requires.
+
+**S2 question:** In the control plan UI, how do we present mechanism level? Dropdown with the 8 descriptions? How does the FMIS row link render — inline reference or click-to-navigate?
+
+---
+
+#### BP-4: Competency See-Do-Teach Model (HIGH)
+
+Extend TrainingRecord or create new `CompetencyRecord`:
+
+```
+practice_type: CharField  # "process_confirmation", "fft", "investigation", "doe", "fmis_management"
+stage: IntegerField choices=[1,2,3]  # See, Do, Teach
+evidence_id: UUIDField nullable  # FK to PC/FFT/Investigation that demonstrated competency
+evaluator: ForeignKey(User, nullable)
+demonstrated_at: DateTimeField
+employee: ForeignKey(Employee)
+```
+
+Auto-enrollment: when an operator completes a supervised PC, auto-create CompetencyRecord(stage=2). When someone they trained completes their Stage 2, auto-create CompetencyRecord(stage=3) for the trainer.
+
+**S2 question:** UX for this? A competency card per person showing stages by practice type? A "my competency" section in the user profile? How does a supervisor mark Stage 1 (observation) as complete?
+
+---
+
+#### BP-5: QFD Data Model (MEDIUM)
+
+New models:
+
+```
+QFDMatrix: name, version, product/process, linked_graph, created_by
+QFDRequirement: matrix, text, classification_tier, importance_weight, linked_spec_node
+QFDCharacteristic: matrix, text, linked_process_node
+QFDRelationship: requirement, characteristic, strength (strong/medium/weak)
+```
+
+QFD matrix seeds FMIS rows: strong relationships become assertions. Classification flows from requirement to characteristic to node.
+
+**S2 question:** House of Quality is a specific visual format. Do we build a dedicated QFD matrix editor, or integrate into the Process Map as a special creation mode?
+
+---
+
+#### BP-6: Equipment Reliability Fields (MEDIUM)
+
+Add to MeasurementEquipment:
+
+```
+mtbf_hours: FloatField nullable
+weibull_shape: FloatField nullable  # beta parameter
+weibull_scale: FloatField nullable  # eta parameter
+failure_count: IntegerField default=0
+failure_history: JSONField default=list  # [{date, hours_at_failure, description}]
+measurement_uncertainty_percent: FloatField nullable  # from Gage R&R
+```
+
+Equipment reliability becomes a calibrated edge. Measurement uncertainty weights all evidence gathered through this equipment.
+
+**S2 question:** Equipment detail view needs reliability section. Weibull chart? MTBF trend? How does uncertainty display alongside evidence it affects?
+
+---
+
+#### BP-7: TenantConfig + ConfigService (MEDIUM — enables everything else)
+
+As specified in `enterprise_configuration_spec.md`. One table, one service. Replaces all hardcoded thresholds.
+
+**S2 question:** Configuration panel UX already spec'd in the enterprise config doc. Review and propose implementation approach.
+
+---
+
+#### BP-8: 3P / Pre-Production Investigation Mode (LOW — can defer)
+
+Add `is_pre_production: BooleanField default=False` to Investigation. Pre-production investigations follow the same Loop but are tagged for audit purposes. Moonshining cycles are sequential investigations on the same process before launch.
+
+**S2 question:** Does this need its own UI surface, or just a filter/tag on the existing investigation workspace?
+
+---
+
+### Priority Sequence
+
+| # | Proposal | Blocks | Effort |
+|---|----------|--------|--------|
+| BP-1 | ProcessNode fields | BP-2, BP-3 | Small (migration + 3 fields) |
+| BP-2 | Health metrics | Maturity auditing, leadership dashboard | Medium (service + snapshot model) |
+| BP-7 | TenantConfig | Configurable thresholds everywhere | Medium (model + service) |
+| BP-3 | ControlPlanItem linkage | Control plan → knowledge trace | Small (migration + 3 fields) |
+| BP-4 | Competency See-Do-Teach | Training alignment | Medium (new model + auto-enrollment) |
+| BP-5 | QFD model | Pre-production traceability | Medium (new models + matrix editor) |
+| BP-6 | Equipment reliability | Predictive capability (Level 4) | Small (migration + fields) |
+| BP-8 | 3P investigation mode | Pre-production audit trail | Small (one boolean field) |
+
+**S2:** Review UX questions in each proposal. Respond with implementation approach or counter-proposals.
