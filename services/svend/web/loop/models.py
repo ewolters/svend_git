@@ -1756,3 +1756,274 @@ class AuditorPortalToken(models.Model):
     def __str__(self):
         status = "valid" if self.is_valid else "expired/revoked"
         return f"AuditorToken({self.label}) — {status}"
+
+
+# =============================================================================
+# SUPPLIER CLAIM (Supplier Accountability System — Object 271)
+# =============================================================================
+
+
+class SupplierClaim(SynaraEntity):
+    """Formal quality claim against a supplier.
+
+    Lifecycle: draft → filed → acknowledged → responded → under_review
+               → verified → closed | rejected | escalated
+
+    The claim is the external-facing document. The NCR is the internal record.
+    A claim can exist without an NCR (contractual non-performance) and vice versa.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        FILED = "filed", "Filed"
+        ACKNOWLEDGED = "acknowledged", "Acknowledged"
+        RESPONDED = "responded", "Responded"
+        UNDER_REVIEW = "under_review", "Under Review"
+        VERIFIED = "verified", "Verified"
+        CLOSED = "closed", "Closed"
+        REJECTED = "rejected", "Rejected"
+        ESCALATED = "escalated", "Escalated"
+
+    class ClaimType(models.TextChoices):
+        QUALITY_DEFECT = "quality_defect", "Quality Defect"
+        DELIVERY = "delivery", "Delivery Issue"
+        DOCUMENTATION = "documentation", "Documentation"
+        SPECIFICATION = "specification", "Specification Deviation"
+        PACKAGING = "packaging", "Packaging / Handling"
+        CONTAMINATION = "contamination", "Contamination"
+
+    class Disposition(models.TextChoices):
+        RETURNED = "returned", "Return to Supplier"
+        SCRAPPED = "scrapped", "Scrapped"
+        REWORKED = "reworked", "Reworked"
+        USE_AS_IS = "use_as_is", "Use As-Is (concession)"
+        SORTED = "sorted", "100% Sorted"
+
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="supplier_claims",
+    )
+    supplier = models.ForeignKey(
+        "agents_api.SupplierRecord",
+        on_delete=models.CASCADE,
+        related_name="claims",
+    )
+    ncr = models.ForeignKey(
+        "agents_api.NonconformanceRecord",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="supplier_claims",
+    )
+
+    # What happened
+    claim_type = models.CharField(max_length=20, choices=ClaimType.choices)
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True, default="")
+
+    # Affected product
+    part_number = models.CharField(max_length=100, blank=True, default="")
+    lot_number = models.CharField(max_length=100, blank=True, default="")
+    quantity_affected = models.IntegerField(default=0)
+    quantity_rejected = models.IntegerField(default=0)
+
+    # Defect evidence
+    defect_description = models.TextField(blank=True, default="")
+    inspection_method = models.TextField(blank=True, default="")
+    evidence_photos = models.JSONField(default=list, blank=True)
+
+    # Financial impact
+    cost_of_quality = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Internal cost: scrap, rework, sort, downtime",
+    )
+    credit_requested = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    credit_received = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    disposition = models.CharField(max_length=20, choices=Disposition.choices, blank=True, default="")
+
+    # Lifecycle
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT, db_index=True)
+    filed_at = models.DateTimeField(null=True, blank=True)
+    response_due_date = models.DateField(null=True, blank=True)
+
+    # Portal access for supplier
+    portal_token = models.CharField(max_length=64, unique=True, blank=True, default="")
+    portal_expires_at = models.DateTimeField(null=True, blank=True)
+
+    # Graph integration
+    linked_process_node_ids = models.JSONField(default=list, blank=True)
+
+    # Provenance
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="created_supplier_claims",
+    )
+
+    class Meta:
+        db_table = "loop_supplier_claim"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["supplier", "status"]),
+            models.Index(fields=["tenant", "status"]),
+            models.Index(fields=["portal_token"]),
+        ]
+
+    def __str__(self):
+        return f"Claim: {self.title} ({self.supplier.name})"
+
+    def generate_portal_token(self):
+        """Generate a unique portal token for supplier access."""
+        import secrets
+
+        self.portal_token = secrets.token_urlsafe(48)
+        self.portal_expires_at = timezone.now() + timezone.timedelta(days=30)
+        self.save(update_fields=["portal_token", "portal_expires_at"])
+        return self.portal_token
+
+    @property
+    def portal_is_valid(self):
+        return self.portal_token and self.portal_expires_at and self.portal_expires_at > timezone.now()
+
+    @property
+    def response_is_overdue(self):
+        from datetime import date
+
+        return (
+            self.response_due_date
+            and self.status in (self.Status.FILED, self.Status.ACKNOWLEDGED)
+            and self.response_due_date < date.today()
+        )
+
+    VALID_TRANSITIONS = {
+        "draft": {"filed"},
+        "filed": {"acknowledged", "responded"},
+        "acknowledged": {"responded"},
+        "responded": {"under_review"},
+        "under_review": {"verified", "rejected", "escalated"},
+        "rejected": {"responded"},  # supplier revises
+        "verified": {"closed"},
+        "escalated": {"closed", "under_review"},
+    }
+
+
+class SupplierResponse(models.Model):
+    """Supplier's CAPA response to a claim.
+
+    Multiple responses possible per claim (revision chain when rejected).
+    Response quality is auto-scored by rule engine.
+    """
+
+    class RootCauseCategory(models.TextChoices):
+        METHOD = "method", "Method / Process"
+        MATERIAL = "material", "Material"
+        MACHINE = "machine", "Machine / Equipment"
+        MAN = "man", "Personnel / Training"
+        MEASUREMENT = "measurement", "Measurement System"
+        ENVIRONMENT = "environment", "Environment"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    claim = models.ForeignKey(
+        SupplierClaim,
+        on_delete=models.CASCADE,
+        related_name="responses",
+    )
+
+    # Root cause
+    root_cause_category = models.CharField(max_length=20, choices=RootCauseCategory.choices)
+    root_cause_description = models.TextField()
+
+    # Corrective & preventive actions
+    corrective_action = models.TextField()
+    preventive_action = models.TextField()
+    implementation_date = models.DateField()
+
+    # Evidence
+    evidence_files = models.JSONField(default=list, blank=True, help_text="UserFile UUIDs")
+
+    # Quality analysis (system-computed)
+    is_repeat_root_cause = models.BooleanField(default=False)
+    response_quality_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="0-1 score computed by response quality rules",
+    )
+    quality_flags = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of string flags from quality analysis",
+    )
+
+    # Review
+    accepted = models.BooleanField(null=True, blank=True, help_text="null=pending, true=accepted, false=rejected")
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_supplier_responses",
+    )
+    reviewer_notes = models.TextField(blank=True, default="")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    # Metadata
+    revision = models.IntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "loop_supplier_response"
+        ordering = ["revision"]
+
+    def __str__(self):
+        return f"Response #{self.revision} on {self.claim.title}"
+
+
+class ClaimVerification(models.Model):
+    """Verification that supplier's corrective action actually worked.
+
+    Evidence from next shipment inspection, supplier audit, or testing.
+    """
+
+    class VerificationType(models.TextChoices):
+        NEXT_SHIPMENT = "next_shipment", "Next Shipment Inspection"
+        AUDIT = "audit", "Supplier Audit"
+        TEST = "test", "Test / Re-Qualification"
+        DOCUMENT_REVIEW = "document_review", "Document Review"
+
+    class Result(models.TextChoices):
+        CONFORMING = "conforming", "Conforming"
+        NONCONFORMING = "nonconforming", "Nonconforming"
+        PARTIAL = "partial", "Partially Conforming"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    claim = models.ForeignKey(
+        SupplierClaim,
+        on_delete=models.CASCADE,
+        related_name="verifications",
+    )
+
+    verification_type = models.CharField(max_length=20, choices=VerificationType.choices)
+    result = models.CharField(max_length=20, choices=Result.choices)
+    evidence_notes = models.TextField(blank=True, default="")
+    evidence_files = models.JSONField(default=list, blank=True)
+
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="claim_verifications",
+    )
+    verified_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "loop_claim_verification"
+        ordering = ["-verified_at"]
+
+    def __str__(self):
+        return f"Verification ({self.verification_type}): {self.result}"
