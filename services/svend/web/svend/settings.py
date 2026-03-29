@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "notifications",
     "safety",
     "loop",  # LOOP-001: Closed-loop operating model (Signal, Commitment, ModeTransition, QMSPolicy)
+    "graph",  # GRAPH-001: Unified Knowledge Graph and Process Model
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"
