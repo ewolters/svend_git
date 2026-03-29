@@ -2,11 +2,17 @@
 
 {% block extra_head %}
 <style>
+/* ── Break out of .container max-width ── */
+.container:has(.loop-shell) {
+    max-width: none;
+    padding: 0;
+}
+
 /* ── Loop Shell ── */
 .loop-shell {
     display: grid;
     grid-template-columns: 200px 1fr;
-    min-height: calc(100vh - 56px);
+    height: calc(100vh - 56px);
 }
 @media (max-width: 768px) {
     .loop-shell { grid-template-columns: 1fr; }
@@ -116,7 +122,6 @@
 /* ── Main Content Area ── */
 .loop-main {
     padding: 20px 24px;
-    max-width: 1200px;
     overflow-y: auto;
 }
 
