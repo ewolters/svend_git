@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import require_auth
 
-from .models import ProcessGraph
+from .models import ProcessGraph, ProcessNode
 from .service import GraphService
 
 logger = logging.getLogger("svend.graph.views")
@@ -300,3 +300,411 @@ def confirm_seed(request):
             "node_names": [n.name for n in result["created_nodes"]],
         }
     )
+
+
+# =============================================================================
+# S1-3: Unified Search Endpoint (for command palette)
+# =============================================================================
+
+
+@require_auth
+@require_http_methods(["GET"])
+def search(request):
+    """Unified search across all entity types for command palette.
+
+    GET /api/graph/search/?q=<query>&types=signal,commitment,...
+    Returns top 10 results ranked by relevance.
+    """
+    from django.db.models import Q
+
+    tenant_id = _get_tenant_id(request)
+    if not tenant_id:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    q = request.GET.get("q", "").strip()
+    if len(q) < 2:
+        return JsonResponse({"results": []})
+
+    results = []
+
+    # Search ProcessNodes
+    for node in ProcessNode.objects.filter(graph__tenant_id=tenant_id, name__icontains=q)[:5]:
+        results.append(
+            {
+                "type": "node",
+                "id": str(node.id),
+                "title": node.name,
+                "subtitle": node.get_node_type_display(),
+                "url": f"/app/process-map/?node={node.id}",
+            }
+        )
+
+    # Search Signals
+    from loop.models import Commitment, Signal, SupplierClaim
+
+    for sig in Signal.objects.filter(tenant_id=tenant_id).filter(Q(title__icontains=q) | Q(description__icontains=q))[
+        :5
+    ]:
+        results.append(
+            {
+                "type": "signal",
+                "id": str(sig.id),
+                "title": sig.title,
+                "subtitle": f"{sig.severity} — {sig.triage_state}",
+                "url": f"/app/loop/detect/signals/?id={sig.id}",
+                "status": sig.triage_state,
+            }
+        )
+
+    # Search Commitments
+    for cmt in Commitment.objects.filter(tenant_id=tenant_id).filter(
+        Q(title__icontains=q) | Q(description__icontains=q)
+    )[:5]:
+        results.append(
+            {
+                "type": "commitment",
+                "id": str(cmt.id),
+                "title": cmt.title,
+                "subtitle": f"{cmt.status} — due {cmt.due_date}" if cmt.due_date else cmt.status,
+                "url": f"/app/loop/standardize/commitments/?id={cmt.id}",
+                "status": cmt.status,
+            }
+        )
+
+    # Search Supplier Claims
+    for claim in (
+        SupplierClaim.objects.filter(tenant_id=tenant_id)
+        .filter(Q(title__icontains=q) | Q(description__icontains=q))
+        .select_related("supplier")[:5]
+    ):
+        results.append(
+            {
+                "type": "claim",
+                "id": str(claim.id),
+                "title": claim.title,
+                "subtitle": f"{claim.supplier.name} — {claim.status}",
+                "url": f"/app/loop/detect/supplier/?claim={claim.id}",
+                "status": claim.status,
+            }
+        )
+
+    # Search Suppliers
+    from agents_api.models import ControlledDocument, NonconformanceRecord, SupplierRecord
+
+    for sup in SupplierRecord.objects.filter(owner__memberships__tenant_id=tenant_id).filter(
+        Q(name__icontains=q) | Q(contact_email__icontains=q)
+    )[:5]:
+        results.append(
+            {
+                "type": "supplier",
+                "id": str(sup.id),
+                "title": sup.name,
+                "subtitle": f"Supplier — {sup.status}",
+                "url": f"/app/loop/detect/supplier/?supplier={sup.id}",
+            }
+        )
+
+    # Search NCRs
+    for ncr in NonconformanceRecord.objects.filter(owner__memberships__tenant_id=tenant_id).filter(
+        Q(title__icontains=q) | Q(description__icontains=q)
+    )[:5]:
+        results.append(
+            {
+                "type": "ncr",
+                "id": str(ncr.id),
+                "title": ncr.title,
+                "subtitle": f"NCR — {ncr.status}",
+                "url": f"/app/loop/standardize/ncr/?id={ncr.id}",
+                "status": ncr.status,
+            }
+        )
+
+    # Search Documents
+    for doc in ControlledDocument.objects.filter(owner__memberships__tenant_id=tenant_id).filter(
+        Q(title__icontains=q) | Q(document_number__icontains=q)
+    )[:5]:
+        results.append(
+            {
+                "type": "document",
+                "id": str(doc.id),
+                "title": doc.title,
+                "subtitle": f"Doc {doc.document_number} — {doc.status}",
+                "url": f"/app/loop/standardize/documents/?id={doc.id}",
+            }
+        )
+
+    # Search Investigations
+    from core.models.investigation import Investigation
+
+    for inv in Investigation.objects.filter(tenant_id=tenant_id).filter(
+        Q(title__icontains=q) | Q(description__icontains=q)
+    )[:5]:
+        results.append(
+            {
+                "type": "investigation",
+                "id": str(inv.id),
+                "title": inv.title,
+                "subtitle": f"Investigation — {inv.status}",
+                "url": f"/app/loop/investigations/{inv.id}/",
+            }
+        )
+
+    # Sort by relevance (exact match > starts with > contains)
+    q_lower = q.lower()
+    for r in results:
+        title_lower = r["title"].lower()
+        if title_lower == q_lower:
+            r["_score"] = 3
+        elif title_lower.startswith(q_lower):
+            r["_score"] = 2
+        else:
+            r["_score"] = 1
+
+    results.sort(key=lambda r: r["_score"], reverse=True)
+
+    # Remove internal score, cap at 10
+    for r in results:
+        r.pop("_score", None)
+
+    return JsonResponse({"results": results[:10], "query": q})
+
+
+# =============================================================================
+# S1-4: Knowledge Health Metrics
+# =============================================================================
+
+
+@require_auth
+@require_http_methods(["GET"])
+def knowledge_health(request):
+    """Compute and return knowledge health metrics for the org's graph."""
+    tenant_id = _get_tenant_id(request)
+    if not tenant_id:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    graph = GraphService.get_org_graph(tenant_id)
+    if not graph:
+        return JsonResponse({"empty": True, "maturity_level": 0})
+
+    health = GraphService.compute_knowledge_health(tenant_id, graph.id)
+    return JsonResponse(health)
+
+
+# =============================================================================
+# S1-6: Activity Feed Endpoint
+# =============================================================================
+
+
+@require_auth
+@require_http_methods(["GET"])
+def activity_feed(request, entity_type, entity_id):
+    """Unified activity feed for any entity.
+
+    Returns chronological events from all sources:
+    status changes, notes, evidence, resource assignments, graph events.
+    """
+    tenant_id = _get_tenant_id(request)
+    if not tenant_id:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    events = []
+
+    if entity_type == "commitment":
+        from loop.models import Commitment
+
+        try:
+            cmt = Commitment.objects.get(id=entity_id, tenant_id=tenant_id)
+        except Commitment.DoesNotExist:
+            return JsonResponse({"error": "Not found"}, status=404)
+
+        for note in cmt.notes.all().order_by("-created_at")[:20]:
+            events.append(
+                {
+                    "type": "note",
+                    "timestamp": note.created_at.isoformat(),
+                    "author": note.author.get_full_name() or note.author.email if note.author_id else "System",
+                    "description": note.text[:200],
+                    "is_system": note.is_system_note if hasattr(note, "is_system_note") else False,
+                }
+            )
+
+        for res in cmt.resources.all().order_by("-created_at")[:10]:
+            events.append(
+                {
+                    "type": "resource_assignment",
+                    "timestamp": res.created_at.isoformat(),
+                    "author": "",
+                    "description": f"{res.employee.name} assigned as {res.role} ({res.status})",
+                    "is_system": True,
+                }
+            )
+
+    elif entity_type == "signal":
+        from loop.models import Signal
+
+        try:
+            sig = Signal.objects.get(id=entity_id, tenant_id=tenant_id)
+        except Signal.DoesNotExist:
+            return JsonResponse({"error": "Not found"}, status=404)
+
+        if sig.triaged_at:
+            events.append(
+                {
+                    "type": "triage",
+                    "timestamp": sig.triaged_at.isoformat(),
+                    "author": "",
+                    "description": f"Triaged → {sig.triage_state}",
+                    "is_system": True,
+                }
+            )
+        if sig.resolved_at:
+            events.append(
+                {
+                    "type": "resolution",
+                    "timestamp": sig.resolved_at.isoformat(),
+                    "author": "",
+                    "description": f"Resolved via investigation {sig.resolved_by_investigation_id}",
+                    "is_system": True,
+                }
+            )
+
+    elif entity_type == "claim":
+        from loop.models import SupplierClaim
+
+        try:
+            claim = SupplierClaim.objects.get(id=entity_id, tenant_id=tenant_id)
+        except SupplierClaim.DoesNotExist:
+            return JsonResponse({"error": "Not found"}, status=404)
+
+        for resp in claim.responses.all().order_by("revision"):
+            events.append(
+                {
+                    "type": "response",
+                    "timestamp": resp.created_at.isoformat(),
+                    "author": "Supplier",
+                    "description": f"Response #{resp.revision} — quality score: {resp.response_quality_score or '—'}",
+                    "is_system": False,
+                }
+            )
+            if resp.reviewed_at:
+                events.append(
+                    {
+                        "type": "review",
+                        "timestamp": resp.reviewed_at.isoformat(),
+                        "author": resp.reviewer.get_full_name() if resp.reviewer else "",
+                        "description": f"{'Accepted' if resp.accepted else 'Rejected'}: {resp.reviewer_notes[:100]}",
+                        "is_system": False,
+                    }
+                )
+
+        for ver in claim.verifications.all().order_by("-verified_at"):
+            events.append(
+                {
+                    "type": "verification",
+                    "timestamp": ver.verified_at.isoformat(),
+                    "author": ver.verified_by.get_full_name() if ver.verified_by else "",
+                    "description": f"Verification ({ver.verification_type}): {ver.result}",
+                    "is_system": False,
+                }
+            )
+
+    elif entity_type == "edge":
+        from graph.models import EdgeEvidence
+
+        for ev in EdgeEvidence.objects.filter(edge_id=entity_id, edge__graph__tenant_id=tenant_id).order_by(
+            "-observed_at"
+        )[:20]:
+            events.append(
+                {
+                    "type": "evidence",
+                    "timestamp": ev.observed_at.isoformat(),
+                    "author": ev.created_by.get_full_name() if ev.created_by else "",
+                    "description": f"{ev.source_type}: {ev.source_description[:150]}",
+                    "is_system": False,
+                    "retracted": ev.retracted,
+                }
+            )
+
+    events.sort(key=lambda e: e["timestamp"], reverse=True)
+    return JsonResponse({"events": events[:50], "entity_type": entity_type, "entity_id": str(entity_id)})
+
+
+# =============================================================================
+# S1-7: Gates Endpoint
+# =============================================================================
+
+
+@require_auth
+@require_http_methods(["GET"])
+def workflow_gates(request, entity_type, entity_id):
+    """Return workflow gates (prerequisites) for lifecycle transitions.
+
+    Shows what actions are available and what blocks each one.
+    """
+    tenant_id = _get_tenant_id(request)
+    if not tenant_id:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    gates = []
+
+    if entity_type == "signal":
+        from loop.models import Signal
+
+        try:
+            sig = Signal.objects.get(id=entity_id, tenant_id=tenant_id)
+        except Signal.DoesNotExist:
+            return JsonResponse({"error": "Not found"}, status=404)
+
+        if sig.triage_state == "untriaged":
+            gates.append({"action": "acknowledge", "met": True, "description": "Acknowledge this signal"})
+            gates.append({"action": "investigate", "met": True, "description": "Open investigation"})
+            gates.append({"action": "dismiss", "met": True, "description": "Dismiss with reason"})
+
+    elif entity_type == "commitment":
+        from loop.models import Commitment
+
+        try:
+            cmt = Commitment.objects.get(id=entity_id, tenant_id=tenant_id)
+        except Commitment.DoesNotExist:
+            return JsonResponse({"error": "Not found"}, status=404)
+
+        if cmt.status == "open":
+            gates.append({"action": "start", "met": True, "description": "Begin work"})
+        elif cmt.status == "in_progress":
+            has_artifacts = bool(cmt.linked_artifacts)
+            gates.append(
+                {
+                    "action": "fulfill",
+                    "met": has_artifacts,
+                    "description": "Fulfill commitment"
+                    if has_artifacts
+                    else "Link at least one artifact before fulfilling",
+                }
+            )
+            gates.append({"action": "break", "met": True, "description": "Mark as broken (with reason)"})
+
+    elif entity_type == "claim":
+        from loop.models import SupplierClaim
+
+        try:
+            claim = SupplierClaim.objects.get(id=entity_id, tenant_id=tenant_id)
+        except SupplierClaim.DoesNotExist:
+            return JsonResponse({"error": "Not found"}, status=404)
+
+        valid = SupplierClaim.VALID_TRANSITIONS.get(claim.status, set())
+        for target in valid:
+            met = True
+            desc = f"Transition to {target}"
+
+            if target == "verified":
+                has_accepted = claim.responses.filter(accepted=True).exists()
+                met = has_accepted
+                desc = "Verify — accepted response required" if not has_accepted else "Verify claim resolution"
+            elif target == "closed":
+                has_verification = claim.verifications.exists()
+                met = has_verification
+                desc = "Close — verification record required" if not has_verification else "Close claim"
+
+            gates.append({"action": target, "met": met, "description": desc})
+
+    return JsonResponse({"gates": gates, "entity_type": entity_type, "entity_id": str(entity_id)})

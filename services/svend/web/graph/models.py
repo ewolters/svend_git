@@ -5,6 +5,8 @@ ProcessGraph: org-wide process knowledge container (one per tenant, federated vi
 ProcessNode: process entities — things you can measure, control, observe, or specify.
 ProcessEdge: claimed relationships with Bayesian posteriors from evidence stacking.
 EdgeEvidence: timestamped, immutable evidence records on edges.
+TenantConfig: per-tenant configuration storage (OLR-001 §16).
+KnowledgeHealthSnapshot: daily knowledge health metrics (OLR-001 §13).
 """
 
 import uuid
@@ -138,6 +140,32 @@ class ProcessNode(models.Model):
         null=True,
         blank=True,
         help_text="Control limits: {ucl, lcl, cl}",
+    )
+
+    # Classification (OLR-001 §4.7)
+    class ClassificationTier(models.TextChoices):
+        CRITICAL = "critical", "Critical"
+        MAJOR = "major", "Major"
+        MINOR = "minor", "Minor"
+
+    classification_tier = models.CharField(
+        max_length=10,
+        choices=ClassificationTier.choices,
+        default=ClassificationTier.MINOR,
+        help_text="OLR-001 §4.7: determines evidence minimum + staleness threshold",
+    )
+
+    # Detection mechanism level (OLR-001 §9)
+    detection_mechanism_level = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="1=source prevention, 2=auto arrest, 3=auto detect, 4=auto alert, 5=structured check, 6=observation, 7=downstream, 8=undetectable",
+    )
+
+    # Customer-facing flag (OLR-001 §12)
+    customer_facing = models.BooleanField(
+        default=False,
+        help_text="True if this characteristic directly affects what the customer receives (from QFD)",
     )
 
     # Controllability
@@ -466,3 +494,104 @@ class EdgeEvidence(models.Model):
     def __str__(self):
         status = " [RETRACTED]" if self.retracted else ""
         return f"Evidence on {self.edge_id} ({self.source_type}){status}"
+
+
+# =============================================================================
+# TenantConfig — OLR-001 §16 (Configuration as Policy)
+# =============================================================================
+
+
+class TenantConfig(models.Model):
+    """Per-tenant configuration storage.
+
+    One table for all settings. Site-level overrides shadow tenant defaults.
+    See graph/config.py for ConfigService and presets.
+    """
+
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        related_name="config_entries",
+    )
+    domain = models.CharField(max_length=30, db_index=True)
+    key = models.CharField(max_length=100)
+    value = models.JSONField()
+    site = models.ForeignKey(
+        "agents_api.Site",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="config_overrides",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "graph_tenant_config"
+        unique_together = [("tenant", "domain", "key", "site")]
+        indexes = [
+            models.Index(fields=["tenant", "domain"]),
+        ]
+
+    def __str__(self):
+        site = f" @{self.site}" if self.site else ""
+        return f"{self.domain}.{self.key} = {self.value}{site}"
+
+
+# =============================================================================
+# KnowledgeHealthSnapshot — OLR-001 §13
+# =============================================================================
+
+
+class KnowledgeHealthSnapshot(models.Model):
+    """Daily snapshot of knowledge health metrics.
+
+    Persisted for trend analysis and maturity trajectory.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    graph = models.ForeignKey(
+        ProcessGraph,
+        on_delete=models.CASCADE,
+        related_name="health_snapshots",
+    )
+    snapshot_date = models.DateField()
+
+    # Metrics (OLR-001 §13)
+    calibration_rate = models.FloatField(help_text="edges with evidence / total edges")
+    staleness_rate = models.FloatField(help_text="past threshold / calibrated")
+    contradiction_rate = models.FloatField(help_text="conflicting evidence / total")
+    knowledge_gap_ratio = models.FloatField(help_text="assertion-only / total")
+    signal_resolution_velocity_days = models.FloatField(
+        null=True, blank=True, help_text="avg days signal → knowledge update"
+    )
+    proactive_reactive_ratio = models.FloatField(
+        null=True, blank=True, help_text="internal detection / total customer-facing"
+    )
+    detection_distribution = models.JSONField(default=dict, blank=True, help_text="critical nodes by detection level")
+
+    # Maturity indicators
+    maturity_level = models.IntegerField(default=1, help_text="1=Structured, 2=Learning, 3=Sustaining, 4=Predictive")
+
+    # Totals for context
+    total_nodes = models.IntegerField(default=0)
+    total_edges = models.IntegerField(default=0)
+    calibrated_edges = models.IntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "graph_knowledge_health"
+        unique_together = [("graph", "snapshot_date")]
+        ordering = ["-snapshot_date"]
+        indexes = [
+            models.Index(fields=["graph", "-snapshot_date"]),
+        ]
+
+    def __str__(self):
+        return f"KH {self.graph.name} {self.snapshot_date}: L{self.maturity_level} ({self.calibration_rate:.0%})"

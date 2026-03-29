@@ -64,6 +64,9 @@ class Signal(SynaraEntity):
         TRAINING_REFLECTION = "training_reflection", "Training Reflection Pattern"
         SUPPLIER_ISSUE = "supplier_issue", "Supplier Quality Issue"
         FIELD_RETURN = "field_return", "Field Return / Warranty"
+        GRAPH_STALENESS = "graph_staleness", "Graph Edge Staleness"
+        GRAPH_CONTRADICTION = "graph_contradiction", "Graph Edge Contradiction"
+        GRAPH_EXPANSION = "graph_expansion", "Graph Expansion Signal"
         OTHER = "other", "Other"
 
     class Severity(models.TextChoices):
@@ -131,6 +134,18 @@ class Signal(SynaraEntity):
         related_name="created_signals",
     )
     resolved_at = models.DateTimeField(null=True, blank=True)
+    triaged_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this signal was first triaged — feeds resolution velocity metric (OLR-001 §13.4)",
+    )
+
+    # Graph linkage (OLR-001) — which process nodes this signal relates to
+    linked_process_node_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="UUIDs of ProcessNode records this signal relates to",
+    )
 
     class Meta:
         db_table = "loop_signal"

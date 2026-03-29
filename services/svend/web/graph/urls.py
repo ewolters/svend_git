@@ -13,4 +13,12 @@ urlpatterns = [
     path("gaps/", views.gap_report, name="gap_report"),
     path("seed/", views.seed_from_fmis, name="seed_from_fmis"),
     path("seed/confirm/", views.confirm_seed, name="confirm_seed"),
+    # S1-3: Search (command palette)
+    path("search/", views.search, name="search"),
+    # S1-4: Knowledge health
+    path("health/", views.knowledge_health, name="knowledge_health"),
+    # S1-6: Activity feed
+    path("activity/<str:entity_type>/<uuid:entity_id>/", views.activity_feed, name="activity_feed"),
+    # S1-7: Workflow gates
+    path("gates/<str:entity_type>/<uuid:entity_id>/", views.workflow_gates, name="workflow_gates"),
 ]

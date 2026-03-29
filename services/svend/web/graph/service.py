@@ -431,6 +431,105 @@ class GraphService:
 
         return report
 
+    # ── Knowledge Health Metrics — OLR-001 §13 ──
+
+    @staticmethod
+    def compute_knowledge_health(tenant_id: UUID, graph_id: UUID) -> dict:
+        """Compute all OLR-001 §13 health metrics for a graph."""
+
+        total_edges = ProcessEdge.objects.filter(graph_id=graph_id, graph__tenant_id=tenant_id).count()
+        total_nodes = ProcessNode.objects.filter(graph_id=graph_id, graph__tenant_id=tenant_id).count()
+
+        if total_edges == 0:
+            return {
+                "calibration_rate": 0,
+                "staleness_rate": 0,
+                "contradiction_rate": 0,
+                "knowledge_gap_ratio": 1.0,
+                "total_nodes": total_nodes,
+                "total_edges": 0,
+                "calibrated_edges": 0,
+                "maturity_level": 1 if total_nodes > 0 else 0,
+                "maturity_indicators": {
+                    "level_1": total_nodes > 0,
+                    "level_2": False,
+                    "level_3": False,
+                    "level_4": False,
+                },
+                "detection_distribution": {},
+            }
+
+        calibrated = (
+            ProcessEdge.objects.filter(graph_id=graph_id, graph__tenant_id=tenant_id, evidence_count__gt=0)
+            .exclude(provenance="fmea_assertion")
+            .count()
+        )
+
+        stale = ProcessEdge.objects.filter(graph_id=graph_id, graph__tenant_id=tenant_id, is_stale=True).count()
+
+        contradicted = ProcessEdge.objects.filter(
+            graph_id=graph_id, graph__tenant_id=tenant_id, is_contradicted=True
+        ).count()
+
+        assertion_only = ProcessEdge.objects.filter(
+            graph_id=graph_id, graph__tenant_id=tenant_id, evidence_count=0, provenance="fmea_assertion"
+        ).count()
+
+        calibration_rate = calibrated / total_edges if total_edges else 0
+        staleness_rate = stale / calibrated if calibrated else 0
+        contradiction_rate = contradicted / total_edges if total_edges else 0
+        gap_ratio = assertion_only / total_edges if total_edges else 1.0
+
+        # Detection distribution for critical nodes
+        critical_nodes = ProcessNode.objects.filter(
+            graph_id=graph_id,
+            graph__tenant_id=tenant_id,
+            classification_tier="critical",
+        ).exclude(detection_mechanism_level__isnull=True)
+
+        detection_dist = {}
+        for node in critical_nodes:
+            level = node.detection_mechanism_level
+            key = f"level_{level}"
+            detection_dist[key] = detection_dist.get(key, 0) + 1
+
+        # Maturity indicators
+        has_structure = total_nodes > 0 and total_edges > 0
+        is_learning = calibration_rate > 0.1 and calibrated > 0
+        is_sustaining = is_learning and staleness_rate < 0.2 and contradiction_rate < 0.1
+        # Level 4 requires predictive validation — not computable without explicit records
+        is_predictive = False
+
+        maturity = 0
+        if has_structure:
+            maturity = 1
+        if is_learning:
+            maturity = 2
+        if is_sustaining:
+            maturity = 3
+        if is_predictive:
+            maturity = 4
+
+        return {
+            "calibration_rate": round(calibration_rate, 4),
+            "staleness_rate": round(staleness_rate, 4),
+            "contradiction_rate": round(contradiction_rate, 4),
+            "knowledge_gap_ratio": round(gap_ratio, 4),
+            "total_nodes": total_nodes,
+            "total_edges": total_edges,
+            "calibrated_edges": calibrated,
+            "stale_edges": stale,
+            "contradicted_edges": contradicted,
+            "detection_distribution": detection_dist,
+            "maturity_level": maturity,
+            "maturity_indicators": {
+                "level_1": has_structure,
+                "level_2": is_learning,
+                "level_3": is_sustaining,
+                "level_4": is_predictive,
+            },
+        }
+
     # ── FMIS Seeding — GRAPH-001 §7 ──
 
     @staticmethod

@@ -5729,6 +5729,16 @@ class MeasurementEquipment(models.Model):
         related_name="measurement_equipment",
         help_text="ProcessNode of type 'measurement' or 'equipment' this record represents",
     )
+    # Reliability (OLR-001 §11.2)
+    mtbf_hours = models.FloatField(null=True, blank=True, help_text="Mean time between failures (hours)")
+    weibull_shape = models.FloatField(null=True, blank=True, help_text="Weibull shape parameter (beta)")
+    weibull_scale = models.FloatField(null=True, blank=True, help_text="Weibull scale parameter (eta)")
+    failure_count = models.IntegerField(default=0, help_text="Historical failure count")
+    failure_history = models.JSONField(default=list, blank=True, help_text="[{date, hours_at_failure, description}]")
+    # Measurement uncertainty from Gage R&R (OLR-001 §11.3)
+    measurement_uncertainty_percent = models.FloatField(
+        null=True, blank=True, help_text="% contribution to total variation from Gage R&R"
+    )
     notes = models.TextField(blank=True)
     iso_clause = models.CharField(max_length=20, blank=True, default="7.1.5")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -6627,6 +6637,29 @@ class ControlPlanItem(models.Model):
     # Reaction plan
     reaction_plan = models.TextField(blank=True, help_text="What to do when out of spec: contain, sort, notify, adjust")
 
+    # OLR-001 §9: detection mechanism level for this control item
+    detection_mechanism_level = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="1-8 per OLR-001 §9 detection hierarchy",
+    )
+
+    # OLR-001 §15: minimum competency stage to execute this control
+    competency_stage_required = models.IntegerField(
+        default=1,
+        help_text="1=See, 2=Do, 3=Teach — minimum stage to execute this control item",
+    )
+
+    # FMIS linkage — traces control plan to knowledge structure
+    fmis_row = models.ForeignKey(
+        "loop.FMISRow",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="control_plan_items",
+        help_text="FMIS row this control item monitors — links control plan to knowledge structure",
+    )
+
     # Graph linkage — optional
     linked_process_node = models.ForeignKey(
         "graph.ProcessNode",
@@ -6634,7 +6667,7 @@ class ControlPlanItem(models.Model):
         null=True,
         blank=True,
         related_name="control_plan_items",
-        help_text="ProcessNode this item monitors — enables graph-level control coverage tracking",
+        help_text="ProcessNode this item monitors",
     )
     linked_equipment = models.ForeignKey(
         "agents_api.MeasurementEquipment",
