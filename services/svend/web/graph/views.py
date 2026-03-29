@@ -236,3 +236,67 @@ def gap_report(request):
 
     report = GraphService.gap_report(tenant_id, graph_id)
     return JsonResponse(report.to_dict())
+
+
+@require_auth
+@require_http_methods(["POST"])
+def seed_from_fmis(request):
+    """Propose graph structure from FMIS rows.
+
+    POST body: {"fmis_id": uuid} — seeds from all rows in the FMIS document.
+    Returns proposals for user confirmation.
+    """
+    import json
+
+    tenant_id = _get_tenant_id(request)
+    if not tenant_id:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    data = json.loads(request.body)
+    fmis_id = data.get("fmis_id")
+    if not fmis_id:
+        return JsonResponse({"error": "fmis_id required"}, status=400)
+
+    # Get or create the org graph
+    graph = GraphService.get_or_create_org_graph(tenant_id, created_by=request.user)
+
+    # Load FMIS rows
+    from loop.models import FMISRow
+
+    rows = list(FMISRow.objects.filter(fmis_id=fmis_id, fmis__tenant=tenant_id))
+    if not rows:
+        return JsonResponse({"error": "No FMIS rows found"}, status=404)
+
+    proposals = GraphService.seed_from_fmis(tenant_id, graph.id, rows)
+    return JsonResponse({"proposals": proposals, "graph_id": str(graph.id)})
+
+
+@require_auth
+@require_http_methods(["POST"])
+def confirm_seed(request):
+    """Confirm proposed graph structure from FMIS seeding.
+
+    POST body: {"graph_id": uuid, "proposals": [...]}
+    """
+    import json
+
+    tenant_id = _get_tenant_id(request)
+    if not tenant_id:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    data = json.loads(request.body)
+    graph_id = data.get("graph_id")
+    proposals = data.get("proposals", [])
+
+    if not graph_id or not proposals:
+        return JsonResponse({"error": "graph_id and proposals required"}, status=400)
+
+    result = GraphService.confirm_seed(tenant_id, graph_id, proposals, confirmed_by=request.user)
+
+    return JsonResponse(
+        {
+            "created_nodes": len(result["created_nodes"]),
+            "created_edges": len(result["created_edges"]),
+            "node_names": [n.name for n in result["created_nodes"]],
+        }
+    )
