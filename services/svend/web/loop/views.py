@@ -300,6 +300,20 @@ def commitment_list_create(request):
     )
 
     logger.info("commitment.created", extra={"commitment_id": str(commitment.id)})
+
+    # Notify owner if assigned to someone else
+    if owner != request.user:
+        from notifications.helpers import notify
+
+        notify(
+            recipient=owner,
+            notification_type="assignment",
+            title=f"New commitment: {commitment.title}",
+            message=f"You have been assigned a commitment due {commitment.due_date}.",
+            entity_type="commitment",
+            entity_id=commitment.id,
+        )
+
     return JsonResponse({"commitment": _serialize_commitment(commitment)}, status=201)
 
 
@@ -338,6 +352,36 @@ def commitment_detail(request, commitment_id):
     elif action == "break":
         reason = data.get("reason", "")
         commitment.mark_broken(reason)
+
+    elif action == "reassign":
+        new_owner_id = data.get("owner_id")
+        if not new_owner_id:
+            return JsonResponse({"error": "owner_id is required for reassign"}, status=400)
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        try:
+            new_owner = User.objects.get(id=new_owner_id)
+        except User.DoesNotExist:
+            return JsonResponse({"error": "Owner not found"}, status=404)
+        old_owner = commitment.owner
+        commitment.owner = new_owner
+        commitment.save(update_fields=["owner", "updated_at"])
+        # Notify the new owner
+        from notifications.helpers import notify
+
+        notify(
+            recipient=new_owner,
+            notification_type="assignment",
+            title=f"Commitment assigned: {commitment.title}",
+            message=f"You have been assigned a commitment due {commitment.due_date}.",
+            entity_type="commitment",
+            entity_id=commitment.id,
+        )
+        logger.info(
+            "commitment.reassigned",
+            extra={"commitment_id": str(commitment.id), "from": str(old_owner.id), "to": str(new_owner.id)},
+        )
 
     elif action == "cancel":
         commitment.status = Commitment.Status.CANCELLED

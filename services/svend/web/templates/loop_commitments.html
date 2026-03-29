@@ -32,28 +32,29 @@
 .cmt-preconditions { margin-top: 12px; }
 .cmt-precondition { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 12px; }
 .cmt-precondition:last-child { border-bottom: none; }
-.cmt-precondition .pc-status { flex-shrink: 0; width: 14px; height: 14px; border-radius: 50%; margin-top: 1px; }
-.cmt-precondition .pc-status.met { background: #4ade80; }
-.cmt-precondition .pc-status.pending { background: #facc15; }
-.cmt-precondition .pc-status.unmet { background: #f87171; }
-.cmt-precondition .pc-desc { color: var(--text-primary); }
+.cmt-precondition .pc-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; }
+.cmt-precondition .pc-dot.met { background: #4ade80; }
+.cmt-precondition .pc-dot.pending { background: #facc15; }
+.cmt-precondition .pc-dot.unmet { background: #f87171; }
 
-/* ── Policy panel ── */
-.cmt-policy-panel { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
-.cmt-policy-panel h4 {
-    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--text-dim); margin: 0 0 10px;
+/* ── Detail grid ── */
+.cmt-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
 }
-.policy-rule {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px;
-    margin-bottom: 6px; font-size: 11px;
+@media (max-width: 900px) { .cmt-detail-grid { grid-template-columns: 1fr 1fr; } }
+
+/* ── Activity timeline ── */
+.cmt-timeline { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.cmt-timeline-item {
+    display: flex; gap: 8px; padding: 4px 0; font-size: 11px;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
 }
-.policy-rule .rule-name { color: var(--text-primary); font-weight: 500; }
-.policy-rule .rule-scope { color: var(--text-dim); font-size: 10px; }
-.policy-rule .rule-status { font-size: 10px; }
-.policy-rule .rule-status.active { color: #4ade80; }
-.policy-rule .rule-status.inactive { color: #9ca3af; }
+.cmt-timeline-item:last-child { border-bottom: none; }
+.cmt-timeline-item .tl-time { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 10px; white-space: nowrap; min-width: 55px; }
+.cmt-timeline-item .tl-text { color: var(--text-secondary); }
 
 /* ── Create form in rail ── */
 .cmt-create-form { padding: 10px 12px; border-top: 1px solid var(--border); }
@@ -62,6 +63,27 @@
     font-size: 11px; padding: 4px 6px; margin-bottom: 6px;
 }
 .cmt-create-form textarea { min-height: 40px; }
+
+/* ── Owner assignment ── */
+.cmt-owner-select { position: relative; }
+.cmt-owner-current {
+    display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+    font-size: 12px; color: var(--text-primary); transition: border-color 0.15s;
+}
+.cmt-owner-current:hover { border-color: var(--accent-primary-border); }
+.cmt-owner-dropdown {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px;
+    max-height: 200px; overflow-y: auto; display: none;
+}
+.cmt-owner-dropdown.open { display: block; }
+.cmt-owner-option {
+    padding: 6px 10px; font-size: 11px; color: var(--text-secondary);
+    cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.cmt-owner-option:hover { background: var(--bg-hover); color: var(--text-primary); }
+.cmt-owner-option .member-role { font-size: 9px; color: var(--text-dim); margin-left: 6px; }
 {% endblock %}
 
 {% block loop_content %}
@@ -69,12 +91,6 @@
     <!-- Detail panel (left, main area) -->
     <div class="loop-detail-panel empty" id="cmtDetail">
         Select a commitment to view details
-
-        <!-- Policy panel shows when no commitment selected -->
-        <div class="cmt-policy-panel" id="policyPanelEmpty" style="position:absolute;bottom:20px;left:24px;right:24px;">
-            <h4>Active Policies</h4>
-            <div id="policyListEmpty" style="color:var(--text-dim);font-size:11px;">Loading...</div>
-        </div>
     </div>
 
     <!-- Right rail -->
@@ -99,6 +115,10 @@
             <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-dim);margin-bottom:8px;">New Commitment</div>
             <label>Title</label>
             <input type="text" id="newCmtTitle" placeholder="What needs to happen?">
+            <label>Assign to</label>
+            <select id="newCmtOwner">
+                <option value="">Myself</option>
+            </select>
             <label>Due date</label>
             <input type="date" id="newCmtDue">
             <label>Transition type</label>
@@ -123,7 +143,7 @@
 
 <script>
 let commitments = [];
-let policies = [];
+let orgMembers = [];
 let currentCmtFilter = 'active';
 let selectedCmtId = null;
 
@@ -140,16 +160,26 @@ function loadCommitments() {
     .then(data => {
         commitments = data.commitments || [];
         renderCmtList();
+        if (selectedCmtId) {
+            const still = commitments.find(c => c.id === selectedCmtId);
+            if (still) selectCmt(selectedCmtId);
+        }
     });
 }
 
-function loadPolicies() {
-    fetch('/api/loop/policies/', { headers: { 'X-CSRFToken': getCSRF() }})
+function loadOrgMembers() {
+    fetch('/api/core/org/members/', { headers: { 'X-CSRFToken': getCSRF() }})
     .then(r => r.json())
     .then(data => {
-        policies = data.policies || [];
-        renderPolicyPanel('policyListEmpty');
-    });
+        orgMembers = data.members || [];
+        const sel = document.getElementById('newCmtOwner');
+        orgMembers.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.user_id;
+            opt.textContent = m.name || m.email || m.user_id.substring(0,8);
+            sel.appendChild(opt);
+        });
+    }).catch(() => {});
 }
 
 function filterCmts(btn) {
@@ -161,17 +191,12 @@ function filterCmts(btn) {
 
 function renderCmtList() {
     let filtered;
-    if (currentCmtFilter === 'all') {
-        filtered = commitments;
-    } else if (currentCmtFilter === 'active') {
-        filtered = commitments.filter(c => c.status === 'open' || c.status === 'in_progress');
-    } else {
-        filtered = commitments.filter(c => c.status === currentCmtFilter);
-    }
+    if (currentCmtFilter === 'all') filtered = commitments;
+    else if (currentCmtFilter === 'active') filtered = commitments.filter(c => c.status === 'open' || c.status === 'in_progress');
+    else filtered = commitments.filter(c => c.status === currentCmtFilter);
 
     const el = document.getElementById('cmtListItems');
-    const countEl = document.getElementById('cmtListCount');
-    countEl.textContent = `${filtered.length} commitment${filtered.length !== 1 ? 's' : ''}`;
+    document.getElementById('cmtListCount').textContent = `${filtered.length} commitment${filtered.length !== 1 ? 's' : ''}`;
 
     if (!filtered.length) {
         el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-dim);font-size:11px;">No commitments</div>';
@@ -182,18 +207,25 @@ function renderCmtList() {
         const selected = c.id === selectedCmtId ? ' selected' : '';
         const statusLabel = c.is_overdue ? 'overdue' : c.is_blocked ? 'blocked' : c.status;
         const statusClass = c.is_overdue ? 'overdue' : c.is_blocked ? 'blocked' : c.status;
-        const dueStr = c.due_date || '';
+        const ownerName = getMemberName(c.owner_id);
         return `<div class="loop-list-item${selected}" onclick="selectCmt('${c.id}')">
             <div class="item-main">
-                <div class="item-title">${escHtml(c.title)}</div>
+                <div class="item-title">${esc(c.title)}</div>
                 <div class="item-meta">
                     <span class="cmt-status ${statusClass}">${statusLabel.replace('_',' ')}</span>
                     ${c.transition_type ? `<span class="cmt-transition">${c.transition_type.replace(/_/g,' ')}</span>` : ''}
+                    ${ownerName ? `<span style="color:var(--text-dim);">${esc(ownerName)}</span>` : ''}
                 </div>
             </div>
-            <span class="item-time">${dueStr}</span>
+            <span class="item-time">${c.due_date || ''}</span>
         </div>`;
     }).join('');
+}
+
+function getMemberName(userId) {
+    if (!userId) return '';
+    const m = orgMembers.find(x => x.user_id === userId);
+    return m ? (m.name || m.email || '') : '';
 }
 
 function selectCmt(id) {
@@ -207,6 +239,7 @@ function selectCmt(id) {
 
     const statusLabel = c.is_overdue ? 'overdue' : c.is_blocked ? 'blocked' : c.status;
     const statusClass = c.is_overdue ? 'overdue' : c.is_blocked ? 'blocked' : c.status;
+    const ownerName = getMemberName(c.owner_id);
 
     // Preconditions
     let preHtml = '';
@@ -215,8 +248,8 @@ function selectCmt(id) {
             <div class="detail-label">Preconditions</div>
             ${c.preconditions.map(p => `
                 <div class="cmt-precondition">
-                    <div class="pc-status ${p.status}"></div>
-                    <div class="pc-desc">${escHtml(p.description)}</div>
+                    <div class="pc-dot ${p.status}"></div>
+                    <div style="color:var(--text-primary);font-size:12px;">${esc(p.description)}</div>
                 </div>
             `).join('')}
         </div>`;
@@ -227,16 +260,36 @@ function selectCmt(id) {
     if (c.status === 'open') {
         actionsHtml = `
             <button class="btn btn-primary" onclick="cmtAction('${c.id}','start')">Start</button>
+            <button class="btn" onclick="reassignCommitment('${c.id}')">Reassign</button>
             <button class="btn" onclick="cmtAction('${c.id}','cancel')">Cancel</button>`;
     } else if (c.status === 'in_progress') {
         actionsHtml = `
             <button class="btn btn-primary" onclick="cmtAction('${c.id}','fulfill')">Fulfill</button>
+            <button class="btn" onclick="reassignCommitment('${c.id}')">Reassign</button>
             <button class="btn" onclick="cmtAction('${c.id}','break')" style="border-color:rgba(239,68,68,0.3);color:#f87171;">Mark Broken</button>`;
     }
 
+    // Owner assignment dropdown
+    let ownerHtml = ownerName || c.owner_id?.substring(0,8) || '—';
+
+    // Timeline
+    let timelineHtml = `<div class="cmt-timeline">
+        <div class="detail-label">Activity</div>
+        <div class="cmt-timeline-item">
+            <span class="tl-time">${formatTimeAgo(c.created_at)}</span>
+            <span class="tl-text">Created</span>
+        </div>`;
+    if (c.status === 'in_progress') {
+        timelineHtml += `<div class="cmt-timeline-item"><span class="tl-time">—</span><span class="tl-text">Work started</span></div>`;
+    }
+    if (c.fulfilled_at) {
+        timelineHtml += `<div class="cmt-timeline-item"><span class="tl-time">${formatTimeAgo(c.fulfilled_at)}</span><span class="tl-text">Fulfilled</span></div>`;
+    }
+    timelineHtml += '</div>';
+
     panel.innerHTML = `
         <div class="loop-detail-header">
-            <h3>${escHtml(c.title)}</h3>
+            <h3>${esc(c.title)}</h3>
             <div class="detail-meta">
                 <span class="cmt-status ${statusClass}">${statusLabel.replace('_',' ')}</span>
                 ${c.transition_type ? `<span class="cmt-transition">${c.transition_type.replace(/_/g,' ')}</span>` : ''}
@@ -244,32 +297,26 @@ function selectCmt(id) {
             </div>
         </div>
         <div class="loop-detail-body">
-            ${c.description ? `<div class="detail-section"><div class="detail-label">Description</div><div class="detail-value">${escHtml(c.description)}</div></div>` : ''}
-            <div class="detail-section" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            ${c.description ? `<div class="detail-section"><div class="detail-label">Description</div><div class="detail-value">${esc(c.description)}</div></div>` : ''}
+            <div class="cmt-detail-grid">
+                <div>
+                    <div class="detail-label">Owner</div>
+                    <div class="detail-value">${esc(ownerHtml)}</div>
+                </div>
                 <div>
                     <div class="detail-label">Source</div>
                     <div class="detail-value">${c.source_type ? c.source_type.replace(/_/g,' ') : '—'}</div>
                 </div>
                 <div>
-                    <div class="detail-label">Owner</div>
-                    <div class="detail-value" style="font-family:'JetBrains Mono',monospace;font-size:11px;">${c.owner_id ? c.owner_id.substring(0,8) : '—'}</div>
+                    <div class="detail-label">Created</div>
+                    <div class="detail-value">${c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</div>
                 </div>
             </div>
-            ${c.source_investigation_id ? `<div class="detail-section"><div class="detail-label">Source Investigation</div><div class="detail-value"><a href="/app/loop/investigate/${c.source_investigation_id}/" style="color:var(--accent-primary);text-decoration:none;">${c.source_investigation_id.substring(0,8)}...</a></div></div>` : ''}
+            ${c.source_investigation_id ? `<div class="detail-section"><div class="detail-label">Source Investigation</div><div class="detail-value"><a href="/app/loop/investigate/${c.source_investigation_id}/" style="color:var(--accent-primary);text-decoration:none;">View investigation</a></div></div>` : ''}
             ${preHtml}
-            ${c.fulfilled_at ? `<div class="detail-section"><div class="detail-label">Fulfilled</div><div class="detail-value">${new Date(c.fulfilled_at).toLocaleString()}</div></div>` : ''}
-            <div class="detail-section">
-                <div class="detail-label">Created</div>
-                <div class="detail-value">${c.created_at ? new Date(c.created_at).toLocaleString() : '—'}</div>
-            </div>
+            ${timelineHtml}
         </div>
-        ${actionsHtml ? `<div class="loop-detail-actions">${actionsHtml}</div>` : ''}
-        <div class="cmt-policy-panel">
-            <h4>Active Policies</h4>
-            <div id="policyListDetail"></div>
-        </div>`;
-
-    renderPolicyPanel('policyListDetail');
+        ${actionsHtml ? `<div class="loop-detail-actions">${actionsHtml}</div>` : ''}`;
 }
 
 function cmtAction(id, action) {
@@ -285,13 +332,25 @@ function cmtAction(id, action) {
         body: JSON.stringify(body),
     })
     .then(r => r.json())
-    .then(() => {
-        selectedCmtId = null;
-        loadCommitments();
-        const panel = document.getElementById('cmtDetail');
-        panel.innerHTML = 'Select a commitment to view details';
-        panel.classList.add('empty');
-    });
+    .then(() => { loadCommitments(); });
+}
+
+function reassignCommitment(id) {
+    if (!orgMembers.length) { alert('No org members loaded'); return; }
+    const names = orgMembers.map((m,i) => `${i+1}. ${m.name || m.email}`).join('\n');
+    const choice = prompt('Reassign to (enter number):\n' + names);
+    if (!choice) return;
+    const idx = parseInt(choice) - 1;
+    if (idx < 0 || idx >= orgMembers.length) return;
+    const newOwnerId = orgMembers[idx].user_id;
+
+    fetch(`/api/loop/commitments/${id}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ action: 'reassign', owner_id: newOwnerId }),
+    })
+    .then(r => r.json())
+    .then(() => { loadCommitments(); });
 }
 
 function createCommitment() {
@@ -300,12 +359,15 @@ function createCommitment() {
     if (!title) return;
     if (!due) { alert('Due date is required — a commitment without a date is a wish'); return; }
 
+    const ownerId = document.getElementById('newCmtOwner').value || undefined;
+
     fetch('/api/loop/commitments/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
         body: JSON.stringify({
             title: title,
             due_date: due,
+            owner_id: ownerId,
             transition_type: document.getElementById('newCmtTransition').value,
             description: document.getElementById('newCmtDesc').value,
         }),
@@ -316,34 +378,29 @@ function createCommitment() {
         document.getElementById('newCmtDue').value = '';
         document.getElementById('newCmtDesc').value = '';
         document.getElementById('newCmtTransition').value = '';
+        document.getElementById('newCmtOwner').value = '';
         loadCommitments();
     });
 }
 
-function renderPolicyPanel(targetId) {
-    const el = document.getElementById(targetId);
-    if (!el) return;
-    if (!policies.length) {
-        el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);">No policies configured</div>';
-        return;
-    }
-    el.innerHTML = policies.slice(0, 8).map(p => `
-        <div class="policy-rule">
-            <div>
-                <div class="rule-name">${escHtml(p.rule_key || '').replace(/_/g,' ')}</div>
-                <div class="rule-scope">${p.scope_display || p.scope || ''}</div>
-            </div>
-            <span class="rule-status ${p.is_active ? 'active' : 'inactive'}">${p.is_active ? 'Active' : 'Off'}</span>
-        </div>
-    `).join('') + (policies.length > 8 ? `<div style="font-size:10px;color:var(--text-dim);margin-top:4px;">+ ${policies.length - 8} more</div>` : '');
+function formatTimeAgo(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = (now - d) / 1000;
+    if (diff < 60) return 'now';
+    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff/86400) + 'd ago';
+    return d.toLocaleDateString();
 }
 
-function escHtml(s) {
+function esc(s) {
     if (!s) return '';
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 loadCommitments();
-loadPolicies();
+loadOrgMembers();
 </script>
 {% endblock %}
