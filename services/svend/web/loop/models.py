@@ -307,6 +307,20 @@ class Commitment(SynaraEntity):
     target_object_id = models.UUIDField(null=True, blank=True)
     target_artifact = GenericForeignKey("target_content_type", "target_object_id")
 
+    # Linked artifacts — UUIDs of outputs produced for this commitment
+    linked_artifacts = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of {type, id, title, created_at} for artifacts linked to this commitment",
+    )
+
+    # Resource needs — what the owner needs to fulfill this
+    resource_needs = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of {description, status: needed|available|blocked} resource requirements",
+    )
+
     # Provenance
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -361,6 +375,35 @@ class Commitment(SynaraEntity):
         self.status = self.Status.BROKEN
         self.description = f"{self.description}\n\n---\nBroken: {reason}" if reason else self.description
         self.save(update_fields=["status", "description", "updated_at"])
+
+
+class CommitmentNote(models.Model):
+    """Threaded note on a commitment — communication between owner and org.
+
+    Notes are append-only (immutable once created). They capture status updates,
+    blockers, questions, and decisions that don't belong in the formal status field.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    commitment = models.ForeignKey(
+        Commitment,
+        on_delete=models.CASCADE,
+        related_name="notes",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="commitment_notes",
+    )
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "loop_commitment_note"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Note on {self.commitment_id} by {self.author_id}"
 
 
 # =============================================================================

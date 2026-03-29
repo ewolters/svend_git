@@ -59,12 +59,13 @@ def _serialize_signal(s):
     }
 
 
-def _serialize_commitment(c):
-    return {
+def _serialize_commitment(c, include_notes=False):
+    data = {
         "id": str(c.id),
         "title": c.title,
         "description": c.description,
         "owner_id": str(c.owner_id),
+        "owner_name": c.owner.get_full_name() or c.owner.email if c.owner_id else "",
         "due_date": c.due_date.isoformat() if c.due_date else None,
         "preconditions": c.preconditions,
         "status": c.status,
@@ -72,12 +73,27 @@ def _serialize_commitment(c):
         "source_type": c.source_type,
         "source_investigation_id": (str(c.source_investigation_id) if c.source_investigation_id else None),
         "target_object_id": str(c.target_object_id) if c.target_object_id else None,
+        "linked_artifacts": c.linked_artifacts or [],
+        "resource_needs": c.resource_needs or [],
         "is_overdue": c.is_overdue,
         "is_blocked": c.is_blocked,
         "created_by_id": str(c.created_by_id),
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "fulfilled_at": c.fulfilled_at.isoformat() if c.fulfilled_at else None,
+        "note_count": c.notes.count() if hasattr(c, "notes") else 0,
     }
+    if include_notes:
+        data["notes"] = [
+            {
+                "id": str(n.id),
+                "text": n.text,
+                "author_id": str(n.author_id),
+                "author_name": n.author.get_full_name() or n.author.email,
+                "created_at": n.created_at.isoformat(),
+            }
+            for n in c.notes.select_related("author").all()
+        ]
+    return data
 
 
 def _serialize_transition(t):
@@ -299,7 +315,7 @@ def commitment_list_create(request):
         created_by=request.user,
     )
 
-    logger.info("commitment.created", extra={"commitment_id": str(commitment.id)})
+    logger.info("commitment.created", extra={"commitment_id": str(commitment.id), "owner_id": str(owner.id)})
 
     # Notify owner if assigned to someone else
     if owner != request.user:
@@ -330,7 +346,7 @@ def commitment_detail(request, commitment_id):
         return JsonResponse({"error": "Commitment not found"}, status=404)
 
     if request.method == "GET":
-        return JsonResponse({"commitment": _serialize_commitment(commitment)})
+        return JsonResponse({"commitment": _serialize_commitment(commitment, include_notes=True)})
 
     # POST — status action
     try:
@@ -387,9 +403,59 @@ def commitment_detail(request, commitment_id):
         commitment.status = Commitment.Status.CANCELLED
         commitment.save(update_fields=["status", "updated_at"])
 
+    elif action == "add_note":
+        text = (data.get("text") or "").strip()
+        if not text:
+            return JsonResponse({"error": "text is required"}, status=400)
+        from .models import CommitmentNote
+
+        note = CommitmentNote.objects.create(
+            commitment=commitment,
+            author=request.user,
+            text=text,
+        )
+        # Notify owner if someone else adds a note
+        if request.user != commitment.owner:
+            from notifications.helpers import notify
+
+            notify(
+                recipient=commitment.owner,
+                notification_type="assignment",
+                title=f"Note on: {commitment.title}",
+                message=text[:200],
+                entity_type="commitment",
+                entity_id=commitment.id,
+            )
+        return JsonResponse({"commitment": _serialize_commitment(commitment, include_notes=True)})
+
+    elif action == "link_artifact":
+        artifact = data.get("artifact")
+        if not artifact or not artifact.get("id"):
+            return JsonResponse({"error": "artifact with id is required"}, status=400)
+        artifacts = commitment.linked_artifacts or []
+        artifacts.append(
+            {
+                "id": str(artifact["id"]),
+                "type": artifact.get("type", ""),
+                "title": artifact.get("title", ""),
+                "linked_at": timezone.now().isoformat(),
+            }
+        )
+        commitment.linked_artifacts = artifacts
+        commitment.save(update_fields=["linked_artifacts", "updated_at"])
+
+    elif action == "update_resources":
+        resources = data.get("resource_needs")
+        if resources is None:
+            return JsonResponse({"error": "resource_needs is required"}, status=400)
+        commitment.resource_needs = resources
+        commitment.save(update_fields=["resource_needs", "updated_at"])
+
     else:
         return JsonResponse(
-            {"error": f"Unknown action '{action}'. Valid: start, fulfill, break, cancel"},
+            {
+                "error": f"Unknown action '{action}'. Valid: start, fulfill, break, cancel, reassign, add_note, link_artifact, update_resources"
+            },
             status=400,
         )
 
@@ -397,7 +463,7 @@ def commitment_detail(request, commitment_id):
         "commitment.action",
         extra={"commitment_id": str(commitment.id), "action": action},
     )
-    return JsonResponse({"commitment": _serialize_commitment(commitment)})
+    return JsonResponse({"commitment": _serialize_commitment(commitment, include_notes=True)})
 
 
 # =============================================================================

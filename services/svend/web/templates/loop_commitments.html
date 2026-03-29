@@ -231,20 +231,31 @@ function getMemberName(userId) {
 function selectCmt(id) {
     selectedCmtId = id;
     renderCmtList();
-    const c = commitments.find(x => x.id === id);
-    if (!c) return;
 
+    // Fetch full detail with notes
+    fetch(`/api/loop/commitments/${id}/`, { headers: { 'X-CSRFToken': getCSRF() }})
+    .then(r => r.json())
+    .then(data => {
+        const c = data.commitment;
+        if (!c) return;
+        // Update local cache
+        const idx = commitments.findIndex(x => x.id === id);
+        if (idx >= 0) commitments[idx] = c;
+        renderCmtDetail(c);
+    });
+}
+
+function renderCmtDetail(c) {
     const panel = document.getElementById('cmtDetail');
     panel.classList.remove('empty');
 
     const statusLabel = c.is_overdue ? 'overdue' : c.is_blocked ? 'blocked' : c.status;
     const statusClass = c.is_overdue ? 'overdue' : c.is_blocked ? 'blocked' : c.status;
-    const ownerName = getMemberName(c.owner_id);
 
     // Preconditions
     let preHtml = '';
     if (c.preconditions && c.preconditions.length) {
-        preHtml = `<div class="cmt-preconditions">
+        preHtml = `<div class="detail-section cmt-preconditions">
             <div class="detail-label">Preconditions</div>
             ${c.preconditions.map(p => `
                 <div class="cmt-precondition">
@@ -254,6 +265,53 @@ function selectCmt(id) {
             `).join('')}
         </div>`;
     }
+
+    // Resource needs
+    let resourceHtml = '';
+    const resources = c.resource_needs || [];
+    resourceHtml = `<div class="detail-section" style="margin-top:14px;">
+        <div class="detail-label">Resource Needs</div>
+        ${resources.length ? resources.map(r => `
+            <div class="cmt-precondition">
+                <div class="pc-dot ${r.status === 'available' ? 'met' : r.status === 'blocked' ? 'unmet' : 'pending'}"></div>
+                <div style="color:var(--text-primary);font-size:12px;">${esc(r.description)}</div>
+            </div>
+        `).join('') : '<div style="font-size:11px;color:var(--text-dim);">None specified</div>'}
+        <button class="btn" onclick="editResources('${c.id}')" style="margin-top:6px;padding:3px 8px;font-size:10px;">Edit Resources</button>
+    </div>`;
+
+    // Linked artifacts
+    let artifactHtml = '';
+    const artifacts = c.linked_artifacts || [];
+    artifactHtml = `<div class="detail-section" style="margin-top:14px;">
+        <div class="detail-label">Linked Artifacts</div>
+        ${artifacts.length ? artifacts.map(a => `
+            <div style="font-size:12px;color:var(--text-primary);padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.03);">
+                <span style="color:var(--text-dim);font-size:10px;text-transform:uppercase;">${esc(a.type)}</span>
+                ${esc(a.title || a.id?.substring(0,8))}
+            </div>
+        `).join('') : '<div style="font-size:11px;color:var(--text-dim);">None linked</div>'}
+        <button class="btn" onclick="linkArtifact('${c.id}')" style="margin-top:6px;padding:3px 8px;font-size:10px;">Link Artifact</button>
+    </div>`;
+
+    // Notes thread
+    const notes = c.notes || [];
+    let notesHtml = `<div class="cmt-timeline" style="margin-top:16px;">
+        <div class="detail-label">Notes (${notes.length})</div>
+        ${notes.map(n => `
+            <div class="cmt-timeline-item" style="padding:6px 0;">
+                <span class="tl-time">${formatTimeAgo(n.created_at)}</span>
+                <div style="flex:1;">
+                    <div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">${esc(n.author_name)}</div>
+                    <div style="font-size:12px;color:var(--text-primary);line-height:1.4;">${esc(n.text)}</div>
+                </div>
+            </div>
+        `).join('')}
+        <div style="display:flex;gap:6px;margin-top:8px;">
+            <input type="text" id="noteInput" placeholder="Add a note..." style="flex:1;font-size:11px;padding:4px 8px;">
+            <button class="btn btn-primary" onclick="addNote('${c.id}')" style="padding:4px 10px;font-size:10px;">Post</button>
+        </div>
+    </div>`;
 
     // Actions
     let actionsHtml = '';
@@ -269,24 +327,6 @@ function selectCmt(id) {
             <button class="btn" onclick="cmtAction('${c.id}','break')" style="border-color:rgba(239,68,68,0.3);color:#f87171;">Mark Broken</button>`;
     }
 
-    // Owner assignment dropdown
-    let ownerHtml = ownerName || c.owner_id?.substring(0,8) || '—';
-
-    // Timeline
-    let timelineHtml = `<div class="cmt-timeline">
-        <div class="detail-label">Activity</div>
-        <div class="cmt-timeline-item">
-            <span class="tl-time">${formatTimeAgo(c.created_at)}</span>
-            <span class="tl-text">Created</span>
-        </div>`;
-    if (c.status === 'in_progress') {
-        timelineHtml += `<div class="cmt-timeline-item"><span class="tl-time">—</span><span class="tl-text">Work started</span></div>`;
-    }
-    if (c.fulfilled_at) {
-        timelineHtml += `<div class="cmt-timeline-item"><span class="tl-time">${formatTimeAgo(c.fulfilled_at)}</span><span class="tl-text">Fulfilled</span></div>`;
-    }
-    timelineHtml += '</div>';
-
     panel.innerHTML = `
         <div class="loop-detail-header">
             <h3>${esc(c.title)}</h3>
@@ -301,7 +341,7 @@ function selectCmt(id) {
             <div class="cmt-detail-grid">
                 <div>
                     <div class="detail-label">Owner</div>
-                    <div class="detail-value">${esc(ownerHtml)}</div>
+                    <div class="detail-value">${esc(c.owner_name || '—')}</div>
                 </div>
                 <div>
                     <div class="detail-label">Source</div>
@@ -314,7 +354,9 @@ function selectCmt(id) {
             </div>
             ${c.source_investigation_id ? `<div class="detail-section"><div class="detail-label">Source Investigation</div><div class="detail-value"><a href="/app/loop/investigate/${c.source_investigation_id}/" style="color:var(--accent-primary);text-decoration:none;">View investigation</a></div></div>` : ''}
             ${preHtml}
-            ${timelineHtml}
+            ${resourceHtml}
+            ${artifactHtml}
+            ${notesHtml}
         </div>
         ${actionsHtml ? `<div class="loop-detail-actions">${actionsHtml}</div>` : ''}`;
 }
@@ -380,6 +422,61 @@ function createCommitment() {
         document.getElementById('newCmtTransition').value = '';
         document.getElementById('newCmtOwner').value = '';
         loadCommitments();
+    });
+}
+
+function addNote(id) {
+    const input = document.getElementById('noteInput');
+    const text = (input?.value || '').trim();
+    if (!text) return;
+    fetch(`/api/loop/commitments/${id}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ action: 'add_note', text: text }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.commitment) renderCmtDetail(data.commitment);
+    });
+}
+
+function linkArtifact(id) {
+    const artifactId = prompt('Artifact UUID (from investigation, document, or analysis):');
+    if (!artifactId) return;
+    const title = prompt('Title (optional):') || '';
+    const type = prompt('Type (document, investigation, analysis, pc, fft):') || 'document';
+    fetch(`/api/loop/commitments/${id}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ action: 'link_artifact', artifact: { id: artifactId, title: title, type: type } }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.commitment) renderCmtDetail(data.commitment);
+    });
+}
+
+function editResources(id) {
+    const c = commitments.find(x => x.id === id);
+    const current = (c?.resource_needs || []).map(r => r.description).join('\n');
+    const input = prompt('Resource needs (one per line):', current);
+    if (input === null) return;
+    const resources = input.split('\n').filter(l => l.trim()).map(l => ({
+        description: l.trim(),
+        status: 'needed',
+    }));
+    fetch(`/api/loop/commitments/${id}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ action: 'update_resources', resource_needs: resources }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.commitment) {
+            const idx = commitments.findIndex(x => x.id === id);
+            if (idx >= 0) commitments[idx] = data.commitment;
+            renderCmtDetail(data.commitment);
+        }
     });
 }
 
