@@ -161,6 +161,29 @@
     </div>
 </div>
 
+<!-- Create CoA Modal -->
+<div class="sv-modal-overlay" id="createCoAModal" style="display:none;">
+    <div class="sv-modal">
+        <h3>Add Certificate of Analysis</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div><label>CoA Number</label><input type="text" id="coaNumber" placeholder="COA-2026-001"></div>
+            <div><label>Date Issued</label><input type="date" id="coaDate"></div>
+            <div><label>Part Number</label><input type="text" id="coaPartNo" placeholder="M6-HEX-SS"></div>
+            <div><label>Lot Number</label><input type="text" id="coaLotNo" placeholder="2026-L0847"></div>
+        </div>
+        <label>Measurements (manual — one per line: parameter,value,unit,spec_min,spec_max,method)</label>
+        <textarea id="coaMeasurements" rows="4" placeholder="Tensile Strength,485.2,MPa,450,550,ASTM A370
+Hardness,22.1,HRC,20,25,ASTM E18"></textarea>
+        <label>— or paste CSV data (with header row) —</label>
+        <textarea id="coaCsvData" rows="4" placeholder="parameter,value,unit,spec_min,spec_max,method
+Tensile Strength,485.2,MPa,450,550,ASTM A370"></textarea>
+        <div class="sv-modal-actions">
+            <button class="btn" onclick="closeModal('createCoAModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="createCoA()">Upload CoA</button>
+        </div>
+    </div>
+</div>
+
 <!-- Create Claim Modal -->
 <div class="sv-modal-overlay" id="createClaimModal" style="display:none;">
     <div class="sv-modal">
@@ -296,10 +319,19 @@ function renderSupDetail(s) {
     // Status history
     const changes = (s.status_changes || []).reverse();
 
-    // Build claims section (will populate when API exists)
+    // Build claims section
     let claimsHtml = `<div class="sup-section">
         <div class="sup-section-title">Claims</div>
         <div id="supClaimsList" style="font-size:11px;color:var(--text-dim);">Loading...</div>
+    </div>`;
+
+    // Build CoA section
+    let coaHtml = `<div class="sup-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="sup-section-title">Certificates of Analysis</div>
+            <button class="btn" onclick="openCreateCoA('${s.id}')" style="padding:3px 8px;font-size:10px;">+ Add CoA</button>
+        </div>
+        <div id="supCoAList" style="font-size:11px;color:var(--text-dim);">Loading...</div>
     </div>`;
 
     panel.innerHTML = `
@@ -354,6 +386,8 @@ function renderSupDetail(s) {
 
             ${claimsHtml}
 
+            ${coaHtml}
+
             <!-- Status History -->
             <div class="sup-section">
                 <div class="sup-section-title">Status History</div>
@@ -381,6 +415,7 @@ function renderSupDetail(s) {
 
     // Try loading claims (will fail gracefully until API exists)
     loadSupplierClaims(s.id);
+    loadSupplierCoAs(s.id);
 }
 
 function loadSupplierClaims(supplierId) {
@@ -517,6 +552,163 @@ function createClaim() {
         closeModal('createClaimModal');
         if (selectedSupId) selectSup(selectedSupId);
     });
+}
+
+// ── CoA ──
+function loadSupplierCoAs(supplierId) {
+    fetch(`/api/loop/coas/?supplier_id=${supplierId}`, { headers: { 'X-CSRFToken': getCSRF() }})
+    .then(r => r.ok ? r.json() : [])
+    .then(coas => {
+        const el = document.getElementById('supCoAList');
+        if (!Array.isArray(coas) || !coas.length) {
+            el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);">No CoAs on file</div>';
+            return;
+        }
+        el.innerHTML = coas.map(c => {
+            const conformIcon = c.all_conforming
+                ? '<span style="color:#4ade80;font-size:10px;">CONFORMING</span>'
+                : `<span style="color:#f87171;font-size:10px;">NONCONFORMING (${(c.nonconforming_parameters || []).length})</span>`;
+            const mCount = (c.measurements || []).length;
+            return `<div class="sup-record-item" style="cursor:pointer;" onclick="viewCoA('${c.id}')">
+                <div style="flex:1;">
+                    <div class="rec-title">${esc(c.coa_number || c.lot_number || c.id.substring(0,8))}</div>
+                    <div style="font-size:10px;color:var(--text-dim);">${c.part_number || ''} ${c.lot_number ? '/ ' + c.lot_number : ''} — ${mCount} measurements</div>
+                </div>
+                <div style="text-align:right;">
+                    ${conformIcon}
+                    <div><span class="sup-status ${c.status}" style="font-size:9px;">${c.status}</span></div>
+                </div>
+            </div>`;
+        }).join('');
+    })
+    .catch(() => {
+        const el = document.getElementById('supCoAList');
+        if (el) el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);">CoA API unavailable</div>';
+    });
+}
+
+function viewCoA(coaId) {
+    fetch(`/api/loop/coas/${coaId}/`, { headers: { 'X-CSRFToken': getCSRF() }})
+    .then(r => r.json())
+    .then(c => {
+        const el = document.getElementById('supCoAList');
+        const measurements = c.measurements || [];
+        let measHtml = '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:6px;">';
+        measHtml += '<tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:3px 6px;color:var(--text-dim);font-size:10px;">Parameter</th><th style="padding:3px 6px;color:var(--text-dim);font-size:10px;">Value</th><th style="padding:3px 6px;color:var(--text-dim);font-size:10px;">Spec</th><th style="padding:3px 6px;color:var(--text-dim);font-size:10px;">Result</th></tr>';
+        measurements.forEach(m => {
+            const specStr = (m.spec_min != null || m.spec_max != null)
+                ? `${m.spec_min != null ? m.spec_min : '—'} – ${m.spec_max != null ? m.spec_max : '—'}`
+                : '—';
+            const resultColor = m.conforming === false ? '#f87171' : m.conforming === true ? '#4ade80' : 'var(--text-dim)';
+            const resultText = m.conforming === false ? 'FAIL' : m.conforming === true ? 'PASS' : '—';
+            measHtml += `<tr style="border-bottom:1px solid rgba(255,255,255,0.02);">
+                <td style="padding:3px 6px;color:var(--text-primary);">${esc(m.parameter)}</td>
+                <td style="padding:3px 6px;text-align:center;font-family:'JetBrains Mono',monospace;">${m.value != null ? m.value : '—'} ${esc(m.unit || '')}</td>
+                <td style="padding:3px 6px;text-align:center;color:var(--text-dim);">${specStr}</td>
+                <td style="padding:3px 6px;text-align:center;color:${resultColor};font-weight:600;font-size:10px;">${resultText}</td>
+            </tr>`;
+        });
+        measHtml += '</table>';
+
+        let actionsHtml = '';
+        if (c.status === 'uploaded') {
+            actionsHtml = `<button class="btn btn-primary" onclick="coaAction('${c.id}','accept')" style="margin-top:8px;padding:3px 8px;font-size:10px;">Accept</button>
+                <button class="btn" onclick="coaAction('${c.id}','reject')" style="margin-top:8px;padding:3px 8px;font-size:10px;">Reject</button>`;
+        } else if (c.status === 'accepted') {
+            actionsHtml = `<button class="btn btn-primary" onclick="coaAction('${c.id}','ingest')" style="margin-top:8px;padding:3px 8px;font-size:10px;">Ingest to SPC</button>`;
+        }
+
+        el.innerHTML = `
+            <button class="btn" onclick="selectSup('${c.supplier_id}')" style="padding:2px 6px;font-size:10px;margin-bottom:6px;">← Back</button>
+            <div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:4px;">CoA ${esc(c.coa_number)}</div>
+            <div style="display:flex;gap:8px;font-size:11px;color:var(--text-dim);margin-bottom:8px;">
+                <span>Part: ${esc(c.part_number || '—')}</span>
+                <span>Lot: ${esc(c.lot_number || '—')}</span>
+                <span>Issued: ${c.date_issued || '—'}</span>
+                <span class="sup-status ${c.status}" style="font-size:9px;">${c.status}</span>
+            </div>
+            ${c.all_conforming ? '<div style="color:#4ade80;font-size:11px;font-weight:600;margin-bottom:6px;">ALL CONFORMING</div>' : `<div style="color:#f87171;font-size:11px;font-weight:600;margin-bottom:6px;">NONCONFORMING: ${(c.nonconforming_parameters || []).join(', ')}</div>`}
+            ${measHtml}
+            ${c.spc_data_ingested ? `<div style="font-size:10px;color:#4ade80;margin-top:6px;">SPC data ingested ${c.spc_ingestion_date ? new Date(c.spc_ingestion_date).toLocaleDateString() : ''}</div>` : ''}
+            ${actionsHtml}`;
+    });
+}
+
+function coaAction(coaId, action) {
+    let body = { action: action };
+    if (action === 'reject') {
+        const reason = document.createElement('div');
+        // Simple prompt for now — modal later
+        body.reason = prompt('Rejection reason:') || '';
+    }
+    fetch(`/api/loop/coas/${coaId}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify(body),
+    })
+    .then(r => r.json())
+    .then(() => { if (selectedSupId) selectSup(selectedSupId); });
+}
+
+let _coaSupplierId = null;
+function openCreateCoA(supplierId) {
+    _coaSupplierId = supplierId;
+    ['coaNumber','coaPartNo','coaLotNo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    document.getElementById('coaMeasurements').value = '';
+    document.getElementById('coaCsvData').value = '';
+    openModal('createCoAModal');
+}
+function createCoA() {
+    const csvData = document.getElementById('coaCsvData').value.trim();
+    if (csvData) {
+        // CSV mode
+        fetch('/api/loop/coas/csv/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify({
+                supplier_id: _coaSupplierId,
+                coa_number: document.getElementById('coaNumber').value,
+                part_number: document.getElementById('coaPartNo').value,
+                lot_number: document.getElementById('coaLotNo').value,
+                date_issued: document.getElementById('coaDate').value || null,
+                csv_data: csvData,
+            }),
+        })
+        .then(r => r.json())
+        .then(() => { closeModal('createCoAModal'); if (selectedSupId) selectSup(selectedSupId); });
+        return;
+    }
+    // Manual mode — parse measurements textarea
+    const measText = document.getElementById('coaMeasurements').value.trim();
+    const measurements = [];
+    measText.split('\n').forEach(line => {
+        const parts = line.split(',').map(s => s.trim());
+        if (parts.length >= 2 && parts[0]) {
+            measurements.push({
+                parameter: parts[0],
+                value: parseFloat(parts[1]) || null,
+                unit: parts[2] || '',
+                spec_min: parts[3] ? parseFloat(parts[3]) : null,
+                spec_max: parts[4] ? parseFloat(parts[4]) : null,
+                method: parts[5] || '',
+            });
+        }
+    });
+    if (!measurements.length) { svToast('Enter measurements or paste CSV data', 'warning'); return; }
+    fetch('/api/loop/coas/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({
+            supplier_id: _coaSupplierId,
+            coa_number: document.getElementById('coaNumber').value,
+            part_number: document.getElementById('coaPartNo').value,
+            lot_number: document.getElementById('coaLotNo').value,
+            date_issued: document.getElementById('coaDate').value || null,
+            measurements: measurements,
+        }),
+    })
+    .then(r => r.json())
+    .then(() => { closeModal('createCoAModal'); if (selectedSupId) selectSup(selectedSupId); });
 }
 
 // ── Evaluation ──

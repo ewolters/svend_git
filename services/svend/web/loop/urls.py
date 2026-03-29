@@ -80,4 +80,8 @@ urlpatterns = [
     # Supplier Portal — claim access (token-authenticated, no login)
     path("portal/claim/<str:token>/data/", views.claim_portal_data, name="loop_claim_portal_data"),
     path("portal/claim/<str:token>/respond/", views.claim_portal_respond, name="loop_claim_portal_respond"),
+    # Supplier CoA
+    path("coas/", views.coa_list_create, name="loop_coa_list"),
+    path("coas/<uuid:coa_id>/", views.coa_detail, name="loop_coa_detail"),
+    path("coas/csv/", views.coa_csv_upload, name="loop_coa_csv_upload"),
 ]

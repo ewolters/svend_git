@@ -1745,9 +1745,12 @@ class AuditorPortalToken(models.Model):
         return self.revoked_at is None and self.expires_at > timezone.now()
 
     def record_access(self):
-        self.last_accessed_at = timezone.now()
-        self.access_count += 1
-        self.save(update_fields=["last_accessed_at", "access_count"])
+        from django.db.models import F
+
+        AuditorPortalToken.objects.filter(pk=self.pk).update(
+            last_accessed_at=timezone.now(),
+            access_count=F("access_count") + 1,
+        )
 
     def revoke(self):
         self.revoked_at = timezone.now()
@@ -2027,3 +2030,150 @@ class ClaimVerification(models.Model):
 
     def __str__(self):
         return f"Verification ({self.verification_type}): {self.result}"
+
+
+# =============================================================================
+# SUPPLIER CoA (Certificate of Analysis — Object 271)
+# =============================================================================
+
+
+class SupplierCoA(SynaraEntity):
+    """Inbound Certificate of Analysis from a supplier.
+
+    Contains extracted measurement data that can be validated against specs,
+    ingested into SPC charts, and linked to graph material property nodes.
+
+    Lifecycle: uploaded → reviewed → accepted → ingested | rejected
+    """
+
+    class Status(models.TextChoices):
+        UPLOADED = "uploaded", "Uploaded"
+        REVIEWED = "reviewed", "Reviewed"
+        ACCEPTED = "accepted", "Accepted"
+        INGESTED = "ingested", "Ingested into SPC"
+        REJECTED = "rejected", "Rejected"
+
+    class ExtractionMethod(models.TextChoices):
+        MANUAL = "manual", "Manual Entry"
+        CSV = "csv", "CSV Upload"
+
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="supplier_coas",
+    )
+    supplier = models.ForeignKey(
+        "agents_api.SupplierRecord",
+        on_delete=models.CASCADE,
+        related_name="coas",
+    )
+
+    # Document reference
+    document = models.ForeignKey(
+        "files.UserFile",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="coas",
+        help_text="Uploaded PDF/file if applicable",
+    )
+    coa_number = models.CharField(max_length=100, blank=True, default="")
+    lot_number = models.CharField(max_length=100, blank=True, default="")
+    part_number = models.CharField(max_length=100, blank=True, default="")
+    date_issued = models.DateField(null=True, blank=True)
+
+    # Extracted measurements
+    measurements = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="[{parameter, value, unit, spec_min, spec_max, method, conforming}]",
+    )
+    extraction_method = models.CharField(
+        max_length=10,
+        choices=ExtractionMethod.choices,
+        default=ExtractionMethod.MANUAL,
+    )
+
+    # Compliance
+    all_conforming = models.BooleanField(default=True)
+    nonconforming_parameters = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Parameter names that failed spec check",
+    )
+
+    # SPC integration
+    spc_data_ingested = models.BooleanField(default=False)
+    spc_ingestion_date = models.DateTimeField(null=True, blank=True)
+    linked_process_node_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="ProcessNode UUIDs for material property nodes",
+    )
+
+    # Lifecycle
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.UPLOADED,
+        db_index=True,
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_coas",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, default="")
+
+    # Provenance
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="created_coas",
+    )
+
+    class Meta:
+        db_table = "loop_supplier_coa"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["supplier", "status"]),
+            models.Index(fields=["tenant", "status"]),
+            models.Index(fields=["part_number", "lot_number"]),
+        ]
+
+    def __str__(self):
+        return f"CoA {self.coa_number or self.id} ({self.supplier.name})"
+
+    def check_compliance(self):
+        """Evaluate all measurements against spec limits."""
+        nonconforming = []
+        for m in self.measurements or []:
+            val = m.get("value")
+            spec_min = m.get("spec_min")
+            spec_max = m.get("spec_max")
+            if val is None:
+                continue
+            conforming = True
+            if spec_min is not None and val < spec_min:
+                conforming = False
+            if spec_max is not None and val > spec_max:
+                conforming = False
+            m["conforming"] = conforming
+            if not conforming:
+                nonconforming.append(m.get("parameter", "Unknown"))
+
+        self.nonconforming_parameters = nonconforming
+        self.all_conforming = len(nonconforming) == 0
+        self.save(
+            update_fields=[
+                "measurements",
+                "nonconforming_parameters",
+                "all_conforming",
+                "updated_at",
+            ]
+        )

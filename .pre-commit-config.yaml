@@ -43,6 +43,14 @@ repos:
         always_run: true
         pass_filenames: false
         stages: [pre-commit]
+      # AUDIT-2026-03-29: Race condition prevention — catches self.field += N; self.save()
+      - id: check-nonatomic-writes
+        name: DAT-001 non-atomic write detection
+        entry: python3 ops/hooks/check_nonatomic_writes.py
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages: [pre-commit]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.4
     hooks:

@@ -31,6 +31,7 @@ from .models import (
     QMSPolicy,
     Signal,
     SupplierClaim,
+    SupplierCoA,
     SupplierResponse,
     TrainingReflection,
 )
@@ -2126,14 +2127,13 @@ def auditor_token_list_create(request):
                     {
                         "id": str(t.id),
                         "label": t.label,
-                        "token": t.token,
+                        "token_prefix": t.token[:8] + "...",
                         "expires_at": t.expires_at.isoformat(),
                         "is_valid": t.is_valid,
                         "access_count": t.access_count,
                         "last_accessed_at": t.last_accessed_at.isoformat() if t.last_accessed_at else None,
                         "created_at": t.created_at.isoformat(),
                         "revoked_at": t.revoked_at.isoformat() if t.revoked_at else None,
-                        "portal_url": f"/audit/{t.token}/",
                     }
                     for t in tokens
                 ]
@@ -2853,3 +2853,195 @@ def claim_portal_respond(request, token):
     claim.save(update_fields=["status", "updated_at"])
 
     return JsonResponse({"success": True, "revision": revision, "quality_score": score})
+
+
+# =============================================================================
+# SUPPLIER CoA (Object 271 — Phases 5-7)
+# =============================================================================
+
+
+def _serialize_coa(coa):
+    return {
+        "id": str(coa.id),
+        "supplier_id": str(coa.supplier_id),
+        "supplier_name": coa.supplier.name if hasattr(coa, "supplier") else "",
+        "coa_number": coa.coa_number,
+        "lot_number": coa.lot_number,
+        "part_number": coa.part_number,
+        "date_issued": coa.date_issued.isoformat() if coa.date_issued else None,
+        "measurements": coa.measurements,
+        "extraction_method": coa.extraction_method,
+        "all_conforming": coa.all_conforming,
+        "nonconforming_parameters": coa.nonconforming_parameters,
+        "spc_data_ingested": coa.spc_data_ingested,
+        "linked_process_node_ids": coa.linked_process_node_ids,
+        "status": coa.status,
+        "rejection_reason": coa.rejection_reason,
+        "created_at": coa.created_at.isoformat() if coa.created_at else None,
+        "updated_at": coa.updated_at.isoformat() if coa.updated_at else None,
+    }
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def coa_list_create(request):
+    """List or create supplier CoAs."""
+    tenant = _get_tenant(request.user)
+    if not tenant:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    if request.method == "GET":
+        qs = SupplierCoA.objects.filter(tenant=tenant).select_related("supplier")
+        supplier_id = request.GET.get("supplier_id")
+        if supplier_id:
+            qs = qs.filter(supplier_id=supplier_id)
+        status_filter = request.GET.get("status")
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        return JsonResponse([_serialize_coa(c) for c in qs[:100]], safe=False)
+
+    data = json.loads(request.body)
+    supplier_id = data.get("supplier_id")
+    if not supplier_id:
+        return JsonResponse({"error": "supplier_id required"}, status=400)
+
+    measurements = data.get("measurements", [])
+
+    coa = SupplierCoA.objects.create(
+        tenant=tenant,
+        supplier_id=supplier_id,
+        coa_number=data.get("coa_number", ""),
+        lot_number=data.get("lot_number", ""),
+        part_number=data.get("part_number", ""),
+        date_issued=data.get("date_issued"),
+        measurements=measurements,
+        extraction_method=data.get("extraction_method", "manual"),
+        created_by=request.user,
+    )
+
+    # Auto-check compliance
+    if measurements:
+        coa.check_compliance()
+
+    return JsonResponse(_serialize_coa(coa), status=201)
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def coa_detail(request, coa_id):
+    """Get or action a CoA."""
+    tenant = _get_tenant(request.user)
+    if not tenant:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    try:
+        coa = SupplierCoA.objects.select_related("supplier").get(id=coa_id, tenant=tenant)
+    except SupplierCoA.DoesNotExist:
+        return JsonResponse({"error": "CoA not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse(_serialize_coa(coa))
+
+    data = json.loads(request.body)
+    action = data.get("action")
+
+    if action == "review":
+        coa.status = SupplierCoA.Status.REVIEWED
+        coa.reviewed_by = request.user
+        coa.reviewed_at = timezone.now()
+        coa.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+
+    elif action == "accept":
+        coa.status = SupplierCoA.Status.ACCEPTED
+        if not coa.reviewed_by:
+            coa.reviewed_by = request.user
+            coa.reviewed_at = timezone.now()
+        coa.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+
+    elif action == "reject":
+        coa.status = SupplierCoA.Status.REJECTED
+        coa.rejection_reason = data.get("reason", "")
+        coa.reviewed_by = request.user
+        coa.reviewed_at = timezone.now()
+        coa.save(update_fields=["status", "rejection_reason", "reviewed_by", "reviewed_at", "updated_at"])
+
+    elif action == "ingest":
+        # Mark as ingested — actual SPC data push is handled by integration layer
+        coa.status = SupplierCoA.Status.INGESTED
+        coa.spc_data_ingested = True
+        coa.spc_ingestion_date = timezone.now()
+        coa.save(update_fields=["status", "spc_data_ingested", "spc_ingestion_date", "updated_at"])
+
+    elif action == "update_measurements":
+        coa.measurements = data.get("measurements", [])
+        coa.check_compliance()
+
+    elif action == "recheck":
+        coa.check_compliance()
+
+    else:
+        return JsonResponse({"error": f"Unknown action: {action}"}, status=400)
+
+    return JsonResponse(_serialize_coa(coa))
+
+
+@gated_paid
+@require_http_methods(["POST"])
+def coa_csv_upload(request):
+    """Parse CSV CoA data and create a CoA record.
+
+    CSV format: parameter,value,unit,spec_min,spec_max,method
+    First row is header. One measurement per row.
+    """
+    import csv
+    import io
+
+    tenant = _get_tenant(request.user)
+    if not tenant:
+        return JsonResponse({"error": "No tenant"}, status=400)
+
+    data = json.loads(request.body)
+    supplier_id = data.get("supplier_id")
+    csv_text = data.get("csv_data", "")
+
+    if not supplier_id or not csv_text:
+        return JsonResponse({"error": "supplier_id and csv_data required"}, status=400)
+
+    measurements = []
+    reader = csv.DictReader(io.StringIO(csv_text))
+    for row in reader:
+        try:
+            m = {
+                "parameter": row.get("parameter", "").strip(),
+                "unit": row.get("unit", "").strip(),
+                "method": row.get("method", "").strip(),
+            }
+            val = row.get("value", "").strip()
+            m["value"] = float(val) if val else None
+            spec_min = row.get("spec_min", "").strip()
+            m["spec_min"] = float(spec_min) if spec_min else None
+            spec_max = row.get("spec_max", "").strip()
+            m["spec_max"] = float(spec_max) if spec_max else None
+
+            if m["parameter"]:
+                measurements.append(m)
+        except (ValueError, TypeError):
+            continue
+
+    if not measurements:
+        return JsonResponse({"error": "No valid measurements found in CSV"}, status=400)
+
+    coa = SupplierCoA.objects.create(
+        tenant=tenant,
+        supplier_id=supplier_id,
+        coa_number=data.get("coa_number", ""),
+        lot_number=data.get("lot_number", ""),
+        part_number=data.get("part_number", ""),
+        date_issued=data.get("date_issued"),
+        measurements=measurements,
+        extraction_method="csv",
+        created_by=request.user,
+    )
+    coa.check_compliance()
+
+    return JsonResponse(_serialize_coa(coa), status=201)
