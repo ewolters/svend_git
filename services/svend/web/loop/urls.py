@@ -73,4 +73,11 @@ urlpatterns = [
     path("auditor-tokens/<uuid:token_id>/", views.auditor_token_revoke, name="loop_auditor_token_revoke"),
     # Auditor Portal — data API (§11, token-authenticated)
     path("portal/<str:token>/data/", views.auditor_portal_data, name="loop_auditor_portal_data"),
+    # Supplier Claims
+    path("claims/", views.claim_list_create, name="loop_claim_list"),
+    path("claims/<uuid:claim_id>/", views.claim_detail, name="loop_claim_detail"),
+    path("claims/<uuid:claim_id>/respond/", views.claim_respond, name="loop_claim_respond"),
+    # Supplier Portal — claim access (token-authenticated, no login)
+    path("portal/claim/<str:token>/data/", views.claim_portal_data, name="loop_claim_portal_data"),
+    path("portal/claim/<str:token>/respond/", views.claim_portal_respond, name="loop_claim_portal_respond"),
 ]
