@@ -1397,7 +1397,9 @@ This is the Linear Inbox pattern. It replaces the "you have to check every secti
 
 **Total estimate:** ~14 hours. Prioritize S2-2 → S2-3 → S2-4 → S2-5 (immediate UX improvements that don't depend on S1).
 
-**S2 can start immediately on S2-2, S2-3, S2-4, S2-5, S2-10** — these have zero backend dependency.
+**S2 is GATED until S1 completes Phase 1.** S1 pushes all backend changes first, notes "endpoints live" in sprint log. Then S2 starts against a stable backend. No moving target, no merge conflicts.
+
+S3 runs in parallel with S1 from the start (zero file overlap).
 
 **DO NOT TOUCH:**
 - Any Python file (models, views, urls, services)
