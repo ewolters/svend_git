@@ -1,0 +1,98 @@
+{% extends "base_app.html" %}
+{% block title %}QMS{% endblock %}
+
+{% block extra_head %}
+<style>
+.qms-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 200px);
+    text-align: center;
+    padding: 40px;
+}
+.qms-placeholder h1 {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+.qms-placeholder p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    max-width: 500px;
+    line-height: 1.6;
+}
+
+/*
+ * ═══════════════════════════════════════════════════════
+ *  QMS REBUILD PLAN — Object 271
+ * ═══════════════════════════════════════════════════════
+ *
+ *  ONE backend: loop/models.py + loop/views.py + agents_api/iso_views.py
+ *  ONE frontend: this template (qms.html)
+ *  ONE navigation: to be designed
+ *
+ *  Backend APIs that exist and work:
+ *  ─────────────────────────────────
+ *  /api/loop/signals/          — Signal CRUD + triage
+ *  /api/loop/commitments/      — Commitment CRUD + lifecycle
+ *  /api/loop/claims/           — SupplierClaim lifecycle + portal
+ *  /api/loop/coas/             — Certificate of Analysis
+ *  /api/loop/pcs/              — Process Confirmation
+ *  /api/loop/ffts/             — Forced Failure Test
+ *  /api/loop/fmis/             — FMIS (Bayesian risk)
+ *  /api/loop/policies/         — QMS Policy rules
+ *  /api/loop/dashboard/        — Aggregated dashboard data
+ *  /api/loop/readiness/        — CI Readiness Score
+ *  /api/loop/auditor-tokens/   — Auditor portal tokens
+ *
+ *  /api/iso/ncrs/              — NCR CRUD + lifecycle
+ *  /api/iso/audits/            — Internal audit CRUD
+ *  /api/iso/training/          — Training records
+ *  /api/iso/reviews/           — Management reviews
+ *  /api/iso/documents/         — Controlled documents
+ *  /api/iso/complaints/        — Customer complaints
+ *  /api/iso/suppliers/         — Supplier management
+ *  /api/iso/dashboard/         — ISO dashboard aggregates
+ *
+ *  /api/graph/data/            — Process graph nodes + edges
+ *  /api/graph/search/          — Cross-entity search (command palette)
+ *  /api/graph/health/          — Knowledge health metrics
+ *  /api/graph/activity/        — Activity feed per entity
+ *  /api/graph/gates/           — Workflow gate checks
+ *  /api/graph/gaps/            — Gap report
+ *
+ *  Models that exist and work:
+ *  ───────────────────────────
+ *  loop/: Signal, Commitment, CommitmentNote, CommitmentResource,
+ *         ModeTransition, ProcessConfirmation, ForcedFailureTest,
+ *         FMIS, FMISRow, TrainingReflection, QMSPolicy,
+ *         SupplierClaim, SupplierResponse, ClaimVerification,
+ *         SupplierCoA, AuditorPortalToken, InvestigationEntry
+ *
+ *  graph/: ProcessGraph, ProcessNode, ProcessEdge, EdgeEvidence,
+ *          TenantConfig, KnowledgeHealthSnapshot
+ *
+ *  agents_api/: NonconformanceRecord, CAPAReport, InternalAudit,
+ *               SupplierRecord, CustomerComplaint, ControlledDocument,
+ *               ManagementReview, TrainingRequirement, ControlPlanItem
+ *
+ *  What needs to happen:
+ *  ─────────────────────
+ *  1. Design ONE navigation model (not three)
+ *  2. Build ONE template that consumes ALL the above APIs
+ *  3. Wire it properly — test with real data
+ *  4. Ship when it works, not when it compiles
+ *
+ */
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="qms-placeholder">
+    <h1>Quality Management System</h1>
+    <p>Being rebuilt. One system, one interface. Backend is ready — APIs for signals, investigations, commitments, suppliers, claims, CoAs, NCRs, audits, training, documents, compliance, and process knowledge graph. The frontend is being redesigned from scratch.</p>
+</div>
+{% endblock %}
