@@ -188,7 +188,9 @@ th {
 
 <!-- Title Page -->
 <div class="title-page">
+    {% if branding.logo_url %}<img src="{{ branding.logo_url }}" alt="" style="max-width:180px;max-height:80px;margin-bottom:1.5cm;">{% endif %}
     <h1>{{ document.title }}</h1>
+    {% if branding.company_name %}<p style="font-size:14pt;color:#555;margin-bottom:1cm;">{{ branding.company_name }}</p>{% endif %}
     <table class="meta-table">
         {% if document.document_number %}<tr><td>Document No.</td><td>{{ document.document_number }}</td></tr>{% endif %}
         <tr><td>Type</td><td>{{ type_def.name }}</td></tr>

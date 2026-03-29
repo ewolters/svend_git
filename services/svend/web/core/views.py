@@ -73,9 +73,7 @@ def get_user_projects(user):
     q = Q(user=user)
 
     # Tenant projects (if user is member of any tenant)
-    tenant_ids = Membership.objects.filter(user=user, is_active=True).values_list(
-        "tenant_id", flat=True
-    )
+    tenant_ids = Membership.objects.filter(user=user, is_active=True).values_list("tenant_id", flat=True)
 
     if tenant_ids:
         q |= Q(tenant_id__in=tenant_ids)
@@ -145,14 +143,10 @@ def project_advance_phase(request, project_id):
     notes = request.data.get("notes", "")
 
     if not new_phase:
-        return Response(
-            {"error": "phase is required"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "phase is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     if new_phase not in dict(Project.Phase.choices):
-        return Response(
-            {"error": f"Invalid phase: {new_phase}"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": f"Invalid phase: {new_phase}"}, status=status.HTTP_400_BAD_REQUEST)
 
     # Validate phase ordering (no skipping forward)
     phase_order = [p.value for p in Project.Phase]
@@ -179,9 +173,7 @@ def project_comment(request, project_id):
 
     text = (request.data.get("text") or "").strip()
     if not text:
-        return Response(
-            {"error": "text is required"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "text is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     project.log_event("comment", text, user=request.user)
     return Response({"changelog": project.changelog})
@@ -258,9 +250,7 @@ def project_hub(request, project_id):
     evidence_summary = {"total": evidence_qs.count(), "by_source": {}}
     for ev in evidence_qs.values_list("source_description", flat=True):
         tool = ev.split(":")[0] if ":" in ev else "other"
-        evidence_summary["by_source"][tool] = (
-            evidence_summary["by_source"].get(tool, 0) + 1
-        )
+        evidence_summary["by_source"][tool] = evidence_summary["by_source"].get(tool, 0) + 1
 
     return Response(
         {
@@ -364,9 +354,7 @@ def project_hub(request, project_id):
             },
             "evidence_summary": evidence_summary,
             "changelog": project.changelog or [],
-            "study_actions": [
-                a.to_dict() for a in StudyAction.objects.filter(project=project)[:50]
-            ],
+            "study_actions": [a.to_dict() for a in StudyAction.objects.filter(project=project)[:50]],
         }
     )
 
@@ -392,9 +380,7 @@ def hypothesis_list(request, project_id):
         serializer = HypothesisSerializer(data=request.data)
         if serializer.is_valid():
             hypothesis = serializer.save(project=project, created_by=request.user)
-            project.log_event(
-                "hypothesis_added", hypothesis.statement, user=request.user
-            )
+            project.log_event("hypothesis_added", hypothesis.statement, user=request.user)
             return Response(
                 HypothesisSerializer(hypothesis).data,
                 status=status.HTTP_201_CREATED,
@@ -457,9 +443,7 @@ def evidence_list(request, project_id):
 
     if request.method == "GET":
         # Get all evidence linked to any hypothesis in this project
-        evidence = Evidence.objects.filter(
-            hypothesis_links__hypothesis__project=project
-        ).distinct()
+        evidence = Evidence.objects.filter(hypothesis_links__hypothesis__project=project).distinct()
         serializer = EvidenceSerializer(evidence, many=True)
         return Response(serializer.data)
 
@@ -532,9 +516,7 @@ def link_evidence(request, project_id, hypothesis_id):
     apply_now = request.data.get("apply", True)
 
     if not evidence_id:
-        return Response(
-            {"error": "evidence_id is required"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "evidence_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     # Scope evidence to user-accessible projects (prevent IDOR)
     user_projects = get_user_projects(request.user)
@@ -634,11 +616,7 @@ def create_evidence_from_code(request):
             details=data.get("details", ""),
             source_type=data.get("source_type", Evidence.SourceType.SIMULATION),
             source_description="Coder",
-            result_type=(
-                Evidence.ResultType.QUANTITATIVE
-                if data.get("p_value")
-                else Evidence.ResultType.QUALITATIVE
-            ),
+            result_type=(Evidence.ResultType.QUANTITATIVE if data.get("p_value") else Evidence.ResultType.QUALITATIVE),
             confidence=data.get("confidence", 0.8),
             p_value=data.get("p_value"),
             effect_size=data.get("effect_size"),
@@ -711,9 +689,7 @@ def create_evidence_from_analysis(request):
     with transaction.atomic():
         # Extract statistical data from results/metrics
         p_value = metrics.get("p_value") or results.get("p_value")
-        effect_size = (
-            metrics.get("effect_size") or metrics.get("r2") or metrics.get("cohen_d")
-        )
+        effect_size = metrics.get("effect_size") or metrics.get("r2") or metrics.get("cohen_d")
         sample_size = metrics.get("sample_size") or metrics.get("n_samples")
 
         # Create evidence
@@ -722,11 +698,7 @@ def create_evidence_from_analysis(request):
             details=f"Analysis type: {data['analysis_type']}",
             source_type=Evidence.SourceType.ANALYSIS,
             source_description=f"DSW - {data['analysis_type']}",
-            result_type=(
-                Evidence.ResultType.STATISTICAL
-                if p_value
-                else Evidence.ResultType.QUANTITATIVE
-            ),
+            result_type=(Evidence.ResultType.STATISTICAL if p_value else Evidence.ResultType.QUANTITATIVE),
             confidence=data.get("confidence", 0.8),
             p_value=p_value,
             effect_size=effect_size,
@@ -811,9 +783,7 @@ def entity_list(request):
         serializer = EntitySerializer(data=request.data)
         if serializer.is_valid():
             entity = serializer.save(graph=graph, created_by=request.user)
-            return Response(
-                EntitySerializer(entity).data, status=status.HTTP_201_CREATED
-            )
+            return Response(EntitySerializer(entity).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -905,9 +875,7 @@ def dataset_list(request, project_id):
 
     if request.method == "GET":
         datasets = project.datasets.all()
-        serializer = DatasetSerializer(
-            datasets, many=True, context={"request": request}
-        )
+        serializer = DatasetSerializer(datasets, many=True, context={"request": request})
         return Response(serializer.data)
 
     elif request.method == "POST":
@@ -950,9 +918,7 @@ def dataset_list(request, project_id):
                     df = None
 
                 if df is not None:
-                    dataset.columns = [
-                        {"name": col, "type": str(df[col].dtype)} for col in df.columns
-                    ]
+                    dataset.columns = [{"name": col, "type": str(df[col].dtype)} for col in df.columns]
                     dataset.row_count = len(df)
                     dataset.save()
             except Exception as e:
@@ -965,9 +931,7 @@ def dataset_list(request, project_id):
             if isinstance(inline_data, list):
                 dataset.row_count = len(inline_data)
                 if inline_data and isinstance(inline_data[0], dict):
-                    dataset.columns = [
-                        {"name": k, "type": "unknown"} for k in inline_data[0].keys()
-                    ]
+                    dataset.columns = [{"name": k, "type": "unknown"} for k in inline_data[0].keys()]
             dataset.save()
 
         return Response(
@@ -989,9 +953,7 @@ def dataset_detail(request, project_id, dataset_id):
 
         # Include data preview if inline data exists
         if dataset.data:
-            data["preview"] = (
-                dataset.data[:100] if isinstance(dataset.data, list) else dataset.data
-            )
+            data["preview"] = dataset.data[:100] if isinstance(dataset.data, list) else dataset.data
 
         return Response(data)
 
@@ -1029,9 +991,7 @@ def dataset_data(request, project_id, dataset_id):
             return Response(
                 {
                     "data": df.to_dict(orient="records"),
-                    "columns": [
-                        {"name": col, "type": str(df[col].dtype)} for col in df.columns
-                    ],
+                    "columns": [{"name": col, "type": str(df[col].dtype)} for col in df.columns],
                 }
             )
         except Exception as e:
@@ -1206,12 +1166,8 @@ def _perform_execution_review(design, actual_data):
 
     if n_actual < n_planned:
         missing = n_planned - n_actual
-        issues.append(
-            f"Missing {missing} of {n_planned} planned runs ({missing / n_planned * 100:.1f}%)"
-        )
-        recommendations.append(
-            "Ensure all planned experimental runs are completed before analysis"
-        )
+        issues.append(f"Missing {missing} of {n_planned} planned runs ({missing / n_planned * 100:.1f}%)")
+        recommendations.append("Ensure all planned experimental runs are completed before analysis")
     elif n_actual > n_planned:
         extra = n_actual - n_planned
         issues.append(f"Found {extra} extra runs beyond the {n_planned} planned")
@@ -1226,20 +1182,14 @@ def _perform_execution_review(design, actual_data):
         planned_levels = factor.get("levels", [])
 
         # Count actual level distribution
-        actual_levels = [
-            row.get(factor_name) for row in actual_data if factor_name in row
-        ]
+        actual_levels = [row.get(factor_name) for row in actual_data if factor_name in row]
         if not actual_levels:
             continue
 
         level_counts = Counter(actual_levels)
 
         # Expected count per level
-        expected_per_level = (
-            len(actual_levels) / len(planned_levels)
-            if planned_levels
-            else len(actual_levels)
-        )
+        expected_per_level = len(actual_levels) / len(planned_levels) if planned_levels else len(actual_levels)
 
         # Calculate balance (chi-square-like metric)
         if expected_per_level > 0:
@@ -1254,9 +1204,7 @@ def _perform_execution_review(design, actual_data):
             balance_scores.append(factor_balance)
 
             if avg_deviation > 0.2:
-                issues.append(
-                    f"Imbalanced levels for {factor_name}: {dict(level_counts)}"
-                )
+                issues.append(f"Imbalanced levels for {factor_name}: {dict(level_counts)}")
 
     balance_score = np.mean(balance_scores) if balance_scores else 100
 
@@ -1269,9 +1217,7 @@ def _perform_execution_review(design, actual_data):
         factor_name = factor.get("name")
         planned_levels = set(factor.get("levels", []))
 
-        actual_values = [
-            row.get(factor_name) for row in actual_data if factor_name in row
-        ]
+        actual_values = [row.get(factor_name) for row in actual_data if factor_name in row]
 
         # Check if actual values match planned levels
         out_of_spec = 0
@@ -1285,10 +1231,7 @@ def _perform_execution_review(design, actual_data):
                     range_size = max_level - min_level if max_level != min_level else 1
 
                     # 10% tolerance outside range
-                    if (
-                        val_float < min_level - 0.1 * range_size
-                        or val_float > max_level + 0.1 * range_size
-                    ):
+                    if val_float < min_level - 0.1 * range_size or val_float > max_level + 0.1 * range_size:
                         out_of_spec += 1
                 except (ValueError, TypeError):
                     # Categorical - exact match required
@@ -1299,12 +1242,8 @@ def _perform_execution_review(design, actual_data):
             fidelity_scores.append(fidelity)
 
             if out_of_spec > 0:
-                issues.append(
-                    f"{out_of_spec} runs have {factor_name} outside planned levels"
-                )
-                recommendations.append(
-                    f"Review {factor_name} settings - ensure factor controller is calibrated"
-                )
+                issues.append(f"{out_of_spec} runs have {factor_name} outside planned levels")
+                recommendations.append(f"Review {factor_name} settings - ensure factor controller is calibrated")
 
     fidelity_score = np.mean(fidelity_scores) if fidelity_scores else 100
 
@@ -1320,23 +1259,15 @@ def _perform_execution_review(design, actual_data):
         if actual_orders == sorted(actual_orders):
             # Runs were done in sequential order, not randomized
             randomization_score = 50
-            issues.append(
-                "Runs appear to be executed in standard order, not randomized"
-            )
-            recommendations.append(
-                "Execute runs in the randomized order to avoid systematic bias"
-            )
+            issues.append("Runs appear to be executed in standard order, not randomized")
+            recommendations.append("Execute runs in the randomized order to avoid systematic bias")
 
     # 5. SAMPLE QUALITY SCORE (15%)
     # Check for outliers, variance, completeness
     quality_scores = []
 
     # Get response column(s)
-    response_names = (
-        [r.get("name", "Response") for r in design.responses]
-        if design.responses
-        else ["Response"]
-    )
+    response_names = [r.get("name", "Response") for r in design.responses] if design.responses else ["Response"]
 
     for resp_name in response_names:
         response_values = []
@@ -1354,34 +1285,22 @@ def _perform_execution_review(design, actual_data):
             continue
 
         # Check for missing values
-        missing_pct = (
-            (n_actual - len(response_values)) / n_actual * 100 if n_actual > 0 else 0
-        )
+        missing_pct = (n_actual - len(response_values)) / n_actual * 100 if n_actual > 0 else 0
         if missing_pct > 0:
             issues.append(f"{missing_pct:.1f}% missing values in {resp_name}")
 
         # Check for outliers (IQR method)
         q1, q3 = np.percentile(response_values, [25, 75])
         iqr = q3 - q1
-        outliers = [
-            v for v in response_values if v < q1 - 1.5 * iqr or v > q3 + 1.5 * iqr
-        ]
+        outliers = [v for v in response_values if v < q1 - 1.5 * iqr or v > q3 + 1.5 * iqr]
         outlier_pct = len(outliers) / len(response_values) * 100
 
         if outlier_pct > 10:
-            issues.append(
-                f"{len(outliers)} potential outliers detected in {resp_name} ({outlier_pct:.1f}%)"
-            )
-            recommendations.append(
-                "Review outlier runs for measurement errors or unusual conditions"
-            )
+            issues.append(f"{len(outliers)} potential outliers detected in {resp_name} ({outlier_pct:.1f}%)")
+            recommendations.append("Review outlier runs for measurement errors or unusual conditions")
 
         # Check variance (coefficient of variation)
-        (
-            np.std(response_values) / np.mean(response_values)
-            if np.mean(response_values) != 0
-            else 0
-        )
+        (np.std(response_values) / np.mean(response_values) if np.mean(response_values) != 0 else 0)
 
         # Quality score based on completeness and outlier presence
         completeness = (1 - missing_pct / 100) * 50
@@ -1417,9 +1336,7 @@ def _perform_execution_review(design, actual_data):
         grade_description = "Good execution - results are reliable with minor concerns"
     elif overall_score >= 70:
         grade = "C"
-        grade_description = (
-            "Acceptable execution - results usable but consider noted issues"
-        )
+        grade_description = "Acceptable execution - results usable but consider noted issues"
     elif overall_score >= 60:
         grade = "D"
         grade_description = "Poor execution - significant issues may affect validity"
@@ -1477,11 +1394,7 @@ def _perform_execution_review(design, actual_data):
 @permission_classes([IsAuthenticated])
 def org_info(request):
     """Get current user's organization info and their membership."""
-    membership = (
-        Membership.objects.filter(user=request.user, is_active=True)
-        .select_related("tenant")
-        .first()
-    )
+    membership = Membership.objects.filter(user=request.user, is_active=True).select_related("tenant").first()
 
     if not membership:
         can_create = has_feature(request.user.tier, "collaboration")
@@ -1504,9 +1417,7 @@ def org_info(request):
                 "role": membership.role,
                 "can_admin": membership.can_admin,
                 "can_edit": membership.can_edit,
-                "joined_at": (
-                    membership.joined_at.isoformat() if membership.joined_at else None
-                ),
+                "joined_at": (membership.joined_at.isoformat() if membership.joined_at else None),
             },
         }
     )
@@ -1565,11 +1476,7 @@ def org_create(request):
     # Map user tier to tenant plan
     from accounts.constants import Tier
 
-    plan = (
-        Tenant.Plan.ENTERPRISE
-        if request.user.tier == Tier.ENTERPRISE
-        else Tenant.Plan.TEAM
-    )
+    plan = Tenant.Plan.ENTERPRISE if request.user.tier == Tier.ENTERPRISE else Tenant.Plan.TEAM
 
     from django.utils import timezone as tz
 
@@ -1639,9 +1546,7 @@ def org_members(request):
 def org_change_role(request, membership_id):
     """Change a member's role. Only owners can promote to admin/owner."""
     try:
-        target = Membership.objects.get(
-            id=membership_id, tenant=request.org_tenant, is_active=True
-        )
+        target = Membership.objects.get(id=membership_id, tenant=request.org_tenant, is_active=True)
     except Membership.DoesNotExist:
         return Response({"error": "Member not found"}, status=404)
 
@@ -1683,9 +1588,7 @@ def org_change_role(request, membership_id):
 def org_remove_member(request, membership_id):
     """Remove a member from the organization."""
     try:
-        target = Membership.objects.get(
-            id=membership_id, tenant=request.org_tenant, is_active=True
-        )
+        target = Membership.objects.get(id=membership_id, tenant=request.org_tenant, is_active=True)
     except Membership.DoesNotExist:
         return Response({"error": "Member not found"}, status=404)
 
@@ -1696,9 +1599,7 @@ def org_remove_member(request, membership_id):
     # Cannot remove another owner unless you're also owner
     if target.role == Membership.Role.OWNER:
         if request.org_membership.role != Membership.Role.OWNER:
-            return Response(
-                {"error": "Only owners can remove other owners"}, status=403
-            )
+            return Response({"error": "Only owners can remove other owners"}, status=403)
 
     target.is_active = False
     target.save()
@@ -1746,9 +1647,7 @@ def org_invite(request):
     User = get_user_model()
     existing_user = User.objects.filter(email=email).first()
     if existing_user:
-        if Membership.objects.filter(
-            tenant=tenant, user=existing_user, is_active=True
-        ).exists():
+        if Membership.objects.filter(tenant=tenant, user=existing_user, is_active=True).exists():
             return Response({"error": "User is already a member"}, status=400)
 
     # Check for existing pending invite
@@ -1893,9 +1792,7 @@ def org_accept_invitation(request):
     # Require verified email before accepting org invitations (BUG-06, SEC-001)
     if not request.user.is_email_verified:
         return Response(
-            {
-                "error": "You must verify your email address before accepting invitations"
-            },
+            {"error": "You must verify your email address before accepting invitations"},
             status=403,
         )
 
@@ -1909,14 +1806,10 @@ def org_accept_invitation(request):
         )
 
     # Check if already a member
-    if Membership.objects.filter(
-        tenant=invitation.tenant, user=request.user, is_active=True
-    ).exists():
+    if Membership.objects.filter(tenant=invitation.tenant, user=request.user, is_active=True).exists():
         invitation.status = OrgInvitation.Status.ACCEPTED
         invitation.save()
-        return Response(
-            {"error": "You are already a member of this organization"}, status=400
-        )
+        return Response({"error": "You are already a member of this organization"}, status=400)
 
     from django.db import IntegrityError
     from django.utils import timezone as tz
@@ -1931,9 +1824,7 @@ def org_accept_invitation(request):
             joined_at=tz.now(),
         )
     except IntegrityError:
-        return Response(
-            {"error": "You are already a member of this organization"}, status=400
-        )
+        return Response({"error": "You are already a member of this organization"}, status=400)
 
     invitation.status = OrgInvitation.Status.ACCEPTED
     invitation.save()
@@ -1954,11 +1845,7 @@ def org_accept_invitation(request):
 
 def _get_org_context(request):
     """Return (tenant, membership, error_response). Error response is a DRF Response."""
-    membership = (
-        Membership.objects.filter(user=request.user, is_active=True)
-        .select_related("tenant")
-        .first()
-    )
+    membership = Membership.objects.filter(user=request.user, is_active=True).select_related("tenant").first()
     if not membership:
         return None, None, Response({"error": "No active organization"}, status=400)
     return membership.tenant, membership, None
@@ -2082,9 +1969,7 @@ def org_delete_site(request, site_id):
         # Soft-delete — deactivate to preserve project references
         site.is_active = False
         site.save(update_fields=["is_active", "updated_at"])
-        return Response(
-            {"success": True, "deactivated": True, "project_count": project_count}
-        )
+        return Response({"success": True, "deactivated": True, "project_count": project_count})
 
     site.delete()
     return Response({"success": True, "deleted": True})
@@ -2143,9 +2028,7 @@ def org_create_employee(request):
 
     # Check uniqueness within tenant
     if Employee.objects.filter(tenant=tenant, email=email).exists():
-        return Response(
-            {"error": f"Employee with email {email} already exists"}, status=409
-        )
+        return Response({"error": f"Employee with email {email} already exists"}, status=409)
 
     site = None
     site_id = data.get("site_id")
@@ -2222,16 +2105,67 @@ def org_delete_employee(request, employee_id):
         return Response({"error": "Employee not found"}, status=404)
 
     # Check for active commitments
-    active_commitments = ResourceCommitment.objects.filter(
-        employee=emp, status__in=("confirmed", "active")
-    ).count()
+    active_commitments = ResourceCommitment.objects.filter(employee=emp, status__in=("confirmed", "active")).count()
     if active_commitments > 0:
         return Response(
-            {
-                "error": f"Employee has {active_commitments} active commitment(s). Complete or remove them first."
-            },
+            {"error": f"Employee has {active_commitments} active commitment(s). Complete or remove them first."},
             status=409,
         )
 
     emp.delete()
     return Response({"success": True})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def org_branding(request):
+    """Get or update organization branding settings for PDF report headers.
+
+    GET: Returns current branding settings.
+    POST: Update branding. Body: {company_name, footer_text, logo_file_id}
+          logo_file_id is a UUID referencing a UserFile (image type).
+
+    CR: 19024ee2
+    """
+    tenant, membership, err = _get_org_context(request)
+    if err:
+        return err
+
+    if not membership.can_admin:
+        return Response({"error": "Admin role required"}, status=403)
+
+    settings = tenant.settings or {}
+    branding = settings.get("branding", {})
+
+    if request.method == "GET":
+        return Response({"branding": branding})
+
+    # POST — update branding
+    data = request.data
+    updated = {}
+
+    if "company_name" in data:
+        updated["company_name"] = str(data["company_name"])[:200]
+
+    if "footer_text" in data:
+        updated["footer_text"] = str(data["footer_text"])[:500]
+
+    if "logo_file_id" in data:
+        logo_id = data["logo_file_id"]
+        if logo_id:
+            from files.models import UserFile
+
+            try:
+                logo = UserFile.objects.get(id=logo_id, user=request.user, file_type="image")
+                updated["logo_file_id"] = str(logo.id)
+            except UserFile.DoesNotExist:
+                return Response({"error": "Logo file not found or not an image"}, status=404)
+        else:
+            updated["logo_file_id"] = None
+
+    branding.update(updated)
+    settings["branding"] = branding
+    tenant.settings = settings
+    tenant.save(update_fields=["settings", "updated_at"])
+
+    return Response({"branding": branding})

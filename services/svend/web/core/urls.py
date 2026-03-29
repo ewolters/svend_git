@@ -73,9 +73,7 @@ urlpatterns = [
         name="evidence_from_analysis",
     ),
     # Datasets
-    path(
-        "projects/<uuid:project_id>/datasets/", views.dataset_list, name="dataset_list"
-    ),
+    path("projects/<uuid:project_id>/datasets/", views.dataset_list, name="dataset_list"),
     path(
         "projects/<uuid:project_id>/datasets/<uuid:dataset_id>/",
         views.dataset_detail,
@@ -129,9 +127,7 @@ urlpatterns = [
         views.org_cancel_invitation,
         name="org_cancel_invitation",
     ),
-    path(
-        "org/accept-invite/", views.org_accept_invitation, name="org_accept_invitation"
-    ),
+    path("org/accept-invite/", views.org_accept_invitation, name="org_accept_invitation"),
     # Site management (ORG-001 §8.2 — available to org admins, not Enterprise-gated)
     path("org/sites/", views.org_sites, name="org_sites"),
     path("org/sites/create/", views.org_create_site, name="org_create_site"),
@@ -143,9 +139,7 @@ urlpatterns = [
     ),
     # Employee management (ORG-001 §7 — non-user personnel)
     path("org/employees/", views.org_employees, name="org_employees"),
-    path(
-        "org/employees/create/", views.org_create_employee, name="org_create_employee"
-    ),
+    path("org/employees/create/", views.org_create_employee, name="org_create_employee"),
     path(
         "org/employees/<uuid:employee_id>/",
         views.org_update_employee,
@@ -156,4 +150,6 @@ urlpatterns = [
         views.org_delete_employee,
         name="org_delete_employee",
     ),
+    # Branding (report headers/logos)
+    path("org/branding/", views.org_branding, name="org_branding"),
 ]

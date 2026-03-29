@@ -42,10 +42,7 @@ def list_types(request):
             "iso_clause": td.get("iso_clause", ""),
             "category": td.get("category", ""),
             "section_count": len(td["default_sections"]),
-            "sections": [
-                {"key": s["key"], "title": s["title"], "type": s["type"]}
-                for s in td["default_sections"]
-            ],
+            "sections": [{"key": s["key"], "title": s["title"], "type": s["type"]} for s in td["default_sections"]],
         }
     return JsonResponse({"types": types})
 
@@ -189,16 +186,10 @@ def section_create(request, doc_id):
     section_type = data.get("section_type", "paragraph")
     valid_types = [c[0] for c in ISOSection.SectionType.choices]
     if section_type not in valid_types:
-        return JsonResponse(
-            {"error": f"Invalid section_type: {section_type}"}, status=400
-        )
+        return JsonResponse({"error": f"Invalid section_type: {section_type}"}, status=400)
 
     # Auto sort_order: append at end
-    max_order = (
-        doc.sections.order_by("-sort_order")
-        .values_list("sort_order", flat=True)
-        .first()
-    )
+    max_order = doc.sections.order_by("-sort_order").values_list("sort_order", flat=True).first()
     sort_order = (max_order or 0) + 1
 
     # Insert at specific position if requested
@@ -208,9 +199,7 @@ def section_create(request, doc_id):
             after_sec = doc.sections.get(id=after_id)
             sort_order = after_sec.sort_order + 1
             # Shift subsequent sections
-            doc.sections.filter(sort_order__gte=sort_order).update(
-                sort_order=models.F("sort_order") + 1
-            )
+            doc.sections.filter(sort_order__gte=sort_order).update(sort_order=models.F("sort_order") + 1)
         except ISOSection.DoesNotExist:
             pass
 
@@ -390,12 +379,26 @@ def export_pdf(request, doc_id):
     sections = list(doc.sections.order_by("sort_order"))
     type_def = ISO_DOCUMENT_TYPES.get(doc.document_type, {})
 
+    # Load tenant branding for report header/logo
+    branding = {}
+    try:
+        from core.models.tenant import Membership
+
+        membership = Membership.objects.filter(user=request.user, is_active=True).select_related("tenant").first()
+        if membership and membership.tenant.settings:
+            branding = membership.tenant.settings.get("branding", {})
+            if branding.get("logo_file_id"):
+                branding["logo_url"] = f"https://svend.ai/api/files/{branding['logo_file_id']}/download/"
+    except Exception:
+        pass
+
     html_string = render_to_string(
         "iso_document_print.html",
         {
             "document": doc,
             "sections": sections,
             "type_def": type_def,
+            "branding": branding,
         },
     )
 
@@ -494,9 +497,7 @@ def _render_section_docx(docx, section):
     if st == "heading":
         level = sd.get("level", 1)
         if section.numbering:
-            docx.add_heading(
-                f"{section.numbering} {section.title}", level=min(level, 3)
-            )
+            docx.add_heading(f"{section.numbering} {section.title}", level=min(level, 3))
         else:
             docx.add_heading(section.title, level=min(level, 3))
         if section.content:
@@ -663,14 +664,10 @@ def publish_to_doc_control(request, doc_id):
                 content_parts.append(f"- {check} {item.get('text', '')}")
         if s.section_type == "definition":
             for item in (s.structured_data or {}).get("items", []):
-                content_parts.append(
-                    f"**{item.get('term', '')}**: {item.get('definition', '')}"
-                )
+                content_parts.append(f"**{item.get('term', '')}**: {item.get('definition', '')}")
         if s.section_type == "signature_block":
             for signer in (s.structured_data or {}).get("signers", []):
-                content_parts.append(
-                    f"_{signer.get('role', '')}_: ____________________  Date: ________"
-                )
+                content_parts.append(f"_{signer.get('role', '')}_: ____________________  Date: ________")
 
     content = "\n\n".join(content_parts)
     type_def = ISO_DOCUMENT_TYPES.get(doc.document_type, {})

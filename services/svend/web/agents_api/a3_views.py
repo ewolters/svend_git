@@ -988,6 +988,19 @@ def export_a3_pdf(request, report_id):
 
     from django.template.loader import render_to_string
 
+    # Load tenant branding for report header/logo
+    branding = {}
+    try:
+        from core.models.tenant import Membership
+
+        membership = Membership.objects.filter(user=request.user, is_active=True).select_related("tenant").first()
+        if membership and membership.tenant.settings:
+            branding = membership.tenant.settings.get("branding", {})
+            if branding.get("logo_file_id"):
+                branding["logo_url"] = f"https://svend.ai/api/files/{branding['logo_file_id']}/download/"
+    except Exception:
+        pass
+
     html_string = render_to_string(
         "a3_print.html",
         {
@@ -995,6 +1008,7 @@ def export_a3_pdf(request, report_id):
             "status_display": report.get_status_display(),
             "project_title": report.project.title if report.project else "",
             "rendered_sections": rendered_sections,
+            "branding": branding,
         },
     )
 

@@ -7,8 +7,8 @@
 @page {
     size: A4;
     margin: 2.5cm 2cm;
-    @top-right { content: "A3 Report"; font-size: 9pt; color: #666; }
-    @bottom-center { content: "Page " counter(page) " of " counter(pages); font-size: 9pt; color: #666; }
+    @top-right { content: "{% if branding.company_name %}{{ branding.company_name }} — {% endif %}A3 Report"; font-size: 9pt; color: #666; }
+    @bottom-center { content: "{% if branding.footer_text %}{{ branding.footer_text }}{% else %}Page " counter(page) " of " counter(pages){% endif %}"; font-size: 9pt; color: #666; }
 }
 body {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -132,7 +132,9 @@ body {
 
 <!-- Title Page -->
 <div class="title-page">
+    {% if branding.logo_url %}<img src="{{ branding.logo_url }}" alt="" style="max-width:180px;max-height:80px;margin-bottom:1.5cm;">{% endif %}
     <h1>{{ report.title }}</h1>
+    {% if branding.company_name %}<p style="font-size:14pt;color:#555;margin-bottom:1cm;">{{ branding.company_name }}</p>{% endif %}
     <table class="meta-table">
         <tr><td>Type</td><td>A3 Report</td></tr>
         <tr><td>Status</td><td>{{ status_display }}</td></tr>
