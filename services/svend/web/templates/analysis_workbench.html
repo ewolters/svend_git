@@ -8549,6 +8549,16 @@ async function executeAnalysis() {
             throw new Error(safeStr(result.error, 'Analysis failed'));
         }
 
+        // Store for Excel export
+        lastAnalysisResult = {
+            analysis_type: backendType,
+            analysis_id: backendId,
+            config: config,
+            summary: result.summary || '',
+            statistics: result.statistics || {},
+            plots: result.plots || [],
+        };
+
         if (result.summary) {
             const session = document.getElementById('session-output');
             const wrapper = document.createElement('div');
@@ -8584,6 +8594,34 @@ async function executeAnalysis() {
                 });
             };
 
+            // Excel export button
+            const xlsBtn = document.createElement('button');
+            xlsBtn.className = 'aw-copy-btn';
+            xlsBtn.style.right = '52px';
+            xlsBtn.textContent = 'Excel';
+            xlsBtn.title = 'Download as .xlsx';
+            xlsBtn.onclick = () => {
+                if (!lastAnalysisResult) return;
+                xlsBtn.textContent = '...';
+                fetch('/api/analysis/export/xlsx/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                    body: JSON.stringify(lastAnalysisResult),
+                }).then(r => {
+                    if (!r.ok) throw new Error('Export failed');
+                    return r.blob();
+                }).then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `svend_${lastAnalysisResult.analysis_id || 'analysis'}.xlsx`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    xlsBtn.textContent = 'Excel';
+                }).catch(() => { xlsBtn.textContent = 'Failed'; setTimeout(() => { xlsBtn.textContent = 'Excel'; }, 1500); });
+            };
+
+            wrapper.appendChild(xlsBtn);
             wrapper.appendChild(copyBtn);
             wrapper.appendChild(div);
             session.appendChild(wrapper);
@@ -9526,6 +9564,9 @@ async function executeDataTool(toolId, config, toolName) {
     }
 }
 
+// Store current result for Excel export
+let lastAnalysisResult = null;
+
 // Store current plots for cycling (if more than 4)
 let currentPlots = [];
 let currentPageIndex = 0;
@@ -9827,7 +9868,164 @@ function _addChartActions(el, plot) {
     });
     actions.appendChild(svgBtn);
 
+    // Edit title/axes
+    const editBtn = document.createElement('button');
+    editBtn.className = 'aw-chart-action-btn';
+    editBtn.textContent = 'Edit';
+    editBtn.title = 'Edit chart title and axis labels';
+    editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _showChartEditModal(el, plot);
+    });
+    actions.appendChild(editBtn);
+
+    // Color picker
+    const colorBtn = document.createElement('button');
+    colorBtn.className = 'aw-chart-action-btn';
+    colorBtn.textContent = 'Color';
+    colorBtn.title = 'Change chart colors';
+    colorBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _showColorPicker(el, plot);
+    });
+    actions.appendChild(colorBtn);
+
     container.appendChild(actions);
+}
+
+function _showChartEditModal(el, plot) {
+    const currentLayout = el.layout || {};
+    const currentTitle = currentLayout.title?.text || plot.title || '';
+    const currentXLabel = currentLayout.xaxis?.title?.text || currentLayout.xaxis?.title || plot.layout?.xaxis?.title || '';
+    const currentYLabel = currentLayout.yaxis?.title?.text || currentLayout.yaxis?.title || plot.layout?.yaxis?.title || '';
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div style="background:#1a261a;border:1px solid #4a9f6e;border-radius:8px;padding:24px;width:380px;font-family:inherit;">
+            <div style="font-size:14px;font-weight:600;color:#e8efe8;margin-bottom:16px;">Edit Chart Labels</div>
+            <label style="font-size:11px;color:#9aaa9a;display:block;margin-bottom:4px;">Chart Title</label>
+            <input id="aw-edit-title" type="text" value="${currentTitle.replace(/"/g, '&quot;')}" style="width:100%;box-sizing:border-box;background:#0d120d;border:1px solid #4a9f6e;color:#e8efe8;padding:6px 8px;border-radius:4px;font-size:12px;margin-bottom:12px;">
+            <label style="font-size:11px;color:#9aaa9a;display:block;margin-bottom:4px;">X-Axis Label</label>
+            <input id="aw-edit-xaxis" type="text" value="${currentXLabel.replace(/"/g, '&quot;')}" style="width:100%;box-sizing:border-box;background:#0d120d;border:1px solid #4a9f6e;color:#e8efe8;padding:6px 8px;border-radius:4px;font-size:12px;margin-bottom:12px;">
+            <label style="font-size:11px;color:#9aaa9a;display:block;margin-bottom:4px;">Y-Axis Label</label>
+            <input id="aw-edit-yaxis" type="text" value="${currentYLabel.replace(/"/g, '&quot;')}" style="width:100%;box-sizing:border-box;background:#0d120d;border:1px solid #4a9f6e;color:#e8efe8;padding:6px 8px;border-radius:4px;font-size:12px;margin-bottom:16px;">
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button id="aw-edit-cancel" style="background:transparent;border:1px solid #4a9f6e;color:#9aaa9a;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>
+                <button id="aw-edit-apply" style="background:#4a9f6e;border:none;color:#0d120d;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">Apply</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#aw-edit-title').focus();
+
+    overlay.querySelector('#aw-edit-cancel').onclick = () => overlay.remove();
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    overlay.querySelector('#aw-edit-apply').onclick = () => {
+        const newTitle = overlay.querySelector('#aw-edit-title').value;
+        const newX = overlay.querySelector('#aw-edit-xaxis').value;
+        const newY = overlay.querySelector('#aw-edit-yaxis').value;
+        const update = {};
+        if (newTitle !== currentTitle) update.title = { text: newTitle, font: { color: '#e8efe8', size: 13 } };
+        if (newX !== currentXLabel) update['xaxis.title'] = { text: newX, font: { color: '#9aaa9a' } };
+        if (newY !== currentYLabel) update['yaxis.title'] = { text: newY, font: { color: '#9aaa9a' } };
+        if (Object.keys(update).length > 0) {
+            Plotly.relayout(el, update);
+            // Update title bar above chart
+            const titleBar = el.closest('.aw-output-plot')?.querySelector('div:first-child');
+            if (titleBar && newTitle) titleBar.textContent = newTitle;
+            // Update stored plot data
+            plot.title = newTitle;
+            if (!plot.layout) plot.layout = {};
+            plot.layout.xaxis = { ...(plot.layout.xaxis || {}), title: newX };
+            plot.layout.yaxis = { ...(plot.layout.yaxis || {}), title: newY };
+        }
+        overlay.remove();
+    };
+}
+
+function _showColorPicker(el, plot) {
+    const traces = el.data || [];
+    const palettes = {
+        'SVEND Default': ['#4a9f6e','#3a7f8f','#e8a84c','#d06060','#8b5cf6','#3b82f6','#f59e0b','#10b981'],
+        'Minitab Classic': ['#0060a8','#ff0000','#00a800','#ff8000','#800080','#008080','#808000','#c0c0c0'],
+        'Presentation': ['#2563eb','#dc2626','#16a34a','#ca8a04','#9333ea','#0891b2','#e11d48','#65a30d'],
+        'Monochrome': ['#1a1a2e','#16213e','#0f3460','#533483','#e94560','#393e46','#6d6875','#b5838d'],
+        'Accessible': ['#e69f00','#56b4e9','#009e73','#f0e442','#0072b2','#d55e00','#cc79a7','#999999'],
+    };
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+    let html = `<div style="background:#1a261a;border:1px solid #4a9f6e;border-radius:8px;padding:24px;width:420px;max-height:80vh;overflow-y:auto;font-family:inherit;">
+        <div style="font-size:14px;font-weight:600;color:#e8efe8;margin-bottom:16px;">Chart Colors</div>`;
+
+    // Palette presets
+    html += `<div style="font-size:11px;color:#9aaa9a;margin-bottom:8px;">Presets</div>`;
+    for (const [name, colors] of Object.entries(palettes)) {
+        html += `<div class="aw-palette-row" data-palette="${name}" style="display:flex;align-items:center;gap:8px;padding:6px;border-radius:4px;cursor:pointer;margin-bottom:4px;">
+            <span style="font-size:11px;color:#9aaa9a;width:100px;flex-shrink:0;">${name}</span>
+            <div style="display:flex;gap:2px;">`;
+        colors.forEach(c => { html += `<div style="width:16px;height:16px;border-radius:3px;background:${c};"></div>`; });
+        html += `</div></div>`;
+    }
+
+    // Per-trace custom colors
+    if (traces.length > 0) {
+        html += `<div style="font-size:11px;color:#9aaa9a;margin:16px 0 8px;">Per-Trace Colors</div>`;
+        traces.forEach((t, i) => {
+            const name = t.name || `Trace ${i + 1}`;
+            const currentColor = t.marker?.color || t.line?.color || '#4a9f6e';
+            const safeColor = typeof currentColor === 'string' ? currentColor : '#4a9f6e';
+            html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <span style="font-size:11px;color:#9aaa9a;width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</span>
+                <input type="color" data-trace="${i}" value="${safeColor.startsWith('#') ? safeColor : '#4a9f6e'}" style="width:32px;height:24px;border:1px solid #4a9f6e;border-radius:3px;background:transparent;cursor:pointer;">
+            </div>`;
+        });
+    }
+
+    html += `<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+        <button id="aw-color-cancel" style="background:transparent;border:1px solid #4a9f6e;color:#9aaa9a;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>
+        <button id="aw-color-apply" style="background:#4a9f6e;border:none;color:#0d120d;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">Apply</button>
+    </div></div>`;
+
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+
+    // Palette click handlers
+    overlay.querySelectorAll('.aw-palette-row').forEach(row => {
+        row.onmouseenter = () => { row.style.background = 'rgba(74,159,110,0.15)'; };
+        row.onmouseleave = () => { row.style.background = 'transparent'; };
+        row.onclick = () => {
+            const paletteName = row.dataset.palette;
+            const colors = palettes[paletteName];
+            const inputs = overlay.querySelectorAll('input[data-trace]');
+            inputs.forEach((inp, i) => { inp.value = colors[i % colors.length]; });
+        };
+    });
+
+    overlay.querySelector('#aw-color-cancel').onclick = () => overlay.remove();
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    overlay.querySelector('#aw-color-apply').onclick = () => {
+        const inputs = overlay.querySelectorAll('input[data-trace]');
+        const updates = {};
+        inputs.forEach(inp => {
+            const idx = parseInt(inp.dataset.trace);
+            const color = inp.value;
+            const trace = traces[idx];
+            if (!trace) return;
+            if (trace.type === 'histogram' || trace.type === 'bar') {
+                updates[idx] = { 'marker.color': color, 'marker.line.color': color };
+            } else if (trace.type === 'box') {
+                updates[idx] = { 'marker.color': color, 'line.color': color, fillcolor: color + '40' };
+            } else {
+                updates[idx] = { 'marker.color': color, 'line.color': color };
+            }
+        });
+        for (const [idx, upd] of Object.entries(updates)) {
+            Plotly.restyle(el, upd, [parseInt(idx)]);
+        }
+        overlay.remove();
+    };
 }
 
 function expandChart(plot) {
