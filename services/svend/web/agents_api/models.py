@@ -418,12 +418,14 @@ class Board(models.Model):
         return f"{self.name} ({self.room_code})"
 
     def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        # Atomic version increment after save to prevent race conditions
         from django.db.models import F
 
-        type(self).objects.filter(pk=self.pk).update(version=F("version") + 1)
-        self.refresh_from_db(fields=["version"])
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        if not is_new:
+            # Atomic version increment — single query, no race window
+            type(self).objects.filter(pk=self.pk).update(version=F("version") + 1)
+            self.refresh_from_db(fields=["version"])
 
 
 class BoardParticipant(models.Model):

@@ -120,29 +120,38 @@ class UsageLog(models.Model):
         blocked: bool = False,
         error: bool = False,
     ):
-        """Log a request, creating today's row if needed."""
+        """Log a request, creating today's row if needed.
+
+        Uses F() expressions for atomic increment — safe under concurrent requests.
+        """
+        from django.db.models import F
         from django.utils import timezone
 
         today = timezone.now().date()
         log, _ = cls.objects.get_or_create(user=user, date=today)
 
-        log.request_count += 1
-        log.tokens_input += tokens_in
-        log.tokens_output += tokens_out
-        log.total_inference_ms += inference_ms
-
+        update_kwargs = {
+            "request_count": F("request_count") + 1,
+            "tokens_input": F("tokens_input") + tokens_in,
+            "tokens_output": F("tokens_output") + tokens_out,
+            "total_inference_ms": F("total_inference_ms") + inference_ms,
+        }
         if blocked:
-            log.blocked_count += 1
+            update_kwargs["blocked_count"] = F("blocked_count") + 1
         if error:
-            log.error_count += 1
+            update_kwargs["error_count"] = F("error_count") + 1
 
-        # Update domain counts
+        cls.objects.filter(pk=log.pk).update(**update_kwargs)
+
+        # Domain counts must be handled separately (JSON field, no F() support)
         if domain:
+            log.refresh_from_db()
             if log.domain_counts is None:
                 log.domain_counts = {}
             log.domain_counts[domain] = log.domain_counts.get(domain, 0) + 1
+            log.save(update_fields=["domain_counts"])
 
-        log.save()
+        log.refresh_from_db()
         return log
 
 
@@ -411,9 +420,7 @@ class EventLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     # Event classification
-    event_type = models.CharField(
-        max_length=20, choices=EventType.choices, db_index=True
-    )
+    event_type = models.CharField(max_length=20, choices=EventType.choices, db_index=True)
     category = models.CharField(max_length=50, blank=True, db_index=True)
     action = models.CharField(max_length=100, blank=True)
     label = models.CharField(max_length=200, blank=True)

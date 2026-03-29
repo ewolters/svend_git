@@ -1,5 +1,6 @@
 """Chat views."""
 
+from django.db.models import F
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 
@@ -10,19 +11,17 @@ def shared_conversation(request, share_id):
     """View a shared conversation."""
     share = get_object_or_404(SharedConversation, id=share_id)
 
-    # Increment view count
-    share.view_count += 1
-    share.save(update_fields=["view_count"])
+    # Atomic view count increment
+    SharedConversation.objects.filter(pk=share.pk).update(view_count=F("view_count") + 1)
+    share.refresh_from_db(fields=["view_count"])
 
-    # Return conversation data
+    # Return conversation data (exclude internal fields: reasoning_trace, tool_calls)
     messages = [
         {
             "role": msg.role,
             "content": msg.content,
             "domain": msg.domain,
             "verified": msg.is_verified,
-            "reasoning_trace": msg.reasoning_trace,
-            "tool_calls": msg.tool_calls,
         }
         for msg in share.conversation.messages.all()
     ]

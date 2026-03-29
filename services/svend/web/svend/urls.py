@@ -4,10 +4,17 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
+from django.contrib.auth.decorators import login_required
 from django.contrib.sitemaps import Sitemap
 from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
 from django.views.generic import RedirectView, TemplateView
+
+
+def _app_view(template_name, **kwargs):
+    """TemplateView wrapped with login_required for /app/* routes."""
+    return login_required(TemplateView.as_view(template_name=template_name, **kwargs))
+
 
 from agents_api.whiteboard_views import guest_board_view
 from api.blog_views import blog_detail, blog_list
@@ -171,174 +178,58 @@ urlpatterns = varta_urls + [
     ),
     path("privacy/", TemplateView.as_view(template_name="privacy.html"), name="privacy"),
     path("terms/", TemplateView.as_view(template_name="terms.html"), name="terms"),
-    path("app/", TemplateView.as_view(template_name="dashboard.html"), name="app"),
-    path("app/dsw/", TemplateView.as_view(template_name="workbench_new.html"), name="dsw"),
+    path("app/", _app_view("dashboard.html"), name="app"),
+    path("app/dsw/", _app_view("workbench_new.html"), name="dsw"),
     # Legacy redirect: /app/analysis/ serves old analysis workbench
-    path(
-        "app/analysis/",
-        TemplateView.as_view(template_name="analysis_workbench.html"),
-        name="analysis",
-    ),
-    path(
-        "app/workflows/",
-        TemplateView.as_view(template_name="workflows.html"),
-        name="workflows",
-    ),
-    path("app/triage/", TemplateView.as_view(template_name="triage.html"), name="triage"),
-    path("app/forge/", TemplateView.as_view(template_name="forge.html"), name="forge_ui"),
-    path(
-        "app/whiteboard/",
-        TemplateView.as_view(template_name="whiteboard.html"),
-        name="whiteboard",
-    ),
+    path("app/analysis/", _app_view("analysis_workbench.html"), name="analysis"),
+    path("app/workflows/", _app_view("workflows.html"), name="workflows"),
+    path("app/triage/", _app_view("triage.html"), name="triage"),
+    path("app/forge/", _app_view("forge.html"), name="forge_ui"),
+    path("app/whiteboard/", _app_view("whiteboard.html"), name="whiteboard"),
     path(
         "app/whiteboard/<str:room_code>/",
-        TemplateView.as_view(template_name="whiteboard.html"),
+        _app_view("whiteboard.html"),
         name="whiteboard_room",
     ),
     path("app/whiteboard/guest/<str:token>/", guest_board_view, name="whiteboard_guest"),
-    path("app/vsm/", TemplateView.as_view(template_name="vsm.html"), name="vsm"),
-    path(
-        "app/vsm/<uuid:vsm_id>/",
-        TemplateView.as_view(template_name="vsm.html"),
-        name="vsm_edit",
-    ),
-    path(
-        "app/simulator/",
-        TemplateView.as_view(template_name="simulator.html"),
-        name="simulator",
-    ),
-    path(
-        "app/simulator/<uuid:sim_id>/",
-        TemplateView.as_view(template_name="simulator.html"),
-        name="simulator_edit",
-    ),
-    path(
-        "app/onboarding/",
-        TemplateView.as_view(template_name="onboarding.html"),
-        name="onboarding",
-    ),
-    path(
-        "app/settings/",
-        TemplateView.as_view(template_name="settings.html"),
-        name="settings",
-    ),
-    path("app/models/", TemplateView.as_view(template_name="models.html"), name="models"),
-    path(
-        "app/forecast/",
-        TemplateView.as_view(template_name="forecast.html"),
-        name="forecast",
-    ),
-    path(
-        "app/projects/",
-        TemplateView.as_view(template_name="projects.html"),
-        name="projects",
-    ),
-    path(
-        "app/problems/",
-        TemplateView.as_view(template_name="projects.html"),
-        name="problems",
-    ),  # Legacy redirect
-    path(
-        "app/hypotheses/",
-        TemplateView.as_view(template_name="projects.html"),
-        name="hypotheses",
-    ),  # Legacy redirect
-    # path("app/knowledge/", TemplateView.as_view(template_name="knowledge.html"), name="knowledge"),  # Disabled - prototype only
-    path(
-        "app/experimenter/",
-        TemplateView.as_view(template_name="experimenter.html"),
-        name="experimenter",
-    ),
+    path("app/vsm/", _app_view("vsm.html"), name="vsm"),
+    path("app/vsm/<uuid:vsm_id>/", _app_view("vsm.html"), name="vsm_edit"),
+    path("app/simulator/", _app_view("simulator.html"), name="simulator"),
+    path("app/simulator/<uuid:sim_id>/", _app_view("simulator.html"), name="simulator_edit"),
+    path("app/onboarding/", _app_view("onboarding.html"), name="onboarding"),
+    path("app/settings/", _app_view("settings.html"), name="settings"),
+    path("app/models/", _app_view("models.html"), name="models"),
+    path("app/forecast/", _app_view("forecast.html"), name="forecast"),
+    path("app/projects/", _app_view("projects.html"), name="projects"),
+    path("app/problems/", _app_view("projects.html"), name="problems"),  # Legacy redirect
+    path("app/hypotheses/", _app_view("projects.html"), name="hypotheses"),  # Legacy redirect
+    # path("app/knowledge/", _app_view("knowledge.html"), name="knowledge"),  # Disabled - prototype only
+    path("app/experimenter/", _app_view("experimenter.html"), name="experimenter"),
     path("app/spc/", RedirectView.as_view(url="/app/analysis/", permanent=True), name="spc"),
-    path(
-        "app/safety/",
-        TemplateView.as_view(template_name="safety_app.html"),
-        name="safety_app",
-    ),
-    # path("app/coder/", TemplateView.as_view(template_name="coder.html"), name="coder"),  # Temporarily disabled
-    path("app/a3/", TemplateView.as_view(template_name="a3.html"), name="a3"),
-    path(
-        "app/a3/<uuid:report_id>/",
-        TemplateView.as_view(template_name="a3.html"),
-        name="a3_edit",
-    ),
-    path("app/report/", TemplateView.as_view(template_name="report.html"), name="report"),
-    path(
-        "app/report/<uuid:report_id>/",
-        TemplateView.as_view(template_name="report.html"),
-        name="report_edit",
-    ),
-    path(
-        "app/calculators/",
-        TemplateView.as_view(template_name="calculators.html"),
-        name="calculators",
-    ),
-    path("app/rca/", TemplateView.as_view(template_name="rca.html"), name="rca"),
-    path(
-        "app/ishikawa/",
-        TemplateView.as_view(template_name="ishikawa.html"),
-        name="ishikawa",
-    ),
-    path(
-        "app/ishikawa/<uuid:diagram_id>/",
-        TemplateView.as_view(template_name="ishikawa.html"),
-        name="ishikawa_edit",
-    ),
-    path(
-        "app/ce-matrix/",
-        TemplateView.as_view(template_name="ce_matrix.html"),
-        name="ce_matrix",
-    ),
-    path(
-        "app/ce-matrix/<uuid:matrix_id>/",
-        TemplateView.as_view(template_name="ce_matrix.html"),
-        name="ce_matrix_edit",
-    ),
-    path("app/learn/", TemplateView.as_view(template_name="learn.html"), name="learn"),
-    path("app/fmea/", TemplateView.as_view(template_name="fmea.html"), name="fmea"),
-    path(
-        "app/fmea/<uuid:fmea_id>/",
-        TemplateView.as_view(template_name="fmea.html"),
-        name="fmea_edit",
-    ),
-    path(
-        "app/kanban-cards/",
-        TemplateView.as_view(template_name="kanban_cards.html"),
-        name="kanban_cards",
-    ),
-    path("app/hoshin/", TemplateView.as_view(template_name="hoshin.html"), name="hoshin"),
-    path(
-        "app/investigations/",
-        TemplateView.as_view(template_name="investigations.html"),
-        name="investigations",
-    ),
-    path(
-        "app/notebooks/",
-        TemplateView.as_view(template_name="notebooks.html"),
-        name="notebooks",
-    ),
-    path(
-        "app/front-page/",
-        TemplateView.as_view(template_name="front_page.html"),
-        name="front_page",
-    ),
-    path(
-        "app/practice/",
-        TemplateView.as_view(template_name="harada.html"),
-        name="harada",
-    ),
-    path("app/iso/", TemplateView.as_view(template_name="iso.html"), name="iso"),
-    path(
-        "app/iso-docs/",
-        TemplateView.as_view(template_name="iso_doc.html"),
-        name="iso_doc",
-    ),
-    path(
-        "app/iso-docs/<uuid:doc_id>/",
-        TemplateView.as_view(template_name="iso_doc.html"),
-        name="iso_doc_edit",
-    ),
+    path("app/safety/", _app_view("safety_app.html"), name="safety_app"),
+    # path("app/coder/", _app_view("coder.html"), name="coder"),  # Temporarily disabled
+    path("app/a3/", _app_view("a3.html"), name="a3"),
+    path("app/a3/<uuid:report_id>/", _app_view("a3.html"), name="a3_edit"),
+    path("app/report/", _app_view("report.html"), name="report"),
+    path("app/report/<uuid:report_id>/", _app_view("report.html"), name="report_edit"),
+    path("app/calculators/", _app_view("calculators.html"), name="calculators"),
+    path("app/rca/", _app_view("rca.html"), name="rca"),
+    path("app/ishikawa/", _app_view("ishikawa.html"), name="ishikawa"),
+    path("app/ishikawa/<uuid:diagram_id>/", _app_view("ishikawa.html"), name="ishikawa_edit"),
+    path("app/ce-matrix/", _app_view("ce_matrix.html"), name="ce_matrix"),
+    path("app/ce-matrix/<uuid:matrix_id>/", _app_view("ce_matrix.html"), name="ce_matrix_edit"),
+    path("app/learn/", _app_view("learn.html"), name="learn"),
+    path("app/fmea/", _app_view("fmea.html"), name="fmea"),
+    path("app/fmea/<uuid:fmea_id>/", _app_view("fmea.html"), name="fmea_edit"),
+    path("app/kanban-cards/", _app_view("kanban_cards.html"), name="kanban_cards"),
+    path("app/hoshin/", _app_view("hoshin.html"), name="hoshin"),
+    path("app/investigations/", _app_view("investigations.html"), name="investigations"),
+    path("app/notebooks/", _app_view("notebooks.html"), name="notebooks"),
+    path("app/front-page/", _app_view("front_page.html"), name="front_page"),
+    path("app/practice/", _app_view("harada.html"), name="harada"),
+    path("app/iso/", _app_view("iso.html"), name="iso"),
+    path("app/iso-docs/", _app_view("iso_doc.html"), name="iso_doc"),
+    path("app/iso-docs/<uuid:doc_id>/", _app_view("iso_doc.html"), name="iso_doc_edit"),
     # Whitepapers (public, no auth — SEO + PDF download)
     path("whitepapers/", whitepaper_list, name="whitepapers"),
     path("whitepapers/<slug:slug>/", whitepaper_detail, name="whitepaper_detail"),
@@ -596,8 +487,8 @@ urlpatterns = varta_urls + [
     path(
         "app/loop/detect/supplier/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "supplier", "loop_section_title": "Supplier Issues"},
+            template_name="loop_supplier.html",
+            extra_context={"loop_section": "supplier"},
         ),
         name="loop_detect_supplier",
     ),

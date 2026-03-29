@@ -129,9 +129,7 @@ def zone_list_create(request):
         tags=data.get("tags", []),
     )
     if data.get("parent_zone_id"):
-        parent = FrontierZone.objects.filter(
-            id=data["parent_zone_id"], site=site
-        ).first()
+        parent = FrontierZone.objects.filter(id=data["parent_zone_id"], site=site).first()
         if parent:
             zone.parent_zone = parent
             zone.save(update_fields=["parent_zone"])
@@ -179,9 +177,7 @@ def zone_detail(request, zone_id):
             setattr(zone, field, data[field])
     if "parent_zone_id" in data:
         if data["parent_zone_id"]:
-            parent = FrontierZone.objects.filter(
-                id=data["parent_zone_id"], site=zone.site
-            ).first()
+            parent = FrontierZone.objects.filter(id=data["parent_zone_id"], site=zone.site).first()
             zone.parent_zone = parent
         else:
             zone.parent_zone = None
@@ -248,9 +244,7 @@ def schedule_list_create(request):
             schedule=schedule,
             auditor=emp,
             zone=zone,
-            target_date=date.fromisoformat(
-                a.get("target_date", week_start.isoformat())
-            ),
+            target_date=date.fromisoformat(a.get("target_date", week_start.isoformat())),
         )
         created_assignments.append(str(assignment.id))
 
@@ -292,9 +286,7 @@ def schedule_detail(request, schedule_id):
                     "zone_name": a.zone.name,
                     "target_date": a.target_date.isoformat(),
                     "status": a.status,
-                    "completed_at": (
-                        a.completed_at.isoformat() if a.completed_at else None
-                    ),
+                    "completed_at": (a.completed_at.isoformat() if a.completed_at else None),
                 }
                 for a in assignments
             ],
@@ -311,9 +303,7 @@ def assignment_update(request, assignment_id):
     if err:
         return err
 
-    assignment = get_object_or_404(
-        AuditAssignment, id=assignment_id, schedule__site__tenant=tenant
-    )
+    assignment = get_object_or_404(AuditAssignment, id=assignment_id, schedule__site__tenant=tenant)
     data = json.loads(request.body)
 
     if "status" in data:
@@ -340,9 +330,7 @@ def card_list_create(request):
 
     if request.method == "GET":
         sites, _ = get_accessible_sites(request.user, tenant)
-        qs = FrontierCard.objects.filter(site__in=sites).select_related(
-            "auditor", "zone", "site"
-        )
+        qs = FrontierCard.objects.filter(site__in=sites).select_related("auditor", "zone", "site")
         site_id = request.GET.get("site")
         if site_id:
             qs = qs.filter(site_id=site_id)
@@ -441,7 +429,7 @@ def process_card(request, card_id):
 
     from agents_api.models import FMEA
 
-    fmea = get_object_or_404(FMEA, id=fmea_id)
+    fmea = get_object_or_404(FMEA, id=fmea_id, site__tenant=tenant)
     created_ids = process_card_to_fmea(card, fmea, request.user)
 
     return JsonResponse(
@@ -483,9 +471,7 @@ def five_s_pareto(request):
         return JsonResponse(
             {
                 "error": f"Insufficient data — need at least {min_cards} cards with 5S tallies",
-                "card_count": FrontierCard.objects.filter(site=site)
-                .exclude(five_s_tallies={})
-                .count(),
+                "card_count": FrontierCard.objects.filter(site=site).exclude(five_s_tallies={}).count(),
             },
             status=200,
         )
@@ -527,9 +513,7 @@ def safety_dashboard(request):
     # Schedules this week
     today = date.today()
     week_start = today - timedelta(days=today.weekday())
-    current_schedules = AuditSchedule.objects.filter(
-        site__in=sites, week_start=week_start
-    )
+    current_schedules = AuditSchedule.objects.filter(site__in=sites, week_start=week_start)
     total_assignments = 0
     completed_assignments = 0
     for sched in current_schedules:
@@ -537,29 +521,19 @@ def safety_dashboard(request):
         total_assignments += assigns.count()
         completed_assignments += assigns.filter(status="completed").count()
 
-    completion_rate = (
-        round(completed_assignments / total_assignments * 100, 1)
-        if total_assignments > 0
-        else None
-    )
+    completion_rate = round(completed_assignments / total_assignments * 100, 1) if total_assignments > 0 else None
 
     # Hazard counts
     month_at_risk = sum(c.at_risk_count for c in month_cards)
     week_at_risk = sum(c.at_risk_count for c in week_cards)
 
     # Processing time (avg hours from card creation to processing)
-    processed_cards = all_cards.filter(
-        is_processed=True, processed_at__isnull=False
-    ).order_by("-processed_at")[:50]
+    processed_cards = all_cards.filter(is_processed=True, processed_at__isnull=False).order_by("-processed_at")[:50]
     processing_times = []
     for c in processed_cards:
         delta = (c.processed_at - c.created_at).total_seconds() / 3600
         processing_times.append(delta)
-    avg_processing_hours = (
-        round(sum(processing_times) / len(processing_times), 1)
-        if processing_times
-        else None
-    )
+    avg_processing_hours = round(sum(processing_times) / len(processing_times), 1) if processing_times else None
 
     # Severity distribution this month
     severity_counts = {"C": 0, "H": 0, "M": 0, "L": 0}
@@ -572,9 +546,7 @@ def safety_dashboard(request):
     # Operator interaction rate
     month_count = month_cards.count()
     interaction_count = month_cards.exclude(operator_name="").count()
-    interaction_rate = (
-        round(interaction_count / month_count * 100, 1) if month_count > 0 else None
-    )
+    interaction_rate = round(interaction_count / month_count * 100, 1) if month_count > 0 else None
 
     return JsonResponse(
         {
@@ -592,9 +564,7 @@ def safety_dashboard(request):
             "severity_distribution": severity_counts,
             "totals": {
                 "total_cards": all_cards.count(),
-                "total_zones": FrontierZone.objects.filter(
-                    site__in=sites, is_active=True
-                ).count(),
+                "total_zones": FrontierZone.objects.filter(site__in=sites, is_active=True).count(),
                 "total_processed": all_cards.filter(is_processed=True).count(),
             },
         }
@@ -616,9 +586,7 @@ def _notify_high_severity(card):
         from agents_api.models import SiteAccess
         from notifications.helpers import notify
 
-        admins = SiteAccess.objects.filter(
-            site=card.site, role__in=("admin", "member")
-        ).select_related("user")
+        admins = SiteAccess.objects.filter(site=card.site, role__in=("admin", "member")).select_related("user")
 
         title = f"{'CRITICAL' if highest == 'C' else 'HIGH'} safety finding: {card.zone.name}"
         message = (

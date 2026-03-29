@@ -27,7 +27,7 @@ _DELIVERY_TIMEOUT = 10
 _USER_AGENT = "Svend-Webhooks/1.0"
 
 
-def dispatch_event(event_name, payload):
+def dispatch_event(event_name, payload, *, tenant_id=None):
     """Find all matching endpoints and schedule delivery for each.
 
     Called from signal handlers or Cortex.publish() — this is the main
@@ -36,8 +36,16 @@ def dispatch_event(event_name, payload):
     Args:
         event_name: Dot-separated event name (e.g., "fmea.created")
         payload: Dict with event data
+        tenant_id: UUID of the originating tenant. When provided, only
+            endpoints belonging to that tenant (or with no tenant) are matched.
+            This prevents cross-tenant event leakage (SOC 2 CC6.3).
     """
-    endpoints = WebhookEndpoint.objects.filter(is_active=True)
+    qs = WebhookEndpoint.objects.filter(is_active=True)
+    if tenant_id is not None:
+        from django.db.models import Q
+
+        qs = qs.filter(Q(tenant_id=tenant_id) | Q(tenant__isnull=True, user__isnull=False))
+    endpoints = qs
 
     for endpoint in endpoints:
         if endpoint.matches_event(event_name):

@@ -50,9 +50,7 @@ class UserFile(models.Model):
     )
 
     # File metadata (encrypted at rest via EncryptedFileSystemStorage)
-    file = models.FileField(
-        upload_to=user_file_path, storage=EncryptedFileSystemStorage()
-    )
+    file = models.FileField(upload_to=user_file_path, storage=EncryptedFileSystemStorage())
     original_name = models.CharField(max_length=255)
     file_type = models.CharField(
         max_length=20,
@@ -214,16 +212,25 @@ class UserQuota(models.Model):
         return True, ""
 
     def add_file(self, size_bytes: int):
-        """Track new file upload."""
-        self.used_bytes += size_bytes
-        self.file_count += 1
-        self.save(update_fields=["used_bytes", "file_count", "updated_at"])
+        """Track new file upload. Atomic via F() to prevent race conditions."""
+        from django.db.models import F
+
+        type(self).objects.filter(pk=self.pk).update(
+            used_bytes=F("used_bytes") + size_bytes,
+            file_count=F("file_count") + 1,
+        )
+        self.refresh_from_db(fields=["used_bytes", "file_count"])
 
     def remove_file(self, size_bytes: int):
-        """Track file deletion."""
-        self.used_bytes = max(0, self.used_bytes - size_bytes)
-        self.file_count = max(0, self.file_count - 1)
-        self.save(update_fields=["used_bytes", "file_count", "updated_at"])
+        """Track file deletion. Atomic via F() to prevent race conditions."""
+        from django.db.models import F
+        from django.db.models.functions import Greatest
+
+        type(self).objects.filter(pk=self.pk).update(
+            used_bytes=Greatest(F("used_bytes") - size_bytes, 0),
+            file_count=Greatest(F("file_count") - 1, 0),
+        )
+        self.refresh_from_db(fields=["used_bytes", "file_count"])
 
     def recalculate(self):
         """Recalculate usage from actual files."""
