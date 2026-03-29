@@ -56,30 +56,28 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 .tool-card {
     display: flex;
     align-items: flex-start;
-    gap: 16px;
-    padding: 24px;
+    gap: 14px;
+    padding: 16px 20px;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 6px;
     text-decoration: none;
     color: inherit;
-    transition: all 0.2s;
+    transition: border-color 0.15s;
 }
 
 .tool-card:hover {
-    border-color: var(--accent);
-    background: var(--bg-hover);
-    transform: translateY(-2px);
+    border-color: var(--accent-primary-border);
 }
 
 .tool-icon {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--accent-primary-dim);
-    border-radius: 12px;
+    border-radius: 6px;
     flex-shrink: 0;
 }
 
@@ -108,8 +106,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 }
 
 .tool-card.primary {
-    background: linear-gradient(135deg, rgba(74, 159, 110, 0.15), rgba(74, 159, 110, 0.05));
-    border-color: var(--accent);
+    border-color: var(--accent-primary-border);
 }
 
 .tool-card.primary .tool-icon {
@@ -144,10 +141,10 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 }
 
 .stat-card {
-    padding: 20px 24px;
+    padding: 16px 20px;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 6px;
 }
 
 .stat-value {
@@ -171,7 +168,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 .recent-list {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 6px;
     overflow: hidden;
 }
 

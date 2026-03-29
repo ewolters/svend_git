@@ -8,25 +8,20 @@
 .loop-header h1 { margin: 0; font-size: 22px; font-weight: 500; color: var(--text-primary); }
 .loop-header .subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
 
-/* KPI strip */
-.loop-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
-.loop-kpi { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; transition: border-color 0.2s; }
-.loop-kpi:hover { border-color: var(--accent); }
-.loop-kpi .label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
-.loop-kpi .value { font-size: 26px; font-weight: 600; color: var(--text-primary); margin: 4px 0; font-family: 'JetBrains Mono', monospace; }
+/* KPI strip — uses shared .kpi-strip/.kpi-cell from base_app.html */
 .loop-kpi .sub { font-size: 11px; color: var(--text-dim); }
-.loop-kpi.kpi-alert .value { color: #f87171; }
-.loop-kpi.kpi-warn .value { color: #facc15; }
-.loop-kpi.kpi-good .value { color: #4ade80; }
+.loop-kpi.kpi-alert .kpi-value { color: #f87171; }
+.loop-kpi.kpi-warn .kpi-value { color: #facc15; }
+.loop-kpi.kpi-good .kpi-value { color: #4ade80; }
 
 /* Three-column grid */
 .loop-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
 @media (max-width: 1024px) { .loop-grid { grid-template-columns: 1fr; } }
 
-.loop-panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; min-height: 300px; }
+.loop-panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 16px; min-height: 300px; }
 .loop-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
 .loop-panel-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
-.loop-panel-count { font-size: 12px; color: var(--text-dim); background: var(--bg-secondary); padding: 2px 8px; border-radius: 10px; }
+.loop-panel-count { font-size: 12px; color: var(--text-dim); background: var(--bg-secondary); padding: 2px 8px; border-radius: 4px; }
 
 /* Commitment items */
 .loop-item { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: background 0.1s; }
@@ -49,7 +44,7 @@
 .loop-transition-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(74,222,128,0.1); color: #4ade80; font-weight: 500; }
 
 /* Investigation cards */
-.loop-inv-card { background: var(--bg-secondary); border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+.loop-inv-card { background: var(--bg-secondary); border-radius: 6px; padding: 12px; margin-bottom: 8px; }
 .loop-inv-card .inv-title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
 .loop-inv-card .inv-meta { font-size: 11px; color: var(--text-secondary); margin-top: 4px; display: flex; gap: 12px; }
 
@@ -66,9 +61,9 @@
 .loop-empty .empty-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.3; }
 
 /* Action buttons */
-.loop-btn { padding: 6px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
-    color: var(--text-primary); cursor: pointer; font-size: 12px; transition: all 0.15s; }
-.loop-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
+.loop-btn { padding: 6px 12px; background: transparent; border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text-secondary); cursor: pointer; font-size: 12px; transition: border-color 0.15s, color 0.15s; }
+.loop-btn:hover { border-color: var(--accent-primary-border); color: var(--text-primary); }
 .loop-btn.small { padding: 3px 8px; font-size: 11px; }
 
 /* Mode indicator */
@@ -115,14 +110,14 @@ textarea.loop-input { resize: vertical; min-height: 60px; }
     </div>
 
     <!-- KPI Strip -->
-    <div class="loop-kpis" id="kpiStrip">
-        <div class="loop-kpi" id="kpiDueToday"><div class="label">Due Today</div><div class="value">—</div><div class="sub">commitments</div></div>
-        <div class="loop-kpi" id="kpiOverdue"><div class="label">Overdue</div><div class="value">—</div><div class="sub">commitments</div></div>
-        <div class="loop-kpi" id="kpiBlocked"><div class="label">Blocked</div><div class="value">—</div><div class="sub">preconditions unmet</div></div>
-        <div class="loop-kpi" id="kpiConditions"><div class="label">Conditions</div><div class="value">—</div><div class="sub">active</div></div>
-        <div class="loop-kpi" id="kpiSignals"><div class="label">Signals</div><div class="value">—</div><div class="sub">untriaged</div></div>
-        <div class="loop-kpi" id="kpiFulfilled"><div class="label">Fulfilled</div><div class="value">—</div><div class="sub">total</div></div>
-        <div class="loop-kpi" id="kpiReadiness"><div class="label">Readiness</div><div class="value">—</div><div class="sub">/ 100</div></div>
+    <div class="kpi-strip cols-auto" id="kpiStrip">
+        <div class="kpi-cell loop-kpi" id="kpiDueToday"><div class="kpi-label">Due Today</div><div class="kpi-value">—</div><div class="sub">commitments</div></div>
+        <div class="kpi-cell loop-kpi" id="kpiOverdue"><div class="kpi-label">Overdue</div><div class="kpi-value">—</div><div class="sub">commitments</div></div>
+        <div class="kpi-cell loop-kpi" id="kpiBlocked"><div class="kpi-label">Blocked</div><div class="kpi-value">—</div><div class="sub">preconditions unmet</div></div>
+        <div class="kpi-cell loop-kpi" id="kpiConditions"><div class="kpi-label">Conditions</div><div class="kpi-value">—</div><div class="sub">active</div></div>
+        <div class="kpi-cell loop-kpi" id="kpiSignals"><div class="kpi-label">Signals</div><div class="kpi-value">—</div><div class="sub">untriaged</div></div>
+        <div class="kpi-cell loop-kpi" id="kpiFulfilled"><div class="kpi-label">Fulfilled</div><div class="kpi-value">—</div><div class="sub">total</div></div>
+        <div class="kpi-cell loop-kpi" id="kpiReadiness"><div class="kpi-label">Readiness</div><div class="kpi-value">—</div><div class="sub">/ 100</div></div>
     </div>
 
     <!-- Three-column grid -->
@@ -228,8 +223,8 @@ function renderDashboard(data) {
 
 function setKPI(id, value, cls) {
     const el = document.getElementById(id);
-    el.querySelector('.value').textContent = value;
-    el.className = 'loop-kpi' + (cls ? ` ${cls}` : '');
+    el.querySelector('.kpi-value').textContent = value;
+    el.className = 'kpi-cell loop-kpi' + (cls ? ` ${cls}` : '');
 }
 
 function renderCommitments(items) {

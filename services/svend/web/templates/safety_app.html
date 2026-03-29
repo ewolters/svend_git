@@ -21,15 +21,11 @@
 .safety-panel { display: none; }
 .safety-panel.active { display: block; }
 
-/* KPI cards */
-.kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
-.kpi-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center; }
-.kpi-card .kpi-value { font-size: 32px; font-weight: 600; color: var(--text-primary); margin: 4px 0;
-    font-family: 'JetBrains Mono', monospace; }
-.kpi-card .kpi-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+/* KPI cards — inherits .kpi-strip/.kpi-cell from base_app.html */
+.kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
 
 /* Severity distribution bar */
-.severity-bar-wrap { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
+.severity-bar-wrap { background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
 .severity-bar-wrap h3 { margin: 0 0 12px; font-size: 13px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 .severity-bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; }
 .severity-bar .seg { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff; min-width: 24px; transition: width 0.3s; }
@@ -46,7 +42,7 @@
 
 /* Totals row */
 .totals-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
-.total-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+.total-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 16px; text-align: center; }
 .total-card .total-value { font-size: 24px; font-weight: 600; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; }
 .total-card .total-label { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
 
@@ -331,12 +327,12 @@
             <select id="dashSiteFilter" onchange="loadDashboard()"><option value="">All Sites</option></select>
         </div>
 
-        <div class="kpi-row">
-            <div class="kpi-card"><div class="kpi-label">Audit Completion</div><div class="kpi-value" id="kpiCompletion">—</div></div>
-            <div class="kpi-card"><div class="kpi-label">Hazards This Month</div><div class="kpi-value" id="kpiHazards">—</div></div>
-            <div class="kpi-card"><div class="kpi-label">Unprocessed Cards</div><div class="kpi-value" id="kpiUnprocessed">—</div></div>
-            <div class="kpi-card"><div class="kpi-label">Avg Processing (hrs)</div><div class="kpi-value" id="kpiAvgTime">—</div></div>
-            <div class="kpi-card"><div class="kpi-label">Operator Interaction</div><div class="kpi-value" id="kpiInteraction">—</div></div>
+        <div class="kpi-strip cols-5">
+            <div class="kpi-cell"><div class="kpi-label">Audit Completion</div><div class="kpi-value" id="kpiCompletion">—</div></div>
+            <div class="kpi-cell"><div class="kpi-label">Hazards This Month</div><div class="kpi-value" id="kpiHazards">—</div></div>
+            <div class="kpi-cell"><div class="kpi-label">Unprocessed Cards</div><div class="kpi-value" id="kpiUnprocessed">—</div></div>
+            <div class="kpi-cell"><div class="kpi-label">Avg Processing (hrs)</div><div class="kpi-value" id="kpiAvgTime">—</div></div>
+            <div class="kpi-cell"><div class="kpi-label">Operator Interaction</div><div class="kpi-value" id="kpiInteraction">—</div></div>
         </div>
 
         <div class="severity-bar-wrap">
