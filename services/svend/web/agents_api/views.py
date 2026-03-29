@@ -63,9 +63,12 @@ def researcher_agent(request):
                 "sources": [],
             }
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Researcher agent error")
-        return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": "Internal error processing research request"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["POST"])
@@ -108,9 +111,9 @@ def coder_agent(request):
                 "note": "Coder agent not available, returning mock code.",
             }
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Coder agent error")
-        return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": "Internal error processing request"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])
@@ -175,9 +178,9 @@ def writer_agent(request):
                 "note": "Writer agent not available.",
             }
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Writer agent error")
-        return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": "Internal error processing request"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])
@@ -265,9 +268,9 @@ def editor_agent(request):
                 "note": "Editor agent not available.",
             }
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Editor agent error")
-        return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": "Internal error processing request"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])
@@ -357,9 +360,9 @@ def experimenter_agent(request):
                 "note": "Experimenter agent not available.",
             }
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Experimenter agent error")
-        return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": "Internal error processing request"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])
@@ -478,6 +481,6 @@ def eda_agent(request):
                 "note": "Full EDA agent not available - basic info only.",
             }
         )
-    except Exception as e:
+    except Exception:
         logger.exception("EDA agent error")
-        return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": "Internal error processing request"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -10,6 +10,8 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from core.encryption import EncryptedCharField
+
 from .tokens import NotificationToken  # noqa: F401 — registered for migrations
 
 
@@ -172,7 +174,7 @@ class WebhookEndpoint(models.Model):
     )
 
     url = models.URLField(max_length=500)
-    secret = models.CharField(max_length=64)  # HMAC signing secret (shown once)
+    secret = EncryptedCharField()  # HMAC signing secret — encrypted at rest
     event_patterns = models.JSONField(default=list)  # ["fmea.*", "capa.status_changed"]
     description = models.CharField(max_length=200, blank=True, default="")
 

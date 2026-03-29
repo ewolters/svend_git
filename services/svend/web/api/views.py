@@ -967,16 +967,16 @@ def register(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if email and User.objects.filter(email=email).exists():
+    if email and User.objects.filter(email__iexact=email).exists():
         return Response(
             {"error": "Email already registered"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Create user
+    # Create user (normalize email to lowercase for consistency)
     user = User.objects.create_user(
         username=username,
-        email=email,
+        email=email.lower() if email else email,
         password=password,
         tier=User.Tier.FREE,  # New users start on free tier
     )

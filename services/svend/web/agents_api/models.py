@@ -308,7 +308,7 @@ def check_rate_limit(user):
     """
     from django.utils import timezone
 
-    tier = getattr(user, "subscription_tier", "FREE") or "FREE"
+    tier = getattr(user, "tier", "free") or "free"
     overrides = RateLimitOverride.get_overrides()
     if tier.upper() in overrides:
         limit = overrides[tier.upper()]["llm"]

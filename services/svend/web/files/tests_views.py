@@ -25,9 +25,7 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 def _make_user(email, tier=Tier.TEAM, **kwargs):
     """Create a user with given tier."""
     username = email.split("@")[0]
-    user = User.objects.create_user(
-        username=username, email=email, password="testpass123", **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password="testpass123", **kwargs)
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -266,8 +264,8 @@ class FileDetailTest(TestCase):
         resp = self.client.get(f"/api/files/{file_id}/")
         self.assertEqual(resp.status_code, 404)
 
-    def test_patch_is_public(self):
-        """PATCH is_public field."""
+    def test_patch_is_public_ignored(self):
+        """PATCH cannot set is_public — must use create_share_link endpoint (HIGH-10)."""
         resp = _upload_file(self.client, name="pub.txt", content=b"public")
         file_id = resp.json()["id"]
 
@@ -277,8 +275,8 @@ class FileDetailTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.json()["is_public"])
-        self.assertTrue(UserFile.objects.get(id=file_id).is_public)
+        # is_public should NOT be changed via PATCH
+        self.assertFalse(UserFile.objects.get(id=file_id).is_public)
 
     def test_delete_updates_quota(self):
         """Deleting a file should reduce quota used_bytes and file_count."""
@@ -539,12 +537,8 @@ class FolderTest(TestCase):
 
     def test_list_files_filter_by_type(self):
         """List files filtered by file_type."""
-        _upload_file(
-            self.client, name="pic.png", content=b"\x89PNG", content_type="image/png"
-        )
-        _upload_file(
-            self.client, name="doc.txt", content=b"text", content_type="text/plain"
-        )
+        _upload_file(self.client, name="pic.png", content=b"\x89PNG", content_type="image/png")
+        _upload_file(self.client, name="doc.txt", content=b"text", content_type="text/plain")
 
         resp = self.client.get("/api/files/", {"type": "image"})
         self.assertEqual(resp.status_code, 200)

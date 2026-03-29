@@ -119,11 +119,7 @@ def upload_file(request):
         )
 
     # Detect MIME type
-    mime_type = (
-        uploaded.content_type
-        or mimetypes.guess_type(uploaded.name)[0]
-        or "application/octet-stream"
-    )
+    mime_type = uploaded.content_type or mimetypes.guess_type(uploaded.name)[0] or "application/octet-stream"
 
     # Security: Block dangerous file types
     dangerous_types = [
@@ -188,9 +184,7 @@ def upload_file(request):
     # Compute checksum async (or skip for now)
     # user_file.compute_checksum()
 
-    logger.info(
-        f"File uploaded: {user.username}/{user_file.original_name} ({user_file.size_bytes} bytes)"
-    )
+    logger.info(f"File uploaded: {user.username}/{user_file.original_name} ({user_file.size_bytes} bytes)")
 
     return Response(
         {
@@ -239,8 +233,7 @@ def file_detail(request, file_id):
             user_file.description = request.data["description"]
         if "tags" in request.data:
             user_file.tags = request.data["tags"]
-        if "is_public" in request.data:
-            user_file.is_public = request.data["is_public"]
+        # is_public is NOT settable via PATCH — use create_share_link endpoint
 
         user_file.save()
 
@@ -274,9 +267,7 @@ def file_detail(request, file_id):
             "is_public": user_file.is_public,
             "share_token": user_file.share_token if user_file.is_public else None,
             "created_at": user_file.created_at.isoformat(),
-            "accessed_at": (
-                user_file.accessed_at.isoformat() if user_file.accessed_at else None
-            ),
+            "accessed_at": (user_file.accessed_at.isoformat() if user_file.accessed_at else None),
         }
     )
 
@@ -312,9 +303,7 @@ def download_file(request, file_id):
         user_file.file.open("rb"),
         content_type=user_file.mime_type or "application/octet-stream",
     )
-    response["Content-Disposition"] = (
-        f'attachment; filename="{_safe_cd_filename(user_file.original_name)}"'
-    )
+    response["Content-Disposition"] = f'attachment; filename="{_safe_cd_filename(user_file.original_name)}"'
     return response
 
 
@@ -337,9 +326,7 @@ def shared_file(request, share_token):
             user_file.file.open("rb"),
             content_type=user_file.mime_type or "application/octet-stream",
         )
-        response["Content-Disposition"] = (
-            f'attachment; filename="{_safe_cd_filename(user_file.original_name)}"'
-        )
+        response["Content-Disposition"] = f'attachment; filename="{_safe_cd_filename(user_file.original_name)}"'
         return response
 
     return Response(
@@ -429,12 +416,7 @@ def list_folders(request):
     """List user's folders."""
     user = request.user
 
-    folders = (
-        UserFile.objects.filter(user=user)
-        .exclude(folder="")
-        .values_list("folder", flat=True)
-        .distinct()
-    )
+    folders = UserFile.objects.filter(user=user).exclude(folder="").values_list("folder", flat=True).distinct()
 
     return Response(
         {

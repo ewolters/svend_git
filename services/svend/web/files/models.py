@@ -251,23 +251,15 @@ class UserQuota(models.Model):
         quota, created = cls.objects.get_or_create(user=user)
 
         if created:
-            # Set limits based on tier
+            # Set limits based on tier — keys must match accounts.constants.Tier values
+            _MB = 1024 * 1024
+            _GB = 1024 * _MB
             tier_limits = {
-                "free": (
-                    100 * 1024 * 1024,
-                    100,
-                    5 * 1024 * 1024,
-                ),  # 100 MB, 100 files, 5 MB/file
-                "beta": (
-                    500 * 1024 * 1024,
-                    500,
-                    10 * 1024 * 1024,
-                ),  # 500 MB, 500 files, 10 MB/file
-                "pro": (
-                    5 * 1024 * 1024 * 1024,
-                    5000,
-                    100 * 1024 * 1024,
-                ),  # 5 GB, 5000 files, 100 MB/file
+                "free": (100 * _MB, 100, 5 * _MB),  # 100 MB, 100 files, 5 MB/file
+                "founder": (500 * _MB, 500, 10 * _MB),  # 500 MB, 500 files, 10 MB/file
+                "pro": (5 * _GB, 5000, 100 * _MB),  # 5 GB, 5000 files, 100 MB/file
+                "team": (10 * _GB, 10000, 200 * _MB),  # 10 GB, 10k files, 200 MB/file
+                "enterprise": (50 * _GB, 50000, 500 * _MB),  # 50 GB, 50k files, 500 MB/file
             }
 
             limits = tier_limits.get(user.tier, tier_limits["free"])
