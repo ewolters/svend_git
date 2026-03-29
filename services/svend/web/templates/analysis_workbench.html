@@ -1296,6 +1296,33 @@ div:hover > .aw-copy-btn { opacity: 1; }
 }
 .aw-output-plot:hover .aw-expand-btn { opacity: 1; }
 .aw-expand-btn:hover { background: rgba(74,159,110,0.25); color: #ccc; border-color: rgba(74,159,110,0.4); }
+
+/* ── Chart action buttons (copy, SVG) ── */
+.aw-chart-actions {
+    position: absolute; top: 6px; right: 32px; z-index: 10;
+    display: flex; gap: 4px;
+    opacity: 0; transition: opacity 0.15s;
+}
+.aw-output-plot:hover .aw-chart-actions { opacity: 1; }
+.aw-chart-action-btn {
+    background: rgba(30,30,30,0.7); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px; padding: 3px 7px; cursor: pointer;
+    color: #7A8F7A; font-size: 0.65rem; line-height: 1;
+    white-space: nowrap; transition: background 0.15s, color 0.15s;
+}
+.aw-chart-action-btn:hover { background: rgba(74,159,110,0.25); color: #ccc; border-color: rgba(74,159,110,0.4); }
+.aw-chart-action-btn.aw-btn-copied { color: var(--accent, #4a9f6e); }
+
+/* ── Table copy button ── */
+.aw-table-wrapper { position: relative; }
+.aw-table-copy-btn {
+    position: absolute; top: -2px; right: 0;
+    background: rgba(74, 159, 110, 0.15); border: 1px solid rgba(74, 159, 110, 0.3);
+    color: #7A8F7A; font-size: 0.6rem; padding: 2px 6px;
+    border-radius: 3px; cursor: pointer; opacity: 0; transition: opacity 0.15s;
+}
+.aw-table-wrapper:hover .aw-table-copy-btn { opacity: 1; }
+.aw-table-copy-btn:hover { background: rgba(74,159,110,0.35); color: #ccc; }
 .aw-chart-overlay {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     background: rgba(0,0,0,0.85); z-index: 9999;
@@ -3491,6 +3518,29 @@ function appendSession(type, text, useHtml = false) {
 
     if (useHtml) {
         line.innerHTML = text;
+        // Wrap tables with copy-as-TSV button
+        const tables = line.querySelectorAll('.aw-table');
+        tables.forEach(tbl => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'aw-table-wrapper';
+            tbl.parentNode.insertBefore(wrapper, tbl);
+            wrapper.appendChild(tbl);
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'aw-table-copy-btn';
+            copyBtn.textContent = 'Copy table';
+            copyBtn.title = 'Copy as tab-separated values (paste into Excel)';
+            copyBtn.addEventListener('click', () => {
+                const rows = tbl.querySelectorAll('tr');
+                const tsv = Array.from(rows).map(row =>
+                    Array.from(row.querySelectorAll('th, td')).map(cell => cell.textContent.trim()).join('\t')
+                ).join('\n');
+                navigator.clipboard.writeText(tsv).then(() => {
+                    copyBtn.textContent = 'Copied';
+                    setTimeout(() => { copyBtn.textContent = 'Copy table'; }, 1500);
+                });
+            });
+            wrapper.appendChild(copyBtn);
+        });
     } else {
         line.textContent = text;
     }
@@ -9736,6 +9786,50 @@ function _addExpandBtn(el, plot) {
     container.appendChild(btn);
 }
 
+function _addChartActions(el, plot) {
+    if (!el || el.parentElement?.querySelector('.aw-chart-actions')) return;
+    const container = el.closest('.aw-output-plot') || el.parentElement;
+    const actions = document.createElement('div');
+    actions.className = 'aw-chart-actions';
+
+    // Copy chart as PNG to clipboard
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'aw-chart-action-btn';
+    copyBtn.textContent = 'Copy';
+    copyBtn.title = 'Copy chart to clipboard';
+    copyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        Plotly.toImage(el, { format: 'png', height: 800, width: 1200 }).then(dataUrl => {
+            fetch(dataUrl).then(r => r.blob()).then(blob => {
+                navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
+                    copyBtn.textContent = 'Copied';
+                    copyBtn.classList.add('aw-btn-copied');
+                    setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('aw-btn-copied'); }, 1500);
+                });
+            });
+        }).catch(() => { copyBtn.textContent = 'Failed'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500); });
+    });
+    actions.appendChild(copyBtn);
+
+    // Download as SVG
+    const svgBtn = document.createElement('button');
+    svgBtn.className = 'aw-chart-action-btn';
+    svgBtn.textContent = 'SVG';
+    svgBtn.title = 'Download as SVG (vector)';
+    svgBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        Plotly.toImage(el, { format: 'svg', height: 800, width: 1200 }).then(dataUrl => {
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = (plot.title || 'chart').replace(/[^a-zA-Z0-9]/g, '_') + '.svg';
+            a.click();
+        });
+    });
+    actions.appendChild(svgBtn);
+
+    container.appendChild(actions);
+}
+
 function expandChart(plot) {
     const overlay = document.createElement('div');
     overlay.className = 'aw-chart-overlay';
@@ -9876,6 +9970,9 @@ function renderPlot(plot, elementId, chartWidth, chartHeight) {
 
     // Attach fullscreen expand button
     _addExpandBtn(el, plot);
+
+    // Attach chart action buttons (copy to clipboard, SVG download)
+    _addChartActions(el, plot);
 }
 
 // =============================================================================
