@@ -437,8 +437,13 @@ urlpatterns = varta_urls + [
     path(
         "app/loop/investigate/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "investigate_active", "loop_section_title": "Active Investigations"},
+            template_name="loop_section.html",
+            extra_context={
+                "loop_section": "investigate_active",
+                "section_title": "Investigations",
+                "filters": True,
+                "section_config": '{"section_title":"Investigations","api_endpoint":"/api/loop/dashboard/","response_key":"investigations","title_field":"title","status_field":"status","time_field":"created_at","filter_field":"status","default_filter":"all","filters":[{"label":"Active","value":"active"},{"label":"Concluded","value":"concluded"},{"label":"All","value":"all"}],"detail_fields":[{"key":"description","label":"Description"},{"key":"status","label":"Status"},{"key":"created_at","label":"Created","type":"datetime"}]}',
+            },
         ),
         name="loop_investigate",
     ),
@@ -461,16 +466,26 @@ urlpatterns = varta_urls + [
     path(
         "app/loop/verify/pc/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "pc", "loop_section_title": "Process Confirmation"},
+            template_name="loop_section.html",
+            extra_context={
+                "loop_section": "pc",
+                "section_title": "Process Confirmations",
+                "filters": True,
+                "section_config": '{"section_title":"Process Confirmations","api_endpoint":"/api/loop/pcs/","response_key":"pcs","title_field":"process_area","status_field":"diagnosis","time_field":"created_at","subtitle_field":"observer_notes","filter_field":"diagnosis","default_filter":"all","filters":[{"label":"All","value":"all"},{"label":"System Works","value":"system_works"},{"label":"Process Gap","value":"process_gap"},{"label":"Standard Unclear","value":"standard_unclear"}],"detail_fields":[{"key":"process_area","label":"Process Area"},{"key":"diagnosis","label":"Diagnosis"},{"key":"observer_notes","label":"Observer Notes"},{"key":"pass_rate","label":"Pass Rate"},{"key":"created_at","label":"Date","type":"datetime"}]}',
+            },
         ),
         name="loop_verify_pc",
     ),
     path(
         "app/loop/verify/fft/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "fft", "loop_section_title": "Forced Failure Tests"},
+            template_name="loop_section.html",
+            extra_context={
+                "loop_section": "fft",
+                "section_title": "Forced Failure Tests",
+                "filters": True,
+                "section_config": '{"section_title":"Forced Failure Tests","api_endpoint":"/api/loop/ffts/","response_key":"ffts","title_field":"control_being_tested","status_field":"result","time_field":"conducted_at","filter_field":"result","default_filter":"all","filters":[{"label":"All","value":"all"},{"label":"Detected","value":"detected"},{"label":"Not Detected","value":"not_detected"},{"label":"Partial","value":"partially_detected"}],"detail_fields":[{"key":"control_being_tested","label":"Control Tested"},{"key":"test_plan","label":"Test Plan"},{"key":"result","label":"Result"},{"key":"detection_count","label":"Detected"},{"key":"injection_count","label":"Injected"},{"key":"conducted_at","label":"Conducted","type":"datetime"}]}',
+            },
         ),
         name="loop_verify_fft",
     ),
@@ -478,8 +493,13 @@ urlpatterns = varta_urls + [
     path(
         "app/loop/detect/complaints/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "complaints", "loop_section_title": "Customer Complaints"},
+            template_name="loop_section.html",
+            extra_context={
+                "loop_section": "complaints",
+                "section_title": "Customer Complaints",
+                "filters": True,
+                "section_config": '{"section_title":"Complaints","api_endpoint":"/api/iso/complaints/","title_field":"title","status_field":"status","time_field":"date_received","subtitle_field":"customer_name","filter_field":"status","default_filter":"all","filters":[{"label":"All","value":"all"},{"label":"Open","value":"open"},{"label":"Investigating","value":"investigating"},{"label":"Resolved","value":"resolved"}],"detail_fields":[{"key":"description","label":"Description"},{"key":"customer_name","label":"Customer"},{"key":"product_service","label":"Product/Service"},{"key":"severity","label":"Severity"},{"key":"root_cause","label":"Root Cause"},{"key":"resolution","label":"Resolution"},{"key":"date_received","label":"Received","type":"date"}]}',
+            },
         ),
         name="loop_detect_complaints",
     ),
@@ -495,8 +515,13 @@ urlpatterns = varta_urls + [
     path(
         "app/loop/investigate/concluded/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "investigate_concluded", "loop_section_title": "Concluded Investigations"},
+            template_name="loop_section.html",
+            extra_context={
+                "loop_section": "investigate_concluded",
+                "section_title": "Concluded Investigations",
+                "filters": True,
+                "section_config": '{"section_title":"Concluded","api_endpoint":"/api/loop/dashboard/","response_key":"investigations","title_field":"title","status_field":"status","time_field":"created_at","filter_field":"status","default_filter":"concluded","filters":[{"label":"Concluded","value":"concluded"},{"label":"Exported","value":"exported"},{"label":"All","value":"all"}],"detail_fields":[{"key":"description","label":"Description"},{"key":"status","label":"Status"},{"key":"created_at","label":"Created","type":"datetime"}]}',
+            },
         ),
         name="loop_investigate_concluded",
     ),
@@ -504,32 +529,52 @@ urlpatterns = varta_urls + [
     path(
         "app/loop/standardize/documents/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "documents", "loop_section_title": "Controlled Documents"},
+            template_name="loop_section.html",
+            extra_context={
+                "loop_section": "documents",
+                "section_title": "Controlled Documents",
+                "filters": True,
+                "section_config": '{"section_title":"Documents","api_endpoint":"/api/iso/documents/","title_field":"title","status_field":"status","time_field":"updated_at","subtitle_field":"document_number","filter_field":"status","default_filter":"all","filters":[{"label":"All","value":"all"},{"label":"Active","value":"active"},{"label":"Draft","value":"draft"},{"label":"Under Review","value":"under_review"}],"detail_fields":[{"key":"title","label":"Title"},{"key":"document_number","label":"Document Number"},{"key":"version","label":"Version"},{"key":"status","label":"Status"},{"key":"iso_clause","label":"ISO Clause"},{"key":"updated_at","label":"Last Updated","type":"datetime"}]}',
+            },
         ),
         name="loop_standardize_documents",
     ),
     path(
         "app/loop/standardize/training/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "training", "loop_section_title": "Training Matrix"},
+            template_name="loop_section.html",
+            extra_context={
+                "loop_section": "training",
+                "section_title": "Training",
+                "filters": True,
+                "section_config": '{"section_title":"Training","api_endpoint":"/api/iso/training/","title_field":"title","status_field":"status","time_field":"due_date","subtitle_field":"employee_name","filter_field":"status","default_filter":"all","filters":[{"label":"All","value":"all"},{"label":"Due","value":"due"},{"label":"Complete","value":"complete"},{"label":"Expired","value":"expired"}],"detail_fields":[{"key":"title","label":"Training"},{"key":"employee_name","label":"Employee"},{"key":"status","label":"Status"},{"key":"due_date","label":"Due Date","type":"date"},{"key":"completed_at","label":"Completed","type":"date"}]}',
+            },
         ),
         name="loop_standardize_training",
     ),
     path(
         "app/loop/standardize/ncr/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "ncr", "loop_section_title": "NCR Tracker"},
+            template_name="loop_section.html",
+            extra_context={
+                "loop_section": "ncr",
+                "section_title": "NCR Tracker",
+                "filters": True,
+                "section_config": '{"section_title":"NCRs","api_endpoint":"/api/iso/ncrs/","title_field":"title","status_field":"status","time_field":"created_at","subtitle_field":"source","filter_field":"status","default_filter":"all","filters":[{"label":"All","value":"all"},{"label":"Open","value":"open"},{"label":"Investigating","value":"investigating"},{"label":"Closed","value":"closed"}],"detail_fields":[{"key":"title","label":"Title"},{"key":"description","label":"Description"},{"key":"source","label":"Source"},{"key":"severity","label":"Severity"},{"key":"status","label":"Status"},{"key":"root_cause","label":"Root Cause"},{"key":"corrective_action","label":"Corrective Action"},{"key":"created_at","label":"Created","type":"datetime"}]}',
+            },
         ),
         name="loop_standardize_ncr",
     ),
     path(
         "app/loop/standardize/capa/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "capa", "loop_section_title": "CAPA / 8D Reports"},
+            template_name="loop_section.html",
+            extra_context={
+                "loop_section": "capa",
+                "section_title": "CAPA / 8D",
+                "filters": True,
+                "section_config": '{"section_title":"CAPA","api_endpoint":"/api/iso/capas/","title_field":"title","status_field":"status","time_field":"created_at","subtitle_field":"source_type","filter_field":"status","default_filter":"all","filters":[{"label":"All","value":"all"},{"label":"Open","value":"open"},{"label":"Investigation","value":"investigation"},{"label":"Verification","value":"verification"},{"label":"Closed","value":"closed"}],"detail_fields":[{"key":"title","label":"Title"},{"key":"description","label":"Description"},{"key":"source_type","label":"Source"},{"key":"priority","label":"Priority"},{"key":"root_cause","label":"Root Cause"},{"key":"corrective_action","label":"Corrective Action"},{"key":"preventive_action","label":"Preventive Action"},{"key":"created_at","label":"Created","type":"datetime"}]}',
+            },
         ),
         name="loop_standardize_capa",
     ),
@@ -537,16 +582,26 @@ urlpatterns = varta_urls + [
     path(
         "app/loop/verify/audits/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "audits", "loop_section_title": "Internal Audits"},
+            template_name="loop_section.html",
+            extra_context={
+                "loop_section": "audits",
+                "section_title": "Internal Audits",
+                "filters": True,
+                "section_config": '{"section_title":"Audits","api_endpoint":"/api/iso/audits/","title_field":"title","status_field":"status","time_field":"scheduled_date","filter_field":"status","default_filter":"all","filters":[{"label":"All","value":"all"},{"label":"Scheduled","value":"scheduled"},{"label":"In Progress","value":"in_progress"},{"label":"Completed","value":"completed"}],"detail_fields":[{"key":"title","label":"Title"},{"key":"scope","label":"Scope"},{"key":"status","label":"Status"},{"key":"scheduled_date","label":"Scheduled","type":"date"},{"key":"findings_count","label":"Findings"}]}',
+            },
         ),
         name="loop_verify_audits",
     ),
     path(
         "app/loop/verify/reviews/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "reviews", "loop_section_title": "Management Reviews"},
+            template_name="loop_section.html",
+            extra_context={
+                "loop_section": "reviews",
+                "section_title": "Management Reviews",
+                "filters": True,
+                "section_config": '{"section_title":"Reviews","api_endpoint":"/api/iso/reviews/","title_field":"title","status_field":"status","time_field":"scheduled_date","filter_field":"status","default_filter":"all","filters":[{"label":"All","value":"all"},{"label":"Scheduled","value":"scheduled"},{"label":"Completed","value":"completed"}],"detail_fields":[{"key":"title","label":"Title"},{"key":"status","label":"Status"},{"key":"scheduled_date","label":"Scheduled","type":"date"},{"key":"attendees","label":"Attendees"},{"key":"decisions","label":"Decisions"}]}',
+            },
         ),
         name="loop_verify_reviews",
     ),

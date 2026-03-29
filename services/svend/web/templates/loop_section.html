@@ -1,0 +1,195 @@
+{% extends "base_loop.html" %}
+{# Generic Loop section template — renders any list-detail view from API data.
+   Configured via extra_context: loop_section, section_title, api_endpoint, fields, actions #}
+
+{% block loop_extra_style %}
+.sec-filter-btn {
+    padding: 3px 6px; font-size: 10px; border: 1px solid var(--border); border-radius: 4px;
+    background: transparent; color: var(--text-secondary); cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+.sec-filter-btn:hover { border-color: var(--accent-primary-border); color: var(--text-primary); }
+.sec-filter-btn.active { background: var(--accent-primary-dim); border-color: var(--accent-primary-border); color: var(--accent-primary); }
+.sec-status { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+.sec-status.open, .sec-status.active { background: rgba(96,165,250,0.15); color: #60a5fa; }
+.sec-status.in_progress, .sec-status.investigating { background: rgba(250,204,21,0.15); color: #facc15; }
+.sec-status.completed, .sec-status.closed, .sec-status.resolved, .sec-status.fulfilled { background: rgba(74,222,128,0.15); color: #4ade80; }
+.sec-status.overdue, .sec-status.broken, .sec-status.critical { background: rgba(239,68,68,0.15); color: #f87171; }
+.sec-status.acknowledged, .sec-status.pending { background: rgba(167,139,250,0.15); color: #a78bfa; }
+{% endblock %}
+
+{% block loop_content %}
+<div class="loop-list-detail">
+    <!-- Detail panel -->
+    <div class="loop-detail-panel empty" id="secDetail">
+        Select an item to view details
+    </div>
+
+    <!-- Right rail -->
+    <div class="loop-list-rail">
+        <div class="loop-list-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);">
+            <span id="secListCount" style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-dim);">{{ section_title }}</span>
+        </div>
+        {% if filters %}
+        <div style="padding:6px 10px 4px;display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);" id="secFilters"></div>
+        {% endif %}
+        <div class="loop-list" id="secList">
+            <div id="secListItems">
+                <div style="padding:20px;text-align:center;color:var(--text-dim);font-size:11px;">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const SECTION_CONFIG = JSON.parse('{{ section_config|escapejs }}');
+let items = [];
+let currentFilter = SECTION_CONFIG.default_filter || 'all';
+let selectedId = null;
+
+function getCSRF() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (el) return el.value;
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+}
+
+function loadItems() {
+    fetch(SECTION_CONFIG.api_endpoint, { headers: { 'X-CSRFToken': getCSRF() }})
+    .then(r => r.json())
+    .then(data => {
+        // Handle both array responses and {key: array} responses
+        if (Array.isArray(data)) items = data;
+        else {
+            const key = SECTION_CONFIG.response_key || Object.keys(data).find(k => Array.isArray(data[k]));
+            items = key ? data[key] : [];
+        }
+        renderList();
+    })
+    .catch(() => {
+        document.getElementById('secListItems').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:11px;">Failed to load</div>';
+    });
+}
+
+function renderFilters() {
+    const el = document.getElementById('secFilters');
+    if (!el || !SECTION_CONFIG.filters) return;
+    el.innerHTML = SECTION_CONFIG.filters.map(f =>
+        `<button class="sec-filter-btn${f.value === currentFilter ? ' active' : ''}" onclick="filterItems('${f.value}')">${f.label}</button>`
+    ).join('');
+}
+
+function filterItems(val) {
+    currentFilter = val;
+    renderFilters();
+    renderList();
+}
+
+function renderList() {
+    let filtered = items;
+    if (currentFilter !== 'all' && SECTION_CONFIG.filter_field) {
+        filtered = items.filter(item => item[SECTION_CONFIG.filter_field] === currentFilter);
+    }
+
+    const el = document.getElementById('secListItems');
+    document.getElementById('secListCount').textContent = `${filtered.length} ${SECTION_CONFIG.section_title || 'items'}`;
+
+    if (!filtered.length) {
+        el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-dim);font-size:11px;">None found</div>';
+        return;
+    }
+
+    const titleField = SECTION_CONFIG.title_field || 'title';
+    const statusField = SECTION_CONFIG.status_field || 'status';
+    const timeField = SECTION_CONFIG.time_field || 'created_at';
+
+    el.innerHTML = filtered.map(item => {
+        const selected = item.id === selectedId ? ' selected' : '';
+        const status = item[statusField] || '';
+        const timeVal = item[timeField] ? formatTime(item[timeField]) : '';
+        return `<div class="loop-list-item${selected}" onclick="selectItem('${item.id}')">
+            <div class="item-main">
+                <div class="item-title">${esc(item[titleField] || item.id?.substring(0,8) || '')}</div>
+                <div class="item-meta">
+                    ${status ? `<span class="sec-status ${status}">${status.replace(/_/g,' ')}</span>` : ''}
+                    ${SECTION_CONFIG.subtitle_field && item[SECTION_CONFIG.subtitle_field] ? `<span style="color:var(--text-dim);">${esc(item[SECTION_CONFIG.subtitle_field])}</span>` : ''}
+                </div>
+            </div>
+            <span class="item-time">${timeVal}</span>
+        </div>`;
+    }).join('');
+}
+
+function selectItem(id) {
+    selectedId = id;
+    renderList();
+    const item = items.find(x => x.id === id);
+    if (!item) return;
+
+    const panel = document.getElementById('secDetail');
+    panel.classList.remove('empty');
+    panel.style.position = 'relative';
+
+    const titleField = SECTION_CONFIG.title_field || 'title';
+    const statusField = SECTION_CONFIG.status_field || 'status';
+    const status = item[statusField] || '';
+
+    // Build detail sections from config
+    const detailFields = SECTION_CONFIG.detail_fields || [];
+    let fieldsHtml = detailFields.map(f => {
+        const val = item[f.key];
+        if (val === undefined || val === null || val === '') return '';
+        let display = val;
+        if (f.type === 'date' && val) display = new Date(val).toLocaleDateString();
+        if (f.type === 'datetime' && val) display = new Date(val).toLocaleString();
+        if (f.type === 'link' && val) display = `<a href="${val}" style="color:var(--accent-primary);text-decoration:none;">${f.link_text || val}</a>`;
+        return `<div class="detail-section"><div class="detail-label">${f.label}</div><div class="detail-value">${esc(String(display))}</div></div>`;
+    }).join('');
+
+    // Context banner
+    if (typeof setContextBanner === 'function') {
+        setContextBanner(`${SECTION_CONFIG.section_title} <span class="ctx-sep">/</span> ${esc(item[titleField] || '')} <span class="ctx-sep">/</span> <span class="sec-status ${status}" style="font-size:9px;">${status.replace(/_/g,' ')}</span>`);
+    }
+
+    // Focus button
+    const focusBtn = '<button class="loop-focus-btn" onclick="toggleFocusMode()">Focus</button>';
+
+    panel.innerHTML = `${focusBtn}
+        <div class="loop-detail-header">
+            <h3>${esc(item[titleField] || '')}</h3>
+            <div class="detail-meta">
+                ${status ? `<span class="sec-status ${status}">${status.replace(/_/g,' ')}</span>` : ''}
+            </div>
+        </div>
+        <div class="loop-detail-body">${fieldsHtml || '<div style="font-size:12px;color:var(--text-dim);">No additional details</div>'}</div>`;
+}
+
+function formatTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = (now - d) / 1000;
+    if (diff < 3600) return Math.floor(diff/60) + 'm';
+    if (diff < 86400) return Math.floor(diff/3600) + 'h';
+    if (diff < 604800) return Math.floor(diff/86400) + 'd';
+    return d.toLocaleDateString();
+}
+
+function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+
+renderFilters();
+loadItems();
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+    if (document.getElementById('cmdPalette')?.style.display === 'flex') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const filtered = currentFilter === 'all' ? items :
+        (SECTION_CONFIG.filter_field ? items.filter(i => i[SECTION_CONFIG.filter_field] === currentFilter) : items);
+    if (!filtered.length) return;
+    const curIdx = filtered.findIndex(i => i.id === selectedId);
+    if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); selectItem(filtered[Math.min(filtered.length-1, curIdx+1)]?.id); }
+    if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); selectItem(filtered[Math.max(0, curIdx-1)]?.id); }
+});
+</script>
+{% endblock %}
