@@ -115,6 +115,7 @@ ASGI_APPLICATION = "svend.asgi.application"
 
 # Database — PostgreSQL only
 DATABASES = {"default": dj_database_url.parse(config.database_url)}
+DATABASES["default"]["CONN_MAX_AGE"] = 60  # Reuse connections for 60s (vs 0 = new per request)
 
 # Auth
 AUTH_USER_MODEL = "accounts.User"

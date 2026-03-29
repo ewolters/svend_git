@@ -328,6 +328,29 @@ def register_svend_tasks():
         max_attempts=1,
     )
 
+    # ---- Login attempt cleanup (SEC-001) ----
+
+    def login_attempt_cleanup_handler(payload, context):
+        """Purge login attempt records older than 90 days."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from accounts.models import LoginAttempt
+
+        cutoff = timezone.now() - timedelta(days=90)
+        deleted, _ = LoginAttempt.objects.filter(attempted_at__lt=cutoff).delete()
+        return {"deleted": deleted}
+
+    TaskRegistry.register(
+        task_name="accounts.cleanup_login_attempts",
+        handler=login_attempt_cleanup_handler,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.LOW,
+        timeout_seconds=60,
+        max_attempts=1,
+    )
+
     # ---- Harada daily reminders ----
 
     from agents_api.harada_tasks import harada_daily_reminders
@@ -554,6 +577,14 @@ SVEND_SCHEDULES = [
         "task_name": "loop.policy_sweep",
         "cron": "0 6 * * *",  # Daily 06:00 UTC
         "priority": TaskPriority.NORMAL,
+        "queue": "batch",
+    },
+    # ---- Login attempt cleanup (SEC-001) ----
+    {
+        "schedule_id": "accounts-cleanup-login-attempts",
+        "task_name": "accounts.cleanup_login_attempts",
+        "cron": "0 3 * * 0",  # Weekly Sunday 03:00 UTC
+        "priority": TaskPriority.LOW,
         "queue": "batch",
     },
 ]

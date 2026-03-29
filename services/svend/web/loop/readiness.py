@@ -213,13 +213,14 @@ def compute_readiness_score(user=None, tenant=None):
         triage_state=Signal.TriageState.RESOLVED,
         created_at__date__gte=window_90,
     ).count()
-    # For now, recurrence = 0 (need cross-investigation failure mode matching later)
-    rec_score = 8  # Default to "good" until we have recurrence data
+    # Recurrence = 0 until cross-investigation failure mode matching is implemented.
+    # "Absence = failure" design principle — no data means no credit.
+    rec_score = 0
     indicators["recurrence_rate"] = {
         "score": round(rec_score, 1),
         "max": 10,
         "description": "Repeat failure modes (lower recurrence = higher score)",
-        "detail": f"{resolved_signals} signals resolved (90d) — recurrence tracking pending",
+        "detail": f"{resolved_signals} signals resolved (90d) — not yet measured",
     }
 
     # 8. Standard Work Quality

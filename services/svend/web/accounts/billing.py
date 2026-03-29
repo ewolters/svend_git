@@ -263,6 +263,7 @@ def get_or_create_stripe_customer(user: User) -> str:
         email=user.email,
         name=user.get_full_name() or user.username,
         metadata={"user_id": str(user.id)},
+        idempotency_key=f"customer:{user.id}",
     )
 
     user.stripe_customer_id = customer.id
@@ -310,9 +311,7 @@ def sync_subscription_from_stripe(subscription_id: str) -> Subscription | None:
     except Subscription.DoesNotExist:
         # Find user by customer ID
         try:
-            user = User.objects.get(
-                stripe_customer_id_hash=hash_token(stripe_sub.customer)
-            )
+            user = User.objects.get(stripe_customer_id_hash=hash_token(stripe_sub.customer))
         except User.DoesNotExist:
             logger.error(f"No user found for customer {stripe_sub.customer}")
             return None
@@ -330,26 +329,14 @@ def sync_subscription_from_stripe(subscription_id: str) -> Subscription | None:
     from django.utils import timezone
 
     first_item = stripe_sub["items"]["data"][0] if stripe_sub["items"]["data"] else {}
-    sub.stripe_price_id = (
-        first_item.get("price", {}).get("id", "") if first_item else ""
-    )
+    sub.stripe_price_id = first_item.get("price", {}).get("id", "") if first_item else ""
     sub.status = stripe_sub.status
 
     # Period fields moved to items in newer Stripe API versions
-    period_start = first_item.get("current_period_start") or getattr(
-        stripe_sub, "current_period_start", None
-    )
-    period_end = first_item.get("current_period_end") or getattr(
-        stripe_sub, "current_period_end", None
-    )
-    sub.current_period_start = (
-        timezone.make_aware(datetime.fromtimestamp(period_start))
-        if period_start
-        else None
-    )
-    sub.current_period_end = (
-        timezone.make_aware(datetime.fromtimestamp(period_end)) if period_end else None
-    )
+    period_start = first_item.get("current_period_start") or getattr(stripe_sub, "current_period_start", None)
+    period_end = first_item.get("current_period_end") or getattr(stripe_sub, "current_period_end", None)
+    sub.current_period_start = timezone.make_aware(datetime.fromtimestamp(period_start)) if period_start else None
+    sub.current_period_end = timezone.make_aware(datetime.fromtimestamp(period_end)) if period_end else None
     sub.is_cancel_at_period_end = getattr(stripe_sub, "cancel_at_period_end", False)
     sub.save()
 
@@ -359,9 +346,7 @@ def sync_subscription_from_stripe(subscription_id: str) -> Subscription | None:
         # Determine tier from price ID
         tier = PRICE_TO_TIER.get(sub.stripe_price_id)
         if tier is None:
-            logger.warning(
-                f"Unknown Stripe price ID: {sub.stripe_price_id} — defaulting to FREE"
-            )
+            logger.warning(f"Unknown Stripe price ID: {sub.stripe_price_id} — defaulting to FREE")
             tier = User.Tier.FREE
         user.tier = tier
         user.is_subscription_active = True
@@ -444,7 +429,10 @@ def create_checkout_session(request: HttpRequest):
         if plan in TRIAL_PLANS:
             checkout_kwargs["subscription_data"] = {"trial_period_days": 14}
 
-        # Create checkout session
+        # Create checkout session (idempotency prevents double-click duplicates)
+        import time
+
+        checkout_kwargs["idempotency_key"] = f"checkout:{user.id}:{plan}:{int(time.time() // 60)}"
         session = stripe.checkout.Session.create(**checkout_kwargs)
 
         # Redirect directly to Stripe checkout
@@ -525,9 +513,7 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
         return HttpResponse(status=400)
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)
     except ValueError:
         logger.error("Invalid webhook payload")
         return HttpResponse(status=400)
@@ -561,9 +547,7 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
             user.tier = User.Tier.FREE
             user.is_subscription_active = False
             user.subscription_ends_at = None
-            user.save(
-                update_fields=["tier", "is_subscription_active", "subscription_ends_at"]
-            )
+            user.save(update_fields=["tier", "is_subscription_active", "subscription_ends_at"])
 
         except Subscription.DoesNotExist:
             logger.warning(f"Subscription not found: {data['id']}")
@@ -612,9 +596,7 @@ def subscription_status(request: HttpRequest) -> JsonResponse:
         data["subscription"] = {
             "status": sub.status,
             "is_active": sub.is_active,
-            "current_period_end": (
-                sub.current_period_end.isoformat() if sub.current_period_end else None
-            ),
+            "current_period_end": (sub.current_period_end.isoformat() if sub.current_period_end else None),
             "cancel_at_period_end": sub.is_cancel_at_period_end,
         }
 
