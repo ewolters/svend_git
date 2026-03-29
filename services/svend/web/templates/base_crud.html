@@ -1,0 +1,151 @@
+{% extends "base_app.html" %}
+{# Rack: CRUD — detail panel (left) + list rail (right)
+   For: signals, commitments, suppliers, NCRs, CAPAs, any list+detail surface
+
+   Child blocks:
+   - crud_style: additional CSS
+   - crud_detail: left detail panel content (or use JS to populate)
+   - crud_rail_header: rail header (title + create button)
+   - crud_rail_filters: filter buttons
+   - crud_rail_list: list items (or use JS to populate)
+   - crud_rail_footer: bottom of rail (create form, etc.)
+   - crud_scripts: JS
+#}
+
+{% block extra_head %}
+<style>
+/* Override container constraint */
+.container:has(.sv-crud) { max-width: none; padding: 0; }
+
+.sv-crud {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    height: calc(100vh - 56px);
+    overflow: hidden;
+}
+@media (max-width: 900px) {
+    .sv-crud { grid-template-columns: 1fr; }
+    .sv-crud-rail { display: none; }
+}
+
+/* Detail panel (left, main area) */
+.sv-crud-detail {
+    padding: 20px 24px;
+    overflow-y: auto;
+}
+.sv-crud-detail.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
+/* List rail (right, fixed) */
+.sv-crud-rail {
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sv-crud-rail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+}
+.sv-crud-rail-title {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+}
+
+.sv-crud-rail-filters {
+    padding: 6px 10px 4px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sv-crud-rail-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.sv-crud-rail-footer {
+    border-top: 1px solid var(--border);
+    padding: 10px 12px;
+}
+
+/* Focus mode — hide rail, expand detail */
+.sv-crud.focus .sv-crud-rail { display: none; }
+.sv-crud.focus .sv-crud-detail { max-width: none; }
+.sv-crud.focus .sv-context-banner { display: flex; }
+
+.sv-focus-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 6;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 10px;
+    color: var(--text-dim);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.sv-crud-detail:hover .sv-focus-btn { opacity: 1; }
+.sv-focus-btn:hover { color: var(--text-primary); border-color: var(--accent-primary-border); }
+
+{% block crud_style %}{% endblock %}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sv-crud" id="svCrud">
+    <!-- Detail (left) -->
+    <div class="sv-crud-detail empty" id="svCrudDetail" style="position:relative;">
+        {% block crud_detail %}Select an item{% endblock %}
+    </div>
+
+    <!-- Rail (right) -->
+    <div class="sv-crud-rail">
+        <div class="sv-crud-rail-header">
+            {% block crud_rail_header %}
+            <span class="sv-crud-rail-title">Items</span>
+            {% endblock %}
+        </div>
+        <div class="sv-crud-rail-filters">
+            {% block crud_rail_filters %}{% endblock %}
+        </div>
+        <div class="sv-crud-rail-list" id="svCrudList">
+            {% block crud_rail_list %}
+            <div class="sv-empty">Loading...</div>
+            {% endblock %}
+        </div>
+        <div class="sv-crud-rail-footer">
+            {% block crud_rail_footer %}{% endblock %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Focus mode
+function svToggleFocus() {
+    document.getElementById('svCrud').classList.toggle('focus');
+}
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.querySelector('.sv-crud.focus')) {
+        e.preventDefault();
+        svToggleFocus();
+    }
+});
+{% block crud_scripts %}{% endblock %}
+</script>
+{% endblock %}

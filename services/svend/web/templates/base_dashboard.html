@@ -1,0 +1,105 @@
+{% extends "base_app.html" %}
+{# Rack: Dashboard — KPI strip + configurable panel grid
+   For: main dashboard, safety dashboard, hoshin, QMS overview
+
+   Child blocks:
+   - dashboard_style: additional CSS
+   - dashboard_kpis: KPI strip content (use sv-kpi-strip + sv-kpi-cell)
+   - dashboard_panels: main panel grid content
+   - dashboard_footer: full-width bottom section
+   - dashboard_scripts: JS
+#}
+
+{% block extra_head %}
+<style>
+.sv-dashboard {
+    padding: 20px 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.sv-dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.sv-dash-header h1 {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.sv-dash-kpis {
+    margin-bottom: 20px;
+}
+
+.sv-dash-panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+@media (max-width: 800px) {
+    .sv-dash-panels { grid-template-columns: 1fr; }
+}
+
+.sv-dash-panel {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    min-height: 200px;
+}
+.sv-dash-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+.sv-dash-panel-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+}
+.sv-dash-panel-count {
+    font-size: 10px;
+    color: var(--text-dim);
+    background: var(--bg-primary);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.sv-dash-footer {
+    margin-top: 16px;
+}
+
+{% block dashboard_style %}{% endblock %}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sv-dashboard">
+    <div class="sv-dash-header">
+        {% block dashboard_header %}{% endblock %}
+    </div>
+    <div class="sv-dash-kpis">
+        {% block dashboard_kpis %}{% endblock %}
+    </div>
+    <div class="sv-dash-panels">
+        {% block dashboard_panels %}{% endblock %}
+    </div>
+    <div class="sv-dash-footer">
+        {% block dashboard_footer %}{% endblock %}
+    </div>
+</div>
+<script>
+{% block dashboard_scripts %}{% endblock %}
+</script>
+{% endblock %}

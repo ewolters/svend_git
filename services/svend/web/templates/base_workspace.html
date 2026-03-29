@@ -1,0 +1,116 @@
+{% extends "base_app.html" %}
+{# Rack: Workspace — sidebar | main canvas | tool panel
+   For: analysis workbench, graph map, investigation, whiteboard, simulator
+
+   Child blocks:
+   - workspace_style: additional CSS
+   - workspace_sidebar: left navigation/tree
+   - workspace_toolbar: toolbar above canvas
+   - workspace_canvas: main content area
+   - workspace_panel: right detail/properties panel
+   - workspace_statusbar: bottom status bar
+   - workspace_scripts: JS
+#}
+
+{% block extra_head %}
+<style>
+.sv-workspace {
+    display: grid;
+    grid-template-columns: var(--ws-sidebar-width, 220px) 1fr var(--ws-panel-width, 0px);
+    height: calc(100vh - 56px);
+    overflow: hidden;
+    transition: grid-template-columns 0.2s;
+}
+.sv-workspace.panel-open { --ws-panel-width: 360px; }
+.sv-workspace.panel-wide { --ws-panel-width: 480px; }
+.sv-workspace.sidebar-collapsed { --ws-sidebar-width: 0px; }
+
+/* Override container constraint */
+.container:has(.sv-workspace) { max-width: none; padding: 0; }
+
+.sv-ws-sidebar {
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.sv-ws-main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sv-ws-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    min-height: 32px;
+}
+
+.sv-ws-canvas {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+.sv-ws-statusbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 3px 12px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+    font-size: 10px;
+    color: var(--text-dim);
+    min-height: 20px;
+}
+
+.sv-ws-panel {
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 14px;
+}
+
+@media (max-width: 768px) {
+    .sv-workspace { grid-template-columns: 1fr !important; }
+    .sv-ws-sidebar, .sv-ws-panel { display: none; }
+}
+
+{% block workspace_style %}{% endblock %}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sv-workspace" id="svWorkspace">
+    <div class="sv-ws-sidebar">
+        {% block workspace_sidebar %}{% endblock %}
+    </div>
+    <div class="sv-ws-main">
+        <div class="sv-ws-toolbar">
+            {% block workspace_toolbar %}{% endblock %}
+        </div>
+        <div class="sv-ws-canvas">
+            {% block workspace_canvas %}{% endblock %}
+        </div>
+        <div class="sv-ws-statusbar">
+            {% block workspace_statusbar %}{% endblock %}
+        </div>
+    </div>
+    <div class="sv-ws-panel" id="svWorkspacePanel">
+        {% block workspace_panel %}{% endblock %}
+    </div>
+</div>
+<script>
+function togglePanel(open) {
+    const ws = document.getElementById('svWorkspace');
+    if (open === undefined) ws.classList.toggle('panel-open');
+    else ws.classList.toggle('panel-open', open);
+}
+{% block workspace_scripts %}{% endblock %}
+</script>
+{% endblock %}
