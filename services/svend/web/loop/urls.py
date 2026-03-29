@@ -15,6 +15,17 @@ urlpatterns = [
     # Commitments (§3.3)
     path("commitments/", views.commitment_list_create, name="loop_commitment_list_create"),
     path("commitments/<uuid:commitment_id>/", views.commitment_detail, name="loop_commitment_detail"),
+    # Commitment Resources (QMS-002 §2.2)
+    path(
+        "commitments/<uuid:commitment_id>/resources/",
+        views.commitment_resource_list_create,
+        name="loop_commitment_resources",
+    ),
+    path(
+        "commitments/<uuid:commitment_id>/resources/<uuid:resource_id>/",
+        views.commitment_resource_detail,
+        name="loop_commitment_resource_detail",
+    ),
     # Mode Transitions (§3.2) — read-only
     path("transitions/", views.transition_list, name="loop_transition_list"),
     # Investigation → Commitment bridge

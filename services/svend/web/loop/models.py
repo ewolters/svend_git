@@ -377,6 +377,97 @@ class Commitment(SynaraEntity):
         self.save(update_fields=["status", "description", "updated_at"])
 
 
+class CommitmentResource(models.Model):
+    """Employee assignment to a Loop commitment with role and availability.
+
+    Parallels Hoshin's ResourceCommitment but for Loop commitments instead
+    of Hoshin projects. Same Employee model, same availability checking.
+    QMS-002 §2.2.
+    """
+
+    ROLE_CHOICES = [
+        ("facilitator", "Facilitator"),
+        ("team_member", "Team Member"),
+        ("sponsor", "Sponsor"),
+        ("process_owner", "Process Owner"),
+        ("subject_expert", "Subject Expert"),
+    ]
+
+    STATUS_CHOICES = [
+        ("requested", "Requested"),
+        ("confirmed", "Confirmed"),
+        ("declined", "Declined"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    commitment = models.ForeignKey(
+        Commitment,
+        on_delete=models.CASCADE,
+        related_name="resources",
+    )
+    employee = models.ForeignKey(
+        "agents_api.Employee",
+        on_delete=models.CASCADE,
+        related_name="loop_commitments",
+    )
+    role = models.CharField(max_length=30, choices=ROLE_CHOICES)
+    hours_needed = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="requested")
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="requested_loop_resources",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "loop_commitment_resource"
+
+    def __str__(self):
+        return f"{self.employee.name} → {self.commitment} ({self.role})"
+
+    @classmethod
+    def check_availability(cls, employee, start_date, end_date, exclude_id=None):
+        """Return overlapping Loop + Hoshin commitments for this employee."""
+        from agents_api.models import ResourceCommitment
+
+        # Loop overlaps
+        loop_qs = cls.objects.filter(
+            employee=employee,
+            start_date__lt=end_date,
+            end_date__gt=start_date,
+        ).exclude(status="declined")
+        if exclude_id:
+            loop_qs = loop_qs.exclude(pk=exclude_id)
+
+        # Hoshin overlaps
+        hoshin_qs = ResourceCommitment.check_availability(employee, start_date, end_date)
+
+        return {
+            "loop": list(loop_qs),
+            "hoshin": list(hoshin_qs),
+            "has_conflicts": loop_qs.exists() or hoshin_qs.exists(),
+        }
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "commitment_id": str(self.commitment_id),
+            "employee_id": str(self.employee_id),
+            "employee_name": self.employee.name,
+            "role": self.role,
+            "hours_needed": float(self.hours_needed) if self.hours_needed else None,
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "end_date": self.end_date.isoformat() if self.end_date else None,
+            "status": self.status,
+            "created_at": self.created_at.isoformat(),
+        }
+
+
 class CommitmentNote(models.Model):
     """Threaded note on a commitment — communication between owner and org.
 

@@ -19,6 +19,7 @@ from .models import (
     FMIS,
     AuditorPortalToken,
     Commitment,
+    CommitmentResource,
     FMISRow,
     ForcedFailureTest,
     InvestigationEntry,
@@ -75,6 +76,7 @@ def _serialize_commitment(c, include_notes=False):
         "target_object_id": str(c.target_object_id) if c.target_object_id else None,
         "linked_artifacts": c.linked_artifacts or [],
         "resource_needs": c.resource_needs or [],
+        "resources": [r.to_dict() for r in c.resources.all()] if hasattr(c, "resources") else [],
         "is_overdue": c.is_overdue,
         "is_blocked": c.is_blocked,
         "created_by_id": str(c.created_by_id),
@@ -464,6 +466,119 @@ def commitment_detail(request, commitment_id):
         extra={"commitment_id": str(commitment.id), "action": action},
     )
     return JsonResponse({"commitment": _serialize_commitment(commitment, include_notes=True)})
+
+
+# =============================================================================
+# COMMITMENT RESOURCES (QMS-002 §2.2)
+# =============================================================================
+
+
+@gated_paid
+@require_http_methods(["GET", "POST"])
+def commitment_resource_list_create(request, commitment_id):
+    """List or assign employees to a commitment."""
+    commitment = _get_commitment(request.user, commitment_id)
+    if isinstance(commitment, JsonResponse):
+        return commitment
+
+    if request.method == "GET":
+        resources = commitment.resources.select_related("employee").all()
+        return JsonResponse([r.to_dict() for r in resources], safe=False)
+
+    data = json.loads(request.body)
+    employee_id = data.get("employee_id")
+    if not employee_id:
+        return JsonResponse({"error": "employee_id required"}, status=400)
+
+    from agents_api.models import Employee
+
+    try:
+        employee = Employee.objects.get(id=employee_id)
+    except Employee.DoesNotExist:
+        return JsonResponse({"error": "Employee not found"}, status=404)
+
+    role = data.get("role", "team_member")
+    start_date = data.get("start_date")
+    end_date = data.get("end_date")
+
+    # Check availability if dates provided
+    if start_date and end_date:
+        from datetime import date as _date
+
+        sd = _date.fromisoformat(start_date)
+        ed = _date.fromisoformat(end_date)
+        avail = CommitmentResource.check_availability(employee, sd, ed)
+        if avail["has_conflicts"]:
+            return JsonResponse(
+                {
+                    "warning": "Employee has overlapping commitments",
+                    "conflicts": {
+                        "loop": [r.to_dict() for r in avail["loop"]],
+                        "hoshin": [r.to_dict() for r in avail["hoshin"]],
+                    },
+                },
+                status=409,
+            )
+
+    resource = CommitmentResource.objects.create(
+        commitment=commitment,
+        employee=employee,
+        role=role,
+        hours_needed=data.get("hours_needed"),
+        start_date=start_date,
+        end_date=end_date,
+        requested_by=request.user,
+    )
+
+    # Send notification to employee if they have a user account
+    if employee.user_link_id:
+        try:
+            from notifications.helpers import notify
+
+            notify(
+                user=employee.user_link,
+                title=f"Resource assignment: {commitment.title}",
+                body=f"You've been assigned as {role} on commitment: {commitment.title}",
+                notification_type="assignment",
+            )
+        except Exception:
+            pass  # Notification failure doesn't block assignment
+
+    return JsonResponse(resource.to_dict(), status=201)
+
+
+@gated_paid
+@require_http_methods(["POST", "DELETE"])
+def commitment_resource_detail(request, commitment_id, resource_id):
+    """Update status (confirm/decline) or remove a resource assignment."""
+    commitment = _get_commitment(request.user, commitment_id)
+    if isinstance(commitment, JsonResponse):
+        return commitment
+
+    try:
+        resource = commitment.resources.get(id=resource_id)
+    except CommitmentResource.DoesNotExist:
+        return JsonResponse({"error": "Resource not found"}, status=404)
+
+    if request.method == "DELETE":
+        resource.delete()
+        return JsonResponse({"deleted": True})
+
+    data = json.loads(request.body)
+    new_status = data.get("status")
+    if new_status and new_status in ("confirmed", "declined"):
+        resource.status = new_status
+        resource.save(update_fields=["status"])
+
+    return JsonResponse(resource.to_dict())
+
+
+def _get_commitment(user, commitment_id):
+    """Helper to fetch commitment with tenant check."""
+    try:
+        return Commitment.objects.get(id=commitment_id, tenant=_get_tenant(user))
+    except Commitment.DoesNotExist:
+        return JsonResponse({"error": "Commitment not found"}, status=404)
 
 
 # =============================================================================
