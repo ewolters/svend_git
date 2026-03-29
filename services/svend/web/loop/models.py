@@ -576,6 +576,14 @@ class ModeTransition(models.Model):
         related_name="transitions",
     )
 
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="mode_transitions",
+    )
+
     # Immutable timestamp
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -935,6 +943,13 @@ class ProcessConfirmation(SynaraEntity):
         on_delete=models.CASCADE,
         related_name="process_confirmations",
     )
+    site = models.ForeignKey(
+        "agents_api.Site",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="process_confirmations",
+    )
 
     # What's being confirmed
     controlled_document = models.ForeignKey(
@@ -1151,6 +1166,13 @@ class ForcedFailureTest(SynaraEntity):
 
     tenant = models.ForeignKey(
         "core.Tenant",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="forced_failure_tests",
+    )
+    site = models.ForeignKey(
+        "agents_api.Site",
         null=True,
         blank=True,
         on_delete=models.CASCADE,

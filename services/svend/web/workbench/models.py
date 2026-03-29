@@ -44,6 +44,13 @@ class Workbench(models.Model):
         on_delete=models.CASCADE,
         related_name="workbenches",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="workbenches",
+    )
     # Basic info
     title = models.CharField(max_length=255, help_text="The inquiry or question being investigated")
     description = models.TextField(blank=True, help_text="Additional context about the inquiry")
@@ -524,6 +531,13 @@ class KnowledgeGraph(models.Model):
         on_delete=models.CASCADE,
         related_name="knowledge_graphs",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="workbench_knowledge_graphs",
+    )
     workbench = models.ForeignKey(
         Workbench,
         on_delete=models.SET_NULL,
@@ -835,6 +849,13 @@ class EpistemicLog(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
+        related_name="epistemic_logs",
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="epistemic_logs",
     )
     workbench = models.ForeignKey(

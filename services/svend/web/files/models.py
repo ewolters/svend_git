@@ -48,6 +48,13 @@ class UserFile(models.Model):
         on_delete=models.CASCADE,
         related_name="files",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="files",
+    )
 
     # File metadata (encrypted at rest via EncryptedFileSystemStorage)
     file = models.FileField(upload_to=user_file_path, storage=EncryptedFileSystemStorage())
@@ -159,6 +166,13 @@ class UserQuota(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="storage_quota",
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="storage_quotas",
     )
 
     # Quota limits (in bytes)

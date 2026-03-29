@@ -80,6 +80,13 @@ class Notification(models.Model):
         related_name="notifications",
         db_index=True,
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notifications",
+    )
     notification_type = models.CharField(max_length=30, choices=NotificationType.choices, db_index=True)
     title = models.CharField(max_length=300)
     message = models.TextField(blank=True, default="")

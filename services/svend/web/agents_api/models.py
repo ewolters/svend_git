@@ -18,6 +18,13 @@ class Workflow(models.Model):
     """User-defined workflow (chain of agents)."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -94,6 +101,13 @@ class TriageResult(models.Model):
         on_delete=models.CASCADE,
         related_name="triage_results",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     original_filename = models.CharField(max_length=255)
     cleaned_csv = EncryptedTextField()  # The cleaned CSV data (encrypted at rest)
     report_markdown = EncryptedTextField()  # Cleaning report (encrypted at rest)
@@ -108,6 +122,13 @@ class SavedModel(models.Model):
     """User's saved ML models from DSW pipeline."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -159,6 +180,13 @@ class AgentLog(models.Model):
     """Operational log for agent invocations."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -372,6 +400,13 @@ class Board(models.Model):
     """Collaborative whiteboard for kaizen sessions."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     room_code = models.CharField(max_length=10, unique=True, default=generate_room_code, db_index=True)
     name = models.CharField(max_length=255, default="Untitled Board")
 
@@ -589,6 +624,13 @@ class A3Report(models.Model):
         blank=True,
         related_name="a3_records",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -709,6 +751,13 @@ class Report(models.Model):
         ARCHIVED = "archived", "Archived"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -825,6 +874,13 @@ class FMEA(models.Model):
         null=True,
         blank=True,
         related_name="fmea_records",
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -1132,6 +1188,13 @@ class RCASession(models.Model):
         blank=True,
         related_name="rca_records",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -1307,6 +1370,13 @@ class IshikawaDiagram(models.Model):
         COMPLETE = "complete", "Complete"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
 
     # Ownership
     owner = models.ForeignKey(
@@ -1391,6 +1461,13 @@ class CEMatrix(models.Model):
         COMPLETE = "complete", "Complete"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
 
     # Ownership
     owner = models.ForeignKey(
@@ -1496,6 +1573,13 @@ class ValueStreamMap(models.Model):
         ARCHIVED = "archived", "Archived"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -1845,6 +1929,13 @@ class PlantSimulation(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -2252,6 +2343,13 @@ class ProjectTemplate(models.Model):
         null=True,
         blank=True,
         related_name="project_templates",
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
     )
     name = models.CharField(max_length=300)
     description = models.TextField(blank=True)
@@ -3378,6 +3476,13 @@ class NonconformanceRecord(models.Model):
         blank=True,
         related_name="ncr_records",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -3676,6 +3781,13 @@ class CAPAReport(models.Model):
         blank=True,
         related_name="capa_records",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -3887,6 +3999,13 @@ class InternalAudit(models.Model):
         blank=True,
         related_name="audit_records",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -4028,6 +4147,13 @@ class TrainingRequirement(models.Model):
         null=True,
         blank=True,
         related_name="training_records",
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -4218,6 +4344,13 @@ class ManagementReviewTemplate(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -4334,6 +4467,13 @@ class ManagementReview(models.Model):
         COMPLETE = "complete", "Complete"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -4414,6 +4554,13 @@ class ControlledDocument(models.Model):
         null=True,
         blank=True,
         related_name="document_records",
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -4660,6 +4807,13 @@ class SupplierRecord(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -4812,6 +4966,13 @@ class QMSFieldChange(models.Model):
     """Field-level change log for QMS records (NCR, Audit, Document, Supplier)."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     record_type = models.CharField(max_length=20, db_index=True)  # ncr, audit, document, supplier
     record_id = models.UUIDField(db_index=True)
     field_name = models.CharField(max_length=50)
@@ -4910,6 +5071,13 @@ class CustomerComplaint(models.Model):
         null=True,
         blank=True,
         related_name="complaints",
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -5085,6 +5253,13 @@ class Risk(models.Model):
         blank=True,
         related_name="risks",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -5238,6 +5413,13 @@ class AFE(models.Model):
         null=True,
         blank=True,
         related_name="afes",
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -5502,6 +5684,13 @@ class MeasurementEquipment(models.Model):
         blank=True,
         related_name="equipment",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -5602,6 +5791,13 @@ class AuditChecklist(models.Model):
     """Reusable audit checklist template."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -5668,6 +5864,13 @@ class Checklist(models.Model):
         null=True,
         blank=True,
         related_name="checklists",
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
     )
     name = models.CharField(max_length=300)
     description = models.TextField(blank=True)
@@ -5826,6 +6029,13 @@ class ISODocument(models.Model):
         FINAL = "final", "Final"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -6052,6 +6262,13 @@ class ElectronicSignature(SynaraImmutableLog):
         db_index=True,
         help_text="UUID of the signed document",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
 
     meaning = models.CharField(
         max_length=20,
@@ -6197,6 +6414,13 @@ class QMSAttachment(models.Model):
     }
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     entity_type = models.CharField(max_length=30, choices=EntityType.choices)
     entity_id = models.UUIDField()
     file = models.ForeignKey(
@@ -6283,6 +6507,13 @@ class ControlPlan(models.Model):
         null=True,
         blank=True,
         related_name="control_plans",
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

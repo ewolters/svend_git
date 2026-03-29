@@ -479,6 +479,13 @@ class APIKey(models.Model):
         on_delete=models.CASCADE,
         related_name="api_keys",
     )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="api_keys",
+    )
 
     # Key stored as hash — plaintext never persisted
     key_hash = models.CharField(max_length=64, unique=True, db_index=True)

@@ -171,14 +171,8 @@ class Notebook(models.Model):
         target = None
         baseline = None
         try:
-            target = (
-                float(self.project.goal_target) if self.project.goal_target else None
-            )
-            baseline = (
-                float(self.project.goal_baseline)
-                if self.project.goal_baseline
-                else None
-            )
+            target = float(self.project.goal_target) if self.project.goal_target else None
+            baseline = float(self.project.goal_baseline) if self.project.goal_baseline else None
         except (ValueError, TypeError):
             return None
         if target is None or baseline is None or target == baseline:
@@ -282,10 +276,7 @@ class Trial(models.Model):
         # Auto-assign sequence
         if self.sequence is None or self.sequence == 0:
             max_seq = (
-                Trial.objects.filter(notebook=self.notebook)
-                .aggregate(models.Max("sequence"))
-                .get("sequence__max")
-                or 0
+                Trial.objects.filter(notebook=self.notebook).aggregate(models.Max("sequence")).get("sequence__max") or 0
             )
             self.sequence = max_seq + 1
         # Compute delta
@@ -353,9 +344,7 @@ class NotebookPage(models.Model):
     outputs = models.JSONField(default=dict, blank=True, help_text="Frozen outputs")
     rendered_html = models.TextField(blank=True, default="", help_text="Frozen visual")
     narrative = models.TextField(blank=True, default="")
-    sequence = models.IntegerField(
-        default=0, help_text="Negative = front matter, positive = trial work"
-    )
+    sequence = models.IntegerField(default=0, help_text="Negative = front matter, positive = trial work")
 
     # Optional trial linkage
     trial = models.ForeignKey(
@@ -511,9 +500,7 @@ class HanseiKai(models.Model):
     what_went_well = models.TextField()
     what_didnt = models.TextField()
     what_next = models.TextField()
-    key_learning = models.TextField(
-        help_text="One sentence distillation — the yokoten seed"
-    )
+    key_learning = models.TextField(help_text="One sentence distillation — the yokoten seed")
     is_carry_forward = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -568,9 +555,7 @@ class Yokoten(models.Model):
         related_name="yokoten",
     )
     learning = models.TextField()
-    context = models.TextField(
-        blank=True, default="", help_text="Conditions that made this work"
-    )
+    context = models.TextField(blank=True, default="", help_text="Conditions that made this work")
     applicable_to = models.JSONField(
         default=list,
         blank=True,
@@ -655,6 +640,13 @@ class FrontPageDigest(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="front_page_digest",
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="front_page_digests",
     )
 
     # LLM output
