@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>DOE Run Instructions — {{ design_name }}</title>
+<style>
+@page {
+    size: A4;
+    margin: 2cm 1.5cm;
+    @top-right { content: "{% if branding.company_name %}{{ branding.company_name }} — {% endif %}DOE Run Card"; font-size: 9pt; color: #666; }
+    @bottom-center { content: "Page " counter(page) " of " counter(pages); font-size: 9pt; color: #666; }
+}
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: #222;
+    margin: 0;
+    padding: 0;
+}
+h1 { font-size: 18pt; font-weight: 700; margin: 0 0 4mm 0; color: #1a1a1a; }
+.meta { font-size: 9pt; color: #555; margin-bottom: 5mm; }
+.meta span { margin-right: 12px; }
+
+/* Run table */
+table { border-collapse: collapse; width: 100%; margin-bottom: 8mm; }
+th, td { border: 1px solid #999; padding: 4px 8px; text-align: center; font-size: 9pt; }
+th { background: #4a9f6e; color: #fff; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+td { background: #fff; }
+.run-num { font-weight: 700; width: 35px; background: #f0f0f0; }
+.response-cell { background: #fffde7; min-width: 60px; }
+.center-point { background: #e3f2fd; }
+.notes-cell { text-align: left; min-width: 80px; }
+
+/* Factor summary */
+.factor-summary { margin-bottom: 6mm; }
+.factor-summary h2 { font-size: 12pt; font-weight: 600; border-bottom: 2px solid #4a9f6e; padding-bottom: 2px; margin: 6mm 0 3mm 0; }
+.factor-table th { background: #f5f5f5; color: #333; }
+.factor-table td { text-align: left; }
+
+/* Instructions */
+.instructions { background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; padding: 3mm 4mm; margin-bottom: 6mm; font-size: 9pt; }
+.instructions h3 { font-size: 10pt; margin: 0 0 2mm 0; }
+.instructions ol { margin: 0; padding-left: 5mm; }
+.instructions li { margin-bottom: 1mm; }
+
+/* Sign-off */
+.signoff { margin-top: 8mm; border-top: 1px solid #ccc; padding-top: 4mm; }
+.signoff-row { display: flex; gap: 20mm; margin-top: 4mm; }
+.signoff-field { flex: 1; }
+.signoff-field label { font-size: 8pt; color: #666; display: block; margin-bottom: 1mm; }
+.signoff-field .line { border-bottom: 1px solid #333; height: 6mm; }
+</style>
+</head>
+<body>
+
+{% if branding.logo_url %}<img src="{{ branding.logo_url }}" alt="" style="max-width:120px;max-height:50px;float:right;margin-bottom:4mm;">{% endif %}
+
+<h1>{{ design_name }}</h1>
+<div class="meta">
+    <span>Design: {{ design_type }}</span>
+    <span>Runs: {{ num_runs }}</span>
+    {% if resolution %}<span>Resolution: {{ resolution }}</span>{% endif %}
+    <span>Response: {{ response_name }}</span>
+    <span>Date: _____________</span>
+</div>
+
+<div class="instructions">
+    <h3>Instructions</h3>
+    <ol>
+        <li>Execute runs in the order shown (Run # column). The order has been randomized.</li>
+        <li>Set each factor to the level shown in its column before starting the run.</li>
+        <li>Record the measured response in the <strong>Response</strong> column.</li>
+        <li>Note any anomalies, equipment issues, or environmental conditions in the <strong>Notes</strong> column.</li>
+        {% if has_center_points %}<li>Rows highlighted in <span style="background:#e3f2fd;padding:1px 4px;">blue</span> are center points for curvature detection.</li>{% endif %}
+        <li>Sign and date upon completion.</li>
+    </ol>
+</div>
+
+<!-- Factor Summary -->
+<div class="factor-summary">
+    <h2>Factor Levels</h2>
+    <table class="factor-table">
+        <thead>
+            <tr>
+                <th>Factor</th>
+                {% for level_name in level_headers %}
+                <th>{{ level_name }}</th>
+                {% endfor %}
+                <th>Units</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for factor in factors %}
+            <tr>
+                <td><strong>{{ factor.name }}</strong></td>
+                {% for level in factor.levels %}
+                <td>{{ level }}</td>
+                {% endfor %}
+                {% for _ in factor.padding %}<td></td>{% endfor %}
+                <td>{{ factor.units }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Run Order Table -->
+<h2 style="font-size:12pt;font-weight:600;border-bottom:2px solid #4a9f6e;padding-bottom:2px;margin:6mm 0 3mm 0;">Run Order</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Run #</th>
+            {% for factor in factors %}
+            <th>{{ factor.name }}</th>
+            {% endfor %}
+            <th>{{ response_name }}</th>
+            <th style="min-width:90px;">Notes</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for run in runs %}
+        <tr{% if run.center_point %} class="center-point"{% endif %}>
+            <td class="run-num">{{ run.run_order }}</td>
+            {% for val in run.factor_values %}
+            <td>{{ val }}</td>
+            {% endfor %}
+            <td class="response-cell"></td>
+            <td class="notes-cell"></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Sign-off -->
+<div class="signoff">
+    <div class="signoff-row">
+        <div class="signoff-field">
+            <label>Technician Name</label>
+            <div class="line"></div>
+        </div>
+        <div class="signoff-field">
+            <label>Signature</label>
+            <div class="line"></div>
+        </div>
+        <div class="signoff-field">
+            <label>Date / Time Completed</label>
+            <div class="line"></div>
+        </div>
+    </div>
+    <div class="signoff-row" style="margin-top:6mm;">
+        <div class="signoff-field">
+            <label>Reviewed By</label>
+            <div class="line"></div>
+        </div>
+        <div class="signoff-field">
+            <label>Signature</label>
+            <div class="line"></div>
+        </div>
+        <div class="signoff-field">
+            <label>Date</label>
+            <div class="line"></div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

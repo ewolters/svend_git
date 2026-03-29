@@ -4702,7 +4702,28 @@ function generateConfigForm(type, id) {
                             <input type="number" id="cfg-historical_sigma" step="any" min="0" placeholder="Auto">
                         </div>
                     </div>
-                </details>`;
+                </details>
+                <div id="spc-gage-info" style="margin-top:8px;font-size:10px;color:#9aaa9a;"></div>`;
+        // Load recent gage studies for MSA context
+        setTimeout(() => {
+            const infoEl = document.getElementById('spc-gage-info');
+            if (!infoEl) return;
+            fetch('/api/spc/measurement-systems/recent/', {
+                headers: { 'X-CSRFToken': getCSRFToken() }
+            }).then(r => r.json()).then(d => {
+                const systems = d.measurement_systems || [];
+                if (systems.length === 0) return;
+                let html = '<details><summary style="cursor:pointer;">Measurement systems (' + systems.length + ')</summary><div style="padding:4px 0 0 8px;">';
+                systems.forEach(s => {
+                    const color = s.assessment === 'Acceptable' ? '#4a9f6e' : s.assessment === 'Marginal' ? '#f59e0b' : '#e74c3c';
+                    html += '<div style="margin-bottom:4px;"><span style="color:' + color + ';">●</span> ' + s.system_name + ' — ' + s.grr_percent + '% GRR (' + s.assessment + ')';
+                    if (s.ndc) html += ', NDC=' + s.ndc;
+                    html += '</div>';
+                });
+                html += '</div></details>';
+                infoEl.innerHTML = html;
+            }).catch(() => {});
+        }, 100);
         if (id === 'imr') {
             return `
                 <div class="aw-form-group">
@@ -9273,6 +9294,7 @@ function renderDOEMatrix(design, responseName) {
     html += '<div style="display:flex;gap:8px;margin-top:8px;">';
     html += '<button class="aw-btn" onclick="analyzeDOEFromMatrix()" style="padding:5px 12px;font-size:12px;background:var(--aw-accent);color:white;border:none;border-radius:4px;cursor:pointer;">Analyze</button>';
     html += '<button class="aw-btn" onclick="exportDOEMatrixCSV()" style="padding:5px 12px;font-size:12px;background:transparent;color:var(--aw-text-muted);border:1px solid var(--aw-border);border-radius:4px;cursor:pointer;">Export CSV</button>';
+    html += '<button class="aw-btn" onclick="exportDOERunCard()" style="padding:5px 12px;font-size:12px;background:transparent;color:var(--aw-text-muted);border:1px solid var(--aw-border);border-radius:4px;cursor:pointer;">Run Card PDF</button>';
     html += '<label style="padding:5px 12px;font-size:12px;background:transparent;color:var(--aw-text-muted);border:1px solid var(--aw-border);border-radius:4px;cursor:pointer;">Import Results <input type="file" accept=".csv" onchange="importDOEResults(event)" style="display:none;"></label>';
     html += '</div></div>';
 
@@ -9438,6 +9460,28 @@ function exportDOEMatrixCSV() {
     a.href = URL.createObjectURL(blob);
     a.download = 'doe_design.csv';
     a.click();
+}
+
+function exportDOERunCard() {
+    if (!_currentDOEDesign) return;
+    fetch('/api/experimenter/run-card/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+        body: JSON.stringify({
+            design: _currentDOEDesign,
+            response_name: _currentDOEDesign.response_name || 'Response',
+        }),
+    }).then(r => {
+        if (!r.ok) throw new Error('Export failed');
+        return r.blob();
+    }).then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (_currentDOEDesign.name || 'doe_design').replace(/[^a-zA-Z0-9]/g, '_') + '_run_card.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+    }).catch(e => { svToast('Run card export failed: ' + e.message, 'error'); });
 }
 
 function importDOEResults(event) {

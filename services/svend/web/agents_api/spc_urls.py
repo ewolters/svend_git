@@ -19,6 +19,11 @@ urlpatterns = [
         views.save_gage_study,
         name="spc_save_gage_study",
     ),
+    path(
+        "measurement-systems/recent/",
+        views.recent_gage_studies,
+        name="spc_recent_gage_studies",
+    ),
     # Process Capability
     path("capability/", views.capability_study, name="spc_capability"),
     # Statistical Summary

@@ -1506,3 +1506,42 @@ def save_gage_study(request):
         },
         status=201,
     )
+
+
+@require_http_methods(["GET"])
+@require_auth
+def recent_gage_studies(request):
+    """Return recent Gage R&R studies for the user.
+
+    Used by SPC config to surface measurement system context.
+    Shows %GRR and assessment for each measurement system.
+
+    CR: 9cd9bf18
+    """
+    from core.models.measurement import MeasurementSystem
+
+    systems = MeasurementSystem.objects.filter(owner=request.user).order_by("-updated_at")[:20]
+
+    results = []
+    for ms in systems:
+        latest = ms.gage_studies.order_by("-completed_at").first()
+        if latest and latest.grr_percent is not None:
+            results.append(
+                {
+                    "system_id": str(ms.id),
+                    "system_name": ms.name,
+                    "status": ms.status,
+                    "grr_percent": round(latest.grr_percent, 2),
+                    "ndc": latest.ndc,
+                    "assessment": (
+                        "Acceptable"
+                        if latest.grr_percent < 10
+                        else "Marginal"
+                        if latest.grr_percent < 30
+                        else "Unacceptable"
+                    ),
+                    "completed_at": latest.completed_at.isoformat() if latest.completed_at else None,
+                }
+            )
+
+    return JsonResponse({"measurement_systems": results})

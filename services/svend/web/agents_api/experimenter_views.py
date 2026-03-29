@@ -2172,3 +2172,115 @@ def saved_design_detail(request, design_id):
             }
         }
     )
+
+
+@require_http_methods(["POST"])
+@require_auth
+def export_run_card(request):
+    """Export DOE design as a printable PDF run instruction card.
+
+    POST with JSON body containing the design object (same format as
+    returned by /api/experimenter/design/).
+
+    CR: 9cd9bf18
+    """
+    import re
+    from io import BytesIO
+
+    from django.http import HttpResponse
+    from django.template.loader import render_to_string
+
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    design = body.get("design", body)
+    factors_raw = design.get("factors", [])
+    runs_raw = design.get("runs", [])
+    response_name = body.get("response_name", "Response")
+
+    if not factors_raw or not runs_raw:
+        return JsonResponse({"error": "Design must include factors and runs"}, status=400)
+
+    # Build factor data for template
+    factor_names = [f["name"] for f in factors_raw]
+    max_levels = max(len(f.get("levels", [])) for f in factors_raw)
+    level_headers = [f"Level {i + 1}" for i in range(max_levels)]
+
+    factors = []
+    for f in factors_raw:
+        levels = f.get("levels", [])
+        factors.append(
+            {
+                "name": f["name"],
+                "levels": levels,
+                "units": f.get("units", ""),
+                "padding": range(max_levels - len(levels)),
+            }
+        )
+
+    # Build run data sorted by run_order
+    runs = sorted(runs_raw, key=lambda r: r.get("run_order", r.get("run_id", 0)))
+    template_runs = []
+    has_center_points = False
+    for run in runs:
+        levels = run.get("levels", {})
+        is_center = run.get("center_point", False)
+        if is_center:
+            has_center_points = True
+        template_runs.append(
+            {
+                "run_order": run.get("run_order", run.get("run_id", "")),
+                "factor_values": [levels.get(fn, "") for fn in factor_names],
+                "center_point": is_center,
+            }
+        )
+
+    # Load tenant branding
+    branding = {}
+    try:
+        from core.models.tenant import Membership
+
+        membership = Membership.objects.filter(user=request.user, is_active=True).select_related("tenant").first()
+        if membership and membership.tenant.settings:
+            branding = membership.tenant.settings.get("branding", {})
+            if branding.get("logo_file_id"):
+                branding["logo_url"] = f"https://svend.ai/api/files/{branding['logo_file_id']}/download/"
+    except Exception:
+        pass
+
+    design_name = design.get("name", "DOE Design")
+    design_type = design.get("design_type", "").replace("_", " ").title()
+    props = design.get("properties", {})
+
+    html_string = render_to_string(
+        "doe_run_card.html",
+        {
+            "design_name": design_name,
+            "design_type": design_type,
+            "num_runs": len(template_runs),
+            "resolution": props.get("resolution"),
+            "response_name": response_name,
+            "factors": factors,
+            "level_headers": level_headers,
+            "runs": template_runs,
+            "has_center_points": has_center_points,
+            "branding": branding,
+        },
+    )
+
+    try:
+        from weasyprint import HTML
+
+        pdf_buffer = BytesIO()
+        HTML(string=html_string, base_url="https://svend.ai").write_pdf(pdf_buffer)
+        pdf_buffer.seek(0)
+
+        safe_name = re.sub(r"[^\w\-.]", "_", design_name)[:60] or "doe_run_card"
+        response = HttpResponse(pdf_buffer.read(), content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{safe_name}_run_card.pdf"'
+        return response
+    except Exception as e:
+        logger.exception(f"DOE run card PDF export failed: {e}")
+        return JsonResponse({"error": "PDF export failed"}, status=500)
