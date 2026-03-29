@@ -814,6 +814,28 @@ def pc_list_create(request):
 
     tool_events.emit("pc.completed", pc, user=request.user)
 
+    # Wire PC → graph evidence (OLR-001 §7.4.1)
+    try:
+        from graph.integrations import pc_to_graph_evidence
+
+        tenant = _get_tenant(request.user)
+        if tenant and pc.diagnosis != "incomplete":
+            linked_nodes = []
+            if hasattr(pc, "controlled_document") and pc.controlled_document:
+                linked_nodes = list(pc.controlled_document.linked_process_nodes.values_list("id", flat=True))
+            pc_to_graph_evidence(
+                tenant_id=tenant.id,
+                pc_id=pc.id,
+                diagnosis=pc.diagnosis,
+                pass_rate=pc.pass_rate,
+                observation_count=pc.items.count(),
+                linked_node_ids=linked_nodes,
+                created_at=pc.created_at,
+                user=request.user,
+            )
+    except Exception:
+        logger.debug("PC→graph evidence skipped", exc_info=True)
+
     logger.info("pc.created", extra={"pc_id": str(pc.id), "diagnosis": pc.diagnosis})
     return JsonResponse({"process_confirmation": _serialize_pc(pc)}, status=201)
 
@@ -946,6 +968,26 @@ def fft_detail(request, fft_id):
         from agents_api.tool_events import tool_events
 
         tool_events.emit("forced_failure.completed", fft, user=request.user)
+
+        # Wire FFT → graph evidence (OLR-001 §7.4.2)
+        try:
+            from graph.integrations import fft_to_graph_evidence
+
+            tenant = _get_tenant(request.user)
+            if tenant and fft.injection_count > 0:
+                fft_to_graph_evidence(
+                    tenant_id=tenant.id,
+                    fft_id=fft.id,
+                    fmis_row_id=fft.fmea_row_id,
+                    detection_count=fft.detection_count,
+                    injection_count=fft.injection_count,
+                    result_code=fft.result,
+                    control_being_tested=fft.control_being_tested,
+                    conducted_at=fft.conducted_at,
+                    user=request.user,
+                )
+        except Exception:
+            logger.debug("FFT→graph evidence skipped", exc_info=True)
 
     else:
         return JsonResponse(

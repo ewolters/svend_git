@@ -268,8 +268,11 @@ class GraphService:
             edge.effect_ci_lower = confidence_interval.get("lower")
             edge.effect_ci_upper = confidence_interval.get("upper")
 
-        # Recalculate posterior from evidence stack
-        edge.posterior_strength = GraphService._recompute_posterior(edge)
+        # Recalculate posterior from evidence stack (half-life from config)
+        from .config import ConfigService
+
+        half_life = ConfigService.get(tenant_id, "process.graph.evidence_decay_half_life_days") or 180
+        edge.posterior_strength = GraphService._recompute_posterior(edge, half_life_days=int(half_life))
 
         edge.save()
 
@@ -341,9 +344,12 @@ class GraphService:
         ev.save(update_fields=["retracted", "retracted_reason"])
 
         # Recompute edge posterior without retracted evidence
+        from .config import ConfigService
+
         edge = ev.edge
         edge.evidence_count = edge.evidence_stack.filter(retracted=False).count()
-        edge.posterior_strength = GraphService._recompute_posterior(edge)
+        half_life = ConfigService.get(tenant_id, "process.graph.evidence_decay_half_life_days") or 180
+        edge.posterior_strength = GraphService._recompute_posterior(edge, half_life_days=int(half_life))
         edge.save(update_fields=["evidence_count", "posterior_strength", "updated_at"])
 
         return ev
@@ -366,8 +372,16 @@ class GraphService:
         tenant_id: UUID,
         node_id: UUID,
         reason: str = "spc_shift_detected",
+        auto_signal: bool | None = None,
+        signal_user=None,
     ) -> list[ProcessEdge]:
-        """Flag all edges touching a node as stale."""
+        """Flag all edges touching a node as stale.
+
+        If auto_signal is True (or configured via ConfigService), creates
+        a LOOP-001 Signal for each newly stale edge.
+        """
+        from .config import ConfigService
+
         node = ProcessNode.objects.select_related("graph").get(id=node_id, graph__tenant_id=tenant_id)
         edges = ProcessEdge.objects.filter(
             graph=node.graph,
@@ -379,6 +393,28 @@ class GraphService:
                 edge.staleness_reason = reason
                 edge.save(update_fields=["is_stale", "staleness_reason", "updated_at"])
                 stale_edges.append(edge)
+
+        # Optionally create Signals for stale edges
+        should_signal = (
+            auto_signal if auto_signal is not None else ConfigService.get(tenant_id, "process.spc.auto_signal_on_ooc")
+        )
+        if should_signal and stale_edges and signal_user:
+            try:
+                from loop.models import Signal
+
+                for edge in stale_edges:
+                    Signal.objects.create(
+                        tenant_id=tenant_id,
+                        title=f"Edge stale: {edge.source.name} → {edge.target.name}",
+                        description=f"Process shift detected. {reason}. Edge calibration may no longer be valid.",
+                        source_type="graph_staleness",
+                        severity="warning",
+                        created_by=signal_user,
+                        linked_process_node_ids=[str(node_id)],
+                    )
+            except Exception:
+                logger.debug("Auto-signal creation skipped", exc_info=True)
+
         return stale_edges
 
     # ── Gap Analysis ──
