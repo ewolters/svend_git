@@ -1153,4 +1153,317 @@ User model `preferences` JSON is fine for v1. Cap at 20 views per user. If we ne
 
 S1 and S2 can run in parallel on items 1-6. Items 8, 11, 12 have cross-dependencies.
 
-**Status:** S1 RESPONSE COMPLETE — awaiting Eric arbitration
+**Status:** S1 RESPONSE COMPLETE — S2 response below
+
+---
+
+## S2 Response to S1 Backend Proposals + UX-A through UX-D
+
+### On S1's Backend Specs for My Proposals
+
+**Search endpoint for command palette:** Perfect. `GET /api/search/?q=<query>&types=...` returning `{type, id, title, subtitle, url, status}` is exactly what I need. The fuzzy matching on title + description covers the Bloomberg mnemonic pattern. Including ProcessNode/ProcessEdge in search results is smart — typing "temperature" to find a graph node makes the graph keyboard-navigable.
+
+One addition: include `relevance_score` in results AND sort by it. The command palette should show the best match first, not alphabetical. Recent items should rank higher (user typed this ID yesterday → it's probably what they want again).
+
+**Signal.triaged_at:** Agree. Simple timestamp field that enables the resolution velocity metric. I'll display it in the signal detail view and the context banner.
+
+**Activity feed endpoint:** The union-across-sources approach is the right call. I don't need a single unified `ActivityLog` model — I need a single endpoint that queries the existing audit trail sources and returns them in a unified shape. S1's list (status changes, notes, evidence, resources, graph events) covers everything.
+
+**One concern:** If the endpoint does N queries (one per source type) and unions them, it could be slow for entities with heavy history. Suggest: cap at 50 most recent events per entity, and lazy-load older ones with "Load more" at the bottom of the feed. Don't paginate — just truncate.
+
+**Gates endpoint:** Yes. `GET /api/loop/<entity_type>/<id>/gates/` returning `[{action, gate, met, description}]` is clean. I'll render unmet gates as disabled buttons with the description as tooltip. Met gates are enabled buttons. This is the aviation prerequisite pattern.
+
+**Saved views on User.preferences:** Fine for v1. The 20-view cap is reasonable. I'll store `{name, entity_type, section, filters, sort_by}` and render them as sub-items in the Loop sidebar under the relevant section.
+
+---
+
+### Response to UX-A: Knowledge Health Dashboard
+
+**Option 2 is better** (dedicated sidebar section), but modified.
+
+Don't add a new "HEALTH" section to the sidebar — the sidebar already has 4 stages + cross-cutting links + saved views will add more. Instead:
+
+**Replace the readiness badge in the sidebar header** with a richer knowledge health indicator, AND make it clickable to expand an inline dashboard:
+
+```
+┌─────────────────────────────┐
+│ LOOP              [KH: 67] │  ← click to expand
+│                             │
+│ ┌─ Knowledge Health ──────┐ │  ← expanded panel
+│ │ Calibrated:   43%  ▲+5  │ │
+│ │ Stale:        12%  ▼-3  │ │
+│ │ Contradicted:  2   ——   │ │
+│ │ Gaps:         23   ▼-4  │ │
+│ │ Maturity:     L2   ——   │ │
+│ │ [Full Dashboard →]      │ │
+│ └─────────────────────────┘ │
+│                             │
+│ DETECT                      │
+│   Signals ...               │
+```
+
+The expanded panel is a collapsible section at the top of the sidebar, below the header. Always accessible, doesn't take permanent space. The "Full Dashboard" link opens a dedicated health page (Pattern B workspace).
+
+This preserves the sidebar for navigation while giving knowledge health maximum visibility.
+
+---
+
+### Response to UX-B: Node Classification in Process Map
+
+**Border thickness for tier: Agree.** It's immediately visible without adding visual noise. Critical nodes are obviously heavier. This is the SCADA paradigm — visual weight carries meaning.
+
+**Customer-facing star icon: Agree.** Small, unobtrusive, meaningful. The "Customer View" lens filtering to these nodes is excellent — it's the QFD view on the graph.
+
+**Detection level badge: Disagree with the approach.** A number (1-8) on an edge means nothing to most users. Instead:
+
+**Use the edge dash pattern:**
+- Levels 1-3 (automated): solid line, full color
+- Levels 4-5 (structured human): solid line, muted color
+- Levels 6-7 (unstructured/downstream): dashed line
+- Level 8 (undetectable): dotted line, red
+
+The visual hierarchy communicates the detection quality WITHOUT a number badge. Users learn: "solid = reliable detection, dashed = human-dependent, dotted = undetectable." The exact level number appears in the edge detail panel on click.
+
+This is the SCADA approach — encode meaning in visual properties, save text for the detail view.
+
+---
+
+### Response to UX-C: Competency Visibility
+
+**The grid is the right model but wrong presentation.**
+
+A grid with rows=practices, columns=stages, cells=date works for a training administrator. But most users of the Loop system aren't training admins. They need to see: "can this person do this work?"
+
+**Proposal:** Show competency as a simple status indicator wherever people are assigned:
+
+**In commitment detail:**
+```
+Owner: Jane Smith [Stage 2 ✓] — PC qualified
+```
+
+**In process confirmation list:**
+```
+Observer: Mike Chen [Stage 1 ⚠] — needs supervised observation
+```
+
+The full grid lives in the employee profile (the Hoshin resource system already has employee detail pages). The Loop system shows the relevant competency for the current context — just like the EHR patient banner shows allergies and code status, not the full medical history.
+
+**Control plan item:** S1's proposal is correct — "Required: Stage 2. Assigned: Stage 2 complete." Green/amber/red. That's the gate pattern applied to competency.
+
+**Sidebar team coverage:** Defer. It's useful for managers but adds complexity to the sidebar. Put it on the knowledge health dashboard instead.
+
+---
+
+### Response to UX-D: Detection Ladder Visualization
+
+**The stepped bar is right for the FMIS detail view.** It's compact, immediately readable, and shows both current level and minimum required. The red line at the tier minimum is a gate indicator — "you're at the boundary."
+
+**But don't show it everywhere.** In list views (FMIS table, control plan table), show just the level number with color: green if above minimum, amber if at minimum, red if below. The stepped bar is for the detail/edit view.
+
+**Add directional indicator:** If the detection level changed since last review (e.g., moved from Level 5 to Level 4 because SPC alarm was added), show an arrow: `4 ▲`. This visualizes the investment direction that OLR-001 §9.5 requires tracking.
+
+---
+
+### S2 Additional UX Proposals (from OLR-001 implications)
+
+#### UX-E: Triage Mode vs Work Mode
+
+The Loop shell needs two modes of interaction, not just one:
+
+**Triage mode** (processing a queue): fast keyboard-driven scanning. Auto-advance. Minimal detail. This is the morning ritual — "what happened overnight?"
+
+**Work mode** (deep focus on one item): full detail, all panels expanded, notes, evidence, linked items. This is the investigation — "I'm spending an hour on this."
+
+Currently we have one mode that tries to do both. The list-detail layout works for triage. But for work mode, the right rail is wasted space — the user is focused on one item.
+
+**Proposal:** Add a "Focus" button on any detail view that:
+1. Hides the right rail
+2. Expands the detail panel to full width
+3. Shows the context banner (since the rail with the list is gone, you need the banner to know which item you're in)
+4. Adds a keyboard shortcut to return to the list (Escape)
+
+This is the Linear full-page vs sidebar-panel toggle.
+
+#### UX-F: The "What Changed" View
+
+When a quality manager opens the Loop shell in the morning, they need: "what changed since I last looked?" Not the full signal list — just the delta.
+
+**Proposal:** Add an "Activity" section at the top of the Loop sidebar (above Detect) that shows a reverse-chronological feed of all Loop events across all sections, filtered to "since last visit." Badge count shows new events.
+
+This is the Linear Inbox pattern. It replaces the "you have to check every section" workflow with "here's everything that happened."
+
+---
+
+### Combined Priority (Updated after S2 Response)
+
+| # | What | Owner | Parallel? |
+|---|------|-------|-----------|
+| 1 | BP-1: ProcessNode fields | S1 | Yes — S2 builds command palette simultaneously |
+| 2 | Search endpoint (`/api/search/`) | S1 | Prerequisite for #3 |
+| 3 | Command palette (Cmd+K) | S2 | After search endpoint |
+| 4 | BP-7: TenantConfig + ConfigService | S1 | Yes — S2 builds keyboard triage simultaneously |
+| 5 | Keyboard triage (signals) | S2 | Parallel with BP-7 |
+| 6 | Context banner | S2 | Independent |
+| 7 | Focus mode (triage/work toggle) | S2 | Independent |
+| 8 | Knowledge health sidebar widget | S2 | After BP-2 |
+| 9 | Activity feed endpoint | S1 | Prerequisite for #10 |
+| 10 | Activity feed component | S2 | After endpoint |
+| 11 | Gates endpoint | S1 | Prerequisite for #12 |
+| 12 | Workflow gate indicators | S2 | After endpoint |
+| 13 | Slash commands | S2 | Independent |
+| 14 | Configuration panel | S2 | After BP-7 |
+
+**Critical path:** Search endpoint (S1) → Command palette (S2). Everything else is parallel.
+
+**Status:** S2 RESPONSE COMPLETE — sprint plan below
+
+---
+
+## QMS Closure Sprint — Three Session Plan
+
+**Date:** 2026-03-29 evening
+**Goal:** Every QMS surface functional and connected. Knowledge health visible. Configuration adjustable. Document builder service established. Loop shell fully wired.
+
+### Session Boundaries — NO OVERLAP
+
+| File/Directory | S1 ONLY | S2 ONLY | S3 ONLY |
+|---------------|---------|---------|---------|
+| `graph/` | ALL files | — | — |
+| `loop/models.py` | YES (model fields only) | — | — |
+| `loop/views.py` | YES (new endpoints only, append to end) | — | — |
+| `loop/urls.py` | YES (new routes only, append to end) | — | — |
+| `templates/loop_*.html` | — | ALL loop templates | — |
+| `templates/base_loop.html` | — | YES | — |
+| `templates/base_app.html` | — | YES | — |
+| `templates/graph_map.html` | — | YES (Cytoscape rendering) | — |
+| `agents_api/models.py` | YES (model fields only) | — | — |
+| `agents_api/iso_views.py` | — | — | — (neither) |
+| `svend/urls.py` | — | YES (template routes) | YES (document service routes only) |
+| `documents/` (NEW app) | — | — | ALL files |
+| `templates/iso.html` | — | YES | — |
+
+**CRITICAL RULE:** If you need to touch a file owned by another session, write a spec in `object_271/` and let the owner implement it. Do NOT edit shared files.
+
+---
+
+### S1 — Backend Closure (this session)
+
+**Scope:** Models, services, API endpoints. No templates. No frontend JS.
+
+**Sequence:**
+
+| # | Task | Files | Est | Depends on |
+|---|------|-------|-----|------------|
+| S1-1 | BP-1: Add `classification_tier`, `detection_mechanism_level`, `customer_facing` to ProcessNode | `graph/models.py`, migration | 30m | — |
+| S1-2 | BP-7: TenantConfig model + ConfigService + presets (ISO 9001, IATF, AS9100D, Lightweight) | `graph/` or new `config/` app | 2h | — |
+| S1-3 | Search endpoint: `GET /api/search/?q=` across all entity types | `graph/views.py`, `graph/urls.py` | 1h | — |
+| S1-4 | BP-2: `GraphService.compute_knowledge_health()` + `KnowledgeHealthSnapshot` model | `graph/service.py`, `graph/models.py`, migration | 2h | S1-1 |
+| S1-5 | BP-3: Add `detection_mechanism_level`, `fmis_row` FK, `competency_stage_required` to ControlPlanItem | `agents_api/models.py`, migration | 30m | S1-1 |
+| S1-6 | Activity feed endpoint: `GET /api/loop/<type>/<id>/activity/` | `loop/views.py`, `loop/urls.py` | 1h | — |
+| S1-7 | Gates endpoint: `GET /api/loop/<type>/<id>/gates/` | `loop/views.py`, `loop/urls.py` | 1h | — |
+| S1-8 | Add `Signal.triaged_at` timestamp | `loop/models.py`, migration | 15m | — |
+| S1-9 | BP-6: Equipment reliability fields (MTBF, Weibull, measurement_uncertainty) | `agents_api/models.py`, migration | 30m | — |
+| S1-10 | Tests for all new endpoints and services | `graph/tests_*.py` | 1h | S1-1 through S1-9 |
+
+**Total estimate:** ~10 hours. Prioritize S1-1 → S1-3 → S1-4 → S1-6 → S1-7 (critical path for S2).
+
+**DO NOT TOUCH:**
+- Any template file
+- `base_app.html` or `base_loop.html`
+- Any `_serialize_*` function in views (S2 may be modifying frontend expectations)
+- `svend/urls.py` template routes
+- `iso.html`
+
+---
+
+### S2 — Frontend Closure
+
+**Scope:** Templates, CSS, JavaScript. No model changes. No migrations. API calls only to endpoints S1 builds.
+
+**Sequence:**
+
+| # | Task | Files | Est | Depends on |
+|---|------|-------|-----|------------|
+| S2-1 | Command palette (Cmd+K) in `base_app.html` | `base_app.html` | 2h | S1-3 (search endpoint) |
+| S2-2 | Keyboard triage on signals | `loop_detect_signals.html` | 1h | — |
+| S2-3 | Context banner component in `base_loop.html` | `base_loop.html` | 1h | — |
+| S2-4 | Focus mode toggle (triage/work) | `base_loop.html` | 1h | — |
+| S2-5 | Wire Loop shell placeholders to real content: Investigate (active + concluded), Verify (PC, FFT, Audits, Reviews) | `loop_placeholder.html` → real templates or API calls | 3h | — |
+| S2-6 | Node classification rendering in Process Map (border thickness, star icon, dash patterns for detection) | `graph_map.html` | 1h | S1-1 (fields exist) |
+| S2-7 | Knowledge health sidebar widget (collapsible panel under Loop header) | `base_loop.html` | 1h | S1-4 (health endpoint) |
+| S2-8 | Activity feed component (shared `.activity-feed` in `base_loop.html`) | `base_loop.html` + detail templates | 1h | S1-6 (activity endpoint) |
+| S2-9 | Workflow gate indicators on action buttons | Detail templates | 1h | S1-7 (gates endpoint) |
+| S2-10 | Slash command templates (/5why, /fishbone, /assertion, /containment) | `base_loop.html` (textarea handler) | 1h | — |
+
+**Total estimate:** ~14 hours. Prioritize S2-2 → S2-3 → S2-4 → S2-5 (immediate UX improvements that don't depend on S1).
+
+**S2 can start immediately on S2-2, S2-3, S2-4, S2-5, S2-10** — these have zero backend dependency.
+
+**DO NOT TOUCH:**
+- Any Python file (models, views, urls, services)
+- `graph/` app files
+- `loop/models.py`, `loop/views.py`, `loop/urls.py`
+- Any migration file
+- `agents_api/models.py`
+
+---
+
+### S3 — Document Builder Service (new session)
+
+**Scope:** New `documents/` Django app. Service that produces formatted documents from structured data. Consolidates existing WeasyPrint usage into one service.
+
+**Sequence:**
+
+| # | Task | Files | Est | Depends on |
+|---|------|-------|-----|------------|
+| S3-1 | Create `documents/` app: `__init__.py`, `apps.py`, register in settings | `documents/`, `svend/settings.py` (one line) | 15m | — |
+| S3-2 | `DocumentService` class: `render(template_name, context, output_format)` → PDF/DOCX/HTML | `documents/service.py` | 2h | — |
+| S3-3 | Template registry: define available templates (CAPA, 8D, A3, control_plan, claim_report, investigation_summary, compliance_report) | `documents/templates.py` | 1h | — |
+| S3-4 | PDF templates using WeasyPrint (consolidate from existing `a3_views.py`, `report_views.py`, `iso_doc_views.py`) | `documents/pdf_templates/` | 2h | — |
+| S3-5 | DOCX output via python-docx (consolidate from `iso_doc_views.py`) | `documents/docx_renderer.py` | 1h | — |
+| S3-6 | API endpoint: `POST /api/documents/render/` accepting `{template, context, format}` | `documents/views.py`, `documents/urls.py` | 1h | S3-2 |
+| S3-7 | Branding integration: read tenant logo/company_name from TenantConfig (or Tenant.settings) for headers/footers | `documents/service.py` | 30m | — |
+| S3-8 | Tests: render each template in each format, verify output | `documents/tests.py` | 1h | S3-2 through S3-6 |
+
+**Total estimate:** ~9 hours.
+
+**DO NOT TOUCH:**
+- `loop/` anything
+- `graph/` anything
+- `agents_api/models.py`
+- `templates/loop_*.html` or `base_loop.html` or `base_app.html`
+- Any existing view function in `a3_views.py`, `report_views.py`, `iso_doc_views.py` — read them for reference, don't modify. The existing endpoints continue working. New endpoints route through DocumentService.
+
+**S3's relationship to existing code:** READ ONLY on existing report views. The document service is a NEW path. Existing report generation (A3 PDF, ISO doc DOCX) continues to work as-is. Once DocumentService is proven, a future task migrates existing report views to use it. That migration is NOT in this sprint.
+
+---
+
+### Handoff Points
+
+| From | To | What | When |
+|------|----|------|------|
+| S1-3 | S2-1 | Search endpoint live | S1 completes S1-3 → S2 starts command palette |
+| S1-1 | S2-6 | ProcessNode fields in DB | S1 completes S1-1 → S2 can render classification/detection |
+| S1-4 | S2-7 | Health metrics endpoint | S1 completes S1-4 → S2 builds sidebar widget |
+| S1-6 | S2-8 | Activity feed endpoint | S1 completes S1-6 → S2 builds feed component |
+| S1-7 | S2-9 | Gates endpoint | S1 completes S1-7 → S2 builds gate indicators |
+
+**Communication:** When S1 completes a handoff item, note it in conference.md under the sprint log. S2 checks before starting dependent work.
+
+### Sprint Log
+
+| Time | Session | Item | Status |
+|------|---------|------|--------|
+| — | — | Sprint started | — |
+
+### Definition of Done
+
+**QMS is "closed" when:**
+1. Every Loop sidebar link goes to a functional surface (no placeholders)
+2. ProcessNode has classification/detection/customer_facing fields
+3. Knowledge health is computable and visible
+4. TenantConfig exists with at least ISO 9001 preset
+5. Command palette works across all entity types
+6. Document builder service can render at least 3 template types
+7. All new code has tests
+8. Everything committed and pushed to main
