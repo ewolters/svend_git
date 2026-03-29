@@ -547,16 +547,16 @@ urlpatterns = varta_urls + [
     path(
         "app/loop/investigate/",
         TemplateView.as_view(
-            template_name="loop_dashboard.html",
-            extra_context={"loop_section": "investigate_active"},
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "investigate_active", "loop_section_title": "Active Investigations"},
         ),
         name="loop_investigate",
     ),
     path(
         "app/loop/standardize/commitments/",
         TemplateView.as_view(
-            template_name="loop_dashboard.html",
-            extra_context={"loop_section": "commitments"},
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "commitments", "loop_section_title": "Commitments"},
         ),
         name="loop_standardize_commitments",
     ),
@@ -571,18 +571,94 @@ urlpatterns = varta_urls + [
     path(
         "app/loop/verify/pc/",
         TemplateView.as_view(
-            template_name="loop_dashboard.html",
-            extra_context={"loop_section": "pc"},
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "pc", "loop_section_title": "Process Confirmation"},
         ),
         name="loop_verify_pc",
     ),
     path(
         "app/loop/verify/fft/",
         TemplateView.as_view(
-            template_name="loop_dashboard.html",
-            extra_context={"loop_section": "fft"},
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "fft", "loop_section_title": "Forced Failure Tests"},
         ),
         name="loop_verify_fft",
+    ),
+    # Detect — additional
+    path(
+        "app/loop/detect/complaints/",
+        TemplateView.as_view(
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "complaints", "loop_section_title": "Customer Complaints"},
+        ),
+        name="loop_detect_complaints",
+    ),
+    path(
+        "app/loop/detect/supplier/",
+        TemplateView.as_view(
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "supplier", "loop_section_title": "Supplier Issues"},
+        ),
+        name="loop_detect_supplier",
+    ),
+    # Investigate — concluded
+    path(
+        "app/loop/investigate/concluded/",
+        TemplateView.as_view(
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "investigate_concluded", "loop_section_title": "Concluded Investigations"},
+        ),
+        name="loop_investigate_concluded",
+    ),
+    # Standardize — additional
+    path(
+        "app/loop/standardize/documents/",
+        TemplateView.as_view(
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "documents", "loop_section_title": "Controlled Documents"},
+        ),
+        name="loop_standardize_documents",
+    ),
+    path(
+        "app/loop/standardize/training/",
+        TemplateView.as_view(
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "training", "loop_section_title": "Training Matrix"},
+        ),
+        name="loop_standardize_training",
+    ),
+    path(
+        "app/loop/standardize/ncr/",
+        TemplateView.as_view(
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "ncr", "loop_section_title": "NCR Tracker"},
+        ),
+        name="loop_standardize_ncr",
+    ),
+    path(
+        "app/loop/standardize/capa/",
+        TemplateView.as_view(
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "capa", "loop_section_title": "CAPA / 8D Reports"},
+        ),
+        name="loop_standardize_capa",
+    ),
+    # Verify — additional
+    path(
+        "app/loop/verify/audits/",
+        TemplateView.as_view(
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "audits", "loop_section_title": "Internal Audits"},
+        ),
+        name="loop_verify_audits",
+    ),
+    path(
+        "app/loop/verify/reviews/",
+        TemplateView.as_view(
+            template_name="loop_placeholder.html",
+            extra_context={"loop_section": "reviews", "loop_section_title": "Management Reviews"},
+        ),
+        name="loop_verify_reviews",
     ),
     # Legacy route
     path(
