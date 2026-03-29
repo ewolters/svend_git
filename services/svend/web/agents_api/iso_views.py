@@ -34,6 +34,8 @@ from .models import (
     Checklist,
     ChecklistExecution,
     ControlledDocument,
+    ControlPlan,
+    ControlPlanItem,
     CustomerComplaint,
     DocumentRevision,
     DocumentStatusChange,
@@ -4716,3 +4718,157 @@ def _build_interpretation(score, rag, red_count, amber_count, clauses, top_findi
             "The score updates in real time as you create and manage QMS records."
         ),
     }
+
+
+# =========================================================================
+# Control Plans — ISO 9001 §8.5.1
+# =========================================================================
+
+
+@require_team
+@require_http_methods(["GET", "POST"])
+def control_plan_list_create(request):
+    """List or create control plans."""
+    user = request.user
+    qs, tenant, is_admin = qms_queryset(ControlPlan, user)
+
+    if request.method == "GET":
+        plans = qs
+        status_filter = request.GET.get("status")
+        if status_filter:
+            plans = plans.filter(status=status_filter)
+        return JsonResponse([p.to_dict() for p in plans[:50]], safe=False)
+
+    data = json.loads(request.body)
+    name = data.get("name", "").strip()
+    if not name:
+        return JsonResponse({"error": "Name is required"}, status=400)
+
+    plan = ControlPlan(
+        name=name,
+        description=data.get("description", ""),
+        plan_type=data.get("plan_type", "production"),
+        process_name=data.get("process_name", ""),
+        part_number=data.get("part_number", ""),
+    )
+    qms_set_ownership(plan, user)
+    if data.get("site_id"):
+        from .permissions import resolve_site
+
+        _site, _err = resolve_site(user, data["site_id"])
+        if _site:
+            plan.site = _site
+    plan.save()
+    return JsonResponse(plan.to_dict(), status=201)
+
+
+@require_team
+@require_http_methods(["GET", "PUT", "DELETE"])
+def control_plan_detail(request, plan_id):
+    """Get, update, or delete a control plan."""
+    qs, tenant, _is_admin = qms_queryset(ControlPlan, request.user)
+    try:
+        plan = qs.get(id=plan_id)
+    except ControlPlan.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "GET":
+        result = plan.to_dict()
+        result["items"] = [item.to_dict() for item in plan.items.all()]
+        return JsonResponse(result)
+
+    if not qms_can_edit(request.user, plan, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+
+    if request.method == "DELETE":
+        plan.delete()
+        return JsonResponse({"deleted": True})
+
+    data = json.loads(request.body)
+    for field in ("name", "description", "status", "plan_type", "process_name", "part_number", "revision"):
+        if field in data:
+            setattr(plan, field, data[field])
+    if "effective_date" in data:
+        plan.effective_date = _parse_date(data["effective_date"])
+    plan.save()
+    return JsonResponse(plan.to_dict())
+
+
+@require_team
+@require_http_methods(["POST"])
+def control_plan_add_item(request, plan_id):
+    """Add an item to a control plan."""
+    qs, tenant, _is_admin = qms_queryset(ControlPlan, request.user)
+    try:
+        plan = qs.get(id=plan_id)
+    except ControlPlan.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if not qms_can_edit(request.user, plan, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+
+    data = json.loads(request.body)
+
+    item = ControlPlanItem.objects.create(
+        control_plan=plan,
+        process_step=data.get("process_step", ""),
+        characteristic=data.get("characteristic", ""),
+        characteristic_type=data.get("characteristic_type", "product"),
+        is_special=data.get("is_special", False),
+        control_method=data.get("control_method", "inspection"),
+        measurement_technique=data.get("measurement_technique", ""),
+        sample_size=data.get("sample_size", ""),
+        frequency=data.get("frequency", ""),
+        spec_usl=data.get("spec_usl"),
+        spec_lsl=data.get("spec_lsl"),
+        spec_target=data.get("spec_target"),
+        spec_unit=data.get("spec_unit", ""),
+        reaction_plan=data.get("reaction_plan", ""),
+        sequence=data.get("sequence", plan.items.count()),
+    )
+    return JsonResponse(item.to_dict(), status=201)
+
+
+@require_team
+@require_http_methods(["PUT", "DELETE"])
+def control_plan_item_detail(request, plan_id, item_id):
+    """Update or delete a control plan item."""
+    qs, tenant, _is_admin = qms_queryset(ControlPlan, request.user)
+    try:
+        plan = qs.get(id=plan_id)
+    except ControlPlan.DoesNotExist:
+        return JsonResponse({"error": "Plan not found"}, status=404)
+
+    if not qms_can_edit(request.user, plan, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+
+    try:
+        item = plan.items.get(id=item_id)
+    except ControlPlanItem.DoesNotExist:
+        return JsonResponse({"error": "Item not found"}, status=404)
+
+    if request.method == "DELETE":
+        item.delete()
+        return JsonResponse({"deleted": True})
+
+    data = json.loads(request.body)
+    for field in (
+        "process_step",
+        "characteristic",
+        "characteristic_type",
+        "is_special",
+        "control_method",
+        "measurement_technique",
+        "sample_size",
+        "frequency",
+        "spec_usl",
+        "spec_lsl",
+        "spec_target",
+        "spec_unit",
+        "reaction_plan",
+        "sequence",
+    ):
+        if field in data:
+            setattr(item, field, data[field])
+    item.save()
+    return JsonResponse(item.to_dict())

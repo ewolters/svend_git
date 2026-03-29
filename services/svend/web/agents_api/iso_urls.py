@@ -46,9 +46,7 @@ urlpatterns = [
         name="iso_audit_clause_coverage",
     ),
     # Audit Checklists
-    path(
-        "checklists/", iso_views.audit_checklist_list_create, name="iso_checklist_list"
-    ),
+    path("checklists/", iso_views.audit_checklist_list_create, name="iso_checklist_list"),
     path(
         "checklists/<uuid:checklist_id>/",
         iso_views.audit_checklist_detail,
@@ -56,9 +54,7 @@ urlpatterns = [
     ),
     # Training Matrix (clause 7.2)
     path("training/", iso_views.training_list_create, name="iso_training_list"),
-    path(
-        "training/<uuid:req_id>/", iso_views.training_detail, name="iso_training_detail"
-    ),
+    path("training/<uuid:req_id>/", iso_views.training_detail, name="iso_training_detail"),
     path(
         "training/<uuid:req_id>/records/",
         iso_views.training_record_create,
@@ -76,9 +72,7 @@ urlpatterns = [
     ),
     # Management Reviews (clause 9.3)
     path("reviews/", iso_views.review_list_create, name="iso_review_list"),
-    path(
-        "reviews/<uuid:review_id>/", iso_views.review_detail, name="iso_review_detail"
-    ),
+    path("reviews/<uuid:review_id>/", iso_views.review_detail, name="iso_review_detail"),
     path(
         "reviews/<uuid:review_id>/narrative/",
         iso_views.review_narrative,
@@ -187,17 +181,13 @@ urlpatterns = [
     path("afes/<uuid:afe_id>/approve/", iso_views.afe_approve, name="afe_approve"),
     path("afes/<uuid:afe_id>/submit/", iso_views.afe_submit, name="afe_submit"),
     # Universal Checklists
-    path(
-        "checklists-v2/", iso_views.checklist_v2_list_create, name="checklist_v2_list"
-    ),
+    path("checklists-v2/", iso_views.checklist_v2_list_create, name="checklist_v2_list"),
     path(
         "checklists-v2/<uuid:cl_id>/",
         iso_views.checklist_v2_detail,
         name="checklist_v2_detail",
     ),
-    path(
-        "checklists-v2/execute/", iso_views.checklist_execute, name="checklist_execute"
-    ),
+    path("checklists-v2/execute/", iso_views.checklist_execute, name="checklist_execute"),
     path(
         "checklists-v2/executions/<uuid:exec_id>/",
         iso_views.checklist_execution_detail,
@@ -207,5 +197,22 @@ urlpatterns = [
         "checklists-v2/executions/",
         iso_views.checklist_execution_list,
         name="checklist_execution_list",
+    ),
+    # Control Plans (clause 8.5.1)
+    path("control-plans/", iso_views.control_plan_list_create, name="iso_control_plan_list"),
+    path(
+        "control-plans/<uuid:plan_id>/",
+        iso_views.control_plan_detail,
+        name="iso_control_plan_detail",
+    ),
+    path(
+        "control-plans/<uuid:plan_id>/items/",
+        iso_views.control_plan_add_item,
+        name="iso_control_plan_add_item",
+    ),
+    path(
+        "control-plans/<uuid:plan_id>/items/<uuid:item_id>/",
+        iso_views.control_plan_item_detail,
+        name="iso_control_plan_item_detail",
     ),
 ]

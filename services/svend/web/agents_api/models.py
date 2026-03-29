@@ -6242,3 +6242,207 @@ class QMSAttachment(models.Model):
             "attachment_type": self.attachment_type,
             "created_at": self.created_at.isoformat(),
         }
+
+
+# =========================================================================
+# Control Plan — ISO 9001 §8.5.1 (Process Control)
+# =========================================================================
+
+
+class ControlPlan(models.Model):
+    """Control Plan per ISO 9001 §8.5.1 / IATF 16949 §8.5.1.1.
+
+    Defines what to monitor, how, how often, and what to do when out of spec.
+    Each plan covers a process or process area. Items reference ProcessNodes
+    from the graph when linked — but the plan works standalone too.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        ACTIVE = "active", "Active"
+        SUPERSEDED = "superseded", "Superseded"
+
+    class PlanType(models.TextChoices):
+        PROTOTYPE = "prototype", "Prototype"
+        PRE_LAUNCH = "pre_launch", "Pre-Launch"
+        PRODUCTION = "production", "Production"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="control_plans",
+    )
+    site = models.ForeignKey(
+        "agents_api.Site",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="control_plans",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="control_plans_created",
+    )
+    name = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    plan_type = models.CharField(max_length=20, choices=PlanType.choices, default=PlanType.PRODUCTION)
+    process_name = models.CharField(max_length=300, blank=True, help_text="Process or operation this plan covers")
+    part_number = models.CharField(max_length=100, blank=True)
+    revision = models.CharField(max_length=20, default="1.0")
+    effective_date = models.DateField(null=True, blank=True)
+
+    # Graph linkage — optional, plan works without it
+    linked_graph = models.ForeignKey(
+        "graph.ProcessGraph",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="control_plans",
+        help_text="ProcessGraph this control plan monitors",
+    )
+
+    iso_clause = models.CharField(max_length=20, blank=True, default="8.5.1")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_control_plans"
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_plan_type_display()}) — {self.status}"
+
+    @property
+    def item_count(self):
+        return self.items.count()
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "description": self.description,
+            "status": self.status,
+            "plan_type": self.plan_type,
+            "process_name": self.process_name,
+            "part_number": self.part_number,
+            "revision": self.revision,
+            "effective_date": self.effective_date.isoformat() if self.effective_date else None,
+            "linked_graph_id": str(self.linked_graph_id) if self.linked_graph_id else None,
+            "item_count": self.item_count,
+            "iso_clause": self.iso_clause,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class ControlPlanItem(models.Model):
+    """A single characteristic monitored within a Control Plan.
+
+    Each item defines: what to measure, how, how often, spec limits,
+    and what to do when out of spec. Optionally links to a ProcessNode
+    for graph integration.
+    """
+
+    class ControlMethod(models.TextChoices):
+        SPC = "spc", "SPC Control Chart"
+        INSPECTION = "inspection", "Inspection"
+        GAGE = "gage", "Gage/Measurement"
+        VISUAL = "visual", "Visual Check"
+        FUNCTIONAL = "functional", "Functional Test"
+        AUTOMATED = "automated", "Automated Monitoring"
+        OTHER = "other", "Other"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    control_plan = models.ForeignKey(
+        ControlPlan,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    # What to monitor
+    process_step = models.CharField(max_length=300, help_text="Operation or process step name")
+    characteristic = models.CharField(
+        max_length=300, help_text="What is being measured (dimension, property, attribute)"
+    )
+    characteristic_type = models.CharField(
+        max_length=20,
+        choices=[("product", "Product"), ("process", "Process")],
+        default="product",
+    )
+    is_special = models.BooleanField(
+        default=False, help_text="Special characteristic (safety, regulatory, fit/function)"
+    )
+
+    # How to measure
+    control_method = models.CharField(max_length=20, choices=ControlMethod.choices, default=ControlMethod.INSPECTION)
+    measurement_technique = models.CharField(max_length=300, blank=True, help_text="Specific instrument or technique")
+    sample_size = models.CharField(max_length=100, blank=True, help_text="e.g. '5 pieces', '100%', 'n=30'")
+    frequency = models.CharField(max_length=100, blank=True, help_text="e.g. 'every hour', 'per lot', 'per shift'")
+
+    # Spec limits
+    spec_usl = models.FloatField(null=True, blank=True, help_text="Upper spec limit")
+    spec_lsl = models.FloatField(null=True, blank=True, help_text="Lower spec limit")
+    spec_target = models.FloatField(null=True, blank=True, help_text="Target value")
+    spec_unit = models.CharField(max_length=50, blank=True)
+
+    # Reaction plan
+    reaction_plan = models.TextField(blank=True, help_text="What to do when out of spec: contain, sort, notify, adjust")
+
+    # Graph linkage — optional
+    linked_process_node = models.ForeignKey(
+        "graph.ProcessNode",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="control_plan_items",
+        help_text="ProcessNode this item monitors — enables graph-level control coverage tracking",
+    )
+    linked_equipment = models.ForeignKey(
+        "agents_api.MeasurementEquipment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="control_plan_items",
+        help_text="Measurement equipment used for this characteristic",
+    )
+
+    # Ordering within the plan
+    sequence = models.IntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_control_plan_items"
+        ordering = ["control_plan", "sequence"]
+
+    def __str__(self):
+        special = " ★" if self.is_special else ""
+        return f"{self.process_step}: {self.characteristic}{special}"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "process_step": self.process_step,
+            "characteristic": self.characteristic,
+            "characteristic_type": self.characteristic_type,
+            "is_special": self.is_special,
+            "control_method": self.control_method,
+            "measurement_technique": self.measurement_technique,
+            "sample_size": self.sample_size,
+            "frequency": self.frequency,
+            "spec_usl": self.spec_usl,
+            "spec_lsl": self.spec_lsl,
+            "spec_target": self.spec_target,
+            "spec_unit": self.spec_unit,
+            "reaction_plan": self.reaction_plan,
+            "linked_process_node_id": str(self.linked_process_node_id) if self.linked_process_node_id else None,
+            "linked_equipment_id": str(self.linked_equipment_id) if self.linked_equipment_id else None,
+            "sequence": self.sequence,
+        }
