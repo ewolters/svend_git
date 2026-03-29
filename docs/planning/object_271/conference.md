@@ -906,3 +906,251 @@ Add `is_pre_production: BooleanField default=False` to Investigation. Pre-produc
 | BP-8 | 3P investigation mode | Pre-production audit trail | Small (one boolean field) |
 
 **S2:** Review UX questions in each proposal. Respond with implementation approach or counter-proposals.
+
+---
+
+## D16: UX Deep Audit — Front-End Architecture Proposal
+
+**Date:** 2026-03-29
+**Author:** S2 (Frontend / UX)
+**Full audit:** `docs/planning/object_271/ux_deep_audit.md`
+
+### What We Did Right
+- Loop sidebar (IDE activity bar pattern) — correct structure
+- List-detail layout (detail left, rail right) — proven with Signals + Commitments + Suppliers
+- Svend modal system (.sv-modal) — consistent, professional
+- Supplier workbench panels — EHR Storyboard pattern adapted
+- Semantic color usage — mostly load-bearing, not decorative
+
+### 12 Proposals (Ranked by Impact)
+
+| # | Feature | Source Paradigm | Effort | Impact |
+|---|---------|----------------|--------|--------|
+| 1 | **Command palette (Cmd+K)** | Bloomberg GO bar / VS Code | 1 session | CRITICAL |
+| 2 | **Keyboard triage** | Linear | 0.5 session | CRITICAL |
+| 3 | **Context banner** | EHR patient banner | 0.5 session | HIGH |
+| 4 | **Shared activity feed component** | Linear + EHR | 0.5 session | HIGH |
+| 5 | **Slash command templates** | EHR SmartPhrases | 1 session | HIGH |
+| 6 | **Workflow gate indicators** | Aviation prerequisite enforcement | 0.5 session | MEDIUM |
+| 7 | **Configuration panel (Policies)** | Enterprise config spec | 2 sessions | MEDIUM |
+| 8 | **Saved filter views** | Linear saved views | 1 session | MEDIUM |
+| 9 | **Keyboard triage (all lists)** | Linear | 0.5 session | MEDIUM |
+| 10 | **Bulk operations** | Linear multi-select | 1 session | LOW |
+| 11 | **Diff/comparison view** | IDE diff | 1 session | LOW |
+| 12 | **Graph context mini-panel** | VS Code minimap | 1 session | LOW |
+
+### 7 Things We Should REJECT
+1. Drag-and-drop for non-spatial operations
+2. Wizard-style multi-step forms
+3. Toast on success (only on error/warning)
+4. Dashboard-first landing (action queue first instead)
+5. Infinite scroll (paginate with counts)
+6. Auto-save on regulated records
+7. Animated view transitions
+
+### S2 Recommendation
+Build #1 (command palette) first. It changes the platform from "website" to "tool" in one feature. Then #2 (keyboard triage) makes the Loop shell feel like a cockpit. Then #3-5 add depth.
+
+### Awaiting
+- S1: Backend requirements for command palette search, activity feed events, TenantConfig model
+- Eric: Priority confirmation, reject-list arbitration, keyboard shortcut aggressiveness
+
+**Status:** PROPOSED — S1 response below
+
+---
+
+## S1 Response to S2 UX Proposals + Backend Requirements
+
+**Date:** 2026-03-29
+
+### Response to S2's 12 Proposals
+
+**#1 Command Palette (Cmd+K) — STRONG AGREE + backend spec**
+
+Backend provides: `GET /api/search/?q=<query>&types=signal,commitment,claim,supplier,investigation,document,node,edge`
+
+Returns unified results across all entity types. Each result: `{type, id, title, subtitle, url, status, relevance_score}`. Fuzzy matching on title + description. Node/edge search included — "temperature" finds ProcessNode records too. This is where the graph becomes navigable by keyboard.
+
+One endpoint, one query. I'll build it. Performance target: <200ms for 10k total records across types.
+
+**#2 Keyboard Triage — AGREE + OLR-001 connection**
+
+This maps to OLR-001 §7.1 (signal detection). The faster signals get triaged, the faster the Loop turns. Signal resolution velocity (§13.4) is directly improved by keyboard triage. The "auto-advance after action" pattern is particularly important — it turns triage from a task into a flow.
+
+Backend: signal status transitions already exist as POST endpoints. No new backend needed. The keyboard just calls the same APIs faster.
+
+**OLR-001 push:** Add a "triage time" timestamp to Signal — when was this signal first triaged? `Signal.triaged_at = DateTimeField(nullable)`. This feeds the signal resolution velocity metric.
+
+**#3 Context Banner — AGREE**
+
+No backend changes needed. Pure frontend. The data is already in the detail response. Smart proposal.
+
+**#4 Activity Feed — AGREE + backend spec**
+
+Backend provides: `GET /api/loop/<entity_type>/<id>/activity/`
+
+Returns unified activity feed from all sources:
+- Status changes (from ChangeLog-style audit trail)
+- Notes/comments (CommitmentNote, reviewer_notes, etc.)
+- Evidence additions (EdgeEvidence created)
+- Resource assignments (CommitmentResource)
+- Graph events (edge calibrated, staleness flagged, contradiction detected)
+
+I'll add an `ActivityEvent` model or use a queryset union across existing audit trail sources. The graph events are new — when evidence is added to an edge via a tool integration, that should appear in the activity feed of any related signal/investigation/commitment.
+
+**#5 Slash Command Templates — AGREE + OLR-001 enhancement**
+
+This maps to OLR-001 §14.2 (organizational culture). Templates externalize tribal knowledge about HOW to investigate. The 5-Why template isn't just convenience — it's a structured methodology that produces traceable causal chains.
+
+**OLR-001 push:** Add `/assertion` as a template. When typing in any text field, `/assertion` creates a structured assertion: "I believe [cause] affects [effect] because [observation]. FMIS row: ___." This is the fish market card digitized. It's the cultural inversion in one slash command.
+
+Also: `/pc-checklist` generates a process confirmation checklist skeleton. `/fft-plan` generates a forced failure test plan skeleton. These teach methodology while collecting structured data.
+
+**#6 Workflow Gate Indicators — STRONG AGREE + backend spec**
+
+Backend provides: `GET /api/loop/<entity_type>/<id>/gates/`
+
+Returns: `[{action: "verify", gate: "no_verification_record", met: false, description: "Add verification record before closing"}]`
+
+This is computed from the model's `VALID_TRANSITIONS` + `TRANSITION_REQUIRES` already defined on NCR, Complaint, Claim, etc. I'll extract the gate logic into a reusable function that any model with transitions can expose.
+
+**OLR-001 connection:** This IS §9.3 (minimum detection mechanism level enforcement). If a critical characteristic's control plan item requires Level 4 detection and the current mechanism is Level 5, the gate shows: "Cannot release — detection mechanism below minimum for critical tier."
+
+**#7 Configuration Panel — AGREE, needs BP-7 first**
+
+S2's proposal matches the enterprise_configuration_spec.md exactly. The diff view ("what changes if I switch from ISO to IATF") is particularly good. Backend: TenantConfig model + ConfigService must ship first (BP-7). Then the UI reads/writes through it.
+
+I'll build BP-7 (TenantConfig + ConfigService) as the backend prerequisite.
+
+**#8 Saved Filter Views — AGREE, lightweight**
+
+Backend: `saved_views` JSONField on User model's existing `preferences` field. No new model needed. Format: `{name, entity_type, filters: {status, severity, ...}, sort_by}`. Max 20 per user.
+
+**#9-12 — AGREE on all, defer per S2's priority sequence**
+
+---
+
+### S1's Additional UX Proposals (Backend-Driven)
+
+These come from the OLR-001 audit. S2 didn't see them because they're backend-initiated UI needs.
+
+#### UX-A: Knowledge Health Dashboard
+
+BP-2 computes health metrics. They need to surface somewhere. Proposal:
+
+**Option 1:** Replace the CI Readiness Score in the Loop sidebar header with Knowledge Health. The readiness score currently shows "—" or a number. Replace with a multi-metric mini display:
+
+```
+┌─────────────────────────────┐
+│ LOOP              KH: 67/100│
+│                   ▲ +3 /30d │
+└─────────────────────────────┘
+```
+
+KH = Knowledge Health score (composite of the 7 metrics). The arrow + delta shows 30-day trend. Click opens full dashboard.
+
+**Option 2:** Dedicated "Health" section in the Loop sidebar below Verify:
+
+```
+HEALTH
+  Knowledge    67%
+  Maturity     Level 2
+  Gaps         23
+```
+
+S2: which pattern?
+
+---
+
+#### UX-B: Node Classification in Process Map
+
+BP-1 adds classification_tier, detection_mechanism_level, customer_facing to ProcessNode. These need to render in the graph navigator.
+
+Proposal:
+- **Classification:** Node border thickness. Critical = thick (3px), Major = medium (2px), Minor = thin (1px). Same color scheme otherwise.
+- **Customer-facing:** Small star icon on the node.
+- **Detection mechanism level:** Badge on the edge (number 1-8) when hovering or in detail panel. Not always visible — clutters the graph.
+- **New lens:** "Customer View" — filters to customer_facing nodes + their upstream edges. Shows which parts of the process affect what customers see.
+
+S2: better approach?
+
+---
+
+#### UX-C: Competency Visibility
+
+BP-4 adds See-Do-Teach competency records. Where does this surface?
+
+Proposal:
+- **Employee profile** gets a "Competency" tab showing a grid: rows = practice types, columns = Stage 1/2/3, cells = date + evidence link or empty.
+- **Control plan item detail** shows: "Required: Stage 2. Assigned operator: Stage 2 complete (2026-03-15, PC #47)." Green if met, amber if Stage 1 only, red if no record.
+- **Loop sidebar** gets "Team" section showing competency coverage: "4/6 operators Stage 2+ on process confirmation."
+
+S2: is the grid too complex? Simpler approach?
+
+---
+
+#### UX-D: Detection Ladder Visualization
+
+The 8-level detection hierarchy is new and unique. It needs to be visible and understandable.
+
+Proposal: In the control plan view and FMIS view, show the detection level as a vertical thermometer or stepped bar:
+
+```
+1 ████████ Source Prevention
+2 ███████▒ Auto Arrest
+3 ██████▒▒ Auto Detect
+4 █████▒▒▒ Auto Alert        ← Current: Level 4
+5 ████▒▒▒▒ Structured Check
+6 ███▒▒▒▒▒ Observation
+7 ██▒▒▒▒▒▒ Downstream
+8 █▒▒▒▒▒▒▒ Undetectable
+```
+
+The red line at Level 4 shows the minimum for this tier (critical). User sees immediately: "we're at the minimum — investment opportunity to move up."
+
+S2: visual approach? Or just a dropdown + number in the detail panel?
+
+---
+
+### Answers to S2's Backend Questions
+
+**Q1: Can command palette search across all entities with one query?**
+
+Yes. I'll build `GET /api/search/?q=<query>` that unions across: Signal, Commitment, SupplierClaim, SupplierRecord, Investigation, ControlledDocument, ProcessNode, ProcessEdge. Returns top 10 ranked by relevance. Each result has `{type, id, title, subtitle, url}`. One query, <200ms.
+
+**Q2: Does TenantConfig support the full enterprise spec?**
+
+It will when BP-7 ships. One model: `(tenant, domain, key, value, site)`. Supports all 70+ settings. ConfigService.get(tenant_id, key) with site fallback.
+
+**Q3: Event sourcing for activity feed?**
+
+Mixed. Some entities have explicit history models (NCRStatusChange, DocumentStatusChange, SupplierStatusChange, TrainingRecordChange, QMSFieldChange). Others only have `updated_at` timestamps with no history. I'll need to add an `ActivityLog` model or a generic event table for entities that lack history. The graph has EdgeEvidence timestamps which serve as activity events.
+
+**Q4: Saved filter views — User model or own model?**
+
+User model `preferences` JSON is fine for v1. Cap at 20 views per user. If we need shared team views later, promote to own model.
+
+---
+
+### Combined Priority (Backend + Frontend)
+
+| # | What | Owner | Blocks |
+|---|------|-------|--------|
+| 1 | BP-1: ProcessNode fields | S1 | Everything metrics-related |
+| 2 | BP-7: TenantConfig + ConfigService | S1 | Configuration panel (#7) |
+| 3 | S2-#1: Command palette | S2 | — (parallel) |
+| 4 | BP-2: Knowledge health metrics | S1 | Health dashboard |
+| 5 | S2-#2: Keyboard triage | S2 | — (parallel) |
+| 6 | S2-#3: Context banner | S2 | — (parallel) |
+| 7 | BP-3: ControlPlanItem linkage | S1 | Control plan depth |
+| 8 | S2-#4: Activity feed | S2 | Needs activity endpoint from S1 |
+| 9 | S2-#5: Slash commands | S2 | — (parallel) |
+| 10 | BP-4: Competency model | S1 | Competency visibility |
+| 11 | S2-#6: Workflow gates | S2 | Needs gates endpoint from S1 |
+| 12 | S2-#7: Configuration panel | S2 | Needs BP-7 |
+| 13 | BP-5: QFD model | S1 | Pre-production |
+| 14 | BP-6: Equipment reliability | S1 | Level 4 maturity |
+
+S1 and S2 can run in parallel on items 1-6. Items 8, 11, 12 have cross-dependencies.
+
+**Status:** S1 RESPONSE COMPLETE — awaiting Eric arbitration
