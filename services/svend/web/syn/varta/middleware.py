@@ -18,6 +18,7 @@ from django.http import HttpResponse
 
 from .alerts import send_security_alert
 from .bridge import log_security_action
+from .cloudflare import block_ip
 from .scoring import record_error, score_request
 
 logger = logging.getLogger("syn.varta")
@@ -167,7 +168,7 @@ class VartaMiddleware:
                 score=threat_score,
             )
             send_security_alert(
-                alert_type=f"high_threat_{ip}",
+                alert_type="high_threat",
                 subject=f"High threat request blocked (score {threat_score})",
                 body=(
                     f"IP: {ip}\n"
@@ -180,6 +181,7 @@ class VartaMiddleware:
                 severity="CRITICAL",
             )
             _add_to_tarpit(ip)
+            block_ip(ip, f"score={threat_score} {reason_str}")
 
             # Return a boring 404 — don't reveal we caught them
             time.sleep(TARPIT_SECONDS)

@@ -17,8 +17,8 @@ logger = logging.getLogger("syn.varta")
 # ── Alert throttling ─────────────────────────────────────────────────
 # Prevent alert storms: max 1 email per alert type per cooldown period
 _alert_timestamps: dict[str, float] = defaultdict(float)
-ALERT_COOLDOWN = 300  # 5 minutes between same-type alerts
-DAILY_ALERT_LIMIT = 50
+ALERT_COOLDOWN = 900  # 15 minutes between same-type alerts
+DAILY_ALERT_LIMIT = 20
 _daily_count = 0
 _daily_reset = time.time()
 

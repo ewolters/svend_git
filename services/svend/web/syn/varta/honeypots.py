@@ -19,6 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .alerts import send_security_alert
 from .bridge import log_security_action
+from .cloudflare import block_ip
 
 logger = logging.getLogger("syn.varta")
 
@@ -55,9 +56,12 @@ def _honeypot_response(request, trap_name: str, response: HttpResponse) -> HttpR
         score=10,
     )
 
-    # Email alert
+    # Block at Cloudflare edge
+    block_ip(ip, f"honeypot:{trap_name}")
+
+    # Email alert — throttle by trap type only (not per-IP) to prevent storms
     send_security_alert(
-        alert_type=f"honeypot_{trap_name}_{ip}",
+        alert_type=f"honeypot_{trap_name}",
         subject=f"Honeypot hit: {trap_name}",
         body=(f"Trap: {trap_name}\nIP: {ip}\nPath: {path}\nUser-Agent: {ua}\nMethod: {request.method}\n"),
         severity="HIGH",
