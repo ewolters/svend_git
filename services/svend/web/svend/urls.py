@@ -179,8 +179,7 @@ urlpatterns = varta_urls + [
     path("privacy/", TemplateView.as_view(template_name="privacy.html"), name="privacy"),
     path("terms/", TemplateView.as_view(template_name="terms.html"), name="terms"),
     path("app/", _app_view("dashboard.html"), name="app"),
-    path("app/dsw/", _app_view("workbench_new.html"), name="dsw"),
-    # Legacy redirect: /app/analysis/ serves old analysis workbench
+    path("app/dsw/", RedirectView.as_view(url="/app/analysis/", permanent=True), name="dsw"),
     path("app/analysis/", _app_view("analysis_workbench.html"), name="analysis"),
     path("app/workflows/", _app_view("workflows.html"), name="workflows"),
     path("app/triage/", _app_view("triage.html"), name="triage"),

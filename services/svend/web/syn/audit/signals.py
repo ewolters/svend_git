@@ -17,21 +17,30 @@ from django.dispatch import receiver
 logger = logging.getLogger(__name__)
 
 
+_cortex_available = None  # Cached import check
+
+
 def _emit_event(event_name: str, payload: dict):
     """
     Emit an event through Cortex with fallback handling.
 
     SBL-001 §3: Signal handlers emit to Cortex event bus.
+    Cortex is not yet implemented — this caches the import check
+    to avoid log noise on every model save.
     """
+    global _cortex_available
+    if _cortex_available is False:
+        return  # Already know Cortex isn't available
     try:
         from syn.synara.cortex import Cortex
 
+        _cortex_available = True
         Cortex.publish(event_name, payload)
-        logger.debug(f"[AUDIT] Emitted {event_name}")
+        logger.debug("[AUDIT] Emitted %s", event_name)
     except ImportError:
-        logger.warning("[AUDIT] Cortex not available, skipping event emission")
+        _cortex_available = False  # Cache: don't log again
     except Exception as e:
-        logger.error(f"[AUDIT] Error emitting {event_name}: {e}", exc_info=True)
+        logger.error("[AUDIT] Error emitting %s: %s", event_name, e, exc_info=True)
 
 
 # =============================================================================
@@ -184,17 +193,3 @@ def on_drift_violation_saved(sender, instance, created, **kwargs):
                 hours_overdue=hours_overdue,
             )
             _emit_event("audit.drift.sla_breached", payload)
-
-
-# =============================================================================
-# REGISTRATION
-# =============================================================================
-
-
-def register_audit_signals():
-    """
-    Register all audit signals.
-
-    Called from apps.py ready() hook to ensure signals are connected.
-    """
-    logger.info("[AUDIT] Audit signals registered for SBL-001 event emission")

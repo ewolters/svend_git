@@ -73,51 +73,6 @@ def researcher_agent(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def coder_agent(request):
-    """Run the coder agent."""
-    prompt = request.data.get("prompt", "")
-    language = request.data.get("language", "python")
-
-    if not prompt:
-        return Response({"error": "Prompt is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        from coder.agent import CodingAgent, CodingTask
-
-        llm = None  # Custom LLMs (Qwen/DeepSeek) removed
-        agent = CodingAgent(llm=llm)
-        result = agent.run(CodingTask(description=prompt, language=language))
-
-        response = {
-            "code": result.code,
-            "qa_report": result.qa_report() if hasattr(result, "qa_report") else None,
-        }
-
-        if llm is None:
-            response["note"] = "Running without LLM - using pattern matching fallback."
-
-        # Track usage
-        request.user.increment_queries()
-
-        return Response(response)
-    except ImportError as e:
-        logger.error(f"Import error in coder agent: {e}")
-        # Return a simple mock response
-        mock_code = f"# Generated code for: {prompt}\n# Language: {language}\n\ndef main():\n    pass\n"
-        request.user.increment_queries()
-        return Response(
-            {
-                "code": mock_code,
-                "note": "Coder agent not available, returning mock code.",
-            }
-        )
-    except Exception:
-        logger.exception("Coder agent error")
-        return Response({"error": "Internal error processing request"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
 def writer_agent(request):
     """Run the writer agent with Editor integration."""
     topic = request.data.get("topic", "")

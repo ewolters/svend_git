@@ -44,25 +44,6 @@ AUDIT_FREQUENCY_CHOICES = [
     ("quarterly", "Quarterly"),
 ]
 
-HAZARD_TYPE_OPTIONS = [
-    "electrical",
-    "chemical",
-    "fall",
-    "ergonomic",
-    "confined_space",
-    "machine_guarding",
-    "lockout_tagout",
-    "fire",
-    "noise",
-    "thermal",
-    "biological",
-    "struck_by",
-    "caught_in",
-    "slip_trip",
-    "radiation",
-    "pressure",
-]
-
 
 class FrontierZone(models.Model):
     """A defined area targeted for Frontier Card audits.
@@ -89,13 +70,9 @@ class FrontierZone(models.Model):
         on_delete=models.CASCADE,
         related_name="frontier_zones",
     )
-    name = models.CharField(
-        max_length=255, help_text="e.g., 'Press mezzanine', 'Loading dock transition'"
-    )
+    name = models.CharField(max_length=255, help_text="e.g., 'Press mezzanine', 'Loading dock transition'")
     description = models.TextField(blank=True, default="")
-    zone_type = models.CharField(
-        max_length=30, choices=ZONE_TYPE_CHOICES, default="general"
-    )
+    zone_type = models.CharField(max_length=30, choices=ZONE_TYPE_CHOICES, default="general")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -215,9 +192,7 @@ class FrontierZone(models.Model):
             "five_s_baseline": self.five_s_baseline,
             "five_s_target": self.five_s_target,
             "audit_frequency": self.audit_frequency,
-            "last_audited": (
-                self.last_audited.isoformat() if self.last_audited else None
-            ),
+            "last_audited": (self.last_audited.isoformat() if self.last_audited else None),
             "preferred_auditors": self.preferred_auditors,
             "location_detail": self.location_detail,
             "photo_reference": self.photo_reference,
@@ -519,18 +494,10 @@ class FrontierCard(models.Model):
     )
 
     # ── Data pipeline checklist (from card back) ──
-    pipeline_logged = models.BooleanField(
-        default=False, help_text="Card logged to tracking"
-    )
-    pipeline_tallies_entered = models.BooleanField(
-        default=False, help_text="5S tallies entered for Pareto"
-    )
-    pipeline_safety_to_fmea = models.BooleanField(
-        default=False, help_text="Safety findings entered to FMEA"
-    )
-    pipeline_feedback_given = models.BooleanField(
-        default=False, help_text="Feedback given to operator"
-    )
+    pipeline_logged = models.BooleanField(default=False, help_text="Card logged to tracking")
+    pipeline_tallies_entered = models.BooleanField(default=False, help_text="5S tallies entered for Pareto")
+    pipeline_safety_to_fmea = models.BooleanField(default=False, help_text="Safety findings entered to FMEA")
+    pipeline_feedback_given = models.BooleanField(default=False, help_text="Feedback given to operator")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -550,17 +517,11 @@ class FrontierCard(models.Model):
     @property
     def at_risk_count(self):
         """Count observations rated AR (At Risk) or U (Unsatisfactory)."""
-        return sum(
-            1
-            for o in (self.safety_observations or [])
-            if o.get("rating") in ("AR", "U")
-        )
+        return sum(1 for o in (self.safety_observations or []) if o.get("rating") in ("AR", "U"))
 
     @property
     def satisfactory_count(self):
-        return sum(
-            1 for o in (self.safety_observations or []) if o.get("rating") == "S"
-        )
+        return sum(1 for o in (self.safety_observations or []) if o.get("rating") == "S")
 
     @property
     def highest_severity(self):
@@ -581,9 +542,7 @@ class FrontierCard(models.Model):
     @property
     def five_s_avg_score(self):
         """Average 1-5 score from detailed 5S assessment."""
-        scores = [
-            s.get("score", 0) for s in (self.five_s_scores or []) if s.get("score")
-        ]
+        scores = [s.get("score", 0) for s in (self.five_s_scores or []) if s.get("score")]
         return round(sum(scores) / len(scores), 1) if scores else None
 
     @property
@@ -697,75 +656,6 @@ SAFETY_OBSERVATION_CATEGORIES = {
     },
 }
 
-# Extended audit adds more items per category (Frontier_Safety_5s_audit.docx)
-SAFETY_OBSERVATION_CATEGORIES_EXTENDED = {
-    "body_position": {
-        "label": "Body Position & Ergonomics",
-        "items": [
-            "Lifting technique (knees bent, load close)",
-            "Reaching above shoulder / below knee",
-            "Repetitive motion patterns observed",
-            "Sustained awkward postures (twisting, bending)",
-            "Workstation height appropriate for task",
-            "Anti-fatigue mats where standing > 2 hrs",
-            "Tool grip size appropriate for operator's hand",
-        ],
-    },
-    "ppe": {
-        "label": "PPE Compliance",
-        "items": [
-            "Correct PPE for the zone/task",
-            "PPE condition (worn, damaged, expired)",
-            "PPE fit (properly sized, adjusted)",
-            "PPE available at point of use",
-            "Signage indicates required PPE",
-        ],
-    },
-    "surfaces": {
-        "label": "Walking & Working Surfaces",
-        "items": [
-            "Floor condition (cracks, holes, uneven)",
-            "Slip/trip hazards (spills, cords, debris)",
-            "Guardrails/handrails present & secure",
-            "Stair treads in good condition",
-            "Floor markings visible and accurate",
-            "Drainage adequate (no standing water)",
-        ],
-    },
-    "energy": {
-        "label": "Energy & Hazardous Materials",
-        "items": [
-            "LOTO applied where required",
-            'Electrical panels: 36" clearance maintained',
-            "Chemical containers labeled (GHS/SDS)",
-            "Secondary containment in place",
-            "Compressed gas cylinders chained/capped",
-            "Hot surfaces guarded/marked",
-        ],
-    },
-    "emergency": {
-        "label": "Emergency Preparedness",
-        "items": [
-            "Fire extinguisher accessible (not blocked)",
-            "Emergency exits clear and marked",
-            "Eyewash/shower functional and accessible",
-            "First aid kit stocked and current",
-            "Emergency contact info posted",
-            "Spill kit available and complete",
-        ],
-    },
-    "environmental": {
-        "label": "Environmental Conditions",
-        "items": [
-            "Lighting adequate for task",
-            "Ventilation / air quality acceptable",
-            "Noise level (can converse at arm's length?)",
-            "Temperature appropriate for work type",
-            "Dust/mist/fume control in place",
-        ],
-    },
-}
-
 
 # Back of card: 26 items across 5 pillars
 FIVE_S_PILLARS = {
@@ -817,54 +707,6 @@ FIVE_S_PILLARS = {
             "Operator can't explain 5S standard here",
             "No visible improvement tracking",
             "Zone doesn't recover after disruption",
-        ],
-    },
-}
-
-# Frontier Zone Selector categories (from detailed audit form)
-FRONTIER_ZONE_SELECTOR = {
-    "transition": {
-        "label": "Transition Zones",
-        "examples": [
-            "Dept-to-dept handoffs",
-            "Loading dock edges",
-            "Hallway intersections",
-            "Stairwell landings",
-            "Emergency exit paths",
-            "Parking lot borders",
-        ],
-    },
-    "hidden_infra": {
-        "label": "Hidden Infrastructure",
-        "examples": [
-            "Electrical/MCC rooms",
-            "Utility chases/closets",
-            "Behind large equipment",
-            "Maintenance cribs",
-            "Compressed gas storage",
-            "Chemical storage rooms",
-        ],
-    },
-    "overhead_below": {
-        "label": "Overhead & Below",
-        "examples": [
-            "Mezzanine/catwalks",
-            "Under conveyors/tables",
-            "Above drop ceilings",
-            "Pit/trench areas",
-            "Roof access points",
-            "Cable tray routes",
-        ],
-    },
-    "temporal": {
-        "label": "Temporal Frontiers",
-        "examples": [
-            "Shift changeover areas",
-            "Seasonal storage zones",
-            "Temporary staging areas",
-            "Break room/locker areas",
-            "Training/new process areas",
-            "Contractor work zones",
         ],
     },
 }
@@ -1002,9 +844,7 @@ def aggregate_five_s_pareto(site, min_cards=10):
                 "label": pillar_info.get("label", pillar),
                 "count": count_val,
                 "pct": round(count_val / grand_total * 100, 1) if grand_total else 0,
-                "cumulative_pct": (
-                    round(cumulative / grand_total * 100, 1) if grand_total else 0
-                ),
+                "cumulative_pct": (round(cumulative / grand_total * 100, 1) if grand_total else 0),
             }
         )
 

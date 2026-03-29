@@ -4912,7 +4912,6 @@ _CACHE_WHITENOISE_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesSto
 # In-memory caches that must have max-size constants
 _CACHE_MEMORY_BOUNDS = {
     "agents_api/dsw/common.py": "MODEL_CACHE_MAX_SIZE",
-    "agents_api/problem_views.py": "_INTERVIEW_CACHE_MAX",
     "agents_api/spc_views.py": "_CACHE_MAX_SIZE",
     "agents_api/synara_views.py": "_SYNARA_CACHE_MAX",
 }

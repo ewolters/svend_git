@@ -344,9 +344,7 @@ class Project(models.Model):
 
     # Interview/onboarding state
     interview_state = models.JSONField(null=True, blank=True)
-    is_interview_completed = models.BooleanField(
-        default=False, db_column="interview_completed"
-    )
+    is_interview_completed = models.BooleanField(default=False, db_column="interview_completed")
 
     # Append-only changelog — [{ts, action, detail, user}]
     changelog = models.JSONField(default=list, blank=True)
@@ -393,45 +391,7 @@ class Project(models.Model):
     def evidence_count(self) -> int:
         from .hypothesis import Evidence
 
-        return (
-            Evidence.objects.filter(hypothesis_links__hypothesis__project=self)
-            .distinct()
-            .count()
-        )
-
-    def generate_problem_statement(self) -> str:
-        """Generate a problem statement from 5W2H fields."""
-        parts = []
-
-        if self.problem_whats:
-            parts.append("What: " + "; ".join(self.problem_whats))
-        if self.problem_wheres:
-            parts.append("Where: " + "; ".join(self.problem_wheres))
-        if self.problem_whens:
-            parts.append("When: " + "; ".join(self.problem_whens))
-        if self.problem_magnitude:
-            parts.append(f"Magnitude: {self.problem_magnitude}")
-        if self.problem_trend != self.Trend.UNKNOWN:
-            parts.append(f"Trend: {self.get_problem_trend_display()}")
-
-        return "\n".join(parts)
-
-    def generate_goal_statement(self) -> str:
-        """Generate a SMART goal statement from goal fields."""
-        if not self.goal_metric:
-            return ""
-
-        parts = [f"Improve {self.goal_metric}"]
-        if self.goal_baseline and self.goal_target:
-            parts.append(f"from {self.goal_baseline} to {self.goal_target}")
-        elif self.goal_target:
-            parts.append(f"to {self.goal_target}")
-        if self.goal_unit:
-            parts.append(self.goal_unit)
-        if self.goal_deadline:
-            parts.append(f"by {self.goal_deadline.strftime('%Y-%m-%d')}")
-
-        return " ".join(parts)
+        return Evidence.objects.filter(hypothesis_links__hypothesis__project=self).distinct().count()
 
     def log_event(self, action: str, detail: str = "", user=None):
         """Append an entry to the changelog."""
@@ -467,32 +427,11 @@ class Project(models.Model):
             {
                 "ts": timezone.now().isoformat(),
                 "action": "phase_advanced",
-                "detail": f"{old_phase} → {new_phase}"
-                + (f": {notes}" if notes else ""),
+                "detail": f"{old_phase} → {new_phase}" + (f": {notes}" if notes else ""),
                 "user": (user.display_name or user.email) if user else "",
             }
         )
-        self.save(
-            update_fields=["current_phase", "phase_history", "changelog", "updated_at"]
-        )
-
-    def resolve(self, summary: str, confidence: float = None):
-        """Mark project as resolved."""
-        from django.utils import timezone
-
-        self.status = self.Status.RESOLVED
-        self.resolution_summary = summary
-        self.resolution_confidence = confidence
-        self.resolved_at = timezone.now()
-        self.save(
-            update_fields=[
-                "status",
-                "resolution_summary",
-                "resolution_confidence",
-                "resolved_at",
-                "updated_at",
-            ]
-        )
+        self.save(update_fields=["current_phase", "phase_history", "changelog", "updated_at"])
 
 
 class Dataset(models.Model):

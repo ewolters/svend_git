@@ -481,35 +481,6 @@ class Artifact(models.Model):
     # Type-specific helpers
     # =========================================================================
 
-    def is_thinking_artifact(self) -> bool:
-        """Check if this is a thinking artifact (note, hypothesis, evidence, conclusion)."""
-        return self.artifact_type in [
-            self.ArtifactType.NOTE,
-            self.ArtifactType.HYPOTHESIS,
-            self.ArtifactType.EVIDENCE,
-            self.ArtifactType.CONCLUSION,
-        ]
-
-    def is_analysis_artifact(self) -> bool:
-        """Check if this is an analysis artifact."""
-        return self.artifact_type in [
-            self.ArtifactType.SPC_CHART,
-            self.ArtifactType.CAPABILITY_STUDY,
-            self.ArtifactType.ANOVA,
-            self.ArtifactType.REGRESSION,
-            self.ArtifactType.CORRELATION,
-            self.ArtifactType.DESCRIPTIVE_STATS,
-            self.ArtifactType.HYPOTHESIS_TEST,
-            self.ArtifactType.FORECAST,
-        ]
-
-    def update_hypothesis_probability(self, new_probability: float):
-        """Update probability for hypothesis artifacts."""
-        if self.artifact_type != self.ArtifactType.HYPOTHESIS:
-            return
-        self.probability = max(0.0, min(1.0, new_probability))
-        self.save(update_fields=["probability", "updated_at"])
-
 
 class KnowledgeGraph(models.Model):
     """

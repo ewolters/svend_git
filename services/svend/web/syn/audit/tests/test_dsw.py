@@ -377,18 +377,6 @@ class ProjectResolutionFunctionalTest(TestCase):
         result = _resolve_project(str(project.id), user=user)
         self.assertEqual(result.id, project.id)
 
-    def test_resolve_problem_with_core_project(self):
-        """Problem UUID with core_project FK resolves to the Project."""
-        from agents_api.models import Problem
-        from agents_api.synara_views import _resolve_project
-        from core.models import Project
-
-        user = _make_user("resolve2@dsw.test")
-        project = Project.objects.create(title="Test Project 2", user=user)
-        problem = Problem.objects.create(user=user, title="Test Problem", core_project=project)
-        result = _resolve_project(str(problem.id), user=user)
-        self.assertEqual(result.id, project.id)
-
     def test_resolve_nonexistent_returns_none(self):
         """Random UUID resolves to None."""
         from agents_api.synara_views import _resolve_project
@@ -522,42 +510,6 @@ class EvidenceBridgeFunctionalTest(TestCase):
         self.assertEqual(res.status_code, 200)
         body = res.json()
         self.assertFalse(body.get("problem_updated", False))
-
-    def test_analysis_with_problem_links_evidence(self):
-        """Analysis with valid problem_id sets problem_updated=True."""
-        import numpy as np
-
-        from agents_api.models import Problem
-
-        problem = Problem.objects.create(user=self.user, title="Test Problem")
-        data = {"x": np.random.normal(50, 2, 50).tolist()}
-        res = self.client.post(
-            self.url,
-            json.dumps(
-                {
-                    "type": "stats",
-                    "analysis": "descriptive",
-                    "data": data,
-                    "problem_id": str(problem.id),
-                }
-            ),
-            content_type="application/json",
-        )
-        self.assertEqual(res.status_code, 200)
-        body = res.json()
-        self.assertTrue(body.get("problem_updated", False))
-
-    def test_submodules_dont_call_add_finding(self):
-        """Sub-modules should not call add_finding_to_problem directly (architecture)."""
-        for module in ["stats.py", "ml.py", "spc.py", "bayesian.py"]:
-            mod_path = DSW_DIR / module
-            if mod_path.exists():
-                src = inspect.getsource(__import__(f"agents_api.dsw.{module[:-3]}", fromlist=[""]))
-                self.assertNotIn(
-                    "add_finding_to_problem",
-                    src,
-                    f"{module} should not call add_finding_to_problem directly",
-                )
 
 
 # =============================================================================

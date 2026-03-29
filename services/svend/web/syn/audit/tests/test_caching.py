@@ -95,18 +95,12 @@ class MemoryCacheTest(SimpleTestCase):
         """Verify a cache constant exists and is within bounds."""
         module = importlib.import_module(module_path)
         value = getattr(module, attr_name)
-        self.assertGreaterEqual(
-            value, min_val, f"{module_path}.{attr_name}={value} < {min_val}"
-        )
-        self.assertLessEqual(
-            value, max_val, f"{module_path}.{attr_name}={value} > {max_val}"
-        )
+        self.assertGreaterEqual(value, min_val, f"{module_path}.{attr_name}={value} < {min_val}")
+        self.assertLessEqual(value, max_val, f"{module_path}.{attr_name}={value} > {max_val}")
 
     def test_dsw_cache_has_bounds(self):
         """DSW model cache (MODEL_CACHE_MAX_SIZE) is bounded."""
-        self._assert_cache_bounded(
-            "agents_api.dsw.common", "MODEL_CACHE_MAX_SIZE", 1, 500
-        )
+        self._assert_cache_bounded("agents_api.dsw.common", "MODEL_CACHE_MAX_SIZE", 1, 500)
 
     def test_spc_cache_has_bounds(self):
         """SPC parsed data cache (_CACHE_MAX_SIZE) is bounded."""
@@ -114,15 +108,7 @@ class MemoryCacheTest(SimpleTestCase):
 
     def test_synara_cache_has_bounds(self):
         """Synara session cache (_SYNARA_CACHE_MAX) is bounded."""
-        self._assert_cache_bounded(
-            "agents_api.synara_views", "_SYNARA_CACHE_MAX", 1, 500
-        )
-
-    def test_interview_cache_has_bounds(self):
-        """Interview session cache (_INTERVIEW_CACHE_MAX) is bounded."""
-        self._assert_cache_bounded(
-            "agents_api.problem_views", "_INTERVIEW_CACHE_MAX", 1, 500
-        )
+        self._assert_cache_bounded("agents_api.synara_views", "_SYNARA_CACHE_MAX", 1, 500)
 
     def test_all_known_caches_checked(self):
         """All known in-memory caches are in the compliance check inventory."""
@@ -133,7 +119,6 @@ class MemoryCacheTest(SimpleTestCase):
         """The memory bounds inventory covers all known caches."""
         expected = {
             "agents_api/dsw/common.py",
-            "agents_api/problem_views.py",
             "agents_api/spc_views.py",
             "agents_api/synara_views.py",
         }
@@ -222,9 +207,7 @@ class BrowserStorageTest(SimpleTestCase):
         setitems = re.findall(r"localStorage\.setItem\(['\"](\w+)['\"]", base_app)
         forbidden = {"token", "jwt", "session_id", "password", "api_key"}
         for key in setitems:
-            self.assertNotIn(
-                key.lower(), forbidden, f"localStorage stores forbidden key: {key}"
-            )
+            self.assertNotIn(key.lower(), forbidden, f"localStorage stores forbidden key: {key}")
 
     def test_sessionstorage_no_secrets(self):
         """sessionStorage does not store secrets."""
