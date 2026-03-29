@@ -58,16 +58,34 @@ function loadItems() {
     fetch(SECTION_CONFIG.api_endpoint, { headers: { 'X-CSRFToken': getCSRF() }})
     .then(r => r.json())
     .then(data => {
-        // Handle both array responses and {key: array} responses
-        if (Array.isArray(data)) items = data;
-        else {
-            const key = SECTION_CONFIG.response_key || Object.keys(data).find(k => Array.isArray(data[k]));
-            items = key ? data[key] : [];
+        // Handle various response shapes:
+        // 1. Array directly: [...]
+        // 2. {key: [...]} flat
+        // 3. {key: {items: [...]}} nested (dashboard pattern)
+        if (Array.isArray(data)) {
+            items = data;
+        } else {
+            const key = SECTION_CONFIG.response_key;
+            if (key && data[key]) {
+                const val = data[key];
+                if (Array.isArray(val)) items = val;
+                else if (val.items && Array.isArray(val.items)) items = val.items;
+                else items = [];
+            } else {
+                // Auto-detect: find first array value
+                for (const k of Object.keys(data)) {
+                    if (Array.isArray(data[k])) { items = data[k]; break; }
+                    if (data[k]?.items && Array.isArray(data[k].items)) { items = data[k].items; break; }
+                }
+            }
         }
         renderList();
     })
-    .catch(() => {
-        document.getElementById('secListItems').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:11px;">Failed to load</div>';
+    .catch(err => {
+        document.getElementById('secListItems').innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:11px;">
+            <div style="color:#f87171;margin-bottom:4px;">Failed to load</div>
+            <div style="font-size:10px;">Endpoint: ${SECTION_CONFIG.api_endpoint}</div>
+        </div>`;
     });
 }
 
@@ -95,7 +113,11 @@ function renderList() {
     document.getElementById('secListCount').textContent = `${filtered.length} ${SECTION_CONFIG.section_title || 'items'}`;
 
     if (!filtered.length) {
-        el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-dim);font-size:11px;">None found</div>';
+        el.innerHTML = `<div style="padding:30px;text-align:center;color:var(--text-dim);font-size:12px;">
+            <div style="font-size:16px;opacity:0.3;margin-bottom:6px;">&#x25C9;</div>
+            No ${SECTION_CONFIG.section_title || 'items'} found
+            ${currentFilter !== 'all' ? '<br><span style="font-size:10px;">Try a different filter</span>' : ''}
+        </div>`;
         return;
     }
 
