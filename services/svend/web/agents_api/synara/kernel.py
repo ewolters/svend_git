@@ -79,9 +79,10 @@ class HypothesisRegion:
 
     @classmethod
     def from_dict(cls, data: dict) -> "HypothesisRegion":
-        if "created_at" in data and isinstance(data["created_at"], str):
-            data["created_at"] = datetime.fromisoformat(data["created_at"])
-        return cls(**data)
+        d = dict(data)
+        if "created_at" in d and isinstance(d["created_at"], str):
+            d["created_at"] = datetime.fromisoformat(d["created_at"])
+        return cls(**d)
 
     def matches_context(self, context: dict) -> float:
         """
@@ -152,9 +153,10 @@ class Evidence:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Evidence":
-        if "timestamp" in data and isinstance(data["timestamp"], str):
-            data["timestamp"] = datetime.fromisoformat(data["timestamp"])
-        return cls(**data)
+        d = dict(data)
+        if "timestamp" in d and isinstance(d["timestamp"], str):
+            d["timestamp"] = datetime.fromisoformat(d["timestamp"])
+        return cls(**d)
 
 
 @dataclass
@@ -231,7 +233,17 @@ class CausalGraph:
         self.hypotheses[h.id] = h
 
     def add_link(self, link: CausalLink) -> None:
-        """Add a causal link, updating hypothesis references."""
+        """Add a causal link, updating hypothesis references.
+
+        Raises ValueError if the link would create a cycle in the graph.
+        """
+        # Cycle detection: if target can already reach source, adding
+        # source→target creates a cycle.
+        if link.from_id in self.hypotheses and link.to_id in self.hypotheses:
+            ancestors_of_source = self.get_all_ancestors(link.from_id)
+            if link.to_id in ancestors_of_source or link.from_id == link.to_id:
+                raise ValueError(f"Adding link {link.from_id} → {link.to_id} would create a cycle")
+
         self.links.append(link)
 
         # Update hypothesis upstream/downstream references
@@ -345,9 +357,7 @@ class ExpansionSignal:
 
     # Status
     resolved: bool = False
-    resolution: str | None = (
-        None  # "new_hypothesis", "expanded_hypothesis", "dismissed"
-    )
+    resolution: str | None = None  # "new_hypothesis", "expanded_hypothesis", "dismissed"
 
     # Metadata
     timestamp: datetime = field(default_factory=datetime.utcnow)

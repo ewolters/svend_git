@@ -1127,7 +1127,7 @@ def fmis_global(request):
             "fmis_documents": [_serialize_fmis(f) for f in fmis_docs],
             "total_rows": rows.count(),
             "gaps": rows.filter(
-                failure_mode_entity__isnull=True,
+                failure_mode_text="",
             ).count(),
         }
     )

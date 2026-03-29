@@ -867,6 +867,8 @@ An existing FMEARow can be linked to an FMISRow via `fmea_row` FK (nullable). Th
 
 ## **9. DYNAMIC PROCESS MODEL**
 
+> **Note:** The authoritative specification for the Dynamic Process Model is GRAPH-001. This section is retained for context within the LOOP operating model. See GRAPH-001 for schema, service interface, Synara integration, persistence model, value propagation, and UX.
+
 ### **9.1 Purpose**
 
 The Dynamic Process Model is a quantitative knowledge graph that represents what the organization KNOWS about a process — and, critically, what it does NOT know.

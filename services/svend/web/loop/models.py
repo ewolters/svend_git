@@ -1219,29 +1219,8 @@ class FMISRow(SynaraEntity):
     effect_text = models.CharField(max_length=500, blank=True, default="")
     cause_text = models.CharField(max_length=500, blank=True, default="")
 
-    # Operational definition links to knowledge graph entities
-    # Null = not yet defined (knowledge gap surfaced in §9.4)
-    failure_mode_entity = models.ForeignKey(
-        "core.Entity",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="fmis_failure_modes",
-    )
-    effect_entity = models.ForeignKey(
-        "core.Entity",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="fmis_effects",
-    )
-    cause_entity = models.ForeignKey(
-        "core.Entity",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="fmis_causes",
-    )
+    # Operational definition links — will be FK → graph.ProcessNode in GRAPH-001 Phase 1.
+    # Legacy core.Entity FKs removed (Object 271 Phase 0 — were always null).
 
     # ── Controls ──
     prevention_control = models.TextField(blank=True, default="")
@@ -1386,12 +1365,15 @@ class FMISRow(SynaraEntity):
 
     @property
     def has_operational_definitions(self):
-        """True if all three entities are linked."""
+        """True if all three text fields are populated.
+
+        Will check FK → graph.ProcessNode linkage in GRAPH-001 Phase 1.
+        """
         return all(
             [
-                self.failure_mode_entity_id,
-                self.effect_entity_id,
-                self.cause_entity_id,
+                self.failure_mode_text,
+                self.effect_text,
+                self.cause_text,
             ]
         )
 
@@ -1399,11 +1381,11 @@ class FMISRow(SynaraEntity):
     def undefined_terms(self):
         """List of terms without operational definitions (knowledge gaps)."""
         gaps = []
-        if not self.failure_mode_entity_id:
+        if not self.failure_mode_text:
             gaps.append("failure_mode")
-        if not self.effect_entity_id:
+        if not self.effect_text:
             gaps.append("effect")
-        if not self.cause_entity_id:
+        if not self.cause_text:
             gaps.append("cause")
         return gaps
 
