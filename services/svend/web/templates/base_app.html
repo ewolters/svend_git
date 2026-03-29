@@ -2207,6 +2207,111 @@
         </div>
     </div>
 
+    <!-- Command Palette (Cmd+K / Ctrl+K) -->
+    <div id="cmdPalette" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:99998;display:none;justify-content:center;padding-top:20vh;">
+        <div style="width:560px;max-width:90vw;background:var(--bg-secondary, #0d120d);border:1px solid var(--border, rgba(74,159,110,0.2));border-radius:8px;box-shadow:0 16px 48px rgba(0,0,0,0.5);overflow:hidden;max-height:60vh;display:flex;flex-direction:column;">
+            <div style="padding:12px 16px;border-bottom:1px solid var(--border, rgba(74,159,110,0.2));display:flex;align-items:center;gap:8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-dim, #7a8f7a);flex-shrink:0;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="cmdInput" type="text" placeholder="Search signals, suppliers, nodes... or type a command" style="flex:1;background:transparent;border:none;outline:none;color:var(--text-primary, #e8efe8);font-size:14px;font-family:inherit;" autocomplete="off">
+                <kbd style="font-size:10px;color:var(--text-dim, #7a8f7a);background:var(--bg-primary, #0a0f0a);padding:2px 6px;border-radius:3px;border:1px solid var(--border, rgba(74,159,110,0.2));">ESC</kbd>
+            </div>
+            <div id="cmdResults" style="overflow-y:auto;max-height:calc(60vh - 48px);"></div>
+        </div>
+    </div>
+    <style>
+    .cmd-result { display:flex; align-items:center; gap:10px; padding:8px 16px; cursor:pointer; transition:background 0.08s; }
+    .cmd-result:hover, .cmd-result.cmd-focused { background:var(--bg-hover, #1a261a); }
+    .cmd-result .cmd-type { font-size:9px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-dim, #7a8f7a); background:var(--bg-primary, #0a0f0a); padding:2px 6px; border-radius:3px; min-width:50px; text-align:center; flex-shrink:0; }
+    .cmd-result .cmd-title { font-size:13px; color:var(--text-primary, #e8efe8); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .cmd-result .cmd-sub { font-size:11px; color:var(--text-dim, #7a8f7a); flex-shrink:0; }
+    .cmd-empty { padding:24px 16px; text-align:center; color:var(--text-dim, #7a8f7a); font-size:12px; }
+    .cmd-hint { padding:8px 16px; font-size:10px; color:var(--text-dim, #7a8f7a); border-top:1px solid var(--border, rgba(74,159,110,0.2)); display:flex; gap:12px; }
+    .cmd-hint kbd { background:var(--bg-primary, #0a0f0a); padding:1px 4px; border-radius:2px; border:1px solid var(--border, rgba(74,159,110,0.2)); }
+    </style>
+    <script>
+    (function() {
+        const palette = document.getElementById('cmdPalette');
+        const input = document.getElementById('cmdInput');
+        const results = document.getElementById('cmdResults');
+        let focusIdx = -1;
+        let resultItems = [];
+        let debounceTimer = null;
+
+        // Open with Cmd+K / Ctrl+K
+        document.addEventListener('keydown', e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                palette.style.display = 'flex';
+                input.value = '';
+                input.focus();
+                results.innerHTML = '<div class="cmd-empty">Type to search across signals, suppliers, investigations, nodes...</div><div class="cmd-hint"><span><kbd>↑↓</kbd> navigate</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></div>';
+                focusIdx = -1;
+            }
+        });
+
+        // Close
+        function closePalette() { palette.style.display = 'none'; input.value = ''; }
+        palette.addEventListener('click', e => { if (e.target === palette) closePalette(); });
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { closePalette(); return; }
+            if (e.key === 'ArrowDown') { e.preventDefault(); moveFocus(1); return; }
+            if (e.key === 'ArrowUp') { e.preventDefault(); moveFocus(-1); return; }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const focused = results.querySelector('.cmd-focused');
+                if (focused) focused.click();
+                return;
+            }
+        });
+
+        function moveFocus(delta) {
+            resultItems = results.querySelectorAll('.cmd-result');
+            if (!resultItems.length) return;
+            focusIdx = Math.max(0, Math.min(resultItems.length - 1, focusIdx + delta));
+            resultItems.forEach((el, i) => el.classList.toggle('cmd-focused', i === focusIdx));
+            resultItems[focusIdx]?.scrollIntoView({ block: 'nearest' });
+        }
+
+        // Search on input
+        input.addEventListener('input', () => {
+            const q = input.value.trim();
+            if (q.length < 2) {
+                results.innerHTML = '<div class="cmd-empty">Type to search...</div>';
+                focusIdx = -1;
+                return;
+            }
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => doSearch(q), 150);
+        });
+
+        function doSearch(q) {
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+            fetch(`/api/graph/search/?q=${encodeURIComponent(q)}`, { headers: { 'X-CSRFToken': csrf } })
+            .then(r => r.ok ? r.json() : [])
+            .then(items => {
+                if (!Array.isArray(items) || !items.length) {
+                    results.innerHTML = '<div class="cmd-empty">No results for "' + q.replace(/</g,'&lt;') + '"</div>';
+                    focusIdx = -1;
+                    return;
+                }
+                results.innerHTML = items.slice(0, 15).map((r, i) => {
+                    const statusHtml = r.status ? `<span class="cmd-sub">${r.status}</span>` : '';
+                    return `<div class="cmd-result${i === 0 ? ' cmd-focused' : ''}" onclick="window.location.href='${r.url || '#'}'">`
+                        + `<span class="cmd-type">${r.type || ''}</span>`
+                        + `<span class="cmd-title">${(r.title || '').replace(/</g,'&lt;')}</span>`
+                        + `${r.subtitle ? '<span class="cmd-sub">' + r.subtitle.replace(/</g,'&lt;') + '</span>' : ''}`
+                        + statusHtml
+                        + `</div>`;
+                }).join('') + '<div class="cmd-hint"><span><kbd>↑↓</kbd> navigate</span><span><kbd>Enter</kbd> open</span></div>';
+                focusIdx = 0;
+            })
+            .catch(() => {
+                results.innerHTML = '<div class="cmd-empty">Search unavailable</div>';
+            });
+        }
+    })();
+    </script>
+
     <!-- Svend Toast Notifications -->
     <div id="sv-toast-container" style="position:fixed;top:1rem;right:1rem;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:420px;width:100%;"></div>
     <style>

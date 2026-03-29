@@ -127,6 +127,37 @@
 .loop-dot.standardize { background: #a78bfa; }
 .loop-dot.verify { background: #4ade80; }
 
+/* ── Context Banner ── */
+.loop-context-banner {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+.loop-context-banner.visible { display: flex; }
+.loop-context-banner .ctx-sep { color: var(--text-dim); margin: 0 2px; }
+
+/* ── Focus Mode ── */
+.loop-shell.focus-mode .loop-list-rail { display: none; }
+.loop-shell.focus-mode .loop-detail-panel { max-width: none; }
+.loop-shell.focus-mode .loop-context-banner { display: flex; }
+
+.loop-focus-btn {
+    position: absolute; top: 8px; right: 8px; z-index: 6;
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px;
+    padding: 3px 8px; font-size: 10px; color: var(--text-dim); cursor: pointer;
+    opacity: 0; transition: opacity 0.15s;
+}
+.loop-detail-panel:hover .loop-focus-btn { opacity: 1; }
+.loop-focus-btn:hover { color: var(--text-primary); border-color: var(--accent-primary-border); }
+
 /* ── Main Content Area ── */
 .loop-main {
     padding: 20px 24px;
@@ -392,6 +423,10 @@
 
     <!-- Main content -->
     <div class="loop-main">
+        <!-- Context banner (visible in focus mode or when set by child template) -->
+        <div class="loop-context-banner" id="loopContextBanner">
+            <span id="ctxBreadcrumb">{% block loop_context_breadcrumb %}{% endblock %}</span>
+        </div>
         {% block loop_content %}{% endblock %}
     </div>
 </div>
@@ -410,5 +445,55 @@
         if (d.readiness) set('loopReadiness', Math.round(d.readiness.score || 0));
     }).catch(() => {});
 })();
+
+// ── Focus mode toggle ──
+function toggleFocusMode() {
+    const shell = document.querySelector('.loop-shell');
+    shell.classList.toggle('focus-mode');
+    const inFocus = shell.classList.contains('focus-mode');
+    // Show context banner in focus mode
+    const banner = document.getElementById('loopContextBanner');
+    if (banner) banner.classList.toggle('visible', inFocus);
+}
+// Escape exits focus mode
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.querySelector('.loop-shell.focus-mode')) {
+        e.preventDefault();
+        toggleFocusMode();
+    }
+});
+
+// ── Context banner updater ──
+function setContextBanner(html) {
+    const el = document.getElementById('ctxBreadcrumb');
+    if (el) el.innerHTML = html;
+    const banner = document.getElementById('loopContextBanner');
+    if (banner && html) banner.classList.add('visible');
+}
+
+// ── Slash commands for textareas ──
+const SLASH_TEMPLATES = {
+    '/5why': 'Why 1: \nWhy 2: \nWhy 3: \nWhy 4: \nWhy 5: ',
+    '/fishbone': 'Man (Personnel):\n- \n\nMachine (Equipment):\n- \n\nMaterial:\n- \n\nMethod (Process):\n- \n\nMeasurement:\n- \n\nEnvironment:\n- ',
+    '/containment': 'Containment Actions:\n[ ] Quarantine affected material\n[ ] Notify downstream processes\n[ ] 100% inspection of in-process inventory\n[ ] Customer notification (if shipped)\n[ ] Interim control measure: ',
+    '/assertion': 'I believe [cause] affects [effect]\nBasis: [observation/experience]\nFMIS row: ___\nClassification: [critical/major/minor]',
+    '/8d': 'D1 — Team:\nD2 — Problem Description:\nD3 — Containment:\nD4 — Root Cause:\nD5 — Corrective Actions:\nD6 — Verification:\nD7 — Preventive Actions:\nD8 — Congratulate Team:',
+    '/checklist': '[ ] \n[ ] \n[ ] ',
+    '/pc': 'Process: \nStandard/Procedure: \nStep observed: \nFollowed? [Y/N]: \nOutcome correct? [Y/N]: \nNotes: ',
+    '/fft': 'Control being tested: \nInjection method: \nExpected detection: \nSafety review: [Y/N]\nInjection count: \nDetection count: \nResult: [detected/not_detected/partial]',
+};
+
+document.addEventListener('input', e => {
+    if (e.target.tagName !== 'TEXTAREA') return;
+    const ta = e.target;
+    const val = ta.value;
+    // Check if user just typed a slash command
+    for (const [cmd, template] of Object.entries(SLASH_TEMPLATES)) {
+        if (val.endsWith(cmd)) {
+            ta.value = val.slice(0, -cmd.length) + template;
+            break;
+        }
+    }
+});
 </script>
 {% endblock %}
