@@ -519,6 +519,72 @@ urlpatterns = varta_urls + [
         TemplateView.as_view(template_name="loop_pc.html"),
         name="loop_pc_new",
     ),  # New PC
+    # ── Loop Shell (Object 271 QMS redesign) ──
+    path(
+        "app/loop/detect/signals/",
+        TemplateView.as_view(
+            template_name="loop_detect_signals.html",
+            extra_context={"loop_section": "signals"},
+        ),
+        name="loop_detect_signals",
+    ),
+    path(
+        "app/loop/detect/conditions/",
+        TemplateView.as_view(
+            template_name="loop_detect_signals.html",
+            extra_context={"loop_section": "conditions"},
+        ),
+        name="loop_detect_conditions",
+    ),
+    path(
+        "app/loop/detect/fmis/",
+        TemplateView.as_view(
+            template_name="loop_fmis.html",
+            extra_context={"loop_section": "fmis"},
+        ),
+        name="loop_detect_fmis",
+    ),
+    path(
+        "app/loop/investigate/",
+        TemplateView.as_view(
+            template_name="loop_dashboard.html",
+            extra_context={"loop_section": "investigate_active"},
+        ),
+        name="loop_investigate",
+    ),
+    path(
+        "app/loop/standardize/commitments/",
+        TemplateView.as_view(
+            template_name="loop_dashboard.html",
+            extra_context={"loop_section": "commitments"},
+        ),
+        name="loop_standardize_commitments",
+    ),
+    path(
+        "app/loop/standardize/policies/",
+        TemplateView.as_view(
+            template_name="loop_policy.html",
+            extra_context={"loop_section": "policies"},
+        ),
+        name="loop_standardize_policies",
+    ),
+    path(
+        "app/loop/verify/pc/",
+        TemplateView.as_view(
+            template_name="loop_dashboard.html",
+            extra_context={"loop_section": "pc"},
+        ),
+        name="loop_verify_pc",
+    ),
+    path(
+        "app/loop/verify/fft/",
+        TemplateView.as_view(
+            template_name="loop_dashboard.html",
+            extra_context={"loop_section": "fft"},
+        ),
+        name="loop_verify_fft",
+    ),
+    # Legacy route
     path(
         "app/loop/policies/",
         TemplateView.as_view(template_name="loop_policy.html"),

@@ -1,0 +1,348 @@
+{% extends "base_app.html" %}
+
+{% block extra_head %}
+<style>
+/* ── Loop Shell ── */
+.loop-shell {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    min-height: calc(100vh - 56px);
+}
+@media (max-width: 768px) {
+    .loop-shell { grid-template-columns: 1fr; }
+    .loop-sidebar { display: none; }
+}
+
+/* ── Sidebar ── */
+.loop-sidebar {
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    overflow-y: auto;
+    position: sticky;
+    top: 56px;
+    height: calc(100vh - 56px);
+}
+
+.loop-sidebar-header {
+    padding: 0 16px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+}
+.loop-sidebar-header h2 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-primary);
+    margin: 0;
+}
+.loop-readiness {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent-primary);
+    background: var(--accent-primary-dim);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+/* Stage sections */
+.loop-stage {
+    margin-bottom: 4px;
+}
+.loop-stage-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    padding: 10px 16px 4px;
+}
+
+.loop-stage-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: background 0.1s, color 0.1s;
+    border-left: 2px solid transparent;
+}
+.loop-stage-link:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+.loop-stage-link.active {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+    border-left-color: var(--accent-primary);
+    font-weight: 500;
+}
+
+.loop-stage-link .count {
+    margin-left: auto;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-dim);
+    background: var(--bg-primary);
+    padding: 1px 6px;
+    border-radius: 3px;
+}
+
+.loop-sidebar-sep {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 16px;
+}
+
+/* Stage color dots */
+.loop-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.loop-dot.detect { background: #f59e0b; }
+.loop-dot.investigate { background: #60a5fa; }
+.loop-dot.standardize { background: #a78bfa; }
+.loop-dot.verify { background: #4ade80; }
+
+/* ── Main Content Area ── */
+.loop-main {
+    padding: 20px 24px;
+    max-width: 1200px;
+    overflow-y: auto;
+}
+
+.loop-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.loop-page-header h1 {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* ── List + Detail Pattern ── */
+.loop-list-detail {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 16px;
+    align-items: start;
+}
+@media (max-width: 1024px) {
+    .loop-list-detail { grid-template-columns: 1fr; }
+    .loop-detail-panel { display: none; }
+}
+
+.loop-list {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.loop-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+}
+
+.loop-list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.loop-list-item:hover { background: var(--bg-hover); }
+.loop-list-item:last-child { border-bottom: none; }
+.loop-list-item.selected { background: var(--bg-hover); border-left: 2px solid var(--accent-primary); }
+
+.loop-list-item .item-main { flex: 1; min-width: 0; }
+.loop-list-item .item-title { font-size: 13px; color: var(--text-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loop-list-item .item-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+.loop-list-item .item-time { font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+
+/* ── Detail Panel ── */
+.loop-detail-panel {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    position: sticky;
+    top: 76px;
+}
+.loop-detail-panel.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
+.loop-detail-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+}
+.loop-detail-header h3 {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0 0 4px;
+}
+.loop-detail-header .detail-meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.loop-detail-body {
+    padding: 14px;
+}
+.loop-detail-body .detail-section {
+    margin-bottom: 14px;
+}
+.loop-detail-body .detail-label {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+}
+.loop-detail-body .detail-value {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.loop-detail-actions {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* ── Tags (shared) ── */
+.loop-tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.loop-tag.critical { background: rgba(239,68,68,0.15); color: #f87171; }
+.loop-tag.warning { background: rgba(250,204,21,0.15); color: #facc15; }
+.loop-tag.info { background: rgba(96,165,250,0.15); color: #60a5fa; }
+.loop-tag.success { background: rgba(74,222,128,0.15); color: #4ade80; }
+
+{% block loop_extra_style %}{% endblock %}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="loop-shell">
+    <!-- Sidebar -->
+    <div class="loop-sidebar">
+        <div class="loop-sidebar-header">
+            <h2>Loop</h2>
+            <span class="loop-readiness" id="loopReadiness" title="CI Readiness Score">—</span>
+        </div>
+
+        <!-- Detect -->
+        <div class="loop-stage">
+            <div class="loop-stage-label"><span class="loop-dot detect"></span> Detect</div>
+            <a href="/app/loop/detect/signals/" class="loop-stage-link {% if loop_section == 'signals' %}active{% endif %}">
+                Signals <span class="count" id="sidebarSignalCount">—</span>
+            </a>
+            <a href="/app/loop/detect/conditions/" class="loop-stage-link {% if loop_section == 'conditions' %}active{% endif %}">
+                Conditions <span class="count" id="sidebarConditionCount">—</span>
+            </a>
+            <a href="/app/loop/detect/fmis/" class="loop-stage-link {% if loop_section == 'fmis' %}active{% endif %}">
+                FMIS
+            </a>
+        </div>
+
+        <!-- Investigate -->
+        <div class="loop-stage">
+            <div class="loop-stage-label"><span class="loop-dot investigate"></span> Investigate</div>
+            <a href="/app/loop/investigate/" class="loop-stage-link {% if loop_section == 'investigate_active' %}active{% endif %}">
+                Active <span class="count" id="sidebarInvActiveCount">—</span>
+            </a>
+            <a href="/app/loop/investigate/concluded/" class="loop-stage-link {% if loop_section == 'investigate_concluded' %}active{% endif %}">
+                Concluded
+            </a>
+        </div>
+
+        <!-- Standardize -->
+        <div class="loop-stage">
+            <div class="loop-stage-label"><span class="loop-dot standardize"></span> Standardize</div>
+            <a href="/app/loop/standardize/commitments/" class="loop-stage-link {% if loop_section == 'commitments' %}active{% endif %}">
+                Commitments <span class="count" id="sidebarCommitmentCount">—</span>
+            </a>
+            <a href="/app/loop/standardize/documents/" class="loop-stage-link {% if loop_section == 'documents' %}active{% endif %}">
+                Documents
+            </a>
+            <a href="/app/loop/standardize/policies/" class="loop-stage-link {% if loop_section == 'policies' %}active{% endif %}">
+                Policies
+            </a>
+        </div>
+
+        <!-- Verify -->
+        <div class="loop-stage">
+            <div class="loop-stage-label"><span class="loop-dot verify"></span> Verify</div>
+            <a href="/app/loop/verify/pc/" class="loop-stage-link {% if loop_section == 'pc' %}active{% endif %}">
+                Process Confirmation
+            </a>
+            <a href="/app/loop/verify/fft/" class="loop-stage-link {% if loop_section == 'fft' %}active{% endif %}">
+                Forced Failure
+            </a>
+        </div>
+
+        <div class="loop-sidebar-sep"></div>
+
+        <!-- Cross-cutting -->
+        <a href="/app/process-map/" class="loop-stage-link {% if loop_section == 'graph' %}active{% endif %}">
+            Process Map
+        </a>
+        <a href="/app/loop/auditor/" class="loop-stage-link {% if loop_section == 'auditor' %}active{% endif %}">
+            Auditor Portal
+        </a>
+    </div>
+
+    <!-- Main content -->
+    <div class="loop-main">
+        {% block loop_content %}{% endblock %}
+    </div>
+</div>
+
+<script>
+// Load sidebar counts
+(function() {
+    fetch('/api/loop/dashboard/', { headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '' }})
+    .then(r => r.json())
+    .then(d => {
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        if (d.signals) set('sidebarSignalCount', d.signals.untriaged || 0);
+        if (d.conditions) set('sidebarConditionCount', d.conditions.active || 0);
+        if (d.investigations) set('sidebarInvActiveCount', d.investigations.active || 0);
+        if (d.commitments) set('sidebarCommitmentCount', d.commitments.open || 0);
+        if (d.readiness) set('loopReadiness', Math.round(d.readiness.score || 0));
+    }).catch(() => {});
+})();
+</script>
+{% endblock %}
