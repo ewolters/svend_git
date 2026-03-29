@@ -124,6 +124,11 @@
     padding: 20px 24px;
     overflow-y: auto;
 }
+/* When main contains a list-detail layout, remove padding — child handles it */
+.loop-main:has(.loop-list-detail) {
+    padding: 0;
+    overflow: hidden;
+}
 
 .loop-page-header {
     display: flex;
@@ -138,22 +143,28 @@
     margin: 0;
 }
 
-/* ── List + Detail Pattern ── */
+/* ── Detail + List Pattern (detail left, list rail right) ── */
 .loop-list-detail {
     display: grid;
-    grid-template-columns: 1fr 360px;
-    gap: 16px;
-    align-items: start;
+    grid-template-columns: 1fr 280px;
+    gap: 0;
+    height: 100%;
 }
 @media (max-width: 1024px) {
     .loop-list-detail { grid-template-columns: 1fr; }
-    .loop-detail-panel { display: none; }
+    .loop-list-rail { display: none; }
+}
+
+.loop-list-rail {
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    height: calc(100vh - 56px);
+    position: sticky;
+    top: 56px;
 }
 
 .loop-list {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
     overflow: hidden;
 }
 
@@ -188,40 +199,41 @@
 .loop-list-item .item-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
 .loop-list-item .item-time { font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
 
-/* ── Detail Panel ── */
+/* ── Detail Panel (main content area) ── */
 .loop-detail-panel {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    position: sticky;
-    top: 76px;
+    padding: 20px 24px;
+    overflow-y: auto;
 }
 .loop-detail-panel.empty {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 200px;
+    height: 100%;
     color: var(--text-dim);
     font-size: 12px;
 }
 
 .loop-detail-header {
-    padding: 12px 14px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
     border-bottom: 1px solid var(--border);
 }
 .loop-detail-header h3 {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 500;
     color: var(--text-primary);
-    margin: 0 0 4px;
+    margin: 0 0 6px;
 }
 .loop-detail-header .detail-meta {
     font-size: 11px;
     color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .loop-detail-body {
-    padding: 14px;
+    /* no padding — detail panel itself has padding */
 }
 .loop-detail-body .detail-section {
     margin-bottom: 14px;
@@ -241,7 +253,8 @@
 }
 
 .loop-detail-actions {
-    padding: 12px 14px;
+    margin-top: 16px;
+    padding-top: 12px;
     border-top: 1px solid var(--border);
     display: flex;
     gap: 8px;

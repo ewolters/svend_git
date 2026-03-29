@@ -1,14 +1,9 @@
 {% extends "base_loop.html" %}
 
 {% block loop_extra_style %}
-.signal-filters {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 12px;
-}
 .signal-filter-btn {
-    padding: 4px 10px;
-    font-size: 11px;
+    padding: 3px 6px;
+    font-size: 10px;
     border: 1px solid var(--border);
     border-radius: 4px;
     background: transparent;
@@ -26,34 +21,29 @@
 {% endblock %}
 
 {% block loop_content %}
-<div class="loop-page-header">
-    <h1>Signals</h1>
-    <button class="btn btn-primary" onclick="showCreateSignal()">+ Signal</button>
-</div>
-
-<!-- Filters -->
-<div class="signal-filters">
-    <button class="signal-filter-btn active" data-filter="untriaged" onclick="filterSignals(this)">Untriaged</button>
-    <button class="signal-filter-btn" data-filter="acknowledged" onclick="filterSignals(this)">Acknowledged</button>
-    <button class="signal-filter-btn" data-filter="investigating" onclick="filterSignals(this)">Investigating</button>
-    <button class="signal-filter-btn" data-filter="resolved" onclick="filterSignals(this)">Resolved</button>
-    <button class="signal-filter-btn" data-filter="all" onclick="filterSignals(this)">All</button>
-</div>
-
-<!-- List + Detail -->
+<!-- Detail (left, main area) + List rail (right, fixed) -->
 <div class="loop-list-detail">
-    <div class="loop-list" id="signalList">
-        <div class="loop-list-header">
-            <span id="signalListCount">Signals</span>
-            <span style="font-size:10px;color:var(--text-dim);">Source / Severity / Created</span>
-        </div>
-        <div id="signalListItems" style="min-height:100px;">
-            <div style="padding:20px;text-align:center;color:var(--text-dim);font-size:12px;">Loading...</div>
-        </div>
-    </div>
-
     <div class="loop-detail-panel empty" id="signalDetail">
         Select a signal to view details
+    </div>
+
+    <div class="loop-list-rail">
+        <div class="loop-list-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);">
+            <span id="signalListCount" style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-dim);">Signals</span>
+            <button class="btn btn-primary" onclick="showCreateSignal()" style="padding:3px 8px;font-size:10px;">+ New</button>
+        </div>
+        <div style="padding:8px 10px 4px;display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);">
+            <button class="signal-filter-btn active" data-filter="untriaged" onclick="filterSignals(this)">Untriaged</button>
+            <button class="signal-filter-btn" data-filter="acknowledged" onclick="filterSignals(this)">Ack</button>
+            <button class="signal-filter-btn" data-filter="investigating" onclick="filterSignals(this)">Inv</button>
+            <button class="signal-filter-btn" data-filter="resolved" onclick="filterSignals(this)">Resolved</button>
+            <button class="signal-filter-btn" data-filter="all" onclick="filterSignals(this)">All</button>
+        </div>
+        <div class="loop-list" id="signalList">
+            <div id="signalListItems">
+                <div style="padding:20px;text-align:center;color:var(--text-dim);font-size:11px;">Loading...</div>
+            </div>
+        </div>
     </div>
 </div>
 
