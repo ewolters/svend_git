@@ -578,3 +578,251 @@ def write_back_from_investigation(
         len(result["contradictions"]),
     )
     return result
+
+
+# =============================================================================
+# QMS → Graph Bridges (Systems 1-7 alignment)
+# =============================================================================
+
+
+def equipment_calibration_to_graph(
+    tenant_id: UUID,
+    equipment_id: UUID,
+    calibration_result: str = "pass",
+    calibration_date=None,
+    certificate_number: str = "",
+    user=None,
+) -> list:
+    """Record a calibration event as graph evidence on measurement edges.
+
+    Equipment must have linked_process_node set. The calibration result
+    becomes evidence on all edges where this equipment's node is source or target.
+    """
+    from agents_api.models import MeasurementEquipment
+
+    graph = _find_tenant_graph(tenant_id)
+    if not graph:
+        return []
+
+    try:
+        equip = MeasurementEquipment.objects.get(id=equipment_id)
+    except MeasurementEquipment.DoesNotExist:
+        return []
+
+    if not equip.linked_process_node_id:
+        logger.debug("Equipment %s has no linked ProcessNode", equipment_id)
+        return []
+
+    edges = _find_edges_for_node(graph, equip.linked_process_node_id)
+    if not edges:
+        return []
+
+    effect = 1.0 if calibration_result == "pass" else -0.5
+    strength = 0.85 if calibration_result == "pass" else 0.9
+
+    created = []
+    for edge in edges:
+        ev = GraphService.add_evidence(
+            tenant_id=tenant_id,
+            edge_id=edge.id,
+            source_type="gage_rr",
+            observed_at=calibration_date or timezone.now(),
+            source_description=f"Calibration {'PASS' if calibration_result == 'pass' else 'FAIL'}: {equip.name}. Cert: {certificate_number}",
+            effect_size=effect,
+            strength=strength,
+            source_id=equipment_id,
+            created_by=user,
+        )
+        created.append(ev)
+
+    logger.info("Equipment calibration→graph: %d evidence records for %s", len(created), equip.name)
+    return created
+
+
+def ncr_to_graph_context(
+    tenant_id: UUID,
+    ncr_id: UUID,
+    linked_node_ids: list[UUID],
+) -> dict:
+    """Link an NCR to graph nodes for traceability.
+
+    Does NOT create evidence — NCRs are reactive events, not calibration.
+    Returns context about which edges are affected for investigation scoping.
+    """
+    graph = _find_tenant_graph(tenant_id)
+    if not graph:
+        return {"status": "no_graph", "affected_edges": []}
+
+    affected_edges = []
+    for node_id in linked_node_ids:
+        edges = _find_edges_for_node(graph, node_id)
+        affected_edges.extend(edges)
+
+    # Deduplicate
+    seen = set()
+    unique = []
+    for e in affected_edges:
+        if e.id not in seen:
+            seen.add(e.id)
+            unique.append(e)
+
+    return {
+        "status": "ok",
+        "ncr_id": str(ncr_id),
+        "affected_edges": [
+            {
+                "id": str(e.id),
+                "source": e.source.name if hasattr(e, "source") else str(e.source_id),
+                "target": e.target.name if hasattr(e, "target") else str(e.target_id),
+                "posterior": e.posterior_strength,
+                "is_calibrated": e.is_calibrated,
+            }
+            for e in unique
+        ],
+        "suggested_investigation_nodes": [str(n) for n in linked_node_ids],
+    }
+
+
+def audit_finding_to_graph_context(
+    tenant_id: UUID,
+    audit_id: UUID,
+    finding_severity: str,
+    linked_node_ids: list[UUID],
+    finding_description: str = "",
+) -> dict:
+    """Link an audit finding to graph context.
+
+    Major/critical findings suggest investigation scoping.
+    Does NOT auto-create Signals — that's the user's decision (HiTL).
+    """
+    graph = _find_tenant_graph(tenant_id)
+    if not graph:
+        return {"status": "no_graph"}
+
+    affected_edges = []
+    for node_id in linked_node_ids:
+        affected_edges.extend(_find_edges_for_node(graph, node_id))
+
+    seen = set()
+    unique = [e for e in affected_edges if e.id not in seen and not seen.add(e.id)]
+
+    return {
+        "status": "ok",
+        "audit_id": str(audit_id),
+        "severity": finding_severity,
+        "affected_edges": len(unique),
+        "suggested_action": "investigate" if finding_severity in ("major", "critical") else "monitor",
+        "suggested_investigation_nodes": [str(n) for n in linked_node_ids],
+    }
+
+
+def training_gaps_from_graph(
+    tenant_id: UUID,
+    graph_id: UUID | None = None,
+) -> list[dict]:
+    """Identify training needs from graph gaps (System 6 — reader).
+
+    Returns list of gap-derived training suggestions:
+    - Uncalibrated edges → "Training needed on measurement/DOE for this relationship"
+    - Measurement gaps → "No measurement system — competency needed"
+    - Stale edges → "Recalibration training needed"
+    """
+    graph = _find_tenant_graph(tenant_id) if not graph_id else None
+    if graph_id:
+        try:
+            graph = ProcessGraph.objects.get(id=graph_id, tenant_id=tenant_id)
+        except ProcessGraph.DoesNotExist:
+            return []
+    if not graph:
+        return []
+
+    report = GraphService.gap_report(tenant_id, graph.id)
+    suggestions = []
+
+    for edge in report.uncalibrated_edges:
+        suggestions.append(
+            {
+                "type": "uncalibrated_edge",
+                "description": f"Relationship {edge.source.name} → {edge.target.name} has no empirical evidence. Consider DOE training.",
+                "priority": "medium",
+                "node_ids": [str(edge.source_id), str(edge.target_id)],
+            }
+        )
+
+    for node in report.measurement_gaps:
+        suggestions.append(
+            {
+                "type": "measurement_gap",
+                "description": f"Node '{node.name}' has no linked measurement system. Gage R&R competency needed.",
+                "priority": "high",
+                "node_ids": [str(node.id)],
+            }
+        )
+
+    for edge in report.stale_edges:
+        suggestions.append(
+            {
+                "type": "stale_edge",
+                "description": f"Relationship {edge.source.name} → {edge.target.name} is stale. Recalibration investigation needed.",
+                "priority": "high",
+                "node_ids": [str(edge.source_id), str(edge.target_id)],
+            }
+        )
+
+    return suggestions
+
+
+def management_review_graph_input(
+    tenant_id: UUID,
+    graph_id: UUID | None = None,
+) -> dict:
+    """Generate graph health metrics as management review input (System 7 — reader).
+
+    Returns summary of graph state for inclusion in review agenda.
+    """
+    graph = _find_tenant_graph(tenant_id) if not graph_id else None
+    if graph_id:
+        try:
+            graph = ProcessGraph.objects.get(id=graph_id, tenant_id=tenant_id)
+        except ProcessGraph.DoesNotExist:
+            return {"status": "no_graph"}
+    if not graph:
+        return {"status": "no_graph"}
+
+    report = GraphService.gap_report(tenant_id, graph.id)
+    total_edges = graph.edges.count()
+    total_nodes = graph.nodes.count()
+    calibrated = graph.edges.filter(evidence_count__gt=0).exclude(provenance="fmea_assertion").count()
+
+    return {
+        "status": "ok",
+        "graph_name": graph.name,
+        "summary": {
+            "total_nodes": total_nodes,
+            "total_edges": total_edges,
+            "calibrated_edges": calibrated,
+            "calibration_rate": round(calibrated / total_edges * 100, 1) if total_edges else 0,
+            "uncalibrated_edges": len(report.uncalibrated_edges),
+            "stale_edges": len(report.stale_edges),
+            "contradicted_edges": len(report.contradicted_edges),
+            "measurement_gaps": len(report.measurement_gaps),
+            "total_gaps": report.total_gaps,
+        },
+        "top_priorities": [
+            {
+                "type": "contradicted",
+                "count": len(report.contradicted_edges),
+                "action": "Investigate edge contradictions — evidence conflicts with current model",
+            },
+            {
+                "type": "stale",
+                "count": len(report.stale_edges),
+                "action": "Recalibrate stale edges — process may have changed since last evidence",
+            },
+            {
+                "type": "uncalibrated",
+                "count": len(report.uncalibrated_edges),
+                "action": "Run DOEs to calibrate FMEA assertions with empirical data",
+            },
+        ],
+    }
