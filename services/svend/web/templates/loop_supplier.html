@@ -161,6 +161,38 @@
     </div>
 </div>
 
+<!-- Create Claim Modal -->
+<div class="sv-modal-overlay" id="createClaimModal" style="display:none;">
+    <div class="sv-modal">
+        <h3>File Supplier Claim</h3>
+        <label>Title</label>
+        <input type="text" id="claimTitle" placeholder="Brief description of the issue">
+        <label>Claim Type</label>
+        <select id="claimType">
+            <option value="quality_defect">Quality Defect</option>
+            <option value="delivery">Delivery Issue</option>
+            <option value="documentation">Documentation</option>
+            <option value="specification">Specification Deviation</option>
+            <option value="packaging">Packaging / Handling</option>
+            <option value="contamination">Contamination</option>
+        </select>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div><label>Part Number</label><input type="text" id="claimPartNo" placeholder="M6-HEX-SS"></div>
+            <div><label>Lot Number</label><input type="text" id="claimLotNo" placeholder="2026-L0847"></div>
+            <div><label>Qty Affected</label><input type="number" id="claimQtyAffected" value="0" min="0"></div>
+            <div><label>Qty Rejected</label><input type="number" id="claimQtyRejected" value="0" min="0"></div>
+        </div>
+        <label>Defect Description</label>
+        <textarea id="claimDefect" rows="3" placeholder="What specifically was wrong? How was it detected?"></textarea>
+        <label>Description</label>
+        <textarea id="claimDesc" rows="2" placeholder="Additional context..."></textarea>
+        <div class="sv-modal-actions">
+            <button class="btn" onclick="closeModal('createClaimModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="createClaim()">File Claim (Draft)</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let suppliers = [];
 let currentSupFilter = 'all';
@@ -353,24 +385,137 @@ function renderSupDetail(s) {
 
 function loadSupplierClaims(supplierId) {
     fetch(`/api/loop/claims/?supplier_id=${supplierId}`, { headers: { 'X-CSRFToken': getCSRF() }})
-    .then(r => r.ok ? r.json() : { claims: [] })
-    .then(data => {
+    .then(r => {
+        if (!r.ok) throw new Error();
+        return r.json();
+    })
+    .then(claims => {
         const el = document.getElementById('supClaimsList');
-        const claims = data.claims || [];
-        if (!claims.length) {
-            el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);">No claims filed</div>';
+        if (!Array.isArray(claims) || !claims.length) {
+            el.innerHTML = `<div style="font-size:11px;color:var(--text-dim);">No claims filed</div>
+                <button class="btn" onclick="openCreateClaim('${supplierId}')" style="margin-top:6px;padding:3px 8px;font-size:10px;">File Claim</button>`;
             return;
         }
-        el.innerHTML = claims.map(c => `
-            <div class="sup-record-item">
-                <span class="rec-title">${esc(c.title)}</span>
-                <span class="sup-status ${c.status}" style="font-size:9px;">${c.status}</span>
-            </div>
-        `).join('');
+        el.innerHTML = claims.map(c => {
+            const overdue = c.response_is_overdue ? ' <span style="color:#f87171;font-size:9px;">OVERDUE</span>' : '';
+            return `<div class="sup-record-item" style="cursor:pointer;" onclick="viewClaim('${c.id}')">
+                <div style="flex:1;">
+                    <div class="rec-title">${esc(c.title)}</div>
+                    <div style="font-size:10px;color:var(--text-dim);">${c.part_number || ''} ${c.lot_number ? '/ ' + c.lot_number : ''}</div>
+                </div>
+                <div style="text-align:right;">
+                    <span class="sup-status ${c.status}" style="font-size:9px;">${c.status.replace(/_/g,' ')}</span>${overdue}
+                    ${c.response_count ? `<div style="font-size:9px;color:var(--text-dim);">${c.response_count} response${c.response_count > 1 ? 's' : ''}</div>` : ''}
+                </div>
+            </div>`;
+        }).join('') + `<button class="btn" onclick="openCreateClaim('${supplierId}')" style="margin-top:8px;padding:3px 8px;font-size:10px;">+ File Claim</button>`;
     })
     .catch(() => {
         const el = document.getElementById('supClaimsList');
-        if (el) el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);">Claims API not available yet</div>';
+        if (el) el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);">Claims unavailable</div>';
+    });
+}
+
+function viewClaim(claimId) {
+    fetch(`/api/loop/claims/${claimId}/`, { headers: { 'X-CSRFToken': getCSRF() }})
+    .then(r => r.json())
+    .then(c => {
+        // Replace the claims section with full claim detail
+        const el = document.getElementById('supClaimsList');
+        let responsesHtml = '';
+        if (c.responses && c.responses.length) {
+            responsesHtml = c.responses.map(r => `
+                <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.03);">
+                    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:4px;">
+                        <span>Response #${r.revision} — ${r.root_cause_category.replace(/_/g,' ')}</span>
+                        <span>${r.accepted === true ? '<span style="color:#4ade80;">Accepted</span>' : r.accepted === false ? '<span style="color:#f87171;">Rejected</span>' : 'Pending review'}</span>
+                    </div>
+                    ${r.response_quality_score != null ? `<div style="font-size:10px;margin-bottom:4px;">Quality: <span style="color:${r.response_quality_score >= 0.7 ? '#4ade80' : r.response_quality_score >= 0.4 ? '#facc15' : '#f87171'};font-family:'JetBrains Mono',monospace;">${(r.response_quality_score * 100).toFixed(0)}%</span></div>` : ''}
+                    ${r.quality_flags && r.quality_flags.length ? `<div style="font-size:10px;color:#f59e0b;margin-bottom:4px;">${r.quality_flags.map(f => '⚑ ' + esc(f)).join('<br>')}</div>` : ''}
+                    <div style="font-size:11px;"><strong style="color:var(--text-dim);">Root cause:</strong> <span style="color:var(--text-primary);">${esc(r.root_cause_description)}</span></div>
+                    <div style="font-size:11px;"><strong style="color:var(--text-dim);">Corrective:</strong> <span style="color:var(--text-primary);">${esc(r.corrective_action)}</span></div>
+                    <div style="font-size:11px;"><strong style="color:var(--text-dim);">Preventive:</strong> <span style="color:var(--text-primary);">${esc(r.preventive_action)}</span></div>
+                    ${r.reviewer_notes ? `<div style="font-size:11px;margin-top:4px;"><strong style="color:var(--text-dim);">Reviewer:</strong> <span style="color:var(--text-secondary);">${esc(r.reviewer_notes)}</span></div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        let verificationsHtml = '';
+        if (c.verifications && c.verifications.length) {
+            verificationsHtml = `<div style="margin-top:8px;"><div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;">Verifications</div>` +
+                c.verifications.map(v => `
+                    <div style="font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.02);">
+                        <span class="sup-status ${v.result === 'conforming' ? 'approved' : v.result === 'nonconforming' ? 'suspended' : 'conditional'}" style="font-size:9px;">${v.result}</span>
+                        ${v.verification_type.replace(/_/g,' ')} — ${esc(v.evidence_notes || '')}
+                    </div>
+                `).join('') + '</div>';
+        }
+
+        const financialHtml = (c.cost_of_quality || c.credit_requested || c.credit_received) ? `
+            <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;">
+                ${c.cost_of_quality ? `<span><span style="color:var(--text-dim);">COPQ:</span> $${Number(c.cost_of_quality).toLocaleString()}</span>` : ''}
+                ${c.credit_requested ? `<span><span style="color:var(--text-dim);">Requested:</span> $${Number(c.credit_requested).toLocaleString()}</span>` : ''}
+                ${c.credit_received ? `<span><span style="color:var(--text-dim);">Received:</span> $${Number(c.credit_received).toLocaleString()}</span>` : ''}
+            </div>` : '';
+
+        el.innerHTML = `
+            <div style="margin-bottom:8px;">
+                <button class="btn" onclick="selectSup('${c.supplier_id}')" style="padding:2px 6px;font-size:10px;">← Back to supplier</button>
+            </div>
+            <div style="font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:4px;">${esc(c.title)}</div>
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+                <span class="sup-status ${c.status}" style="font-size:9px;">${c.status.replace(/_/g,' ')}</span>
+                <span style="font-size:10px;color:var(--text-dim);">${c.claim_type.replace(/_/g,' ')}</span>
+                ${c.response_is_overdue ? '<span style="font-size:10px;color:#f87171;font-weight:600;">RESPONSE OVERDUE</span>' : ''}
+            </div>
+            ${c.description ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">${esc(c.description)}</div>` : ''}
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px;margin-bottom:8px;">
+                <div><span style="color:var(--text-dim);">Part:</span> ${esc(c.part_number || '—')}</div>
+                <div><span style="color:var(--text-dim);">Lot:</span> ${esc(c.lot_number || '—')}</div>
+                <div><span style="color:var(--text-dim);">Qty:</span> ${c.quantity_affected} affected, ${c.quantity_rejected} rejected</div>
+            </div>
+            ${c.defect_description ? `<div style="font-size:11px;margin-bottom:6px;"><span style="color:var(--text-dim);">Defect:</span> ${esc(c.defect_description)}</div>` : ''}
+            ${c.disposition ? `<div style="font-size:11px;margin-bottom:6px;"><span style="color:var(--text-dim);">Disposition:</span> ${c.disposition.replace(/_/g,' ')}</div>` : ''}
+            ${financialHtml}
+            ${responsesHtml ? `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);"><div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Supplier Responses (${c.responses.length})</div>${responsesHtml}</div>` : ''}
+            ${verificationsHtml}
+            ${c.portal_is_valid ? `<div style="margin-top:10px;font-size:10px;color:var(--text-dim);">Portal link active (expires ${new Date(c.portal_expires_at || '').toLocaleDateString()})</div>` : ''}`;
+    });
+}
+
+let _claimSupplierId = null;
+function openCreateClaim(supplierId) {
+    _claimSupplierId = supplierId;
+    ['claimTitle','claimPartNo','claimLotNo','claimDesc','claimDefect'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.getElementById('claimQtyAffected').value = '0';
+    document.getElementById('claimQtyRejected').value = '0';
+    openModal('createClaimModal');
+}
+function createClaim() {
+    const title = document.getElementById('claimTitle').value.trim();
+    if (!title) { svToast('Claim title is required', 'warning'); return; }
+    fetch('/api/loop/claims/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({
+            supplier_id: _claimSupplierId,
+            claim_type: document.getElementById('claimType').value,
+            title: title,
+            description: document.getElementById('claimDesc').value,
+            part_number: document.getElementById('claimPartNo').value,
+            lot_number: document.getElementById('claimLotNo').value,
+            quantity_affected: parseInt(document.getElementById('claimQtyAffected').value) || 0,
+            quantity_rejected: parseInt(document.getElementById('claimQtyRejected').value) || 0,
+            defect_description: document.getElementById('claimDefect').value,
+        }),
+    })
+    .then(r => r.json())
+    .then(() => {
+        closeModal('createClaimModal');
+        if (selectedSupId) selectSup(selectedSupId);
     });
 }
 
