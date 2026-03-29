@@ -555,8 +555,8 @@ urlpatterns = varta_urls + [
     path(
         "app/loop/standardize/commitments/",
         TemplateView.as_view(
-            template_name="loop_placeholder.html",
-            extra_context={"loop_section": "commitments", "loop_section_title": "Commitments"},
+            template_name="loop_commitments.html",
+            extra_context={"loop_section": "commitments"},
         ),
         name="loop_standardize_commitments",
     ),

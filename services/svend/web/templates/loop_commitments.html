@@ -1,0 +1,349 @@
+{% extends "base_loop.html" %}
+
+{% block loop_extra_style %}
+/* ── Commitment filters ── */
+.cmt-filter-btn {
+    padding: 3px 6px;
+    font-size: 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+.cmt-filter-btn:hover { border-color: var(--accent-primary-border); color: var(--text-primary); }
+.cmt-filter-btn.active { background: var(--accent-primary-dim); border-color: var(--accent-primary-border); color: var(--accent-primary); }
+
+/* ── Status indicators ── */
+.cmt-status { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+.cmt-status.open { background: rgba(96,165,250,0.15); color: #60a5fa; }
+.cmt-status.in_progress { background: rgba(250,204,21,0.15); color: #facc15; }
+.cmt-status.fulfilled { background: rgba(74,222,128,0.15); color: #4ade80; }
+.cmt-status.broken { background: rgba(239,68,68,0.15); color: #f87171; }
+.cmt-status.cancelled { background: rgba(156,163,175,0.15); color: #9ca3af; }
+.cmt-status.overdue { background: rgba(239,68,68,0.2); color: #f87171; }
+.cmt-status.blocked { background: rgba(250,204,21,0.2); color: #facc15; }
+
+/* ── Transition type badge ── */
+.cmt-transition { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(167,139,250,0.12); color: #a78bfa; font-weight: 500; }
+
+/* ── Preconditions ── */
+.cmt-preconditions { margin-top: 12px; }
+.cmt-precondition { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 12px; }
+.cmt-precondition:last-child { border-bottom: none; }
+.cmt-precondition .pc-status { flex-shrink: 0; width: 14px; height: 14px; border-radius: 50%; margin-top: 1px; }
+.cmt-precondition .pc-status.met { background: #4ade80; }
+.cmt-precondition .pc-status.pending { background: #facc15; }
+.cmt-precondition .pc-status.unmet { background: #f87171; }
+.cmt-precondition .pc-desc { color: var(--text-primary); }
+
+/* ── Policy panel ── */
+.cmt-policy-panel { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.cmt-policy-panel h4 {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-dim); margin: 0 0 10px;
+}
+.policy-rule {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px;
+    margin-bottom: 6px; font-size: 11px;
+}
+.policy-rule .rule-name { color: var(--text-primary); font-weight: 500; }
+.policy-rule .rule-scope { color: var(--text-dim); font-size: 10px; }
+.policy-rule .rule-status { font-size: 10px; }
+.policy-rule .rule-status.active { color: #4ade80; }
+.policy-rule .rule-status.inactive { color: #9ca3af; }
+
+/* ── Create form in rail ── */
+.cmt-create-form { padding: 10px 12px; border-top: 1px solid var(--border); }
+.cmt-create-form label { font-size: 10px; margin-bottom: 2px; }
+.cmt-create-form input, .cmt-create-form select, .cmt-create-form textarea {
+    font-size: 11px; padding: 4px 6px; margin-bottom: 6px;
+}
+.cmt-create-form textarea { min-height: 40px; }
+{% endblock %}
+
+{% block loop_content %}
+<div class="loop-list-detail">
+    <!-- Detail panel (left, main area) -->
+    <div class="loop-detail-panel empty" id="cmtDetail">
+        Select a commitment to view details
+
+        <!-- Policy panel shows when no commitment selected -->
+        <div class="cmt-policy-panel" id="policyPanelEmpty" style="position:absolute;bottom:20px;left:24px;right:24px;">
+            <h4>Active Policies</h4>
+            <div id="policyListEmpty" style="color:var(--text-dim);font-size:11px;">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Right rail -->
+    <div class="loop-list-rail">
+        <div class="loop-list-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);">
+            <span id="cmtListCount" style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-dim);">Commitments</span>
+        </div>
+        <div style="padding:8px 10px 4px;display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);">
+            <button class="cmt-filter-btn active" data-filter="active" onclick="filterCmts(this)">Active</button>
+            <button class="cmt-filter-btn" data-filter="fulfilled" onclick="filterCmts(this)">Done</button>
+            <button class="cmt-filter-btn" data-filter="broken" onclick="filterCmts(this)">Broken</button>
+            <button class="cmt-filter-btn" data-filter="all" onclick="filterCmts(this)">All</button>
+        </div>
+        <div class="loop-list" id="cmtList">
+            <div id="cmtListItems">
+                <div style="padding:20px;text-align:center;color:var(--text-dim);font-size:11px;">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Create commitment form -->
+        <div class="cmt-create-form">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-dim);margin-bottom:8px;">New Commitment</div>
+            <label>Title</label>
+            <input type="text" id="newCmtTitle" placeholder="What needs to happen?">
+            <label>Due date</label>
+            <input type="date" id="newCmtDue">
+            <label>Transition type</label>
+            <select id="newCmtTransition">
+                <option value="">None</option>
+                <option value="revise_document">Revise Document</option>
+                <option value="create_document">Create Document</option>
+                <option value="add_control">Add Control (FMIS)</option>
+                <option value="train">Training</option>
+                <option value="process_confirmation">Schedule PC</option>
+                <option value="forced_failure">Schedule FFT</option>
+                <option value="monitor">Set Up Monitoring</option>
+                <option value="audit_zone">Zone Audit</option>
+                <option value="first_article">First Article</option>
+            </select>
+            <label>Description</label>
+            <textarea id="newCmtDesc" rows="2" placeholder="Optional details..."></textarea>
+            <button class="btn btn-primary" onclick="createCommitment()" style="width:100%;margin-top:4px;font-size:11px;">Create</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let commitments = [];
+let policies = [];
+let currentCmtFilter = 'active';
+let selectedCmtId = null;
+
+function getCSRF() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (el) return el.value;
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+}
+
+function loadCommitments() {
+    fetch('/api/loop/commitments/', { headers: { 'X-CSRFToken': getCSRF() }})
+    .then(r => r.json())
+    .then(data => {
+        commitments = data.commitments || [];
+        renderCmtList();
+    });
+}
+
+function loadPolicies() {
+    fetch('/api/loop/policies/', { headers: { 'X-CSRFToken': getCSRF() }})
+    .then(r => r.json())
+    .then(data => {
+        policies = data.policies || [];
+        renderPolicyPanel('policyListEmpty');
+    });
+}
+
+function filterCmts(btn) {
+    document.querySelectorAll('.cmt-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentCmtFilter = btn.dataset.filter;
+    renderCmtList();
+}
+
+function renderCmtList() {
+    let filtered;
+    if (currentCmtFilter === 'all') {
+        filtered = commitments;
+    } else if (currentCmtFilter === 'active') {
+        filtered = commitments.filter(c => c.status === 'open' || c.status === 'in_progress');
+    } else {
+        filtered = commitments.filter(c => c.status === currentCmtFilter);
+    }
+
+    const el = document.getElementById('cmtListItems');
+    const countEl = document.getElementById('cmtListCount');
+    countEl.textContent = `${filtered.length} commitment${filtered.length !== 1 ? 's' : ''}`;
+
+    if (!filtered.length) {
+        el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-dim);font-size:11px;">No commitments</div>';
+        return;
+    }
+
+    el.innerHTML = filtered.map(c => {
+        const selected = c.id === selectedCmtId ? ' selected' : '';
+        const statusLabel = c.is_overdue ? 'overdue' : c.is_blocked ? 'blocked' : c.status;
+        const statusClass = c.is_overdue ? 'overdue' : c.is_blocked ? 'blocked' : c.status;
+        const dueStr = c.due_date || '';
+        return `<div class="loop-list-item${selected}" onclick="selectCmt('${c.id}')">
+            <div class="item-main">
+                <div class="item-title">${escHtml(c.title)}</div>
+                <div class="item-meta">
+                    <span class="cmt-status ${statusClass}">${statusLabel.replace('_',' ')}</span>
+                    ${c.transition_type ? `<span class="cmt-transition">${c.transition_type.replace(/_/g,' ')}</span>` : ''}
+                </div>
+            </div>
+            <span class="item-time">${dueStr}</span>
+        </div>`;
+    }).join('');
+}
+
+function selectCmt(id) {
+    selectedCmtId = id;
+    renderCmtList();
+    const c = commitments.find(x => x.id === id);
+    if (!c) return;
+
+    const panel = document.getElementById('cmtDetail');
+    panel.classList.remove('empty');
+
+    const statusLabel = c.is_overdue ? 'overdue' : c.is_blocked ? 'blocked' : c.status;
+    const statusClass = c.is_overdue ? 'overdue' : c.is_blocked ? 'blocked' : c.status;
+
+    // Preconditions
+    let preHtml = '';
+    if (c.preconditions && c.preconditions.length) {
+        preHtml = `<div class="cmt-preconditions">
+            <div class="detail-label">Preconditions</div>
+            ${c.preconditions.map(p => `
+                <div class="cmt-precondition">
+                    <div class="pc-status ${p.status}"></div>
+                    <div class="pc-desc">${escHtml(p.description)}</div>
+                </div>
+            `).join('')}
+        </div>`;
+    }
+
+    // Actions
+    let actionsHtml = '';
+    if (c.status === 'open') {
+        actionsHtml = `
+            <button class="btn btn-primary" onclick="cmtAction('${c.id}','start')">Start</button>
+            <button class="btn" onclick="cmtAction('${c.id}','cancel')">Cancel</button>`;
+    } else if (c.status === 'in_progress') {
+        actionsHtml = `
+            <button class="btn btn-primary" onclick="cmtAction('${c.id}','fulfill')">Fulfill</button>
+            <button class="btn" onclick="cmtAction('${c.id}','break')" style="border-color:rgba(239,68,68,0.3);color:#f87171;">Mark Broken</button>`;
+    }
+
+    panel.innerHTML = `
+        <div class="loop-detail-header">
+            <h3>${escHtml(c.title)}</h3>
+            <div class="detail-meta">
+                <span class="cmt-status ${statusClass}">${statusLabel.replace('_',' ')}</span>
+                ${c.transition_type ? `<span class="cmt-transition">${c.transition_type.replace(/_/g,' ')}</span>` : ''}
+                <span style="color:var(--text-dim);">Due ${c.due_date || '—'}</span>
+            </div>
+        </div>
+        <div class="loop-detail-body">
+            ${c.description ? `<div class="detail-section"><div class="detail-label">Description</div><div class="detail-value">${escHtml(c.description)}</div></div>` : ''}
+            <div class="detail-section" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                    <div class="detail-label">Source</div>
+                    <div class="detail-value">${c.source_type ? c.source_type.replace(/_/g,' ') : '—'}</div>
+                </div>
+                <div>
+                    <div class="detail-label">Owner</div>
+                    <div class="detail-value" style="font-family:'JetBrains Mono',monospace;font-size:11px;">${c.owner_id ? c.owner_id.substring(0,8) : '—'}</div>
+                </div>
+            </div>
+            ${c.source_investigation_id ? `<div class="detail-section"><div class="detail-label">Source Investigation</div><div class="detail-value"><a href="/app/loop/investigate/${c.source_investigation_id}/" style="color:var(--accent-primary);text-decoration:none;">${c.source_investigation_id.substring(0,8)}...</a></div></div>` : ''}
+            ${preHtml}
+            ${c.fulfilled_at ? `<div class="detail-section"><div class="detail-label">Fulfilled</div><div class="detail-value">${new Date(c.fulfilled_at).toLocaleString()}</div></div>` : ''}
+            <div class="detail-section">
+                <div class="detail-label">Created</div>
+                <div class="detail-value">${c.created_at ? new Date(c.created_at).toLocaleString() : '—'}</div>
+            </div>
+        </div>
+        ${actionsHtml ? `<div class="loop-detail-actions">${actionsHtml}</div>` : ''}
+        <div class="cmt-policy-panel">
+            <h4>Active Policies</h4>
+            <div id="policyListDetail"></div>
+        </div>`;
+
+    renderPolicyPanel('policyListDetail');
+}
+
+function cmtAction(id, action) {
+    const body = { action: action };
+    if (action === 'break') {
+        const reason = prompt('Reason for marking broken:');
+        if (reason === null) return;
+        body.reason = reason;
+    }
+    fetch(`/api/loop/commitments/${id}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify(body),
+    })
+    .then(r => r.json())
+    .then(() => {
+        selectedCmtId = null;
+        loadCommitments();
+        const panel = document.getElementById('cmtDetail');
+        panel.innerHTML = 'Select a commitment to view details';
+        panel.classList.add('empty');
+    });
+}
+
+function createCommitment() {
+    const title = document.getElementById('newCmtTitle').value.trim();
+    const due = document.getElementById('newCmtDue').value;
+    if (!title) return;
+    if (!due) { alert('Due date is required — a commitment without a date is a wish'); return; }
+
+    fetch('/api/loop/commitments/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({
+            title: title,
+            due_date: due,
+            transition_type: document.getElementById('newCmtTransition').value,
+            description: document.getElementById('newCmtDesc').value,
+        }),
+    })
+    .then(r => r.json())
+    .then(() => {
+        document.getElementById('newCmtTitle').value = '';
+        document.getElementById('newCmtDue').value = '';
+        document.getElementById('newCmtDesc').value = '';
+        document.getElementById('newCmtTransition').value = '';
+        loadCommitments();
+    });
+}
+
+function renderPolicyPanel(targetId) {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    if (!policies.length) {
+        el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);">No policies configured</div>';
+        return;
+    }
+    el.innerHTML = policies.slice(0, 8).map(p => `
+        <div class="policy-rule">
+            <div>
+                <div class="rule-name">${escHtml(p.rule_key || '').replace(/_/g,' ')}</div>
+                <div class="rule-scope">${p.scope_display || p.scope || ''}</div>
+            </div>
+            <span class="rule-status ${p.is_active ? 'active' : 'inactive'}">${p.is_active ? 'Active' : 'Off'}</span>
+        </div>
+    `).join('') + (policies.length > 8 ? `<div style="font-size:10px;color:var(--text-dim);margin-top:4px;">+ ${policies.length - 8} more</div>` : '');
+}
+
+function escHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadCommitments();
+loadPolicies();
+</script>
+{% endblock %}
