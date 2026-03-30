@@ -1,0 +1,603 @@
+/*
+ * ══════════════════════════════════════════════════════════════
+ *  SVEND WIDGET LIBRARY
+ *  Single source of truth for all UI components.
+ *  No charts (ForgeViz handles those).
+ *  No per-template CSS. Everything here.
+ * ══════════════════════════════════════════════════════════════
+ *
+ *  NAMING: sv-{component}[-{variant}]
+ *  COLORS: CSS variables only — never hardcoded
+ *  RADIUS: 4px (inputs/buttons), 6px (cards/panels), full (pills/dots)
+ *  SPACING: 4px grid (4, 6, 8, 10, 12, 14, 16, 20, 24)
+ *  FONTS: Inter (UI), JetBrains Mono (values/code)
+ *
+ * ══════════════════════════════════════════════════════════════
+ */
+
+
+/* ────────────────────────────────────────────────────────────
+ * 1. BUTTONS
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+.sv-btn:hover { border-color: var(--accent-primary-border); color: var(--text-primary); }
+.sv-btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+.sv-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Primary — filled accent */
+.sv-btn-primary { background: var(--accent-primary); border-color: var(--accent-primary); color: #fff; }
+.sv-btn-primary:hover { opacity: 0.9; }
+
+/* Danger — red outline */
+.sv-btn-danger { border-color: var(--error-border); color: var(--error); }
+.sv-btn-danger:hover { background: var(--error-dim); }
+
+/* Ghost — no border */
+.sv-btn-ghost { border-color: transparent; }
+.sv-btn-ghost:hover { background: var(--bg-hover); border-color: transparent; }
+
+/* Sizes */
+.sv-btn-sm { padding: 3px 8px; font-size: 10px; }
+.sv-btn-lg { padding: 8px 16px; font-size: 13px; }
+
+/* Icon-only */
+.sv-btn-icon { padding: 4px; border-radius: 4px; }
+.sv-btn-icon svg { width: 16px; height: 16px; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 2. FORM CONTROLS
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-field { margin-bottom: 10px; }
+
+.sv-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+}
+
+.sv-input, .sv-select, .sv-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    transition: border-color 0.15s;
+}
+.sv-input:focus, .sv-select:focus, .sv-textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary-border);
+    background: var(--bg-tertiary);
+}
+.sv-input:disabled, .sv-select:disabled, .sv-textarea:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.sv-textarea { min-height: 60px; resize: vertical; }
+.sv-select { cursor: pointer; }
+
+/* Inline label+input row */
+.sv-field-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.sv-field-row .sv-label { margin-bottom: 0; min-width: 80px; }
+.sv-field-row .sv-input, .sv-field-row .sv-select { flex: 1; }
+
+/* Grid of fields */
+.sv-field-grid { display: grid; gap: 8px; }
+.sv-field-grid-2 { grid-template-columns: 1fr 1fr; }
+.sv-field-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+/* Validation */
+.sv-field-error .sv-input, .sv-field-error .sv-select, .sv-field-error .sv-textarea {
+    border-color: var(--error);
+}
+.sv-field-hint {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+.sv-field-error .sv-field-hint { color: var(--error); }
+
+/* Checkbox */
+.sv-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.sv-checkbox input[type="checkbox"] { margin: 0; }
+
+/* Toggle switch */
+.sv-toggle {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    flex-shrink: 0;
+}
+.sv-toggle input { opacity: 0; width: 0; height: 0; }
+.sv-toggle-track {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border);
+    border-radius: 9px;
+    transition: background 0.15s;
+    cursor: pointer;
+}
+.sv-toggle-track::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    left: 2px; top: 2px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    transition: transform 0.15s, background 0.15s;
+}
+.sv-toggle input:checked + .sv-toggle-track { background: var(--accent-primary-dim); }
+.sv-toggle input:checked + .sv-toggle-track::after {
+    transform: translateX(14px);
+    background: var(--accent-primary);
+}
+
+
+/* ────────────────────────────────────────────────────────────
+ * 3. MODAL DIALOGS
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.6);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.sv-modal-overlay.open { display: flex; }
+
+.sv-modal {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    width: 440px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+.sv-modal-wide { width: 640px; }
+.sv-modal-narrow { width: 340px; }
+
+.sv-modal h3 {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0 0 14px;
+}
+
+.sv-modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+
+/* ────────────────────────────────────────────────────────────
+ * 4. BADGES & PILLS
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* Color by explicit class */
+.sv-badge-green { background: rgba(74,222,128,0.15); color: #4ade80; }
+.sv-badge-amber { background: rgba(250,204,21,0.15); color: #facc15; }
+.sv-badge-red { background: rgba(239,68,68,0.15); color: #f87171; }
+.sv-badge-blue { background: rgba(96,165,250,0.15); color: #60a5fa; }
+.sv-badge-purple { background: rgba(167,139,250,0.15); color: #a78bfa; }
+.sv-badge-dim { background: rgba(156,163,175,0.15); color: #9ca3af; }
+
+/* Color by data-status attribute (auto) */
+.sv-badge[data-status="approved"], .sv-badge[data-status="fulfilled"],
+.sv-badge[data-status="completed"], .sv-badge[data-status="resolved"],
+.sv-badge[data-status="closed"], .sv-badge[data-status="conforming"],
+.sv-badge[data-status="detected"], .sv-badge[data-status="system_works"]
+{ background: rgba(74,222,128,0.15); color: #4ade80; }
+
+.sv-badge[data-status="in_progress"], .sv-badge[data-status="investigating"],
+.sv-badge[data-status="acknowledged"], .sv-badge[data-status="conditional"],
+.sv-badge[data-status="pending"], .sv-badge[data-status="standard_unclear"],
+.sv-badge[data-status="marginal"], .sv-badge[data-status="partially_detected"]
+{ background: rgba(250,204,21,0.15); color: #facc15; }
+
+.sv-badge[data-status="overdue"], .sv-badge[data-status="broken"],
+.sv-badge[data-status="critical"], .sv-badge[data-status="suspended"],
+.sv-badge[data-status="nonconforming"], .sv-badge[data-status="not_detected"],
+.sv-badge[data-status="process_gap"], .sv-badge[data-status="escalated"]
+{ background: rgba(239,68,68,0.15); color: #f87171; }
+
+.sv-badge[data-status="open"], .sv-badge[data-status="active"],
+.sv-badge[data-status="untriaged"], .sv-badge[data-status="draft"],
+.sv-badge[data-status="filed"]
+{ background: rgba(96,165,250,0.15); color: #60a5fa; }
+
+.sv-badge[data-status="preferred"], .sv-badge[data-status="responded"],
+.sv-badge[data-status="under_review"], .sv-badge[data-status="verified"]
+{ background: rgba(167,139,250,0.15); color: #a78bfa; }
+
+.sv-badge[data-status="cancelled"], .sv-badge[data-status="disqualified"],
+.sv-badge[data-status="inactive"]
+{ background: rgba(156,163,175,0.15); color: #9ca3af; }
+
+/* Severity dots */
+.sv-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.sv-dot-green { background: #4ade80; }
+.sv-dot-amber { background: #facc15; }
+.sv-dot-red { background: #f87171; }
+.sv-dot-blue { background: #60a5fa; }
+.sv-dot-purple { background: #a78bfa; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 5. DATA TABLE
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.sv-table th {
+    text-align: left;
+    padding: 8px 10px;
+    color: var(--text-dim);
+    font-weight: 500;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+.sv-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    color: var(--text-primary);
+}
+.sv-table tr:hover td { background: var(--bg-hover); }
+.sv-table tr.selected td { background: var(--bg-hover); border-left: 2px solid var(--accent-primary); }
+.sv-table-mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.sv-table-dim { color: var(--text-dim); }
+.sv-table-clickable tr { cursor: pointer; }
+.sv-table-compact th, .sv-table-compact td { padding: 4px 8px; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 6. LIST ITEMS (for rails and feeds)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.sv-list-item:hover { background: var(--bg-hover); }
+.sv-list-item:last-child { border-bottom: none; }
+.sv-list-item.selected { background: var(--bg-hover); border-left: 2px solid var(--accent-primary); }
+
+.sv-item-main { flex: 1; min-width: 0; }
+.sv-item-title { font-size: 13px; color: var(--text-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sv-item-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.sv-item-time { font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; white-space: nowrap; flex-shrink: 0; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 7. DETAIL PANEL SECTIONS
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-detail-header { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.sv-detail-header h3 { font-size: 16px; font-weight: 500; color: var(--text-primary); margin: 0 0 4px; }
+.sv-detail-meta { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.sv-detail-section { margin-bottom: 12px; }
+.sv-detail-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); margin-bottom: 3px; }
+.sv-detail-value { font-size: 13px; color: var(--text-primary); line-height: 1.5; }
+
+.sv-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.sv-detail-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+
+.sv-detail-actions { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Named section with title */
+.sv-section { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
+.sv-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); margin-bottom: 6px; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 8. ACTIVITY FEED
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-feed { margin-top: 8px; }
+.sv-feed-entry { display: flex; gap: 8px; padding: 4px 0; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.02); }
+.sv-feed-entry:last-child { border-bottom: none; }
+.sv-feed-time { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 10px; min-width: 50px; flex-shrink: 0; }
+.sv-feed-icon { width: 14px; text-align: center; flex-shrink: 0; color: var(--text-dim); }
+.sv-feed-text { color: var(--text-secondary); flex: 1; }
+.sv-feed-entry.system .sv-feed-text { font-style: italic; color: var(--text-dim); }
+
+/* Inline note input */
+.sv-feed-input { display: flex; gap: 6px; margin-top: 8px; }
+.sv-feed-input .sv-input { flex: 1; font-size: 11px; padding: 4px 8px; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 9. KPI STRIP
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-kpi-strip { display: grid; gap: 12px; }
+.sv-kpi-strip.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.sv-kpi-strip.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.sv-kpi-strip.cols-5 { grid-template-columns: repeat(5, 1fr); }
+.sv-kpi-strip.cols-auto { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+
+.sv-kpi-cell {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    text-align: center;
+}
+.sv-kpi-cell:hover { border-color: var(--accent-primary-border); }
+
+.sv-kpi-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.2;
+}
+.sv-kpi-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 4px;
+}
+
+
+/* ────────────────────────────────────────────────────────────
+ * 10. FILTER BAR
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-filter-bar { display: flex; gap: 4px; flex-wrap: wrap; }
+.sv-filter-btn {
+    padding: 3px 8px;
+    font-size: 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+.sv-filter-btn:hover { border-color: var(--accent-primary-border); color: var(--text-primary); }
+.sv-filter-btn.active { background: var(--accent-primary-dim); border-color: var(--accent-primary-border); color: var(--accent-primary); }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 11. SCORE BAR (horizontal progress)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-score-bar { height: 6px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden; }
+.sv-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.sv-bar-fill.good { background: #4ade80; }
+.sv-bar-fill.warn { background: #facc15; }
+.sv-bar-fill.bad { background: #f87171; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 12. CONTEXT BANNER
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-context-banner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.sv-ctx-sep { color: var(--text-dim); margin: 0 1px; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 13. EMPTY STATE
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-empty {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--text-dim);
+    font-size: 12px;
+}
+.sv-empty-icon { font-size: 20px; opacity: 0.3; margin-bottom: 6px; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 14. ENTITY PICKER (searchable select from list)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-picker-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-top: 4px;
+}
+.sv-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    transition: background 0.1s;
+}
+.sv-picker-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.sv-picker-item:last-child { border-bottom: none; }
+.sv-picker-item.selected { background: var(--accent-primary-dim); color: var(--accent-primary); border-left: 2px solid var(--accent-primary); }
+.sv-picker-item .sv-picker-role { font-size: 9px; color: var(--text-dim); margin-left: auto; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 15. CHECKLIST (preconditions, tasks, verification steps)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-checklist-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 12px;
+}
+.sv-checklist-item:last-child { border-bottom: none; }
+.sv-checklist-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; }
+.sv-checklist-dot.met { background: #4ade80; }
+.sv-checklist-dot.pending { background: #facc15; }
+.sv-checklist-dot.unmet { background: #f87171; }
+.sv-checklist-dot.blocked { background: #f59e0b; }
+.sv-checklist-text { color: var(--text-primary); flex: 1; }
+.sv-checklist-text.done { text-decoration: line-through; color: var(--text-dim); }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 16. CARD (generic container)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+}
+.sv-card:hover { border-color: var(--accent-primary-border); }
+.sv-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+.sv-card-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+}
+
+
+/* ────────────────────────────────────────────────────────────
+ * 17. TABS
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 14px;
+}
+.sv-tab {
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+}
+.sv-tab:hover { color: var(--text-primary); }
+.sv-tab.active { color: var(--accent-primary); border-bottom-color: var(--accent-primary); }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 18. TOOLTIP
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-tooltip {
+    position: relative;
+}
+.sv-tooltip-text {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    z-index: 20;
+    margin-bottom: 4px;
+}
+.sv-tooltip:hover .sv-tooltip-text { display: block; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 19. RESPONSIVE UTILITIES
+ * ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .sv-detail-grid, .sv-detail-grid-3 { grid-template-columns: 1fr; }
+    .sv-field-grid-2, .sv-field-grid-3 { grid-template-columns: 1fr; }
+    .sv-kpi-strip { grid-template-columns: repeat(2, 1fr) !important; }
+    .sv-modal { width: 95vw; }
+}
