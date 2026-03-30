@@ -1,0 +1,175 @@
+{% extends "base_crud.html" %}
+{# Hidden demo: CRUD rack with instrument library components.
+   Simulates a signals triage view using only sv-* instruments.
+   No custom CSS. Everything comes from the rack + instrument library.
+#}
+
+{% block crud_style %}
+/* Zero custom CSS — everything from instrument library */
+{% endblock %}
+
+{% block crud_rail_header %}
+<span class="sv-crud-rail-title" id="demoCount">Signals</span>
+<button class="btn btn-primary" style="padding:3px 8px;font-size:10px;" onclick="demoCreate()">+ New</button>
+{% endblock %}
+
+{% block crud_rail_filters %}
+<div class="sv-filter-bar">
+    <button class="sv-filter-btn active" onclick="demoFilter(this,'all')">All</button>
+    <button class="sv-filter-btn" onclick="demoFilter(this,'untriaged')">Untriaged</button>
+    <button class="sv-filter-btn" onclick="demoFilter(this,'acknowledged')">Ack</button>
+    <button class="sv-filter-btn" onclick="demoFilter(this,'resolved')">Resolved</button>
+</div>
+{% endblock %}
+
+{% block crud_rail_list %}
+<div class="sv-empty" id="demoListLoading">Loading...</div>
+{% endblock %}
+
+{% block crud_scripts %}
+// Demo data — simulates API response
+const DEMO_SIGNALS = [
+    { id: '1', title: 'SPC shift on Zone 3 temperature', severity: 'critical', source_type: 'spc_violation', triage_state: 'untriaged', created_at: new Date(Date.now() - 3600000).toISOString(), description: 'X-bar chart detected 2 consecutive points beyond 2-sigma on Zone 3 thermocouple TC-07. Last stable reading was 218.4°C, current reading 224.1°C. Western Electric Rule 2 violation.' },
+    { id: '2', title: 'Operator report: surface finish rough after tool change', severity: 'warning', source_type: 'operator_report', triage_state: 'untriaged', created_at: new Date(Date.now() - 7200000).toISOString(), description: 'Operator B. Martinez reported surface finish degradation on Part #X-200 after scheduled insert change at 14:30. Ra measurements trending toward USL.' },
+    { id: '3', title: 'Customer complaint: dimensional variance on batch L-2847', severity: 'critical', source_type: 'customer_complaint', triage_state: 'acknowledged', created_at: new Date(Date.now() - 86400000).toISOString(), description: 'Acme Corp reported 3 of 50 parts out of tolerance on critical bore diameter (Ø25.00 ±0.02mm). Parts from lot L-2847 shipped 2026-03-25. Customer requesting containment action.' },
+    { id: '4', title: 'Calibration due: Profilometer SN-4421', severity: 'info', source_type: 'management_review', triage_state: 'untriaged', created_at: new Date(Date.now() - 172800000).toISOString(), description: 'Annual calibration due in 7 days for Mitutoyo Surftest SJ-410 (SN-4421). Last calibrated 2025-03-30. Used for surface finish verification on critical characteristics.' },
+    { id: '5', title: 'Forced failure miss: vision system on Line 2', severity: 'critical', source_type: 'forced_failure_miss', triage_state: 'investigating', created_at: new Date(Date.now() - 259200000).toISOString(), description: 'FFT-012: Injected 5 known-defective parts (scratched lens surface). Vision system detected 3/5. Detection rate 60% — below 90% threshold for critical characteristic. Investigation opened.' },
+    { id: '6', title: 'Audit finding: training records incomplete for CNC operators', severity: 'warning', source_type: 'audit_finding', triage_state: 'resolved', created_at: new Date(Date.now() - 604800000).toISOString(), description: 'Internal audit ISO 7.2 found 2 of 6 CNC operators missing Stage 2 competency verification for new coolant monitoring procedure (WI-CNC-047 Rev C). Resolved via supervised process confirmations.' },
+];
+
+let demoItems = [...DEMO_SIGNALS];
+let demoFilter = 'all';
+let demoSelected = null;
+
+function demoFilter(btn, filter) {
+    demoFilter = filter;
+    document.querySelectorAll('.sv-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderDemoList();
+}
+
+function renderDemoList() {
+    const filtered = demoFilter === 'all' ? demoItems : demoItems.filter(s => s.triage_state === demoFilter);
+    const el = document.getElementById('svCrudList');
+    document.getElementById('demoCount').textContent = `${filtered.length} signal${filtered.length !== 1 ? 's' : ''}`;
+
+    if (!filtered.length) {
+        el.innerHTML = '<div class="sv-empty"><div class="sv-empty-icon">&#x25C9;</div>No signals</div>';
+        return;
+    }
+
+    el.innerHTML = filtered.map(s => {
+        const selected = s.id === demoSelected ? ' selected' : '';
+        const ago = timeAgo(s.created_at);
+        return `<div class="sv-list-item${selected}" onclick="selectDemo('${s.id}')">
+            <div class="sv-dot sv-dot-${s.severity === 'critical' ? 'red' : s.severity === 'warning' ? 'amber' : 'blue'}" style="margin-top:5px;"></div>
+            <div class="sv-item-main">
+                <div class="sv-item-title">${esc(s.title)}</div>
+                <div class="sv-item-meta">
+                    <span class="sv-badge" data-status="${s.triage_state}">${s.triage_state.replace(/_/g,' ')}</span>
+                    <span>${s.source_type.replace(/_/g,' ')}</span>
+                </div>
+            </div>
+            <span class="sv-item-time">${ago}</span>
+        </div>`;
+    }).join('');
+}
+
+function selectDemo(id) {
+    demoSelected = id;
+    renderDemoList();
+    const s = demoItems.find(x => x.id === id);
+    if (!s) return;
+
+    const panel = document.getElementById('svCrudDetail');
+    panel.classList.remove('empty');
+
+    // Set context banner
+    svSetBreadcrumb(`Signals <span class="sv-ctx-sep">/</span> ${esc(s.title.substring(0, 40))} <span class="sv-ctx-sep">/</span> <span class="sv-badge" data-status="${s.triage_state}">${s.triage_state.replace(/_/g,' ')}</span>`);
+
+    // Actions based on state
+    let actions = '';
+    if (s.triage_state === 'untriaged') {
+        actions = `<button class="btn btn-primary" onclick="demoAction('${s.id}','acknowledge')">Acknowledge</button>
+                   <button class="btn" onclick="demoAction('${s.id}','investigate')">Open Investigation</button>
+                   <button class="btn" onclick="demoAction('${s.id}','dismiss')" style="border-color:var(--error-border);color:var(--error);">Dismiss</button>`;
+    } else if (s.triage_state === 'acknowledged') {
+        actions = `<button class="btn btn-primary" onclick="demoAction('${s.id}','investigate')">Open Investigation</button>
+                   <button class="btn" onclick="demoAction('${s.id}','dismiss')" style="border-color:var(--error-border);color:var(--error);">Dismiss</button>`;
+    }
+
+    panel.innerHTML = `
+        <button class="sv-focus-btn" onclick="svToggleFocus()">Focus</button>
+        <div class="sv-detail-header">
+            <h3>${esc(s.title)}</h3>
+            <div class="sv-detail-meta">
+                <span class="sv-badge" data-status="${s.severity}">${s.severity}</span>
+                <span class="sv-badge" data-status="${s.triage_state}">${s.triage_state.replace(/_/g,' ')}</span>
+                <span style="color:var(--text-dim);">${s.source_type.replace(/_/g,' ')}</span>
+            </div>
+        </div>
+        <div class="sv-detail-section">
+            <div class="sv-detail-label">Description</div>
+            <div class="sv-detail-value">${esc(s.description)}</div>
+        </div>
+        <div class="sv-detail-grid">
+            <div>
+                <div class="sv-detail-label">Source</div>
+                <div class="sv-detail-value">${s.source_type.replace(/_/g,' ')}</div>
+            </div>
+            <div>
+                <div class="sv-detail-label">Created</div>
+                <div class="sv-detail-value">${new Date(s.created_at).toLocaleString()}</div>
+            </div>
+        </div>
+
+        <div class="sv-section">
+            <div class="sv-section-title">Activity</div>
+            <div class="sv-feed">
+                <div class="sv-feed-entry">
+                    <span class="sv-feed-time">${timeAgo(s.created_at)}</span>
+                    <span class="sv-feed-icon">&#x25C9;</span>
+                    <span class="sv-feed-text">Signal created from ${s.source_type.replace(/_/g, ' ')}</span>
+                </div>
+                ${s.triage_state !== 'untriaged' ? `<div class="sv-feed-entry">
+                    <span class="sv-feed-time">1h</span>
+                    <span class="sv-feed-icon">&#x2713;</span>
+                    <span class="sv-feed-text">Acknowledged by eric.wolters@svend.ai</span>
+                </div>` : ''}
+            </div>
+        </div>
+
+        ${actions ? `<div class="sv-detail-actions">${actions}</div>` : ''}`;
+}
+
+function demoAction(id, action) {
+    const s = demoItems.find(x => x.id === id);
+    if (!s) return;
+    if (action === 'acknowledge') s.triage_state = 'acknowledged';
+    else if (action === 'investigate') s.triage_state = 'investigating';
+    else if (action === 'dismiss') s.triage_state = 'resolved';
+    renderDemoList();
+    selectDemo(id);
+}
+
+function demoCreate() {
+    alert('This is a static demo — create would open a modal');
+}
+
+function timeAgo(iso) {
+    const d = new Date(iso);
+    const diff = (Date.now() - d) / 1000;
+    if (diff < 60) return 'now';
+    if (diff < 3600) return Math.floor(diff/60) + 'm';
+    if (diff < 86400) return Math.floor(diff/3600) + 'h';
+    return Math.floor(diff/86400) + 'd';
+}
+
+function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+
+// Render on load
+setTimeout(() => {
+    document.getElementById('demoListLoading')?.remove();
+    renderDemoList();
+}, 100);
+{% endblock %}

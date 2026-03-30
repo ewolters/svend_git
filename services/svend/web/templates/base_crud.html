@@ -69,6 +69,7 @@
     padding: 6px 10px 4px;
     border-bottom: 1px solid var(--border);
 }
+.sv-crud-rail-filters:empty { display: none; }
 
 .sv-crud-rail-list {
     flex: 1;
@@ -111,6 +112,9 @@
 <div class="sv-crud" id="svCrud">
     <!-- Detail (left) -->
     <div class="sv-crud-detail empty" id="svCrudDetail" style="position:relative;">
+        <div class="sv-context-banner" id="svCrudBanner" style="display:none;">
+            <span id="svCrudBreadcrumb"></span>
+        </div>
         {% block crud_detail %}Select an item{% endblock %}
     </div>
 
@@ -138,14 +142,51 @@
 <script>
 // Focus mode
 function svToggleFocus() {
-    document.getElementById('svCrud').classList.toggle('focus');
+    const crud = document.getElementById('svCrud');
+    crud.classList.toggle('focus');
+    const banner = document.getElementById('svCrudBanner');
+    if (banner) banner.style.display = crud.classList.contains('focus') ? 'flex' : 'none';
 }
-document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && document.querySelector('.sv-crud.focus')) {
-        e.preventDefault();
-        svToggleFocus();
-    }
-});
+
+// Context banner helper
+function svSetBreadcrumb(html) {
+    const el = document.getElementById('svCrudBreadcrumb');
+    if (el) el.innerHTML = html;
+}
+
+// Keyboard navigation for list items
+(function() {
+    let _kbIdx = -1;
+
+    document.addEventListener('keydown', e => {
+        // Escape exits focus mode
+        if (e.key === 'Escape' && document.querySelector('.sv-crud.focus')) {
+            e.preventDefault();
+            svToggleFocus();
+            return;
+        }
+
+        // Skip if in input, textarea, select, or command palette is open
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+        if (document.getElementById('cmdPalette')?.style.display === 'flex') return;
+
+        const items = document.querySelectorAll('#svCrudList .sv-list-item');
+        if (!items.length) return;
+
+        if (e.key === 'ArrowDown' || e.key === 'j') {
+            e.preventDefault();
+            _kbIdx = Math.min(items.length - 1, _kbIdx + 1);
+            items[_kbIdx]?.click();
+            items[_kbIdx]?.scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp' || e.key === 'k') {
+            e.preventDefault();
+            _kbIdx = Math.max(0, _kbIdx - 1);
+            items[_kbIdx]?.click();
+            items[_kbIdx]?.scrollIntoView({ block: 'nearest' });
+        }
+    });
+})();
+
 {% block crud_scripts %}{% endblock %}
 </script>
 {% endblock %}

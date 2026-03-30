@@ -37,12 +37,16 @@
 
 .sv-dash-panels {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
     gap: 16px;
     margin-bottom: 20px;
+    grid-template-columns: repeat(2, 1fr);
 }
+.sv-dash-panels.cols-1 { grid-template-columns: 1fr; }
+.sv-dash-panels.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.sv-dash-panels.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.sv-dash-panels.cols-auto { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
 @media (max-width: 800px) {
-    .sv-dash-panels { grid-template-columns: 1fr; }
+    .sv-dash-panels { grid-template-columns: 1fr !important; }
 }
 
 .sv-dash-panel {

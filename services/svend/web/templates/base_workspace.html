@@ -19,7 +19,6 @@
     grid-template-columns: var(--ws-sidebar-width, 220px) 1fr var(--ws-panel-width, 0px);
     height: calc(100vh - 56px);
     overflow: hidden;
-    transition: grid-template-columns 0.2s;
 }
 .sv-workspace.panel-open { --ws-panel-width: 360px; }
 .sv-workspace.panel-wide { --ws-panel-width: 480px; }
@@ -48,8 +47,8 @@
     padding: 6px 12px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
-    min-height: 32px;
 }
+.sv-ws-toolbar:empty { display: none; }
 
 .sv-ws-canvas {
     flex: 1;
@@ -66,8 +65,8 @@
     background: var(--bg-secondary);
     font-size: 10px;
     color: var(--text-dim);
-    min-height: 20px;
 }
+.sv-ws-statusbar:empty { display: none; }
 
 .sv-ws-panel {
     background: var(--bg-secondary);
