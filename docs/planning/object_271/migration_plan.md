@@ -1,246 +1,256 @@
-# SVEND Migration Plan — Object 271 Final Phase
+# SVEND Product Rebuild — Object 271
 
 **Date:** 2026-03-30
 **Status:** PLANNING
-**Goal:** Rebuild SVEND's UI on the rack/widget architecture, wire forge packages into the backend, consolidate compliance through forgegov, and ship a single cohesive system.
+**Scope:** Full product upgrade — MVP to production. Every surface, every template, forge decomposition, forgeviz integration, OLR-001 quality system.
 
 ---
+
+## What This Is
+
+Not a QMS migration. A full product rebuild. The QMS overhaul (OLR-001, GRAPH-001, CANON-001/002) motivated it, but the base template has changed, the widget library replaces per-template CSS, forgeviz replaces Plotly, and forge packages are extracting computation out of SVEND. Every template in the product gets rebuilt on the new stack.
+
+The existing app stays live throughout. New surfaces are built at parallel routes, wired to the same backend APIs. When a surface is ready, the nav link switches. Old template gets deleted.
 
 ## Principles
 
-1. **One thing at a time.** Each session has one job. No session touches another session's files.
-2. **Backend stable before frontend.** API contracts freeze before templates get built.
-3. **forgegov validates every step.** No session declares "done" without `forgegov run` passing.
-4. **Real data or it doesn't count.** "It renders" is not done. "It works with Eric's account data" is done.
-5. **No parallel QMS systems.** One backend, one frontend, one navigation. Period.
+1. **Build parallel, cut over when ready.** No breaking the production app.
+2. **Same backend.** No model changes, no API changes, no migrations for the UI rebuild. New templates consume existing endpoints.
+3. **One stack.** sv-* widgets, rack templates, forgeviz charts, forge package computation. No exceptions.
+4. **Real data or it doesn't count.** Every surface tested with Eric's account before cutover.
+5. **forgegov validates.** No session declares "done" without `forgegov run` passing.
 
 ---
 
-## Current State
+## The Stack
 
-### What Exists and Works
-- **Forge packages (7):** forgespc, forgedoc, forgesiop, forgecal, forgegov, forgedoe, forgeviz
-- **Forge governance:** forgegov CLI, 6-stage pipeline, JSON report bridge
-- **Widget library:** `static/css/svend-widgets.css` — 19 component categories
-- **Rack templates:** `base_workspace.html`, `base_dashboard.html`, `base_crud.html`
-- **Command palette:** `Cmd+K` in `base_app.html`
-- **Backend APIs:** All loop/, iso/, graph/ endpoints intact
-- **Backend models:** All models intact (loop, graph, agents_api)
-- **Tools:** A3, FMEA, RCA, Safety, Analysis Workbench, Graph Map, Whiteboard, Simulator — all working
-- **Demo:** `/app/demo/rack/` — CRUD rack with simulated signals
+| Layer | Old | New |
+|-------|-----|-----|
+| Page layout | Per-template CSS, `!important` overrides | Rack templates (workspace, dashboard, CRUD) |
+| Components | Per-template `.btn`, `.card`, `.kpi-strip` | `svend-widgets.css` — sv-* classes only |
+| Charts | Plotly.js (3.5MB CDN) | ForgeViz (15KB, zero deps) |
+| Computation | Inline in Django views (spc.py, dsw_views.py) | Forge packages (forgespc, forgedoe, forgestat, etc.) |
+| Compliance | 37 SVEND checks + per-package duplication | 31 SVEND checks + forgegov bridge |
+| Container | `.container { max-width: 1200px }` + per-template hacks | `{% block container_class %}sv-full{% endblock %}` |
+| Colors | Hardcoded hex per template | `--sv-*` CSS variables (theme-aware) |
 
-### What's Broken / Missing
-- **QMS UI:** Blank placeholder at `/app/qms/`
-- **Nav dropdowns:** Quality/Hoshin/Safety dropdowns reference deleted pages
-- **Inline CSS duplication:** `base_app.html` has `sv-*` inline AND `svend-widgets.css` external
-- **`workbench_new.html`:** 11,790 line duplicate of `workbench.html`
-- **`collectstatic` not run:** Widget CSS not served via WhiteNoise
-- **Forge packages not wired into SVEND:** forgespc/forgeviz/etc installed but kjerne still uses its own code
-- **SVEND compliance bridge:** `check_forge_ecosystem()` not yet wired into `syn/audit/compliance.py`
+---
+
+## Template Inventory (115 files, 160K lines)
+
+### Tier 1 — Rebuild First (new rack templates, highest user value)
+
+These are the core product surfaces that users interact with daily.
+
+| Surface | Current | Lines | Rack | Notes |
+|---------|---------|-------|------|-------|
+| **QMS Workbench** | qms.html (blank) | 98 | workspace | NEW. Signals, investigations, commitments, FMIS, PCs, FFTs, suppliers, audits, training, docs, graph health, config. Single workbench with section sidebar + forgeviz. OLR-001 architecture. |
+| **Main Dashboard** | dashboard.html | 568 | dashboard | Rebuild with forgeviz KPI charts, sv-* widgets. Current version is the "AI-built bento box" flagged in UI audit. |
+| **Graph Map** | graph_map.html | 404 | workspace | Process map + Cytoscape. Already lightweight — rebuild on workspace rack. |
+| **Investigations** | investigations.html | 808 | workspace | CANON-002 UI. Rebuild inside QMS workbench as a section, not standalone page. |
+| **Safety** | safety_app.html | 1,685 | workspace | HIRARC, Frontier Cards, BBSO. Standalone workbench (not inside QMS). |
+
+### Tier 2 — Rebuild Next (existing tools, high usage)
+
+These are proven tools that need rack/widget migration but not fundamental redesign.
+
+| Surface | Current | Lines | Rack | Notes |
+|---------|---------|-------|------|-------|
+| **FMEA** | fmea.html | 1,706 | workspace | Matrix editor. Standalone tool AND FMIS view inside QMS workbench. |
+| **RCA** | rca.html | 2,137 | workspace | Root cause analysis + AI critique. |
+| **A3** | a3.html | 1,491 | workspace | A3 report editor. |
+| **Hoshin** | hoshin.html | 4,397 | workspace | X-Matrix. Complex — large rebuild. |
+| **VSM** | vsm.html | 3,703 | workspace | Value stream mapping canvas. |
+| **Whiteboard** | whiteboard.html | 5,191 | workspace | Collaborative visual. Large rebuild. |
+| **ISO Documents** | iso_doc.html | 1,362 | workspace | Controlled document editor. |
+| **Learn** | learn.html | 5,060 | workspace | Courses, assessments, certification. |
+| **Settings** | settings.html | 1,448 | crud | User preferences + account. |
+| **Projects** | projects.html | 4,479 | workspace | Hypothesis management. |
+
+### Tier 3 — Decompose (forge extraction changes the architecture)
+
+These don't just get new templates — the computation moves to forge packages first, then the UI rebuilds as a thin shell.
+
+| Surface | Current | Lines | Forge Package | Notes |
+|---------|---------|-------|---------------|-------|
+| **Analysis Workbench** | analysis_workbench.html | 11,464 | forgestat, forgespc, forgedoe | IDE/CLI piece may become standalone forge system. SVEND keeps thin analysis section in QMS workbench. |
+| **Simulator** | simulator.html | 9,222 | forgespc, forgeviz | Plant sim with SPC viz. Rebuild on forgeviz after SPC extraction complete. |
+| **Calculators** | calculators.html | 8,199 | forgestat, forgespc | Operations workbench. 15 calculator tools in tools/ subdirectory. Forge packages replace inline math. |
+| **Models (ML)** | models.html | 2,550 | forgeml (TBD) | Train/predict/deploy. Blocked on forgeml extraction. |
+| **Experimenter** | experimenter.html + 12 partials | 251 + partials | forgedoe | DOE wizard. Already partially extracted. |
+| **Forecast** | forecast.html | 418 | forgestat | Time series. Small. |
+
+### Tier 4 — Migrate When Touched (low urgency, update on contact)
+
+| Surface | Lines | Notes |
+|---------|-------|-------|
+| Ishikawa | 862 | Fishbone diagram. Simple tool. |
+| CE Matrix | 525 | Scoring matrix. Simple tool. |
+| Kanban Cards | 970 | Card generator. |
+| Triage | 701 | Data cleaning. |
+| Notebooks | 1,139 | Trial tracking. |
+| Forge | 631 | Synthetic data UI. |
+| Workflows | 947 | Agent pipeline builder. |
+| Coder | 757 | AI coding assistant. |
+| Harada | 1,039 | Personal practice. |
+| Knowledge | 1,165 | Graph visualizer (may merge into graph_map). |
+| Workbench (agent) | 1,341 | Multi-agent orchestration. |
+
+### Tier 5 — Content & Marketing (no rack needed, just widget cleanup)
+
+20 content pages (playbooks, blog, comparisons, landing). These extend `base_guest.html` or `tool_base.html`, not `base_app.html`. Update to sv-* widgets when redesigning marketing. Not on the critical path.
+
+### Delete
+
+| File | Lines | Reason |
+|------|-------|--------|
+| workbench_new.html | 11,790 | Confirmed duplicate of analysis_workbench.html |
+| safety_coming_soon.html | 1,993 | Replaced by safety_app.html |
+| iso_9001_qms.html | 1,159 | Replaced by QMS workbench |
+
+### Keep As-Is
+
+| Category | Files | Notes |
+|----------|-------|-------|
+| Error pages | 4 | 400/403/404/500 — 8 lines each |
+| Print templates | 5 | PDF output — don't need racks |
+| Auth/onboarding | 9 | Login, register, verify — functional, not product surfaces |
+| Guest/legal | 4 | Terms, privacy, guest layouts |
+| Internal dashboard | 1 | Staff-only. 8,323 lines. Rebuild last or never. |
+
+---
+
+## ForgeViz Integration
+
+**Current state:** forgeviz package at ~/forgeviz/ — 17 chart builders, SVG + Plotly renderers, 1,158-line JS renderer. NOT wired into SVEND.
+
+**Integration steps:**
+1. Copy `forgeviz.js` to `static/js/`, add `<script>` to `base_app.html`
+2. Run `collectstatic`
+3. Add chart endpoint: view that accepts chart params, calls forge package, returns ChartSpec JSON
+4. QMS workbench renders charts via `ForgeViz.render(el, spec)`
+5. As each surface rebuilds, replace Plotly calls with forgeviz
+
+**Plotly removal is per-template.** Each template that uses Plotly gets its charts replaced during its rebuild. The CDN `<script>` tag stays in base_app.html until the last Plotly consumer is gone.
+
+---
+
+## Forge Package Wiring
+
+Forge packages are already extracted and have their own repos. Wiring means: SVEND view imports forge package instead of inline code, calls it, returns the result. API response shape doesn't change.
+
+| Package | Replaces | Status |
+|---------|----------|--------|
+| forgespc | agents_api/spc.py | v0.1.0, ready to wire |
+| forgedoe | agents_api/experimenter | v0.1.0, partially wired |
+| forgedoc | WeasyPrint calls in views | v0.1.0, endpoint exists |
+| forgestat | dsw_views.py statistical tests | v0.1.0, 200+ analyses |
+| forgesiop | S&OP calculations | v0.1.0 |
+| forgeviz | Plotly chart generation | v0.1.0, JS renderer ready |
+| forgecal | Calibration service | 40% complete |
+| forgeml | ML pipeline | TBD |
+| forgesia | Synara belief engine | TBD |
+| forgebay | Bayesian analysis | TBD |
+
+Wiring happens **during** template rebuilds, not before. When a surface gets rebuilt, its computation moves to the forge package at the same time.
+
+---
+
+## Build Sequence
+
+### Phase 0: Foundation (DONE)
+
+- [x] Widget library (svend-widgets.css)
+- [x] Rack templates (workspace, dashboard, CRUD)
+- [x] Command palette (Cmd+K)
+- [x] Full-width header
+- [x] Compliance consolidation (forgegov bridge)
+- [x] Critical review + 11 fixes on rack/widget architecture
+
+### Phase 1: QMS Workbench + ForgeViz
+
+**Goal:** The QMS workbench at `/app/qms/` with real data, forgeviz charts, OLR-001 architecture.
+
+1. Wire forgeviz.js into SVEND
+2. Build `base_qms.html` (extends workspace rack — section sidebar, KPI strip, swappable canvas)
+3. Build sections one at a time, each wired to existing loop/ and graph/ APIs:
+   - Signals (triage queue — proven pattern from demo)
+   - Investigations
+   - Commitments
+   - FMIS (Bayesian FMEA matrix)
+   - Suppliers (claims, CoA, scorecards)
+   - Process Confirmations + Forced Failure Tests
+   - Audits
+   - Training
+   - Documents
+   - Graph health + gap report
+   - Configuration (presets, thresholds)
+   - Overview dashboard (forgeviz KPIs, trend charts, readiness score)
+4. Eric tests each section with real data
+5. When ~80% of sections work: switch nav to QMS workbench, delete old iso_9001_qms.html
+
+### Phase 2: Core Tools
+
+Rebuild proven tools on racks with sv-* widgets. One at a time.
+
+- Main dashboard (forgeviz KPIs)
+- Graph map (workspace rack + Cytoscape)
+- Safety workbench
+- FMEA (standalone + FMIS integration)
+- RCA, A3, Hoshin, VSM
+- ISO document editor
+- Learn (courses + assessments)
+
+### Phase 3: Forge Decomposition
+
+As forge packages mature, decompose the heavy surfaces:
+
+- Analysis workbench → forgestat/forgespc/forgedoe computation + thin SVEND shell (or standalone forge IDE)
+- Simulator → forgespc + forgeviz
+- Calculators → forge packages + forgeviz
+- ML models → forgeml
+- Experimenter → forgedoe
+
+### Phase 4: Cleanup
+
+- Remove old CSS from base_app.html (the `.btn`, `.card`, `.kpi-strip` classes)
+- Remove Plotly CDN tag
+- Delete old templates
+- Run full compliance
+- Update standards to reflect shipped architecture
 
 ---
 
 ## Session Roles
 
-| Role | Responsibility | Cannot Touch |
-|------|---------------|-------------|
-| **Backend** | API contracts, model changes, forge package wiring, view functions | Templates, CSS, JS |
-| **Frontend** | Templates on racks, widget usage, JS interactions | Models, views, migrations |
-| **Quality (forgegov)** | Validate between steps, contract enforcement, compliance bridge | Feature code |
-| **Eric** | Arbitrate, set priorities, test with real usage | — |
-
----
-
-## Phase 1: Cleanup (Before Any Rebuild)
-
-### 1.1 Remove inline CSS duplication
-**Owner:** Frontend
-**Action:** Remove the `sv-*` instrument library block from `base_app.html` (lines 1117-1212). The external `svend-widgets.css` is now canonical.
-**Verify:** Demo page still renders correctly.
-
-### 1.2 Run collectstatic
-**Owner:** Backend (requires Django)
-**Action:** `python3 manage.py collectstatic --noinput`
-**Verify:** Widget CSS served at `/static/css/svend-widgets.css`
-
-### 1.3 Delete `workbench_new.html`
-**Owner:** Frontend
-**Action:** Delete the duplicate. Verify `workbench.html` is the canonical one.
-**Verify:** No URL references `workbench_new.html`.
-
-### 1.4 Fix nav dropdown dead links
-**Owner:** Frontend
-**Action:** Remove or redirect Quality/Hoshin/Safety dropdown entries that reference deleted pages. Point QMS-related links to `/app/qms/`.
-**Verify:** No nav link 404s.
-
-### 1.5 Wire forgegov compliance bridge
-**Owner:** Backend
-**Action:** Add `check_forge_ecosystem()` to `syn/audit/compliance.py`. Reads `~/.forge/reports/forgegov_latest.json`, checks freshness + passed, records ComplianceCheck.
-**Verify:** `python3 manage.py run_compliance --check forge_ecosystem` passes.
-
-### 1.6 Run forgegov full pipeline
-**Owner:** Quality
-**Action:** `cd ~/forgegov && forgegov run`
-**Verify:** All stages pass. Report written to `~/.forge/reports/`.
-
-**Gate:** All 1.1-1.6 complete before Phase 2 begins.
-
----
-
-## Phase 2: API Contract Freeze
-
-### 2.1 Document every API endpoint shape
-**Owner:** Backend
-**Action:** For each API used by the QMS UI, document the exact JSON response shape in a contract file. Cover:
-- `/api/loop/signals/` — list + detail
-- `/api/loop/commitments/` — list + detail + actions
-- `/api/loop/claims/` — list + detail + lifecycle
-- `/api/loop/coas/` — list + detail + ingest
-- `/api/loop/pcs/` — list + detail
-- `/api/loop/ffts/` — list + detail
-- `/api/loop/fmis/` — list + rows + posteriors
-- `/api/loop/policies/` — list + detail + registry
-- `/api/loop/dashboard/` — aggregated data
-- `/api/loop/readiness/` — CI readiness score
-- `/api/iso/ncrs/` — list + detail + lifecycle
-- `/api/iso/audits/` — list + detail + findings
-- `/api/iso/training/` — list + detail
-- `/api/iso/reviews/` — list + detail
-- `/api/iso/documents/` — list + detail
-- `/api/iso/complaints/` — list + detail
-- `/api/iso/suppliers/` — list + detail + evaluation
-- `/api/iso/dashboard/` — ISO dashboard aggregates
-- `/api/graph/data/` — graph nodes + edges
-- `/api/graph/search/` — unified search
-- `/api/graph/health/` — knowledge health metrics
-- `/api/graph/activity/<type>/<id>/` — activity feed
-- `/api/graph/gates/<type>/<id>/` — workflow gates
-
-**Format:** JSON schema or example response in `docs/api_contracts/`.
-**Verify:** Each endpoint returns data matching the documented contract.
-
-### 2.2 Wire forge packages into backend
-**Owner:** Backend
-**Action per package:**
-1. Update view functions to import from forge package instead of kjerne code
-2. Run forgegov to verify package contracts
-3. Verify API response shape doesn't change
-4. Delete replaced kjerne code (after verification)
-
-**Sequence:**
-- forgespc → `spc_views.py` (replace `agents_api/spc.py`)
-- forgeviz → chart rendering (replace `agents_api/analysis/viz/`)
-- forgedoc → document generation (replace WeasyPrint calls)
-
-**Gate:** forgegov passes after each wiring. API contract shapes unchanged.
-
----
-
-## Phase 3: QMS Frontend Rebuild
-
-### 3.1 QMS entry point — decide the rack
-**Owner:** Eric + Frontend
-**Decision:** Is the QMS entry point a dashboard (KPI overview → drill into sections) or a workspace (sidebar nav → content area)?
-**Options:**
-- A) `base_dashboard.html` — KPI strip + panels, each panel links to a CRUD subpage
-- B) `base_workspace.html` — sidebar with Loop stages, canvas shows current section
-- C) Hybrid — workspace rack with dashboard as the default canvas
-
-### 3.2 Build QMS page-by-page
-**Owner:** Frontend
-**Rule:** One page per commit. Each page:
-1. Extends a rack template
-2. Uses only `sv-*` widget classes
-3. Calls documented API endpoints (from Phase 2 contracts)
-4. Works with Eric's real account data
-5. Has keyboard navigation (from rack base)
-
-**Sequence (suggested — Eric adjusts):**
-1. Signals (CRUD rack) — triage queue, proven pattern
-2. NCR Tracker (CRUD rack) — same pattern, different data
-3. Commitments (CRUD rack) — already proven, rebuild on sv-* widgets
-4. Suppliers (workspace rack) — scorecard + claims + CoA panels
-5. Investigations (workspace rack) — 3-pane with tools
-6. FMIS (workspace rack) — risk landscape table
-7. QMS Overview (dashboard rack) — KPI strip + summary panels
-8. Remaining sections as needed
-
-### 3.3 Wire navigation
-**Owner:** Frontend
-**Action:** Update `base_app.html` nav to point to live QMS pages as they ship. Remove dead dropdown entries. Add new entries only when the page is functional.
-
-**Gate:** Eric tests each page with real data before the next one starts.
-
----
-
-## Phase 4: Polish + Compliance
-
-### 4.1 Remove old CSS from `base_app.html`
-**Owner:** Frontend
-**Action:** Once all migrated templates use `sv-*` classes, remove the old `.card`, `.btn`, `.kpi-strip` etc. from the inline style block in `base_app.html`.
-
-### 4.2 Migrate remaining templates
-**Owner:** Frontend (gradual, as templates get touched for other work)
-**Action:** When any old template needs changes, migrate it to a rack + sv-* widgets at the same time.
-
-### 4.3 Full compliance run
-**Owner:** Quality
-**Action:**
-- `forgegov run` — all forge packages
-- `python3 manage.py run_compliance --all` — all SVEND checks
-- Verify `check_forge_ecosystem` reads passing forgegov report
-- CHG-001 compliance on all commits
-
-### 4.4 Standards update
-**Owner:** Backend
-**Action:** Update standards to reflect the new architecture:
-- LOOP-001 — reference new QMS UI structure
-- GRAPH-001 — reference forge package integration
-- New standard: FORGE-001 — forge ecosystem governance (from forgegov QUALITY_AGENT.md)
-
----
-
-## File Ownership Map
-
-| Files | Owner | Others May |
-|-------|-------|-----------|
-| `static/css/svend-widgets.css` | Frontend | Read only |
-| `templates/base_*.html` | Frontend | Read only |
-| `templates/qms*.html` | Frontend | Read only |
-| `templates/rack_demo.html` | Frontend | Read only |
-| `svend/urls.py` (template routes) | Frontend | Read only |
-| `svend/urls.py` (API includes) | Backend | — |
-| `loop/models.py` | Backend | Read only |
-| `loop/views.py` | Backend | Read only |
-| `loop/urls.py` | Backend | Read only |
-| `graph/*` | Backend | Read only |
-| `agents_api/*` | Backend | Read only |
-| `syn/audit/compliance.py` | Quality/Backend | — |
-| `~/forge*/` | Per-package owner | Quality reviews |
-| `~/.forge/reports/` | Quality (forgegov writes) | SVEND reads |
-| `docs/api_contracts/` | Backend writes | Frontend reads |
+| Role | Owns | Cannot Touch |
+|------|------|-------------|
+| **Systems Engineer** | Rack templates, widget CSS, forgeviz integration, template rebuilds | Models, views, migrations |
+| **Backend** | Forge package wiring, API contracts, view function updates | Templates, CSS, JS |
+| **Quality (forgegov)** | Validate between phases, contract enforcement | Feature code |
+| **Eric** | Priorities, testing with real data, product decisions, cutover calls | — |
 
 ---
 
 ## Communication Protocol
 
-1. **Before starting work:** Check `forgegov run` + read this plan
-2. **Before committing:** Verify file ownership — don't touch files you don't own
-3. **After committing:** Note in `object_271/migration_log.md` what was done
-4. **When blocked:** Write a spec in `object_271/` describing what you need from another session
-5. **When "done":** Quality session validates before anyone declares done
+1. **Before starting:** Read this plan. Run `forgegov run`.
+2. **Before committing:** Verify file ownership. CHG-001 CR required.
+3. **After committing:** Note in `object_271/migration_log.md`.
+4. **When blocked:** Write spec in `object_271/` describing what you need.
+5. **When "done":** Quality session validates.
 
 ---
 
-## Definition of Done (Migration Complete)
+## Definition of Done (Full Rebuild Complete)
 
-1. `/app/qms/` is a functional QMS surface built on racks + sv-* widgets
-2. Every QMS section works with real data (not simulated)
-3. Zero duplicate QMS UIs (no iso.html, no loop_dashboard.html, no loop shell)
-4. All forge packages wired into SVEND (no duplicate computation in kjerne)
-5. `forgegov run` passes
-6. `python3 manage.py run_compliance --all` passes
-7. All nav links point to working pages
-8. `svend-widgets.css` is the only source of component CSS
-9. `workbench_new.html` deleted
+1. Every app surface uses rack templates + sv-* widgets
+2. Every chart renders via forgeviz (no Plotly)
+3. Every computation routes through forge packages (no inline math in Django views)
+4. QMS workbench implements OLR-001 architecture (Signals, not NCRs)
+5. Zero duplicate templates (no workbench_new, no iso_9001_qms)
+6. `svend-widgets.css` is the only source of component CSS
+7. `forgegov run` passes
+8. `python3 manage.py run_compliance --all` passes
+9. All nav links point to working pages
 10. Eric signs off
