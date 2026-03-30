@@ -120,7 +120,8 @@ if (!ForgeRack.units) ForgeRack.units = {};
 .rack-rail {
     width: 36px;
     position: absolute;
-    top: 0; bottom: 0;
+    top: 0;
+    min-height: 100%;
     background: linear-gradient(to right, #141814, #1a1e1a 30%, #1c201c 50%, #1a1e1a 70%, #141814);
     border: 1px solid #222822;
     z-index: 5;
@@ -137,11 +138,9 @@ if (!ForgeRack.units) ForgeRack.units = {};
 
 .rack-rail-screws {
     position: absolute;
-    top: 6px; left: 50%; bottom: 6px;
+    top: 0; left: 50%; bottom: 0;
     transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    width: 14px;
 }
 
 /* Machine bolt */
@@ -216,7 +215,7 @@ if (!ForgeRack.units) ForgeRack.units = {};
 
 /* Top/bottom plates */
 .rack-plate {
-    height: 24px;
+    height: 42px; /* 1U */
     background: linear-gradient(to bottom, #161a16, #101210);
     border-bottom: 1px solid #1a201a;
     display: flex;
@@ -226,6 +225,7 @@ if (!ForgeRack.units) ForgeRack.units = {};
     flex-shrink: 0;
 }
 .rack-plate.bottom {
+    height: 42px; /* 1U */
     border-bottom: none;
     border-top: 1px solid #1a201a;
     background: linear-gradient(to top, #161a16, #101210);
@@ -909,19 +909,23 @@ if (!ForgeRack.units) ForgeRack.units = {};
 
 <script>
 // Generate bolts — 3-hole groups per U
+// Generate bolts — one per U boundary, 42px spacing (matches unit grid)
+// Bolts extend to cover the full rack content height, not just viewport
 function genBolts() {
-    const h = Math.max(document.getElementById('rackViewport').clientHeight, 600);
+    const body = document.getElementById('rackFront');
+    const viewport = document.getElementById('rackViewport');
+    const h = Math.max(body ? body.scrollHeight : 0, viewport ? viewport.clientHeight : 0, 600);
     const uCount = Math.floor(h / 42);
     ['railL', 'railR'].forEach(id => {
         const el = document.getElementById(id);
         el.innerHTML = '';
         for (let u = 0; u < uCount; u++) {
-            for (let b = 0; b < 3; b++) {
-                const bolt = document.createElement('div');
-                bolt.className = 'rack-bolt';
-                bolt.style.marginTop = b === 0 && u > 0 ? '10px' : '3px';
-                el.appendChild(bolt);
-            }
+            const bolt = document.createElement('div');
+            bolt.className = 'rack-bolt';
+            // Position at exact U boundaries
+            bolt.style.position = 'absolute';
+            bolt.style.top = (u * 42 + 14) + 'px'; // centered in the 42px slot
+            el.appendChild(bolt);
         }
     });
 }
@@ -975,49 +979,27 @@ document.addEventListener('click', e => {
     }
 });
 
-// Calculate rail bolt Y positions (must match genBolts logic)
-function getRailBoltPositions() {
-    const positions = [];
-    const startY = 6; // matches .rack-rail-screws top
-    let y = startY;
-    const h = Math.max(document.getElementById('rackViewport').clientHeight, 600);
-    const uCount = Math.floor(h / 42);
-    for (let u = 0; u < uCount; u++) {
-        for (let b = 0; b < 3; b++) {
-            y += (b === 0 && u > 0) ? 10 : 3;
-            positions.push(y + 7); // center of 14px bolt
-            y += 14;
-        }
-    }
-    return positions;
-}
-
-// Position ear bolts to align with actual rail bolt holes
+// Position ear bolts at U boundaries within the mainframe
 function positionEarBolts() {
     const mf = document.querySelector('.mainframe');
     if (!mf) return;
-    const rackPlate = document.querySelector('.rack-plate');
-    const mfTop = rackPlate ? rackPlate.offsetHeight : 24; // offset from rack-plate above
-    const boltPositions = getRailBoltPositions();
+    const mfTop = 42; // 1U rack-plate above
     const mfHeight = mf.offsetHeight;
+    const uCount = Math.floor(mfHeight / 42);
 
-    // Find which rail bolts fall within the mainframe's vertical span
-    const inRange = boltPositions.filter(y => y >= mfTop && y <= mfTop + mfHeight);
-
-    // Pick first, last, and ~middle positions (3 bolts per ear)
-    let picks = [];
-    if (inRange.length >= 3) {
-        picks = [inRange[0], inRange[Math.floor(inRange.length / 2)], inRange[inRange.length - 1]];
-    } else {
-        picks = inRange;
+    // Pick 3 positions: near top, middle, near bottom
+    const picks = [];
+    if (uCount >= 3) {
+        picks.push(42 + 14);  // second U line
+        picks.push(Math.floor(uCount / 2) * 42 + 14);  // middle
+        picks.push((uCount - 2) * 42 + 14);  // second from bottom
     }
 
-    // Position all ear bolts
     document.querySelectorAll('.mf-ear').forEach(ear => {
         const bolts = ear.querySelectorAll('.mf-ear-bolt');
         bolts.forEach((bolt, i) => {
             if (picks[i] !== undefined) {
-                bolt.style.top = (picks[i] - mfTop - 6) + 'px'; // 6 = half bolt height
+                bolt.style.top = picks[i] + 'px';
                 bolt.style.display = '';
             } else {
                 bolt.style.display = 'none';
