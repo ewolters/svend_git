@@ -15,16 +15,14 @@
 
 {% block crud_rail_filters %}
 <div class="sv-filter-bar">
-    <button class="sv-filter-btn active" onclick="demoFilter(this,'all')">All</button>
-    <button class="sv-filter-btn" onclick="demoFilter(this,'untriaged')">Untriaged</button>
-    <button class="sv-filter-btn" onclick="demoFilter(this,'acknowledged')">Ack</button>
-    <button class="sv-filter-btn" onclick="demoFilter(this,'resolved')">Resolved</button>
+    <button class="sv-filter-btn active" onclick="applyDemoFilter(this,'all')">All</button>
+    <button class="sv-filter-btn" onclick="applyDemoFilter(this,'untriaged')">Untriaged</button>
+    <button class="sv-filter-btn" onclick="applyDemoFilter(this,'acknowledged')">Ack</button>
+    <button class="sv-filter-btn" onclick="applyDemoFilter(this,'resolved')">Resolved</button>
 </div>
 {% endblock %}
 
-{% block crud_rail_list %}
-<div class="sv-empty" id="demoListLoading">Loading...</div>
-{% endblock %}
+{% block crud_rail_list %}{% endblock %}
 
 {% block crud_scripts %}
 // Demo data — simulates API response
@@ -38,18 +36,18 @@ const DEMO_SIGNALS = [
 ];
 
 let demoItems = [...DEMO_SIGNALS];
-let demoFilter = 'all';
+let currentDemoFilter = 'all';
 let demoSelected = null;
 
-function demoFilter(btn, filter) {
-    demoFilter = filter;
+function applyDemoFilter(btn, filter) {
+    currentDemoFilter = filter;
     document.querySelectorAll('.sv-filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     renderDemoList();
 }
 
 function renderDemoList() {
-    const filtered = demoFilter === 'all' ? demoItems : demoItems.filter(s => s.triage_state === demoFilter);
+    const filtered = currentDemoFilter === 'all' ? demoItems : demoItems.filter(s => s.triage_state === currentDemoFilter);
     const el = document.getElementById('svCrudList');
     document.getElementById('demoCount').textContent = `${filtered.length} signal${filtered.length !== 1 ? 's' : ''}`;
 
@@ -167,9 +165,6 @@ function timeAgo(iso) {
 
 function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
 
-// Render on load
-setTimeout(() => {
-    document.getElementById('demoListLoading')?.remove();
-    renderDemoList();
-}, 100);
+// Render immediately
+renderDemoList();
 {% endblock %}
