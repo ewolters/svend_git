@@ -9,6 +9,14 @@
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/rack.css' %}">
 <script src="{% static 'js/components.js' %}"></script>
+<script>
+// Bridge: components.js no longer defines registerUnit — units.js needs it
+if (!ForgeRack.registerUnit) {
+    ForgeRack._unitDefs = ForgeRack._unitDefs || {};
+    ForgeRack.registerUnit = function(name, def) { ForgeRack._unitDefs[name] = def; };
+}
+if (!ForgeRack.units) ForgeRack.units = {};
+</script>
 <script src="{% static 'js/units.js' %}"></script>
 <script src="{% static 'js/wiring.js' %}"></script>
 <style>
@@ -1011,13 +1019,7 @@ function syncMainframeHeight() {
 const _unitCache = {};
 let _unitCounter = 0;
 
-// Ensure ForgeRack global exists with unit registry
-if (!window.ForgeRack) window.ForgeRack = {};
-if (!ForgeRack.units) ForgeRack.units = {};
-if (!ForgeRack._unitDefs) ForgeRack._unitDefs = {};
-if (!ForgeRack.registerUnit) {
-    ForgeRack.registerUnit = function(name, def) { ForgeRack._unitDefs[name] = def; };
-}
+// ForgeRack globals already set up in head script bridge
 
 // Register Atlas mainframe as a receivable unit
 ForgeRack.units['atlas'] = {
@@ -1081,11 +1083,10 @@ async function mountUnit(sidebarItem) {
     if (frontEl && ForgeRack.init) ForgeRack.init(frontEl);
     if (backEl && ForgeRack.init) ForgeRack.init(backEl);
 
-    // Init unit behavior — units.js already registered all behaviors
-    if (frontEl && ForgeRack.mountUnit) {
-        ForgeRack.mountUnit(frontEl, id);
-    } else if (frontEl && ForgeRack._unitTypes && ForgeRack._unitTypes[unitName]) {
-        const inst = Object.create(ForgeRack._unitTypes[unitName]);
+    // Init unit behavior — units.js registers into _unitDefs via FR.registerUnit
+    const defs = ForgeRack._unitDefs || ForgeRack._unitTypes || {};
+    if (frontEl && defs[unitName]) {
+        const inst = Object.create(defs[unitName]);
         inst.init(frontEl, id);
         ForgeRack.units[id] = inst;
     }
