@@ -840,12 +840,8 @@
                     </div>
                 </div>
 
-                <!-- Component patch area (below mainframe) -->
-                <div class="rack-empty">
-                    <div class="rack-empty-text">
-                        Component patch points will appear here<br>
-                        as devices are mounted in the rack.
-                    </div>
+                <!-- Component back panels mount here -->
+                <div id="rackBackBay" style="flex:1;display:flex;flex-direction:column;gap:2px;padding:4px;">
                 </div>
 
                 <span class="flip-hint">Tab &#x2192; front</span>
@@ -1037,19 +1033,34 @@ async function mountUnit(sidebarItem) {
     // Substitute ${id} → real instance ID
     const html = _unitCache[unitName].replace(/\$\{id\}/g, id);
 
+    // Parse into temp container to split front/back
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    const frontEl = temp.querySelector('.rack-unit-front');
+    const backEl = temp.querySelector('.rack-unit-back');
+
     // Hide empty state
     const empty = document.getElementById('rackEmptyState');
     if (empty) empty.style.display = 'none';
 
-    // Mount into bay
+    // Mount front panel into rack bay
     const bay = document.getElementById('rackBay');
-    const wrap = document.createElement('div');
-    wrap.id = 'unit-wrap-' + id;
-    wrap.innerHTML = html;
-    bay.appendChild(wrap);
+    if (frontEl) {
+        bay.appendChild(frontEl);
+        // Generate rack ears with bolt-aligned holes
+        if (ForgeRack.generateEars) ForgeRack.generateEars(frontEl);
+    }
+
+    // Mount back panel into rack back (below mainframe patch bay)
+    const backBay = document.getElementById('rackBackBay');
+    if (backEl && backBay) {
+        backBay.appendChild(backEl);
+        if (ForgeRack.generateEars) ForgeRack.generateEars(backEl);
+    }
 
     // Load unit JS if not already registered
-    if (!ForgeRack._unitDefs[unitName]) {
+    const FR = window.ForgeRack || {};
+    if (!FR._unitTypes || !FR._unitTypes[unitName]) {
         try {
             const js = await fetch('/static/js/unit-' + unitName + '.js');
             if (js.ok) {
@@ -1061,12 +1072,15 @@ async function mountUnit(sidebarItem) {
     }
 
     // Init ForgeRack analog components (dials, switches, meters)
-    if (ForgeRack.init) ForgeRack.init(wrap);
+    if (frontEl && ForgeRack.init) ForgeRack.init(frontEl);
+    if (backEl && ForgeRack.init) ForgeRack.init(backEl);
 
-    // Init unit behavior
-    if (ForgeRack._unitDefs[unitName]) {
-        const inst = Object.create(ForgeRack._unitDefs[unitName]);
-        inst.init(wrap.querySelector('[data-unit]') || wrap, id);
+    // Init unit behavior via FR.mountUnit or manual
+    if (frontEl && ForgeRack.mountUnit) {
+        ForgeRack.mountUnit(frontEl, id);
+    } else if (frontEl && FR._unitTypes && FR._unitTypes[unitName]) {
+        const inst = Object.create(FR._unitTypes[unitName]);
+        inst.init(frontEl, id);
         ForgeRack.units[id] = inst;
     }
 
