@@ -289,6 +289,11 @@
 .sv-dot-blue { background: var(--sv-blue); }
 .sv-dot-purple { background: var(--sv-purple); }
 
+/* Legend (color key for charts/maps) */
+.sv-legend { display: flex; flex-direction: column; gap: 4px; }
+.sv-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); }
+.sv-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
 
 /* ────────────────────────────────────────────────────────────
  * 5. DATA TABLE
@@ -422,6 +427,7 @@
  * ──────────────────────────────────────────────────────────── */
 
 .sv-filter-bar { display: flex; gap: 4px; flex-wrap: wrap; }
+.sv-filter-bar.vertical { flex-direction: column; }
 .sv-filter-btn {
     padding: 3px 8px;
     font-size: 10px;
