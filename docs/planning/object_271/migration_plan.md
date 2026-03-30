@@ -307,10 +307,11 @@ Switch to ForgeViz ChartSpec when the view is touched. Main files:
 ## Communication Protocol
 
 1. **Before starting:** Read this plan. Check `grep -r "MIGRATION:" templates/` for current status.
-2. **Before committing:** CR required. File ownership check. No custom CSS without justification.
-3. **After committing:** Update migration dashboard template data + this plan.
-4. **After each sprint:** Quality report to QM with: what changed, what was added to widget library, any defects found, any XSS vectors.
-5. **When blocked on forge packages:** Write spec in `object_271/`, notify PM.
+2. **ALL new views and templates MUST be tested under `/app/demo/` first.** No exceptions. The "Migration" nav link (staff-only) is the staging area. Only after Eric approves does the nav link swap to the new template.
+3. **Before committing:** CR required. File ownership check. No custom CSS without justification.
+4. **After committing:** Update migration dashboard template data + this plan.
+5. **After each sprint:** Quality report to QM with: what changed, what was added to widget library, any defects found, any XSS vectors.
+6. **When blocked on forge packages:** Write spec in `object_271/`, notify PM.
 
 ---
 
