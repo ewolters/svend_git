@@ -1,6 +1,7 @@
 """Django settings for Svend."""
 
 import hashlib
+import importlib
 import sys
 from pathlib import Path
 
@@ -146,7 +147,10 @@ USE_TZ = True
 # Static files
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+    Path(importlib.import_module("forgeviz").__file__).parent / "static",
+]
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
