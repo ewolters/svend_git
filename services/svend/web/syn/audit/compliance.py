@@ -90,27 +90,21 @@ CHECK_SEVERITY = {
     "incident_readiness": 2.0,
     "sla_compliance": 2.0,
     "error_handling": 2.0,
-    # high (2.0): test execution, coverage, and tenant isolation enforcement
-    "test_execution": 2.0,
-    "test_coverage": 2.0,
+    # high (2.0): tenant isolation enforcement + forge ecosystem
     "tenant_isolation_lint": 3.0,  # critical — cross-tenant = security incident
+    "forge_ecosystem": 2.0,  # forgegov bridge — covers tests, lint, calibration, standards
     # medium (1.0): process and coverage checks
-    "standards_compliance": 1.0,
     "log_completeness": 1.0,
     "data_retention": 1.0,
     "privacy_data_export": 1.0,
     "caching": 1.0,
     "architecture": 1.0,
     "architecture_map": 1.0,
-    "symbol_coverage": 1.0,
-    "statistical_calibration": 1.0,
     "output_quality": 1.0,
-    "calibration_coverage": 1.0,
     "endpoint_coverage": 1.0,
     "complexity_governance": 1.0,
     "risk_registry": 1.0,
     # low (0.5): administrative hygiene
-    "code_style": 0.5,
     "roadmap": 0.5,
     "policy_review": 0.5,
 }
@@ -244,9 +238,8 @@ SOC2_CONTROL_MATRIX = {
         "tsc": "CC4",
         "name": "Monitoring activities",
         "checks": [
-            "standards_compliance",
+            "forge_ecosystem",
             "sla_compliance",
-            "statistical_calibration",
             "output_quality",
         ],
         "manual_status": "partial",
@@ -406,9 +399,7 @@ SOC2_CONTROL_MATRIX = {
         "name": "Change management",
         "checks": [
             "change_management",
-            "code_style",
             "architecture",
-            "symbol_coverage",
         ],
         "manual_status": "met",
         "manual_reason": "CI/CD via GitHub Actions + ops/deploy.sh (INIT-010). No staging — single-server, deploy script has rollback.",
@@ -672,11 +663,8 @@ DAILY_CRITICAL = [
     "audit_integrity",
     "access_logging",
     "security_config",
-    "standards_compliance",
     "change_management",
     "sla_compliance",
-    "test_execution",
-    "test_coverage",
     "tenant_isolation_lint",
 ]
 WEEKDAY_ROTATION = {
@@ -692,18 +680,14 @@ WEEKDAY_ROTATION = {
         "backup_freshness",
         "error_handling",
         "incident_readiness",
-        "symbol_coverage",
         "output_quality",
-        "calibration_coverage",
         "complexity_governance",
         "endpoint_coverage",
     ],
     3: [
         "data_retention",
         "rate_limiting",
-        "code_style",
         "roadmap",
-        "statistical_calibration",
         "risk_registry",
     ],
     4: ["dependency_vuln", "ssl_tls"],
@@ -1303,119 +1287,6 @@ def _sync_drift_violations(assertions, results):
                 dv.resolved_by = "compliance_runner"
                 dv.resolution_notes = "Auto-resolved: assertion now passes"
                 dv.save(update_fields=["resolved_at", "resolved_by", "resolution_notes"])
-
-
-@register("standards_compliance", "processing_integrity", soc2_controls=["CC4.1", "CC9.1"])
-def check_standards_compliance():
-    """Parse docs/standards/*.md and verify assertions (impls, code, test existence — no execution)."""
-    from syn.audit.standards import parse_all_standards, verify_assertion
-
-    assertions = parse_all_standards()
-    if not assertions:
-        return {
-            "status": "warning",
-            "details": {"message": "No standards found to parse"},
-            "soc2_controls": [],
-        }
-
-    results = [verify_assertion(a, run_tests=False) for a in assertions]
-    passed = sum(1 for r in results if r["status"] == "pass")
-    failed = sum(1 for r in results if r["status"] == "fail")
-    warnings = sum(1 for r in results if r["status"] == "warning")
-
-    # Group by standard with per-assertion detail
-    by_standard = {}
-    for a, r in zip(assertions, results):
-        std = a.standard
-        if std not in by_standard:
-            by_standard[std] = {"total": 0, "passed": 0, "failed": 0, "assertions": []}
-        by_standard[std]["total"] += 1
-        if r["status"] == "pass":
-            by_standard[std]["passed"] += 1
-        elif r["status"] == "fail":
-            by_standard[std]["failed"] += 1
-        by_standard[std]["assertions"].append(
-            {
-                "check_id": r["check_id"],
-                "assertion": r["assertion"][:120],
-                "section": r.get("section", ""),
-                "status": r["status"],
-                "impl_checks": r.get("impl_checks", []),
-                "code_checks": r.get("code_checks", []),
-                "test_checks": r.get("test_checks", []),
-            }
-        )
-
-    # Collect all SOC 2 controls
-    all_controls = set()
-    for a in assertions:
-        if "soc2" in a.controls:
-            all_controls.add(a.controls["soc2"])
-
-    # Findings: failures + warnings with full detail
-    findings = [
-        {
-            "check_id": r["check_id"],
-            "assertion": r["assertion"][:120],
-            "standard": r["standard"],
-            "section": r.get("section", ""),
-            "status": r["status"],
-            "impl_checks": r.get("impl_checks", []),
-            "code_checks": r.get("code_checks", []),
-            "test_checks": r.get("test_checks", []),
-        }
-        for r in results
-        if r["status"] in ("fail", "warning")
-    ]
-
-    # Aggregate test stats
-    tests_linked = tests_exist = tests_missing = 0
-    tests_passed = tests_failed = tests_skipped = 0
-    seen_tests = set()
-    for r in results:
-        for tc in r.get("test_checks", []):
-            tests_linked += 1
-            test_path = tc.get("test", "")
-            seen_tests.add(test_path)
-            if tc.get("exists"):
-                tests_exist += 1
-            else:
-                tests_missing += 1
-            if tc.get("ran"):
-                status = tc.get("status", "")
-                if status == "pass" or tc.get("passed"):
-                    tests_passed += 1
-                elif status == "skip":
-                    tests_skipped += 1
-                else:
-                    tests_failed += 1
-    tests_unique = len(seen_tests)
-
-    # Sync drift violations (CMP-001 §5.6) — own transaction
-    try:
-        _sync_drift_violations(assertions, results)
-    except Exception as e:
-        logger.warning("Drift violation sync failed: %s", e)
-
-    return {
-        "status": "pass" if failed == 0 else "fail",
-        "details": {
-            "total_assertions": len(results),
-            "passed": passed,
-            "failed": failed,
-            "warnings": warnings,
-            "tests_linked": tests_linked,
-            "tests_unique": tests_unique,
-            "tests_exist": tests_exist,
-            "tests_missing": tests_missing,
-            "tests_passed": tests_passed,
-            "tests_failed": tests_failed,
-            "tests_skipped": tests_skipped,
-            "by_standard": by_standard,
-            "findings": findings,
-        },
-        "soc2_controls": sorted(all_controls),
-    }
 
 
 def run_standards_tests_for(standard_name):
@@ -2692,21 +2563,21 @@ def check_tenant_isolation_lint():
 # Test execution and coverage checks — TST-001 §10
 #
 # ⚠ COMPLIANCE-CRITICAL: These checks are the verification layer for all
-# other standards. A failing test_execution check means the compliance
+# other standards. A failing forge_ecosystem check means the compliance
 # system cannot prove its own assertions are met.
 #
 # These checks run:
 #   - Daily at 07:00 UTC (2:00 AM EST) via syn.sched
-#   - On every CI push via GitHub Actions (run_compliance --check=test_execution)
-#   - On demand via: python manage.py run_compliance --check=test_execution
+#   - On every CI push via GitHub Actions (run_compliance --check=forge_ecosystem)
+#   - On demand via: python manage.py run_compliance --check=forge_ecosystem
 #
 # The test suite runs in a subprocess with a 10-minute timeout. It does NOT
 # touch the production database — Django's test runner creates a separate
 # test_* database, runs all tests, and destroys it. This is safe to run on
 # the production server at 2:00 AM.
 #
-# If test_execution fails, a DriftViolation is NOT automatically created
-# (unlike standards_compliance). Instead, the ComplianceCheck record itself
+# If forge_ecosystem fails, a DriftViolation is NOT automatically created
+# (see forgegov for details). Instead, the ComplianceCheck record itself
 # is the audit trail. The dashboard shows the failure, the pass rate drops,
 # and the monthly report captures it.
 #
@@ -2719,215 +2590,6 @@ def check_tenant_isolation_lint():
 
 _COVERAGE_RATCHET = 45  # Minimum line coverage %. Increase as coverage improves.
 _TEST_TIMEOUT_SECONDS = 600  # 10 minutes — full suite including golden files.
-
-
-@register("test_execution", "processing_integrity", soc2_controls=["CC4.1", "CC7.2"])
-def check_test_execution():
-    """Run the full pytest suite and report pass/fail status.
-
-    ⚠ COMPLIANCE-CRITICAL (TST-001 §10.4): This is the authoritative test
-    execution gate. The compliance runner owns test execution — GitHub Actions
-    and pre-commit hooks are advisory layers only.
-
-    Runs pytest in a subprocess against a disposable test database. The
-    production database is never touched. Safe for production server execution.
-
-    Returns:
-        dict: Standard compliance check result with test counts and output.
-    """
-    import shutil
-
-    base_dir = Path(settings.BASE_DIR)
-
-    pytest_bin = shutil.which("pytest")
-    if not pytest_bin:
-        return {
-            "status": "error",
-            "details": {"message": "pytest not found on PATH. Install: pip install pytest pytest-django"},
-            "soc2_controls": ["CC4.1", "CC7.2"],
-        }
-
-    try:
-        result = subprocess.run(
-            [
-                pytest_bin,
-                "--tb=short",
-                "--no-header",
-                "-q",
-                f"--rootdir={base_dir}",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=_TEST_TIMEOUT_SECONDS,
-            cwd=str(base_dir),
-            env={
-                **os.environ,
-                "DJANGO_SETTINGS_MODULE": "svend.settings",
-                # Force test database even if running on production server
-                "SVEND_ENV": "test",
-            },
-        )
-    except subprocess.TimeoutExpired:
-        return {
-            "status": "fail",
-            "details": {
-                "message": f"Test suite timed out after {_TEST_TIMEOUT_SECONDS}s",
-                "timeout_seconds": _TEST_TIMEOUT_SECONDS,
-            },
-            "soc2_controls": ["CC4.1", "CC7.2"],
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "details": {"message": f"Failed to invoke pytest: {e}"},
-            "soc2_controls": ["CC4.1", "CC7.2"],
-        }
-
-    # Parse pytest summary line: "X passed, Y failed, Z errors in Ns"
-    stdout = result.stdout or ""
-    stderr = result.stderr or ""
-    last_lines = stdout.strip().split("\n")[-5:] if stdout.strip() else []
-
-    passed = failed = errors = warnings_count = 0
-    for line in last_lines:
-        for part in line.split(","):
-            part = part.strip()
-            if "passed" in part:
-                try:
-                    passed = int(part.split()[0])
-                except (ValueError, IndexError):
-                    pass
-            elif "failed" in part:
-                try:
-                    failed = int(part.split()[0])
-                except (ValueError, IndexError):
-                    pass
-            elif "error" in part:
-                try:
-                    errors = int(part.split()[0])
-                except (ValueError, IndexError):
-                    pass
-            elif "warning" in part:
-                try:
-                    warnings_count = int(part.split()[0])
-                except (ValueError, IndexError):
-                    pass
-
-    total = passed + failed + errors
-    if total == 0 and result.returncode != 0:
-        # pytest failed before running tests (import error, config issue)
-        return {
-            "status": "error",
-            "details": {
-                "message": "pytest exited with errors before running tests",
-                "exit_code": result.returncode,
-                "stderr_tail": stderr[-1000:] if stderr else "",
-                "stdout_tail": stdout[-1000:] if stdout else "",
-            },
-            "soc2_controls": ["CC4.1", "CC7.2"],
-        }
-
-    if failed > 0 or errors > 0:
-        status = "fail"
-    elif warnings_count > 0:
-        status = "warning"
-    else:
-        status = "pass"
-
-    return {
-        "status": status,
-        "details": {
-            "passed": passed,
-            "failed": failed,
-            "errors": errors,
-            "warnings": warnings_count,
-            "total": total,
-            "exit_code": result.returncode,
-            "summary": "\n".join(last_lines),
-            # Truncated output for dashboard display — full output in logs
-            "stdout_tail": stdout[-2000:] if stdout else "",
-        },
-        "soc2_controls": ["CC4.1", "CC7.2"],
-    }
-
-
-@register("test_coverage", "processing_integrity", soc2_controls=["CC4.1"])
-def check_test_coverage():
-    """Verify line coverage meets the ratchet threshold.
-
-    ⚠ COMPLIANCE-CRITICAL (TST-001 §10.5): Coverage ratchet prevents
-    regression. The threshold starts at 45% and should only increase.
-    Lowering the ratchet requires a ChangeRequest with justification.
-
-    Reads coverage.json produced by the most recent pytest --cov run.
-    If coverage.json is stale (>48h), reports a warning — the test_execution
-    check is responsible for generating fresh coverage data.
-
-    Returns:
-        dict: Standard compliance check result with coverage percentage.
-    """
-    base_dir = Path(settings.BASE_DIR)
-    coverage_file = base_dir / "coverage.json"
-
-    if not coverage_file.exists():
-        return {
-            "status": "warning",
-            "details": {
-                "message": "coverage.json not found. Run: pytest --cov=. --cov-report=json",
-                "ratchet": _COVERAGE_RATCHET,
-            },
-            "soc2_controls": ["CC4.1"],
-        }
-
-    try:
-        data = json.loads(coverage_file.read_text())
-    except (json.JSONDecodeError, OSError) as e:
-        return {
-            "status": "error",
-            "details": {"message": f"Failed to read coverage.json: {e}"},
-            "soc2_controls": ["CC4.1"],
-        }
-
-    # Check staleness — coverage.json should be refreshed by test_execution
-    try:
-        mtime = datetime.fromtimestamp(coverage_file.stat().st_mtime)
-        age_hours = (datetime.now() - mtime).total_seconds() / 3600
-        is_stale = age_hours > 48
-    except OSError:
-        age_hours = -1
-        is_stale = False
-
-    # Extract total coverage from coverage.json
-    totals = data.get("totals", {})
-    percent_covered = totals.get("percent_covered", 0)
-    num_statements = totals.get("num_statements", 0)
-    covered_lines = totals.get("covered_lines", 0)
-    missing_lines = totals.get("missing_lines", 0)
-
-    # Ratchet check
-    meets_ratchet = percent_covered >= _COVERAGE_RATCHET
-
-    if not meets_ratchet:
-        status = "fail"
-    elif is_stale:
-        status = "warning"
-    else:
-        status = "pass"
-
-    return {
-        "status": status,
-        "details": {
-            "percent_covered": round(percent_covered, 1),
-            "ratchet_threshold": _COVERAGE_RATCHET,
-            "meets_ratchet": meets_ratchet,
-            "num_statements": num_statements,
-            "covered_lines": covered_lines,
-            "missing_lines": missing_lines,
-            "coverage_age_hours": round(age_hours, 1),
-            "is_stale": is_stale,
-        },
-        "soc2_controls": ["CC4.1"],
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -3623,102 +3285,6 @@ def _check_module_layout_order(web_root):
             )
 
     return violations
-
-
-@register("code_style", "processing_integrity", soc2_controls=["CC8.1"])
-def check_code_style():
-    """STY-001: Code style & naming conventions enforcement.
-
-    Scans .py files for naming violations (files, classes, functions),
-    missing docstrings, import order issues, wildcard imports, URL kebab-case,
-    timestamp field naming, and class docstrings.
-
-    Status: fail on file/class naming violations, warning on function/docstring/import issues.
-
-    Compliance: STY-001 (Code Style), SOC 2 CC8.1
-    """
-    web_root = Path(settings.BASE_DIR)
-
-    file_violations = _scan_file_names(web_root)
-    class_violations = _scan_class_names(web_root)
-    function_violations = _scan_function_names(web_root)
-    missing_docstrings = _check_module_docstrings(web_root)
-    import_violations = _check_import_order(web_root)
-    wildcard_violations = _check_wildcard_imports(web_root)
-    field_violations = _check_model_field_naming(web_root)
-    url_violations = _check_arch_url_kebab_case(web_root)
-    timestamp_violations = _check_arch_timestamp_naming(web_root)
-    class_docstring_violations = _scan_class_docstrings(web_root)
-    constant_violations = _scan_constant_names(web_root)
-    layout_violations = _check_module_layout_order(web_root)
-
-    total = (
-        len(file_violations)
-        + len(class_violations)
-        + len(function_violations)
-        + len(missing_docstrings)
-        + len(import_violations)
-        + len(wildcard_violations)
-        + len(field_violations["fk_suffix"])
-        + len(field_violations["mutable_default"])
-        + len(url_violations)
-        + len(timestamp_violations)
-        + len(constant_violations)
-        + len(layout_violations)
-    )
-
-    # Count scanned files
-    files_scanned = sum(1 for _ in web_root.rglob("*.py") if not _should_skip_path(_))
-
-    # Determine status: fail on hard violations, warning on debt items
-    hard_fail = (
-        file_violations
-        or class_violations
-        or wildcard_violations
-        or field_violations["fk_suffix"]
-        or field_violations["mutable_default"]
-        or field_violations["boolean_prefix"]
-        or url_violations
-        or constant_violations
-    )
-    soft_warn = (
-        function_violations
-        or missing_docstrings
-        or import_violations
-        or timestamp_violations
-        or class_docstring_violations
-        or layout_violations
-    )
-
-    if hard_fail:
-        status = "fail"
-    elif soft_warn:
-        status = "warning"
-    else:
-        status = "pass"
-
-    return {
-        "status": status,
-        "details": {
-            "files_scanned": files_scanned,
-            "file_naming_violations": file_violations[:20],
-            "class_naming_violations": class_violations[:20],
-            "function_naming_violations": function_violations[:20],
-            "missing_docstrings": missing_docstrings[:20],
-            "import_order_violations": import_violations[:20],
-            "wildcard_import_violations": wildcard_violations[:20],
-            "boolean_field_violations": field_violations["boolean_prefix"][:20],
-            "fk_suffix_violations": field_violations["fk_suffix"][:20],
-            "mutable_default_violations": field_violations["mutable_default"][:20],
-            "url_kebab_violations": url_violations[:20],
-            "timestamp_naming_violations": timestamp_violations[:20],
-            "class_docstring_violations": class_docstring_violations[:20],
-            "constant_violations": constant_violations[:20],
-            "layout_violations": layout_violations[:20],
-            "total_violations": total,
-        },
-        "soc2_controls": ["CC8.1"],
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -5104,310 +4670,9 @@ def check_roadmap():
     }
 
 
-@register("symbol_coverage", "processing_integrity", soc2_controls=["CC8.1", "CC4.1"])
-def check_symbol_coverage():
-    """Non-gameable symbol-level governance metric.
-
-    AST-walks all production .py files to inventory every public top-level
-    function and class.  Only symbol-level <!-- impl: file.py:Symbol --> hooks
-    count — file-level hooks are explicitly skipped.  Each symbol is classified:
-
-      covered           — impl hook on assertion that also has test hooks
-      specified_untested — impl hook but assertion lacks test hooks
-      ungoverned        — no impl hook references this symbol
-
-    Risk score per file = ungoverned_loc * 1.0 + specified_untested_loc * 0.5
-    """
-    import ast
-    import os
-
-    from syn.audit.standards import parse_all_standards
-
-    issues = []
-    web_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-    # ------------------------------------------------------------------
-    # Step 1: Build symbol inventory from production .py files via AST
-    # ------------------------------------------------------------------
-    skip_dirs = {"migrations", "__pycache__", ".git", "node_modules", ".venv"}
-    all_symbols = {}  # "rel_path:Name" -> {kind, loc, file, name}
-
-    def _loc_range(filepath, start, end):
-        """Count non-blank, non-comment lines within a line range."""
-        try:
-            with open(filepath) as fh:
-                lines = fh.readlines()
-            count = 0
-            for i in range(start - 1, min(end, len(lines))):
-                s = lines[i].strip()
-                if s and not s.startswith("#"):
-                    count += 1
-            return count
-        except Exception:
-            return 0
-
-    for root, dirs, files in os.walk(web_root):
-        dirs[:] = [d for d in dirs if d not in skip_dirs]
-        for f in files:
-            if not f.endswith(".py"):
-                continue
-            if f.startswith("__init__"):
-                continue
-            if "test" in f.lower():
-                continue
-            full_path = os.path.join(root, f)
-            rel = os.path.relpath(full_path, web_root)
-
-            try:
-                with open(full_path) as fh:
-                    source = fh.read()
-                tree = ast.parse(source)
-            except (SyntaxError, UnicodeDecodeError, OSError):
-                continue
-
-            for node in ast.iter_child_nodes(tree):
-                if isinstance(node, ast.ClassDef):
-                    if node.name.startswith("_"):
-                        continue
-                    loc = _loc_range(full_path, node.lineno, node.end_lineno)
-                    if loc > 0:
-                        all_symbols[f"{rel}:{node.name}"] = {
-                            "kind": "class",
-                            "loc": loc,
-                            "file": rel,
-                            "name": node.name,
-                        }
-                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    if node.name.startswith("_"):
-                        continue
-                    loc = _loc_range(full_path, node.lineno, node.end_lineno)
-                    if loc > 0:
-                        all_symbols[f"{rel}:{node.name}"] = {
-                            "kind": "function",
-                            "loc": loc,
-                            "file": rel,
-                            "name": node.name,
-                        }
-
-    # ------------------------------------------------------------------
-    # Step 2: Map symbol-level impl hooks to assertions
-    # ------------------------------------------------------------------
-    assertions = parse_all_standards()
-    governed = set()  # keys with impl hook (may lack tests)
-    covered_set = set()  # keys where assertion also has test hooks
-
-    for a in assertions:
-        has_tests = len(a.tests) > 0
-        for impl_ref in a.impls:
-            impl_ref = impl_ref.strip()
-            if ":" not in impl_ref:
-                continue  # file-level hook — skip entirely
-            file_part, symbol_part = impl_ref.split(":", 1)
-            # Class.method hooks resolve to the class
-            top_symbol = symbol_part.split(".")[0]
-            key = f"{file_part}:{top_symbol}"
-
-            governed.add(key)
-            if has_tests:
-                covered_set.add(key)
-
-    # ------------------------------------------------------------------
-    # Step 3: Classify every symbol into buckets
-    # ------------------------------------------------------------------
-    covered = {}
-    specified = {}
-    ungoverned = {}
-
-    for key, info in all_symbols.items():
-        if key in covered_set:
-            covered[key] = info
-        elif key in governed:
-            specified[key] = info
-        else:
-            ungoverned[key] = info
-
-    # ------------------------------------------------------------------
-    # Step 4: Aggregate by file and module
-    # ------------------------------------------------------------------
-    total_symbols = len(all_symbols)
-    total_loc = sum(s["loc"] for s in all_symbols.values())
-    covered_loc = sum(s["loc"] for s in covered.values())
-    specified_loc = sum(s["loc"] for s in specified.values())
-    ungoverned_loc = sum(s["loc"] for s in ungoverned.values())
-
-    covered_pct = round(len(covered) / total_symbols * 100, 1) if total_symbols else 0
-    covered_loc_pct = round(covered_loc / total_loc * 100, 1) if total_loc else 0
-
-    # Per-file risk
-    file_risk = {}
-    for key, info in all_symbols.items():
-        f = info["file"]
-        if f not in file_risk:
-            file_risk[f] = {
-                "ungoverned_loc": 0,
-                "specified_untested_loc": 0,
-                "covered_loc": 0,
-                "total_loc": 0,
-                "total_symbols": 0,
-                "covered_symbols": 0,
-                "specified_symbols": 0,
-                "ungoverned_symbols": 0,
-            }
-        fr = file_risk[f]
-        fr["total_loc"] += info["loc"]
-        fr["total_symbols"] += 1
-        if key in covered:
-            fr["covered_loc"] += info["loc"]
-            fr["covered_symbols"] += 1
-        elif key in specified:
-            fr["specified_untested_loc"] += info["loc"]
-            fr["specified_symbols"] += 1
-        else:
-            fr["ungoverned_loc"] += info["loc"]
-            fr["ungoverned_symbols"] += 1
-
-    for fr in file_risk.values():
-        fr["risk_score"] = round(fr["ungoverned_loc"] * 1.0 + fr["specified_untested_loc"] * 0.5, 1)
-
-    top_risk = sorted(
-        [{"file": f, **fr} for f, fr in file_risk.items()],
-        key=lambda x: -x["risk_score"],
-    )[:20]
-
-    # Per-module breakdown
-    by_module = {}
-    for f, fr in file_risk.items():
-        module = f.split("/")[0] if "/" in f else "root"
-        if module not in by_module:
-            by_module[module] = {
-                "total_loc": 0,
-                "covered_loc": 0,
-                "specified_untested_loc": 0,
-                "ungoverned_loc": 0,
-                "total_symbols": 0,
-                "covered_symbols": 0,
-                "specified_symbols": 0,
-                "ungoverned_symbols": 0,
-            }
-        bm = by_module[module]
-        for k in list(bm.keys()):
-            bm[k] += fr.get(k, 0)
-
-    module_list = []
-    for mod in sorted(by_module.keys()):
-        d = by_module[mod]
-        d["module"] = mod
-        d["covered_pct"] = round(d["covered_symbols"] / d["total_symbols"] * 100, 1) if d["total_symbols"] else 0
-        module_list.append(d)
-
-    total_risk = round(ungoverned_loc * 1.0 + specified_loc * 0.5, 1)
-
-    # ------------------------------------------------------------------
-    # Step 5: Status (percentage thresholds)
-    # ------------------------------------------------------------------
-    if covered_pct < 30:
-        issues.append(f"Symbol coverage {covered_pct}% below 30% threshold")
-        status = "fail"
-    elif covered_pct < 50:
-        issues.append(f"Symbol coverage {covered_pct}% below 50% target")
-        status = "warning"
-    else:
-        status = "pass"
-
-    return {
-        "status": status,
-        "details": {
-            "total_symbols": total_symbols,
-            "covered_symbols": len(covered),
-            "specified_untested_symbols": len(specified),
-            "ungoverned_symbols": len(ungoverned),
-            "total_loc": total_loc,
-            "covered_loc": covered_loc,
-            "specified_untested_loc": specified_loc,
-            "ungoverned_loc": ungoverned_loc,
-            "covered_pct": covered_pct,
-            "covered_loc_pct": covered_loc_pct,
-            "risk_score": total_risk,
-            "by_module": module_list,
-            "top_risk": top_risk,
-            "issues": issues,
-        },
-        "soc2_controls": ["CC8.1", "CC4.1"],
-    }
-
-
 # ---------------------------------------------------------------------------
 # Statistical Calibration (STAT-001 §15)
 # ---------------------------------------------------------------------------
-
-
-@register("statistical_calibration", "processing_integrity", soc2_controls=["CC4.1"])
-def check_statistical_calibration():
-    """Run statistical calibration — feed known reference data through analysis
-    functions and verify outputs within tolerance.
-
-    Standard: STAT-001 §15
-    Compliance: SOC 2 CC4.1, ISO 9001:2015 §8.5.1
-    """
-    issues = []
-    try:
-        from agents_api.calibration import run_calibration
-
-        cal = run_calibration()
-    except Exception as e:
-        return {
-            "status": "error",
-            "details": {"error": str(e), "cases_run": 0, "pass_rate": 0},
-            "soc2_controls": ["CC4.1"],
-        }
-
-    cases_run = cal["cases_run"]
-    pass_rate = cal["pass_rate"]
-    drift_cases = cal["drift_cases"]
-
-    # Create DriftViolation for each failed case
-    if drift_cases:
-        try:
-            from syn.audit.models import DriftViolation
-
-            for case_id in drift_cases:
-                # Find the case result for detail
-                case_detail = next((r for r in cal["results"] if r["case_id"] == case_id), {})
-                severity = "HIGH" if len(drift_cases) > 3 else "MEDIUM"
-                DriftViolation.objects.create(
-                    enforcement_check="CAL",
-                    severity=severity,
-                    file_path="agents_api/calibration.py",
-                    description=f"Calibration case {case_id} failed: {case_detail.get('description', '')}",
-                    expected_pattern=f"All calibration expectations pass for {case_id}",
-                    actual_pattern=f"Failed checks: {[c for c in case_detail.get('checks', []) if not c.get('passed')]}",
-                )
-        except Exception as e:
-            issues.append(f"Could not create DriftViolation: {e}")
-
-    # Determine status
-    if pass_rate >= 100:
-        status = "pass"
-    elif pass_rate >= 80:
-        status = "warning"
-        issues.append(f"{len(drift_cases)} calibration case(s) failed: {drift_cases}")
-    else:
-        status = "fail"
-        issues.append(f"Calibration pass rate {pass_rate}% below 80% threshold")
-
-    return {
-        "status": status,
-        "details": {
-            "cases_run": cases_run,
-            "cases_passed": cal["cases_passed"],
-            "pass_rate": pass_rate,
-            "seed": cal["seed"],
-            "drift_cases": drift_cases,
-            "results": cal["results"],
-            "issues": issues,
-        },
-        "soc2_controls": ["CC4.1"],
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -5666,105 +4931,6 @@ _COMPLEXITY_EXEMPTIONS = {
 }
 
 
-@register("calibration_coverage", "processing_integrity", soc2_controls=["CC4.1", "CC7.2"])
-def check_calibration_coverage():
-    """CAL-001 §5/§6: Coverage measurement, golden files, ratchet.
-
-    Validates that:
-    - .coveragerc exists and is configured
-    - CalibrationReport records exist with coverage data
-    - Coverage hasn't regressed below ratchet baseline
-    - Golden file directory exists
-
-    Primary data source: CalibrationReport DB records (populated by
-    generate_calibration_cert). Falls back to coverage.json only if
-    no DB records exist.
-
-    Standard: CAL-001 §5, §6
-    Compliance: SOC 2 CC4.1, ISO/IEC 17025:2017
-    """
-    from syn.audit.models import CalibrationReport
-
-    issues = []
-    base = Path(settings.BASE_DIR)
-
-    # 1. Check .coveragerc exists
-    coveragerc = base / ".coveragerc"
-    if not coveragerc.exists():
-        issues.append(".coveragerc not found — create per CAL-001 §5.1")
-
-    # 2. Read coverage from CalibrationReport DB (primary source)
-    has_coverage = False
-    current_coverage = 0
-    ratchet_baseline = 0
-    report_age_days = None
-
-    try:
-        last_report = CalibrationReport.objects.order_by("-date").first()
-        if last_report and last_report.overall_coverage is not None:
-            current_coverage = last_report.overall_coverage
-            ratchet_baseline = last_report.ratchet_baseline
-            has_coverage = True
-            report_age_days = (date.today() - last_report.date).days
-            if report_age_days > 30:
-                issues.append(
-                    f"Latest CalibrationReport is {report_age_days} days old (>30 days) "
-                    f"— run: python manage.py generate_calibration_cert"
-                )
-    except Exception:
-        pass  # Model may not exist yet during initial setup
-
-    # 3. Fallback to coverage.json only if no DB records
-    if not has_coverage:
-        coverage_json = base / "coverage.json"
-        if coverage_json.exists():
-            try:
-                data = json.loads(coverage_json.read_text())
-                current_coverage = data.get("totals", {}).get("percent_covered", 0)
-                has_coverage = True
-            except Exception as e:
-                issues.append(f"coverage.json parse error: {e}")
-
-    if not has_coverage:
-        issues.append("No coverage data — run: python manage.py generate_calibration_cert")
-
-    # 4. Ratchet baseline check
-    if has_coverage and ratchet_baseline > 0:
-        if current_coverage < ratchet_baseline:
-            issues.append(f"Coverage regression: {current_coverage:.1f}% < ratchet baseline {ratchet_baseline:.1f}%")
-
-    # 5. Golden file count
-    golden_dir = base / "agents_api" / "tests" / "golden"
-    golden_count = len(list(golden_dir.glob("*.json"))) if golden_dir.exists() else 0
-
-    # Determine status
-    has_ratchet_fail = any("regression" in i.lower() for i in issues)
-    has_missing_rc = any(".coveragerc" in i for i in issues)
-
-    if has_ratchet_fail:
-        status = "fail"
-    elif has_missing_rc:
-        status = "fail"
-    elif issues:
-        status = "warning"
-    else:
-        status = "pass"
-
-    return {
-        "status": status,
-        "details": {
-            "coveragerc_exists": coveragerc.exists(),
-            "coverage_measured": has_coverage,
-            "current_coverage": current_coverage if has_coverage else None,
-            "ratchet_baseline": ratchet_baseline if has_coverage else None,
-            "report_age_days": report_age_days,
-            "golden_file_count": golden_count,
-            "issues": issues,
-        },
-        "soc2_controls": ["CC4.1", "CC7.2"],
-    }
-
-
 @register("complexity_governance", "processing_integrity", soc2_controls=["CC4.1"])
 def check_complexity_governance():
     """CAL-001 §8: File size within budget.
@@ -5962,4 +5128,134 @@ def check_risk_registry():
             "high_not_mitigating": high_not_mitigating,
         },
         "soc2_controls": ["CC3.2", "CC9.1"],
+    }
+
+
+# =============================================================================
+# FORGE ECOSYSTEM BRIDGE — CMP-001 §X
+# =============================================================================
+
+
+@register("forge_ecosystem", "processing_integrity", soc2_controls=["CC4.1", "CC7.2", "CC8.1"])
+def check_forge_ecosystem():
+    """ForgeGov bridge — validates the entire forge package ecosystem.
+
+    Replaces 7 individual checks (test_execution, test_coverage, code_style,
+    standards_compliance, symbol_coverage, statistical_calibration,
+    calibration_coverage) with one bridge check that reads forgegov's pipeline
+    report.
+
+    Can also trigger forgegov run if the report is stale.
+
+    Report location: ~/.forge/reports/forgegov_latest.json
+    Written by: forgegov run
+    """
+    import json
+    import subprocess
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    report_path = Path.home() / ".forge" / "reports" / "forgegov_latest.json"
+
+    # If no report exists or it's stale, try running forgegov
+    run_needed = False
+    if not report_path.exists():
+        run_needed = True
+    else:
+        try:
+            report = json.loads(report_path.read_text())
+            ts = datetime.fromisoformat(report["timestamp"])
+            age_hours = (datetime.now(timezone.utc) - ts).total_seconds() / 3600
+            if age_hours > 24:
+                run_needed = True
+        except (json.JSONDecodeError, KeyError, ValueError):
+            run_needed = True
+
+    if run_needed:
+        forgegov_path = Path.home() / "forgegov"
+        if (forgegov_path / "src" / "forgegov").exists():
+            try:
+                result = subprocess.run(
+                    ["python3", "-m", "forgegov", "run"],
+                    cwd=str(forgegov_path),
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                )
+                if result.returncode != 0:
+                    return {
+                        "status": "fail",
+                        "details": {
+                            "error": "forgegov run failed",
+                            "stderr": result.stderr[:500] if result.stderr else "",
+                            "returncode": result.returncode,
+                        },
+                        "soc2_controls": ["CC4.1", "CC7.2", "CC8.1"],
+                    }
+            except subprocess.TimeoutExpired:
+                return {
+                    "status": "fail",
+                    "details": {"error": "forgegov run timed out (120s)"},
+                    "soc2_controls": ["CC4.1", "CC7.2", "CC8.1"],
+                }
+            except FileNotFoundError:
+                return {
+                    "status": "fail",
+                    "details": {"error": "forgegov not installed or not found"},
+                    "soc2_controls": ["CC4.1", "CC7.2", "CC8.1"],
+                }
+        else:
+            return {
+                "status": "fail",
+                "details": {
+                    "error": f"No forgegov report at {report_path} and forgegov not found at {forgegov_path}",
+                    "action": "Install forgegov: cd ~/forgegov && pip install -e .",
+                },
+                "soc2_controls": ["CC4.1", "CC7.2", "CC8.1"],
+            }
+
+    # Read (possibly freshly generated) report
+    try:
+        report = json.loads(report_path.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        return {
+            "status": "fail",
+            "details": {"error": f"Cannot read forgegov report: {e}"},
+            "soc2_controls": ["CC4.1", "CC7.2", "CC8.1"],
+        }
+
+    passed = report.get("passed", False)
+    stages = report.get("stages", [])
+    packages = report.get("packages", {})
+    duration = report.get("total_duration_s", 0)
+    timestamp = report.get("timestamp", "unknown")
+
+    failed_stages = [s["stage"] for s in stages if not s.get("passed")]
+    stage_summary = {s["stage"]: "pass" if s.get("passed") else "FAIL" for s in stages}
+
+    status = "pass" if passed else "fail"
+
+    return {
+        "status": status,
+        "details": {
+            "report_timestamp": timestamp,
+            "pipeline_passed": passed,
+            "duration_s": duration,
+            "stages": stage_summary,
+            "failed_stages": failed_stages,
+            "packages": list(packages.keys()),
+            "package_count": len(packages),
+            "contract_errors": report.get("contract_errors", 0),
+            "contract_warnings": report.get("contract_warnings", 0),
+            "replaces": [
+                "test_execution",
+                "test_coverage",
+                "code_style",
+                "standards_compliance",
+                "symbol_coverage",
+                "statistical_calibration",
+                "calibration_coverage",
+            ],
+        },
+        "soc2_controls": ["CC4.1", "CC7.2", "CC8.1"],
     }
