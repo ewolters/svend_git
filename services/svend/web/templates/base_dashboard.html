@@ -14,9 +14,10 @@
 <style>
 .sv-dashboard {
     padding: 20px 24px;
-    max-width: 1400px;
+    max-width: var(--dash-max-width, 1400px);
     margin: 0 auto;
 }
+.sv-dashboard.full-width { max-width: none; }
 
 .sv-dash-header {
     display: flex;

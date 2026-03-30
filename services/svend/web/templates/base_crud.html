@@ -32,6 +32,7 @@
 .sv-crud-detail {
     padding: 20px 24px;
     overflow-y: auto;
+    flex: 1;
 }
 .sv-crud-detail.empty {
     display: flex;
@@ -80,6 +81,7 @@
     border-top: 1px solid var(--border);
     padding: 10px 12px;
 }
+.sv-crud-rail-footer:empty { display: none; }
 
 /* Focus mode — hide rail, expand detail */
 .sv-crud.focus .sv-crud-rail { display: none; }
@@ -110,12 +112,14 @@
 
 {% block content %}
 <div class="sv-crud" id="svCrud">
-    <!-- Detail (left) -->
-    <div class="sv-crud-detail empty" id="svCrudDetail" style="position:relative;">
+    <!-- Detail (left) — banner sits above scroll area -->
+    <div style="display:flex;flex-direction:column;overflow:hidden;">
         <div class="sv-context-banner" id="svCrudBanner" style="display:none;">
             <span id="svCrudBreadcrumb"></span>
         </div>
-        {% block crud_detail %}Select an item{% endblock %}
+        <div class="sv-crud-detail empty" id="svCrudDetail" style="position:relative;">
+            {% block crud_detail %}Select an item{% endblock %}
+        </div>
     </div>
 
     <!-- Rail (right) -->
@@ -157,6 +161,12 @@ function svSetBreadcrumb(html) {
 // Keyboard navigation for list items
 (function() {
     let _kbIdx = -1;
+
+    // Reset index when list content changes
+    const listEl = document.getElementById('svCrudList');
+    if (listEl) {
+        new MutationObserver(() => { _kbIdx = -1; }).observe(listEl, { childList: true });
+    }
 
     document.addEventListener('keydown', e => {
         // Escape exits focus mode
