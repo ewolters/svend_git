@@ -130,84 +130,49 @@ Safety ──AFEs──→ Hoshin (safety capital requests route through Hoshin 
 RCA ──link──→ A3 (investigation results attach to A3 report)
 ```
 
-### What's missing — the graph is the integration hub
+### What the graph does and doesn't connect
 
-Right now these are point-to-point integrations. Each tool talks to 1-2 other tools via custom bridge code. The graph (GRAPH-001) should be the universal connector. Every tool reads from and writes to the graph. The point-to-point bridges become graph reads.
+The graph stores calibrated causal relationships — "X causes Y" with Bayesian posteriors updated by evidence from DOEs, investigations, SPC, and forced failure tests. It's a knowledge capture system.
 
-**Current:** VSM → calc-vsm.js → Calculator (custom bridge per calculator)
-**Proposed:** VSM writes process steps as graph nodes → Calculator reads graph nodes → results write back as edge evidence
+**Calculators are NOT graph producers.** They're operational decision tools — takt time, OEE, queue analysis, line balance. They consume process data and return results for a human to act on. A takt time calculation doesn't produce evidence about causal relationships.
 
-**Current:** Safety finding → custom FMEA bridge → FMEA row
-**Proposed:** Safety finding → Signal → Investigation → graph evidence → FMIS row (graph view)
+**Tools that DO produce graph evidence:** Investigations, SPC (shift detection → staleness), DOE (effect sizes → edge posteriors), FFTs (detection capability). These write to the graph through the Loop.
 
-**Current:** RCA → custom A3 link → A3 report
-**Proposed:** RCA investigation → graph writeback → ForgeDoc A3 generated from investigation data (already built)
+**Calculators read from VSM, not from the graph.** The VSM stores process step data (cycle times, changeover times, uptime, WIP). The calculators consume it. This is a data-sharing relationship, not a knowledge relationship. Routing it through the graph would be architecturally wrong — the graph is for causal knowledge, not operational parameters.
 
-### Specific improvements
+### Improvements to existing bridges
 
-#### 1. VSM → Graph → Calculators (replaces calc-vsm.js)
+#### 1. VSM → Calculators (simplify calc-vsm.js)
 
-VSM already stores process steps with cycle time, changeover time, uptime, WIP, scrap rate. These ARE graph nodes. When a VSM is saved, the process steps should seed/update ProcessNodes in the graph. Then any calculator that needs process data reads from the graph, not from a VSM-specific API.
+The 16 per-calculator VSM import loaders in `calc-vsm.js` share a pattern: fetch VSM, extract step data, map to calculator fields. This should be one shared loader with per-calculator field mappings, not 16 separate functions.
 
 **What PM builds:**
-- `GraphService.seed_from_vsm(vsm_id)` — create ProcessNodes from VSM steps, ProcessEdges for flow sequence
-- Each node gets: cycle_time, changeover_time, uptime, scrap_rate as node properties
-- Calculator API endpoints accept `node_id` param — read process data from graph instead of requiring manual input
-- `calc-vsm.js` becomes a thin wrapper that calls `GraphService.seed_from_vsm()` then redirects to calculator with `node_id`
+- Refactor `calc-vsm.js`: one `loadVSMData(vsm_id)` function returns normalized step data
+- Per-calculator mappings as config objects, not separate functions
+- Same VSM API (`/api/vsm/`), same data flow — just less code
 
-**Impact:** Eliminates 16 per-calculator VSM import loaders. Any new calculator automatically has VSM data because it reads from the graph.
-
-#### 2. Hoshin → Graph → VSM (replaces proposal generation bridge)
-
-Hoshin currently calls `/api/vsm/{id}/generate-proposals/` to create CI project proposals from VSM waste analysis. This is a direct bridge. With the graph:
-
-- VSM waste (NVA time, excessive WIP, long changeovers) are graph gap nodes
-- Hoshin reads gap nodes from graph, proposes projects to close them
-- Project completion updates graph edges with evidence
-
-**What PM builds:**
-- `GraphService.gap_report(filter=waste_categories)` — already exists, extend with VSM-specific waste types
-- Hoshin proposal generation reads from gap report instead of calling VSM API directly
-- When Hoshin project completes, `GraphService.add_evidence()` updates the relevant edges
-
-#### 3. Calculator results → Graph evidence (new)
-
-Right now calculator results vanish when you close the page. If you run an OEE calculation and get 72%, that number isn't stored anywhere useful. With the graph:
-
-- OEE result → `GraphService.add_evidence(equipment_node, evidence_type='oee', value=0.72)`
-- Capability study → `GraphService.add_evidence(ctq_node, evidence_type='capability', cpk=1.45)`
-- Line balance → updates cycle_time distributions on process step nodes
-- Queue analysis → updates service rate / arrival rate on graph edges
-
-**What PM builds:**
-- "Save to Graph" action on calculator results (optional, user-initiated)
-- `GraphService.add_calculator_evidence(node_id, calculator_type, result_dict)` convenience method
-- ForgeViz sparkline on graph nodes showing historical calculator results
-
-#### 4. FMEA ↔ Graph (bidirectional, replaces FMIS seeding)
-
-FMEA rows should BE graph relationships. `seed_from_fmis()` already exists. The reverse should too:
-
-- New graph edge (causal relationship) → proposes FMIS row
-- FMIS row updated (S/O/D posteriors from FFT) → updates graph edge posterior
-- FMEA calculator results (RPN, criticality) → edge metadata
-
-**Already mostly built.** Just needs the reverse direction: graph edge creation proposes FMIS rows.
-
-#### 5. Safety → Loop → Graph (replaces FMEA bridge)
+#### 2. Safety → Loop (replaces FMEA bridge)
 
 The Safety app currently bridges Frontier Card findings directly to FMEA rows. Under OLR-001:
 
 - Frontier Card finding → Signal (source: gemba)
-- Signal triage → Investigation
-- Investigation concludes → graph writeback
+- Signal triage → Investigation (if warranted)
+- Investigation concludes → graph writeback (this IS evidence)
 - Graph evidence → FMIS row updates (S/O/D posteriors)
 
-**The Safety → FMEA bridge becomes Signal → Loop → Graph → FMIS.** No custom bridge code. The Loop handles it.
+The direct Safety → FMEA bridge becomes Safety → Signal → Loop. The Loop handles routing.
 
 **What PM builds:**
 - Safety `create_signal_from_card(card_id)` — creates Loop Signal with frontier card data
-- Remove direct FMEA row creation from safety app (it goes through the Loop now)
+- Direct FMEA row creation stays as a shortcut option (not everything needs an investigation)
+
+#### 3. FMEA ↔ Graph (bidirectional — already mostly built)
+
+`seed_from_fmis()` exists. The reverse should too: new graph edge proposes FMIS row. FMIS S/O/D posteriors (from FFTs) update graph edge posteriors. This is genuine causal knowledge flow — FMEA failure modes ARE causal claims about the process.
+
+#### 4. Hoshin → VSM proposals (keep direct bridge)
+
+Hoshin's VSM proposal generation (`/api/vsm/{id}/generate-proposals/`) works. It reads waste data from a specific VSM and proposes CI projects. This is a direct analytical operation, not a graph relationship. Keep it as-is.
 
 ---
 
@@ -218,17 +183,17 @@ The Safety app currently bridges Frontier Card findings directly to FMEA rows. U
 Three simulation JS files (`calc-sim-line.js`, `calc-sim-flow.js`, `calc-sim-quality.js`) share patterns: discrete event loop, Monte Carlo sampling, real-time animation, statistics collection. They should share a simulation kernel.
 
 **Proposal:** `forgesiop.simulation.engine` — a discrete event simulation engine in Python that:
-- Defines a process network from graph nodes/edges
-- Runs Monte Carlo with configurable distributions per node
+- Defines a process network from VSM data or manual station definitions
+- Runs Monte Carlo with configurable distributions per station
 - Returns time-series results as ForgeViz ChartSpecs
 - JS handles animation only (reads sim frames from API via SSE or polling)
 
-This replaces `svend-sim-core.js` (249 lines) and the three sim files with a server-side engine that's testable, calibratable, and uses real process data from the graph.
+This replaces `svend-sim-core.js` (249 lines) and the three sim files with a server-side engine that's testable and uses real process data from VSM.
 
 ```
 forgesiop/simulation/
 ├── engine.py
-│   - SimNetwork(nodes, edges, config) → simulator
+│   - SimNetwork(stations, buffers, config) → simulator
 │   - simulator.run(duration, replications) → SimResult
 │   - SimResult.summary() → dict (throughput, WIP, lead_time, utilization per station)
 │   - SimResult.timeseries() → list[dict] (per-tick state for animation)
@@ -242,27 +207,10 @@ forgesiop/simulation/
 │
 └── scenarios.py
     - from_vsm(vsm_data) → SimNetwork  # build sim from VSM process steps
-    - from_graph(graph_id, node_filter) → SimNetwork  # build sim from process graph
     - compare(baseline: SimResult, proposed: SimResult) → ComparisonResult
 ```
 
-### B. Hoshin X-Matrix → Graph → KPI tracking
-
-Hoshin strategic objectives and KPIs are currently standalone. They should be graph nodes:
-
-- Strategic objective = high-level goal node
-- Annual objective = decomposed goal node (edge: contributes_to)
-- KPI = measurement node (edge: measures)
-- Improvement project = intervention node (edge: addresses)
-
-This means the X-Matrix IS a graph view — filtered to goal/measurement/intervention nodes. The correlation matrix in the X-Matrix becomes graph edge strengths.
-
-**What PM builds:**
-- `GraphService.seed_from_hoshin(hoshin_project_id)` — strategic/annual objectives as nodes, KPIs as measurement nodes, correlations as edges
-- X-Matrix rendering reads from graph instead of custom Hoshin API
-- KPI actuals update graph node distributions, triggering staleness/contradiction signals on connected edges
-
-### C. ForgeViz direct integration for all calculators
+### B. ForgeViz direct integration for all calculators
 
 Every calculator currently renders through Plotly (3.5MB). The migration replaces with ForgeViz. But we can do better:
 
@@ -275,21 +223,21 @@ Every calculator currently renders through Plotly (3.5MB). The migration replace
 - Use `forgeviz.charts.generic` builders (bar, stacked_bar, gauge) inside forge packages
 - Calculator JS becomes: call API → get result + chart spec → `ForgeViz.render(el, result.chart)`
 
-### D. Unified parameter store
+### C. VSM-aware parameter pre-fill
 
-Calculators currently require manual input of takt time, demand, cycle times. VSM has this data. The graph has this data. SPC has real-time distributions. But the calculators don't know about any of it.
+Calculators currently require manual input of takt time, demand, cycle times. VSM already has this data. The `calc-vsm.js` import system exists but requires the user to explicitly open the import modal and select a VSM.
 
-**Proposal:** When a calculator opens, it checks the graph for relevant node data and pre-fills:
-- Takt time → from VSM or `process.takt` config setting
-- Cycle times → from graph process step nodes
-- Defect rates → from SPC Cpk/dpmo on quality characteristic nodes
-- Demand → from forgesiop demand sensing
-- Setup times → from graph changeover edges
+**Proposal:** When a calculator opens and a VSM is active (user came from VSM or has a recent VSM), pre-fill fields automatically:
+- Takt time → from active VSM's takt_time field
+- Cycle times → from VSM process steps
+- Changeover/setup times → from VSM process steps
+- Demand → from VSM customer demand or ConfigService `process.demand`
 
 **What PM builds:**
 - `GraphService.get_calculator_context(calculator_type)` → dict of pre-fill values
-- Calculator API returns `{defaults: {...}, from_graph: true}` when graph data is available
-- UI shows "from graph" badge on pre-filled fields, user can override
+- Calculator API accepts optional `vsm_id` param → returns `{defaults: {...}, from_vsm: true}`
+- Refactored `calc-vsm.js` passes VSM context to calculator on navigation
+- UI shows "from VSM" badge on pre-filled fields, user can override
 
 ---
 
@@ -313,9 +261,8 @@ These stay as client-side JS because they're primarily UI/visualization, not com
 | **P1** | forgesiop.lean | smed, changeover, family analysis | Operations workbench migration |
 | **P1** | forgestat.quality.desirability | derringer_suich | Advanced calculator migration |
 | **P1** | forgestat.core.sampling | sample_normal/exp/weibull/poisson, seeded_rng | All simulators |
-| **P2** | forgesiop.simulation.engine | SimNetwork, run, from_vsm, from_graph | Simulator decomposition |
-| **P2** | GraphService extensions | seed_from_vsm, get_calculator_context, add_calculator_evidence | Cross-tool integration |
-| **P3** | GraphService.seed_from_hoshin | X-Matrix as graph view | Hoshin integration |
-| **P3** | ForgeViz chart returns | to_chart() on all forge functions | Calculator UX improvement |
+| **P2** | forgesiop.simulation.engine | SimNetwork, run, from_vsm, compare | Simulator decomposition |
+| **P2** | calc-vsm.js refactor | Single loader + per-calc field mappings | VSM import simplification |
+| **P2** | ForgeViz chart returns | to_chart() on all forge functions | Calculator UX improvement |
 
-P0 is needed before operations workbench migration can complete. P1 is needed for full calculator coverage. P2-P3 are integration improvements that can happen after migration.
+P0 is needed before operations workbench migration can complete. P1 is needed for full calculator coverage. P2 is post-migration polish.
