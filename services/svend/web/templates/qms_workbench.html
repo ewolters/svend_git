@@ -89,7 +89,7 @@
 </div>
 
 <!-- ── Signals ── -->
-<div class="qms-section" id="secSignals" style="display:none;padding:0;overflow:hidden;">
+<div class="qms-section" id="secSignals" style="padding:0;overflow:hidden;">
     <div style="display:grid;grid-template-columns:1fr 300px;height:100%;overflow:hidden;">
         <div style="padding:16px 20px;overflow-y:auto;" id="sigDetail">
             <div class="sv-empty"><div class="sv-empty-icon">&#x25C9;</div>Select a signal</div>
@@ -164,9 +164,8 @@ function qmsNav(el) {
 }
 
 // ── API ──
-const csrf = () => document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-function api(url) { return fetch(url, {headers:{'X-CSRFToken':csrf()}}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}); }
-function post(url,body) { return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify(body)}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}); }
+function api(url) { return fetch(url, {headers:{'X-CSRFToken':svCsrf()}}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}); }
+function post(url,body) { return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':svCsrf()},body:JSON.stringify(body)}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}); }
 
 // ── Dashboard ──
 function loadDashboard() {
@@ -279,10 +278,6 @@ function qmsRefresh() {
     loadDashboard();
     if (_section === 'signals') loadSignals();
 }
-
-// ── Utilities ──
-function timeAgo(iso) { if(!iso)return'—';const d=(Date.now()-new Date(iso))/1000;if(d<60)return'now';if(d<3600)return Math.floor(d/60)+'m';if(d<86400)return Math.floor(d/3600)+'h';return Math.floor(d/86400)+'d'; }
-function esc(s) { return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'):''; }
 
 // ── Init ──
 loadDashboard();

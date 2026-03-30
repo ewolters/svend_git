@@ -154,17 +154,6 @@ function demoCreate() {
     alert('This is a static demo — create would open a modal');
 }
 
-function timeAgo(iso) {
-    const d = new Date(iso);
-    const diff = (Date.now() - d) / 1000;
-    if (diff < 60) return 'now';
-    if (diff < 3600) return Math.floor(diff/60) + 'm';
-    if (diff < 86400) return Math.floor(diff/3600) + 'h';
-    return Math.floor(diff/86400) + 'd';
-}
-
-function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') : ''; }
-
 // Render immediately
 renderDemoList();
 {% endblock %}

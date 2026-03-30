@@ -225,7 +225,5 @@ async function showEdgeDetail(edgeId) {
     document.getElementById('detail-content').innerHTML = h;
 }
 
-function esc(s) { return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'):''; }
-
 loadGraph('process_map');
 {% endblock %}
