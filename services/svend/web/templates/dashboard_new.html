@@ -1,0 +1,141 @@
+{% extends "base_dashboard.html" %}
+{% block title %}SVEND — Dashboard{% endblock %}
+
+{% block dashboard_header %}
+<h1>Welcome back</h1>
+<div style="margin-left:auto;"><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="loadDashKpis()"><span class="sv-icon">${SvIcon.refresh}</span></button></div>
+{% endblock %}
+
+{% block dashboard_kpis %}
+<div class="sv-kpi-strip cols-5">
+    <div class="sv-kpi-cell" onclick="window.location='/app/qms/'"><div class="sv-kpi-value" id="dkSignals">—</div><div class="sv-kpi-label">Open Signals</div></div>
+    <div class="sv-kpi-cell"><div class="sv-kpi-value" id="dkCommitments">—</div><div class="sv-kpi-label">My Commitments</div></div>
+    <div class="sv-kpi-cell"><div class="sv-kpi-value" id="dkOverdue" style="color:var(--sv-green);">—</div><div class="sv-kpi-label">Overdue</div></div>
+    <div class="sv-kpi-cell"><div class="sv-kpi-value" id="dkInvestigations">—</div><div class="sv-kpi-label">Active Investigations</div></div>
+    <div class="sv-kpi-cell"><div class="sv-kpi-value" id="dkReadiness">—</div><div class="sv-kpi-label">CI Readiness</div></div>
+</div>
+{% endblock %}
+
+{% block dashboard_panels %}
+<div class="sv-dash-panels cols-auto">
+    <!-- Analysis tools -->
+    <div class="sv-card">
+        <div class="sv-card-header"><span class="sv-card-title">Analysis</span></div>
+        <a href="/app/analysis/" class="sv-list-item"><span class="sv-icon">${SvIcon.chart}</span><div class="sv-item-main"><div class="sv-item-title">Analysis Workbench</div><div class="sv-item-meta">Statistical analysis, hypothesis testing</div></div></a>
+        <a href="/app/experimenter/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.doe}</span><div class="sv-item-main"><div class="sv-item-title">Experimenter</div><div class="sv-item-meta">DOE, factorial designs, response surface</div></div></a>
+        <a href="/app/forecast/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.trending}</span><div class="sv-item-main"><div class="sv-item-title">Forecast</div><div class="sv-item-meta">Time series, demand planning</div></div></a>
+        <a href="/app/models/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.layers}</span><div class="sv-item-main"><div class="sv-item-title">Models</div><div class="sv-item-meta">ML train, predict, deploy</div></div></a>
+    </div>
+
+    <!-- Methods -->
+    <div class="sv-card">
+        <div class="sv-card-header"><span class="sv-card-title">Methods</span></div>
+        <a href="/app/a3/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.a3}</span><div class="sv-item-main"><div class="sv-item-title">A3</div><div class="sv-item-meta">Toyota-style problem solving</div></div></a>
+        <a href="/app/rca/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.rca}</span><div class="sv-item-main"><div class="sv-item-title">Root Cause Analysis</div><div class="sv-item-meta">AI-critiqued causal chains</div></div></a>
+        <a href="/app/fmea/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.fmea}</span><div class="sv-item-main"><div class="sv-item-title">FMEA</div><div class="sv-item-meta">Failure mode analysis, RPN scoring</div></div></a>
+        <a href="/app/calculators/" class="sv-list-item"><span class="sv-icon">${SvIcon.target}</span><div class="sv-item-main"><div class="sv-item-title">Operations</div><div class="sv-item-meta">Takt, OEE, kanban, line balance</div></div></a>
+        <a href="/app/vsm/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.vsm}</span><div class="sv-item-main"><div class="sv-item-title">Value Stream Map</div><div class="sv-item-meta">End-to-end material and info flow</div></div></a>
+    </div>
+
+    <!-- Visual & Collaboration -->
+    <div class="sv-card">
+        <div class="sv-card-header"><span class="sv-card-title">Visual &amp; Collaboration</span></div>
+        <a href="/app/whiteboard/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.whiteboard}</span><div class="sv-item-main"><div class="sv-item-title">Whiteboard</div><div class="sv-item-meta">Collaborative diagrams, fishbones, flowcharts</div></div></a>
+        <a href="/app/investigations/" class="sv-list-item"><span class="sv-icon">${SvIcon.investigate}</span><div class="sv-item-main"><div class="sv-item-title">Investigations</div><div class="sv-item-meta">Hypotheses, evidence, experiments</div></div></a>
+        <a href="/app/process-map/" class="sv-list-item"><span class="sv-icon">${SvIcon.graph}</span><div class="sv-item-main"><div class="sv-item-title">Process Map</div><div class="sv-item-meta">Causal knowledge graph</div></div></a>
+        <a href="/app/learn/" class="sv-list-item"><span class="sv-icon">${SvIcon.training}</span><div class="sv-item-main"><div class="sv-item-title">Learn</div><div class="sv-item-meta">Courses, certifications, guides</div></div></a>
+    </div>
+
+    <!-- Quality System -->
+    <div class="sv-card">
+        <div class="sv-card-header"><span class="sv-card-title">Quality System</span></div>
+        <a href="/app/qms/" class="sv-list-item"><span class="sv-icon">${SvIcon.signal}</span><div class="sv-item-main"><div class="sv-item-title">QMS</div><div class="sv-item-meta">Signals, investigations, commitments</div></div></a>
+        <a href="/app/hoshin/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.hoshin}</span><div class="sv-item-main"><div class="sv-item-title">Hoshin Kanri</div><div class="sv-item-meta">Strategy deployment, X-Matrix</div></div></a>
+        <a href="/app/safety/" class="sv-list-item" data-feature="safety"><span class="sv-icon">${SvIcon.safety}</span><div class="sv-item-main"><div class="sv-item-title">HIRARC Safety</div><div class="sv-item-meta">Frontier Cards, FMEA bridge, 5S</div></div></a>
+        <a href="/app/iso-docs/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.document}</span><div class="sv-item-main"><div class="sv-item-title">Documents</div><div class="sv-item-meta">Controlled documents, ISO authoring</div></div></a>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="sv-card" style="grid-column: 1 / -1;">
+        <div class="sv-card-header"><span class="sv-card-title">Recent Activity</span></div>
+        <div id="dkRecent" class="sv-empty">Loading...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block dashboard_scripts %}
+let _dashUser = null;
+
+function loadDashKpis() {
+    SvApi.get('/api/loop/dashboard/').then(d => {
+        document.getElementById('dkSignals').textContent = d.signals?.untriaged_count ?? 0;
+        document.getElementById('dkCommitments').textContent = d.commitments?.items?.length ?? 0;
+        const ov = d.commitments?.overdue_count ?? 0;
+        document.getElementById('dkOverdue').textContent = ov;
+        document.getElementById('dkOverdue').style.color = ov > 0 ? 'var(--sv-red)' : 'var(--sv-green)';
+        document.getElementById('dkInvestigations').textContent = d.investigations?.items?.length ?? 0;
+    }).catch(() => {});
+
+    SvApi.get('/api/loop/readiness/').then(d => {
+        const s = d.score ?? d.readiness_score;
+        document.getElementById('dkReadiness').textContent = s !== undefined ? Math.round(s * 100) + '%' : '—';
+    }).catch(() => {});
+}
+
+function applyFeatureGating(user) {
+    if (!user || !user.features) return;
+    document.querySelectorAll('[data-feature]').forEach(el => {
+        const feature = el.dataset.feature;
+        if (!user.features[feature]) {
+            el.style.opacity = '0.4';
+            el.style.pointerEvents = 'none';
+            const badge = document.createElement('span');
+            badge.className = 'sv-badge sv-badge-purple';
+            badge.textContent = 'PRO';
+            badge.style.marginLeft = 'auto';
+            badge.style.flexShrink = '0';
+            el.appendChild(badge);
+        }
+    });
+}
+
+function loadRecent(user) {
+    const el = document.getElementById('dkRecent');
+    const hasPaid = user?.features?.full_tools;
+    const fetches = [];
+
+    if (hasPaid) {
+        fetches.push(SvApi.get('/api/a3/').then(d => (d.reports || []).slice(0, 3).map(r => ({
+            type: 'A3', title: r.title || 'Untitled A3', url: '/app/a3/' + r.id + '/', date: r.updated_at, icon: SvIcon.a3
+        }))).catch(() => []));
+
+        fetches.push(SvApi.get('/api/vsm/').then(d => (d.maps || []).slice(0, 3).map(m => ({
+            type: 'VSM', title: m.title || 'Untitled VSM', url: '/app/vsm/' + m.id + '/', date: m.updated_at, icon: SvIcon.vsm
+        }))).catch(() => []));
+    }
+
+    Promise.all(fetches).then(results => {
+        const items = results.flat().sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
+        if (!items.length) {
+            el.innerHTML = '<div class="sv-empty">No recent activity. Start by creating an A3 or running an analysis.</div>';
+            return;
+        }
+        el.innerHTML = items.map(i => `
+            <a href="${esc(i.url)}" class="sv-list-item" style="text-decoration:none;">
+                <span class="sv-icon">${i.icon}</span>
+                <div class="sv-item-main">
+                    <div class="sv-item-title">${esc(i.title)}</div>
+                    <div class="sv-item-meta">${esc(i.type)} &middot; ${timeAgo(i.date)}</div>
+                </div>
+            </a>`).join('');
+    });
+}
+
+window.addEventListener('svendUserReady', function(e) {
+    _dashUser = e.detail;
+    applyFeatureGating(e.detail);
+    loadRecent(e.detail);
+});
+
+loadDashKpis();
+{% endblock %}
