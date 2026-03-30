@@ -150,6 +150,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [
     BASE_DIR / "static",
     Path(importlib.import_module("forgeviz").__file__).parent / "static",
+    Path(importlib.import_module("forgerack").__file__).parent / "static",
 ]
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},

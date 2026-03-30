@@ -16,6 +16,30 @@ def _app_view(template_name, **kwargs):
     return login_required(TemplateView.as_view(template_name=template_name, **kwargs))
 
 
+@login_required
+def _forgerack_unit_view(request, unit_name):
+    """Serve forgerack unit HTML as raw text (no Django template rendering)."""
+    import importlib
+    import re
+    from pathlib import Path as P
+
+    from django.http import HttpResponse, HttpResponseNotFound
+
+    # Sanitize unit_name
+    if not re.match(r"^[a-z][a-z0-9-]*$", unit_name):
+        return HttpResponseNotFound("Invalid unit name")
+    unit_path = (
+        P(importlib.import_module("forgerack").__file__).parent
+        / "templates"
+        / "forgerack"
+        / "units"
+        / f"{unit_name}.html"
+    )
+    if not unit_path.is_file():
+        return HttpResponseNotFound(f"Unit not found: {unit_name}")
+    return HttpResponse(unit_path.read_text(), content_type="text/html")
+
+
 from agents_api.whiteboard_views import guest_board_view
 from api.blog_views import blog_detail, blog_list
 from api.internal_views import dashboard_view
@@ -234,6 +258,7 @@ urlpatterns = varta_urls + [
     path("app/demo/main/", _app_view("app_main.html"), name="app_main_demo"),
     # ── Demo surfaces (Object 271) ──
     path("app/demo/rack/new/", _app_view("demo/rack.html"), name="demo_rack_new"),
+    path("app/demo/rack/unit/<str:unit_name>/", _forgerack_unit_view, name="forgerack_unit"),
     path("app/iso/", _app_view("qms.html"), name="iso"),  # redirect legacy
     path("app/iso-docs/", _app_view("iso_doc.html"), name="iso_doc"),
     path("app/iso-docs/<uuid:doc_id>/", _app_view("iso_doc.html"), name="iso_doc_edit"),

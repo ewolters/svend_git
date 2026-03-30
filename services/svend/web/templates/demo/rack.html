@@ -4,6 +4,10 @@
 
 {% block extra_head %}
 {{ block.super }}
+<!-- ForgeRack component library -->
+<link rel="stylesheet" href="/static/css/components.css">
+<link rel="stylesheet" href="/static/css/rack.css">
+<script src="/static/js/components.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════
  *  THE RACK — Reason-style modular instrument rack
@@ -633,48 +637,26 @@
         <div class="rack-sidebar-head">Components</div>
 
         <div class="rack-sidebar-group">
-            <div class="rack-sidebar-group-label">Instruments</div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#4ade80;"></span> Control Chart <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#4ade80;"></span> Capability Gauge <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#4ade80;"></span> Nelson Rule Array <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#a78bfa;"></span> Statistical Test <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#a78bfa;"></span> Distribution Plot <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#60a5fa;"></span> DOE Matrix <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#60a5fa;"></span> Effects Pareto <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#facc15;"></span> Hypothesis Ranker <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#facc15;"></span> Evidence Stack <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-group-label">Data</div>
+            <div class="rack-sidebar-item" data-unit="csv-input" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#9ca3af;"></span> CSV Input <span class="rack-sidebar-count"></span></div>
         </div>
 
         <div class="rack-sidebar-group">
             <div class="rack-sidebar-group-label">Displays</div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Chart Panel <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Readout <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> LED Array <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Meter <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Risk Heatmap <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="chart-panel" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Chart Panel <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="readout" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Readout <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="narrative" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#22c55e;"></span> Narrative <span class="rack-sidebar-count"></span></div>
         </div>
 
         <div class="rack-sidebar-group">
             <div class="rack-sidebar-group-label">Processors</div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#22d3ee;"></span> Takt Clock <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#22d3ee;"></span> OEE Calculator <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#fb923c;"></span> Queue Analyzer <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#86efac;"></span> SMED Timer <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="filter" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#22d3ee;"></span> Filter <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="splitter" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#64748b;"></span> Splitter <span class="rack-sidebar-count"></span></div>
         </div>
 
         <div class="rack-sidebar-group">
-            <div class="rack-sidebar-group-label">Connectors</div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#f87171;"></span> Signal Emitter <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#facc15;"></span> Investigation Link <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#2dd4bf;"></span> Graph Writer <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#9ca3af;"></span> Document Export <span class="rack-sidebar-count"></span></div>
-        </div>
-
-        <div class="rack-sidebar-group">
-            <div class="rack-sidebar-group-label">Data</div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#9ca3af;"></span> CSV Input <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#9ca3af;"></span> API Feed <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#9ca3af;"></span> Manual Entry <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-group-label">Containers</div>
+            <div class="rack-sidebar-item" data-unit="combinator" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#78716c;"></span> Combinator <span class="rack-sidebar-count"></span></div>
         </div>
     </div>
 
@@ -757,12 +739,13 @@
                     </div>
                 </div>
 
-                <!-- Component area — below the mainframe -->
-                <div class="rack-empty">
-                    <div class="rack-empty-mark">&#x25C9;</div>
-                    <div class="rack-empty-text">
-                        No devices mounted.<br>
-                        Drag components from the library to build your rack.
+                <!-- Component bay — units mount here -->
+                <div id="rackBay" class="forge-rack-bay" style="flex:1;min-height:200px;">
+                    <div class="rack-empty" id="rackEmptyState">
+                        <div class="rack-empty-mark">&#x25C9;</div>
+                        <div class="rack-empty-text">
+                            Click a component in the sidebar to mount it.
+                        </div>
                     </div>
                 </div>
 
@@ -948,9 +931,11 @@ document.addEventListener('keydown', e => {
     }
 });
 
-// Patch jack click
+// Patch jack click (both rack and forgerack jack classes)
 document.addEventListener('click', e => {
-    if (e.target.classList.contains('patch-jack')) e.target.classList.toggle('connected');
+    if (e.target.classList.contains('patch-jack') || e.target.classList.contains('jack')) {
+        e.target.classList.toggle('connected');
+    }
 });
 
 // Calculate rail bolt Y positions (must match genBolts logic)
@@ -1013,6 +998,89 @@ function syncMainframeHeight() {
         const fh = front.offsetHeight;
         back.style.minHeight = fh + 'px';
     }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UNIT MOUNTING SYSTEM
+// ═══════════════════════════════════════════════════════════
+
+const _unitCache = {};
+let _unitCounter = 0;
+
+// Ensure ForgeRack global exists with unit registry
+if (!window.ForgeRack) window.ForgeRack = {};
+if (!ForgeRack.units) ForgeRack.units = {};
+if (!ForgeRack._unitDefs) ForgeRack._unitDefs = {};
+if (!ForgeRack.registerUnit) {
+    ForgeRack.registerUnit = function(name, def) { ForgeRack._unitDefs[name] = def; };
+}
+
+async function mountUnit(sidebarItem) {
+    const unitName = sidebarItem.dataset.unit;
+    if (!unitName) return;
+
+    _unitCounter++;
+    const id = unitName.replace(/-/g, '_') + '_' + _unitCounter;
+
+    // Fetch + cache unit HTML from Django view
+    if (!_unitCache[unitName]) {
+        try {
+            const resp = await fetch('/app/demo/rack/unit/' + unitName + '/');
+            if (!resp.ok) throw new Error(resp.status);
+            _unitCache[unitName] = await resp.text();
+        } catch (e) {
+            SvToast.error('Failed to load: ' + unitName);
+            return;
+        }
+    }
+
+    // Substitute ${id} → real instance ID
+    const html = _unitCache[unitName].replace(/\$\{id\}/g, id);
+
+    // Hide empty state
+    const empty = document.getElementById('rackEmptyState');
+    if (empty) empty.style.display = 'none';
+
+    // Mount into bay
+    const bay = document.getElementById('rackBay');
+    const wrap = document.createElement('div');
+    wrap.id = 'unit-wrap-' + id;
+    wrap.innerHTML = html;
+    bay.appendChild(wrap);
+
+    // Load unit JS if not already registered
+    if (!ForgeRack._unitDefs[unitName]) {
+        try {
+            const js = await fetch('/static/js/unit-' + unitName + '.js');
+            if (js.ok) {
+                const s = document.createElement('script');
+                s.textContent = await js.text();
+                document.head.appendChild(s);
+            }
+        } catch (e) {}
+    }
+
+    // Init ForgeRack analog components (dials, switches, meters)
+    if (ForgeRack.init) ForgeRack.init(wrap);
+
+    // Init unit behavior
+    if (ForgeRack._unitDefs[unitName]) {
+        const inst = Object.create(ForgeRack._unitDefs[unitName]);
+        inst.init(wrap.querySelector('[data-unit]') || wrap, id);
+        ForgeRack.units[id] = inst;
+    }
+
+    // Update sidebar badges
+    document.querySelectorAll('.rack-sidebar-item[data-unit]').forEach(item => {
+        const n = item.dataset.unit;
+        const count = document.querySelectorAll('#rackBay [data-unit="' + n + '"]').length;
+        const badge = item.querySelector('.rack-sidebar-count');
+        if (badge) badge.textContent = count > 0 ? count : '';
+    });
+
+    // Reflow
+    requestAnimationFrame(() => { genBolts(); positionEarBolts(); syncMainframeHeight(); });
+    SvToast.success(unitName + ' mounted');
 }
 
 genBolts();
