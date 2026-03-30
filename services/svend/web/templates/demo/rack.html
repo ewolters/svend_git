@@ -247,7 +247,12 @@ if (!ForgeRack.units) ForgeRack.units = {};
 .mainframe {
     flex-shrink: 0;
     position: relative;
-    z-index: 3; /* IN FRONT of rails */
+    z-index: 3;
+    /* Snap to U grid: 14U = 588px */
+    height: 588px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
     /* Distinct faceplate — lighter than rack body */
     background:
         repeating-linear-gradient(180deg, rgba(255,255,255,0.008) 0px, transparent 1px, transparent 3px),
@@ -257,7 +262,6 @@ if (!ForgeRack.units) ForgeRack.units = {};
     box-shadow:
         0 3px 8px rgba(0,0,0,0.6),
         inset 0 1px 0 rgba(255,255,255,0.03);
-    /* Content indented from rail overlay edges */
     padding-left: 42px;
     padding-right: 42px;
 }
@@ -354,10 +358,12 @@ if (!ForgeRack.units) ForgeRack.units = {};
     background: #090b09;
 }
 
-/* Mainframe body */
+/* Mainframe body — fills between head and foot */
 .mf-body {
     display: flex;
     gap: 0;
+    flex: 1;
+    overflow: hidden;
 }
 
 /* Instrument cutout */
@@ -379,8 +385,14 @@ if (!ForgeRack.units) ForgeRack.units = {};
     font-family: 'JetBrains Mono', monospace;
 }
 
-/* Left column: graph + OLR */
+/* Left column: graph + OLR — graph viewport fills available space */
 .mf-col-graph {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.mf-col-graph .mf-section:first-child {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -397,7 +409,8 @@ if (!ForgeRack.units) ForgeRack.units = {};
 /* Graph viewport */
 .mf-graph {
     width: 100%;
-    height: 280px;
+    flex: 1;
+    min-height: 168px; /* 4U minimum */
     position: relative;
     background: #040604;
     border: 1px solid #1a1e1a;
@@ -488,6 +501,9 @@ if (!ForgeRack.units) ForgeRack.units = {};
     flex-shrink: 0;
     position: relative;
     z-index: 3;
+    /* Same height as front mainframe: 14U */
+    height: 588px;
+    box-sizing: border-box;
     /* Distinct device on the back — lighter than rack back */
     background:
         repeating-linear-gradient(180deg, rgba(255,255,255,0.01) 0px, transparent 1px, transparent 2px),
@@ -1010,16 +1026,8 @@ function positionEarBolts() {
     });
 }
 
-// Sync mainframe front/back heights
-function syncMainframeHeight() {
-    const front = document.querySelector('.mainframe');
-    const back = document.querySelector('.mf-back');
-    if (front && back) {
-        back.style.minHeight = '';
-        const fh = front.offsetHeight;
-        back.style.minHeight = fh + 'px';
-    }
-}
+// Mainframe front/back heights are fixed at 14U (588px) — no sync needed
+function syncMainframeHeight() {}
 
 // ═══════════════════════════════════════════════════════════
 //  UNIT MOUNTING SYSTEM
