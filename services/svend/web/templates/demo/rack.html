@@ -121,6 +121,8 @@ if (!ForgeRack.units) ForgeRack.units = {};
 
 /* Cable overlay must not affect layout */
 .forge-rack-cables { overflow: hidden; }
+/* Prevent wiring.js from overriding rack-back positioning */
+#rackBack { position: absolute !important; }
 
 /* ─── Rail — absolute positioned overlays on edges ─── */
 .rack-rail {
