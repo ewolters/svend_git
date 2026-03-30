@@ -119,6 +119,9 @@ if (!ForgeRack.units) ForgeRack.units = {};
 .rack-shell.flipped .rack-back { pointer-events: auto; }
 .rack-shell:not(.flipped) .rack-back { pointer-events: none; }
 
+/* Cable overlay must not affect layout */
+.forge-rack-cables { overflow: hidden; }
+
 /* ─── Rail — absolute positioned overlays on edges ─── */
 .rack-rail {
     width: 36px;
@@ -1094,6 +1097,11 @@ document.addEventListener('keydown', e => {
         document.getElementById('rackShell').classList.toggle('flipped', _flipped);
         document.getElementById('viewLabel').textContent = _flipped ? 'back' : 'front';
         document.getElementById('viewLabel').style.color = _flipped ? 'rgba(248,113,113,0.3)' : 'rgba(74,222,128,0.3)';
+        // Scroll back panel to top after flip
+        if (_flipped) {
+            const back = document.getElementById('rackBack');
+            if (back) back.scrollTop = 0;
+        }
     }
 });
 
