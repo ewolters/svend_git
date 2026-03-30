@@ -1708,7 +1708,7 @@ class InvestigationEntry(SynaraEntity):
     structured_data = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Plotly chart JSON, table data, analysis parameters/results",
+        help_text="Chart spec JSON, table data, analysis parameters/results",
     )
 
     # Author

@@ -1,7 +1,12 @@
 """Shared action item update/delete views.
 
-These work for action items regardless of source (hoshin, a3, rca, fmea).
-Auth: user must own the project the action item belongs to.
+DEPRECATED: ActionItem is superseded by Commitment (LOOP-001 §3).
+Commitments provide bilateral accountability contracts with preconditions,
+replacing the simpler action item model. These views are retained for
+backward compatibility with existing templates (hoshin, a3, rca, fmea).
+Remove when those templates are migrated to use Commitment APIs.
+
+Original: action items from hoshin, a3, rca, fmea sources.
 """
 
 import json

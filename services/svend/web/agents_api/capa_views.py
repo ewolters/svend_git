@@ -1,7 +1,12 @@
 """CAPA (Corrective and Preventive Action) views — Team/Enterprise tier.
 
-ISO 9001:2015 §10.2 / FDA 21 CFR 820.90. Standalone CAPA lifecycle with
-source linking, evidence hooks, and RCA bridge.
+DEPRECATED: CAPAReport model is superseded by Investigation (LOOP-001).
+CAPA is now a generated report from investigation data via ForgeDoc, not
+a standalone lifecycle. These views are retained for backward compatibility
+with existing templates. Remove when iso_9001_qms.html is fully replaced
+by the QMS workbench.
+
+Original: ISO 9001:2015 §10.2 / FDA 21 CFR 820.90.
 """
 
 import json
