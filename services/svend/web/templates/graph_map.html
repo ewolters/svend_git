@@ -57,7 +57,7 @@
 
 {% block workspace_canvas %}
 <div id="cy" style="width:100%;height:100%;"></div>
-<div class="sv-empty" id="gm-empty" style="display:none;position:absolute;inset:0;display:none;align-items:center;justify-content:center;">
+<div class="sv-empty" id="gm-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;">
     <div><div class="sv-empty-icon" style="font-size:28px;">&#x1F578;</div><div style="font-size:14px;font-weight:500;color:var(--text-primary);margin-bottom:6px;">No Process Map Yet</div><div style="max-width:400px;">Your process map grows from your FMEA. Create failure modes in the Risk Landscape (FMIS) and the system will propose a graph structure for you to confirm.</div></div>
 </div>
 {% endblock %}
@@ -155,9 +155,9 @@ async function showNodeDetail(nodeId) {
     let h = '';
 
     h += `<div class="sv-section" style="border-top:none;margin-top:0;padding-top:0;"><div class="sv-section-title">Properties</div>`;
-    h += `<div class="sv-detail-grid"><div><div class="sv-detail-label">Type</div><div class="sv-detail-value">${d.node_type}</div></div>`;
-    h += `<div><div class="sv-detail-label">Classification</div><div class="sv-detail-value">${d.classification_tier ? `<span class="sv-badge sv-badge-${d.classification_tier==='critical'?'red':d.classification_tier==='major'?'amber':'dim'}">${d.classification_tier}</span>` : '—'}</div></div></div>`;
-    if (d.unit) h += `<div class="sv-detail-section"><div class="sv-detail-label">Unit</div><div class="sv-detail-value">${d.unit}</div></div>`;
+    h += `<div class="sv-detail-grid"><div><div class="sv-detail-label">Type</div><div class="sv-detail-value">${esc(d.node_type)}</div></div>`;
+    h += `<div><div class="sv-detail-label">Classification</div><div class="sv-detail-value">${d.classification_tier ? `<span class="sv-badge sv-badge-${d.classification_tier==='critical'?'red':d.classification_tier==='major'?'amber':'dim'}">${esc(d.classification_tier)}</span>` : '—'}</div></div></div>`;
+    if (d.unit) h += `<div class="sv-detail-section"><div class="sv-detail-label">Unit</div><div class="sv-detail-value">${esc(d.unit)}</div></div>`;
     if (d.customer_facing) h += `<div class="sv-detail-section"><div class="sv-detail-value"><span class="sv-badge sv-badge-amber">Customer-Facing</span></div></div>`;
     h += `<div class="sv-detail-grid"><div><div class="sv-detail-label">SPC</div><div class="sv-detail-value">${d.has_spc?'<span class="sv-badge sv-badge-green">Monitored</span>':'<span class="sv-badge sv-badge-dim">None</span>'}</div></div>`;
     h += `<div><div class="sv-detail-label">Equipment</div><div class="sv-detail-value">${d.has_equipment?'<span class="sv-badge sv-badge-green">Linked</span>':'<span class="sv-badge sv-badge-amber">No measurement</span>'}</div></div></div>`;
@@ -168,25 +168,25 @@ async function showNodeDetail(nodeId) {
         h += `<div class="sv-section"><div class="sv-section-title">Distribution</div><div class="sv-detail-grid-3">`;
         h += `<div><div class="sv-detail-label">Mean</div><div class="sv-detail-value">${d.distribution.mean?.toFixed(3)||'—'}</div></div>`;
         h += `<div><div class="sv-detail-label">Std</div><div class="sv-detail-value">${d.distribution.std?.toFixed(3)||'—'}</div></div>`;
-        h += `<div><div class="sv-detail-label">n</div><div class="sv-detail-value">${d.distribution.n||'—'}</div></div></div></div>`;
+        h += `<div><div class="sv-detail-label">n</div><div class="sv-detail-value">${esc(String(d.distribution.n||'—'))}</div></div></div></div>`;
     }
     if (d.spec_limits) {
         h += `<div class="sv-section"><div class="sv-section-title">Spec Limits</div><div class="sv-detail-grid-3">`;
-        h += `<div><div class="sv-detail-label">USL</div><div class="sv-detail-value">${d.spec_limits.usl??'—'}</div></div>`;
-        h += `<div><div class="sv-detail-label">Target</div><div class="sv-detail-value">${d.spec_limits.target??'—'}</div></div>`;
-        h += `<div><div class="sv-detail-label">LSL</div><div class="sv-detail-value">${d.spec_limits.lsl??'—'}</div></div></div></div>`;
+        h += `<div><div class="sv-detail-label">USL</div><div class="sv-detail-value">${esc(String(d.spec_limits.usl??'—'))}</div></div>`;
+        h += `<div><div class="sv-detail-label">Target</div><div class="sv-detail-value">${esc(String(d.spec_limits.target??'—'))}</div></div>`;
+        h += `<div><div class="sv-detail-label">LSL</div><div class="sv-detail-value">${esc(String(d.spec_limits.lsl??'—'))}</div></div></div></div>`;
     }
     if (d.upstream?.length) {
         h += `<div class="sv-section"><div class="sv-section-title">Upstream (causes)</div>`;
-        d.upstream.forEach(n => { h += `<div class="sv-list-item" onclick="showNodeDetail('${n.id}')" style="padding:4px 0;border:none;"><div class="sv-item-main"><div class="sv-item-title" style="color:var(--accent-primary);">${n.name}</div></div></div>`; });
+        d.upstream.forEach(n => { h += `<div class="sv-list-item" onclick="showNodeDetail('${n.id}')" style="padding:4px 0;border:none;"><div class="sv-item-main"><div class="sv-item-title" style="color:var(--accent-primary);">${esc(n.name)}</div></div></div>`; });
         h += `</div>`;
     }
     if (d.downstream?.length) {
         h += `<div class="sv-section"><div class="sv-section-title">Downstream (effects)</div>`;
-        d.downstream.forEach(n => { h += `<div class="sv-list-item" onclick="showNodeDetail('${n.id}')" style="padding:4px 0;border:none;"><div class="sv-item-main"><div class="sv-item-title" style="color:var(--accent-primary);">${n.name}</div></div></div>`; });
+        d.downstream.forEach(n => { h += `<div class="sv-list-item" onclick="showNodeDetail('${n.id}')" style="padding:4px 0;border:none;"><div class="sv-item-main"><div class="sv-item-title" style="color:var(--accent-primary);">${esc(n.name)}</div></div></div>`; });
         h += `</div>`;
     }
-    if (d.description) h += `<div class="sv-section"><div class="sv-section-title">Description</div><div class="sv-detail-value">${d.description}</div></div>`;
+    if (d.description) h += `<div class="sv-section"><div class="sv-section-title">Description</div><div class="sv-detail-value">${esc(d.description)}</div></div>`;
 
     document.getElementById('detail-content').innerHTML = h;
 }
@@ -203,12 +203,12 @@ async function showEdgeDetail(edgeId) {
     const contra = d.is_contradicted?' <span class="sv-badge sv-badge-red">Contradicted</span>':'';
 
     h += `<div class="sv-section" style="border-top:none;margin-top:0;padding-top:0;"><div class="sv-section-title">Status</div><div style="margin-bottom:8px;">${cal}${stale}${contra}</div>`;
-    h += `<div class="sv-detail-grid"><div><div class="sv-detail-label">Type</div><div class="sv-detail-value">${d.relation_type}</div></div>`;
-    h += `<div><div class="sv-detail-label">Direction</div><div class="sv-detail-value">${d.direction}</div></div></div>`;
+    h += `<div class="sv-detail-grid"><div><div class="sv-detail-label">Type</div><div class="sv-detail-value">${esc(d.relation_type)}</div></div>`;
+    h += `<div><div class="sv-detail-label">Direction</div><div class="sv-detail-value">${esc(d.direction)}</div></div></div>`;
     h += `<div class="sv-detail-grid"><div><div class="sv-detail-label">Posterior</div><div class="sv-detail-value">${d.posterior_strength.toFixed(3)}</div></div>`;
     h += `<div><div class="sv-detail-label">Evidence</div><div class="sv-detail-value">${d.evidence_count} records</div></div></div>`;
     if (d.effect_size!==null) h += `<div class="sv-detail-section"><div class="sv-detail-label">Effect Size</div><div class="sv-detail-value">${d.effect_size.toFixed(4)}${d.effect_ci?.lower!==null?` [${d.effect_ci.lower?.toFixed(3)}, ${d.effect_ci.upper?.toFixed(3)}]`:''}</div></div>`;
-    h += `<div class="sv-detail-grid"><div><div class="sv-detail-label">Provenance</div><div class="sv-detail-value">${d.provenance}</div></div>`;
+    h += `<div class="sv-detail-grid"><div><div class="sv-detail-label">Provenance</div><div class="sv-detail-value">${esc(d.provenance)}</div></div>`;
     h += `<div><div class="sv-detail-label">Calibrated</div><div class="sv-detail-value">${d.calibration_date?new Date(d.calibration_date).toLocaleDateString():'—'}</div></div></div>`;
     h += `</div>`;
 
@@ -216,14 +216,16 @@ async function showEdgeDetail(edgeId) {
         h += `<div class="sv-section"><div class="sv-section-title">Evidence Stack</div><div class="sv-feed">`;
         d.evidence.forEach(ev => {
             const ret = ev.retracted?' <span class="sv-badge sv-badge-red">RETRACTED</span>':'';
-            h += `<div class="sv-feed-entry"><span class="sv-feed-time">${new Date(ev.observed_at).toLocaleDateString()}</span><span class="sv-feed-icon" style="color:var(--accent-primary);font-weight:600;">${ev.source_type.slice(0,3)}</span><span class="sv-feed-text">${ev.source_description||ev.source_type}${ret}${ev.effect_size!==null?` <span style="font-family:'JetBrains Mono',monospace;font-size:10px;">(d=${ev.effect_size.toFixed(3)}${ev.p_value!==null?', p='+ev.p_value.toFixed(4):''}${ev.sample_size?', n='+ev.sample_size:''})</span>`:''}</span></div>`;
+            h += `<div class="sv-feed-entry"><span class="sv-feed-time">${new Date(ev.observed_at).toLocaleDateString()}</span><span class="sv-feed-icon" style="color:var(--accent-primary);font-weight:600;">${esc(ev.source_type.slice(0,3))}</span><span class="sv-feed-text">${esc(ev.source_description||ev.source_type)}${ret}${ev.effect_size!==null?` <span style="font-family:'JetBrains Mono',monospace;font-size:10px;">(d=${ev.effect_size.toFixed(3)}${ev.p_value!==null?', p='+ev.p_value.toFixed(4):''}${ev.sample_size?', n='+ev.sample_size:''})</span>`:''}</span></div>`;
         });
         h += `</div></div>`;
     }
-    if (d.staleness_reason) h += `<div class="sv-section"><div class="sv-section-title">Staleness</div><div class="sv-detail-value" style="color:var(--sv-amber);">${d.staleness_reason}</div></div>`;
+    if (d.staleness_reason) h += `<div class="sv-section"><div class="sv-section-title">Staleness</div><div class="sv-detail-value" style="color:var(--sv-amber);">${esc(d.staleness_reason)}</div></div>`;
 
     document.getElementById('detail-content').innerHTML = h;
 }
+
+function esc(s) { return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'):''; }
 
 loadGraph('process_map');
 {% endblock %}
