@@ -930,24 +930,47 @@ function genBolts() {
     });
 }
 
-// Process graph — responsive
-function drawGraph() {
+// ═══════════════════════════════════════════════════════════
+//  ATLAS — Live API polling for mainframe instruments
+// ═══════════════════════════════════════════════════════════
+
+// Draw graph from API data or fallback to static
+function drawGraph(apiNodes, apiEdges) {
     const el = document.getElementById('graphView');
     if (!el) return;
     const w = el.clientWidth || 400, h = el.clientHeight || 280;
-    const nodes = [
-        {x:w*0.12,y:25,l:'temp'},{x:w*0.32,y:20,l:'speed'},{x:w*0.52,y:25,l:'pressure'},{x:w*0.72,y:20,l:'material'},{x:w*0.88,y:28,l:'coolant'},
-        {x:w*0.18,y:h*0.35,l:'hardness'},{x:w*0.42,y:h*0.33,l:'roughness'},{x:w*0.65,y:h*0.36,l:'diameter'},{x:w*0.85,y:h*0.34,l:'flatness'},
-        {x:w*0.15,y:h*0.6,l:'yield'},{x:w*0.38,y:h*0.58,l:'defect rate'},{x:w*0.62,y:h*0.62,l:'cycle time'},{x:w*0.84,y:h*0.6,l:'scrap'},
-        {x:w*0.28,y:h*0.85,l:'OEE'},{x:w*0.55,y:h*0.83,l:'Cpk'},{x:w*0.78,y:h*0.86,l:'cost'}
-    ];
-    const edges = [
-        [0,5],[0,6],[1,5],[1,6],[1,7],[2,6],[2,7],[2,8],[3,5],[3,7],[4,6],[4,8],
-        [5,9],[5,10],[6,10],[6,11],[7,10],[7,11],[7,12],[8,11],[8,12],
-        [9,13],[10,13],[10,14],[11,13],[11,15],[12,14],[12,15]
-    ];
+    let nodes, edges;
+
+    if (apiNodes && apiNodes.length) {
+        // Position API nodes using force-directed-ish layout
+        nodes = apiNodes.map((n, i) => {
+            const angle = (i / apiNodes.length) * Math.PI * 2;
+            const r = Math.min(w, h) * 0.35;
+            return { x: w/2 + Math.cos(angle) * r, y: h/2 + Math.sin(angle) * r, l: n.data?.label || n.label || 'node' };
+        });
+        edges = (apiEdges || []).map(e => {
+            const si = apiNodes.findIndex(n => (n.data?.id || n.id) === (e.data?.source || e.source));
+            const ti = apiNodes.findIndex(n => (n.data?.id || n.id) === (e.data?.target || e.target));
+            return [si, ti];
+        }).filter(([a,b]) => a >= 0 && b >= 0);
+    } else {
+        // Static fallback — demo process model
+        nodes = [
+            {x:w*0.12,y:25,l:'temp'},{x:w*0.32,y:20,l:'speed'},{x:w*0.52,y:25,l:'pressure'},{x:w*0.72,y:20,l:'material'},{x:w*0.88,y:28,l:'coolant'},
+            {x:w*0.18,y:h*0.35,l:'hardness'},{x:w*0.42,y:h*0.33,l:'roughness'},{x:w*0.65,y:h*0.36,l:'diameter'},{x:w*0.85,y:h*0.34,l:'flatness'},
+            {x:w*0.15,y:h*0.6,l:'yield'},{x:w*0.38,y:h*0.58,l:'defect rate'},{x:w*0.62,y:h*0.62,l:'cycle time'},{x:w*0.84,y:h*0.6,l:'scrap'},
+            {x:w*0.28,y:h*0.85,l:'OEE'},{x:w*0.55,y:h*0.83,l:'Cpk'},{x:w*0.78,y:h*0.86,l:'cost'}
+        ];
+        edges = [
+            [0,5],[0,6],[1,5],[1,6],[1,7],[2,6],[2,7],[2,8],[3,5],[3,7],[4,6],[4,8],
+            [5,9],[5,10],[6,10],[6,11],[7,10],[7,11],[7,12],[8,11],[8,12],
+            [9,13],[10,13],[10,14],[11,13],[11,15],[12,14],[12,15]
+        ];
+    }
+
     let html = '';
     edges.forEach(([a,b]) => {
+        if (!nodes[a] || !nodes[b]) return;
         const dx = nodes[b].x - nodes[a].x, dy = nodes[b].y - nodes[a].y;
         const len = Math.sqrt(dx*dx+dy*dy);
         const angle = Math.atan2(dy,dx)*180/Math.PI;
@@ -958,6 +981,100 @@ function drawGraph() {
     });
     el.innerHTML = html;
 }
+
+// Update health gauges from API data
+function updateHealth(data) {
+    const gauges = {
+        'Nodes': data.total_nodes ?? data.node_count ?? null,
+        'Edges': data.total_edges ?? data.edge_count ?? null,
+        'Calibrated': data.calibration_rate != null ? Math.round(data.calibration_rate * 100) + '%' : null,
+        'Stale': data.staleness_rate != null ? Math.round(data.staleness_rate * 100) + '%' : null,
+        'Contradictions': data.contradiction_rate != null ? Math.round(data.contradiction_rate * 100) + '%' : null,
+    };
+    const rows = document.querySelectorAll('.mf-gauge-row');
+    const keys = Object.keys(gauges);
+    rows.forEach((row, i) => {
+        if (i >= keys.length) return;
+        const val = gauges[keys[i]];
+        const valEl = row.querySelector('.mf-gauge-value');
+        const fillEl = row.querySelector('.mf-gauge-fill');
+        if (valEl) valEl.textContent = val != null ? val : '—';
+        if (fillEl && typeof val === 'number') {
+            fillEl.style.width = Math.min(100, val) + '%';
+        } else if (fillEl && typeof val === 'string' && val.endsWith('%')) {
+            fillEl.style.width = val;
+        }
+    });
+}
+
+// Update OLR LEDs based on dashboard state
+function updateOLR(dashboard) {
+    const sigs = dashboard.signals?.untriaged_count || 0;
+    const invs = (dashboard.investigations?.items || []).length;
+    const cmts = dashboard.commitments?.total || 0;
+
+    const leds = document.querySelectorAll('.mf-olr-led');
+    // Observe: active if signals exist
+    if (leds[0]) leds[0].className = 'mf-olr-led' + (sigs > 0 ? ' active' : '');
+    // Learn: active if investigations open
+    if (leds[1]) leds[1].className = 'mf-olr-led' + (invs > 0 ? ' active' : '');
+    // Respond: active if commitments exist
+    if (leds[2]) leds[2].className = 'mf-olr-led' + (cmts > 0 ? ' active' : '');
+}
+
+// Update evidence feed
+function updateFeed(dashboard) {
+    const feedContainer = document.querySelector('.mf-section:last-child');
+    if (!feedContainer) return;
+    const items = [];
+
+    // Recent signals
+    (dashboard.signals?.items || []).slice(0, 3).forEach(s => {
+        items.push({ time: s.created_at, text: (s.severity === 'critical' ? '!! ' : '') + s.title });
+    });
+    // Recent transitions
+    (dashboard.transitions?.items || []).slice(0, 2).forEach(t => {
+        items.push({ time: t.created_at, text: t.from_state + ' → ' + t.to_state });
+    });
+
+    items.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+
+    const feedEl = feedContainer.querySelector('.mf-feed-item')?.parentElement || feedContainer;
+    if (items.length) {
+        feedEl.innerHTML = items.slice(0, 5).map(i => {
+            const t = i.time ? new Date(i.time).toLocaleTimeString('en', {hour:'2-digit',minute:'2-digit'}) : '—';
+            return `<div class="mf-feed-item"><span class="mf-feed-time">${t}</span><span class="mf-feed-text">${esc(i.text)}</span></div>`;
+        }).join('');
+    }
+}
+
+// ATLAS polling — load all data
+function atlasLoad() {
+    // Graph data
+    SvApi.get('/api/graph/data/').then(d => {
+        if (d.nodes && d.nodes.length) drawGraph(d.nodes, d.edges);
+        if (d.stats) updateHealth(d.stats);
+    }).catch(() => {
+        // Fallback: try health endpoint separately
+        SvApi.get('/api/graph/health/').then(h => updateHealth(h)).catch(() => {});
+    });
+
+    // Dashboard (signals, investigations, commitments)
+    SvApi.get('/api/loop/dashboard/').then(d => {
+        updateOLR(d);
+        updateFeed(d);
+    }).catch(() => {});
+
+    // Readiness (less frequent — called separately)
+    SvApi.get('/api/loop/readiness/').then(r => {
+        const score = r.readiness?.score ?? r.score;
+        // Could update a readiness gauge if we add one
+    }).catch(() => {});
+}
+
+// Initial load + polling
+atlasLoad();
+setInterval(atlasLoad, 30000); // 30s refresh
 
 // Tab to flip
 let _flipped = false;
