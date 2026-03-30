@@ -65,9 +65,9 @@
         controlEl.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 6px;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--bg-secondary);font-size:10px;min-height:24px;';
         container.appendChild(controlEl);
 
-        // Chart area
+        // Chart area — needs min-height:0 for flex shrink + position for ForgeViz
         chartEl = document.createElement('div');
-        chartEl.style.cssText = 'flex:1;overflow:hidden;position:relative;';
+        chartEl.style.cssText = 'flex:1;min-height:0;overflow:hidden;position:relative;';
         container.appendChild(chartEl);
 
         function renderControls() {
