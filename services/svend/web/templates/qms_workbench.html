@@ -1,82 +1,22 @@
 {% extends "base_workspace.html" %}
 {% block title %}QMS Workbench — SVEND{% endblock %}
-{# QMS Workbench — extends workspace rack with section navigation,
-   KPI strip, and swappable canvas content.
-
-   OLR-001 architecture: Signals (not NCRs), Investigations (not CAPAs),
-   Commitments, FMIS, Process Confirmations, Forced Failure Tests,
-   Suppliers, Audits, Training, Documents, Graph Health, Configuration.
-
-   Child blocks (inherited from workspace):
-   - workspace_style → qms_style
-   - workspace_sidebar → populated by this rack
-   - workspace_toolbar → populated by this rack
-   - workspace_canvas → populated by this rack (section content)
-   - workspace_statusbar → populated by this rack
-   - workspace_scripts → qms_scripts (extend, don't replace)
+{# QMS Workbench — OLR-001 architecture.
+   Only custom CSS: section nav + section switching.
+   Everything else: sv-* widgets from svend-widgets.css.
 #}
 
 {% block workspace_style %}
-/* QMS section nav */
+/* Section nav — only custom pattern needed */
 .qms-nav-group { padding: 6px 0; border-bottom: 1px solid var(--border); }
-.qms-nav-label {
-    font-size: 9px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.06em; color: var(--text-dim); padding: 4px 14px 2px;
-}
-.qms-nav-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 5px 14px; font-size: 12px; color: var(--text-secondary);
-    cursor: pointer; border-left: 2px solid transparent;
-}
+.qms-nav-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); padding: 4px 14px 2px; }
+.qms-nav-item { display: flex; align-items: center; gap: 8px; padding: 5px 14px; font-size: 12px; color: var(--text-secondary); cursor: pointer; border-left: 2px solid transparent; }
 .qms-nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
 .qms-nav-item.active { background: var(--bg-hover); border-left-color: var(--accent-primary); color: var(--text-primary); }
-.qms-nav-item .qms-nav-count {
-    margin-left: auto; font-size: 10px; font-family: 'JetBrains Mono', monospace;
-    color: var(--text-dim); background: var(--bg-primary); padding: 0 5px;
-    border-radius: 3px; min-width: 16px; text-align: center;
-}
-.qms-nav-item .qms-nav-dot {
-    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-}
+.qms-nav-badge { margin-left: auto; font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); background: var(--bg-primary); padding: 0 5px; border-radius: 3px; min-width: 16px; text-align: center; }
 
-/* KPI strip above canvas */
-.qms-kpi-strip {
-    display: flex; gap: 1px; border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary);
-}
-.qms-kpi {
-    flex: 1; padding: 8px 12px; text-align: center;
-    border-right: 1px solid var(--border); cursor: pointer;
-}
-.qms-kpi:last-child { border-right: none; }
-.qms-kpi:hover { background: var(--bg-hover); }
-.qms-kpi-value {
-    font-size: 18px; font-weight: 600; font-family: 'JetBrains Mono', monospace;
-    color: var(--text-primary); line-height: 1.2;
-}
-.qms-kpi-label {
-    font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--text-dim); margin-top: 2px;
-}
-.qms-kpi-spark { height: 20px; margin-top: 4px; }
-
-/* Section canvas */
-.qms-section { display: none; height: 100%; overflow: hidden; }
-.qms-section.active { display: flex; flex-direction: column; }
-
-/* Section: list+detail split (reuses CRUD pattern inline) */
-.qms-split { display: grid; grid-template-columns: 1fr 300px; flex: 1; overflow: hidden; }
-.qms-split-detail { padding: 16px 20px; overflow-y: auto; }
-.qms-split-rail { background: var(--bg-secondary); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
-.qms-split-rail-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border); }
-.qms-split-rail-list { flex: 1; overflow-y: auto; }
-
-/* Section: dashboard grid */
-.qms-dashboard { padding: 16px 20px; overflow-y: auto; flex: 1; }
-.qms-dash-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-@media (max-width: 900px) { .qms-split { grid-template-columns: 1fr; } .qms-split-rail { display: none; } .qms-dash-grid { grid-template-columns: 1fr; } }
-
-{% block qms_style %}{% endblock %}
+/* Section switching */
+.qms-section { display: none; height: 100%; overflow-y: auto; padding: 16px 20px; }
+.qms-section.active { display: block; }
 {% endblock %}
 
 {% block workspace_sidebar %}
@@ -87,439 +27,263 @@
 
 <div class="qms-nav-group">
     <div class="qms-nav-label">Overview</div>
-    <div class="qms-nav-item active" data-section="overview" onclick="qmsNav(this)">
-        <span>Dashboard</span>
-    </div>
+    <div class="qms-nav-item active" data-section="overview" onclick="qmsNav(this)">Dashboard</div>
 </div>
 
 <div class="qms-nav-group">
     <div class="qms-nav-label">Learning System</div>
     <div class="qms-nav-item" data-section="signals" onclick="qmsNav(this)">
-        <span class="qms-nav-dot" style="background:var(--sv-blue);"></span>
-        <span>Signals</span>
-        <span class="qms-nav-count" id="qmsNavSignals">—</span>
+        <span class="sv-dot sv-dot-blue"></span> Signals <span class="qms-nav-badge" id="navSignals">—</span>
     </div>
     <div class="qms-nav-item" data-section="investigations" onclick="qmsNav(this)">
-        <span class="qms-nav-dot" style="background:var(--sv-amber);"></span>
-        <span>Investigations</span>
-        <span class="qms-nav-count" id="qmsNavInvestigations">—</span>
+        <span class="sv-dot sv-dot-amber"></span> Investigations <span class="qms-nav-badge" id="navInvestigations">—</span>
     </div>
     <div class="qms-nav-item" data-section="commitments" onclick="qmsNav(this)">
-        <span class="qms-nav-dot" style="background:var(--sv-green);"></span>
-        <span>Commitments</span>
-        <span class="qms-nav-count" id="qmsNavCommitments">—</span>
+        <span class="sv-dot sv-dot-green"></span> Commitments <span class="qms-nav-badge" id="navCommitments">—</span>
     </div>
-    <div class="qms-nav-item" data-section="fmis" onclick="qmsNav(this)">
-        <span>FMIS</span>
-    </div>
+    <div class="qms-nav-item" data-section="fmis" onclick="qmsNav(this)">FMIS</div>
 </div>
 
 <div class="qms-nav-group">
     <div class="qms-nav-label">Verify</div>
-    <div class="qms-nav-item" data-section="pcs" onclick="qmsNav(this)">
-        <span>Process Confirmations</span>
-    </div>
-    <div class="qms-nav-item" data-section="ffts" onclick="qmsNav(this)">
-        <span>Forced Failure Tests</span>
-    </div>
+    <div class="qms-nav-item" data-section="pcs" onclick="qmsNav(this)">Process Confirmations</div>
+    <div class="qms-nav-item" data-section="ffts" onclick="qmsNav(this)">Forced Failure Tests</div>
 </div>
 
 <div class="qms-nav-group">
     <div class="qms-nav-label">Compliance</div>
-    <div class="qms-nav-item" data-section="suppliers" onclick="qmsNav(this)">
-        <span>Suppliers</span>
-    </div>
-    <div class="qms-nav-item" data-section="audits" onclick="qmsNav(this)">
-        <span>Audits</span>
-    </div>
-    <div class="qms-nav-item" data-section="training" onclick="qmsNav(this)">
-        <span>Training</span>
-    </div>
-    <div class="qms-nav-item" data-section="documents" onclick="qmsNav(this)">
-        <span>Documents</span>
-    </div>
+    <div class="qms-nav-item" data-section="suppliers" onclick="qmsNav(this)">Suppliers</div>
+    <div class="qms-nav-item" data-section="audits" onclick="qmsNav(this)">Audits</div>
+    <div class="qms-nav-item" data-section="training" onclick="qmsNav(this)">Training</div>
+    <div class="qms-nav-item" data-section="documents" onclick="qmsNav(this)">Documents</div>
 </div>
 
 <div class="qms-nav-group">
     <div class="qms-nav-label">Process Knowledge</div>
-    <div class="qms-nav-item" data-section="graph" onclick="qmsNav(this)">
-        <span>Graph Health</span>
-    </div>
-    <div class="qms-nav-item" data-section="config" onclick="qmsNav(this)">
-        <span>Configuration</span>
-    </div>
+    <div class="qms-nav-item" data-section="graph" onclick="qmsNav(this)">Graph Health</div>
+    <div class="qms-nav-item" data-section="config" onclick="qmsNav(this)">Configuration</div>
 </div>
 {% endblock %}
 
 {% block workspace_toolbar %}
-<span style="font-size:11px;color:var(--text-dim);" id="qmsToolbarTitle">Overview</span>
-<div style="margin-left:auto;display:flex;gap:4px;">
-    <button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="qmsRefresh()">Refresh</button>
-</div>
+<span style="font-size:11px;color:var(--text-dim);" id="qmsTitle">Overview</span>
+<div style="margin-left:auto;"><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="qmsRefresh()">Refresh</button></div>
 {% endblock %}
 
 {% block workspace_canvas %}
-<!-- KPI strip -->
-<div class="qms-kpi-strip" id="qmsKpiStrip">
-    <div class="qms-kpi" onclick="qmsNav(document.querySelector('[data-section=signals]'))">
-        <div class="qms-kpi-value" id="qmsKpiSignals">—</div>
-        <div class="qms-kpi-label">Open Signals</div>
-        <div class="qms-kpi-spark" id="qmsSparkSignals"></div>
+<!-- ── Overview ── -->
+<div class="qms-section active" id="secOverview">
+    <div class="sv-kpi-strip cols-5" id="kpiStrip" style="margin-bottom:16px;">
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="kpiReadiness">—</div><div class="sv-kpi-label">CI Readiness</div><div id="sparkReadiness" style="height:24px;margin-top:4px;"></div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="kpiFulfillment">—</div><div class="sv-kpi-label">Fulfillment Rate</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="kpiDetection">—</div><div class="sv-kpi-label">Detection Coverage</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="kpiStaleness">—</div><div class="sv-kpi-label">Stale Edges</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="kpiOverdue" style="color:var(--sv-red);">—</div><div class="sv-kpi-label">Overdue Items</div></div>
     </div>
-    <div class="qms-kpi" onclick="qmsNav(document.querySelector('[data-section=investigations]'))">
-        <div class="qms-kpi-value" id="qmsKpiInvestigations">—</div>
-        <div class="qms-kpi-label">Active Investigations</div>
-    </div>
-    <div class="qms-kpi" onclick="qmsNav(document.querySelector('[data-section=commitments]'))">
-        <div class="qms-kpi-value" id="qmsKpiCommitments">—</div>
-        <div class="qms-kpi-label">Open Commitments</div>
-    </div>
-    <div class="qms-kpi">
-        <div class="qms-kpi-value" id="qmsKpiOverdue" style="color:var(--sv-red);">—</div>
-        <div class="qms-kpi-label">Overdue</div>
-    </div>
-    <div class="qms-kpi">
-        <div class="qms-kpi-value" id="qmsKpiReadiness">—</div>
-        <div class="qms-kpi-label">Readiness</div>
-        <div class="qms-kpi-spark" id="qmsSparkReadiness"></div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;" id="overviewGrid">
+        <div class="sv-card"><div class="sv-card-header"><span class="sv-card-title">Recent Activity</span></div><div id="ovActivity" class="sv-empty">Loading...</div></div>
+        <div class="sv-card"><div class="sv-card-header"><span class="sv-card-title">Signal Trend</span></div><div id="ovSignalChart" style="height:200px;"></div></div>
+        <div class="sv-card"><div class="sv-card-header"><span class="sv-card-title">Open Commitments</span></div><div id="ovCommitments" class="sv-empty">Loading...</div></div>
+        <div class="sv-card"><div class="sv-card-header"><span class="sv-card-title">Active Investigations</span></div><div id="ovInvestigations" class="sv-empty">Loading...</div></div>
     </div>
 </div>
 
-<!-- Section containers -->
-<div style="flex:1;overflow:hidden;position:relative;">
-
-    <!-- Overview -->
-    <div class="qms-section active" id="qmsSecOverview">
-        <div class="qms-dashboard">
-            <div class="qms-dash-grid" id="qmsOverviewGrid">
-                <div class="sv-card"><div class="sv-card-header"><span class="sv-card-title">Recent Signals</span></div><div id="qmsOverviewSignals" class="sv-empty">Loading...</div></div>
-                <div class="sv-card"><div class="sv-card-header"><span class="sv-card-title">My Commitments</span></div><div id="qmsOverviewCommitments" class="sv-empty">Loading...</div></div>
-                <div class="sv-card"><div class="sv-card-header"><span class="sv-card-title">Active Investigations</span></div><div id="qmsOverviewInvestigations" class="sv-empty">Loading...</div></div>
-                <div class="sv-card"><div class="sv-card-header"><span class="sv-card-title">Recent Transitions</span></div><div id="qmsOverviewTransitions" class="sv-empty">Loading...</div></div>
+<!-- ── Signals ── -->
+<div class="qms-section" id="secSignals" style="display:none;padding:0;overflow:hidden;">
+    <div style="display:grid;grid-template-columns:1fr 300px;height:100%;overflow:hidden;">
+        <div style="padding:16px 20px;overflow-y:auto;" id="sigDetail">
+            <div class="sv-empty"><div class="sv-empty-icon">&#x25C9;</div>Select a signal</div>
+        </div>
+        <div style="background:var(--bg-secondary);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);">
+                <span style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-dim);" id="sigCount">Signals</span>
+                <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="qmsCreateSignal()">+ New</button>
             </div>
+            <div class="sv-filter-bar" style="padding:6px 10px;border-bottom:1px solid var(--border);">
+                <button class="sv-filter-btn active" onclick="sigFilter(this,'all')">All</button>
+                <button class="sv-filter-btn" onclick="sigFilter(this,'untriaged')">Untriaged</button>
+                <button class="sv-filter-btn" onclick="sigFilter(this,'acknowledged')">Ack</button>
+                <button class="sv-filter-btn" onclick="sigFilter(this,'investigating')">Investigating</button>
+                <button class="sv-filter-btn" onclick="sigFilter(this,'resolved')">Resolved</button>
+            </div>
+            <div style="flex:1;overflow-y:auto;" id="sigList"><div class="sv-empty">Loading...</div></div>
         </div>
     </div>
-
-    <!-- Signals -->
-    <div class="qms-section" id="qmsSecSignals">
-        <div class="qms-split">
-            <div class="qms-split-detail" id="qmsSignalDetail">
-                <div class="sv-empty"><div class="sv-empty-icon">&#x25C9;</div>Select a signal</div>
-            </div>
-            <div class="qms-split-rail">
-                <div class="qms-split-rail-header">
-                    <span class="sv-crud-rail-title" id="qmsSignalCount">Signals</span>
-                    <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="qmsCreateSignal()">+ New</button>
-                </div>
-                <div class="sv-filter-bar" style="padding:6px 10px;">
-                    <button class="sv-filter-btn active" onclick="qmsFilterSignals(this,'all')">All</button>
-                    <button class="sv-filter-btn" onclick="qmsFilterSignals(this,'untriaged')">Untriaged</button>
-                    <button class="sv-filter-btn" onclick="qmsFilterSignals(this,'acknowledged')">Ack</button>
-                    <button class="sv-filter-btn" onclick="qmsFilterSignals(this,'investigating')">Investigating</button>
-                    <button class="sv-filter-btn" onclick="qmsFilterSignals(this,'resolved')">Resolved</button>
-                </div>
-                <div class="qms-split-rail-list" id="qmsSignalList">
-                    <div class="sv-empty">Loading...</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Placeholder sections -->
-    <div class="qms-section" id="qmsSecInvestigations"><div class="sv-empty" style="padding-top:60px;"><div class="sv-empty-icon">&#x1F50D;</div>Investigations — wiring in progress</div></div>
-    <div class="qms-section" id="qmsSecCommitments"><div class="sv-empty" style="padding-top:60px;"><div class="sv-empty-icon">&#x1F91D;</div>Commitments — wiring in progress</div></div>
-    <div class="qms-section" id="qmsSecFmis"><div class="sv-empty" style="padding-top:60px;"><div class="sv-empty-icon">&#x26A0;</div>FMIS — wiring in progress</div></div>
-    <div class="qms-section" id="qmsSecPcs"><div class="sv-empty" style="padding-top:60px;"><div class="sv-empty-icon">&#x2705;</div>Process Confirmations — wiring in progress</div></div>
-    <div class="qms-section" id="qmsSecFfts"><div class="sv-empty" style="padding-top:60px;"><div class="sv-empty-icon">&#x1F9EA;</div>Forced Failure Tests — wiring in progress</div></div>
-    <div class="qms-section" id="qmsSecSuppliers"><div class="sv-empty" style="padding-top:60px;"><div class="sv-empty-icon">&#x1F4E6;</div>Suppliers — wiring in progress</div></div>
-    <div class="qms-section" id="qmsSecAudits"><div class="sv-empty" style="padding-top:60px;"><div class="sv-empty-icon">&#x1F4CB;</div>Audits — wiring in progress</div></div>
-    <div class="qms-section" id="qmsSecTraining"><div class="sv-empty" style="padding-top:60px;"><div class="sv-empty-icon">&#x1F393;</div>Training — wiring in progress</div></div>
-    <div class="qms-section" id="qmsSecDocuments"><div class="sv-empty" style="padding-top:60px;"><div class="sv-empty-icon">&#x1F4C4;</div>Documents — wiring in progress</div></div>
-    <div class="qms-section" id="qmsSecGraph"><div class="sv-empty" style="padding-top:60px;"><div class="sv-empty-icon">&#x1F578;</div>Graph Health — wiring in progress</div></div>
-    <div class="qms-section" id="qmsSecConfig"><div class="sv-empty" style="padding-top:60px;"><div class="sv-empty-icon">&#x2699;</div>Configuration — wiring in progress</div></div>
-
 </div>
+
+<!-- ── Placeholder sections ── -->
+<div class="qms-section" id="secInvestigations"><div class="sv-empty" style="padding-top:60px;">Investigations — wiring in progress</div></div>
+<div class="qms-section" id="secCommitments"><div class="sv-empty" style="padding-top:60px;">Commitments — wiring in progress</div></div>
+<div class="qms-section" id="secFmis"><div class="sv-empty" style="padding-top:60px;">FMIS — wiring in progress</div></div>
+<div class="qms-section" id="secPcs"><div class="sv-empty" style="padding-top:60px;">Process Confirmations — wiring in progress</div></div>
+<div class="qms-section" id="secFfts"><div class="sv-empty" style="padding-top:60px;">Forced Failure Tests — wiring in progress</div></div>
+<div class="qms-section" id="secSuppliers"><div class="sv-empty" style="padding-top:60px;">Suppliers — wiring in progress</div></div>
+<div class="qms-section" id="secAudits"><div class="sv-empty" style="padding-top:60px;">Audits — wiring in progress</div></div>
+<div class="qms-section" id="secTraining"><div class="sv-empty" style="padding-top:60px;">Training — wiring in progress</div></div>
+<div class="qms-section" id="secDocuments"><div class="sv-empty" style="padding-top:60px;">Documents — wiring in progress</div></div>
+<div class="qms-section" id="secGraph"><div class="sv-empty" style="padding-top:60px;">Graph Health — wiring in progress</div></div>
+<div class="qms-section" id="secConfig"><div class="sv-empty" style="padding-top:60px;">Configuration — wiring in progress</div></div>
 {% endblock %}
 
 {% block workspace_statusbar %}
-<span id="qmsStatusText">Ready</span>
+<span id="qmsStatus">Ready</span>
 <span style="margin-left:auto;" id="qmsStatusRight"></span>
 {% endblock %}
 
 {% block workspace_scripts %}
-const QMS_SECTION_MAP = {
-    overview: 'qmsSecOverview', signals: 'qmsSecSignals', investigations: 'qmsSecInvestigations',
-    commitments: 'qmsSecCommitments', fmis: 'qmsSecFmis', pcs: 'qmsSecPcs', ffts: 'qmsSecFfts',
-    suppliers: 'qmsSecSuppliers', audits: 'qmsSecAudits', training: 'qmsSecTraining',
-    documents: 'qmsSecDocuments', graph: 'qmsSecGraph', config: 'qmsSecConfig',
+const SECTIONS = {
+    overview:'secOverview', signals:'secSignals', investigations:'secInvestigations',
+    commitments:'secCommitments', fmis:'secFmis', pcs:'secPcs', ffts:'secFfts',
+    suppliers:'secSuppliers', audits:'secAudits', training:'secTraining',
+    documents:'secDocuments', graph:'secGraph', config:'secConfig',
+};
+const TITLES = {
+    overview:'Overview', signals:'Signals', investigations:'Investigations',
+    commitments:'Commitments', fmis:'FMIS', pcs:'Process Confirmations',
+    ffts:'Forced Failure Tests', suppliers:'Suppliers', audits:'Audits',
+    training:'Training', documents:'Documents', graph:'Graph Health', config:'Configuration',
 };
 
-const QMS_SECTION_TITLES = {
-    overview: 'Overview', signals: 'Signals', investigations: 'Investigations',
-    commitments: 'Commitments', fmis: 'FMIS', pcs: 'Process Confirmations',
-    ffts: 'Forced Failure Tests', suppliers: 'Suppliers', audits: 'Audits',
-    training: 'Training', documents: 'Documents', graph: 'Graph Health',
-    config: 'Configuration',
-};
+let _section = 'overview';
+let _signals = [];
+let _sigFilter = 'all';
+let _sigSelected = null;
 
-let _qmsSection = 'overview';
-let _qmsSignals = [];
-let _qmsSignalFilter = 'all';
-let _qmsSelectedSignal = null;
-let _qmsDashboard = null;
-
+// ── Nav ──
 function qmsNav(el) {
-    const section = el.dataset?.section || el.getAttribute('data-section');
-    if (!section) return;
-    _qmsSection = section;
-
-    // Update nav active state
+    const s = el.dataset.section;
+    if (!s) return;
+    _section = s;
     document.querySelectorAll('.qms-nav-item').forEach(n => n.classList.remove('active'));
-    const navItem = document.querySelector(`.qms-nav-item[data-section="${section}"]`);
-    if (navItem) navItem.classList.add('active');
-
-    // Switch section
-    document.querySelectorAll('.qms-section').forEach(s => s.classList.remove('active'));
-    const secEl = document.getElementById(QMS_SECTION_MAP[section]);
-    if (secEl) secEl.classList.add('active');
-
-    // Update toolbar title
-    document.getElementById('qmsToolbarTitle').textContent = QMS_SECTION_TITLES[section] || section;
-
-    // Load section data on first visit
-    if (section === 'signals' && !_qmsSignals.length) loadSignals();
+    el.classList.add('active');
+    document.querySelectorAll('.qms-section').forEach(sec => sec.classList.remove('active'));
+    const sec = document.getElementById(SECTIONS[s]);
+    if (sec) { sec.classList.add('active'); sec.style.display = ''; }
+    document.getElementById('qmsTitle').textContent = TITLES[s] || s;
+    if (s === 'signals' && !_signals.length) loadSignals();
 }
 
-// ── API helpers ──
-function qmsApi(url) {
-    return fetch(url, { headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value } })
-        .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
-}
-
-function qmsPost(url, body) {
-    return fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value },
-        body: JSON.stringify(body),
-    }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
-}
+// ── API ──
+const csrf = () => document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+function api(url) { return fetch(url, {headers:{'X-CSRFToken':csrf()}}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}); }
+function post(url,body) { return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify(body)}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}); }
 
 // ── Dashboard ──
 function loadDashboard() {
-    qmsApi('/api/loop/dashboard/').then(data => {
-        _qmsDashboard = data;
+    api('/api/loop/dashboard/').then(d => {
+        const ov = d.commitments?.overdue_count ?? 0;
+        const total = d.commitments?.total ?? 0;
+        const fulfilled = d.commitments?.fulfilled ?? 0;
+        document.getElementById('kpiOverdue').textContent = ov;
+        document.getElementById('kpiOverdue').style.color = ov > 0 ? 'var(--sv-red)' : 'var(--sv-green)';
+        document.getElementById('kpiFulfillment').textContent = total > 0 ? Math.round(fulfilled/total*100)+'%' : '—';
+        document.getElementById('navSignals').textContent = d.signals?.untriaged_count ?? 0;
+        document.getElementById('navInvestigations').textContent = d.investigations?.items?.length ?? 0;
+        document.getElementById('navCommitments').textContent = d.commitments?.items?.length ?? 0;
 
-        // KPI strip
-        const sigCount = data.signals?.untriaged_count ?? 0;
-        const invCount = data.investigations?.items?.length ?? 0;
-        const cmtCount = data.commitments?.items?.length ?? 0;
-        const overdueCount = data.commitments?.overdue_count ?? 0;
+        // Activity feed (transitions)
+        const items = d.transitions?.items || [];
+        document.getElementById('ovActivity').innerHTML = items.length
+            ? '<div class="sv-feed">' + items.map(t => `<div class="sv-feed-entry"><span class="sv-feed-time">${timeAgo(t.created_at)}</span><span class="sv-feed-icon">&#x2192;</span><span class="sv-feed-text">${t.from_mode} → ${t.to_mode} (${t.transition_type})</span></div>`).join('') + '</div>'
+            : '<div class="sv-empty">No recent activity</div>';
 
-        document.getElementById('qmsKpiSignals').textContent = sigCount;
-        document.getElementById('qmsKpiInvestigations').textContent = invCount;
-        document.getElementById('qmsKpiCommitments').textContent = cmtCount;
-        document.getElementById('qmsKpiOverdue').textContent = overdueCount;
-        document.getElementById('qmsKpiOverdue').style.color = overdueCount > 0 ? 'var(--sv-red)' : 'var(--sv-green)';
+        // Commitments
+        const cmts = d.commitments?.items || [];
+        document.getElementById('ovCommitments').innerHTML = cmts.length
+            ? cmts.slice(0,5).map(c => `<div class="sv-list-item"><div class="sv-dot sv-dot-${c.is_overdue?'red':c.is_blocked?'amber':'green'}" style="margin-top:5px;"></div><div class="sv-item-main"><div class="sv-item-title">${esc(c.title)}</div><div class="sv-item-meta"><span class="sv-badge" data-status="${c.status}">${c.status.replace(/_/g,' ')}</span></div></div><span class="sv-item-time">${c.due_date||'—'}</span></div>`).join('')
+            : '<div class="sv-empty">No open commitments</div>';
 
-        // Nav counts
-        document.getElementById('qmsNavSignals').textContent = sigCount;
-        document.getElementById('qmsNavInvestigations').textContent = invCount;
-        document.getElementById('qmsNavCommitments').textContent = cmtCount;
+        // Investigations
+        const invs = d.investigations?.items || [];
+        document.getElementById('ovInvestigations').innerHTML = invs.length
+            ? invs.map(i => `<div class="sv-list-item"><div class="sv-item-main"><div class="sv-item-title">${esc(i.title)}</div><div class="sv-item-meta"><span class="sv-badge" data-status="${i.status}">${i.status}</span></div></div><span class="sv-item-time">${timeAgo(i.updated_at)}</span></div>`).join('')
+            : '<div class="sv-empty">No active investigations</div>';
 
-        // Overview panels
-        renderOverviewSignals(data.signals?.items || []);
-        renderOverviewCommitments(data.commitments?.items || []);
-        renderOverviewInvestigations(data.investigations?.items || []);
-        renderOverviewTransitions(data.transitions?.items || []);
+        document.getElementById('qmsStatus').textContent = 'Dashboard loaded';
+    }).catch(e => { document.getElementById('qmsStatus').textContent = 'Error: ' + e.message; });
 
-        document.getElementById('qmsStatusText').textContent = 'Dashboard loaded';
-    }).catch(err => {
-        document.getElementById('qmsStatusText').textContent = 'Dashboard error: ' + err.message;
-    });
+    // Readiness
+    api('/api/loop/readiness/').then(d => {
+        const s = d.score ?? d.readiness_score;
+        document.getElementById('kpiReadiness').textContent = s !== undefined ? Math.round(s*100)+'%' : '—';
+    }).catch(() => { document.getElementById('kpiReadiness').textContent = '—'; });
 
-    // Readiness score (separate endpoint)
-    qmsApi('/api/loop/readiness/').then(data => {
-        const score = data.score ?? data.readiness_score;
-        if (score !== undefined) {
-            document.getElementById('qmsKpiReadiness').textContent = Math.round(score * 100) + '%';
-        }
+    // Graph health for detection + staleness KPIs
+    api('/api/graph/health/').then(d => {
+        document.getElementById('kpiDetection').textContent = d.detection_coverage !== undefined ? Math.round(d.detection_coverage*100)+'%' : '—';
+        document.getElementById('kpiStaleness').textContent = d.stale_edge_count ?? d.stale_edges ?? '—';
     }).catch(() => {
-        document.getElementById('qmsKpiReadiness').textContent = '—';
+        document.getElementById('kpiDetection').textContent = '—';
+        document.getElementById('kpiStaleness').textContent = '—';
     });
 }
 
-function renderOverviewSignals(signals) {
-    const el = document.getElementById('qmsOverviewSignals');
-    if (!signals.length) { el.innerHTML = '<div class="sv-empty">No open signals</div>'; return; }
-    el.innerHTML = signals.slice(0, 5).map(s => `
-        <div class="sv-list-item" style="cursor:pointer;" onclick="qmsNav(document.querySelector('[data-section=signals]')); setTimeout(() => selectSignal('${s.id}'), 100);">
-            <div class="sv-dot sv-dot-${s.severity === 'critical' ? 'red' : s.severity === 'warning' ? 'amber' : 'blue'}" style="margin-top:5px;"></div>
-            <div class="sv-item-main">
-                <div class="sv-item-title">${esc(s.title)}</div>
-                <div class="sv-item-meta"><span class="sv-badge" data-status="${s.triage_state}">${s.triage_state.replace(/_/g,' ')}</span></div>
-            </div>
-            <span class="sv-item-time">${timeAgo(s.created_at)}</span>
-        </div>`).join('');
-}
-
-function renderOverviewCommitments(commitments) {
-    const el = document.getElementById('qmsOverviewCommitments');
-    if (!commitments.length) { el.innerHTML = '<div class="sv-empty">No open commitments</div>'; return; }
-    el.innerHTML = commitments.slice(0, 5).map(c => `
-        <div class="sv-list-item">
-            <div class="sv-dot sv-dot-${c.is_overdue ? 'red' : c.is_blocked ? 'amber' : 'green'}" style="margin-top:5px;"></div>
-            <div class="sv-item-main">
-                <div class="sv-item-title">${esc(c.title)}</div>
-                <div class="sv-item-meta"><span class="sv-badge" data-status="${c.status}">${c.status.replace(/_/g,' ')}</span><span>${c.owner_name}</span></div>
-            </div>
-            <span class="sv-item-time">${c.due_date || '—'}</span>
-        </div>`).join('');
-}
-
-function renderOverviewInvestigations(investigations) {
-    const el = document.getElementById('qmsOverviewInvestigations');
-    if (!investigations.length) { el.innerHTML = '<div class="sv-empty">No active investigations</div>'; return; }
-    el.innerHTML = investigations.map(inv => `
-        <div class="sv-list-item">
-            <div class="sv-item-main">
-                <div class="sv-item-title">${esc(inv.title)}</div>
-                <div class="sv-item-meta"><span class="sv-badge" data-status="${inv.status}">${inv.status}</span><span>${inv.commitment_count} commitments</span></div>
-            </div>
-            <span class="sv-item-time">${timeAgo(inv.updated_at)}</span>
-        </div>`).join('');
-}
-
-function renderOverviewTransitions(transitions) {
-    const el = document.getElementById('qmsOverviewTransitions');
-    if (!transitions.length) { el.innerHTML = '<div class="sv-empty">No recent transitions</div>'; return; }
-    el.innerHTML = '<div class="sv-feed">' + transitions.map(t => `
-        <div class="sv-feed-entry">
-            <span class="sv-feed-time">${timeAgo(t.created_at)}</span>
-            <span class="sv-feed-icon">&#x2192;</span>
-            <span class="sv-feed-text">${t.from_mode} → ${t.to_mode} (${t.transition_type})</span>
-        </div>`).join('') + '</div>';
-}
-
-// ── Signals section ──
+// ── Signals ──
 function loadSignals() {
-    document.getElementById('qmsStatusText').textContent = 'Loading signals...';
-    qmsApi('/api/loop/signals/').then(data => {
-        _qmsSignals = data.signals || data.results || data;
-        if (Array.isArray(data)) _qmsSignals = data;
-        renderSignalList();
-        document.getElementById('qmsStatusText').textContent = `${_qmsSignals.length} signals loaded`;
-    }).catch(err => {
-        document.getElementById('qmsSignalList').innerHTML = '<div class="sv-empty">Error loading signals</div>';
-        document.getElementById('qmsStatusText').textContent = 'Signal load error: ' + err.message;
+    document.getElementById('qmsStatus').textContent = 'Loading signals...';
+    api('/api/loop/signals/').then(d => {
+        _signals = d.signals || d.results || (Array.isArray(d) ? d : []);
+        renderSigList();
+        document.getElementById('qmsStatus').textContent = _signals.length + ' signals loaded';
+    }).catch(e => {
+        document.getElementById('sigList').innerHTML = '<div class="sv-empty">Error loading signals</div>';
+        document.getElementById('qmsStatus').textContent = 'Error: ' + e.message;
     });
 }
 
-function qmsFilterSignals(btn, filter) {
-    _qmsSignalFilter = filter;
-    document.querySelectorAll('#qmsSecSignals .sv-filter-btn').forEach(b => b.classList.remove('active'));
+function sigFilter(btn, f) {
+    _sigFilter = f;
+    document.querySelectorAll('#secSignals .sv-filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    renderSignalList();
+    renderSigList();
 }
 
-function renderSignalList() {
-    const filtered = _qmsSignalFilter === 'all' ? _qmsSignals : _qmsSignals.filter(s => s.triage_state === _qmsSignalFilter);
-    const el = document.getElementById('qmsSignalList');
-    document.getElementById('qmsSignalCount').textContent = `${filtered.length} signal${filtered.length !== 1 ? 's' : ''}`;
-
-    if (!filtered.length) {
-        el.innerHTML = '<div class="sv-empty"><div class="sv-empty-icon">&#x25C9;</div>No signals</div>';
-        return;
-    }
-    el.innerHTML = filtered.map(s => {
-        const sel = s.id === _qmsSelectedSignal ? ' selected' : '';
-        return `<div class="sv-list-item${sel}" onclick="selectSignal('${s.id}')">
-            <div class="sv-dot sv-dot-${s.severity === 'critical' ? 'red' : s.severity === 'warning' ? 'amber' : 'blue'}" style="margin-top:5px;"></div>
-            <div class="sv-item-main">
-                <div class="sv-item-title">${esc(s.title)}</div>
-                <div class="sv-item-meta">
-                    <span class="sv-badge" data-status="${s.triage_state}">${s.triage_state.replace(/_/g,' ')}</span>
-                    <span>${(s.source_type || '').replace(/_/g,' ')}</span>
-                </div>
-            </div>
-            <span class="sv-item-time">${timeAgo(s.created_at)}</span>
-        </div>`;
+function renderSigList() {
+    const list = _sigFilter === 'all' ? _signals : _signals.filter(s => s.triage_state === _sigFilter);
+    document.getElementById('sigCount').textContent = list.length + ' signal' + (list.length !== 1 ? 's' : '');
+    const el = document.getElementById('sigList');
+    if (!list.length) { el.innerHTML = '<div class="sv-empty">No signals</div>'; return; }
+    el.innerHTML = list.map(s => {
+        const sel = s.id === _sigSelected ? ' selected' : '';
+        return `<div class="sv-list-item${sel}" onclick="selectSig('${s.id}')"><div class="sv-dot sv-dot-${s.severity==='critical'?'red':s.severity==='warning'?'amber':'blue'}" style="margin-top:5px;"></div><div class="sv-item-main"><div class="sv-item-title">${esc(s.title)}</div><div class="sv-item-meta"><span class="sv-badge" data-status="${s.triage_state}">${s.triage_state.replace(/_/g,' ')}</span><span>${(s.source_type||'').replace(/_/g,' ')}</span></div></div><span class="sv-item-time">${timeAgo(s.created_at)}</span></div>`;
     }).join('');
 }
 
-function selectSignal(id) {
-    _qmsSelectedSignal = id;
-    renderSignalList();
-    const s = _qmsSignals.find(x => x.id === id);
+function selectSig(id) {
+    _sigSelected = id;
+    renderSigList();
+    const s = _signals.find(x => x.id === id);
     if (!s) return;
-
-    const panel = document.getElementById('qmsSignalDetail');
     let actions = '';
-    if (s.triage_state === 'untriaged') {
-        actions = `<button class="sv-btn sv-btn-primary" onclick="signalAction('${s.id}','acknowledge')">Acknowledge</button>
-                   <button class="sv-btn" onclick="signalAction('${s.id}','investigate')">Open Investigation</button>
-                   <button class="sv-btn sv-btn-danger" onclick="signalAction('${s.id}','dismiss')">Dismiss</button>`;
-    } else if (s.triage_state === 'acknowledged') {
-        actions = `<button class="sv-btn sv-btn-primary" onclick="signalAction('${s.id}','investigate')">Open Investigation</button>
-                   <button class="sv-btn sv-btn-danger" onclick="signalAction('${s.id}','dismiss')">Dismiss</button>`;
-    }
+    if (s.triage_state === 'untriaged') actions = `<button class="sv-btn sv-btn-primary" onclick="sigAction('${s.id}','acknowledge')">Acknowledge</button><button class="sv-btn" onclick="sigAction('${s.id}','investigate')">Open Investigation</button><button class="sv-btn sv-btn-danger" onclick="sigAction('${s.id}','dismiss')">Dismiss</button>`;
+    else if (s.triage_state === 'acknowledged') actions = `<button class="sv-btn sv-btn-primary" onclick="sigAction('${s.id}','investigate')">Open Investigation</button><button class="sv-btn sv-btn-danger" onclick="sigAction('${s.id}','dismiss')">Dismiss</button>`;
 
-    panel.innerHTML = `
-        <div class="sv-detail-header">
-            <h3>${esc(s.title)}</h3>
-            <div class="sv-detail-meta">
-                <span class="sv-badge" data-status="${s.severity}">${s.severity || '—'}</span>
-                <span class="sv-badge" data-status="${s.triage_state}">${s.triage_state.replace(/_/g,' ')}</span>
-                <span style="color:var(--text-dim);">${(s.source_type || '').replace(/_/g,' ')}</span>
-            </div>
-        </div>
-        <div class="sv-detail-section">
-            <div class="sv-detail-label">Description</div>
-            <div class="sv-detail-value">${esc(s.description) || '<span style="color:var(--text-dim);">No description</span>'}</div>
-        </div>
-        <div class="sv-detail-grid">
-            <div><div class="sv-detail-label">Source</div><div class="sv-detail-value">${(s.source_type || '—').replace(/_/g,' ')}</div></div>
-            <div><div class="sv-detail-label">Created</div><div class="sv-detail-value">${s.created_at ? new Date(s.created_at).toLocaleString() : '—'}</div></div>
-        </div>
-        ${s.resolved_at ? `<div class="sv-detail-section"><div class="sv-detail-label">Resolved</div><div class="sv-detail-value">${new Date(s.resolved_at).toLocaleString()}</div></div>` : ''}
-        ${s.dismissed_reason ? `<div class="sv-detail-section"><div class="sv-detail-label">Dismissed Reason</div><div class="sv-detail-value">${esc(s.dismissed_reason)}</div></div>` : ''}
-        ${actions ? `<div class="sv-detail-actions">${actions}</div>` : ''}`;
+    document.getElementById('sigDetail').innerHTML = `
+        <div class="sv-detail-header"><h3>${esc(s.title)}</h3><div class="sv-detail-meta"><span class="sv-badge" data-status="${s.severity}">${s.severity||'—'}</span><span class="sv-badge" data-status="${s.triage_state}">${s.triage_state.replace(/_/g,' ')}</span><span style="color:var(--text-dim);">${(s.source_type||'').replace(/_/g,' ')}</span></div></div>
+        <div class="sv-detail-section"><div class="sv-detail-label">Description</div><div class="sv-detail-value">${esc(s.description)||'<span style="color:var(--text-dim);">No description</span>'}</div></div>
+        <div class="sv-detail-grid"><div><div class="sv-detail-label">Source</div><div class="sv-detail-value">${(s.source_type||'—').replace(/_/g,' ')}</div></div><div><div class="sv-detail-label">Created</div><div class="sv-detail-value">${s.created_at?new Date(s.created_at).toLocaleString():'—'}</div></div></div>
+        ${s.resolved_at?`<div class="sv-detail-section"><div class="sv-detail-label">Resolved</div><div class="sv-detail-value">${new Date(s.resolved_at).toLocaleString()}</div></div>`:''}
+        ${s.dismissed_reason?`<div class="sv-detail-section"><div class="sv-detail-label">Dismissed Reason</div><div class="sv-detail-value">${esc(s.dismissed_reason)}</div></div>`:''}
+        ${actions?`<div class="sv-detail-actions">${actions}</div>`:''}`;
 }
 
-function signalAction(id, action) {
-    qmsPost('/api/loop/signals/' + id + '/', { action: action }).then(() => {
-        loadSignals();
-        loadDashboard();
-    }).catch(err => {
-        document.getElementById('qmsStatusText').textContent = 'Action failed: ' + err.message;
-    });
+function sigAction(id, action) {
+    post('/api/loop/signals/'+id+'/', {action}).then(() => { loadSignals(); loadDashboard(); })
+    .catch(e => { document.getElementById('qmsStatus').textContent = 'Action failed: '+e.message; });
 }
 
-function qmsCreateSignal() {
-    // TODO: modal for signal creation
-    alert('Signal creation modal — next iteration');
-}
+function qmsCreateSignal() { alert('Signal creation — next iteration'); }
 
 // ── Refresh ──
 function qmsRefresh() {
     loadDashboard();
-    if (_qmsSection === 'signals') loadSignals();
-    document.getElementById('qmsStatusText').textContent = 'Refreshing...';
+    if (_section === 'signals') loadSignals();
 }
 
 // ── Utilities ──
-function timeAgo(iso) {
-    if (!iso) return '—';
-    const diff = (Date.now() - new Date(iso)) / 1000;
-    if (diff < 60) return 'now';
-    if (diff < 3600) return Math.floor(diff / 60) + 'm';
-    if (diff < 86400) return Math.floor(diff / 3600) + 'h';
-    return Math.floor(diff / 86400) + 'd';
-}
-
-function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') : ''; }
+function timeAgo(iso) { if(!iso)return'—';const d=(Date.now()-new Date(iso))/1000;if(d<60)return'now';if(d<3600)return Math.floor(d/60)+'m';if(d<86400)return Math.floor(d/3600)+'h';return Math.floor(d/86400)+'d'; }
+function esc(s) { return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'):''; }
 
 // ── Init ──
 loadDashboard();
-
-{% block qms_scripts %}{% endblock %}
 {% endblock %}
