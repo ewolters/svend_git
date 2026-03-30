@@ -45,9 +45,6 @@
 .ov-screw.bl { bottom: 2px; left: 2px; }
 .ov-screw.br { bottom: 2px; right: 2px; }
 
-/* Config strip — right side, overview only */
-.ov-config { width: 220px; background: var(--bg-secondary); border-left: 1px solid var(--border); padding: 12px; overflow-y: auto; flex-shrink: 0; }
-.ov-config.hidden { display: none; }
 
 /* Section nav item counts */
 .nav-group { padding: 6px 0; border-bottom: 1px solid var(--border); }
@@ -116,80 +113,67 @@
 {% endblock %}
 
 {% block workspace_canvas %}
-<div style="display:flex;height:100%;overflow:hidden;">
-    <div style="flex:1;overflow:hidden;position:relative;">
-
-        <!-- Overview -->
-        <div class="app-section active" id="secOverview" style="flex-direction:row;">
-            <div class="ov-wrap" style="flex:1;">
-                <div class="ov-grid">
-                    <div class="ov-panel" id="panel0">
-                        <span class="ov-screw tl"></span><span class="ov-screw tr"></span><span class="ov-screw bl"></span><span class="ov-screw br"></span>
-                        <div class="ov-panel-head"><span id="p0title">Signal Trend</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(0)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
-                        <div class="ov-panel-body" id="p0body"></div>
-                    </div>
-                    <div class="ov-panel" id="panel1">
-                        <span class="ov-screw tl"></span><span class="ov-screw tr"></span><span class="ov-screw bl"></span><span class="ov-screw br"></span>
-                        <div class="ov-panel-head"><span id="p1title">Commitment Health</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(1)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
-                        <div class="ov-panel-body" id="p1body"></div>
-                    </div>
-                    <div class="ov-panel" id="panel2">
-                        <span class="ov-screw tl"></span><span class="ov-screw tr"></span><span class="ov-screw bl"></span><span class="ov-screw br"></span>
-                        <div class="ov-panel-head"><span id="p2title">CI Readiness</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(2)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
-                        <div class="ov-panel-body" id="p2body"></div>
-                    </div>
-                    <div class="ov-panel" id="panel3">
-                        <span class="ov-screw tl"></span><span class="ov-screw tr"></span><span class="ov-screw bl"></span><span class="ov-screw br"></span>
-                        <div class="ov-panel-head"><span id="p3title">Needs Attention</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(3)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
-                        <div class="ov-panel-body" id="p3body" style="overflow-y:auto;"></div>
-                    </div>
-                </div>
+<!-- Overview -->
+<div class="app-section active" id="secOverview">
+    <div class="ov-wrap">
+        <div class="ov-grid">
+            <div class="ov-panel" id="panel0">
+                <span class="ov-screw tl"></span><span class="ov-screw tr"></span><span class="ov-screw bl"></span><span class="ov-screw br"></span>
+                <div class="ov-panel-head"><span id="p0title">Signal Trend</span></div>
+                <div class="ov-panel-body" id="p0body"></div>
             </div>
-        </div>
-
-        <!-- Signals -->
-        <div class="app-section" id="secSignals">
-            <div class="sig-split">
-                <div class="sig-detail" id="sigDetail"><div class="sv-empty">Select a signal</div></div>
-                <div class="sig-rail">
-                    <div class="sig-rail-head">
-                        <span style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-dim);" id="sigCount">Signals</span>
-                        <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="createSignal()">+ New</button>
-                    </div>
-                    <div class="sv-filter-bar" style="padding:6px 10px;border-bottom:1px solid var(--border);">
-                        <button class="sv-filter-btn active" onclick="sigFilter(this,'all')">All</button>
-                        <button class="sv-filter-btn" onclick="sigFilter(this,'untriaged')">Untriaged</button>
-                        <button class="sv-filter-btn" onclick="sigFilter(this,'acknowledged')">Ack</button>
-                        <button class="sv-filter-btn" onclick="sigFilter(this,'investigating')">Investigating</button>
-                        <button class="sv-filter-btn" onclick="sigFilter(this,'resolved')">Resolved</button>
-                    </div>
-                    <div class="sig-rail-list" id="sigList"><div class="sv-empty">Loading...</div></div>
-                </div>
+            <div class="ov-panel" id="panel1">
+                <span class="ov-screw tl"></span><span class="ov-screw tr"></span><span class="ov-screw bl"></span><span class="ov-screw br"></span>
+                <div class="ov-panel-head"><span id="p1title">Commitment Health</span></div>
+                <div class="ov-panel-body" id="p1body"></div>
             </div>
-        </div>
-
-        <!-- Placeholder sections -->
-        <div class="app-section" id="secInvestigations"><div class="sv-empty" style="padding-top:60px;">Investigations — wiring in progress</div></div>
-        <div class="app-section" id="secCommitments"><div class="sv-empty" style="padding-top:60px;">Commitments — wiring in progress</div></div>
-        <div class="app-section" id="secFmis"><div class="sv-empty" style="padding-top:60px;">FMIS — wiring in progress</div></div>
-        <div class="app-section" id="secPcs"><div class="sv-empty" style="padding-top:60px;">Process Confirmations — wiring in progress</div></div>
-        <div class="app-section" id="secFfts"><div class="sv-empty" style="padding-top:60px;">Forced Failure Tests — wiring in progress</div></div>
-        <div class="app-section" id="secSuppliers"><div class="sv-empty" style="padding-top:60px;">Suppliers — wiring in progress</div></div>
-        <div class="app-section" id="secAudits"><div class="sv-empty" style="padding-top:60px;">Audits — wiring in progress</div></div>
-        <div class="app-section" id="secTraining"><div class="sv-empty" style="padding-top:60px;">Training — wiring in progress</div></div>
-        <div class="app-section" id="secDocuments"><div class="sv-empty" style="padding-top:60px;">Documents — wiring in progress</div></div>
-        <div class="app-section" id="secGraph"><div class="sv-empty" style="padding-top:60px;">Graph Health — wiring in progress</div></div>
-        <div class="app-section" id="secConfig"><div class="sv-empty" style="padding-top:60px;">Configuration — wiring in progress</div></div>
-    </div>
-
-    <!-- Config strip — overview only -->
-    <div class="ov-config" id="ovConfig">
-        <div class="sv-section-title">Panel Config</div>
-        <div id="cfgContent">
-            <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Click <strong>cfg</strong> on a panel to configure it.</div>
+            <div class="ov-panel" id="panel2">
+                <span class="ov-screw tl"></span><span class="ov-screw tr"></span><span class="ov-screw bl"></span><span class="ov-screw br"></span>
+                <div class="ov-panel-head"><span id="p2title">CI Readiness</span></div>
+                <div class="ov-panel-body" id="p2body"></div>
+            </div>
+            <div class="ov-panel" id="panel3">
+                <span class="ov-screw tl"></span><span class="ov-screw tr"></span><span class="ov-screw bl"></span><span class="ov-screw br"></span>
+                <div class="ov-panel-head"><span id="p3title">Needs Attention</span></div>
+                <div class="ov-panel-body" id="p3body" style="overflow-y:auto;"></div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Signals -->
+<div class="app-section" id="secSignals">
+    <div class="sig-split">
+        <div class="sig-detail" id="sigDetail"><div class="sv-empty">Select a signal</div></div>
+        <div class="sig-rail">
+            <div class="sig-rail-head">
+                <span style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-dim);" id="sigCount">Signals</span>
+                <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="createSignal()">+ New</button>
+            </div>
+            <div class="sv-filter-bar" style="padding:6px 10px;border-bottom:1px solid var(--border);">
+                <button class="sv-filter-btn active" onclick="sigFilter(this,'all')">All</button>
+                <button class="sv-filter-btn" onclick="sigFilter(this,'untriaged')">Untriaged</button>
+                <button class="sv-filter-btn" onclick="sigFilter(this,'acknowledged')">Ack</button>
+                <button class="sv-filter-btn" onclick="sigFilter(this,'investigating')">Investigating</button>
+                <button class="sv-filter-btn" onclick="sigFilter(this,'resolved')">Resolved</button>
+            </div>
+            <div class="sig-rail-list" id="sigList"><div class="sv-empty">Loading...</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- Placeholder sections -->
+<div class="app-section" id="secInvestigations"><div class="sv-empty" style="padding-top:60px;">Investigations — wiring in progress</div></div>
+<div class="app-section" id="secCommitments"><div class="sv-empty" style="padding-top:60px;">Commitments — wiring in progress</div></div>
+<div class="app-section" id="secFmis"><div class="sv-empty" style="padding-top:60px;">FMIS — wiring in progress</div></div>
+<div class="app-section" id="secPcs"><div class="sv-empty" style="padding-top:60px;">Process Confirmations — wiring in progress</div></div>
+<div class="app-section" id="secFfts"><div class="sv-empty" style="padding-top:60px;">Forced Failure Tests — wiring in progress</div></div>
+<div class="app-section" id="secSuppliers"><div class="sv-empty" style="padding-top:60px;">Suppliers — wiring in progress</div></div>
+<div class="app-section" id="secAudits"><div class="sv-empty" style="padding-top:60px;">Audits — wiring in progress</div></div>
+<div class="app-section" id="secTraining"><div class="sv-empty" style="padding-top:60px;">Training — wiring in progress</div></div>
+<div class="app-section" id="secDocuments"><div class="sv-empty" style="padding-top:60px;">Documents — wiring in progress</div></div>
+<div class="app-section" id="secGraph"><div class="sv-empty" style="padding-top:60px;">Graph Health — wiring in progress</div></div>
+<div class="app-section" id="secConfig"><div class="sv-empty" style="padding-top:60px;">Configuration — wiring in progress</div></div>
 {% endblock %}
 
 {% block workspace_statusbar %}
@@ -208,19 +192,12 @@ const CHART_TYPES = {
     investigation_status: { label: 'Investigation Status', render: renderInvestigationStatus },
 };
 
-let panelConfig = [
-    { chart: 'signal_trend' },
-    { chart: 'commitment_health' },
-    { chart: 'readiness' },
-    { chart: 'attention' },
-];
-
 let _section = 'overview';
 let _dashData = null;
+let _panelCtrls = [];
 let _signals = [];
 let _sigFilter = 'all';
 let _sigSelected = null;
-let _cfgPanel = null;
 
 // ── Navigation ──
 const SEC_MAP = { overview:'secOverview', signals:'secSignals', investigations:'secInvestigations', commitments:'secCommitments', fmis:'secFmis', pcs:'secPcs', ffts:'secFfts', suppliers:'secSuppliers', audits:'secAudits', training:'secTraining', documents:'secDocuments', graph:'secGraph', config:'secConfig' };
@@ -235,10 +212,6 @@ function navTo(el) {
     const sec = document.getElementById(SEC_MAP[s]);
     if (sec) sec.classList.add('active');
     document.getElementById('toolbarTitle').textContent = SEC_TITLES[s] || s;
-
-    // Config strip only on overview
-    document.getElementById('ovConfig').classList.toggle('hidden', s !== 'overview');
-
     if (s === 'signals' && !_signals.length) loadSignals();
 }
 
@@ -254,87 +227,76 @@ function loadDashData() {
         document.getElementById('navSig').textContent = d.signals?.untriaged_count ?? 0;
         document.getElementById('navInv').textContent = d.investigations?.items?.length ?? 0;
         document.getElementById('navCmt').textContent = d.commitments?.items?.length ?? 0;
-        renderPanels();
         document.getElementById('statusText').textContent = 'Dashboard loaded';
     }).catch(e => { document.getElementById('statusText').textContent = 'Error: ' + e.message; });
 }
 
-// ── Overview panels ──
-function renderPanels() {
-    if (!_dashData) return;
-    panelConfig.forEach((cfg, i) => {
-        const ct = CHART_TYPES[cfg.chart];
-        if (ct) {
-            document.getElementById('p' + i + 'title').textContent = ct.label;
-            ct.render(document.getElementById('p' + i + 'body'), _dashData);
-        }
+// ── Overview panels via SvChartCtrl ──
+function initPanels() {
+    // Panel 0: Signal trend
+    SvChartCtrl.create(document.getElementById('p0body'), {
+        timeRanges: ['7d', '30d', '90d'],
+        defaultRange: '30d',
+        filters: [{ key: 'severity', label: 'Severity', options: ['critical', 'warning', 'info'] }],
+        fetch: (params) => SvApi.get('/api/loop/signals/?' + new URLSearchParams(params)),
+        transform: (data) => {
+            const signals = data.signals || data.results || (Array.isArray(data) ? data : []);
+            if (!signals.length) return null;
+            const byDay = {};
+            signals.forEach(s => { const day = (s.created_at || '').slice(0, 10); if (day) byDay[day] = (byDay[day] || 0) + 1; });
+            const days = Object.keys(byDay).sort();
+            if (!days.length) return null;
+            return { traces: [{ x: days.map((_, i) => i), y: days.map(d => byDay[d]), trace_type: 'line', color: '#4a9f6e', width: 2, marker_size: 4 }], x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' };
+        },
     });
-}
 
-function configPanel(idx) {
-    _cfgPanel = idx;
-    const el = document.getElementById('cfgContent');
-    const current = panelConfig[idx]?.chart;
-    el.innerHTML = '<div class="sv-section-title">Panel ' + (idx + 1) + '</div>' +
-        Object.keys(CHART_TYPES).map(k => {
-            const active = k === current ? ' active' : '';
-            return '<button class="sv-filter-btn' + active + '" onclick="setPanel(' + idx + ',\'' + k + '\')" style="display:block;width:100%;text-align:left;margin-bottom:4px;">' + esc(CHART_TYPES[k].label) + '</button>';
-        }).join('');
-}
+    // Panel 1: Commitment health
+    SvChartCtrl.create(document.getElementById('p1body'), {
+        timeRanges: ['30d', '90d', '1y'],
+        defaultRange: '90d',
+        fetch: (params) => SvApi.get('/api/loop/dashboard/'),
+        transform: (d) => {
+            const total = d.commitments?.total ?? 0;
+            const fulfilled = d.commitments?.fulfilled ?? 0;
+            const overdue = d.commitments?.overdue_count ?? 0;
+            if (!total) return null;
+            const active = Math.max(0, total - fulfilled - overdue);
+            return { traces: [
+                { x: [0], y: [fulfilled], trace_type: 'bar', color: '#4a9f6e', name: 'Fulfilled' },
+                { x: [1], y: [active], trace_type: 'bar', color: '#e8c547', name: 'Active' },
+                { x: [2], y: [overdue], trace_type: 'bar', color: '#d06060', name: 'Overdue' },
+            ], x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' };
+        },
+    });
 
-function setPanel(idx, chartType) {
-    panelConfig[idx].chart = chartType;
-    renderPanels();
-    configPanel(idx);
-}
-
-// ── Chart renderers ──
-function renderSignalTrend(el, d) {
-    const signals = d.signals?.items || [];
-    if (!signals.length) { el.innerHTML = '<div class="sv-empty" style="padding:20px;">No open signals</div>'; return; }
-    const byDay = {};
-    signals.forEach(s => { const day = (s.created_at || '').slice(0, 10); if (day) byDay[day] = (byDay[day] || 0) + 1; });
-    const days = Object.keys(byDay).sort();
-    const vals = days.map(d => byDay[d]);
-    if (!days.length) { el.innerHTML = '<div class="sv-empty" style="padding:20px;">No signal data</div>'; return; }
-    ForgeViz.render(el, { traces: [{ x: days.map((_, i) => i), y: vals, trace_type: 'line', color: '#4a9f6e', width: 2, marker_size: 4 }], x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
-}
-
-function renderCommitmentHealth(el, d) {
-    const items = d.commitments?.items || [];
-    if (!items.length) { el.innerHTML = '<div class="sv-empty" style="padding:20px;">No commitments</div>'; return; }
-    const total = d.commitments?.total ?? items.length;
-    const fulfilled = d.commitments?.fulfilled ?? 0;
-    const overdue = d.commitments?.overdue_count ?? 0;
-    const active = total - fulfilled;
-    const cats = ['Fulfilled', 'Active', 'Overdue'];
-    const vals = [fulfilled, Math.max(0, active - overdue), overdue];
-    const colors = ['#4a9f6e', '#e8c547', '#d06060'];
-    ForgeViz.render(el, { traces: cats.map((c, i) => ({ x: [i], y: [vals[i]], trace_type: 'bar', color: colors[i], name: c })), x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
-}
-
-function renderReadiness(el, d) {
+    // Panel 2: CI Readiness (no time controls — single value)
+    const p2 = document.getElementById('p2body');
     SvApi.get('/api/loop/readiness/').then(r => {
         const score = r.score ?? r.readiness_score;
-        if (score === undefined) { el.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;"><div style="font-size:48px;font-weight:600;font-family:\'JetBrains Mono\',monospace;color:var(--text-dim);">—</div><div style="font-size:11px;color:var(--text-dim);margin-top:4px;">No data yet</div></div>'; return; }
-        const pct = Math.round(score * 100);
-        el.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;"><div style="font-size:48px;font-weight:600;font-family:\'JetBrains Mono\',monospace;color:' + (pct >= 75 ? 'var(--sv-green)' : pct >= 50 ? 'var(--sv-amber)' : 'var(--sv-red)') + ';">' + pct + '%</div><div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Target: 85%</div></div>';
-    }).catch(() => { el.innerHTML = '<div class="sv-empty" style="padding:20px;">Error loading</div>'; });
-}
+        const pct = score !== undefined ? Math.round(score * 100) : null;
+        if (pct !== null) {
+            p2.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;"><div style="font-size:48px;font-weight:600;font-family:\'JetBrains Mono\',monospace;color:' + (pct >= 75 ? 'var(--sv-green)' : pct >= 50 ? 'var(--sv-amber)' : 'var(--sv-red)') + ';">' + pct + '%</div><div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Target: 85%</div></div>';
+        } else {
+            p2.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;"><div style="font-size:48px;font-weight:600;font-family:\'JetBrains Mono\',monospace;color:var(--text-dim);">—</div><div style="font-size:11px;color:var(--text-dim);margin-top:4px;">No data yet</div></div>';
+        }
+    }).catch(() => { p2.innerHTML = '<div class="sv-empty" style="padding:20px;">Error loading</div>'; });
 
-function renderAttention(el, d) {
-    const items = [];
-    (d.commitments?.items || []).filter(c => c.is_overdue).forEach(c => {
-        items.push({ u: 0, html: '<div class="sv-list-item" style="padding:4px 8px;"><div class="sv-dot sv-dot-red" style="margin-top:4px;"></div><div class="sv-item-main"><div class="sv-item-title" style="font-size:11px;">' + esc(c.title) + '</div><div class="sv-item-meta"><span class="sv-badge sv-badge-red">overdue</span></div></div></div>' });
-    });
-    (d.signals?.items || []).filter(s => s.triage_state === 'untriaged').forEach(s => {
-        items.push({ u: 1, html: '<div class="sv-list-item" style="padding:4px 8px;"><div class="sv-dot sv-dot-blue" style="margin-top:4px;"></div><div class="sv-item-main"><div class="sv-item-title" style="font-size:11px;">' + esc(s.title) + '</div><div class="sv-item-meta"><span class="sv-badge sv-badge-blue">untriaged</span></div></div></div>' });
-    });
-    (d.investigations?.items || []).forEach(inv => {
-        items.push({ u: 2, html: '<div class="sv-list-item" style="padding:4px 8px;"><div class="sv-dot sv-dot-amber" style="margin-top:4px;"></div><div class="sv-item-main"><div class="sv-item-title" style="font-size:11px;">' + esc(inv.title) + '</div><div class="sv-item-meta"><span class="sv-badge" data-status="' + inv.status + '">' + inv.status + '</span></div></div></div>' });
-    });
-    items.sort((a, b) => a.u - b.u);
-    el.innerHTML = items.length ? items.map(i => i.html).join('') : '<div class="sv-empty" style="padding:20px;">Nothing needs attention</div>';
+    // Panel 3: Needs attention (list, no chart controls)
+    SvApi.get('/api/loop/dashboard/').then(d => {
+        const el = document.getElementById('p3body');
+        const items = [];
+        (d.commitments?.items || []).filter(c => c.is_overdue).forEach(c => {
+            items.push({ u: 0, html: '<div class="sv-list-item" style="padding:4px 8px;"><div class="sv-dot sv-dot-red" style="margin-top:4px;"></div><div class="sv-item-main"><div class="sv-item-title" style="font-size:11px;">' + esc(c.title) + '</div><div class="sv-item-meta"><span class="sv-badge sv-badge-red">overdue</span></div></div></div>' });
+        });
+        (d.signals?.items || []).filter(s => s.triage_state === 'untriaged').forEach(s => {
+            items.push({ u: 1, html: '<div class="sv-list-item" style="padding:4px 8px;"><div class="sv-dot sv-dot-blue" style="margin-top:4px;"></div><div class="sv-item-main"><div class="sv-item-title" style="font-size:11px;">' + esc(s.title) + '</div><div class="sv-item-meta"><span class="sv-badge sv-badge-blue">untriaged</span></div></div></div>' });
+        });
+        (d.investigations?.items || []).forEach(inv => {
+            items.push({ u: 2, html: '<div class="sv-list-item" style="padding:4px 8px;"><div class="sv-dot sv-dot-amber" style="margin-top:4px;"></div><div class="sv-item-main"><div class="sv-item-title" style="font-size:11px;">' + esc(inv.title) + '</div><div class="sv-item-meta"><span class="sv-badge" data-status="' + inv.status + '">' + inv.status + '</span></div></div></div>' });
+        });
+        items.sort((a, b) => a.u - b.u);
+        el.innerHTML = items.length ? items.map(i => i.html).join('') : '<div class="sv-empty" style="padding:20px;">Nothing needs attention</div>';
+    }).catch(() => {});
 }
 
 function renderSignalSources(el, d) {
@@ -414,4 +376,5 @@ function createSignal() { SvToast.info('Signal creation — next iteration'); }
 
 // ── Init ──
 loadDashData();
+initPanels();
 {% endblock %}
