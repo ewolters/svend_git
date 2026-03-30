@@ -4,8 +4,9 @@
 
    Child blocks:
    - dashboard_style: additional CSS
+   - dashboard_header: title row (h1 + actions)
    - dashboard_kpis: KPI strip content (use sv-kpi-strip + sv-kpi-cell)
-   - dashboard_panels: main panel grid content
+   - dashboard_panels: main panel grid content (use sv-card, add cols-N class to container)
    - dashboard_footer: full-width bottom section
    - dashboard_scripts: JS
 #}
@@ -50,36 +51,9 @@
     .sv-dash-panels { grid-template-columns: 1fr !important; }
 }
 
-.sv-dash-panel {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px;
-    min-height: 200px;
-}
-.sv-dash-panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--border);
-}
-.sv-dash-panel-title {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text-dim);
-}
-.sv-dash-panel-count {
-    font-size: 10px;
-    color: var(--text-dim);
-    background: var(--bg-primary);
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-family: 'JetBrains Mono', monospace;
-}
+/* Dashboard panels: use sv-card from widget library.
+   Add .sv-dash-panel for dashboard-specific overrides only. */
+.sv-dash-panels .sv-card { min-height: 200px; }
 
 .sv-dash-footer {
     margin-top: 16px;

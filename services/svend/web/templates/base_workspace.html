@@ -24,8 +24,7 @@
 .sv-workspace.panel-wide { --ws-panel-width: 480px; }
 .sv-workspace.sidebar-collapsed { --ws-sidebar-width: 0px; }
 
-/* Override container constraint */
-.container:has(.sv-workspace) { max-width: none; padding: 0; }
+/* Container goes full-width via {% block container_class %}sv-full{% endblock %} */
 
 .sv-ws-sidebar {
     background: var(--bg-secondary);
@@ -84,6 +83,8 @@
 </style>
 {% endblock %}
 
+{% block container_class %}sv-full{% endblock %}
+
 {% block content %}
 <div class="sv-workspace" id="svWorkspace">
     <div class="sv-ws-sidebar">
@@ -110,6 +111,38 @@ function togglePanel(open) {
     if (open === undefined) ws.classList.toggle('panel-open');
     else ws.classList.toggle('panel-open', open);
 }
+
+function toggleSidebar(open) {
+    const ws = document.getElementById('svWorkspace');
+    if (open === undefined) ws.classList.toggle('sidebar-collapsed');
+    else ws.classList.toggle('sidebar-collapsed', !open);
+}
+
+// Workspace keyboard foundation — child templates register handlers via svWorkspaceKeys
+const svWorkspaceKeys = {};
+(function() {
+    document.addEventListener('keydown', e => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+        if (document.getElementById('cmdPalette')?.style.display === 'flex') return;
+
+        // Built-in: Escape closes panel
+        if (e.key === 'Escape') {
+            const ws = document.getElementById('svWorkspace');
+            if (ws.classList.contains('panel-open')) {
+                e.preventDefault();
+                togglePanel(false);
+                return;
+            }
+        }
+
+        // Delegate to registered handlers: svWorkspaceKeys['s'] = function(e) { ... }
+        const handler = svWorkspaceKeys[e.key];
+        if (handler) {
+            e.preventDefault();
+            handler(e);
+        }
+    });
+})();
 {% block workspace_scripts %}{% endblock %}
 </script>
 {% endblock %}

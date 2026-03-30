@@ -305,6 +305,7 @@
             margin: 0 auto;
             padding: 0 2rem;
         }
+        .container.sv-full { max-width: none; padding: 0; }
 
         /* === Header === */
         header {
@@ -1117,111 +1118,6 @@
             opacity: 0.7;
         }
 
-        /* ══════════════════════════════════════════════════════
-         * SVEND INSTRUMENT LIBRARY (sv-*)
-         * Standardized components for rack-based templates.
-         * Define once here. Use everywhere. No per-template CSS.
-         * ══════════════════════════════════════════════════════ */
-
-        /* ── sv-status-badge: semantic status indicator ── */
-        .sv-badge { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
-        .sv-badge-green, .sv-badge[data-status="approved"], .sv-badge[data-status="fulfilled"], .sv-badge[data-status="completed"], .sv-badge[data-status="resolved"], .sv-badge[data-status="closed"], .sv-badge[data-status="conforming"], .sv-badge[data-status="detected"], .sv-badge[data-status="system_works"] { background: rgba(74,222,128,0.15); color: #4ade80; }
-        .sv-badge-amber, .sv-badge[data-status="in_progress"], .sv-badge[data-status="investigating"], .sv-badge[data-status="acknowledged"], .sv-badge[data-status="conditional"], .sv-badge[data-status="pending"], .sv-badge[data-status="standard_unclear"], .sv-badge[data-status="marginal"], .sv-badge[data-status="partially_detected"] { background: rgba(250,204,21,0.15); color: #facc15; }
-        .sv-badge-red, .sv-badge[data-status="overdue"], .sv-badge[data-status="broken"], .sv-badge[data-status="critical"], .sv-badge[data-status="suspended"], .sv-badge[data-status="nonconforming"], .sv-badge[data-status="not_detected"], .sv-badge[data-status="process_gap"], .sv-badge[data-status="escalated"] { background: rgba(239,68,68,0.15); color: #f87171; }
-        .sv-badge-blue, .sv-badge[data-status="open"], .sv-badge[data-status="active"], .sv-badge[data-status="untriaged"], .sv-badge[data-status="draft"], .sv-badge[data-status="filed"] { background: rgba(96,165,250,0.15); color: #60a5fa; }
-        .sv-badge-purple, .sv-badge[data-status="preferred"], .sv-badge[data-status="responded"], .sv-badge[data-status="under_review"], .sv-badge[data-status="verified"] { background: rgba(167,139,250,0.15); color: #a78bfa; }
-        .sv-badge-dim, .sv-badge[data-status="cancelled"], .sv-badge[data-status="disqualified"], .sv-badge[data-status="inactive"] { background: rgba(156,163,175,0.15); color: #9ca3af; }
-
-        /* ── sv-data-table: sortable data table ── */
-        .sv-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        .sv-table th { text-align: left; padding: 8px 10px; color: var(--text-dim); font-weight: 500; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
-        .sv-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-primary); }
-        .sv-table tr:hover td { background: var(--bg-hover); }
-        .sv-table .sv-table-mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
-        .sv-table .sv-table-dim { color: var(--text-dim); }
-
-        /* ── sv-filter-bar: filter button row ── */
-        .sv-filter-bar { display: flex; gap: 4px; flex-wrap: wrap; }
-        .sv-filter-btn { padding: 3px 8px; font-size: 10px; border: 1px solid var(--border); border-radius: 4px; background: transparent; color: var(--text-secondary); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
-        .sv-filter-btn:hover { border-color: var(--accent-primary-border); color: var(--text-primary); }
-        .sv-filter-btn.active { background: var(--accent-primary-dim); border-color: var(--accent-primary-border); color: var(--accent-primary); }
-
-        /* ── sv-list-item: clickable list row ── */
-        .sv-list-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); cursor: pointer; transition: background 0.1s; }
-        .sv-list-item:hover { background: var(--bg-hover); }
-        .sv-list-item:last-child { border-bottom: none; }
-        .sv-list-item.selected { background: var(--bg-hover); border-left: 2px solid var(--accent-primary); }
-        .sv-list-item .sv-item-main { flex: 1; min-width: 0; }
-        .sv-list-item .sv-item-title { font-size: 13px; color: var(--text-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sv-list-item .sv-item-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-        .sv-list-item .sv-item-time { font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; white-space: nowrap; flex-shrink: 0; }
-
-        /* ── sv-detail: detail panel sections ── */
-        .sv-detail-header { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
-        .sv-detail-header h3 { font-size: 16px; font-weight: 500; color: var(--text-primary); margin: 0 0 4px; }
-        .sv-detail-meta { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-        .sv-detail-section { margin-bottom: 12px; }
-        .sv-detail-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); margin-bottom: 3px; }
-        .sv-detail-value { font-size: 13px; color: var(--text-primary); line-height: 1.5; }
-        .sv-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-        .sv-detail-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-        .sv-detail-actions { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; gap: 6px; flex-wrap: wrap; }
-
-        /* ── sv-section: titled collapsible section ── */
-        .sv-section { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
-        .sv-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); margin-bottom: 6px; }
-
-        /* ── sv-chart-panel: chart container with actions ── */
-        .sv-chart-panel { position: relative; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-        .sv-chart-title { padding: 4px 10px; background: var(--bg-tertiary); border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 500; color: var(--text-primary); }
-        .sv-chart-body { min-height: 200px; }
-        .sv-chart-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; z-index: 5; }
-        .sv-chart-panel:hover .sv-chart-actions { opacity: 1; }
-        .sv-chart-action { background: rgba(30,30,30,0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 2px 6px; cursor: pointer; color: var(--text-dim); font-size: 0.6rem; transition: color 0.15s; }
-        .sv-chart-action:hover { color: var(--text-primary); border-color: var(--accent-primary-border); }
-
-        /* ── sv-activity-feed: chronological event list ── */
-        .sv-feed { margin-top: 12px; }
-        .sv-feed-entry { display: flex; gap: 8px; padding: 4px 0; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.02); }
-        .sv-feed-entry:last-child { border-bottom: none; }
-        .sv-feed-time { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 10px; min-width: 50px; flex-shrink: 0; }
-        .sv-feed-icon { width: 14px; text-align: center; flex-shrink: 0; color: var(--text-dim); }
-        .sv-feed-text { color: var(--text-secondary); flex: 1; }
-        .sv-feed-entry.system .sv-feed-text { font-style: italic; color: var(--text-dim); }
-
-        /* ── sv-context-banner: sticky breadcrumb bar ── */
-        .sv-context-banner { display: flex; align-items: center; gap: 6px; padding: 5px 14px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); font-size: 11px; color: var(--text-secondary); position: sticky; top: 0; z-index: 5; }
-        .sv-ctx-sep { color: var(--text-dim); margin: 0 1px; }
-
-        /* ── sv-score-bar: horizontal progress bar with label ── */
-        .sv-score-bar { height: 6px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden; }
-        .sv-score-bar .sv-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
-        .sv-score-bar .sv-bar-fill.good { background: #4ade80; }
-        .sv-score-bar .sv-bar-fill.warn { background: #facc15; }
-        .sv-score-bar .sv-bar-fill.bad { background: #f87171; }
-
-        /* ── sv-empty: empty state indicator ── */
-        .sv-empty { text-align: center; padding: 30px 20px; color: var(--text-dim); font-size: 12px; }
-        .sv-empty-icon { font-size: 20px; opacity: 0.3; margin-bottom: 6px; }
-
-        /* ── sv-modal: overlay dialog ── */
-        .sv-modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 9999; display: none; align-items: center; justify-content: center; }
-        .sv-modal { background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 20px; width: 440px; max-width: 90vw; max-height: 80vh; overflow-y: auto; }
-        .sv-modal h3 { font-size: 14px; font-weight: 500; color: var(--text-primary); margin: 0 0 14px; }
-        .sv-modal label { display: block; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); margin-bottom: 4px; margin-top: 10px; }
-        .sv-modal label:first-of-type { margin-top: 0; }
-        .sv-modal input, .sv-modal select, .sv-modal textarea { width: 100%; box-sizing: border-box; font-size: 12px; padding: 6px 8px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); font-family: inherit; }
-        .sv-modal textarea { min-height: 60px; resize: vertical; }
-        .sv-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
-
-        /* ── sv-severity-dot: small colored circle ── */
-        .sv-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-        .sv-dot-green { background: #4ade80; }
-        .sv-dot-amber { background: #facc15; }
-        .sv-dot-red { background: #f87171; }
-        .sv-dot-blue { background: #60a5fa; }
-        .sv-dot-purple { background: #a78bfa; }
-
     </style>
 </head>
 <body>
@@ -1341,7 +1237,7 @@
     </div>
 
     <main>
-        <div class="container">
+        <div class="container {% block container_class %}{% endblock %}">
             {% block content %}{% endblock %}
         </div>
     </main>

@@ -15,6 +15,23 @@
  * ══════════════════════════════════════════════════════════════
  */
 
+/* Semantic status colors — theme-aware defaults */
+:root {
+    --sv-green: #4ade80;
+    --sv-green-bg: rgba(74,222,128,0.15);
+    --sv-amber: #facc15;
+    --sv-amber-bg: rgba(250,204,21,0.15);
+    --sv-red: #f87171;
+    --sv-red-bg: rgba(239,68,68,0.15);
+    --sv-blue: #60a5fa;
+    --sv-blue-bg: rgba(96,165,250,0.15);
+    --sv-purple: #a78bfa;
+    --sv-purple-bg: rgba(167,139,250,0.15);
+    --sv-dim: #9ca3af;
+    --sv-dim-bg: rgba(156,163,175,0.15);
+    --sv-blocked: #f59e0b;
+}
+
 
 /* ────────────────────────────────────────────────────────────
  * 1. BUTTONS
@@ -225,52 +242,52 @@
 }
 
 /* Color by explicit class */
-.sv-badge-green { background: rgba(74,222,128,0.15); color: #4ade80; }
-.sv-badge-amber { background: rgba(250,204,21,0.15); color: #facc15; }
-.sv-badge-red { background: rgba(239,68,68,0.15); color: #f87171; }
-.sv-badge-blue { background: rgba(96,165,250,0.15); color: #60a5fa; }
-.sv-badge-purple { background: rgba(167,139,250,0.15); color: #a78bfa; }
-.sv-badge-dim { background: rgba(156,163,175,0.15); color: #9ca3af; }
+.sv-badge-green { background: var(--sv-green-bg); color: var(--sv-green); }
+.sv-badge-amber { background: var(--sv-amber-bg); color: var(--sv-amber); }
+.sv-badge-red { background: var(--sv-red-bg); color: var(--sv-red); }
+.sv-badge-blue { background: var(--sv-blue-bg); color: var(--sv-blue); }
+.sv-badge-purple { background: var(--sv-purple-bg); color: var(--sv-purple); }
+.sv-badge-dim { background: var(--sv-dim-bg); color: var(--sv-dim); }
 
 /* Color by data-status attribute (auto) */
 .sv-badge[data-status="approved"], .sv-badge[data-status="fulfilled"],
 .sv-badge[data-status="completed"], .sv-badge[data-status="resolved"],
 .sv-badge[data-status="closed"], .sv-badge[data-status="conforming"],
 .sv-badge[data-status="detected"], .sv-badge[data-status="system_works"]
-{ background: rgba(74,222,128,0.15); color: #4ade80; }
+{ background: var(--sv-green-bg); color: var(--sv-green); }
 
 .sv-badge[data-status="in_progress"], .sv-badge[data-status="investigating"],
 .sv-badge[data-status="acknowledged"], .sv-badge[data-status="conditional"],
 .sv-badge[data-status="pending"], .sv-badge[data-status="standard_unclear"],
 .sv-badge[data-status="marginal"], .sv-badge[data-status="partially_detected"]
-{ background: rgba(250,204,21,0.15); color: #facc15; }
+{ background: var(--sv-amber-bg); color: var(--sv-amber); }
 
 .sv-badge[data-status="overdue"], .sv-badge[data-status="broken"],
 .sv-badge[data-status="critical"], .sv-badge[data-status="suspended"],
 .sv-badge[data-status="nonconforming"], .sv-badge[data-status="not_detected"],
 .sv-badge[data-status="process_gap"], .sv-badge[data-status="escalated"]
-{ background: rgba(239,68,68,0.15); color: #f87171; }
+{ background: var(--sv-red-bg); color: var(--sv-red); }
 
 .sv-badge[data-status="open"], .sv-badge[data-status="active"],
 .sv-badge[data-status="untriaged"], .sv-badge[data-status="draft"],
 .sv-badge[data-status="filed"]
-{ background: rgba(96,165,250,0.15); color: #60a5fa; }
+{ background: var(--sv-blue-bg); color: var(--sv-blue); }
 
 .sv-badge[data-status="preferred"], .sv-badge[data-status="responded"],
 .sv-badge[data-status="under_review"], .sv-badge[data-status="verified"]
-{ background: rgba(167,139,250,0.15); color: #a78bfa; }
+{ background: var(--sv-purple-bg); color: var(--sv-purple); }
 
 .sv-badge[data-status="cancelled"], .sv-badge[data-status="disqualified"],
 .sv-badge[data-status="inactive"]
-{ background: rgba(156,163,175,0.15); color: #9ca3af; }
+{ background: var(--sv-dim-bg); color: var(--sv-dim); }
 
 /* Severity dots */
 .sv-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
-.sv-dot-green { background: #4ade80; }
-.sv-dot-amber { background: #facc15; }
-.sv-dot-red { background: #f87171; }
-.sv-dot-blue { background: #60a5fa; }
-.sv-dot-purple { background: #a78bfa; }
+.sv-dot-green { background: var(--sv-green); }
+.sv-dot-amber { background: var(--sv-amber); }
+.sv-dot-red { background: var(--sv-red); }
+.sv-dot-blue { background: var(--sv-blue); }
+.sv-dot-purple { background: var(--sv-purple); }
 
 
 /* ────────────────────────────────────────────────────────────
@@ -351,7 +368,7 @@
  * 8. ACTIVITY FEED
  * ──────────────────────────────────────────────────────────── */
 
-.sv-feed { margin-top: 8px; }
+.sv-feed { margin-top: 12px; }
 .sv-feed-entry { display: flex; gap: 8px; padding: 4px 0; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.02); }
 .sv-feed-entry:last-child { border-bottom: none; }
 .sv-feed-time { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 10px; min-width: 50px; flex-shrink: 0; }
@@ -425,13 +442,26 @@
 
 .sv-score-bar { height: 6px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden; }
 .sv-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
-.sv-bar-fill.good { background: #4ade80; }
-.sv-bar-fill.warn { background: #facc15; }
-.sv-bar-fill.bad { background: #f87171; }
+.sv-bar-fill.good { background: var(--sv-green); }
+.sv-bar-fill.warn { background: var(--sv-amber); }
+.sv-bar-fill.bad { background: var(--sv-red); }
 
 
 /* ────────────────────────────────────────────────────────────
- * 12. CONTEXT BANNER
+ * 12. CHART PANEL (container — charts themselves are ForgeViz)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-chart-panel { position: relative; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.sv-chart-title { padding: 4px 10px; background: var(--bg-tertiary); border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 500; color: var(--text-primary); }
+.sv-chart-body { min-height: 200px; }
+.sv-chart-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; z-index: 5; }
+.sv-chart-panel:hover .sv-chart-actions { opacity: 1; }
+.sv-chart-action { background: rgba(30,30,30,0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 2px 6px; cursor: pointer; color: var(--text-dim); font-size: 0.6rem; transition: color 0.15s; }
+.sv-chart-action:hover { color: var(--text-primary); border-color: var(--accent-primary-border); }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 13. CONTEXT BANNER (breadcrumb bar)
  * ──────────────────────────────────────────────────────────── */
 
 .sv-context-banner {
@@ -443,12 +473,15 @@
     border-bottom: 1px solid var(--border);
     font-size: 11px;
     color: var(--text-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 5;
 }
 .sv-ctx-sep { color: var(--text-dim); margin: 0 1px; }
 
 
 /* ────────────────────────────────────────────────────────────
- * 13. EMPTY STATE
+ * 14. EMPTY STATE
  * ──────────────────────────────────────────────────────────── */
 
 .sv-empty {
@@ -461,7 +494,7 @@
 
 
 /* ────────────────────────────────────────────────────────────
- * 14. ENTITY PICKER (searchable select from list)
+ * 15. ENTITY PICKER (searchable select from list)
  * ──────────────────────────────────────────────────────────── */
 
 .sv-picker-list {
@@ -489,7 +522,7 @@
 
 
 /* ────────────────────────────────────────────────────────────
- * 15. CHECKLIST (preconditions, tasks, verification steps)
+ * 16. CHECKLIST (preconditions, tasks, verification steps)
  * ──────────────────────────────────────────────────────────── */
 
 .sv-checklist-item {
@@ -502,16 +535,16 @@
 }
 .sv-checklist-item:last-child { border-bottom: none; }
 .sv-checklist-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; }
-.sv-checklist-dot.met { background: #4ade80; }
-.sv-checklist-dot.pending { background: #facc15; }
-.sv-checklist-dot.unmet { background: #f87171; }
-.sv-checklist-dot.blocked { background: #f59e0b; }
+.sv-checklist-dot.met { background: var(--sv-green); }
+.sv-checklist-dot.pending { background: var(--sv-amber); }
+.sv-checklist-dot.unmet { background: var(--sv-red); }
+.sv-checklist-dot.blocked { background: var(--sv-blocked); }
 .sv-checklist-text { color: var(--text-primary); flex: 1; }
 .sv-checklist-text.done { text-decoration: line-through; color: var(--text-dim); }
 
 
 /* ────────────────────────────────────────────────────────────
- * 16. CARD (generic container)
+ * 17. CARD (generic container)
  * ──────────────────────────────────────────────────────────── */
 
 .sv-card {
@@ -539,7 +572,7 @@
 
 
 /* ────────────────────────────────────────────────────────────
- * 17. TABS
+ * 18. TABS
  * ──────────────────────────────────────────────────────────── */
 
 .sv-tabs {
@@ -566,7 +599,7 @@
 
 
 /* ────────────────────────────────────────────────────────────
- * 18. TOOLTIP
+ * 19. TOOLTIP
  * ──────────────────────────────────────────────────────────── */
 
 .sv-tooltip {
@@ -592,7 +625,7 @@
 
 
 /* ────────────────────────────────────────────────────────────
- * 19. RESPONSIVE UTILITIES
+ * 20. RESPONSIVE UTILITIES
  * ──────────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {

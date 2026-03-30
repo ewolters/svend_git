@@ -409,7 +409,7 @@ SOC2_CONTROL_MATRIX = {
         "category": "security",
         "tsc": "CC9",
         "name": "Vendor risk assessment",
-        "checks": ["standards_compliance", "roadmap"],
+        "checks": ["forge_ecosystem", "roadmap"],
         "manual_status": "partial",
         "manual_reason": "No formal vendor assessment process",
     },
@@ -457,7 +457,7 @@ SOC2_CONTROL_MATRIX = {
         "category": "processing_integrity",
         "tsc": "PI1",
         "name": "Accurate processing",
-        "checks": ["statistical_calibration", "output_quality"],
+        "checks": ["forge_ecosystem", "output_quality"],
         "manual_status": "met",
     },
     "PI1.3": {
@@ -472,7 +472,7 @@ SOC2_CONTROL_MATRIX = {
         "category": "processing_integrity",
         "tsc": "PI1",
         "name": "Accurate outputs",
-        "checks": ["output_quality", "statistical_calibration"],
+        "checks": ["output_quality", "forge_ecosystem"],
         "manual_status": "met",
     },
     "PI1.5": {

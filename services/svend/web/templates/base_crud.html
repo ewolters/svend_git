@@ -14,8 +14,7 @@
 
 {% block extra_head %}
 <style>
-/* Override container constraint */
-.container:has(.sv-crud) { max-width: none; padding: 0; }
+/* Container goes full-width via {% block container_class %}sv-full{% endblock %} */
 
 .sv-crud {
     display: grid;
@@ -26,6 +25,12 @@
 @media (max-width: 900px) {
     .sv-crud { grid-template-columns: 1fr; }
     .sv-crud-rail { display: none; }
+}
+
+.sv-crud-detail-wrap {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 /* Detail panel (left, main area) */
@@ -70,7 +75,7 @@
     padding: 6px 10px 4px;
     border-bottom: 1px solid var(--border);
 }
-.sv-crud-rail-filters:empty { display: none; }
+.sv-crud-rail-filters:not(:has(*)) { display: none; }
 
 .sv-crud-rail-list {
     flex: 1;
@@ -81,7 +86,7 @@
     border-top: 1px solid var(--border);
     padding: 10px 12px;
 }
-.sv-crud-rail-footer:empty { display: none; }
+.sv-crud-rail-footer:not(:has(*)) { display: none; }
 
 /* Focus mode — hide rail, expand detail */
 .sv-crud.focus .sv-crud-rail { display: none; }
@@ -110,10 +115,12 @@
 </style>
 {% endblock %}
 
+{% block container_class %}sv-full{% endblock %}
+
 {% block content %}
 <div class="sv-crud" id="svCrud">
     <!-- Detail (left) — banner sits above scroll area -->
-    <div style="display:flex;flex-direction:column;overflow:hidden;">
+    <div class="sv-crud-detail-wrap">
         <div class="sv-context-banner" id="svCrudBanner" style="display:none;">
             <span id="svCrudBreadcrumb"></span>
         </div>

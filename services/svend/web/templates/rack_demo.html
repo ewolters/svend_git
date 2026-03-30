@@ -10,7 +10,7 @@
 
 {% block crud_rail_header %}
 <span class="sv-crud-rail-title" id="demoCount">Signals</span>
-<button class="btn btn-primary" style="padding:3px 8px;font-size:10px;" onclick="demoCreate()">+ New</button>
+<button class="sv-btn sv-btn-primary sv-btn-sm" onclick="demoCreate()">+ New</button>
 {% endblock %}
 
 {% block crud_rail_filters %}
@@ -88,12 +88,12 @@ function selectDemo(id) {
     // Actions based on state
     let actions = '';
     if (s.triage_state === 'untriaged') {
-        actions = `<button class="btn btn-primary" onclick="demoAction('${s.id}','acknowledge')">Acknowledge</button>
-                   <button class="btn" onclick="demoAction('${s.id}','investigate')">Open Investigation</button>
-                   <button class="btn" onclick="demoAction('${s.id}','dismiss')" style="border-color:var(--error-border);color:var(--error);">Dismiss</button>`;
+        actions = `<button class="sv-btn sv-btn-primary" onclick="demoAction('${s.id}','acknowledge')">Acknowledge</button>
+                   <button class="sv-btn" onclick="demoAction('${s.id}','investigate')">Open Investigation</button>
+                   <button class="sv-btn sv-btn-danger" onclick="demoAction('${s.id}','dismiss')">Dismiss</button>`;
     } else if (s.triage_state === 'acknowledged') {
-        actions = `<button class="btn btn-primary" onclick="demoAction('${s.id}','investigate')">Open Investigation</button>
-                   <button class="btn" onclick="demoAction('${s.id}','dismiss')" style="border-color:var(--error-border);color:var(--error);">Dismiss</button>`;
+        actions = `<button class="sv-btn sv-btn-primary" onclick="demoAction('${s.id}','investigate')">Open Investigation</button>
+                   <button class="sv-btn sv-btn-danger" onclick="demoAction('${s.id}','dismiss')">Dismiss</button>`;
     }
 
     panel.innerHTML = `
@@ -163,7 +163,7 @@ function timeAgo(iso) {
     return Math.floor(diff/86400) + 'd';
 }
 
-function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') : ''; }
 
 // Render immediately
 renderDemoList();
