@@ -1,0 +1,385 @@
+{% extends "base_workspace.html" %}
+{% block title %}SVEND{% endblock %}
+
+{% block workspace_style %}
+/* Overview panel grid — not cards, instrument panels */
+.ov-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1px; background: var(--border); height: 100%; }
+.ov-panel { background: var(--bg-primary); position: relative; overflow: hidden; display: flex; flex-direction: column; }
+.ov-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+.ov-panel-body { flex: 1; padding: 8px; overflow: hidden; }
+/* Screw corners */
+.ov-panel::before, .ov-panel::after { content: ''; position: absolute; width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-secondary); z-index: 2; }
+.ov-panel::before { top: 3px; left: 3px; }
+.ov-panel::after { top: 3px; right: 3px; }
+.ov-panel .ov-screw-bl, .ov-panel .ov-screw-br { position: absolute; width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-secondary); z-index: 2; bottom: 3px; }
+.ov-panel .ov-screw-bl { left: 3px; }
+.ov-panel .ov-screw-br { right: 3px; }
+
+/* Config strip — right side, overview only */
+.ov-config { width: 220px; background: var(--bg-secondary); border-left: 1px solid var(--border); padding: 12px; overflow-y: auto; display: none; flex-shrink: 0; }
+.ov-config.visible { display: block; }
+
+/* Section nav item counts */
+.nav-group { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.nav-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); padding: 4px 14px 2px; }
+.nav-item { display: flex; align-items: center; gap: 8px; padding: 5px 14px; font-size: 12px; color: var(--text-secondary); cursor: pointer; border-left: 2px solid transparent; }
+.nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav-item.active { background: var(--bg-hover); border-left-color: var(--accent-primary); color: var(--text-primary); }
+.nav-badge { margin-left: auto; font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); background: var(--bg-primary); padding: 0 5px; border-radius: 3px; }
+
+/* Working sections */
+.app-section { display: none; height: 100%; overflow: hidden; }
+.app-section.active { display: flex; flex-direction: column; }
+
+/* Signals split */
+.sig-split { display: grid; grid-template-columns: 1fr 300px; flex: 1; overflow: hidden; }
+.sig-detail { padding: 16px 20px; overflow-y: auto; }
+.sig-rail { background: var(--bg-secondary); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.sig-rail-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.sig-rail-list { flex: 1; overflow-y: auto; }
+{% endblock %}
+
+{% block workspace_sidebar %}
+<div style="padding:8px 12px 6px;border-bottom:1px solid var(--border);">
+    <div style="font-size:14px;font-weight:600;color:var(--text-primary);">SVEND</div>
+    <div style="font-size:10px;color:var(--text-dim);margin-top:1px;">Process Knowledge System</div>
+</div>
+
+<div class="nav-group">
+    <div class="nav-item active" data-section="overview" onclick="navTo(this)">Overview</div>
+</div>
+
+<div class="nav-group">
+    <div class="nav-label">Learning System</div>
+    <div class="nav-item" data-section="signals" onclick="navTo(this)"><span class="sv-dot sv-dot-blue"></span> Signals <span class="nav-badge" id="navSig">—</span></div>
+    <div class="nav-item" data-section="investigations" onclick="navTo(this)"><span class="sv-dot sv-dot-amber"></span> Investigations <span class="nav-badge" id="navInv">—</span></div>
+    <div class="nav-item" data-section="commitments" onclick="navTo(this)"><span class="sv-dot sv-dot-green"></span> Commitments <span class="nav-badge" id="navCmt">—</span></div>
+    <div class="nav-item" data-section="fmis" onclick="navTo(this)">FMIS</div>
+</div>
+
+<div class="nav-group">
+    <div class="nav-label">Verify</div>
+    <div class="nav-item" data-section="pcs" onclick="navTo(this)">Process Confirmations</div>
+    <div class="nav-item" data-section="ffts" onclick="navTo(this)">Forced Failure Tests</div>
+</div>
+
+<div class="nav-group">
+    <div class="nav-label">Compliance</div>
+    <div class="nav-item" data-section="suppliers" onclick="navTo(this)">Suppliers</div>
+    <div class="nav-item" data-section="audits" onclick="navTo(this)">Audits</div>
+    <div class="nav-item" data-section="training" onclick="navTo(this)">Training</div>
+    <div class="nav-item" data-section="documents" onclick="navTo(this)">Documents</div>
+</div>
+
+<div class="nav-group">
+    <div class="nav-label">Knowledge</div>
+    <div class="nav-item" data-section="graph" onclick="navTo(this)">Graph Health</div>
+    <div class="nav-item" data-section="config" onclick="navTo(this)">Configuration</div>
+</div>
+{% endblock %}
+
+{% block workspace_toolbar %}
+<span style="font-size:11px;color:var(--text-dim);" id="toolbarTitle">Overview</span>
+<div style="margin-left:auto;display:flex;gap:4px;">
+    <button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="refreshCurrent()">Refresh</button>
+</div>
+{% endblock %}
+
+{% block workspace_canvas %}
+<div style="display:flex;height:100%;overflow:hidden;">
+    <div style="flex:1;overflow:hidden;position:relative;">
+
+        <!-- Overview -->
+        <div class="app-section active" id="secOverview" style="flex-direction:row;">
+            <div class="ov-grid" style="flex:1;">
+                <div class="ov-panel" id="panel0">
+                    <span class="ov-screw-bl"></span><span class="ov-screw-br"></span>
+                    <div class="ov-panel-head"><span id="p0title">Signal Trend</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(0)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
+                    <div class="ov-panel-body" id="p0body"></div>
+                </div>
+                <div class="ov-panel" id="panel1">
+                    <span class="ov-screw-bl"></span><span class="ov-screw-br"></span>
+                    <div class="ov-panel-head"><span id="p1title">Commitment Health</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(1)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
+                    <div class="ov-panel-body" id="p1body"></div>
+                </div>
+                <div class="ov-panel" id="panel2">
+                    <span class="ov-screw-bl"></span><span class="ov-screw-br"></span>
+                    <div class="ov-panel-head"><span id="p2title">CI Readiness</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(2)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
+                    <div class="ov-panel-body" id="p2body"></div>
+                </div>
+                <div class="ov-panel" id="panel3">
+                    <span class="ov-screw-bl"></span><span class="ov-screw-br"></span>
+                    <div class="ov-panel-head"><span id="p3title">Needs Attention</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(3)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
+                    <div class="ov-panel-body" id="p3body" style="overflow-y:auto;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signals -->
+        <div class="app-section" id="secSignals">
+            <div class="sig-split">
+                <div class="sig-detail" id="sigDetail"><div class="sv-empty">Select a signal</div></div>
+                <div class="sig-rail">
+                    <div class="sig-rail-head">
+                        <span style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-dim);" id="sigCount">Signals</span>
+                        <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="createSignal()">+ New</button>
+                    </div>
+                    <div class="sv-filter-bar" style="padding:6px 10px;border-bottom:1px solid var(--border);">
+                        <button class="sv-filter-btn active" onclick="sigFilter(this,'all')">All</button>
+                        <button class="sv-filter-btn" onclick="sigFilter(this,'untriaged')">Untriaged</button>
+                        <button class="sv-filter-btn" onclick="sigFilter(this,'acknowledged')">Ack</button>
+                        <button class="sv-filter-btn" onclick="sigFilter(this,'investigating')">Investigating</button>
+                        <button class="sv-filter-btn" onclick="sigFilter(this,'resolved')">Resolved</button>
+                    </div>
+                    <div class="sig-rail-list" id="sigList"><div class="sv-empty">Loading...</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Placeholder sections -->
+        <div class="app-section" id="secInvestigations"><div class="sv-empty" style="padding-top:60px;">Investigations — wiring in progress</div></div>
+        <div class="app-section" id="secCommitments"><div class="sv-empty" style="padding-top:60px;">Commitments — wiring in progress</div></div>
+        <div class="app-section" id="secFmis"><div class="sv-empty" style="padding-top:60px;">FMIS — wiring in progress</div></div>
+        <div class="app-section" id="secPcs"><div class="sv-empty" style="padding-top:60px;">Process Confirmations — wiring in progress</div></div>
+        <div class="app-section" id="secFfts"><div class="sv-empty" style="padding-top:60px;">Forced Failure Tests — wiring in progress</div></div>
+        <div class="app-section" id="secSuppliers"><div class="sv-empty" style="padding-top:60px;">Suppliers — wiring in progress</div></div>
+        <div class="app-section" id="secAudits"><div class="sv-empty" style="padding-top:60px;">Audits — wiring in progress</div></div>
+        <div class="app-section" id="secTraining"><div class="sv-empty" style="padding-top:60px;">Training — wiring in progress</div></div>
+        <div class="app-section" id="secDocuments"><div class="sv-empty" style="padding-top:60px;">Documents — wiring in progress</div></div>
+        <div class="app-section" id="secGraph"><div class="sv-empty" style="padding-top:60px;">Graph Health — wiring in progress</div></div>
+        <div class="app-section" id="secConfig"><div class="sv-empty" style="padding-top:60px;">Configuration — wiring in progress</div></div>
+    </div>
+
+    <!-- Config strip — overview only -->
+    <div class="ov-config" id="ovConfig">
+        <div class="sv-section-title">Panel Config</div>
+        <div id="cfgContent">
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Click <strong>cfg</strong> on a panel to configure it.</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block workspace_statusbar %}
+<span id="statusText">Ready</span>
+<span style="margin-left:auto;" id="statusRight"></span>
+{% endblock %}
+
+{% block workspace_scripts %}
+// ── Panel chart types ──
+const CHART_TYPES = {
+    signal_trend: { label: 'Signal Trend', render: renderSignalTrend },
+    commitment_health: { label: 'Commitment Health', render: renderCommitmentHealth },
+    readiness: { label: 'CI Readiness', render: renderReadiness },
+    attention: { label: 'Needs Attention', render: renderAttention },
+    signal_sources: { label: 'Signal Sources', render: renderSignalSources },
+    investigation_status: { label: 'Investigation Status', render: renderInvestigationStatus },
+};
+
+let panelConfig = [
+    { chart: 'signal_trend' },
+    { chart: 'commitment_health' },
+    { chart: 'readiness' },
+    { chart: 'attention' },
+];
+
+let _section = 'overview';
+let _dashData = null;
+let _signals = [];
+let _sigFilter = 'all';
+let _sigSelected = null;
+let _cfgPanel = null;
+
+// ── Navigation ──
+const SEC_MAP = { overview:'secOverview', signals:'secSignals', investigations:'secInvestigations', commitments:'secCommitments', fmis:'secFmis', pcs:'secPcs', ffts:'secFfts', suppliers:'secSuppliers', audits:'secAudits', training:'secTraining', documents:'secDocuments', graph:'secGraph', config:'secConfig' };
+const SEC_TITLES = { overview:'Overview', signals:'Signals', investigations:'Investigations', commitments:'Commitments', fmis:'FMIS', pcs:'Process Confirmations', ffts:'Forced Failure Tests', suppliers:'Suppliers', audits:'Audits', training:'Training', documents:'Documents', graph:'Graph Health', config:'Configuration' };
+
+function navTo(el) {
+    const s = el.dataset.section;
+    _section = s;
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.app-section').forEach(sec => sec.classList.remove('active'));
+    const sec = document.getElementById(SEC_MAP[s]);
+    if (sec) sec.classList.add('active');
+    document.getElementById('toolbarTitle').textContent = SEC_TITLES[s] || s;
+
+    // Config strip only on overview
+    document.getElementById('ovConfig').classList.toggle('visible', s === 'overview');
+
+    if (s === 'signals' && !_signals.length) loadSignals();
+}
+
+function refreshCurrent() {
+    loadDashData();
+    if (_section === 'signals') loadSignals();
+}
+
+// ── Dashboard data ──
+function loadDashData() {
+    SvApi.get('/api/loop/dashboard/').then(d => {
+        _dashData = d;
+        document.getElementById('navSig').textContent = d.signals?.untriaged_count ?? 0;
+        document.getElementById('navInv').textContent = d.investigations?.items?.length ?? 0;
+        document.getElementById('navCmt').textContent = d.commitments?.items?.length ?? 0;
+        renderPanels();
+        document.getElementById('statusText').textContent = 'Dashboard loaded';
+    }).catch(e => { document.getElementById('statusText').textContent = 'Error: ' + e.message; });
+}
+
+// ── Overview panels ──
+function renderPanels() {
+    if (!_dashData) return;
+    panelConfig.forEach((cfg, i) => {
+        const ct = CHART_TYPES[cfg.chart];
+        if (ct) {
+            document.getElementById('p' + i + 'title').textContent = ct.label;
+            ct.render(document.getElementById('p' + i + 'body'), _dashData);
+        }
+    });
+}
+
+function configPanel(idx) {
+    _cfgPanel = idx;
+    const el = document.getElementById('cfgContent');
+    const current = panelConfig[idx]?.chart;
+    el.innerHTML = '<div class="sv-section-title">Panel ' + (idx + 1) + '</div>' +
+        Object.keys(CHART_TYPES).map(k => {
+            const active = k === current ? ' active' : '';
+            return '<button class="sv-filter-btn' + active + '" onclick="setPanel(' + idx + ',\'' + k + '\')" style="display:block;width:100%;text-align:left;margin-bottom:4px;">' + esc(CHART_TYPES[k].label) + '</button>';
+        }).join('');
+}
+
+function setPanel(idx, chartType) {
+    panelConfig[idx].chart = chartType;
+    renderPanels();
+    configPanel(idx);
+}
+
+// ── Chart renderers ──
+function renderSignalTrend(el, d) {
+    const signals = d.signals?.items || [];
+    if (!signals.length) { el.innerHTML = '<div class="sv-empty" style="padding:20px;">No open signals</div>'; return; }
+    const byDay = {};
+    signals.forEach(s => { const day = (s.created_at || '').slice(0, 10); if (day) byDay[day] = (byDay[day] || 0) + 1; });
+    const days = Object.keys(byDay).sort();
+    const vals = days.map(d => byDay[d]);
+    if (!days.length) { el.innerHTML = '<div class="sv-empty" style="padding:20px;">No signal data</div>'; return; }
+    ForgeViz.render(el, { traces: [{ x: days.map((_, i) => i), y: vals, trace_type: 'bar', color: '#60a5fa', marker_size: 0 }], x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
+}
+
+function renderCommitmentHealth(el, d) {
+    const items = d.commitments?.items || [];
+    if (!items.length) { el.innerHTML = '<div class="sv-empty" style="padding:20px;">No commitments</div>'; return; }
+    const total = d.commitments?.total ?? items.length;
+    const fulfilled = d.commitments?.fulfilled ?? 0;
+    const overdue = d.commitments?.overdue_count ?? 0;
+    const active = total - fulfilled;
+    const cats = ['Fulfilled', 'Active', 'Overdue'];
+    const vals = [fulfilled, Math.max(0, active - overdue), overdue];
+    const colors = ['#4ade80', '#60a5fa', '#f87171'];
+    ForgeViz.render(el, { traces: cats.map((c, i) => ({ x: [i], y: [vals[i]], trace_type: 'bar', color: colors[i], name: c })), x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
+}
+
+function renderReadiness(el, d) {
+    SvApi.get('/api/loop/readiness/').then(r => {
+        const score = r.score ?? r.readiness_score;
+        if (score === undefined) { el.innerHTML = '<div class="sv-empty" style="padding:20px;">No readiness data</div>'; return; }
+        const pct = Math.round(score * 100);
+        el.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;"><div style="font-size:48px;font-weight:600;font-family:\'JetBrains Mono\',monospace;color:' + (pct >= 75 ? 'var(--sv-green)' : pct >= 50 ? 'var(--sv-amber)' : 'var(--sv-red)') + ';">' + pct + '%</div><div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Target: 85%</div></div>';
+    }).catch(() => { el.innerHTML = '<div class="sv-empty" style="padding:20px;">Error loading</div>'; });
+}
+
+function renderAttention(el, d) {
+    const items = [];
+    (d.commitments?.items || []).filter(c => c.is_overdue).forEach(c => {
+        items.push({ u: 0, html: '<div class="sv-list-item" style="padding:4px 8px;"><div class="sv-dot sv-dot-red" style="margin-top:4px;"></div><div class="sv-item-main"><div class="sv-item-title" style="font-size:11px;">' + esc(c.title) + '</div><div class="sv-item-meta"><span class="sv-badge sv-badge-red">overdue</span></div></div></div>' });
+    });
+    (d.signals?.items || []).filter(s => s.triage_state === 'untriaged').forEach(s => {
+        items.push({ u: 1, html: '<div class="sv-list-item" style="padding:4px 8px;"><div class="sv-dot sv-dot-blue" style="margin-top:4px;"></div><div class="sv-item-main"><div class="sv-item-title" style="font-size:11px;">' + esc(s.title) + '</div><div class="sv-item-meta"><span class="sv-badge sv-badge-blue">untriaged</span></div></div></div>' });
+    });
+    (d.investigations?.items || []).forEach(inv => {
+        items.push({ u: 2, html: '<div class="sv-list-item" style="padding:4px 8px;"><div class="sv-dot sv-dot-amber" style="margin-top:4px;"></div><div class="sv-item-main"><div class="sv-item-title" style="font-size:11px;">' + esc(inv.title) + '</div><div class="sv-item-meta"><span class="sv-badge" data-status="' + inv.status + '">' + inv.status + '</span></div></div></div>' });
+    });
+    items.sort((a, b) => a.u - b.u);
+    el.innerHTML = items.length ? items.map(i => i.html).join('') : '<div class="sv-empty" style="padding:20px;">Nothing needs attention</div>';
+}
+
+function renderSignalSources(el, d) {
+    const signals = d.signals?.items || [];
+    const counts = {};
+    signals.forEach(s => { const src = SvFormat.snakeToTitle(s.source_type || 'unknown'); counts[src] = (counts[src] || 0) + 1; });
+    const cats = Object.keys(counts);
+    if (!cats.length) { el.innerHTML = '<div class="sv-empty" style="padding:20px;">No signals</div>'; return; }
+    ForgeViz.render(el, { traces: [{ x: cats.map((_, i) => i), y: cats.map(c => counts[c]), trace_type: 'bar', color: '#a78bfa' }], x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
+}
+
+function renderInvestigationStatus(el, d) {
+    const invs = d.investigations?.items || [];
+    if (!invs.length) { el.innerHTML = '<div class="sv-empty" style="padding:20px;">No investigations</div>'; return; }
+    const counts = {};
+    invs.forEach(i => { counts[i.status] = (counts[i.status] || 0) + 1; });
+    const cats = Object.keys(counts);
+    ForgeViz.render(el, { traces: [{ x: cats.map((_, i) => i), y: cats.map(c => counts[c]), trace_type: 'bar', color: '#facc15' }], x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
+}
+
+// ── Signals section ──
+function loadSignals() {
+    document.getElementById('statusText').textContent = 'Loading signals...';
+    SvApi.get('/api/loop/signals/').then(d => {
+        _signals = d.signals || d.results || (Array.isArray(d) ? d : []);
+        renderSigList();
+        document.getElementById('statusText').textContent = _signals.length + ' signals loaded';
+    }).catch(e => {
+        document.getElementById('sigList').innerHTML = '<div class="sv-empty">Error</div>';
+        document.getElementById('statusText').textContent = 'Error: ' + e.message;
+    });
+}
+
+function sigFilter(btn, f) {
+    _sigFilter = f;
+    document.querySelectorAll('#secSignals .sv-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderSigList();
+}
+
+function renderSigList() {
+    const list = _sigFilter === 'all' ? _signals : _signals.filter(s => s.triage_state === _sigFilter);
+    document.getElementById('sigCount').textContent = SvFormat.plural(list.length, 'signal');
+    const el = document.getElementById('sigList');
+    if (!list.length) { el.innerHTML = '<div class="sv-empty">No signals</div>'; return; }
+    el.innerHTML = list.map(s => {
+        const sel = s.id === _sigSelected ? ' selected' : '';
+        return '<div class="sv-list-item' + sel + '" onclick="selectSig(\'' + s.id + '\')"><div class="sv-dot sv-dot-' + (s.severity === 'critical' ? 'red' : s.severity === 'warning' ? 'amber' : 'blue') + '" style="margin-top:5px;"></div><div class="sv-item-main"><div class="sv-item-title">' + esc(s.title) + '</div><div class="sv-item-meta"><span class="sv-badge" data-status="' + s.triage_state + '">' + s.triage_state.replace(/_/g, ' ') + '</span><span>' + SvFormat.snakeToTitle(s.source_type || '') + '</span></div></div><span class="sv-item-time">' + timeAgo(s.created_at) + '</span></div>';
+    }).join('');
+}
+
+function selectSig(id) {
+    _sigSelected = id;
+    renderSigList();
+    const s = _signals.find(x => x.id === id);
+    if (!s) return;
+    let actions = '';
+    if (s.triage_state === 'untriaged') actions = '<button class="sv-btn sv-btn-primary" onclick="sigAction(\'' + s.id + '\',\'acknowledge\')">Acknowledge</button><button class="sv-btn" onclick="sigAction(\'' + s.id + '\',\'investigate\')">Open Investigation</button><button class="sv-btn sv-btn-danger" onclick="sigAction(\'' + s.id + '\',\'dismiss\')">Dismiss</button>';
+    else if (s.triage_state === 'acknowledged') actions = '<button class="sv-btn sv-btn-primary" onclick="sigAction(\'' + s.id + '\',\'investigate\')">Open Investigation</button><button class="sv-btn sv-btn-danger" onclick="sigAction(\'' + s.id + '\',\'dismiss\')">Dismiss</button>';
+
+    document.getElementById('sigDetail').innerHTML =
+        '<div class="sv-detail-header"><h3>' + esc(s.title) + '</h3><div class="sv-detail-meta"><span class="sv-badge" data-status="' + (s.severity || '') + '">' + (s.severity || '—') + '</span><span class="sv-badge" data-status="' + s.triage_state + '">' + s.triage_state.replace(/_/g, ' ') + '</span><span style="color:var(--text-dim);">' + SvFormat.snakeToTitle(s.source_type || '') + '</span></div></div>' +
+        '<div class="sv-detail-section"><div class="sv-detail-label">Description</div><div class="sv-detail-value">' + (esc(s.description) || '<span style="color:var(--text-dim);">No description</span>') + '</div></div>' +
+        '<div class="sv-detail-grid"><div><div class="sv-detail-label">Source</div><div class="sv-detail-value">' + SvFormat.snakeToTitle(s.source_type || '—') + '</div></div><div><div class="sv-detail-label">Created</div><div class="sv-detail-value">' + SvFormat.dateTime(s.created_at) + '</div></div></div>' +
+        (actions ? '<div class="sv-detail-actions">' + actions + '</div>' : '');
+}
+
+function sigAction(id, action) {
+    SvApi.post('/api/loop/signals/' + id + '/', { action: action }).then(() => {
+        loadSignals();
+        loadDashData();
+        SvToast.success('Signal ' + action + 'd');
+    }).catch(e => { SvToast.error('Action failed'); });
+}
+
+function createSignal() { SvToast.info('Signal creation — next iteration'); }
+
+// ── Init ──
+loadDashData();
+{% endblock %}
