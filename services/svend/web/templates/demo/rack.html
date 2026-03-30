@@ -1069,15 +1069,12 @@ async function mountUnit(sidebarItem) {
     const bay = document.getElementById('rackBay');
     if (frontEl) {
         bay.appendChild(frontEl);
-        // Generate rack ears with bolt-aligned holes
-        if (ForgeRack.generateEars) ForgeRack.generateEars(frontEl);
     }
 
     // Mount back panel into rack back (below mainframe patch bay)
     const backBay = document.getElementById('rackBackBay');
     if (backEl && backBay) {
         backBay.appendChild(backEl);
-        if (ForgeRack.generateEars) ForgeRack.generateEars(backEl);
     }
 
     // Init ForgeRack analog components (dials, switches, meters)
