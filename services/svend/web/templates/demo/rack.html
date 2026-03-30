@@ -191,26 +191,31 @@ if (!ForgeRack.units) ForgeRack.units = {};
 /* ─── Rack body (BACK) — greyscale metal plate ─── */
 .rack-back {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0; left: 0; right: 0;
+    min-height: 100%;
     backface-visibility: hidden;
     transform: rotateY(180deg);
     transform-style: flat;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
     /* Brushed steel — lighter, greyscale, matches mainframe back */
     background:
         repeating-linear-gradient(180deg, rgba(255,255,255,0.008) 0px, transparent 1px, transparent 2px),
         linear-gradient(135deg, #1e1e1e, #222 40%, #252525 60%, #202020);
 }
 .rack-back-header {
-    padding: 10px 16px;
+    height: 42px; /* 1U — matches front rack-plate */
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
     border-bottom: 2px solid rgba(255,255,255,0.06);
     font-size: 10px;
     font-family: 'JetBrains Mono', monospace;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: rgba(255,255,255,0.4);
+    flex-shrink: 0;
 }
 
 /* Top/bottom plates */
@@ -1089,12 +1094,7 @@ document.addEventListener('keydown', e => {
     }
 });
 
-// Patch jack click (both rack and forgerack jack classes)
-document.addEventListener('click', e => {
-    if (e.target.classList.contains('patch-jack') || e.target.classList.contains('jack')) {
-        e.target.classList.toggle('connected');
-    }
-});
+// Jack clicks handled by wiring.js — no manual toggle here
 
 // Position ear bolts at U boundaries within the mainframe
 function positionEarBolts() {
