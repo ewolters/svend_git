@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/rack.css' %}">
 <script src="{% static 'js/components.js' %}"></script>
+<script src="{% static 'js/units.js' %}"></script>
+<script src="{% static 'js/wiring.js' %}"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════
  *  THE RACK — Reason-style modular instrument rack
@@ -1059,28 +1061,15 @@ async function mountUnit(sidebarItem) {
         if (ForgeRack.generateEars) ForgeRack.generateEars(backEl);
     }
 
-    // Load unit JS if not already registered
-    const FR = window.ForgeRack || {};
-    if (!FR._unitTypes || !FR._unitTypes[unitName]) {
-        try {
-            const js = await fetch('/static/js/unit-' + unitName + '.js');
-            if (js.ok) {
-                const s = document.createElement('script');
-                s.textContent = await js.text();
-                document.head.appendChild(s);
-            }
-        } catch (e) {}
-    }
-
     // Init ForgeRack analog components (dials, switches, meters)
     if (frontEl && ForgeRack.init) ForgeRack.init(frontEl);
     if (backEl && ForgeRack.init) ForgeRack.init(backEl);
 
-    // Init unit behavior via FR.mountUnit or manual
+    // Init unit behavior — units.js already registered all behaviors
     if (frontEl && ForgeRack.mountUnit) {
         ForgeRack.mountUnit(frontEl, id);
-    } else if (frontEl && FR._unitTypes && FR._unitTypes[unitName]) {
-        const inst = Object.create(FR._unitTypes[unitName]);
+    } else if (frontEl && ForgeRack._unitTypes && ForgeRack._unitTypes[unitName]) {
+        const inst = Object.create(ForgeRack._unitTypes[unitName]);
         inst.init(frontEl, id);
         ForgeRack.units[id] = inst;
     }
