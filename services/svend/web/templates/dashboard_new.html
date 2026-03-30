@@ -63,6 +63,19 @@
 </div>
 {% endblock %}
 
+{% block dashboard_footer %}
+<div class="sv-section">
+    <div class="sv-section-title">Migration Demos</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="/app/demo/" class="sv-btn sv-btn-sm">Migration Tracker</a>
+        <a href="/app/demo/dashboard/" class="sv-btn sv-btn-sm sv-btn-primary">Dashboard (this page)</a>
+        <a href="/app/demo/qms/" class="sv-btn sv-btn-sm">QMS Workbench</a>
+        <a href="/app/demo/rack/" class="sv-btn sv-btn-sm">CRUD Rack Demo</a>
+        <a href="/app/graph-map/" class="sv-btn sv-btn-sm">Graph Map (live)</a>
+    </div>
+</div>
+{% endblock %}
+
 {% block dashboard_scripts %}
 let _dashUser = null;
 
