@@ -5,9 +5,10 @@
 {% block extra_head %}
 {{ block.super }}
 <!-- ForgeRack component library -->
-<link rel="stylesheet" href="/static/css/components.css">
-<link rel="stylesheet" href="/static/css/rack.css">
-<script src="/static/js/components.js"></script>
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/rack.css' %}">
+<script src="{% static 'js/components.js' %}"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════
  *  THE RACK — Reason-style modular instrument rack
