@@ -232,6 +232,8 @@ urlpatterns = varta_urls + [
     ),  # staff-only — migration tracker
     path("app/demo/rack/", _app_view("rack_demo.html"), name="rack_demo"),
     path("app/demo/main/", _app_view("app_main.html"), name="app_main_demo"),
+    # ── Demo surfaces (Object 271) ──
+    path("app/demo/rack/new/", _app_view("demo/rack.html"), name="demo_rack_new"),
     path("app/iso/", _app_view("qms.html"), name="iso"),  # redirect legacy
     path("app/iso-docs/", _app_view("iso_doc.html"), name="iso_doc"),
     path("app/iso-docs/<uuid:doc_id>/", _app_view("iso_doc.html"), name="iso_doc_edit"),

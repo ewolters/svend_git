@@ -1,0 +1,1023 @@
+{% extends "base_app.html" %}
+{% block title %}SVEND Rack{% endblock %}
+{% block container_class %}sv-full{% endblock %}
+
+{% block extra_head %}
+{{ block.super }}
+<style>
+/* ═══════════════════════════════════════════════════════════
+ *  THE RACK — Reason-style modular instrument rack
+ *  Left:   Component library
+ *  Right:  The rack (mainframe at top, components below)
+ *  Tab:    Flip entire rack front/back
+ * ═══════════════════════════════════════════════════════════ */
+
+/* ─── Layout: 2-column ─── */
+.rack-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    height: calc(100vh - 56px);
+    overflow: hidden;
+    background: #040604;
+}
+
+/* ─── Left: Component Library ─── */
+.rack-sidebar {
+    background: #080a08;
+    border-right: 1px solid #1a201a;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+.rack-sidebar-head {
+    padding: 10px 14px;
+    border-bottom: 1px solid #1a201a;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.2);
+}
+.rack-sidebar-group {
+    padding: 8px 0;
+    border-bottom: 1px solid #111411;
+}
+.rack-sidebar-group-label {
+    padding: 2px 14px 4px;
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.1);
+}
+.rack-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 14px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    cursor: grab;
+    transition: background 0.1s, color 0.1s;
+    user-select: none;
+}
+.rack-sidebar-item:hover {
+    background: rgba(74,222,128,0.04);
+    color: rgba(255,255,255,0.5);
+}
+.rack-sidebar-item:active { cursor: grabbing; }
+.rack-sidebar-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+/* Mounted count badge */
+.rack-sidebar-count {
+    margin-left: auto;
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    color: rgba(74,222,128,0.3);
+    min-width: 14px;
+    text-align: right;
+}
+
+/* ─── Rack viewport ─── */
+.rack-viewport {
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #050805;
+    position: relative;
+    perspective: 1200px;
+}
+
+/* Rack shell */
+.rack-shell {
+    display: flex;
+    min-height: 100%;
+    position: relative;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+}
+.rack-shell.flipped { transform: rotateY(180deg); }
+
+/* ─── Rail — steel channel ─── */
+.rack-rail {
+    width: 36px;
+    flex-shrink: 0;
+    background: linear-gradient(to right, #141814, #1a1e1a 30%, #1c201c 50%, #1a1e1a 70%, #141814);
+    border: 1px solid #222822;
+    position: relative;
+    z-index: 2;
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.4);
+}
+.rack-rail::before {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0; left: 0; right: 0;
+    background: repeating-linear-gradient(to bottom, transparent 0px, rgba(255,255,255,0.008) 1px, transparent 2px);
+}
+.rack-rail.left { border-right: 1px solid #2a302a; }
+.rack-rail.right { border-left: 1px solid #2a302a; }
+
+.rack-rail-screws {
+    position: absolute;
+    top: 6px; left: 50%; bottom: 6px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Machine bolt */
+.rack-bolt {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #2a2e2a, #1a1c1a 60%, #131513);
+    border: 1px solid #2a2e2a;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+    position: relative;
+    flex-shrink: 0;
+}
+.rack-bolt::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px; height: 6px;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    background: #0a0c0a;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
+}
+
+/* ─── Rack body (FRONT) ─── */
+.rack-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    backface-visibility: hidden;
+    /* 1U score lines */
+    background: repeating-linear-gradient(to bottom, transparent 0px, transparent 41px, rgba(255,255,255,0.015) 41px, rgba(255,255,255,0.015) 42px);
+}
+
+/* ─── Rack body (BACK) — greyscale metal plate ─── */
+.rack-back {
+    position: absolute;
+    top: 0; left: 36px; right: 36px; bottom: 0;
+    backface-visibility: hidden;
+    transform: rotateY(180deg);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    /* Brushed steel — lighter, greyscale, matches mainframe back */
+    background:
+        repeating-linear-gradient(180deg, rgba(255,255,255,0.008) 0px, transparent 1px, transparent 2px),
+        linear-gradient(135deg, #1e1e1e, #222 40%, #252525 60%, #202020);
+}
+.rack-back-header {
+    padding: 10px 16px;
+    border-bottom: 2px solid rgba(255,255,255,0.06);
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+}
+
+/* Top/bottom plates */
+.rack-plate {
+    height: 24px;
+    background: linear-gradient(to bottom, #161a16, #101210);
+    border-bottom: 1px solid #1a201a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backface-visibility: hidden;
+    flex-shrink: 0;
+}
+.rack-plate.bottom {
+    border-bottom: none;
+    border-top: 1px solid #1a201a;
+    background: linear-gradient(to top, #161a16, #101210);
+    margin-top: auto;
+}
+.rack-plate-label {
+    font-size: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.2em;
+    color: rgba(255,255,255,0.06);
+    text-transform: uppercase;
+}
+
+/* ════════════════════════════════════════════════════════════
+ *  MAINFRAME — bolted into the top of the rack
+ *  Like Reason's mixer: always present, always at the top.
+ * ════════════════════════════════════════════════════════════ */
+
+.mainframe {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 3; /* IN FRONT of rails */
+    /* Distinct faceplate — lighter than rack body */
+    background:
+        repeating-linear-gradient(180deg, rgba(255,255,255,0.008) 0px, transparent 1px, transparent 3px),
+        linear-gradient(135deg, #141814, #111511 40%, #131713 60%, #101310);
+    border-top: 1px solid #2a302a;
+    border-bottom: 3px solid #2a302a;
+    box-shadow:
+        0 3px 8px rgba(0,0,0,0.6),
+        inset 0 1px 0 rgba(255,255,255,0.03);
+    /* Extend OVER the rails */
+    margin-left: -36px;
+    margin-right: -36px;
+    padding-left: 36px;
+    padding-right: 36px;
+}
+
+/* Mounting ears — oval flanges that overlap the rails with bolt holes */
+.mf-ear {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 36px;
+    z-index: 4;
+    /* Same faceplate material */
+    background:
+        repeating-linear-gradient(180deg, rgba(255,255,255,0.008) 0px, transparent 1px, transparent 3px),
+        linear-gradient(135deg, #141814, #111511 40%, #131713 60%, #101310);
+}
+.mf-ear.left {
+    left: 0;
+    border-right: 1px solid #2a302a;
+    border-left: 1px solid #2a302a;
+}
+.mf-ear.right {
+    right: 0;
+    border-left: 1px solid #2a302a;
+    border-right: 1px solid #2a302a;
+}
+
+/* Oval cutout — positioned by JS to align with rail bolt holes */
+.mf-ear-bolt {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 12px;
+    border-radius: 6px;
+    background: #0a0c0a;
+    border: 1px solid #222;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+/* The bolt sitting in the cutout */
+.mf-ear-bolt::after {
+    content: '';
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #2a2e2a, #1a1c1a 60%, #131513);
+    border: 1px solid #2a2e2a;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+/* Hex socket on the bolt */
+.mf-ear-bolt-hex {
+    position: absolute;
+    width: 4px; height: 4px;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    background: #0a0c0a;
+    z-index: 1;
+}
+
+/* Mainframe head — heavier than normal device heads */
+.mf-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    background: linear-gradient(to bottom, #1e221e, #151915);
+    border-bottom: 2px solid rgba(45,212,191,0.2);
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(45,212,191,0.4);
+}
+.mf-head-bolts {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+}
+.mf-bolt {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #252825, #181a18 60%, #111311);
+    border: 1px solid #262926;
+    position: relative;
+}
+.mf-bolt::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px; height: 4px;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    background: #090b09;
+}
+
+/* Mainframe body */
+.mf-body {
+    display: flex;
+    gap: 0;
+}
+
+/* Instrument cutout */
+.mf-section {
+    padding: 10px 12px;
+    margin: 4px 6px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid #1a1e1a;
+    border-radius: 3px;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.015);
+}
+.mf-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(45,212,191,0.35);
+    margin-bottom: 8px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Left column: graph + OLR */
+.mf-col-graph {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Right column: health + feed */
+.mf-col-status {
+    width: 280px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Graph viewport */
+.mf-graph {
+    width: 100%;
+    height: 280px;
+    position: relative;
+    background: #040604;
+    border: 1px solid #1a1e1a;
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+}
+.graph-node {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(45,212,191,0.35);
+    background: rgba(45,212,191,0.1);
+    transition: background 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+}
+.graph-node:hover {
+    background: rgba(45,212,191,0.25);
+    box-shadow: 0 0 8px rgba(45,212,191,0.4);
+}
+.graph-edge {
+    position: absolute;
+    height: 1px;
+    background: rgba(45,212,191,0.15);
+    transform-origin: left center;
+}
+
+/* OLR strip */
+.mf-olr {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 0;
+}
+.mf-olr-phase { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.mf-olr-led {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(45,212,191,0.2);
+    background: rgba(45,212,191,0.04);
+}
+.mf-olr-led.active {
+    background: rgba(45,212,191,0.4);
+    border-color: rgba(45,212,191,0.5);
+    box-shadow: 0 0 6px rgba(45,212,191,0.3), 0 0 12px rgba(45,212,191,0.1);
+}
+.mf-olr-label {
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    color: rgba(45,212,191,0.25);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.mf-olr-arrow { color: rgba(45,212,191,0.12); font-size: 14px; }
+
+/* Health gauges */
+.mf-gauge-row { display: flex; align-items: center; font-size: 11px; padding: 4px 0; }
+.mf-gauge-label { color: rgba(255,255,255,0.3); min-width: 90px; font-size: 10px; }
+.mf-gauge-value { color: rgba(45,212,191,0.5); font-family: 'JetBrains Mono', monospace; font-size: 12px; min-width: 28px; text-align: right; }
+.mf-gauge-bar { flex: 1; height: 5px; background: rgba(0,0,0,0.4); border-radius: 2px; margin: 0 8px; overflow: hidden; border: 1px solid rgba(45,212,191,0.06); }
+.mf-gauge-fill { height: 100%; border-radius: 1px; background: rgba(45,212,191,0.3); }
+
+/* Evidence feed */
+.mf-feed-item { display: flex; gap: 8px; padding: 5px 0; font-size: 10px; border-bottom: 1px solid rgba(45,212,191,0.03); }
+.mf-feed-time { color: rgba(255,255,255,0.15); font-family: 'JetBrains Mono', monospace; font-size: 9px; min-width: 36px; flex-shrink: 0; }
+.mf-feed-text { color: rgba(255,255,255,0.2); }
+
+/* Mainframe foot */
+.mf-foot {
+    display: flex;
+    align-items: center;
+    padding: 6px 20px;
+    background: linear-gradient(to top, #1e221e, #151915);
+    border-top: 1px solid #2a302a;
+    font-size: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.1em;
+    color: rgba(45,212,191,0.2);
+    text-transform: uppercase;
+}
+
+/* ════════════════════════════════════════════════════════════
+ *  MAINFRAME BACK — patch bay (visible when rack is flipped)
+ * ════════════════════════════════════════════════════════════ */
+
+.mf-back {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 3;
+    /* Distinct device on the back — lighter than rack back */
+    background:
+        repeating-linear-gradient(180deg, rgba(255,255,255,0.01) 0px, transparent 1px, transparent 2px),
+        linear-gradient(135deg, #262626, #2a2a2a 40%, #2c2c2c 60%, #282828);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 3px solid rgba(255,255,255,0.1);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+    /* Extend over rails same as front */
+    margin-left: -36px;
+    margin-right: -36px;
+    padding-left: 36px;
+    padding-right: 36px;
+}
+.mf-back-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    background: linear-gradient(to bottom, #303030, #262626);
+    border-bottom: 2px solid rgba(255,255,255,0.1);
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.45);
+}
+.mf-back-body {
+    padding: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: flex-start;
+}
+
+/* Cluster — expansion card bracket */
+.mf-cluster {
+    background: rgba(0,0,0,0.12);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 2px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+.mf-cluster-label {
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    color: rgba(255,255,255,0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    padding-right: 6px;
+    margin-right: 2px;
+    flex-shrink: 0;
+}
+.mf-cluster-jacks { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
+
+/* Patch jack — 1/4" jack with housing ring */
+.patch-jack {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.18);
+    background: #111;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: 2px solid rgba(255,255,255,0.07);
+    outline-offset: 2px;
+}
+.patch-jack:hover {
+    border-color: rgba(74,222,128,0.5);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.6), 0 0 6px rgba(74,222,128,0.3);
+    outline-color: rgba(74,222,128,0.15);
+}
+.patch-jack.connected {
+    border-color: var(--sv-green);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.6), 0 0 5px var(--sv-green);
+    outline-color: rgba(74,222,128,0.2);
+}
+.patch-jack-label {
+    font-size: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: center;
+    margin-top: 3px;
+}
+.patch-group { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+
+/* ─── Toolbar ─── */
+.rack-toolbar {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(10,15,10,0.92);
+    border: 1px solid #1a201a;
+    border-radius: 6px;
+    z-index: 100;
+    backdrop-filter: blur(8px);
+}
+.rack-toolbar-label {
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: rgba(255,255,255,0.3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.rack-toolbar-key {
+    padding: 1px 5px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 3px;
+    font-size: 9px;
+    color: rgba(255,255,255,0.25);
+}
+
+/* ─── Empty state ─── */
+.rack-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 20px;
+}
+.rack-empty-mark {
+    font-size: 48px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.04);
+    font-family: 'JetBrains Mono', monospace;
+}
+.rack-empty-text {
+    font-size: 11px;
+    color: rgba(255,255,255,0.1);
+    text-align: center;
+    max-width: 320px;
+    line-height: 1.6;
+}
+
+.flip-hint {
+    font-size: 9px;
+    color: rgba(255,255,255,0.06);
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    font-family: 'JetBrains Mono', monospace;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rack-layout">
+
+    <!-- ═══ LEFT: Component Library ═══ -->
+    <div class="rack-sidebar">
+        <div class="rack-sidebar-head">Components</div>
+
+        <div class="rack-sidebar-group">
+            <div class="rack-sidebar-group-label">Instruments</div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#4ade80;"></span> Control Chart <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#4ade80;"></span> Capability Gauge <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#4ade80;"></span> Nelson Rule Array <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#a78bfa;"></span> Statistical Test <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#a78bfa;"></span> Distribution Plot <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#60a5fa;"></span> DOE Matrix <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#60a5fa;"></span> Effects Pareto <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#facc15;"></span> Hypothesis Ranker <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#facc15;"></span> Evidence Stack <span class="rack-sidebar-count"></span></div>
+        </div>
+
+        <div class="rack-sidebar-group">
+            <div class="rack-sidebar-group-label">Displays</div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Chart Panel <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Readout <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> LED Array <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Meter <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Risk Heatmap <span class="rack-sidebar-count"></span></div>
+        </div>
+
+        <div class="rack-sidebar-group">
+            <div class="rack-sidebar-group-label">Processors</div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#22d3ee;"></span> Takt Clock <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#22d3ee;"></span> OEE Calculator <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#fb923c;"></span> Queue Analyzer <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#86efac;"></span> SMED Timer <span class="rack-sidebar-count"></span></div>
+        </div>
+
+        <div class="rack-sidebar-group">
+            <div class="rack-sidebar-group-label">Connectors</div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#f87171;"></span> Signal Emitter <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#facc15;"></span> Investigation Link <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#2dd4bf;"></span> Graph Writer <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#9ca3af;"></span> Document Export <span class="rack-sidebar-count"></span></div>
+        </div>
+
+        <div class="rack-sidebar-group">
+            <div class="rack-sidebar-group-label">Data</div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#9ca3af;"></span> CSV Input <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#9ca3af;"></span> API Feed <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item"><span class="rack-sidebar-dot" style="background:#9ca3af;"></span> Manual Entry <span class="rack-sidebar-count"></span></div>
+        </div>
+    </div>
+
+    <!-- ═══ THE RACK ═══ -->
+    <div class="rack-viewport" id="rackViewport">
+        <div class="rack-shell" id="rackShell">
+
+            <!-- Left Rail -->
+            <div class="rack-rail left">
+                <div class="rack-rail-screws" id="railL"></div>
+            </div>
+
+            <!-- ══ FRONT ══ -->
+            <div class="rack-body" id="rackFront">
+                <div class="rack-plate"><span class="rack-plate-label">svend</span></div>
+
+                <!-- MAINFRAME — always at top, like the mixer in Reason -->
+                <div class="mainframe">
+                    <!-- Mounting ears — flanges that sit ON TOP of the rails -->
+                    <div class="mf-ear left">
+                        <div class="mf-ear-bolt"><span class="mf-ear-bolt-hex"></span></div>
+                        <div class="mf-ear-bolt"><span class="mf-ear-bolt-hex"></span></div>
+                        <div class="mf-ear-bolt"><span class="mf-ear-bolt-hex"></span></div>
+                    </div>
+                    <div class="mf-ear right">
+                        <div class="mf-ear-bolt"><span class="mf-ear-bolt-hex"></span></div>
+                        <div class="mf-ear-bolt"><span class="mf-ear-bolt-hex"></span></div>
+                        <div class="mf-ear-bolt"><span class="mf-ear-bolt-hex"></span></div>
+                    </div>
+
+                    <div class="mf-head">
+                        <span style="width:10px;height:10px;border-radius:50%;background:rgba(45,212,191,0.3);border:1px solid rgba(45,212,191,0.4);box-shadow:0 0 4px rgba(45,212,191,0.2);flex-shrink:0;"></span>
+                        Atlas — Process Model
+                        <div class="mf-head-bolts">
+                            <span class="mf-bolt"></span><span class="mf-bolt"></span><span class="mf-bolt"></span><span class="mf-bolt"></span>
+                        </div>
+                    </div>
+
+                    <div class="mf-body">
+                        <!-- Left: graph + OLR -->
+                        <div class="mf-col-graph">
+                            <div class="mf-section">
+                                <div class="mf-section-label">Process Graph</div>
+                                <div class="mf-graph" id="graphView"></div>
+                            </div>
+                            <div class="mf-section">
+                                <div class="mf-section-label">OLR Loop</div>
+                                <div class="mf-olr">
+                                    <div class="mf-olr-phase"><div class="mf-olr-led active"></div><span class="mf-olr-label">Observe</span></div>
+                                    <span class="mf-olr-arrow">&#x2192;</span>
+                                    <div class="mf-olr-phase"><div class="mf-olr-led"></div><span class="mf-olr-label">Learn</span></div>
+                                    <span class="mf-olr-arrow">&#x2192;</span>
+                                    <div class="mf-olr-phase"><div class="mf-olr-led"></div><span class="mf-olr-label">Respond</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: health + feed -->
+                        <div class="mf-col-status">
+                            <div class="mf-section">
+                                <div class="mf-section-label">Health</div>
+                                <div class="mf-gauge-row"><span class="mf-gauge-label">Nodes</span><div class="mf-gauge-bar"><div class="mf-gauge-fill" style="width:0%;"></div></div><span class="mf-gauge-value">—</span></div>
+                                <div class="mf-gauge-row"><span class="mf-gauge-label">Edges</span><div class="mf-gauge-bar"><div class="mf-gauge-fill" style="width:0%;"></div></div><span class="mf-gauge-value">—</span></div>
+                                <div class="mf-gauge-row"><span class="mf-gauge-label">Calibrated</span><div class="mf-gauge-bar"><div class="mf-gauge-fill" style="width:0%;"></div></div><span class="mf-gauge-value">—</span></div>
+                                <div class="mf-gauge-row"><span class="mf-gauge-label">Stale</span><div class="mf-gauge-bar"><div class="mf-gauge-fill" style="width:0%;"></div></div><span class="mf-gauge-value">—</span></div>
+                                <div class="mf-gauge-row"><span class="mf-gauge-label">Contradictions</span><div class="mf-gauge-bar"><div class="mf-gauge-fill" style="width:0%;"></div></div><span class="mf-gauge-value">—</span></div>
+                            </div>
+                            <div class="mf-section" style="flex:1;">
+                                <div class="mf-section-label">Evidence Feed</div>
+                                <div class="mf-feed-item"><span class="mf-feed-time">—</span><span class="mf-feed-text">No evidence recorded yet</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mf-foot">
+                        graph-001
+                        <div class="mf-head-bolts" style="margin-left:auto;">
+                            <span class="mf-bolt"></span><span class="mf-bolt"></span><span class="mf-bolt"></span><span class="mf-bolt"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Component area — below the mainframe -->
+                <div class="rack-empty">
+                    <div class="rack-empty-mark">&#x25C9;</div>
+                    <div class="rack-empty-text">
+                        No devices mounted.<br>
+                        Drag components from the library to build your rack.
+                    </div>
+                </div>
+
+                <div class="rack-plate bottom"><span class="rack-plate-label">forgerack</span></div>
+                <span class="flip-hint">Tab &#x2192; back</span>
+            </div>
+
+            <!-- ══ BACK — greyscale metal plate ══ -->
+            <div class="rack-back" id="rackBack">
+                <div class="rack-back-header">Patch Bay — Signal Routing</div>
+
+                <!-- Mainframe patch clusters (back of the mainframe section) -->
+                <div class="mf-back">
+                    <div class="mf-back-head">
+                        Atlas — Patch Bay
+                        <div class="mf-head-bolts" style="margin-left:auto;">
+                            <span class="mf-bolt"></span><span class="mf-bolt"></span><span class="mf-bolt"></span>
+                        </div>
+                    </div>
+                    <div class="mf-back-body">
+                        <div class="mf-cluster">
+                            <span class="mf-cluster-label">SPC</span>
+                            <div class="mf-cluster-jacks">
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">chart 1</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">chart 2</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">chart 3</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">chart 4</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">cpk</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">cpk</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">viol</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">viol</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">drift</div></div>
+                            </div>
+                        </div>
+                        <div class="mf-cluster">
+                            <span class="mf-cluster-label">EXP</span>
+                            <div class="mf-cluster-jacks">
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">doe 1</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">doe 2</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">effect</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">effect</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">optim</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">stat</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">stat</div></div>
+                            </div>
+                        </div>
+                        <div class="mf-cluster">
+                            <span class="mf-cluster-label">INV</span>
+                            <div class="mf-cluster-jacks">
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">cause</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">cause</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">cause</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">hyp</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">hyp</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">concl</div></div>
+                            </div>
+                        </div>
+                        <div class="mf-cluster">
+                            <span class="mf-cluster-label">VER</span>
+                            <div class="mf-cluster-jacks">
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">fft</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">fft</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">pc</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">pc</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">audit</div></div>
+                            </div>
+                        </div>
+                        <div class="mf-cluster">
+                            <span class="mf-cluster-label">MSA</span>
+                            <div class="mf-cluster-jacks">
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">grr</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">grr</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">linear</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">uncert</div></div>
+                            </div>
+                        </div>
+                        <div class="mf-cluster" style="border-color:rgba(248,113,113,0.1);">
+                            <span class="mf-cluster-label" style="color:rgba(248,113,113,0.35);border-right-color:rgba(248,113,113,0.1);">OUT</span>
+                            <div class="mf-cluster-jacks">
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">stale</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">stale</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">contrad</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">contrad</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">gap</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">gap</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">matur</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">context</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">priors</div></div>
+                                <div class="patch-group"><div class="patch-jack"></div><div class="patch-jack-label">scope</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Component patch area (below mainframe) -->
+                <div class="rack-empty">
+                    <div class="rack-empty-text">
+                        Component patch points will appear here<br>
+                        as devices are mounted in the rack.
+                    </div>
+                </div>
+
+                <span class="flip-hint">Tab &#x2192; front</span>
+            </div>
+
+            <!-- Right Rail -->
+            <div class="rack-rail right">
+                <div class="rack-rail-screws" id="railR"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Toolbar -->
+<div class="rack-toolbar">
+    <span class="rack-toolbar-label">
+        <span class="rack-toolbar-key">Tab</span> flip
+        <span id="viewLabel" style="color:rgba(74,222,128,0.3);">front</span>
+    </span>
+    <span style="color:rgba(255,255,255,0.08);">|</span>
+    <a href="/app/demo/" class="rack-toolbar-label" style="text-decoration:none;">hub</a>
+</div>
+
+<script>
+// Generate bolts — 3-hole groups per U
+function genBolts() {
+    const h = Math.max(document.getElementById('rackViewport').clientHeight, 600);
+    const uCount = Math.floor(h / 42);
+    ['railL', 'railR'].forEach(id => {
+        const el = document.getElementById(id);
+        el.innerHTML = '';
+        for (let u = 0; u < uCount; u++) {
+            for (let b = 0; b < 3; b++) {
+                const bolt = document.createElement('div');
+                bolt.className = 'rack-bolt';
+                bolt.style.marginTop = b === 0 && u > 0 ? '10px' : '3px';
+                el.appendChild(bolt);
+            }
+        }
+    });
+}
+
+// Process graph — responsive
+function drawGraph() {
+    const el = document.getElementById('graphView');
+    if (!el) return;
+    const w = el.clientWidth || 400, h = el.clientHeight || 280;
+    const nodes = [
+        {x:w*0.12,y:25,l:'temp'},{x:w*0.32,y:20,l:'speed'},{x:w*0.52,y:25,l:'pressure'},{x:w*0.72,y:20,l:'material'},{x:w*0.88,y:28,l:'coolant'},
+        {x:w*0.18,y:h*0.35,l:'hardness'},{x:w*0.42,y:h*0.33,l:'roughness'},{x:w*0.65,y:h*0.36,l:'diameter'},{x:w*0.85,y:h*0.34,l:'flatness'},
+        {x:w*0.15,y:h*0.6,l:'yield'},{x:w*0.38,y:h*0.58,l:'defect rate'},{x:w*0.62,y:h*0.62,l:'cycle time'},{x:w*0.84,y:h*0.6,l:'scrap'},
+        {x:w*0.28,y:h*0.85,l:'OEE'},{x:w*0.55,y:h*0.83,l:'Cpk'},{x:w*0.78,y:h*0.86,l:'cost'}
+    ];
+    const edges = [
+        [0,5],[0,6],[1,5],[1,6],[1,7],[2,6],[2,7],[2,8],[3,5],[3,7],[4,6],[4,8],
+        [5,9],[5,10],[6,10],[6,11],[7,10],[7,11],[7,12],[8,11],[8,12],
+        [9,13],[10,13],[10,14],[11,13],[11,15],[12,14],[12,15]
+    ];
+    let html = '';
+    edges.forEach(([a,b]) => {
+        const dx = nodes[b].x - nodes[a].x, dy = nodes[b].y - nodes[a].y;
+        const len = Math.sqrt(dx*dx+dy*dy);
+        const angle = Math.atan2(dy,dx)*180/Math.PI;
+        html += `<div class="graph-edge" style="left:${nodes[a].x}px;top:${nodes[a].y+5}px;width:${len}px;transform:rotate(${angle}deg);"></div>`;
+    });
+    nodes.forEach(n => {
+        html += `<div class="graph-node" style="left:${n.x-5}px;top:${n.y}px;" title="${n.l}"></div>`;
+    });
+    el.innerHTML = html;
+}
+
+// Tab to flip
+let _flipped = false;
+document.addEventListener('keydown', e => {
+    if (e.target.matches('input,textarea,select')) return;
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        _flipped = !_flipped;
+        document.getElementById('rackShell').classList.toggle('flipped', _flipped);
+        document.getElementById('viewLabel').textContent = _flipped ? 'back' : 'front';
+        document.getElementById('viewLabel').style.color = _flipped ? 'rgba(248,113,113,0.3)' : 'rgba(74,222,128,0.3)';
+    }
+});
+
+// Patch jack click
+document.addEventListener('click', e => {
+    if (e.target.classList.contains('patch-jack')) e.target.classList.toggle('connected');
+});
+
+// Calculate rail bolt Y positions (must match genBolts logic)
+function getRailBoltPositions() {
+    const positions = [];
+    const startY = 6; // matches .rack-rail-screws top
+    let y = startY;
+    const h = Math.max(document.getElementById('rackViewport').clientHeight, 600);
+    const uCount = Math.floor(h / 42);
+    for (let u = 0; u < uCount; u++) {
+        for (let b = 0; b < 3; b++) {
+            y += (b === 0 && u > 0) ? 10 : 3;
+            positions.push(y + 7); // center of 14px bolt
+            y += 14;
+        }
+    }
+    return positions;
+}
+
+// Position ear bolts to align with actual rail bolt holes
+function positionEarBolts() {
+    const mf = document.querySelector('.mainframe');
+    if (!mf) return;
+    const rackPlate = document.querySelector('.rack-plate');
+    const mfTop = rackPlate ? rackPlate.offsetHeight : 24; // offset from rack-plate above
+    const boltPositions = getRailBoltPositions();
+    const mfHeight = mf.offsetHeight;
+
+    // Find which rail bolts fall within the mainframe's vertical span
+    const inRange = boltPositions.filter(y => y >= mfTop && y <= mfTop + mfHeight);
+
+    // Pick first, last, and ~middle positions (3 bolts per ear)
+    let picks = [];
+    if (inRange.length >= 3) {
+        picks = [inRange[0], inRange[Math.floor(inRange.length / 2)], inRange[inRange.length - 1]];
+    } else {
+        picks = inRange;
+    }
+
+    // Position all ear bolts
+    document.querySelectorAll('.mf-ear').forEach(ear => {
+        const bolts = ear.querySelectorAll('.mf-ear-bolt');
+        bolts.forEach((bolt, i) => {
+            if (picks[i] !== undefined) {
+                bolt.style.top = (picks[i] - mfTop - 6) + 'px'; // 6 = half bolt height
+                bolt.style.display = '';
+            } else {
+                bolt.style.display = 'none';
+            }
+        });
+    });
+}
+
+// Sync mainframe front/back heights
+function syncMainframeHeight() {
+    const front = document.querySelector('.mainframe');
+    const back = document.querySelector('.mf-back');
+    if (front && back) {
+        back.style.minHeight = '';
+        const fh = front.offsetHeight;
+        back.style.minHeight = fh + 'px';
+    }
+}
+
+genBolts();
+drawGraph();
+requestAnimationFrame(() => { positionEarBolts(); syncMainframeHeight(); });
+window.addEventListener('resize', () => { genBolts(); drawGraph(); positionEarBolts(); syncMainframeHeight(); });
+</script>
+{% endblock %}

@@ -721,3 +721,302 @@
     .sv-kpi-strip { grid-template-columns: repeat(2, 1fr) !important; }
     .sv-modal { width: 95vw; }
 }
+
+
+/* ════════════════════════════════════════════════════════════
+ *  DEVICE FACEPLATE COMPONENTS
+ *  Reason-style rack instrument hardware.
+ *  Each forge package mounts as a device in a rack template.
+ *  Devices use sub-theme classes for accent colors.
+ * ════════════════════════════════════════════════════════════ */
+
+
+/* ────────────────────────────────────────────────────────────
+ * 28. DEVICE CHASSIS (sv-device)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-device {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Screw fasteners — rack mount hardware */
+.sv-device-screw {
+    position: absolute;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: var(--bg-secondary);
+    z-index: 2;
+}
+.sv-device-screw.tl { top: 3px; left: 3px; }
+.sv-device-screw.tr { top: 3px; right: 3px; }
+.sv-device-screw.bl { bottom: 3px; left: 3px; }
+.sv-device-screw.br { bottom: 3px; right: 3px; }
+
+/* Device head strip — name plate */
+.sv-device-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-primary);
+}
+.sv-device-head .sv-device-type {
+    margin-left: auto;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Device body */
+.sv-device-body { padding: 10px 14px; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 29. DEVICE SECTION DIVIDER (grooved separator)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-device-section {
+    border-top: 1px solid var(--border);
+    padding: 8px 14px;
+}
+.sv-device-section-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+}
+
+
+/* ────────────────────────────────────────────────────────────
+ * 30. LED INDICATOR (status light)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-led {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #333;
+    transition: background 0.2s, box-shadow 0.2s;
+}
+.sv-led.on-green { background: var(--sv-green); box-shadow: 0 0 4px var(--sv-green), 0 0 8px rgba(74,222,128,0.3); }
+.sv-led.on-amber { background: var(--sv-amber); box-shadow: 0 0 4px var(--sv-amber), 0 0 8px rgba(250,204,21,0.3); }
+.sv-led.on-red   { background: var(--sv-red);   box-shadow: 0 0 4px var(--sv-red),   0 0 8px rgba(248,113,113,0.3); }
+.sv-led.on-blue  { background: var(--sv-blue);  box-shadow: 0 0 4px var(--sv-blue),  0 0 8px rgba(96,165,250,0.3); }
+.sv-led.off      { background: #333; box-shadow: none; }
+
+/* Device accent LED — uses sub-theme color */
+.sv-led.on-accent { background: var(--device-accent, var(--sv-green)); box-shadow: 0 0 4px var(--device-accent, var(--sv-green)); }
+
+/* LED Array — row of status indicators (Nelson rules, multi-channel) */
+.sv-led-array {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+}
+.sv-led-array .sv-led { width: 5px; height: 5px; }
+.sv-led-array-labels {
+    display: inline-flex;
+    gap: 4px;
+    font-size: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-dim);
+}
+.sv-led-array-labels span { width: 5px; text-align: center; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 31. READOUT (numeric display — 7-segment style)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-readout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    min-width: 72px;
+}
+.sv-readout-value {
+    font-size: 28px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--device-accent, var(--text-primary));
+    line-height: 1;
+    text-shadow: 0 0 8px rgba(255,255,255,0.1);
+}
+.sv-readout-label {
+    font-size: 9px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-top: 4px;
+}
+
+/* Size variants */
+.sv-readout-sm .sv-readout-value { font-size: 18px; }
+.sv-readout-sm { padding: 5px 8px; min-width: 52px; }
+.sv-readout-lg .sv-readout-value { font-size: 42px; }
+
+/* Threshold colors */
+.sv-readout.good .sv-readout-value { color: var(--sv-green); text-shadow: 0 0 10px rgba(74,222,128,0.2); }
+.sv-readout.warn .sv-readout-value { color: var(--sv-amber); text-shadow: 0 0 10px rgba(250,204,21,0.2); }
+.sv-readout.bad  .sv-readout-value { color: var(--sv-red);   text-shadow: 0 0 10px rgba(248,113,113,0.2); }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 32. METER (horizontal bar gauge — VU meter style)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-meter {
+    position: relative;
+    height: 8px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.sv-meter-fill {
+    height: 100%;
+    border-radius: 1px;
+    transition: width 0.3s;
+    background: var(--device-accent, var(--sv-green));
+}
+
+/* Zoned meter — green/amber/red bands */
+.sv-meter.zoned { background: linear-gradient(to right, rgba(248,113,113,0.15) 0% 33%, rgba(250,204,21,0.15) 33% 66%, rgba(74,222,128,0.15) 66% 100%); }
+
+/* Tick marks */
+.sv-meter-ticks {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0 0;
+    font-size: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-dim);
+}
+
+
+/* ────────────────────────────────────────────────────────────
+ * 33. KNOB (parameter control — label + input)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-knob {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.sv-knob-label {
+    font-size: 9px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+}
+.sv-knob-input {
+    width: 100%;
+    padding: 4px 6px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-primary);
+    text-align: center;
+}
+.sv-knob-input:focus { border-color: var(--device-accent, var(--accent-primary)); outline: none; }
+
+/* Knob row — horizontal group of knobs */
+.sv-knob-row {
+    display: flex;
+    gap: 8px;
+}
+.sv-knob-row .sv-knob { flex: 1; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 34. PATCH POINT (connection indicator — data I/O)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-patch-bar {
+    display: flex;
+    gap: 12px;
+    padding: 5px 14px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-dim);
+}
+.sv-patch {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.sv-patch-dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--device-accent, var(--text-dim));
+}
+.sv-patch-in::before { content: '\2190 '; }   /* ← */
+.sv-patch-out::after { content: ' \2192'; }   /* → */
+
+
+/* ────────────────────────────────────────────────────────────
+ * 35. FORGE DEVICE SUB-THEMES
+ * ──────────────────────────────────────────────────────────── */
+
+/* Forge package themes (computation layer) */
+.forge-spc  { --device-accent: #4ade80; --device-accent-bg: rgba(74,222,128,0.12); }
+.forge-doe  { --device-accent: #60a5fa; --device-accent-bg: rgba(96,165,250,0.12); }
+.forge-stat { --device-accent: #a78bfa; --device-accent-bg: rgba(167,139,250,0.12); }
+.forge-sia  { --device-accent: #facc15; --device-accent-bg: rgba(250,204,21,0.12); }
+.forge-siop { --device-accent: #2dd4bf; --device-accent-bg: rgba(45,212,191,0.12); }
+.forge-doc  { --device-accent: #9ca3af; --device-accent-bg: rgba(156,163,175,0.12); }
+.forge-cal  { --device-accent: #f472b6; --device-accent-bg: rgba(244,114,182,0.12); }
+.forge-viz  { --device-accent: #fb923c; --device-accent-bg: rgba(251,146,60,0.12); }
+
+/* Named device themes (workflow layer — what a person DOES) */
+.device-sentinel  { --device-accent: #4ade80; --device-accent-bg: rgba(74,222,128,0.12); }
+.device-prism     { --device-accent: #a78bfa; --device-accent-bg: rgba(167,139,250,0.12); }
+.device-crucible  { --device-accent: #60a5fa; --device-accent-bg: rgba(96,165,250,0.12); }
+.device-meridian  { --device-accent: #facc15; --device-accent-bg: rgba(250,204,21,0.12); }
+.device-caliber   { --device-accent: #cbd5e1; --device-accent-bg: rgba(203,213,225,0.12); }
+.device-atlas     { --device-accent: #2dd4bf; --device-accent-bg: rgba(45,212,191,0.12); }
+.device-forge     { --device-accent: #f87171; --device-accent-bg: rgba(248,113,113,0.12); }
+.device-compass   { --device-accent: #fbbf24; --device-accent-bg: rgba(251,191,36,0.12); }
+.device-tempo     { --device-accent: #22d3ee; --device-accent-bg: rgba(34,211,238,0.12); }
+.device-conduit   { --device-accent: #3b82f6; --device-accent-bg: rgba(59,130,246,0.12); }
+.device-queue     { --device-accent: #fb923c; --device-accent-bg: rgba(251,146,60,0.12); }
+.device-streamline { --device-accent: #86efac; --device-accent-bg: rgba(134,239,172,0.12); }
+.device-scribe    { --device-accent: #9ca3af; --device-accent-bg: rgba(156,163,175,0.12); }
+.device-lens      { --device-accent: #e2e8f0; --device-accent-bg: rgba(226,232,240,0.08); }
+.device-dispatch  { --device-accent: #4ade80; --device-accent-bg: rgba(74,222,128,0.08); }
+
+/* Sub-themed device head */
+.sv-device[class*="device-"] .sv-device-head,
+.sv-device[class*="forge-"] .sv-device-head { border-bottom: 2px solid var(--device-accent); color: var(--device-accent); }
+
+/* Full-face device — fills viewport, no rack needed */
+.sv-device-full {
+    max-width: 960px;
+    margin: 0 auto;
+    min-height: calc(100vh - 56px);
+}
