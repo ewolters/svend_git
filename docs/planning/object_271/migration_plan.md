@@ -222,6 +222,77 @@ See `docs/planning/object_271/forge_ops_spec.md` for full spec.
 
 ---
 
+## Tech Debt — Clean Up During Migration
+
+Debt items are resolved during template migration, not as separate work. When a view file is touched for a template rebuild, the debt in that file gets resolved in the same CR.
+
+### Dead Code — Delete
+
+| File | Lines | Reason |
+|------|-------|--------|
+| `workbench_new.html` | 11,790 | Confirmed duplicate of analysis_workbench.html |
+| `safety_coming_soon.html` | 1,993 | Replaced by safety_app.html |
+| `iso_9001_qms.html` | 1,159 | Replaced by QMS workbench |
+| `core/models/graph.py` | ~200 | DEPRECATED. Replaced by `graph/` app (GRAPH-001). Marked in code. |
+| `workbench/models.py` KnowledgeGraph | ~100 | Third KG implementation. Replaced by `graph/` app. |
+
+### Duplicate Computation — Forge Packages Replace
+
+Wire forge imports when the corresponding view is touched during migration.
+
+| SVEND Code | Lines | Forge Replacement | Wire When |
+|---|---|---|---|
+| `agents_api/spc.py` | 1,888 | `forgespc` (identical function names) | spc_views.py touched |
+| `agents_api/dsw/stats_*.py` (7 files) | 21,988 | `forgestat` | dsw_views.py touched |
+| `agents_api/synara/` (6 files) | 3,243 | `forgesia` | synara_views.py touched |
+| `agents_api/dsw/chart_render.py` + `chart_defaults.py` | 518 | `forgeviz` | Any DSW chart endpoint touched |
+| `agents_api/analysis/chart_render.py` + `chart_defaults.py` | 518 | `forgeviz` | Duplicate of dsw/ — delete |
+
+### dsw/ vs analysis/ Duplication — 9.6MB of duplicate code
+
+Two directories with the same statistical engines in different file structures:
+- `agents_api/dsw/` — flat files (`stats_parametric.py`, 4.8MB)
+- `agents_api/analysis/` — subdirectories (`stats/parametric/`, 4.8MB)
+
+Both exist because someone restructured without deleting the old layout. Need to:
+1. Check which one `dsw_views.py` actually imports at runtime
+2. Keep that one
+3. Delete the other (~4.8MB removed)
+4. Eventually both go away when forgestat replaces all inline stats
+
+### Deprecated Models Still in Production Views
+
+| Model | Views | Replaced By | Action |
+|---|---|---|---|
+| `CAPAReport` | `capa_views.py` | Investigation + ForgeDoc CAPA generator | Deprecate views. Remove when old templates gone. |
+| `ActionItem` | `action_views.py`, `fmea_views.py` | Commitment (LOOP-001 §3) | Deprecate views. Remove when old templates gone. |
+
+Do NOT delete these models or views yet — old templates still call them. Add deprecation docstrings. Remove when the templates that use them are migrated.
+
+### Plotly in Python — 15 Files Generate Plotly JSON Server-Side
+
+Switch to ForgeViz ChartSpec when the view is touched. Main files:
+
+| File | Plotly Usage | Action |
+|---|---|---|
+| `spc_views.py` | 3 `"template": "plotly_dark"` refs | Switch to `forgeviz.render(spec, format='dict')` |
+| `spc.py` | Gage R&R generates 4 Plotly charts | Switch to `forgeviz.charts.gage` |
+| `dsw/chart_render.py` | Generic Plotly defaults | Delete — ForgeViz replaces |
+| `dsw/chart_defaults.py` | 459 lines of Plotly config | Delete — ForgeViz themes handle this |
+| `dsw/stats_exploratory.py` | Chart generation in analysis results | Switch to forgeviz |
+| `loop/models.py:1711` | `help_text` references Plotly | Update help_text string |
+
+### Stale Views to Deprecate
+
+| View | Lines | Issue | Action |
+|---|---|---|---|
+| `experimenter_views.py:power_analysis` | ~50 | Docstring says DEPRECATED, still served | Add HTTP deprecation header |
+| `synara_views.py` | 1,136 | Operates on old agents_api/synara/ | Wire to forgesia when `__init__` exports fixed |
+| `capa_views.py` | ~200 | CAPAReport deprecated per LOOP-001 | Deprecate, remove with template |
+| `action_views.py` | ~60 | ActionItem superseded by Commitment | Deprecate, remove with template |
+
+---
+
 ## Session Roles
 
 | Role | Owns | Cannot Touch |
@@ -246,8 +317,8 @@ See `docs/planning/object_271/forge_ops_spec.md` for full spec.
 ## Definition of Done
 
 1. Every app surface uses rack templates + sv-* widgets
-2. Every chart renders via ForgeViz (no Plotly)
-3. Every computation routes through forge packages
+2. Every chart renders via ForgeViz (no Plotly anywhere — Python or JS)
+3. Every computation routes through forge packages (no inline stats/SPC/synara in agents_api/)
 4. QMS workbench implements OLR-001 architecture
 5. VSM workbench has integrated calculator cockpit
 6. Analysis workbench is standalone surface with forge-backed computation
@@ -257,4 +328,8 @@ See `docs/planning/object_271/forge_ops_spec.md` for full spec.
 10. `forgegov run` passes
 11. `python3 manage.py run_compliance --all` passes
 12. All nav links point to working pages
+13. Dead code removed (core/models/graph.py, workbench KG, duplicate templates)
+14. dsw/ vs analysis/ duplication resolved (one directory, not two)
+15. Deprecated views removed (capa_views, action_views) after their templates are gone
+16. Eric signs off
 13. Eric signs off
