@@ -46,8 +46,8 @@
 .ov-screw.br { bottom: 2px; right: 2px; }
 
 /* Config strip — right side, overview only */
-.ov-config { width: 220px; background: var(--bg-secondary); border-left: 1px solid var(--border); padding: 12px; overflow-y: auto; display: none; flex-shrink: 0; }
-.ov-config.visible { display: block; }
+.ov-config { width: 220px; background: var(--bg-secondary); border-left: 1px solid var(--border); padding: 12px; overflow-y: auto; flex-shrink: 0; }
+.ov-config.hidden { display: none; }
 
 /* Section nav item counts */
 .nav-group { padding: 6px 0; border-bottom: 1px solid var(--border); }
@@ -237,7 +237,7 @@ function navTo(el) {
     document.getElementById('toolbarTitle').textContent = SEC_TITLES[s] || s;
 
     // Config strip only on overview
-    document.getElementById('ovConfig').classList.toggle('visible', s === 'overview');
+    document.getElementById('ovConfig').classList.toggle('hidden', s !== 'overview');
 
     if (s === 'signals' && !_signals.length) loadSignals();
 }
@@ -297,7 +297,7 @@ function renderSignalTrend(el, d) {
     const days = Object.keys(byDay).sort();
     const vals = days.map(d => byDay[d]);
     if (!days.length) { el.innerHTML = '<div class="sv-empty" style="padding:20px;">No signal data</div>'; return; }
-    ForgeViz.render(el, { traces: [{ x: days.map((_, i) => i), y: vals, trace_type: 'bar', color: '#60a5fa', marker_size: 0 }], x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
+    ForgeViz.render(el, { traces: [{ x: days.map((_, i) => i), y: vals, trace_type: 'line', color: '#4a9f6e', width: 2, marker_size: 4 }], x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
 }
 
 function renderCommitmentHealth(el, d) {
@@ -309,14 +309,14 @@ function renderCommitmentHealth(el, d) {
     const active = total - fulfilled;
     const cats = ['Fulfilled', 'Active', 'Overdue'];
     const vals = [fulfilled, Math.max(0, active - overdue), overdue];
-    const colors = ['#4ade80', '#60a5fa', '#f87171'];
+    const colors = ['#4a9f6e', '#e8c547', '#d06060'];
     ForgeViz.render(el, { traces: cats.map((c, i) => ({ x: [i], y: [vals[i]], trace_type: 'bar', color: colors[i], name: c })), x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
 }
 
 function renderReadiness(el, d) {
     SvApi.get('/api/loop/readiness/').then(r => {
         const score = r.score ?? r.readiness_score;
-        if (score === undefined) { el.innerHTML = '<div class="sv-empty" style="padding:20px;">No readiness data</div>'; return; }
+        if (score === undefined) { el.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;"><div style="font-size:48px;font-weight:600;font-family:\'JetBrains Mono\',monospace;color:var(--text-dim);">—</div><div style="font-size:11px;color:var(--text-dim);margin-top:4px;">No data yet</div></div>'; return; }
         const pct = Math.round(score * 100);
         el.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;"><div style="font-size:48px;font-weight:600;font-family:\'JetBrains Mono\',monospace;color:' + (pct >= 75 ? 'var(--sv-green)' : pct >= 50 ? 'var(--sv-amber)' : 'var(--sv-red)') + ';">' + pct + '%</div><div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Target: 85%</div></div>';
     }).catch(() => { el.innerHTML = '<div class="sv-empty" style="padding:20px;">Error loading</div>'; });
@@ -343,7 +343,7 @@ function renderSignalSources(el, d) {
     signals.forEach(s => { const src = SvFormat.snakeToTitle(s.source_type || 'unknown'); counts[src] = (counts[src] || 0) + 1; });
     const cats = Object.keys(counts);
     if (!cats.length) { el.innerHTML = '<div class="sv-empty" style="padding:20px;">No signals</div>'; return; }
-    ForgeViz.render(el, { traces: [{ x: cats.map((_, i) => i), y: cats.map(c => counts[c]), trace_type: 'bar', color: '#a78bfa' }], x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
+    ForgeViz.render(el, { traces: [{ x: cats.map((_, i) => i), y: cats.map(c => counts[c]), trace_type: 'bar', color: '#4a9f6e' }], x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
 }
 
 function renderInvestigationStatus(el, d) {
@@ -352,7 +352,7 @@ function renderInvestigationStatus(el, d) {
     const counts = {};
     invs.forEach(i => { counts[i.status] = (counts[i.status] || 0) + 1; });
     const cats = Object.keys(counts);
-    ForgeViz.render(el, { traces: [{ x: cats.map((_, i) => i), y: cats.map(c => counts[c]), trace_type: 'bar', color: '#facc15' }], x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
+    ForgeViz.render(el, { traces: [{ x: cats.map((_, i) => i), y: cats.map(c => counts[c]), trace_type: 'bar', color: '#e8c547' }], x_axis: { label: '' }, y_axis: { label: '' }, theme: 'svend_dark' }, { toolbar: false });
 }
 
 // ── Signals section ──
