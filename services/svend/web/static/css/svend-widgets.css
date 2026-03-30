@@ -631,7 +631,88 @@
 
 
 /* ────────────────────────────────────────────────────────────
- * 20. RESPONSIVE UTILITIES
+ * 20. ICONS (inline SVG via sv-icons.js)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex-shrink: 0; color: currentColor; }
+.sv-icon svg { width: 100%; height: 100%; }
+.sv-icon-sm { width: 12px; height: 12px; }
+.sv-icon-lg { width: 20px; height: 20px; }
+.sv-icon-xl { width: 24px; height: 24px; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 21. SEGMENTED CONTROL (horizontal toggle group)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-segment { display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.sv-segment-btn { padding: 4px 10px; font-size: 11px; border: none; border-right: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; font-family: inherit; }
+.sv-segment-btn:last-child { border-right: none; }
+.sv-segment-btn:hover { background: var(--bg-hover); }
+.sv-segment-btn.active { background: var(--accent-primary-dim); color: var(--accent-primary); }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 22. DROPDOWN MENU (context menus, nav dropdowns)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-dropdown { position: relative; display: inline-block; }
+.sv-dropdown-menu { display: none; position: absolute; top: 100%; left: 0; min-width: 160px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 0; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.4); margin-top: 4px; }
+.sv-dropdown-menu.open { display: block; }
+.sv-dropdown-menu.right { left: auto; right: 0; }
+.sv-dropdown-item { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+.sv-dropdown-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.sv-dropdown-item .sv-icon { color: var(--text-dim); }
+.sv-dropdown-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 23. PROGRESS STEPS (multi-step wizard / pipeline)
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-steps { display: flex; gap: 0; }
+.sv-step { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); padding: 6px 12px; position: relative; }
+.sv-step::after { content: ''; position: absolute; right: -4px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-top: 1px solid var(--border); border-right: 1px solid var(--border); transform: translateY(-50%) rotate(45deg); background: var(--bg-primary); z-index: 1; }
+.sv-step:last-child::after { display: none; }
+.sv-step-num { width: 20px; height: 20px; border-radius: 50%; background: var(--bg-secondary); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; flex-shrink: 0; }
+.sv-step.done .sv-step-num { background: var(--sv-green-bg); border-color: var(--sv-green); color: var(--sv-green); }
+.sv-step.active { color: var(--text-primary); }
+.sv-step.active .sv-step-num { background: var(--accent-primary-dim); border-color: var(--accent-primary); color: var(--accent-primary); }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 24. NOTIFICATION TOAST
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 10000; pointer-events: none; }
+.sv-toast { pointer-events: auto; padding: 10px 16px; border-radius: 6px; font-size: 12px; color: var(--text-primary); background: var(--card-bg); border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 8px; max-width: 360px; }
+.sv-toast-success { border-left: 3px solid var(--sv-green); }
+.sv-toast-error { border-left: 3px solid var(--sv-red); }
+.sv-toast-warn { border-left: 3px solid var(--sv-amber); }
+.sv-toast-info { border-left: 3px solid var(--sv-blue); }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 25. SORTABLE TABLE HEADER
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-table th.sv-sortable { cursor: pointer; user-select: none; }
+.sv-table th.sv-sortable:hover { color: var(--text-primary); }
+.sv-table th.sv-sortable::after { content: ''; display: inline-block; width: 0; height: 0; margin-left: 4px; vertical-align: middle; border-left: 3px solid transparent; border-right: 3px solid transparent; border-top: 4px solid var(--text-dim); opacity: 0.4; }
+.sv-table th.sv-sort-asc::after { border-top: none; border-bottom: 4px solid var(--accent-primary); opacity: 1; }
+.sv-table th.sv-sort-desc::after { border-top: 4px solid var(--accent-primary); opacity: 1; }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 26. INLINE EDITABLE FIELD
+ * ──────────────────────────────────────────────────────────── */
+
+.sv-editable { cursor: pointer; border-bottom: 1px dashed var(--border); }
+.sv-editable:hover { border-bottom-color: var(--accent-primary); color: var(--accent-primary); }
+
+
+/* ────────────────────────────────────────────────────────────
+ * 27. RESPONSIVE UTILITIES
  * ──────────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
