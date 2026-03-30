@@ -2,61 +2,41 @@
 {% block title %}SVEND — Dashboard{% endblock %}
 
 {% block dashboard_header %}
-<h1>Welcome back</h1>
-<div style="margin-left:auto;"><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="loadDashKpis()"><span class="sv-icon">${SvIcon.refresh}</span></button></div>
+<h1 id="dkGreeting">Welcome back</h1>
 {% endblock %}
 
 {% block dashboard_kpis %}
-<div class="sv-kpi-strip cols-5">
-    <div class="sv-kpi-cell" onclick="window.location='/app/qms/'"><div class="sv-kpi-value" id="dkSignals">—</div><div class="sv-kpi-label">Open Signals</div></div>
-    <div class="sv-kpi-cell"><div class="sv-kpi-value" id="dkCommitments">—</div><div class="sv-kpi-label">My Commitments</div></div>
+<div class="sv-kpi-strip cols-5" id="dkKpiStrip">
+    <div class="sv-kpi-cell"><div class="sv-kpi-value" id="dkSignals">—</div><div class="sv-kpi-label">Open Signals</div><div id="dkSparkSignals" style="height:28px;margin-top:6px;"></div></div>
+    <div class="sv-kpi-cell"><div class="sv-kpi-value" id="dkCommitments">—</div><div class="sv-kpi-label">My Commitments</div><div id="dkSparkCommitments" style="height:28px;margin-top:6px;"></div></div>
     <div class="sv-kpi-cell"><div class="sv-kpi-value" id="dkOverdue" style="color:var(--sv-green);">—</div><div class="sv-kpi-label">Overdue</div></div>
-    <div class="sv-kpi-cell"><div class="sv-kpi-value" id="dkInvestigations">—</div><div class="sv-kpi-label">Active Investigations</div></div>
-    <div class="sv-kpi-cell"><div class="sv-kpi-value" id="dkReadiness">—</div><div class="sv-kpi-label">CI Readiness</div></div>
+    <div class="sv-kpi-cell"><div class="sv-kpi-value" id="dkInvestigations">—</div><div class="sv-kpi-label">Investigations</div></div>
+    <div class="sv-kpi-cell"><div id="dkGaugeReadiness" style="height:60px;"></div><div class="sv-kpi-label">CI Readiness</div></div>
 </div>
 {% endblock %}
 
 {% block dashboard_panels %}
-<div class="sv-dash-panels cols-auto">
-    <!-- Analysis tools -->
+<div class="sv-dash-panels cols-2">
+    <!-- Attention items -->
     <div class="sv-card">
-        <div class="sv-card-header"><span class="sv-card-title">Analysis</span></div>
-        <a href="/app/analysis/" class="sv-list-item"><span class="sv-icon">${SvIcon.chart}</span><div class="sv-item-main"><div class="sv-item-title">Analysis Workbench</div><div class="sv-item-meta">Statistical analysis, hypothesis testing</div></div></a>
-        <a href="/app/experimenter/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.doe}</span><div class="sv-item-main"><div class="sv-item-title">Experimenter</div><div class="sv-item-meta">DOE, factorial designs, response surface</div></div></a>
-        <a href="/app/forecast/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.trending}</span><div class="sv-item-main"><div class="sv-item-title">Forecast</div><div class="sv-item-meta">Time series, demand planning</div></div></a>
-        <a href="/app/models/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.layers}</span><div class="sv-item-main"><div class="sv-item-title">Models</div><div class="sv-item-meta">ML train, predict, deploy</div></div></a>
+        <div class="sv-card-header"><span class="sv-card-title">Needs Attention</span></div>
+        <div id="dkAttention" class="sv-empty">Loading...</div>
     </div>
 
-    <!-- Methods -->
+    <!-- Signal trend chart -->
     <div class="sv-card">
-        <div class="sv-card-header"><span class="sv-card-title">Methods</span></div>
-        <a href="/app/a3/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.a3}</span><div class="sv-item-main"><div class="sv-item-title">A3</div><div class="sv-item-meta">Toyota-style problem solving</div></div></a>
-        <a href="/app/rca/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.rca}</span><div class="sv-item-main"><div class="sv-item-title">Root Cause Analysis</div><div class="sv-item-meta">AI-critiqued causal chains</div></div></a>
-        <a href="/app/fmea/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.fmea}</span><div class="sv-item-main"><div class="sv-item-title">FMEA</div><div class="sv-item-meta">Failure mode analysis, RPN scoring</div></div></a>
-        <a href="/app/calculators/" class="sv-list-item"><span class="sv-icon">${SvIcon.target}</span><div class="sv-item-main"><div class="sv-item-title">Operations</div><div class="sv-item-meta">Takt, OEE, kanban, line balance</div></div></a>
-        <a href="/app/vsm/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.vsm}</span><div class="sv-item-main"><div class="sv-item-title">Value Stream Map</div><div class="sv-item-meta">End-to-end material and info flow</div></div></a>
+        <div class="sv-card-header"><span class="sv-card-title">Signal Sources</span></div>
+        <div id="dkSignalChart" style="height:220px;"></div>
     </div>
 
-    <!-- Visual & Collaboration -->
+    <!-- Commitment status breakdown -->
     <div class="sv-card">
-        <div class="sv-card-header"><span class="sv-card-title">Visual &amp; Collaboration</span></div>
-        <a href="/app/whiteboard/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.whiteboard}</span><div class="sv-item-main"><div class="sv-item-title">Whiteboard</div><div class="sv-item-meta">Collaborative diagrams, fishbones, flowcharts</div></div></a>
-        <a href="/app/investigations/" class="sv-list-item"><span class="sv-icon">${SvIcon.investigate}</span><div class="sv-item-main"><div class="sv-item-title">Investigations</div><div class="sv-item-meta">Hypotheses, evidence, experiments</div></div></a>
-        <a href="/app/process-map/" class="sv-list-item"><span class="sv-icon">${SvIcon.graph}</span><div class="sv-item-main"><div class="sv-item-title">Process Map</div><div class="sv-item-meta">Causal knowledge graph</div></div></a>
-        <a href="/app/learn/" class="sv-list-item"><span class="sv-icon">${SvIcon.training}</span><div class="sv-item-main"><div class="sv-item-title">Learn</div><div class="sv-item-meta">Courses, certifications, guides</div></div></a>
+        <div class="sv-card-header"><span class="sv-card-title">Commitment Status</span></div>
+        <div id="dkCommitmentChart" style="height:220px;"></div>
     </div>
 
-    <!-- Quality System -->
+    <!-- Recent activity -->
     <div class="sv-card">
-        <div class="sv-card-header"><span class="sv-card-title">Quality System</span></div>
-        <a href="/app/qms/" class="sv-list-item"><span class="sv-icon">${SvIcon.signal}</span><div class="sv-item-main"><div class="sv-item-title">QMS</div><div class="sv-item-meta">Signals, investigations, commitments</div></div></a>
-        <a href="/app/hoshin/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.hoshin}</span><div class="sv-item-main"><div class="sv-item-title">Hoshin Kanri</div><div class="sv-item-meta">Strategy deployment, X-Matrix</div></div></a>
-        <a href="/app/safety/" class="sv-list-item" data-feature="safety"><span class="sv-icon">${SvIcon.safety}</span><div class="sv-item-main"><div class="sv-item-title">HIRARC Safety</div><div class="sv-item-meta">Frontier Cards, FMEA bridge, 5S</div></div></a>
-        <a href="/app/iso-docs/" class="sv-list-item" data-feature="full_tools"><span class="sv-icon">${SvIcon.document}</span><div class="sv-item-main"><div class="sv-item-title">Documents</div><div class="sv-item-meta">Controlled documents, ISO authoring</div></div></a>
-    </div>
-
-    <!-- Recent Activity -->
-    <div class="sv-card" style="grid-column: 1 / -1;">
         <div class="sv-card-header"><span class="sv-card-title">Recent Activity</span></div>
         <div id="dkRecent" class="sv-empty">Loading...</div>
     </div>
@@ -64,54 +44,133 @@
 {% endblock %}
 
 {% block dashboard_footer %}
-<div class="sv-section">
+<div class="sv-section" id="dkDemoLinks" style="display:none;">
     <div class="sv-section-title">Migration Demos</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <a href="/app/demo/" class="sv-btn sv-btn-sm">Migration Tracker</a>
-        <a href="/app/demo/dashboard/" class="sv-btn sv-btn-sm sv-btn-primary">Dashboard (this page)</a>
-        <a href="/app/demo/qms/" class="sv-btn sv-btn-sm">QMS Workbench</a>
-        <a href="/app/demo/rack/" class="sv-btn sv-btn-sm">CRUD Rack Demo</a>
-        <a href="/app/graph-map/" class="sv-btn sv-btn-sm">Graph Map (live)</a>
-    </div>
+    <div id="dkDemoBar" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
 </div>
 {% endblock %}
 
 {% block dashboard_scripts %}
-let _dashUser = null;
-
-function loadDashKpis() {
+// ── KPIs + Charts ──
+function loadDashboard() {
     SvApi.get('/api/loop/dashboard/').then(d => {
-        document.getElementById('dkSignals').textContent = d.signals?.untriaged_count ?? 0;
-        document.getElementById('dkCommitments').textContent = d.commitments?.items?.length ?? 0;
-        const ov = d.commitments?.overdue_count ?? 0;
-        document.getElementById('dkOverdue').textContent = ov;
-        document.getElementById('dkOverdue').style.color = ov > 0 ? 'var(--sv-red)' : 'var(--sv-green)';
-        document.getElementById('dkInvestigations').textContent = d.investigations?.items?.length ?? 0;
+        const sigCount = d.signals?.untriaged_count ?? 0;
+        const cmtItems = d.commitments?.items || [];
+        const overdueCount = d.commitments?.overdue_count ?? 0;
+        const invItems = d.investigations?.items || [];
+
+        document.getElementById('dkSignals').textContent = sigCount;
+        document.getElementById('dkCommitments').textContent = cmtItems.length;
+        document.getElementById('dkOverdue').textContent = overdueCount;
+        document.getElementById('dkOverdue').style.color = overdueCount > 0 ? 'var(--sv-red)' : 'var(--sv-green)';
+        document.getElementById('dkInvestigations').textContent = invItems.length;
+
+        renderAttention(d);
+        renderSignalChart(d.signals?.items || []);
+        renderCommitmentChart(d.commitments || {});
     }).catch(() => {});
 
     SvApi.get('/api/loop/readiness/').then(d => {
         const s = d.score ?? d.readiness_score;
-        document.getElementById('dkReadiness').textContent = s !== undefined ? Math.round(s * 100) + '%' : '—';
+        if (s !== undefined) {
+            renderReadinessGauge(s);
+        }
     }).catch(() => {});
 }
 
-function applyFeatureGating(user) {
-    if (!user || !user.features) return;
-    document.querySelectorAll('[data-feature]').forEach(el => {
-        const feature = el.dataset.feature;
-        if (!user.features[feature]) {
-            el.style.opacity = '0.4';
-            el.style.pointerEvents = 'none';
-            const badge = document.createElement('span');
-            badge.className = 'sv-badge sv-badge-purple';
-            badge.textContent = 'PRO';
-            badge.style.marginLeft = 'auto';
-            badge.style.flexShrink = '0';
-            el.appendChild(badge);
-        }
-    });
+// ── ForgeViz Charts ──
+function renderReadinessGauge(score) {
+    const el = document.getElementById('dkGaugeReadiness');
+    const pct = Math.round(score * 100);
+    const spec = {
+        traces: [{ x: [0], y: [pct], trace_type: 'bar', color: pct >= 75 ? '#4ade80' : pct >= 50 ? '#facc15' : '#f87171' }],
+        reference_lines: [{ value: 85, axis: 'y', color: '#60a5fa', dash: 'dashed', width: 1, label: 'Target' }],
+        y_axis: { label: '', min_val: 0, max_val: 100 },
+        x_axis: { label: '' },
+        height: 60, theme: 'svend_dark',
+    };
+    ForgeViz.render(el, spec, { toolbar: false });
 }
 
+function renderSignalChart(signals) {
+    const el = document.getElementById('dkSignalChart');
+    // Count by source type
+    const counts = {};
+    signals.forEach(s => {
+        const src = SvFormat.snakeToTitle(s.source_type || 'unknown');
+        counts[src] = (counts[src] || 0) + 1;
+    });
+    const categories = Object.keys(counts);
+    const values = Object.values(counts);
+
+    if (!categories.length) {
+        el.innerHTML = '<div class="sv-empty">No open signals</div>';
+        return;
+    }
+
+    const spec = {
+        traces: [{ x: categories.map((_, i) => i), y: values, trace_type: 'bar', color: '#60a5fa' }],
+        x_axis: { label: '' },
+        y_axis: { label: '' },
+        height: 220, theme: 'svend_dark',
+    };
+    ForgeViz.render(el, spec, { toolbar: false });
+}
+
+function renderCommitmentChart(cmtData) {
+    const el = document.getElementById('dkCommitmentChart');
+    const items = cmtData.items || [];
+    if (!items.length) {
+        el.innerHTML = '<div class="sv-empty">No commitments</div>';
+        return;
+    }
+
+    // Count by status
+    const counts = {};
+    items.forEach(c => {
+        const s = SvFormat.snakeToTitle(c.status || 'unknown');
+        counts[s] = (counts[s] || 0) + 1;
+    });
+
+    const categories = Object.keys(counts);
+    const values = Object.values(counts);
+    const colors = { 'Pending': '#60a5fa', 'In Progress': '#facc15', 'Fulfilled': '#4ade80', 'Overdue': '#f87171', 'Cancelled': '#9ca3af' };
+
+    const spec = {
+        traces: [{ x: categories.map((_, i) => i), y: values, trace_type: 'bar', color: '#a78bfa' }],
+        x_axis: { label: '' },
+        y_axis: { label: '' },
+        height: 220, theme: 'svend_dark',
+    };
+    ForgeViz.render(el, spec, { toolbar: false });
+}
+
+// ── Needs Attention ──
+function renderAttention(d) {
+    const el = document.getElementById('dkAttention');
+    const items = [];
+
+    (d.commitments?.items || []).filter(c => c.is_overdue).forEach(c => {
+        items.push({ u: 0, html: `<div class="sv-list-item"><div class="sv-dot sv-dot-red" style="margin-top:5px;"></div><div class="sv-item-main"><div class="sv-item-title">${esc(c.title)}</div><div class="sv-item-meta"><span class="sv-badge sv-badge-red">overdue</span><span>${esc(c.owner_name)}</span></div></div><span class="sv-item-time">${c.due_date || ''}</span></div>` });
+    });
+
+    (d.commitments?.items || []).filter(c => c.is_blocked && !c.is_overdue).forEach(c => {
+        items.push({ u: 1, html: `<div class="sv-list-item"><div class="sv-dot sv-dot-amber" style="margin-top:5px;"></div><div class="sv-item-main"><div class="sv-item-title">${esc(c.title)}</div><div class="sv-item-meta"><span class="sv-badge sv-badge-amber">blocked</span><span>${esc(c.owner_name)}</span></div></div></div>` });
+    });
+
+    (d.signals?.items || []).filter(s => s.triage_state === 'untriaged').forEach(s => {
+        items.push({ u: 2, html: `<div class="sv-list-item"><div class="sv-dot sv-dot-blue" style="margin-top:5px;"></div><div class="sv-item-main"><div class="sv-item-title">${esc(s.title)}</div><div class="sv-item-meta"><span class="sv-badge sv-badge-blue">untriaged</span><span>${SvFormat.snakeToTitle(s.source_type || '')}</span></div></div><span class="sv-item-time">${timeAgo(s.created_at)}</span></div>` });
+    });
+
+    (d.investigations?.items || []).forEach(inv => {
+        items.push({ u: 3, html: `<div class="sv-list-item"><div class="sv-dot sv-dot-amber" style="margin-top:5px;"></div><div class="sv-item-main"><div class="sv-item-title">${esc(inv.title)}</div><div class="sv-item-meta"><span class="sv-badge" data-status="${inv.status}">${inv.status}</span><span>${SvFormat.plural(inv.commitment_count, 'commitment')}</span></div></div><span class="sv-item-time">${timeAgo(inv.updated_at)}</span></div>` });
+    });
+
+    items.sort((a, b) => a.u - b.u);
+    el.innerHTML = items.length ? items.map(i => i.html).join('') : '<div class="sv-empty">Nothing needs attention</div>';
+}
+
+// ── Recent Activity ──
 function loadRecent(user) {
     const el = document.getElementById('dkRecent');
     const hasPaid = user?.features?.full_tools;
@@ -119,36 +178,37 @@ function loadRecent(user) {
 
     if (hasPaid) {
         fetches.push(SvApi.get('/api/a3/').then(d => (d.reports || []).slice(0, 3).map(r => ({
-            type: 'A3', title: r.title || 'Untitled A3', url: '/app/a3/' + r.id + '/', date: r.updated_at, icon: SvIcon.a3
+            type: 'A3', title: r.title || 'Untitled A3', url: '/app/a3/' + r.id + '/', date: r.updated_at
         }))).catch(() => []));
-
         fetches.push(SvApi.get('/api/vsm/').then(d => (d.maps || []).slice(0, 3).map(m => ({
-            type: 'VSM', title: m.title || 'Untitled VSM', url: '/app/vsm/' + m.id + '/', date: m.updated_at, icon: SvIcon.vsm
+            type: 'VSM', title: m.title || 'Untitled VSM', url: '/app/vsm/' + m.id + '/', date: m.updated_at
         }))).catch(() => []));
     }
 
     Promise.all(fetches).then(results => {
         const items = results.flat().sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
-        if (!items.length) {
-            el.innerHTML = '<div class="sv-empty">No recent activity. Start by creating an A3 or running an analysis.</div>';
-            return;
-        }
-        el.innerHTML = items.map(i => `
-            <a href="${esc(i.url)}" class="sv-list-item" style="text-decoration:none;">
-                <span class="sv-icon">${i.icon}</span>
-                <div class="sv-item-main">
-                    <div class="sv-item-title">${esc(i.title)}</div>
-                    <div class="sv-item-meta">${esc(i.type)} &middot; ${timeAgo(i.date)}</div>
-                </div>
-            </a>`).join('');
+        if (!items.length) { el.innerHTML = '<div class="sv-empty">No recent activity</div>'; return; }
+        el.innerHTML = items.map(i => `<a href="${esc(i.url)}" class="sv-list-item" style="text-decoration:none;"><div class="sv-item-main"><div class="sv-item-title">${esc(i.title)}</div><div class="sv-item-meta">${esc(i.type)} &middot; ${timeAgo(i.date)}</div></div></a>`).join('');
     });
 }
 
+// ── Demo links (staff only) ──
 window.addEventListener('svendUserReady', function(e) {
-    _dashUser = e.detail;
-    applyFeatureGating(e.detail);
     loadRecent(e.detail);
+    if (e.detail.is_internal) {
+        const sec = document.getElementById('dkDemoLinks');
+        sec.style.display = '';
+        document.getElementById('dkDemoBar').innerHTML = [
+            { href: '/app/demo/', label: 'Migration Tracker' },
+            { href: '/app/demo/dashboard/', label: 'Dashboard (this)' },
+            { href: '/app/demo/qms/', label: 'QMS Workbench' },
+            { href: '/app/demo/rack/', label: 'CRUD Rack Demo' },
+            { href: '/app/graph-map/', label: 'Graph Map (live)' },
+        ].map(l => `<a href="${l.href}" class="sv-btn sv-btn-sm">${esc(l.label)}</a>`).join('');
+    }
+    const name = (e.detail.first_name || '').trim();
+    if (name) document.getElementById('dkGreeting').textContent = 'Welcome back, ' + name;
 });
 
-loadDashKpis();
+loadDashboard();
 {% endblock %}
