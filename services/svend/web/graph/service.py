@@ -276,6 +276,69 @@ class GraphService:
 
         edge.save()
 
+        # Synara propagation — propagate belief changes through the graph
+        try:
+            from agents_api.synara.kernel import Evidence as SynaraEvidence
+
+            from .synara_adapter import SynaraAdapter
+
+            synara_ev = SynaraEvidence(
+                id=str(evidence.id),
+                event=f"evidence_{source_type}",
+                context={
+                    "effect_size": effect_size,
+                    "p_value": p_value,
+                    "source_type": source_type,
+                },
+                strength=strength,
+                source=source_type,
+            )
+            changes = SynaraAdapter.add_evidence_and_propagate(
+                edge.graph_id,
+                tenant_id,
+                edge_id,
+                synara_ev,
+            )
+            if changes:
+                logger.info("Synara propagated to %d nodes from edge %s", len(changes), edge_id)
+        except Exception as e:
+            logger.warning("Synara propagation failed (non-blocking): %s", e)
+
+        # Contradiction detection — GRAPH-001 §10, conference D8
+        try:
+            from .synara_adapter import SynaraAdapter
+
+            contradiction_threshold = ConfigService.get(tenant_id, "process.graph.contradiction_threshold") or 0.05
+            signal = SynaraAdapter.check_edge_contradiction(
+                tenant_id,
+                edge_id,
+                evidence,
+                threshold=float(contradiction_threshold),
+            )
+            if signal:
+                edge.is_contradicted = True
+                edge.save(update_fields=["is_contradicted", "updated_at"])
+
+                # Create Signal in the Loop if signal model exists
+                try:
+                    from loop.models import Signal
+
+                    Signal.objects.create(
+                        tenant_id=tenant_id,
+                        source_type=Signal.SourceType.GRAPH_CONTRADICTION,
+                        title=f"Contradiction: {signal['source_node']} → {signal['target_node']}",
+                        description=signal["message"],
+                        severity="medium",
+                        created_by=created_by,
+                    )
+                    logger.info("Contradiction signal created for edge %s", edge_id)
+                except ImportError:
+                    logger.debug("loop.models.Signal not available — contradiction logged only")
+                except Exception as sig_err:
+                    logger.warning("Signal creation failed: %s", sig_err)
+        except Exception as e:
+            logger.debug("Contradiction check skipped: %s", e)
+
         logger.info(
             "Evidence added to edge %s (%s): effect_size=%s, strength=%s",
             edge_id,
