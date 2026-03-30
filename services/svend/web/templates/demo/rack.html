@@ -115,6 +115,9 @@ if (!ForgeRack.units) ForgeRack.units = {};
     transform-style: preserve-3d;
 }
 .rack-shell.flipped { transform: rotateY(180deg); }
+.rack-shell.flipped .rack-body { pointer-events: none; }
+.rack-shell.flipped .rack-back { pointer-events: auto; }
+.rack-shell:not(.flipped) .rack-back { pointer-events: none; }
 
 /* ─── Rail — absolute positioned overlays on edges ─── */
 .rack-rail {
