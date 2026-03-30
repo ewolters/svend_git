@@ -107,9 +107,8 @@ if (!ForgeRack.units) ForgeRack.units = {};
     perspective: 1200px;
 }
 
-/* Rack shell */
+/* Rack shell — rails are absolute overlays, body takes full width */
 .rack-shell {
-    display: flex;
     min-height: 100%;
     position: relative;
     transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
@@ -117,14 +116,14 @@ if (!ForgeRack.units) ForgeRack.units = {};
 }
 .rack-shell.flipped { transform: rotateY(180deg); }
 
-/* ─── Rail — steel channel ─── */
+/* ─── Rail — absolute positioned overlays on edges ─── */
 .rack-rail {
     width: 36px;
-    flex-shrink: 0;
+    position: absolute;
+    top: 0; bottom: 0;
     background: linear-gradient(to right, #141814, #1a1e1a 30%, #1c201c 50%, #1a1e1a 70%, #141814);
     border: 1px solid #222822;
-    position: relative;
-    z-index: 2;
+    z-index: 5;
     box-shadow: inset 0 0 8px rgba(0,0,0,0.4);
 }
 .rack-rail::before {
@@ -133,8 +132,8 @@ if (!ForgeRack.units) ForgeRack.units = {};
     top: 0; bottom: 0; left: 0; right: 0;
     background: repeating-linear-gradient(to bottom, transparent 0px, rgba(255,255,255,0.008) 1px, transparent 2px);
 }
-.rack-rail.left { border-right: 1px solid #2a302a; }
-.rack-rail.right { border-left: 1px solid #2a302a; }
+.rack-rail.left { left: 0; border-right: 1px solid #2a302a; }
+.rack-rail.right { right: 0; border-left: 1px solid #2a302a; }
 
 .rack-rail-screws {
     position: absolute;
@@ -166,23 +165,37 @@ if (!ForgeRack.units) ForgeRack.units = {};
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
 }
 
-/* ─── Rack body (FRONT) ─── */
+/* ─── Rack body (FRONT) — full width, rails overlay on top ─── */
 .rack-body {
-    flex: 1;
+    width: 100%;
     display: flex;
     flex-direction: column;
     min-height: 100%;
     backface-visibility: hidden;
-    /* 1U score lines */
+    transform-style: flat;
+    /* 1U score lines visible in gaps between units */
     background: repeating-linear-gradient(to bottom, transparent 0px, transparent 41px, rgba(255,255,255,0.015) 41px, rgba(255,255,255,0.015) 42px);
+    background-color: #050805;
+}
+
+/* Units are full-width panels — rails sit ON TOP of their edges */
+#rackBay .rack-unit-front,
+#rackBackBay .rack-unit-back {
+    border-bottom: 1px solid #2a302a !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    /* Content indented from rail edges so it's not hidden behind them */
+    padding-left: 42px !important;
+    padding-right: 42px !important;
+    backface-visibility: visible;
 }
 
 /* ─── Rack body (BACK) — greyscale metal plate ─── */
 .rack-back {
     position: absolute;
-    top: 0; left: 36px; right: 36px; bottom: 0;
+    top: 0; left: 0; right: 0; bottom: 0;
     backface-visibility: hidden;
     transform: rotateY(180deg);
+    transform-style: flat;
     display: flex;
     flex-direction: column;
     overflow-y: auto;
@@ -244,11 +257,9 @@ if (!ForgeRack.units) ForgeRack.units = {};
     box-shadow:
         0 3px 8px rgba(0,0,0,0.6),
         inset 0 1px 0 rgba(255,255,255,0.03);
-    /* Extend OVER the rails */
-    margin-left: -36px;
-    margin-right: -36px;
-    padding-left: 36px;
-    padding-right: 36px;
+    /* Content indented from rail overlay edges */
+    padding-left: 42px;
+    padding-right: 42px;
 }
 
 /* Mounting ears — oval flanges that overlap the rails with bolt holes */
@@ -484,11 +495,8 @@ if (!ForgeRack.units) ForgeRack.units = {};
     border-top: 1px solid rgba(255,255,255,0.1);
     border-bottom: 3px solid rgba(255,255,255,0.1);
     box-shadow: 0 3px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
-    /* Extend over rails same as front */
-    margin-left: -36px;
-    margin-right: -36px;
-    padding-left: 36px;
-    padding-right: 36px;
+    padding-left: 42px;
+    padding-right: 42px;
 }
 .mf-back-head {
     display: flex;
@@ -751,7 +759,7 @@ if (!ForgeRack.units) ForgeRack.units = {};
                 </div>
 
                 <!-- Component bay — units mount here -->
-                <div id="rackBay" class="forge-rack-bay" style="flex:1;min-height:200px;">
+                <div id="rackBay" class="forge-rack-bay" style="flex:1;min-height:200px;padding:0;gap:0;overflow:visible;">
                     <div class="rack-empty" id="rackEmptyState">
                         <div class="rack-empty-mark">&#x25C9;</div>
                         <div class="rack-empty-text">
@@ -880,6 +888,7 @@ if (!ForgeRack.units) ForgeRack.units = {};
     <span class="rack-toolbar-label" id="sessionLabel" style="color:rgba(255,255,255,0.12);font-size:9px;">unsaved</span>
     <span style="color:rgba(255,255,255,0.08);">|</span>
     <a href="/app/demo/" class="rack-toolbar-label" style="text-decoration:none;">hub</a>
+    <span style="color:rgba(255,255,255,0.06);font-size:8px;">v7</span>
 </div>
 
 <script>
