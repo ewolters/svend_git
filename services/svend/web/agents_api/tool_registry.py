@@ -143,3 +143,23 @@ def register_tools():
             "reindex": rca_views.reindex_embeddings,
         },
     )
+
+    # ------------------------------------------------------------------
+    # ForgeRack Sessions
+    # URL: /api/rack/sessions/, /api/rack/sessions/<uuid>/...
+    # ------------------------------------------------------------------
+    from . import rack_views
+    from .models import RackSession
+
+    ToolRouter.register(
+        slug="rack",
+        model=RackSession,
+        list_view=rack_views.list_rack_sessions,
+        create_view=rack_views.create_rack_session,
+        detail_view=rack_views.get_rack_session,
+        update_view=rack_views.update_rack_session,
+        delete_view=rack_views.delete_rack_session,
+        permission="free",
+        path_prefix="sessions",
+        pk_name="session_id",
+    )

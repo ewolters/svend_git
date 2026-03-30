@@ -866,6 +866,11 @@
         <span id="viewLabel" style="color:rgba(74,222,128,0.3);">front</span>
     </span>
     <span style="color:rgba(255,255,255,0.08);">|</span>
+    <button onclick="saveSession()" class="rack-toolbar-label" style="background:none;border:1px solid rgba(74,222,128,0.15);border-radius:3px;padding:2px 8px;cursor:pointer;">save</button>
+    <button onclick="loadSessionList()" class="rack-toolbar-label" style="background:none;border:1px solid rgba(255,255,255,0.08);border-radius:3px;padding:2px 8px;cursor:pointer;">load</button>
+    <span style="color:rgba(255,255,255,0.08);">|</span>
+    <span class="rack-toolbar-label" id="sessionLabel" style="color:rgba(255,255,255,0.12);font-size:9px;">unsaved</span>
+    <span style="color:rgba(255,255,255,0.08);">|</span>
     <a href="/app/demo/" class="rack-toolbar-label" style="text-decoration:none;">hub</a>
 </div>
 
@@ -1099,6 +1104,143 @@ async function mountUnit(sidebarItem) {
     // Reflow
     requestAnimationFrame(() => { genBolts(); positionEarBolts(); syncMainframeHeight(); });
     SvToast.success(unitName + ' mounted');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SESSION PERSISTENCE — save/load rack state via /api/rack/
+// ═══════════════════════════════════════════════════════════
+
+let _currentSessionId = null;
+
+function collectRackState() {
+    // Collect mounted units
+    const units = [];
+    document.querySelectorAll('#rackBay .rack-unit-front').forEach((el, i) => {
+        const unitType = el.dataset.unit;
+        const unitId = el.dataset.id;
+        if (!unitType) return;
+
+        // Collect unit-specific data from the FR instance
+        const inst = ForgeRack.units[unitId];
+        const unitData = {};
+        if (inst && inst.getAllData) unitData.data = inst.getAllData();
+        if (inst && inst.data) unitData.data = inst.data;
+
+        units.push({ id: unitId, type: unitType, position: i, unitData });
+    });
+
+    // Collect cables from wiring system (FR internal)
+    // wiring.js stores cables in closure — expose via FR
+    const cables = (window._forgerackCables || []).map(c => ({
+        source: { unitId: c.source.unitId, output: c.source.output },
+        target: { unitId: c.target.unitId, input: c.target.input },
+    }));
+
+    return { units, cables, savedAt: new Date().toISOString() };
+}
+
+async function saveSession() {
+    const state = collectRackState();
+    if (state.units.length === 0) {
+        SvToast.warn('Nothing to save — mount some units first');
+        return;
+    }
+
+    const title = _currentSessionId ? null : prompt('Session name:', 'Untitled Rack');
+    if (title === null && !_currentSessionId) return;
+
+    try {
+        let resp;
+        if (_currentSessionId) {
+            // Update existing
+            resp = await SvApi.post('/api/rack/sessions/' + _currentSessionId + '/', { state });
+        } else {
+            // Create new
+            resp = await SvApi.post('/api/rack/sessions/', { title: title || 'Untitled Rack', state });
+            _currentSessionId = resp.id;
+        }
+        document.getElementById('sessionLabel').textContent = resp.title || title || 'saved';
+        document.getElementById('sessionLabel').style.color = 'rgba(74,222,128,0.3)';
+        SvToast.success('Session saved');
+    } catch (e) {
+        SvToast.error('Save failed: ' + (e.message || e));
+    }
+}
+
+async function loadSessionList() {
+    try {
+        const sessions = await SvApi.get('/api/rack/sessions/');
+        if (!sessions.length) {
+            SvToast.info('No saved sessions');
+            return;
+        }
+
+        // Build a simple selection modal
+        const items = sessions.map(s =>
+            '<div class="sv-list-item" style="padding:6px 10px;cursor:pointer;" onclick="loadSession(\'' + s.id + '\')">' +
+            '<div class="sv-item-main"><div class="sv-item-title" style="font-size:11px;">' + esc(s.title) + '</div>' +
+            '<div class="sv-item-meta"><span class="sv-badge" data-status="' + s.status + '">' + s.session_type + '</span>' +
+            '<span style="color:var(--text-dim);">' + (s.updated_at ? new Date(s.updated_at).toLocaleDateString() : '') + '</span></div></div></div>'
+        ).join('');
+
+        SvModal.create({
+            title: 'Load Session',
+            body: '<div style="max-height:300px;overflow-y:auto;">' + items + '</div>',
+            actions: [{ label: 'Cancel', onClick: () => SvModal.close() }],
+        });
+    } catch (e) {
+        SvToast.error('Load failed: ' + (e.message || e));
+    }
+}
+
+async function loadSession(sessionId) {
+    SvModal.close();
+    try {
+        const session = await SvApi.get('/api/rack/sessions/' + sessionId + '/');
+        const state = session.state;
+        if (!state || !state.units) {
+            SvToast.warn('Session has no rack state');
+            return;
+        }
+
+        // Clear current rack
+        clearRack();
+
+        // Remount units
+        for (const unit of state.units) {
+            // Create a fake sidebar item to reuse mountUnit
+            const fakeItem = document.createElement('div');
+            fakeItem.dataset.unit = unit.type;
+            await mountUnit(fakeItem);
+        }
+
+        // Rewire cables
+        if (state.cables && ForgeRack.connect) {
+            for (const cable of state.cables) {
+                ForgeRack.connect(cable.source.unitId, cable.source.output, cable.target.unitId, cable.target.input);
+            }
+        }
+
+        _currentSessionId = sessionId;
+        document.getElementById('sessionLabel').textContent = session.title;
+        document.getElementById('sessionLabel').style.color = 'rgba(74,222,128,0.3)';
+        SvToast.success('Session loaded: ' + session.title);
+    } catch (e) {
+        SvToast.error('Load failed: ' + (e.message || e));
+    }
+}
+
+function clearRack() {
+    const bay = document.getElementById('rackBay');
+    const backBay = document.getElementById('rackBackBay');
+    bay.innerHTML = '<div class="rack-empty" id="rackEmptyState"><div class="rack-empty-mark">&#x25C9;</div><div class="rack-empty-text">No devices mounted.</div></div>';
+    if (backBay) backBay.innerHTML = '';
+    _currentSessionId = null;
+    _unitCounter = 0;
+    document.getElementById('sessionLabel').textContent = 'unsaved';
+    document.getElementById('sessionLabel').style.color = 'rgba(255,255,255,0.12)';
+    // Update sidebar counts
+    document.querySelectorAll('.rack-sidebar-item[data-unit] .rack-sidebar-count').forEach(b => b.textContent = '');
 }
 
 genBolts();
