@@ -307,7 +307,7 @@
 
         /* === Header === */
         header {
-            padding: 1.5rem 0;
+            padding: 0 1.5rem;
             border-bottom: 1px solid var(--border);
         }
 
@@ -315,6 +315,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            height: 56px;
         }
 
         .logo {
@@ -1225,7 +1226,6 @@
 <body>
     {% csrf_token %}
     <header>
-        <div class="container">
             <div class="header-content">
                 <a href="/app/" class="logo">
                     <span class="logo-icon">
@@ -1328,7 +1328,6 @@
                     </div>
                 </nav>
             </div>
-        </div>
     </header>
 
     <!-- Email Verification Banner -->
