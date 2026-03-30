@@ -1,0 +1,174 @@
+{% extends "base_app.html" %}
+{% block title %}Migration Dashboard — SVEND{% endblock %}
+
+{% block container_class %}sv-full{% endblock %}
+
+{% block content %}
+<div style="padding:20px 24px;max-width:1400px;margin:0 auto;">
+    <div class="sv-detail-header">
+        <h3>Object 271 — Product Rebuild</h3>
+        <div class="sv-detail-meta">
+            <span class="sv-badge sv-badge-blue">In Progress</span>
+            <span>Stack: rack templates + sv-* widgets + ForgeViz + forge packages</span>
+        </div>
+    </div>
+
+    <!-- Summary KPIs -->
+    <div class="sv-kpi-strip cols-5" style="margin-bottom:20px;">
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="kpiTotal">0</div><div class="sv-kpi-label">Total Templates</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="kpiMigrated" style="color:var(--sv-green);">0</div><div class="sv-kpi-label">Migrated</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="kpiInProgress" style="color:var(--sv-amber);">0</div><div class="sv-kpi-label">In Progress</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="kpiPending">0</div><div class="sv-kpi-label">Pending</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="kpiDelete" style="color:var(--sv-red);">0</div><div class="sv-kpi-label">Delete</div></div>
+    </div>
+
+    <!-- Filter -->
+    <div class="sv-filter-bar" style="margin-bottom:14px;">
+        <button class="sv-filter-btn active" onclick="filterTier(this,'all')">All</button>
+        <button class="sv-filter-btn" onclick="filterTier(this,'1')">Tier 1</button>
+        <button class="sv-filter-btn" onclick="filterTier(this,'2')">Tier 2</button>
+        <button class="sv-filter-btn" onclick="filterTier(this,'3')">Tier 3</button>
+        <button class="sv-filter-btn" onclick="filterTier(this,'4')">Tier 4</button>
+        <button class="sv-filter-btn" onclick="filterTier(this,'5')">Content</button>
+        <button class="sv-filter-btn" onclick="filterTier(this,'skip')">Keep/Delete</button>
+    </div>
+
+    <!-- Table -->
+    <table class="sv-table sv-table-clickable" id="migTable">
+        <thead><tr>
+            <th>Template</th><th>Lines</th><th>Tier</th><th>Rack</th><th>Status</th><th>Notes</th>
+        </tr></thead>
+        <tbody id="migBody"></tbody>
+    </table>
+
+    <!-- Demo links -->
+    <div class="sv-section">
+        <div class="sv-section-title">Demo Surfaces</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="/app/demo/rack/" class="sv-btn sv-btn-sm">CRUD Rack Demo</a>
+            <a href="/app/demo/qms/" class="sv-btn sv-btn-sm">QMS Workbench</a>
+            <a href="/app/graph-map/" class="sv-btn sv-btn-sm sv-btn-primary">Graph Map (migrated)</a>
+        </div>
+    </div>
+</div>
+
+<script>
+const TEMPLATES = [
+    // Tier 1 — Rebuild First
+    {name:'qms.html',lines:34,tier:'1',rack:'workspace',status:'in_progress',notes:'QMS workbench at /app/demo/qms/'},
+    {name:'dashboard.html',lines:568,tier:'1',rack:'dashboard',status:'pending',notes:'Main hub — forgeviz KPIs'},
+    {name:'graph_map.html',lines:232,tier:'1',rack:'workspace',status:'done',notes:'Migrated 2026-03-30. Zero custom CSS.'},
+    {name:'investigations.html',lines:808,tier:'1',rack:'workspace',status:'pending',notes:'CANON-002. Will be QMS workbench section.'},
+    {name:'safety_app.html',lines:1685,tier:'1',rack:'workspace',status:'pending',notes:'HIRARC, Frontier Cards'},
+
+    // Tier 2 — Core Tools
+    {name:'fmea.html',lines:1706,tier:'2',rack:'workspace',status:'pending',notes:'Standalone + FMIS integration'},
+    {name:'rca.html',lines:2137,tier:'2',rack:'workspace',status:'pending',notes:'Root cause + AI critique'},
+    {name:'a3.html',lines:1491,tier:'2',rack:'workspace',status:'pending',notes:'A3 report editor'},
+    {name:'hoshin.html',lines:4397,tier:'2',rack:'workspace',status:'pending',notes:'X-Matrix. Complex.'},
+    {name:'vsm.html',lines:3703,tier:'2',rack:'workspace',status:'pending',notes:'Value stream mapping canvas'},
+    {name:'whiteboard.html',lines:5191,tier:'2',rack:'workspace',status:'pending',notes:'Collaborative visual'},
+    {name:'iso_doc.html',lines:1362,tier:'2',rack:'workspace',status:'pending',notes:'Document editor'},
+    {name:'learn.html',lines:5060,tier:'2',rack:'workspace',status:'pending',notes:'Courses, assessments'},
+    {name:'settings.html',lines:1448,tier:'2',rack:'crud',status:'pending',notes:'User preferences'},
+    {name:'projects.html',lines:4479,tier:'2',rack:'workspace',status:'pending',notes:'Hypothesis management'},
+
+    // Tier 3 — Forge Decomposition
+    {name:'analysis_workbench.html',lines:11464,tier:'3',rack:'decompose',status:'pending',notes:'IDE → forge. Computation → forgestat/forgespc/forgedoe'},
+    {name:'simulator.html',lines:9222,tier:'3',rack:'decompose',status:'pending',notes:'Plant sim → forgespc + forgeviz'},
+    {name:'calculators.html',lines:8199,tier:'3',rack:'decompose',status:'pending',notes:'Operations workbench → forge packages'},
+    {name:'models.html',lines:2550,tier:'3',rack:'decompose',status:'pending',notes:'ML → forgeml (TBD)'},
+    {name:'experimenter.html',lines:251,tier:'3',rack:'decompose',status:'pending',notes:'DOE → forgedoe'},
+    {name:'forecast.html',lines:418,tier:'3',rack:'decompose',status:'pending',notes:'Time series → forgestat'},
+
+    // Tier 4 — Migrate When Touched
+    {name:'ishikawa.html',lines:862,tier:'4',rack:'workspace',status:'pending',notes:'Fishbone diagram'},
+    {name:'ce_matrix.html',lines:525,tier:'4',rack:'workspace',status:'pending',notes:'C&E scoring matrix'},
+    {name:'kanban_cards.html',lines:970,tier:'4',rack:'workspace',status:'pending',notes:'Card generator'},
+    {name:'triage.html',lines:701,tier:'4',rack:'workspace',status:'pending',notes:'Data cleaning'},
+    {name:'notebooks.html',lines:1139,tier:'4',rack:'workspace',status:'pending',notes:'Trial tracking'},
+    {name:'forge.html',lines:631,tier:'4',rack:'workspace',status:'pending',notes:'Synthetic data'},
+    {name:'workflows.html',lines:947,tier:'4',rack:'workspace',status:'pending',notes:'Agent pipelines'},
+    {name:'coder.html',lines:757,tier:'4',rack:'workspace',status:'pending',notes:'AI coding assistant'},
+    {name:'harada.html',lines:1039,tier:'4',rack:'workspace',status:'pending',notes:'Personal practice'},
+    {name:'knowledge.html',lines:1165,tier:'4',rack:'workspace',status:'pending',notes:'May merge into graph_map'},
+    {name:'workbench.html',lines:1341,tier:'4',rack:'workspace',status:'pending',notes:'Agent orchestration'},
+    {name:'front_page.html',lines:306,tier:'4',rack:'dashboard',status:'pending',notes:'Post-login landing'},
+
+    // Tier 5 — Content (no rack needed)
+    {name:'landing.html',lines:2277,tier:'5',rack:'—',status:'pending',notes:'Marketing. base_guest.html'},
+    {name:'continuous_improvement.html',lines:710,tier:'5',rack:'—',status:'pending',notes:'CI landing'},
+    {name:'5s_playbook.html',lines:802,tier:'5',rack:'—',status:'pending',notes:'Playbook'},
+    {name:'kaizen_playbook.html',lines:576,tier:'5',rack:'—',status:'pending',notes:'Playbook'},
+    {name:'mdi_playbook.html',lines:773,tier:'5',rack:'—',status:'pending',notes:'Playbook'},
+    {name:'lsw_playbook.html',lines:678,tier:'5',rack:'—',status:'pending',notes:'Playbook'},
+    {name:'hoshin_playbook.html',lines:875,tier:'5',rack:'—',status:'pending',notes:'Playbook'},
+    {name:'vsm_playbook.html',lines:624,tier:'5',rack:'—',status:'pending',notes:'Playbook'},
+    {name:'iso_9001_internal_audit_playbook.html',lines:554,tier:'5',rack:'—',status:'pending',notes:'Playbook'},
+    {name:'classical_vs_bayesian_spc.html',lines:606,tier:'5',rack:'—',status:'pending',notes:'Article'},
+    {name:'svend_vs_minitab.html',lines:603,tier:'5',rack:'—',status:'pending',notes:'Comparison'},
+    {name:'svend_vs_jmp.html',lines:601,tier:'5',rack:'—',status:'pending',notes:'Comparison'},
+    {name:'education_partnerships.html',lines:568,tier:'5',rack:'—',status:'pending',notes:'Partner page'},
+    {name:'partnerships.html',lines:325,tier:'5',rack:'—',status:'pending',notes:'ILSSI page'},
+    {name:'blog_detail.html',lines:384,tier:'5',rack:'—',status:'pending',notes:'Blog post'},
+    {name:'blog_list.html',lines:223,tier:'5',rack:'—',status:'pending',notes:'Blog index'},
+    {name:'compliance.html',lines:489,tier:'5',rack:'—',status:'pending',notes:'Trust page'},
+
+    // Keep as-is
+    {name:'internal_dashboard.html',lines:8323,tier:'skip',rack:'—',status:'keep',notes:'Staff-only. Rebuild last or never.'},
+    {name:'onboarding.html',lines:625,tier:'skip',rack:'—',status:'keep',notes:'Auth flow'},
+    {name:'login.html',lines:252,tier:'skip',rack:'—',status:'keep',notes:'Auth'},
+    {name:'register.html',lines:331,tier:'skip',rack:'—',status:'keep',notes:'Auth'},
+    {name:'settings.html',lines:1448,tier:'skip',rack:'—',status:'keep',notes:'Account settings'},
+    {name:'a3_print.html',lines:163,tier:'skip',rack:'—',status:'keep',notes:'Print/PDF'},
+    {name:'report_print.html',lines:163,tier:'skip',rack:'—',status:'keep',notes:'Print/PDF'},
+    {name:'iso_document_print.html',lines:301,tier:'skip',rack:'—',status:'keep',notes:'Print/PDF'},
+    {name:'doe_run_card.html',lines:168,tier:'skip',rack:'—',status:'keep',notes:'Print/PDF'},
+
+    // Delete
+    {name:'workbench_new.html',lines:11790,tier:'skip',rack:'—',status:'delete',notes:'Confirmed duplicate'},
+    {name:'safety_coming_soon.html',lines:1993,tier:'skip',rack:'—',status:'delete',notes:'Replaced by safety_app.html'},
+    {name:'iso_9001_qms.html',lines:1159,tier:'skip',rack:'—',status:'delete',notes:'Replaced by QMS workbench'},
+];
+
+let _filter = 'all';
+
+function filterTier(btn, tier) {
+    _filter = tier;
+    document.querySelectorAll('.sv-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTable();
+}
+
+function renderTable() {
+    const filtered = _filter === 'all' ? TEMPLATES : TEMPLATES.filter(t => t.tier === _filter);
+    const tbody = document.getElementById('migBody');
+    tbody.innerHTML = filtered.map(t => {
+        const statusBadge = t.status === 'done' ? 'sv-badge-green'
+            : t.status === 'in_progress' ? 'sv-badge-amber'
+            : t.status === 'delete' ? 'sv-badge-red'
+            : t.status === 'keep' ? 'sv-badge-dim'
+            : 'sv-badge-blue';
+        const tierLabel = t.tier === 'skip' ? '—' : t.tier;
+        return `<tr>
+            <td class="sv-table-mono">${t.name}</td>
+            <td class="sv-table-mono" style="text-align:right;">${t.lines.toLocaleString()}</td>
+            <td style="text-align:center;">${tierLabel}</td>
+            <td>${t.rack}</td>
+            <td><span class="sv-badge ${statusBadge}">${t.status}</span></td>
+            <td class="sv-table-dim">${t.notes}</td>
+        </tr>`;
+    }).join('');
+
+    // Update KPIs
+    const all = TEMPLATES;
+    document.getElementById('kpiTotal').textContent = all.length;
+    document.getElementById('kpiMigrated').textContent = all.filter(t => t.status === 'done').length;
+    document.getElementById('kpiInProgress').textContent = all.filter(t => t.status === 'in_progress').length;
+    document.getElementById('kpiPending').textContent = all.filter(t => t.status === 'pending').length;
+    document.getElementById('kpiDelete').textContent = all.filter(t => t.status === 'delete').length;
+}
+
+renderTable();
+</script>
+{% endblock %}

@@ -1199,6 +1199,7 @@
                     </div>
                     <a href="/app/learn/">Learn</a>
                     <a href="/internal/dashboard/" id="nav-internal" style="display:none;">Internal</a>
+                    <a href="/app/demo/" id="nav-migration" style="display:none;">Migration</a>
                     <div class="user-info">
                         <span class="user-name" id="user-name">Loading...</span>
                         <div class="notif-bell" id="notif-bell" onclick="toggleNotifPanel(event)">
@@ -1485,6 +1486,8 @@
                     if (data.is_internal) {
                         const iNav = document.getElementById('nav-internal');
                         if (iNav) iNav.style.display = '';
+                        const mNav = document.getElementById('nav-migration');
+                        if (mNav) mNav.style.display = '';
                     }
                     // Notify pages that user data is ready
                     window.dispatchEvent(new CustomEvent('svendUserReady', { detail: data }));

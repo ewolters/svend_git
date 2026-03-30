@@ -227,6 +227,9 @@ urlpatterns = varta_urls + [
     path("app/front-page/", _app_view("front_page.html"), name="front_page"),
     path("app/practice/", _app_view("harada.html"), name="harada"),
     path("app/qms/", _app_view("qms.html"), name="qms"),
+    path(
+        "app/demo/", _app_view("migration_dashboard.html"), name="migration_dashboard"
+    ),  # staff-only — migration tracker
     path("app/demo/rack/", _app_view("rack_demo.html"), name="rack_demo"),  # hidden — nextgen UI review
     path("app/demo/qms/", _app_view("qms_workbench.html"), name="qms_workbench_demo"),  # hidden — QMS workbench dev
     path("app/iso/", _app_view("qms.html"), name="iso"),  # redirect legacy
