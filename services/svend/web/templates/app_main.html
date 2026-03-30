@@ -2,18 +2,48 @@
 {% block title %}SVEND{% endblock %}
 
 {% block workspace_style %}
-/* Overview panel grid — not cards, instrument panels */
-.ov-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1px; background: var(--border); height: 100%; }
-.ov-panel { background: var(--bg-primary); position: relative; overflow: hidden; display: flex; flex-direction: column; }
-.ov-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); border-bottom: 1px solid var(--border); }
-.ov-panel-body { flex: 1; padding: 8px; overflow: hidden; }
-/* Screw corners */
-.ov-panel::before, .ov-panel::after { content: ''; position: absolute; width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-secondary); z-index: 2; }
-.ov-panel::before { top: 3px; left: 3px; }
-.ov-panel::after { top: 3px; right: 3px; }
-.ov-panel .ov-screw-bl, .ov-panel .ov-screw-br { position: absolute; width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-secondary); z-index: 2; bottom: 3px; }
-.ov-panel .ov-screw-bl { left: 3px; }
-.ov-panel .ov-screw-br { right: 3px; }
+/* Glass cockpit — overview instrument panels */
+.ov-wrap { padding: 12px; height: 100%; box-sizing: border-box; }
+.ov-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; height: 100%; }
+.ov-panel {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.ov-panel-head {
+    display: flex;
+    align-items: center;
+    padding: 4px 24px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    min-height: 24px;
+}
+.ov-panel-head span { flex: 1; }
+.ov-panel-head button { opacity: 0; transition: opacity 0.15s; }
+.ov-panel:hover .ov-panel-head button { opacity: 1; }
+.ov-panel-body { flex: 1; padding: 8px; overflow: hidden; position: relative; }
+
+/* Screw fasteners — outside content flow */
+.ov-screw {
+    position: absolute;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--bg-secondary);
+    z-index: 2;
+}
+.ov-screw.tl { top: 2px; left: 2px; }
+.ov-screw.tr { top: 2px; right: 2px; }
+.ov-screw.bl { bottom: 2px; left: 2px; }
+.ov-screw.br { bottom: 2px; right: 2px; }
 
 /* Config strip — right side, overview only */
 .ov-config { width: 220px; background: var(--bg-secondary); border-left: 1px solid var(--border); padding: 12px; overflow-y: auto; display: none; flex-shrink: 0; }
@@ -91,26 +121,28 @@
 
         <!-- Overview -->
         <div class="app-section active" id="secOverview" style="flex-direction:row;">
-            <div class="ov-grid" style="flex:1;">
-                <div class="ov-panel" id="panel0">
-                    <span class="ov-screw-bl"></span><span class="ov-screw-br"></span>
-                    <div class="ov-panel-head"><span id="p0title">Signal Trend</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(0)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
-                    <div class="ov-panel-body" id="p0body"></div>
-                </div>
-                <div class="ov-panel" id="panel1">
-                    <span class="ov-screw-bl"></span><span class="ov-screw-br"></span>
-                    <div class="ov-panel-head"><span id="p1title">Commitment Health</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(1)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
-                    <div class="ov-panel-body" id="p1body"></div>
-                </div>
-                <div class="ov-panel" id="panel2">
-                    <span class="ov-screw-bl"></span><span class="ov-screw-br"></span>
-                    <div class="ov-panel-head"><span id="p2title">CI Readiness</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(2)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
-                    <div class="ov-panel-body" id="p2body"></div>
-                </div>
-                <div class="ov-panel" id="panel3">
-                    <span class="ov-screw-bl"></span><span class="ov-screw-br"></span>
-                    <div class="ov-panel-head"><span id="p3title">Needs Attention</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(3)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
-                    <div class="ov-panel-body" id="p3body" style="overflow-y:auto;"></div>
+            <div class="ov-wrap" style="flex:1;">
+                <div class="ov-grid">
+                    <div class="ov-panel" id="panel0">
+                        <span class="ov-screw tl"></span><span class="ov-screw tr"></span><span class="ov-screw bl"></span><span class="ov-screw br"></span>
+                        <div class="ov-panel-head"><span id="p0title">Signal Trend</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(0)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
+                        <div class="ov-panel-body" id="p0body"></div>
+                    </div>
+                    <div class="ov-panel" id="panel1">
+                        <span class="ov-screw tl"></span><span class="ov-screw tr"></span><span class="ov-screw bl"></span><span class="ov-screw br"></span>
+                        <div class="ov-panel-head"><span id="p1title">Commitment Health</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(1)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
+                        <div class="ov-panel-body" id="p1body"></div>
+                    </div>
+                    <div class="ov-panel" id="panel2">
+                        <span class="ov-screw tl"></span><span class="ov-screw tr"></span><span class="ov-screw bl"></span><span class="ov-screw br"></span>
+                        <div class="ov-panel-head"><span id="p2title">CI Readiness</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(2)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
+                        <div class="ov-panel-body" id="p2body"></div>
+                    </div>
+                    <div class="ov-panel" id="panel3">
+                        <span class="ov-screw tl"></span><span class="ov-screw tr"></span><span class="ov-screw bl"></span><span class="ov-screw br"></span>
+                        <div class="ov-panel-head"><span id="p3title">Needs Attention</span><button class="sv-btn sv-btn-sm sv-btn-ghost" onclick="configPanel(3)" style="padding:1px 4px;font-size:9px;">cfg</button></div>
+                        <div class="ov-panel-body" id="p3body" style="overflow-y:auto;"></div>
+                    </div>
                 </div>
             </div>
         </div>

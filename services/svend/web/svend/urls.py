@@ -230,12 +230,8 @@ urlpatterns = varta_urls + [
     path(
         "app/demo/", _app_view("migration_dashboard.html"), name="migration_dashboard"
     ),  # staff-only — migration tracker
-    path("app/demo/rack/", _app_view("rack_demo.html"), name="rack_demo"),  # hidden — nextgen UI review
-    path("app/demo/qms/", _app_view("qms_workbench.html"), name="qms_workbench_demo"),  # hidden — QMS workbench dev
-    path(
-        "app/demo/dashboard/", _app_view("dashboard_new.html"), name="dashboard_demo"
-    ),  # hidden — dashboard rebuild (old attempt)
-    path("app/demo/main/", _app_view("app_main.html"), name="app_main_demo"),  # hidden — main app surface
+    path("app/demo/rack/", _app_view("rack_demo.html"), name="rack_demo"),
+    path("app/demo/main/", _app_view("app_main.html"), name="app_main_demo"),
     path("app/iso/", _app_view("qms.html"), name="iso"),  # redirect legacy
     path("app/iso-docs/", _app_view("iso_doc.html"), name="iso_doc"),
     path("app/iso-docs/<uuid:doc_id>/", _app_view("iso_doc.html"), name="iso_doc_edit"),
