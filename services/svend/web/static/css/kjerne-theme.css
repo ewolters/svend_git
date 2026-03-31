@@ -1,163 +1,139 @@
 /*
  * ══════════════════════════════════════════════════════════════
- *  KJERNE — SVEND Manufacturer Theme
- *  Clean precision instrumentation. Scandinavian. Modern.
- *  One cohesive aesthetic for all SVEND surfaces.
+ *  KJERNE INSTRUMENTS — SVEND Manufacturer Theme
+ *  Scandinavian precision. Clean modern instrumentation.
+ *  Derived from forgerack analog component language.
  *
- *  Replaces: individual sv-* widget overrides, inline panel styles
- *  Works alongside: svend-widgets.css (layout), forgerack (rack only)
- *
- *  Design language:
- *  - Dark forest green base
- *  - Recessed display windows for data
- *  - JetBrains Mono for values, Inter for labels
- *  - Subtle depth via inset shadows, not texture or grunge
- *  - LED indicators for status, not colored text
- *  - One button family (3 states), not 12 variations
- *  - Precision, not decoration
+ *  Physical: stamped steel panels, machined buttons, recessed
+ *  display windows, LED glow, engraved labels.
+ *  Clean: no grunge, no wear, no caution stripes.
  * ══════════════════════════════════════════════════════════════
  */
 
-/* ── Foundation ── */
-
 :root {
-    /* Kjerne palette — forest green with teal knowledge accent */
     --kj-bg: #0a0f0a;
     --kj-bg-raised: #0e130e;
-    --kj-bg-recessed: rgba(0,0,0,0.25);
+    --kj-bg-recessed: #060906;
     --kj-border: #1a201a;
-    --kj-border-light: #222822;
+    --kj-border-light: #252b25;
     --kj-accent: #4a9f6e;
     --kj-accent-dim: rgba(74,159,110,0.15);
+    --kj-accent-glow: rgba(74,159,110,0.12);
     --kj-knowledge: #2dd4bf;
     --kj-knowledge-dim: rgba(45,212,191,0.12);
-
-    /* Status — same across all surfaces */
-    --kj-green: #4ade80;
-    --kj-amber: #facc15;
-    --kj-red: #f87171;
+    --kj-green: #22c55e;
+    --kj-amber: #f59e0b;
+    --kj-red: #ef4444;
     --kj-blue: #60a5fa;
-
-    /* Text hierarchy */
     --kj-text: #e0e8e0;
     --kj-text-secondary: #9aaa9a;
-    --kj-text-dim: #5a6a5a;
-    --kj-text-label: #4a5a4a;
-
-    /* Typography */
+    --kj-text-dim: #5a6f5a;
+    --kj-text-label: #4a5f4a;
     --kj-mono: 'JetBrains Mono', 'Fira Code', monospace;
     --kj-sans: 'Inter', system-ui, sans-serif;
+    --kj-industrial: 'Arial Narrow', 'Arial', sans-serif;
 }
 
 
-/* ── Panels — stamped steel with rolled edges ── */
+/* ══ PANELS ══ */
 
 .kj-panel {
     background:
-        linear-gradient(180deg, rgba(255,255,255,0.008) 0%, transparent 2px, transparent 100%),
+        linear-gradient(180deg, rgba(255,255,255,0.01) 0%, transparent 3px, transparent),
         var(--kj-bg-recessed);
     border: 1px solid var(--kj-border);
     border-radius: 2px;
     box-shadow:
-        inset 0 1px 4px rgba(0,0,0,0.4),
-        0 1px 0 rgba(255,255,255,0.015);
+        inset 0 2px 6px rgba(0,0,0,0.5),
+        0 1px 0 rgba(255,255,255,0.02);
     padding: 8px 10px;
 }
 
 .kj-panel-raised {
     background:
-        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005) 50%, rgba(0,0,0,0.05)),
-        linear-gradient(135deg, var(--kj-bg-raised), #101510);
+        repeating-linear-gradient(180deg, rgba(255,255,255,0.004) 0px, transparent 1px, transparent 3px),
+        linear-gradient(160deg, #121812 0%, #0e140e 30%, #101610 50%, #0c120c 80%);
     border: 1px solid var(--kj-border-light);
-    border-bottom: 1px solid var(--kj-border);
+    border-bottom-color: var(--kj-border);
     border-radius: 2px;
     box-shadow:
-        0 1px 3px rgba(0,0,0,0.4),
+        0 2px 6px rgba(0,0,0,0.5),
         inset 0 1px 0 rgba(255,255,255,0.03);
-    padding: 8px 10px;
+    padding: 10px 12px;
 }
 
 
-/* ── Section labels — engraved, not decorative ── */
+/* ══ LABELS ══ */
 
 .kj-label {
-    font: 600 9px/1 var(--kj-sans);
+    font: 700 9px/1 var(--kj-industrial);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.12em;
     color: var(--kj-text-label);
     margin-bottom: 6px;
 }
 
 .kj-label-bright {
-    font: 600 9px/1 var(--kj-sans);
+    font: 700 10px/1 var(--kj-industrial);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     color: var(--kj-text-secondary);
     margin-bottom: 6px;
 }
 
 
-/* ── Values — monospace readouts ── */
+/* ══ VALUES ══ */
 
 .kj-value {
-    font: 500 13px/1 var(--kj-mono);
+    font: 600 13px/1 var(--kj-mono);
     color: var(--kj-text);
 }
-
 .kj-value-lg {
-    font: 600 20px/1 var(--kj-mono);
+    font: 700 22px/1 var(--kj-mono);
     color: var(--kj-text);
 }
-
 .kj-value-xl {
-    font: 700 28px/1 var(--kj-mono);
+    font: 700 32px/1 var(--kj-mono);
     color: var(--kj-accent);
-    text-shadow: 0 0 8px var(--kj-accent-dim);
+    text-shadow: 0 0 10px var(--kj-accent-glow);
 }
-
 .kj-value.good { color: var(--kj-green); }
 .kj-value.warn { color: var(--kj-amber); }
-.kj-value.bad { color: var(--kj-red); }
+.kj-value.bad  { color: var(--kj-red); }
 
 
-/* ── Readout window — display cut into panel ── */
+/* ══ READOUT — display window cut into panel ══ */
 
 .kj-readout {
     display: inline-flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
-    padding: 6px 10px;
-    background: #040604;
-    border: 1px solid var(--kj-border);
-    border-top-color: #0a0a0a;
-    border-radius: 2px;
-    box-shadow:
-        inset 0 2px 6px rgba(0,0,0,0.5),
-        0 1px 0 rgba(255,255,255,0.015);
-    text-align: center;
-    min-width: 48px;
+    gap: 2px;
 }
-
 .kj-readout-value {
-    font: 600 18px/1 var(--kj-mono);
+    font: 700 22px/1 var(--kj-mono);
     color: var(--kj-accent);
-    text-shadow: 0 0 6px var(--kj-accent-dim);
+    text-shadow: 0 0 8px var(--kj-accent-glow);
+    min-width: 56px;
+    text-align: center;
+    padding: 4px 8px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(0,0,0,0.5);
+    border-radius: 2px;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.5);
 }
-
 .kj-readout-label {
-    font: 600 7px/1 var(--kj-sans);
+    font: 700 8px/1 var(--kj-industrial);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
     color: var(--kj-text-label);
 }
+.kj-readout.good .kj-readout-value { color: var(--kj-green); text-shadow: 0 0 8px rgba(34,197,94,0.2); }
+.kj-readout.warn .kj-readout-value { color: var(--kj-amber); text-shadow: 0 0 8px rgba(245,158,11,0.2); }
+.kj-readout.bad  .kj-readout-value { color: var(--kj-red);   text-shadow: 0 0 8px rgba(239,68,68,0.2); }
 
-.kj-readout.good .kj-readout-value { color: var(--kj-green); text-shadow: 0 0 6px rgba(74,222,128,0.15); }
-.kj-readout.warn .kj-readout-value { color: var(--kj-amber); text-shadow: 0 0 6px rgba(250,204,21,0.15); }
-.kj-readout.bad .kj-readout-value { color: var(--kj-red); text-shadow: 0 0 6px rgba(248,113,113,0.15); }
 
-
-/* ── LED ── */
+/* ══ LED ══ */
 
 .kj-led {
     display: inline-block;
@@ -168,86 +144,66 @@
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
     transition: all 0.15s;
 }
-.kj-led.on-green { background: radial-gradient(circle at 40% 35%, #6ef59e, #18a34a); box-shadow: 0 0 4px rgba(34,197,94,0.5); }
-.kj-led.on-amber { background: radial-gradient(circle at 40% 35%, #fcd34d, #b45309); box-shadow: 0 0 4px rgba(245,158,11,0.5); }
-.kj-led.on-red   { background: radial-gradient(circle at 40% 35%, #fca5a5, #b91c1c); box-shadow: 0 0 4px rgba(239,68,68,0.5); }
-.kj-led.on-blue  { background: radial-gradient(circle at 40% 35%, #93c5fd, #1d4ed8); box-shadow: 0 0 4px rgba(96,165,250,0.5); }
+.kj-led.on-green { background: radial-gradient(circle at 40% 35%, #6ef59e, #18a34a); box-shadow: 0 0 4px rgba(34,197,94,0.5), 0 0 10px rgba(34,197,94,0.15); }
+.kj-led.on-amber { background: radial-gradient(circle at 40% 35%, #fcd34d, #b45309); box-shadow: 0 0 4px rgba(245,158,11,0.5), 0 0 10px rgba(245,158,11,0.15); }
+.kj-led.on-red   { background: radial-gradient(circle at 40% 35%, #fca5a5, #b91c1c); box-shadow: 0 0 4px rgba(239,68,68,0.5), 0 0 10px rgba(239,68,68,0.15); }
+.kj-led.on-blue  { background: radial-gradient(circle at 40% 35%, #93c5fd, #1d4ed8); box-shadow: 0 0 4px rgba(96,165,250,0.5), 0 0 10px rgba(96,165,250,0.15); }
 
 
-/* ── Meter — horizontal gauge ── */
+/* ══ METER ══ */
 
 .kj-meter {
     height: 6px;
-    background: rgba(0,0,0,0.3);
-    border: 1px solid var(--kj-border);
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(0,0,0,0.4);
     border-radius: 3px;
     overflow: hidden;
 }
-.kj-meter-fill {
-    height: 100%;
-    border-radius: 2px;
-    background: var(--kj-accent);
-    transition: width 0.3s;
-}
+.kj-meter-fill { height: 100%; border-radius: 2px; background: var(--kj-accent); transition: width 0.3s; }
 .kj-meter.good .kj-meter-fill { background: var(--kj-green); }
 .kj-meter.warn .kj-meter-fill { background: var(--kj-amber); }
-.kj-meter.bad .kj-meter-fill { background: var(--kj-red); }
+.kj-meter.bad  .kj-meter-fill { background: var(--kj-red); }
 
 
-/* ── Buttons — machined metal, proper press depth ── */
+/* ══ BUTTONS — machined metal ══ */
 
 .kj-btn {
     display: inline-flex;
     align-items: center;
     gap: 5px;
     padding: 5px 10px;
-    font: 500 11px/1 var(--kj-sans);
-    color: var(--kj-text-secondary);
-    background:
-        linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01) 40%, rgba(0,0,0,0.08));
-    border: 1px solid var(--kj-border-light);
-    border-bottom-color: var(--kj-border);
-    border-radius: 2px;
+    font: 700 10px/1 var(--kj-industrial);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(220,220,210,0.6);
+    background: linear-gradient(180deg, #3a3d3a, #2a2d2a);
+    border: 1px solid rgba(0,0,0,0.4);
+    border-radius: 1px;
     cursor: pointer;
-    transition: all 0.1s;
-    box-shadow:
-        0 1px 2px rgba(0,0,0,0.4),
-        inset 0 1px 0 rgba(255,255,255,0.04);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+    transition: transform 0.05s;
 }
-.kj-btn:hover {
-    color: var(--kj-text);
-    border-color: rgba(74,159,110,0.4);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
-}
-.kj-btn:active {
-    transform: translateY(1px);
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
-    background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.05));
-}
+.kj-btn:hover { color: rgba(220,220,210,0.85); box-shadow: 0 1px 3px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08); }
+.kj-btn:active { transform: translateY(1px); box-shadow: 0 0 1px rgba(0,0,0,0.4); }
 
 .kj-btn-primary {
-    background:
-        linear-gradient(180deg, rgba(74,159,110,0.25), rgba(74,159,110,0.08) 40%, rgba(74,159,110,0.04));
-    border-color: rgba(74,159,110,0.35);
-    border-bottom-color: rgba(74,159,110,0.25);
+    background: linear-gradient(180deg, rgba(74,159,110,0.3), rgba(74,159,110,0.1));
+    border: 1px solid rgba(74,159,110,0.3);
     color: var(--kj-accent);
 }
-.kj-btn-primary:hover {
-    background: linear-gradient(180deg, rgba(74,159,110,0.35), rgba(74,159,110,0.12));
-    box-shadow: 0 1px 4px rgba(74,159,110,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
-}
+.kj-btn-primary:hover { box-shadow: 0 1px 4px rgba(74,159,110,0.15), inset 0 1px 0 rgba(255,255,255,0.04); }
 
 .kj-btn-danger {
-    color: var(--kj-red);
-    border-color: rgba(248,113,113,0.25);
-    border-bottom-color: rgba(248,113,113,0.15);
+    color: rgba(239,68,68,0.7);
+    background: linear-gradient(180deg, #3a2a2a, #2a1a1a);
+    border-color: rgba(239,68,68,0.2);
 }
-.kj-btn-danger:hover { background: rgba(248,113,113,0.08); }
+.kj-btn-danger:hover { color: rgba(239,68,68,0.9); }
 
-.kj-btn-sm { padding: 3px 7px; font-size: 10px; }
+.kj-btn-sm { padding: 3px 7px; font-size: 9px; }
 
 
-/* ── Inputs — recessed into panel, display window feel ── */
+/* ══ INPUTS — recessed display window ══ */
 
 .kj-input {
     width: 100%;
@@ -255,13 +211,12 @@
     padding: 5px 7px;
     font: 12px/1 var(--kj-mono);
     color: var(--kj-text);
-    background: #050805;
-    border: 1px solid var(--kj-border);
-    border-top-color: #111;
+    background: #040604;
+    border: 1px solid rgba(0,0,0,0.5);
     border-radius: 2px;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.01);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.01);
 }
-.kj-input:focus { border-color: var(--kj-accent); outline: none; box-shadow: inset 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(74,159,110,0.15); }
+.kj-input:focus { border-color: var(--kj-accent); outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 0 0 1px var(--kj-accent-glow); }
 .kj-input::placeholder { color: var(--kj-text-dim); }
 
 .kj-select {
@@ -270,65 +225,62 @@
     padding: 5px 7px;
     font: 11px/1 var(--kj-sans);
     color: var(--kj-text);
-    background: #050805;
-    border: 1px solid var(--kj-border);
-    border-top-color: #111;
+    background: #040604;
+    border: 1px solid rgba(0,0,0,0.5);
     border-radius: 2px;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.01);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.01);
     cursor: pointer;
 }
 .kj-select:focus { border-color: var(--kj-accent); outline: none; }
 
 
-/* ── Segment control — recessed channel with toggle buttons ── */
+/* ══ SEGMENT — recessed channel ══ */
 
 .kj-segment {
     display: inline-flex;
-    border: 1px solid var(--kj-border);
+    border: 1px solid rgba(0,0,0,0.4);
     border-radius: 2px;
     overflow: hidden;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
-    background: rgba(0,0,0,0.15);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+    background: rgba(0,0,0,0.2);
 }
 .kj-segment-btn {
     padding: 4px 10px;
-    font: 500 10px/1 var(--kj-sans);
+    font: 700 9px/1 var(--kj-industrial);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
     color: var(--kj-text-dim);
     background: transparent;
     border: none;
-    border-right: 1px solid var(--kj-border);
+    border-right: 1px solid rgba(0,0,0,0.3);
     cursor: pointer;
     transition: all 0.1s;
 }
 .kj-segment-btn:last-child { border-right: none; }
 .kj-segment-btn:hover { color: var(--kj-text-secondary); background: rgba(255,255,255,0.03); }
-.kj-segment-btn.active {
-    color: var(--kj-accent);
-    background: var(--kj-accent-dim);
-    box-shadow: inset 0 1px 0 rgba(74,159,110,0.1);
-}
+.kj-segment-btn.active { color: var(--kj-accent); background: var(--kj-accent-dim); }
 
 
-/* ── Badge / Status ── */
+/* ══ BADGE ══ */
 
 .kj-badge {
     display: inline-block;
     padding: 2px 6px;
-    font: 600 9px/1 var(--kj-sans);
+    font: 700 8px/1 var(--kj-industrial);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    border-radius: 2px;
-    background: rgba(255,255,255,0.05);
+    letter-spacing: 0.06em;
+    border-radius: 1px;
+    background: rgba(255,255,255,0.04);
     color: var(--kj-text-dim);
     border: 1px solid rgba(255,255,255,0.06);
 }
-.kj-badge.green { background: rgba(74,222,128,0.12); color: var(--kj-green); border-color: rgba(74,222,128,0.2); }
-.kj-badge.amber { background: rgba(250,204,21,0.12); color: var(--kj-amber); border-color: rgba(250,204,21,0.2); }
-.kj-badge.red { background: rgba(248,113,113,0.12); color: var(--kj-red); border-color: rgba(248,113,113,0.2); }
-.kj-badge.blue { background: rgba(96,165,250,0.12); color: var(--kj-blue); border-color: rgba(96,165,250,0.2); }
+.kj-badge.green { background: rgba(34,197,94,0.12); color: var(--kj-green); border-color: rgba(34,197,94,0.2); }
+.kj-badge.amber { background: rgba(245,158,11,0.12); color: var(--kj-amber); border-color: rgba(245,158,11,0.2); }
+.kj-badge.red   { background: rgba(239,68,68,0.12); color: var(--kj-red); border-color: rgba(239,68,68,0.2); }
+.kj-badge.blue  { background: rgba(96,165,250,0.12); color: var(--kj-blue); border-color: rgba(96,165,250,0.2); }
 
 
-/* ── Table — compact data display ── */
+/* ══ TABLE ══ */
 
 .kj-table {
     width: 100%;
@@ -337,15 +289,16 @@
 }
 .kj-table th {
     text-align: left;
-    padding: 5px 8px;
-    font: 600 9px/1 var(--kj-sans);
+    padding: 6px 8px;
+    font: 700 9px/1 var(--kj-industrial);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     color: var(--kj-text-label);
     border-bottom: 1px solid var(--kj-border);
+    background: rgba(0,0,0,0.1);
 }
 .kj-table td {
-    padding: 5px 8px;
+    padding: 6px 8px;
     color: var(--kj-text-secondary);
     border-bottom: 1px solid rgba(255,255,255,0.02);
 }
@@ -353,35 +306,25 @@
 .kj-table tr:hover td { background: rgba(255,255,255,0.015); }
 
 
-/* ── Detail grid — key/value pairs ── */
+/* ══ DETAIL GRID ══ */
 
-.kj-detail-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-}
-.kj-detail-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
-
+.kj-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kj-detail-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 .kj-detail-label {
-    font: 600 8px/1 var(--kj-sans);
+    font: 700 8px/1 var(--kj-industrial);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     color: var(--kj-text-label);
     margin-bottom: 2px;
 }
-.kj-detail-value {
-    font: 500 12px/1.2 var(--kj-sans);
-    color: var(--kj-text);
-}
+.kj-detail-value { font: 600 13px/1 var(--kj-mono); color: var(--kj-text); }
 
 
-/* ── Feed — chronological event list ── */
+/* ══ FEED ══ */
 
 .kj-feed { margin-top: 6px; }
 .kj-feed-item {
-    display: flex;
-    gap: 8px;
-    padding: 4px 0;
+    display: flex; gap: 8px; padding: 4px 0;
     font-size: 11px;
     border-bottom: 1px solid rgba(255,255,255,0.02);
 }
@@ -389,15 +332,14 @@
 .kj-feed-text { color: var(--kj-text-secondary); }
 
 
-/* ── Chart viewport — screen bezel ── */
+/* ══ CHART VIEWPORT — screen bezel ══ */
 
 .kj-chart {
     background: #030503;
-    border: 1px solid var(--kj-border);
-    border-top-color: #0a0a0a;
+    border: 1px solid rgba(0,0,0,0.5);
     border-radius: 2px;
     box-shadow:
-        inset 0 2px 8px rgba(0,0,0,0.5),
+        inset 0 2px 8px rgba(0,0,0,0.6),
         0 1px 0 rgba(255,255,255,0.01);
     position: relative;
     overflow: hidden;
@@ -405,7 +347,7 @@
 }
 
 
-/* ── Empty state ── */
+/* ══ EMPTY STATE ══ */
 
 .kj-empty {
     display: flex;
@@ -413,12 +355,12 @@
     justify-content: center;
     padding: 24px;
     color: var(--kj-text-dim);
-    font: 12px var(--kj-sans);
+    font: 11px var(--kj-sans);
     text-align: center;
 }
 
 
-/* ── Manufacturer mark ── */
+/* ══ MANUFACTURER MARK ══ */
 
 .kj-mfr-mark {
     font: 700 8px/1 var(--kj-mono);
