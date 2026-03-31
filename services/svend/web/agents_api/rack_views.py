@@ -251,8 +251,22 @@ def rack_compute(request):
             status=400,
         )
 
+    # Coerce string values to floats in any list fields
+    for key, val in data.items():
+        if isinstance(val, list):
+            data[key] = [float(v) for v in val if v is not None and str(v).strip() != ""]
+
     try:
         result = _RACK_OPS[op](data)
+        # Sanitize NaN/Inf for JSON (Python float('nan') is invalid JSON)
+        import math
+
+        def _clean(v):
+            if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                return None
+            return v
+
+        result = {k: _clean(v) for k, v in result.items()}
         return JsonResponse({"result": result})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=422)
