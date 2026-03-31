@@ -170,17 +170,18 @@ def _op_descriptive(d):
 
 @_rack_op("ttest_2sample")
 def _op_ttest(d):
-    from forgestat.parametric import ttest_2sample
+    from forgestat.parametric.ttest import two_sample
 
-    result = ttest_2sample(d["a"], d["b"])
+    result = two_sample(d["a"], d["b"])
+    alpha = d.get("alpha", 0.05)
     return {
         "t": result.statistic,
         "p": result.p_value,
         "df": result.df,
-        "ci_lower": result.ci_lower,
-        "ci_upper": result.ci_upper,
-        "effect_size": result.effect_size,
-        "significant": result.significant,
+        "ci_lower": getattr(result, "ci_lower", None),
+        "ci_upper": getattr(result, "ci_upper", None),
+        "effect_size": getattr(result, "effect_size", None),
+        "significant": result.p_value < alpha,
         "mean_a": statistics.mean(d["a"]),
         "mean_b": statistics.mean(d["b"]),
         "n_a": len(d["a"]),
@@ -190,23 +191,25 @@ def _op_ttest(d):
 
 @_rack_op("pearson")
 def _op_pearson(d):
-    from forgestat.parametric import correlation_pearson
+    from forgestat.parametric.correlation import correlation
 
-    result = correlation_pearson(d["x"], d["y"])
+    result = correlation({"x": d["x"], "y": d["y"]}, method="pearson")
+    pair = result.pairs[0]
     return {
-        "r": result.statistic,
-        "p": result.p_value,
-        "r_squared": result.statistic**2,
-        "n": len(d["x"]),
+        "r": pair.r,
+        "p": pair.p_value,
+        "r_squared": pair.r_squared,
+        "n": pair.n,
     }
 
 
 @_rack_op("spearman")
 def _op_spearman(d):
-    from forgestat.parametric import correlation_spearman
+    from forgestat.parametric.correlation import correlation
 
-    result = correlation_spearman(d["x"], d["y"])
-    return {"rho": result.statistic, "p": result.p_value, "n": len(d["x"])}
+    result = correlation({"x": d["x"], "y": d["y"]}, method="spearman")
+    pair = result.pairs[0]
+    return {"rho": pair.r, "p": pair.p_value, "n": pair.n}
 
 
 @_rack_op("regression")
