@@ -947,51 +947,137 @@ function genBolts() {
 //  ATLAS — Live API polling for mainframe instruments
 // ═══════════════════════════════════════════════════════════
 
-// Draw graph from API data or fallback to static
+// ── Node type → color + tier mapping ──
+const NODE_COLORS = {
+    process_parameter: { color: '#4ade80', bg: 'rgba(74,222,128,0.15)', tier: 0, label: 'Parameter' },
+    quality_characteristic: { color: '#60a5fa', bg: 'rgba(96,165,250,0.15)', tier: 1, label: 'Characteristic' },
+    process_output: { color: '#facc15', bg: 'rgba(250,204,21,0.15)', tier: 2, label: 'Output' },
+    failure_mode: { color: '#f87171', bg: 'rgba(248,113,113,0.15)', tier: 1, label: 'Failure Mode' },
+    input: { color: '#a78bfa', bg: 'rgba(167,139,250,0.15)', tier: 0, label: 'Input' },
+    output: { color: '#fb923c', bg: 'rgba(251,146,60,0.15)', tier: 2, label: 'Output' },
+};
+const DEFAULT_NODE = { color: '#9ca3af', bg: 'rgba(156,163,175,0.15)', tier: 1, label: '?' };
+
+// Draw the process model — layered by type, colored, labeled
 function drawGraph(apiNodes, apiEdges) {
     const el = document.getElementById('graphView');
     if (!el) return;
     const w = el.clientWidth || 400, h = el.clientHeight || 280;
-    let nodes, edges;
+    const pad = 16;
 
+    // Build node list from API or fallback
+    let rawNodes, rawEdges;
     if (apiNodes && apiNodes.length) {
-        // Position API nodes using force-directed-ish layout
-        nodes = apiNodes.map((n, i) => {
-            const angle = (i / apiNodes.length) * Math.PI * 2;
-            const r = Math.min(w, h) * 0.35;
-            return { x: w/2 + Math.cos(angle) * r, y: h/2 + Math.sin(angle) * r, l: n.data?.label || n.label || 'node' };
+        rawNodes = apiNodes.map(n => {
+            const d = n.data || n;
+            return {
+                id: d.id, label: d.name || d.label || '?',
+                type: d.node_type || 'unknown',
+                stale: d.is_stale, contradicted: d.is_contradicted,
+                evidence: d.evidence_count || 0,
+                unit: d.unit || '',
+            };
         });
-        edges = (apiEdges || []).map(e => {
-            const si = apiNodes.findIndex(n => (n.data?.id || n.id) === (e.data?.source || e.source));
-            const ti = apiNodes.findIndex(n => (n.data?.id || n.id) === (e.data?.target || e.target));
-            return [si, ti];
-        }).filter(([a,b]) => a >= 0 && b >= 0);
+        rawEdges = (apiEdges || []).map(e => {
+            const d = e.data || e;
+            return {
+                source: d.source, target: d.target,
+                stale: d.is_stale, contradicted: d.is_contradicted,
+                calibrated: !!(d.calibration_date || d.is_calibrated),
+                posterior: d.posterior_strength || d.posterior || 0,
+            };
+        });
     } else {
-        // Static fallback — demo process model
-        nodes = [
-            {x:w*0.12,y:25,l:'temp'},{x:w*0.32,y:20,l:'speed'},{x:w*0.52,y:25,l:'pressure'},{x:w*0.72,y:20,l:'material'},{x:w*0.88,y:28,l:'coolant'},
-            {x:w*0.18,y:h*0.35,l:'hardness'},{x:w*0.42,y:h*0.33,l:'roughness'},{x:w*0.65,y:h*0.36,l:'diameter'},{x:w*0.85,y:h*0.34,l:'flatness'},
-            {x:w*0.15,y:h*0.6,l:'yield'},{x:w*0.38,y:h*0.58,l:'defect rate'},{x:w*0.62,y:h*0.62,l:'cycle time'},{x:w*0.84,y:h*0.6,l:'scrap'},
-            {x:w*0.28,y:h*0.85,l:'OEE'},{x:w*0.55,y:h*0.83,l:'Cpk'},{x:w*0.78,y:h*0.86,l:'cost'}
-        ];
-        edges = [
-            [0,5],[0,6],[1,5],[1,6],[1,7],[2,6],[2,7],[2,8],[3,5],[3,7],[4,6],[4,8],
-            [5,9],[5,10],[6,10],[6,11],[7,10],[7,11],[7,12],[8,11],[8,12],
-            [9,13],[10,13],[10,14],[11,13],[11,15],[12,14],[12,15]
-        ];
+        // Fallback — no data yet
+        el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(45,212,191,0.15);font:11px \'JetBrains Mono\',monospace;">No graph data — seed process model</div>';
+        return;
     }
 
-    let html = '';
-    edges.forEach(([a,b]) => {
-        if (!nodes[a] || !nodes[b]) return;
-        const dx = nodes[b].x - nodes[a].x, dy = nodes[b].y - nodes[a].y;
-        const len = Math.sqrt(dx*dx+dy*dy);
-        const angle = Math.atan2(dy,dx)*180/Math.PI;
-        html += `<div class="graph-edge" style="left:${nodes[a].x}px;top:${nodes[a].y+5}px;width:${len}px;transform:rotate(${angle}deg);"></div>`;
+    // Group nodes by tier (type → row)
+    const tiers = [[], [], []]; // top, middle, bottom
+    rawNodes.forEach(n => {
+        const t = (NODE_COLORS[n.type] || DEFAULT_NODE).tier;
+        tiers[t].push(n);
     });
-    nodes.forEach(n => {
-        html += `<div class="graph-node" style="left:${n.x-5}px;top:${n.y}px;" title="${n.l}"></div>`;
+
+    // Assign positions — layered top→bottom, spread horizontally within each tier
+    const tierY = [pad + 15, h * 0.42, h * 0.78];
+    const positions = {}; // id → {x, y}
+    tiers.forEach((tier, ti) => {
+        const count = tier.length;
+        if (!count) return;
+        const spacing = (w - pad * 2) / (count + 1);
+        tier.forEach((n, i) => {
+            positions[n.id] = {
+                x: pad + spacing * (i + 1),
+                y: tierY[ti] + (i % 2 === 0 ? 0 : 12), // slight stagger
+            };
+        });
     });
+
+    // Render SVG for better edge rendering
+    let svg = `<svg width="${w}" height="${h}" style="position:absolute;top:0;left:0;">`;
+
+    // Edges
+    rawEdges.forEach(e => {
+        const p1 = positions[e.source], p2 = positions[e.target];
+        if (!p1 || !p2) return;
+        const color = e.contradicted ? '#f87171' : e.stale ? '#facc15' : e.calibrated ? 'rgba(45,212,191,0.3)' : 'rgba(255,255,255,0.06)';
+        const width = e.calibrated ? 1.5 : 1;
+        const dash = e.stale ? ' stroke-dasharray="3,3"' : '';
+        svg += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${color}" stroke-width="${width}"${dash}/>`;
+    });
+
+    // Arrowheads on edges
+    rawEdges.forEach(e => {
+        const p1 = positions[e.source], p2 = positions[e.target];
+        if (!p1 || !p2) return;
+        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        if (len < 20) return;
+        const nx = dx/len, ny = dy/len;
+        const ax = p2.x - nx*10, ay = p2.y - ny*10;
+        const color = e.contradicted ? '#f87171' : e.stale ? '#facc15' : 'rgba(45,212,191,0.2)';
+        svg += `<polygon points="${p2.x},${p2.y} ${ax-ny*3},${ay+nx*3} ${ax+ny*3},${ay-nx*3}" fill="${color}" opacity="0.6"/>`;
+    });
+
+    svg += '</svg>';
+
+    // Node elements (HTML for labels + interactivity)
+    let html = svg;
+
+    // Tier labels
+    const tierLabels = ['Process Parameters', 'Quality Characteristics', 'Process Outputs'];
+    tiers.forEach((tier, ti) => {
+        if (!tier.length) return;
+        html += `<div style="position:absolute;left:${pad}px;top:${tierY[ti]-14}px;font:600 7px/1 'JetBrains Mono',monospace;color:rgba(255,255,255,0.08);text-transform:uppercase;letter-spacing:0.1em;">${tierLabels[ti]}</div>`;
+    });
+
+    // Nodes
+    rawNodes.forEach(n => {
+        const p = positions[n.id];
+        if (!p) return;
+        const nc = NODE_COLORS[n.type] || DEFAULT_NODE;
+        const size = 8 + Math.min(4, n.evidence);
+        const glow = n.contradicted ? '0 0 6px #f87171' : n.stale ? '0 0 6px #facc15' : `0 0 4px ${nc.color}33`;
+        const border = n.contradicted ? '#f87171' : n.stale ? '#facc15' : nc.color;
+
+        html += `<div style="position:absolute;left:${p.x - size/2}px;top:${p.y - size/2}px;width:${size}px;height:${size}px;border-radius:50%;background:${nc.bg};border:1.5px solid ${border};box-shadow:${glow};cursor:pointer;z-index:2;" title="${esc(n.label)}${n.unit ? ' ('+n.unit+')' : ''}${n.stale ? ' — STALE' : ''}${n.contradicted ? ' — CONTRADICTED' : ''}"></div>`;
+
+        // Label
+        const labelW = n.label.length * 5.5;
+        html += `<div style="position:absolute;left:${p.x - labelW/2}px;top:${p.y + size/2 + 3}px;font:500 8px/1 'Inter',sans-serif;color:${nc.color};opacity:0.6;white-space:nowrap;pointer-events:none;text-align:center;width:${labelW}px;">${esc(n.label)}</div>`;
+    });
+
+    // Legend
+    html += `<div style="position:absolute;bottom:4px;right:8px;display:flex;gap:8px;font:8px 'JetBrains Mono',monospace;">`;
+    html += `<span style="color:#4ade80;opacity:0.4;">&#x25CF; param</span>`;
+    html += `<span style="color:#60a5fa;opacity:0.4;">&#x25CF; char</span>`;
+    html += `<span style="color:#facc15;opacity:0.4;">&#x25CF; output</span>`;
+    html += `<span style="color:#f87171;opacity:0.4;">&#x2014; contradict</span>`;
+    html += `<span style="color:#facc15;opacity:0.4;">--- stale</span>`;
+    html += `</div>`;
+
     el.innerHTML = html;
 }
 
