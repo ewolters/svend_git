@@ -37,10 +37,7 @@ def _forgerack_unit_view(request, unit_name):
     )
     if not unit_path.is_file():
         return HttpResponseNotFound(f"Unit not found: {unit_name}")
-    resp = HttpResponse(unit_path.read_text(), content_type="text/html")
-    resp["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    resp["Pragma"] = "no-cache"
-    return resp
+    return HttpResponse(unit_path.read_text(), content_type="text/html")
 
 
 from agents_api.whiteboard_views import guest_board_view
@@ -262,6 +259,11 @@ urlpatterns = varta_urls + [
     # ── Demo surfaces (Object 271) ──
     path("app/demo/rack/new/", _app_view("demo/rack.html"), name="demo_rack_new"),
     path("app/demo/rack/unit/<str:unit_name>/", _forgerack_unit_view, name="forgerack_unit"),
+    path(
+        "api/rack/compute/",
+        __import__("agents_api.rack_views", fromlist=["rack_compute"]).rack_compute,
+        name="rack_compute",
+    ),
     path("app/demo/vsm/", _app_view("demo/vsm.html"), name="demo_vsm"),
     path("app/demo/kjerne/", _app_view("demo/kjerne.html"), name="demo_kjerne"),
     path("app/demo/vsm/<uuid:vsm_id>/", _app_view("demo/vsm.html"), name="demo_vsm_edit"),

@@ -695,6 +695,7 @@ if (!ForgeRack.units) ForgeRack.units = {};
             <div class="rack-sidebar-item" data-unit="chart-panel" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Chart Panel <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="readout" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Register <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="narrative" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#22c55e;"></span> Narrative <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="correlator" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#38bdf8;"></span> Correlator <span class="rack-sidebar-count"></span></div>
         </div>
 
         <div class="rack-sidebar-group">
@@ -703,7 +704,10 @@ if (!ForgeRack.units) ForgeRack.units = {};
             <div class="rack-sidebar-item" data-unit="filter" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#22d3ee;"></span> Filter <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="calc" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#d4884a;"></span> Calc <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="analyst" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#f43f5e;"></span> Analyst <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="formula" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#d4884a;"></span> Formula <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="sentinel" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#d97706;"></span> Sentinel <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="probe" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#f59e0b;"></span> Probe <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="comparator" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#f59e0b;"></span> Comparator <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="splitter" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#64748b;"></span> Splitter <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="mixer" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#c8956a;"></span> Junction <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="router" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#22d3ee;"></span> Relay <span class="rack-sidebar-count"></span></div>
@@ -1392,7 +1396,7 @@ async function mountUnit(sidebarItem) {
     // Fetch + cache unit HTML from Django view (per page load, not across reloads)
     if (!_unitCache[unitName]) {
         try {
-            const resp = await fetch('/app/demo/rack/unit/' + unitName + '/?_v=' + Date.now());
+            const resp = await fetch('/app/demo/rack/unit/' + unitName + '/');
             if (!resp.ok) throw new Error(resp.status);
             _unitCache[unitName] = await resp.text();
         } catch (e) {

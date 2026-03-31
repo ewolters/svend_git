@@ -1,6 +1,7 @@
 """ForgeRack session CRUD — save/load rack configurations."""
 
 import json
+import statistics
 
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -118,3 +119,137 @@ def delete_rack_session(request, session_id):
         return JsonResponse({"error": "Not authorized"}, status=403)
     session.delete()
     return JsonResponse({"status": "deleted"})
+
+
+# ═══════════════════════════════════════════════════════════════
+# Rack Compute — forge package bridge for client-side units
+# ═══════════════════════════════════════════════════════════════
+
+_RACK_OPS = {}
+
+
+def _rack_op(name):
+    """Decorator to register a rack compute operation."""
+
+    def decorator(fn):
+        _RACK_OPS[name] = fn
+        return fn
+
+    return decorator
+
+
+@_rack_op("mean")
+def _op_mean(d):
+    return {"value": statistics.mean(d["values"])}
+
+
+@_rack_op("median")
+def _op_median(d):
+    return {"value": statistics.median(d["values"])}
+
+
+@_rack_op("stdev")
+def _op_stdev(d):
+    return {"value": statistics.stdev(d["values"])}
+
+
+@_rack_op("descriptive")
+def _op_descriptive(d):
+    v = d["values"]
+    return {
+        "mean": statistics.mean(v),
+        "median": statistics.median(v),
+        "stdev": statistics.stdev(v) if len(v) > 1 else 0,
+        "min": min(v),
+        "max": max(v),
+        "n": len(v),
+        "range": max(v) - min(v),
+        "sum": sum(v),
+    }
+
+
+@_rack_op("ttest_2sample")
+def _op_ttest(d):
+    from forgestat.parametric import ttest_2sample
+
+    result = ttest_2sample(d["a"], d["b"])
+    return {
+        "t": result.statistic,
+        "p": result.p_value,
+        "df": result.df,
+        "ci_lower": result.ci_lower,
+        "ci_upper": result.ci_upper,
+        "effect_size": result.effect_size,
+        "significant": result.significant,
+        "mean_a": statistics.mean(d["a"]),
+        "mean_b": statistics.mean(d["b"]),
+        "n_a": len(d["a"]),
+        "n_b": len(d["b"]),
+    }
+
+
+@_rack_op("pearson")
+def _op_pearson(d):
+    from forgestat.parametric import correlation_pearson
+
+    result = correlation_pearson(d["x"], d["y"])
+    return {
+        "r": result.statistic,
+        "p": result.p_value,
+        "r_squared": result.statistic**2,
+        "n": len(d["x"]),
+    }
+
+
+@_rack_op("spearman")
+def _op_spearman(d):
+    from forgestat.parametric import correlation_spearman
+
+    result = correlation_spearman(d["x"], d["y"])
+    return {"rho": result.statistic, "p": result.p_value, "n": len(d["x"])}
+
+
+@_rack_op("regression")
+def _op_regression(d):
+    x, y = d["x"], d["y"]
+    n = len(x)
+    mx = sum(x) / n
+    my = sum(y) / n
+    num = sum((x[i] - mx) * (y[i] - my) for i in range(n))
+    den = sum((x[i] - mx) ** 2 for i in range(n))
+    slope = num / den if den else 0
+    intercept = my - slope * mx
+    return {"slope": slope, "intercept": intercept, "n": n}
+
+
+@require_auth
+@require_http_methods(["POST"])
+def rack_compute(request):
+    """Dispatch statistical operations to forge packages.
+
+    POST /api/rack/compute/
+    Body: {"op": "ttest_2sample", "data": {"a": [...], "b": [...]}}
+    Returns: {"result": {...}} or {"error": "..."}
+    """
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    op = body.get("op")
+    data = body.get("data")
+
+    if not op or not data:
+        return JsonResponse({"error": "Missing op or data"}, status=400)
+
+    if op not in _RACK_OPS:
+        return JsonResponse(
+            {"error": f"Unknown op: {op}", "available": list(_RACK_OPS.keys())},
+            status=400,
+        )
+
+    try:
+        result = _RACK_OPS[op](data)
+        return JsonResponse({"result": result})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=422)
