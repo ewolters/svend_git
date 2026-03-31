@@ -252,21 +252,33 @@ def rack_compute(request):
         )
 
     # Coerce string values to floats in any list fields
+    import logging
+
+    logger = logging.getLogger("forgerack.compute")
+
     for key, val in data.items():
         if isinstance(val, list):
-            data[key] = [float(v) for v in val if v is not None and str(v).strip() != ""]
+            coerced = []
+            for v in val:
+                try:
+                    coerced.append(float(v))
+                except (TypeError, ValueError):
+                    pass  # skip non-numeric
+            data[key] = coerced
 
     try:
         result = _RACK_OPS[op](data)
-        # Sanitize NaN/Inf for JSON (Python float('nan') is invalid JSON)
+        # Sanitize NaN/Inf → null for valid JSON
         import math
 
         def _clean(v):
             if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
-                return None
+                logger.warning("NaN/Inf in %s result for op=%s", v, op)
+                return 0.0
             return v
 
         result = {k: _clean(v) for k, v in result.items()}
         return JsonResponse({"result": result})
     except Exception as e:
+        logger.exception("rack compute error: op=%s", op)
         return JsonResponse({"error": str(e)}, status=422)
