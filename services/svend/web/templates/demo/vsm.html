@@ -5,6 +5,8 @@
 {% block extra_head %}
 {{ block.super }}
 <link rel="stylesheet" href="{% static 'css/vsm.css' %}">
+<script src="{% static 'js/vsm-state.js' %}"></script>
+<script src="{% static 'js/vsm-api.js' %}"></script>
 {% endblock %}
 
 {% block workspace_style %}
@@ -219,17 +221,6 @@
 {% endblock %}
 
 {% block workspace_scripts %}
-// Load modular VSM JS
-const _scripts = [
-    '{% static "js/vsm-state.js" %}',
-    '{% static "js/vsm-api.js" %}',
-    '{% static "js/vsm-canvas.js" %}',
-    '{% static "js/vsm-interaction.js" %}',
-    '{% static "js/vsm-metrics.js" %}',
-    '{% static "js/vsm-proposals.js" %}',
-    '{% static "js/vsm-list.js" %}',
-];
-
 // Cockpit tab switching
 function switchCockpitTab(btn) {
     document.querySelectorAll('.cockpit-tab').forEach(t => t.classList.remove('active'));
