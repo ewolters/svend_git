@@ -263,6 +263,60 @@ def _op_control_chart(d):
     return result
 
 
+@_rack_op("histogram")
+def _op_histogram(d):
+    vals = d["values"]
+    n_bins = d.get("bins", 15)
+    n = len(vals)
+
+    if n_bins == 0 or n_bins is None:
+        # Sturges' rule
+        import math as _math
+
+        n_bins = max(1, int(_math.ceil(_math.log2(n) + 1)))
+
+    mn, mx = min(vals), max(vals)
+    rng = mx - mn or 1
+    bin_width = rng / n_bins
+    bins = [0] * n_bins
+    edges = [mn + i * bin_width for i in range(n_bins + 1)]
+
+    for v in vals:
+        idx = int((v - mn) / bin_width)
+        if idx >= n_bins:
+            idx = n_bins - 1
+        bins[idx] += 1
+
+    mean = sum(vals) / n
+    variance = sum((v - mean) ** 2 for v in vals) / (n - 1) if n > 1 else 0
+    std = variance**0.5
+
+    # Skewness and kurtosis
+    if n > 2 and std > 0:
+        skew = (n / ((n - 1) * (n - 2))) * sum(((v - mean) / std) ** 3 for v in vals)
+    else:
+        skew = 0.0
+    if n > 3 and std > 0:
+        k4 = sum(((v - mean) / std) ** 4 for v in vals)
+        kurt = ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * k4 - (3 * (n - 1) ** 2) / ((n - 2) * (n - 3))
+    else:
+        kurt = 0.0
+
+    return {
+        "bins": bins,
+        "edges": edges,
+        "n_bins": n_bins,
+        "bin_width": bin_width,
+        "mean": mean,
+        "std": std,
+        "skewness": skew,
+        "kurtosis": kurt,
+        "n": n,
+        "min": mn,
+        "max": mx,
+    }
+
+
 @_rack_op("regression")
 def _op_regression(d):
     x, y = d["x"], d["y"]
