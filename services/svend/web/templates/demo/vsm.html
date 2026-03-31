@@ -558,6 +558,59 @@ async function createNewVSM() {
     }
 }
 
+// Undo/redo (not in extracted modules — uses globals from vsm-state.js)
+function saveVSMState() {
+    if (!currentVSM) return;
+    const snapshot = JSON.parse(JSON.stringify({
+        process_steps: currentVSM.process_steps || [],
+        inventory: currentVSM.inventory || [],
+        kaizen_bursts: currentVSM.kaizen_bursts || [],
+        material_flow: currentVSM.material_flow || [],
+        information_flow: currentVSM.information_flow || [],
+        customers: currentVSM.customers || [],
+        suppliers: currentVSM.suppliers || [],
+        work_centers: currentVSM.work_centers || [],
+        customer_name: currentVSM.customer_name,
+        customer_demand: currentVSM.customer_demand,
+        supplier_name: currentVSM.supplier_name,
+        supply_frequency: currentVSM.supply_frequency,
+        takt_time: currentVSM.takt_time,
+    }));
+    vsmHistory = vsmHistory.slice(0, vsmHistoryIndex + 1);
+    vsmHistory.push(snapshot);
+    if (vsmHistory.length > VSM_MAX_HISTORY) vsmHistory.shift();
+    vsmHistoryIndex = vsmHistory.length - 1;
+}
+function undoVSM() {
+    if (vsmHistoryIndex <= 0 || !currentVSM) return;
+    vsmHistoryIndex--;
+    applyVSMSnapshot(vsmHistory[vsmHistoryIndex]);
+}
+function redoVSM() {
+    if (vsmHistoryIndex >= vsmHistory.length - 1 || !currentVSM) return;
+    vsmHistoryIndex++;
+    applyVSMSnapshot(vsmHistory[vsmHistoryIndex]);
+}
+function applyVSMSnapshot(snapshot) {
+    const restored = JSON.parse(JSON.stringify(snapshot));
+    Object.assign(currentVSM, restored);
+    renderVSM();
+    updateMetrics();
+    saveVSM();
+}
+
+// Also need saveVSM (calls API to persist)
+async function saveVSM() {
+    if (!currentVSM || !vsmId) return;
+    try {
+        const payload = Object.assign({}, currentVSM);
+        if (currentProjectId) payload.project_id = currentProjectId;
+        await VsmApi.update(vsmId, payload);
+    } catch (e) {
+        console.error('Save VSM error:', e);
+    }
+}
+
 // Override URL-based vsmId extraction for demo path (/app/demo/vsm/<id>/)
 (function() {
     const parts = window.location.pathname.split('/');
@@ -567,7 +620,76 @@ async function createNewVSM() {
     }
 })();
 
-// Init — same as production
+// ── Core functions not in extracted modules ──
+
+async function setupProjectSelector() {
+    const select = document.getElementById('project-select');
+    if (!select) return;
+    try {
+        const projects = await VsmApi.listProjects();
+        (Array.isArray(projects) ? projects : []).forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.title;
+            select.appendChild(opt);
+        });
+        if (currentProjectId) {
+            select.value = currentProjectId;
+            updateProjectLink(currentProjectId);
+        }
+    } catch (e) { console.error('Projects:', e); }
+    select.addEventListener('change', e => {
+        currentProjectId = e.target.value || null;
+        updateProjectLink(currentProjectId);
+        if (currentVSM && vsmId) saveVSM();
+    });
+}
+
+function updateProjectLink(pid) {
+    const link = document.getElementById('project-link');
+    if (!link) return;
+    if (pid) { link.href = '/app/investigations/?id=' + pid; link.style.display = 'flex'; }
+    else { link.style.display = 'none'; }
+}
+
+async function loadVSM(id) {
+    try {
+        const data = await VsmApi.get(id);
+        currentVSM = data;
+        if (currentVSM.project_id) {
+            currentProjectId = currentVSM.project_id;
+            const sel = document.getElementById('project-select');
+            if (sel) sel.value = currentProjectId;
+            updateProjectLink(currentProjectId);
+        }
+        renderVSM();
+        updateMetrics();
+        if (typeof updateProposalButton === 'function') updateProposalButton();
+        document.getElementById('empty-state').style.display = 'none';
+        vsmHistory = [];
+        vsmHistoryIndex = -1;
+        saveVSMState();
+        if (typeof loadHypothesisProbabilities === 'function') {
+            loadHypothesisProbabilities().then(() => renderVSM());
+        }
+    } catch (e) {
+        console.error('Load VSM:', e);
+        SvToast.error('Load failed: ' + e.message);
+    }
+}
+
+async function loadVSMList() {
+    try {
+        const maps = await VsmApi.list();
+        if (maps.length > 0) {
+            showVSMList(maps);
+        }
+    } catch (e) {
+        console.error('Load list:', e);
+    }
+}
+
+// Init
 document.addEventListener('DOMContentLoaded', async () => {
     await setupProjectSelector();
     if (vsmId) {
@@ -576,7 +698,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('empty-state').style.display = 'block';
         await loadVSMList();
     }
-    setupEventListeners();
-    setupDragAndDrop();
+    if (typeof setupEventListeners === 'function') setupEventListeners();
+    if (typeof setupDragAndDrop === 'function') setupDragAndDrop();
 });
 {% endblock %}
