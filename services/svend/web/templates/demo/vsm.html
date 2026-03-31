@@ -15,59 +15,70 @@
 {% endblock %}
 
 {% block workspace_style %}
+/* ── Widen sidebar for VSM palette ── */
+.sv-workspace { --ws-sidebar-width: 260px; }
+
 /* ── Sidebar: instrument panel feel ── */
 .sv-ws-sidebar {
     background: linear-gradient(180deg, #0c100c, #0a0e0a);
     border-right: 2px solid #1a201a;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 .sidebar-header {
-    padding: 10px 14px;
+    padding: 8px 12px;
     border-bottom: 1px solid #1a201a;
     background: rgba(0,0,0,0.15);
 }
 .sidebar-header h2 {
-    font: 600 13px/1 'Inter', sans-serif;
+    font: 600 12px/1.2 'Inter', sans-serif;
     color: var(--text-primary);
     margin: 0;
 }
-.sidebar-content { padding: 8px 10px; }
+.sidebar-content {
+    padding: 6px 8px;
+}
 .sidebar-section {
-    margin-bottom: 10px;
-    padding: 8px 10px;
+    margin-bottom: 6px;
+    padding: 6px 8px;
     background: rgba(0,0,0,0.2);
     border: 1px solid #141814;
-    border-radius: 3px;
+    border-radius: 2px;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 .sidebar-section h3 {
-    font: 700 9px/1 'JetBrains Mono', monospace;
+    font: 700 8px/1 'JetBrains Mono', monospace;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     color: rgba(255,255,255,0.15);
-    margin-bottom: 8px;
-    padding-bottom: 4px;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
+    margin: 0 0 6px;
 }
 
-/* Element palette — recessed panel with compact items */
-.element-palette { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+/* Element palette — 3 columns, tight */
+.element-palette {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+}
 .palette-item {
     background: rgba(0,0,0,0.15);
     border: 1px solid #1a1e1a;
     border-radius: 2px;
-    padding: 6px 4px;
+    padding: 5px 2px;
     cursor: grab;
     transition: border-color 0.15s;
     text-align: center;
+    min-width: 0;
+    overflow: hidden;
 }
 .palette-item:hover { border-color: var(--accent-primary-border); }
 .palette-item.dragging { opacity: 0.5; }
-.palette-icon { width: 18px; height: 18px; margin: 0 auto 3px; }
+.palette-icon { width: 16px; height: 16px; margin: 0 auto 2px; }
 .palette-icon svg { width: 100%; height: 100%; }
-.palette-label { font: 500 8px/1 'Inter', sans-serif; color: rgba(255,255,255,0.25); }
+.palette-label { font: 500 7px/1 'Inter', sans-serif; color: rgba(255,255,255,0.25); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Flow palette — 2 columns */
-.flow-palette { grid-template-columns: repeat(2, 1fr); }
+.flow-palette { grid-template-columns: repeat(2, 1fr) !important; }
 .flow-item.active { border-color: var(--accent-primary); background: rgba(74,222,128,0.06); }
 
 /* Metrics panel — recessed readout */
@@ -75,49 +86,60 @@
     background: rgba(0,0,0,0.25);
     border: 1px solid #141814;
     border-radius: 2px;
-    padding: 8px;
-    box-shadow: inset 0 1px 4px rgba(0,0,0,0.3);
+    padding: 6px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
-.metric-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
+.metric-row { display: flex; justify-content: space-between; margin-bottom: 3px; align-items: baseline; }
 .metric-label { color: rgba(255,255,255,0.3); font-size: 10px; }
-.metric-value { color: var(--text-primary); font: 500 11px/1 'JetBrains Mono', monospace; }
+.metric-value { color: var(--text-primary); font: 500 10px/1 'JetBrains Mono', monospace; }
 .metric-value.good { color: var(--sv-green); }
 .metric-value.warning { color: var(--sv-amber); }
 
-/* Takt inputs — compact controls */
+/* Takt inputs — compact */
 .takt-input-section input {
     background: rgba(0,0,0,0.3) !important;
     border: 1px solid #1a1e1a !important;
-    font-family: 'JetBrains Mono', monospace !important;
+    font: 10px 'JetBrains Mono', monospace !important;
+    padding: 4px 5px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
 }
 .takt-input-section input:focus { border-color: var(--accent-primary) !important; }
 
-/* Sidebar hint */
-.sidebar-hint { font: italic 9px/1.3 'Inter', sans-serif; color: rgba(255,255,255,0.1); margin-top: 4px; }
+.sidebar-hint { font: italic 8px/1.3 'Inter', sans-serif; color: rgba(255,255,255,0.1); margin-top: 3px; }
 
-/* Properties panel — match sidebar feel */
+/* Properties panel */
 .properties-panel {
     background: linear-gradient(135deg, #0c100c, #0a0e0a);
     border: 1px solid #1a201a;
-    border-radius: 4px;
+    border-radius: 3px;
+    padding: 10px;
+    width: 260px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.5);
 }
-.properties-panel h4 { font: 600 11px/1 'JetBrains Mono', monospace; color: var(--text-primary); letter-spacing: 0.04em; }
-.property-group label { font: 600 8px/1 'JetBrains Mono', monospace; color: rgba(255,255,255,0.2); letter-spacing: 0.06em; }
+.properties-panel h4 { font: 600 11px/1 'JetBrains Mono', monospace; color: var(--text-primary); margin-bottom: 8px; }
+.property-group { margin-bottom: 5px; }
+.property-group label { display: block; font: 600 7px/1 'JetBrains Mono', monospace; color: rgba(255,255,255,0.2); letter-spacing: 0.06em; margin-bottom: 2px; }
 .property-group input, .property-group select {
+    width: 100%; box-sizing: border-box;
     background: rgba(0,0,0,0.3); border: 1px solid #1a1e1a; color: var(--text-primary);
-    font: 12px/1 'JetBrains Mono', monospace; padding: 5px 6px; border-radius: 2px;
+    font: 11px/1 'JetBrains Mono', monospace; padding: 4px 5px; border-radius: 2px;
 }
 .property-group input:focus, .property-group select:focus { border-color: var(--accent-primary); outline: none; }
+.prop-row { display: flex; gap: 4px; }
+.prop-row .property-group { flex: 1; min-width: 0; }
 
-/* Project select — match panel */
+/* Project select */
 .vsm-project-select {
     background: rgba(0,0,0,0.3) !important;
     border: 1px solid #1a1e1a !important;
-    font: 11px/1 'Inter', sans-serif !important;
-    padding: 5px 6px !important;
+    font: 10px/1 'Inter', sans-serif !important;
+    padding: 4px 5px !important;
     border-radius: 2px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
 }
+.vsm-project-row { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
 
 /* Cockpit split: map top, calculators bottom */
 .vsm-cockpit { display:flex; flex-direction:column; height:100%; overflow:hidden; }
