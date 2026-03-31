@@ -686,25 +686,36 @@ if (!ForgeRack.units) ForgeRack.units = {};
 
         <div class="rack-sidebar-group">
             <div class="rack-sidebar-group-label">Data</div>
+            <div class="rack-sidebar-item" data-unit="intake" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#7ca0c4;"></span> Intake <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="csv-input" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#9ca3af;"></span> CSV Input <span class="rack-sidebar-count"></span></div>
         </div>
 
         <div class="rack-sidebar-group">
             <div class="rack-sidebar-group-label">Displays</div>
             <div class="rack-sidebar-item" data-unit="chart-panel" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Chart Panel <span class="rack-sidebar-count"></span></div>
-            <div class="rack-sidebar-item" data-unit="readout" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Readout <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="readout" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Register <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="narrative" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#22c55e;"></span> Narrative <span class="rack-sidebar-count"></span></div>
         </div>
 
         <div class="rack-sidebar-group">
             <div class="rack-sidebar-group-label">Processors</div>
+            <div class="rack-sidebar-item" data-unit="triage" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#b8a878;"></span> Triage <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="filter" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#22d3ee;"></span> Filter <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="calc" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#d4884a;"></span> Calc <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="analyst" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#f43f5e;"></span> Analyst <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="splitter" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#64748b;"></span> Splitter <span class="rack-sidebar-count"></span></div>
         </div>
 
         <div class="rack-sidebar-group">
             <div class="rack-sidebar-group-label">Containers</div>
             <div class="rack-sidebar-item" data-unit="combinator" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#78716c;"></span> Combinator <span class="rack-sidebar-count"></span></div>
+        </div>
+
+        <div class="rack-sidebar-group">
+            <div class="rack-sidebar-group-label">Utility</div>
+            <div class="rack-sidebar-item" data-unit="scribble" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#22c55e;"></span> Scribble Strip <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="blank-1u" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#3a3f3a;"></span> Blank 1U <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="blank-2u" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#3a3f3a;"></span> Blank 2U <span class="rack-sidebar-count"></span></div>
         </div>
     </div>
 
@@ -1278,9 +1289,19 @@ function atlasLoad() {
     }).catch(() => {});
 }
 
-// Initial load + polling
+// Initial load — no aggressive polling (was burning 8,640 queries/day at 30s)
+// Poll at 5 min only when tab is visible
 atlasLoad();
-setInterval(atlasLoad, 30000); // 30s refresh
+let _atlasTimer = null;
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        if (_atlasTimer) { clearInterval(_atlasTimer); _atlasTimer = null; }
+    } else {
+        atlasLoad();
+        if (!_atlasTimer) _atlasTimer = setInterval(atlasLoad, 300000);
+    }
+});
+if (!document.hidden) _atlasTimer = setInterval(atlasLoad, 300000);
 
 // Tab to flip
 let _flipped = false;
@@ -1425,6 +1446,91 @@ async function mountUnit(sidebarItem) {
     requestAnimationFrame(() => { genBolts(); positionEarBolts(); syncMainframeHeight(); });
     SvToast.success(unitName + ' mounted');
 }
+
+function unmountUnit(id) {
+    // Find and remove front panel
+    const front = document.querySelector('#rackBay [data-id="' + id + '"]');
+    if (front) front.remove();
+
+    // Find and remove back panel
+    const back = document.querySelector('#rackBackBay [data-id="' + id + '"]');
+    if (back) back.remove();
+
+    // Disconnect all cables touching this unit
+    if (ForgeRack._cables) {
+        for (var i = ForgeRack._cables.length - 1; i >= 0; i--) {
+            var c = ForgeRack._cables[i];
+            if (c.source.unitId === id || c.target.unitId === id) {
+                ForgeRack.disconnect(c.source.unitId, c.source.output, c.target.unitId, c.target.input);
+            }
+        }
+    }
+
+    // Remove from unit registry
+    delete ForgeRack.units[id];
+
+    // Update sidebar badges
+    document.querySelectorAll('.rack-sidebar-item[data-unit]').forEach(item => {
+        const n = item.dataset.unit;
+        const count = document.querySelectorAll('#rackBay [data-unit="' + n + '"]').length;
+        const badge = item.querySelector('.rack-sidebar-count');
+        if (badge) badge.textContent = count > 0 ? count : '';
+    });
+
+    // Show empty state if rack is now empty
+    const bay = document.getElementById('rackBay');
+    const units = bay ? bay.querySelectorAll('.rack-unit-front') : [];
+    if (units.length === 0) {
+        const empty = document.getElementById('rackEmptyState');
+        if (empty) empty.style.display = '';
+    }
+
+    requestAnimationFrame(() => { genBolts(); positionEarBolts(); syncMainframeHeight(); });
+    SvToast.success('Unit removed');
+}
+
+// Right-click on unit nameplate to unmount
+document.addEventListener('contextmenu', function(e) {
+    const unitEl = e.target.closest('.rack-unit-front[data-id]');
+    if (!unitEl) return;
+
+    // Only trigger on the nameplate area (top ~30px)
+    const rect = unitEl.getBoundingClientRect();
+    if (e.clientY - rect.top > 34) return;
+
+    e.preventDefault();
+
+    const id = unitEl.dataset.id;
+    const unitName = unitEl.dataset.unit || 'unit';
+
+    // Show tiny confirm popup
+    const popup = document.createElement('div');
+    popup.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;z-index:10000;' +
+        'background:#1a1a1a;border:1px solid rgba(239,68,68,0.3);border-radius:4px;padding:6px 10px;' +
+        'font:11px/1 Inter,system-ui,sans-serif;color:#e8efe8;box-shadow:0 4px 12px rgba(0,0,0,0.6);' +
+        'display:flex;gap:8px;align-items:center;';
+    popup.innerHTML = '<span style="color:rgba(255,255,255,0.5);">Remove ' + unitName + '?</span>' +
+        '<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;' +
+        'padding:3px 8px;border-radius:2px;cursor:pointer;font:700 10px/1 sans-serif;">Remove</button>' +
+        '<button style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);' +
+        'padding:3px 8px;border-radius:2px;cursor:pointer;font:10px/1 sans-serif;">Cancel</button>';
+    document.body.appendChild(popup);
+
+    popup.querySelector('button:first-of-type').addEventListener('click', function() {
+        unmountUnit(id);
+        popup.remove();
+    });
+    popup.querySelector('button:last-of-type').addEventListener('click', function() {
+        popup.remove();
+    });
+
+    // Close on click outside
+    setTimeout(function() {
+        document.addEventListener('click', function handler(ev) {
+            if (!popup.contains(ev.target)) { popup.remove(); document.removeEventListener('click', handler); }
+        });
+    }, 10);
+});
 
 // ═══════════════════════════════════════════════════════════
 //  SESSION PERSISTENCE — save/load rack state via /api/rack/
