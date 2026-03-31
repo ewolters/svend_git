@@ -50,21 +50,30 @@
 }
 
 
-/* ── Panels — recessed display windows ── */
+/* ── Panels — stamped steel with rolled edges ── */
 
 .kj-panel {
-    background: var(--kj-bg-recessed);
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.008) 0%, transparent 2px, transparent 100%),
+        var(--kj-bg-recessed);
     border: 1px solid var(--kj-border);
     border-radius: 2px;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+    box-shadow:
+        inset 0 1px 4px rgba(0,0,0,0.4),
+        0 1px 0 rgba(255,255,255,0.015);
     padding: 8px 10px;
 }
 
 .kj-panel-raised {
-    background: var(--kj-bg-raised);
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005) 50%, rgba(0,0,0,0.05)),
+        linear-gradient(135deg, var(--kj-bg-raised), #101510);
     border: 1px solid var(--kj-border-light);
+    border-bottom: 1px solid var(--kj-border);
     border-radius: 2px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    box-shadow:
+        0 1px 3px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.03);
     padding: 8px 10px;
 }
 
@@ -111,7 +120,7 @@
 .kj-value.bad { color: var(--kj-red); }
 
 
-/* ── Readout window — CRT-style display ── */
+/* ── Readout window — display cut into panel ── */
 
 .kj-readout {
     display: inline-flex;
@@ -119,10 +128,13 @@
     align-items: center;
     gap: 3px;
     padding: 6px 10px;
-    background: rgba(0,0,0,0.35);
+    background: #040604;
     border: 1px solid var(--kj-border);
+    border-top-color: #0a0a0a;
     border-radius: 2px;
-    box-shadow: inset 0 1px 4px rgba(0,0,0,0.4);
+    box-shadow:
+        inset 0 2px 6px rgba(0,0,0,0.5),
+        0 1px 0 rgba(255,255,255,0.015);
     text-align: center;
     min-width: 48px;
 }
@@ -182,7 +194,7 @@
 .kj-meter.bad .kj-meter-fill { background: var(--kj-red); }
 
 
-/* ── Buttons — one family, three states ── */
+/* ── Buttons — machined metal, proper press depth ── */
 
 .kj-btn {
     display: inline-flex;
@@ -191,33 +203,51 @@
     padding: 5px 10px;
     font: 500 11px/1 var(--kj-sans);
     color: var(--kj-text-secondary);
-    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.1));
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01) 40%, rgba(0,0,0,0.08));
     border: 1px solid var(--kj-border-light);
+    border-bottom-color: var(--kj-border);
     border-radius: 2px;
     cursor: pointer;
     transition: all 0.1s;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    box-shadow:
+        0 1px 2px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.04);
 }
-.kj-btn:hover { color: var(--kj-text); border-color: var(--kj-accent); }
-.kj-btn:active { transform: translateY(1px); box-shadow: none; }
+.kj-btn:hover {
+    color: var(--kj-text);
+    border-color: rgba(74,159,110,0.4);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.kj-btn:active {
+    transform: translateY(1px);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+    background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.05));
+}
 
 .kj-btn-primary {
-    background: linear-gradient(180deg, rgba(74,159,110,0.2), rgba(74,159,110,0.08));
-    border-color: rgba(74,159,110,0.3);
+    background:
+        linear-gradient(180deg, rgba(74,159,110,0.25), rgba(74,159,110,0.08) 40%, rgba(74,159,110,0.04));
+    border-color: rgba(74,159,110,0.35);
+    border-bottom-color: rgba(74,159,110,0.25);
     color: var(--kj-accent);
 }
-.kj-btn-primary:hover { background: linear-gradient(180deg, rgba(74,159,110,0.3), rgba(74,159,110,0.12)); }
+.kj-btn-primary:hover {
+    background: linear-gradient(180deg, rgba(74,159,110,0.35), rgba(74,159,110,0.12));
+    box-shadow: 0 1px 4px rgba(74,159,110,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+}
 
 .kj-btn-danger {
     color: var(--kj-red);
-    border-color: rgba(248,113,113,0.2);
+    border-color: rgba(248,113,113,0.25);
+    border-bottom-color: rgba(248,113,113,0.15);
 }
 .kj-btn-danger:hover { background: rgba(248,113,113,0.08); }
 
 .kj-btn-sm { padding: 3px 7px; font-size: 10px; }
 
 
-/* ── Inputs — dark, precise ── */
+/* ── Inputs — recessed into panel, display window feel ── */
 
 .kj-input {
     width: 100%;
@@ -225,11 +255,13 @@
     padding: 5px 7px;
     font: 12px/1 var(--kj-mono);
     color: var(--kj-text);
-    background: rgba(0,0,0,0.3);
+    background: #050805;
     border: 1px solid var(--kj-border);
+    border-top-color: #111;
     border-radius: 2px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.01);
 }
-.kj-input:focus { border-color: var(--kj-accent); outline: none; }
+.kj-input:focus { border-color: var(--kj-accent); outline: none; box-shadow: inset 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(74,159,110,0.15); }
 .kj-input::placeholder { color: var(--kj-text-dim); }
 
 .kj-select {
@@ -238,21 +270,25 @@
     padding: 5px 7px;
     font: 11px/1 var(--kj-sans);
     color: var(--kj-text);
-    background: rgba(0,0,0,0.3);
+    background: #050805;
     border: 1px solid var(--kj-border);
+    border-top-color: #111;
     border-radius: 2px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.01);
     cursor: pointer;
 }
 .kj-select:focus { border-color: var(--kj-accent); outline: none; }
 
 
-/* ── Segment control ── */
+/* ── Segment control — recessed channel with toggle buttons ── */
 
 .kj-segment {
     display: inline-flex;
     border: 1px solid var(--kj-border);
     border-radius: 2px;
     overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+    background: rgba(0,0,0,0.15);
 }
 .kj-segment-btn {
     padding: 4px 10px;
@@ -265,8 +301,12 @@
     transition: all 0.1s;
 }
 .kj-segment-btn:last-child { border-right: none; }
-.kj-segment-btn:hover { color: var(--kj-text-secondary); background: rgba(255,255,255,0.02); }
-.kj-segment-btn.active { color: var(--kj-accent); background: var(--kj-accent-dim); }
+.kj-segment-btn:hover { color: var(--kj-text-secondary); background: rgba(255,255,255,0.03); }
+.kj-segment-btn.active {
+    color: var(--kj-accent);
+    background: var(--kj-accent-dim);
+    box-shadow: inset 0 1px 0 rgba(74,159,110,0.1);
+}
 
 
 /* ── Badge / Status ── */
@@ -349,13 +389,16 @@
 .kj-feed-text { color: var(--kj-text-secondary); }
 
 
-/* ── Chart viewport ── */
+/* ── Chart viewport — screen bezel ── */
 
 .kj-chart {
-    background: rgba(0,0,0,0.2);
+    background: #030503;
     border: 1px solid var(--kj-border);
+    border-top-color: #0a0a0a;
     border-radius: 2px;
-    box-shadow: inset 0 1px 4px rgba(0,0,0,0.3);
+    box-shadow:
+        inset 0 2px 8px rgba(0,0,0,0.5),
+        0 1px 0 rgba(255,255,255,0.01);
     position: relative;
     overflow: hidden;
     min-height: 120px;
