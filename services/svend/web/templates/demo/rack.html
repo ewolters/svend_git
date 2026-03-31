@@ -762,19 +762,93 @@ if (!ForgeRack.units) ForgeRack.units = {};
                             </div>
                         </div>
 
-                        <!-- Right: health + feed -->
+                        <!-- Right: CRT readouts + feed -->
                         <div class="mf-col-status">
+                            <!-- Status readouts — CRT windows with LEDs -->
                             <div class="mf-section">
-                                <div class="mf-section-label">Health</div>
-                                <div class="mf-gauge-row"><span class="mf-gauge-label">Nodes</span><div class="mf-gauge-bar"><div class="mf-gauge-fill" style="width:0%;"></div></div><span class="mf-gauge-value">—</span></div>
-                                <div class="mf-gauge-row"><span class="mf-gauge-label">Edges</span><div class="mf-gauge-bar"><div class="mf-gauge-fill" style="width:0%;"></div></div><span class="mf-gauge-value">—</span></div>
-                                <div class="mf-gauge-row"><span class="mf-gauge-label">Calibrated</span><div class="mf-gauge-bar"><div class="mf-gauge-fill" style="width:0%;"></div></div><span class="mf-gauge-value">—</span></div>
-                                <div class="mf-gauge-row"><span class="mf-gauge-label">Stale</span><div class="mf-gauge-bar"><div class="mf-gauge-fill" style="width:0%;"></div></div><span class="mf-gauge-value">—</span></div>
-                                <div class="mf-gauge-row"><span class="mf-gauge-label">Contradictions</span><div class="mf-gauge-bar"><div class="mf-gauge-fill" style="width:0%;"></div></div><span class="mf-gauge-value">—</span></div>
+                                <div class="mf-section-label">Status</div>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                                    <!-- Nodes -->
+                                    <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(45,212,191,0.06);border-radius:2px;box-shadow:inset 0 2px 4px rgba(0,0,0,0.5),0 1px 0 rgba(255,255,255,0.008);padding:5px 8px;text-align:center;min-width:52px;">
+                                        <div style="position:relative;">
+                                            <div style="font:700 18px/1 'JetBrains Mono',monospace;color:rgba(45,212,191,0.03);">888</div>
+                                            <div id="crt-nodes" style="font:700 18px/1 'JetBrains Mono',monospace;color:#2dd4bf;text-shadow:0 0 8px rgba(45,212,191,0.15);position:absolute;inset:0;">—</div>
+                                        </div>
+                                        <div style="font:700 6px/1 'Arial',sans-serif;color:rgba(45,212,191,0.2);text-transform:uppercase;letter-spacing:0.15em;margin-top:3px;">Nodes</div>
+                                    </div>
+                                    <!-- Edges -->
+                                    <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(45,212,191,0.06);border-radius:2px;box-shadow:inset 0 2px 4px rgba(0,0,0,0.5),0 1px 0 rgba(255,255,255,0.008);padding:5px 8px;text-align:center;min-width:52px;">
+                                        <div style="position:relative;">
+                                            <div style="font:700 18px/1 'JetBrains Mono',monospace;color:rgba(45,212,191,0.03);">888</div>
+                                            <div id="crt-edges" style="font:700 18px/1 'JetBrains Mono',monospace;color:#2dd4bf;text-shadow:0 0 8px rgba(45,212,191,0.15);position:absolute;inset:0;">—</div>
+                                        </div>
+                                        <div style="font:700 6px/1 'Arial',sans-serif;color:rgba(45,212,191,0.2);text-transform:uppercase;letter-spacing:0.15em;margin-top:3px;">Edges</div>
+                                    </div>
+                                    <!-- Calibrated -->
+                                    <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(74,222,128,0.06);border-radius:2px;box-shadow:inset 0 2px 4px rgba(0,0,0,0.5),0 1px 0 rgba(255,255,255,0.008);padding:5px 8px;text-align:center;min-width:52px;">
+                                        <div style="display:flex;align-items:center;gap:4px;justify-content:center;">
+                                            <span class="led" id="led-cal" style="width:6px;height:6px;"></span>
+                                            <div style="position:relative;">
+                                                <div style="font:700 18px/1 'JetBrains Mono',monospace;color:rgba(74,222,128,0.03);">100</div>
+                                                <div id="crt-cal" style="font:700 18px/1 'JetBrains Mono',monospace;color:#4ade80;text-shadow:0 0 8px rgba(74,222,128,0.15);position:absolute;inset:0;">—</div>
+                                            </div>
+                                        </div>
+                                        <div style="font:700 6px/1 'Arial',sans-serif;color:rgba(74,222,128,0.2);text-transform:uppercase;letter-spacing:0.15em;margin-top:3px;">Cal %</div>
+                                    </div>
+                                    <!-- Stale -->
+                                    <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(250,204,21,0.06);border-radius:2px;box-shadow:inset 0 2px 4px rgba(0,0,0,0.5),0 1px 0 rgba(255,255,255,0.008);padding:5px 8px;text-align:center;min-width:52px;">
+                                        <div style="display:flex;align-items:center;gap:4px;justify-content:center;">
+                                            <span class="led" id="led-stale" style="width:6px;height:6px;"></span>
+                                            <div style="position:relative;">
+                                                <div style="font:700 18px/1 'JetBrains Mono',monospace;color:rgba(250,204,21,0.03);">88</div>
+                                                <div id="crt-stale" style="font:700 18px/1 'JetBrains Mono',monospace;color:#facc15;text-shadow:0 0 8px rgba(250,204,21,0.15);position:absolute;inset:0;">—</div>
+                                            </div>
+                                        </div>
+                                        <div style="font:700 6px/1 'Arial',sans-serif;color:rgba(250,204,21,0.2);text-transform:uppercase;letter-spacing:0.15em;margin-top:3px;">Stale</div>
+                                    </div>
+                                    <!-- Contradictions -->
+                                    <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(248,113,113,0.06);border-radius:2px;box-shadow:inset 0 2px 4px rgba(0,0,0,0.5),0 1px 0 rgba(255,255,255,0.008);padding:5px 8px;text-align:center;min-width:52px;">
+                                        <div style="display:flex;align-items:center;gap:4px;justify-content:center;">
+                                            <span class="led" id="led-contra" style="width:6px;height:6px;"></span>
+                                            <div style="position:relative;">
+                                                <div style="font:700 18px/1 'JetBrains Mono',monospace;color:rgba(248,113,113,0.03);">88</div>
+                                                <div id="crt-contra" style="font:700 18px/1 'JetBrains Mono',monospace;color:#f87171;text-shadow:0 0 8px rgba(248,113,113,0.15);position:absolute;inset:0;">—</div>
+                                            </div>
+                                        </div>
+                                        <div style="font:700 6px/1 'Arial',sans-serif;color:rgba(248,113,113,0.2);text-transform:uppercase;letter-spacing:0.15em;margin-top:3px;">Contra</div>
+                                    </div>
+                                    <!-- Signals -->
+                                    <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(96,165,250,0.06);border-radius:2px;box-shadow:inset 0 2px 4px rgba(0,0,0,0.5),0 1px 0 rgba(255,255,255,0.008);padding:5px 8px;text-align:center;min-width:52px;">
+                                        <div style="display:flex;align-items:center;gap:4px;justify-content:center;">
+                                            <span class="led" id="led-signals" style="width:6px;height:6px;"></span>
+                                            <div style="position:relative;">
+                                                <div style="font:700 18px/1 'JetBrains Mono',monospace;color:rgba(96,165,250,0.03);">88</div>
+                                                <div id="crt-signals" style="font:700 18px/1 'JetBrains Mono',monospace;color:#60a5fa;text-shadow:0 0 8px rgba(96,165,250,0.15);position:absolute;inset:0;">—</div>
+                                            </div>
+                                        </div>
+                                        <div style="font:700 6px/1 'Arial',sans-serif;color:rgba(96,165,250,0.2);text-transform:uppercase;letter-spacing:0.15em;margin-top:3px;">Signals</div>
+                                    </div>
+                                </div>
                             </div>
+
+                            <!-- Readiness score — big CRT -->
+                            <div class="mf-section">
+                                <div class="mf-section-label">CI Readiness</div>
+                                <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(45,212,191,0.06);border-radius:2px;box-shadow:inset 0 2px 6px rgba(0,0,0,0.5);padding:8px;text-align:center;">
+                                    <div style="position:relative;display:inline-block;">
+                                        <div style="font:700 36px/1 'JetBrains Mono',monospace;color:rgba(45,212,191,0.03);">100</div>
+                                        <div id="crt-readiness" style="font:700 36px/1 'JetBrains Mono',monospace;color:#2dd4bf;text-shadow:0 0 12px rgba(45,212,191,0.2);position:absolute;inset:0;">—</div>
+                                    </div>
+                                    <div style="font:700 7px/1 'Arial',sans-serif;color:rgba(45,212,191,0.2);text-transform:uppercase;letter-spacing:0.15em;margin-top:4px;">Readiness Score</div>
+                                </div>
+                            </div>
+
+                            <!-- Evidence feed -->
                             <div class="mf-section" style="flex:1;">
                                 <div class="mf-section-label">Evidence Feed</div>
-                                <div class="mf-feed-item"><span class="mf-feed-time">—</span><span class="mf-feed-text">No evidence recorded yet</span></div>
+                                <div id="mf-feed" style="font:10px/1.4 'JetBrains Mono',monospace;">
+                                    <div class="mf-feed-item"><span class="mf-feed-time">—</span><span class="mf-feed-text">No evidence recorded yet</span></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1081,29 +1155,31 @@ function drawGraph(apiNodes, apiEdges) {
     el.innerHTML = html;
 }
 
-// Update health gauges from API data
+// Update CRT readouts + LEDs from API data
 function updateHealth(data) {
-    const gauges = {
-        'Nodes': data.total_nodes ?? data.node_count ?? null,
-        'Edges': data.total_edges ?? data.edge_count ?? null,
-        'Calibrated': data.calibration_rate != null ? Math.round(data.calibration_rate * 100) + '%' : null,
-        'Stale': data.staleness_rate != null ? Math.round(data.staleness_rate * 100) + '%' : null,
-        'Contradictions': data.contradiction_rate != null ? Math.round(data.contradiction_rate * 100) + '%' : null,
+    const nodes = data.total_nodes ?? data.node_count ?? 0;
+    const edges = data.total_edges ?? data.edge_count ?? 0;
+    const calRate = data.calibration_rate != null ? Math.round(data.calibration_rate * 100) : null;
+    const staleCount = data.stale_edges ?? (data.staleness_rate != null ? Math.round(data.staleness_rate * edges) : null);
+    const contraCount = data.contradicted_edges ?? (data.contradiction_rate != null ? Math.round(data.contradiction_rate * edges) : null);
+
+    // CRT values
+    const setCrt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val != null ? val : '—'; };
+    setCrt('crt-nodes', nodes);
+    setCrt('crt-edges', edges);
+    setCrt('crt-cal', calRate != null ? calRate + '%' : '—');
+    setCrt('crt-stale', staleCount ?? '—');
+    setCrt('crt-contra', contraCount ?? '—');
+
+    // LEDs — green if good, amber/red if problems
+    const setLed = (id, state) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.className = 'led' + (state === 'green' ? ' on-green' : state === 'amber' ? ' on-amber' : state === 'red' ? ' on-red' : state === 'blue' ? ' on-blue' : '');
     };
-    const rows = document.querySelectorAll('.mf-gauge-row');
-    const keys = Object.keys(gauges);
-    rows.forEach((row, i) => {
-        if (i >= keys.length) return;
-        const val = gauges[keys[i]];
-        const valEl = row.querySelector('.mf-gauge-value');
-        const fillEl = row.querySelector('.mf-gauge-fill');
-        if (valEl) valEl.textContent = val != null ? val : '—';
-        if (fillEl && typeof val === 'number') {
-            fillEl.style.width = Math.min(100, val) + '%';
-        } else if (fillEl && typeof val === 'string' && val.endsWith('%')) {
-            fillEl.style.width = val;
-        }
-    });
+    setLed('led-cal', calRate != null ? (calRate >= 80 ? 'green' : calRate >= 50 ? 'amber' : 'red') : '');
+    setLed('led-stale', staleCount > 0 ? 'amber' : 'green');
+    setLed('led-contra', contraCount > 0 ? 'red' : 'green');
 }
 
 // Update OLR LEDs based on dashboard state
@@ -1123,7 +1199,7 @@ function updateOLR(dashboard) {
 
 // Update evidence feed
 function updateFeed(dashboard) {
-    const feedContainer = document.querySelector('.mf-section:last-child');
+    const feedContainer = document.getElementById('mf-feed');
     if (!feedContainer) return;
     const items = [];
 
@@ -1138,7 +1214,7 @@ function updateFeed(dashboard) {
 
     items.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
 
-    const feedEl = feedContainer.querySelector('.mf-feed-item')?.parentElement || feedContainer;
+    const feedEl = feedContainer;
     if (items.length) {
         feedEl.innerHTML = items.slice(0, 5).map(i => {
             const t = i.time ? new Date(i.time).toLocaleTimeString('en', {hour:'2-digit',minute:'2-digit'}) : '—';
@@ -1162,12 +1238,23 @@ function atlasLoad() {
     SvApi.get('/api/loop/dashboard/').then(d => {
         updateOLR(d);
         updateFeed(d);
+        // Signal count CRT + LED
+        const sigCount = d.signals?.untriaged_count ?? 0;
+        const crtSig = document.getElementById('crt-signals');
+        if (crtSig) crtSig.textContent = sigCount;
+        const ledSig = document.getElementById('led-signals');
+        if (ledSig) ledSig.className = 'led' + (sigCount > 0 ? ' on-blue' : '');
     }).catch(() => {});
 
-    // Readiness (less frequent — called separately)
+    // Readiness score
     SvApi.get('/api/loop/readiness/').then(r => {
         const score = r.readiness?.score ?? r.score;
-        // Could update a readiness gauge if we add one
+        const crt = document.getElementById('crt-readiness');
+        if (crt && score != null) {
+            crt.textContent = Math.round(score);
+            crt.style.color = score >= 75 ? '#4ade80' : score >= 50 ? '#facc15' : '#f87171';
+            crt.style.textShadow = '0 0 12px ' + (score >= 75 ? 'rgba(74,222,128,0.2)' : score >= 50 ? 'rgba(250,204,21,0.2)' : 'rgba(248,113,113,0.2)');
+        }
     }).catch(() => {});
 }
 
