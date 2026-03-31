@@ -220,6 +220,49 @@ def _op_spearman(d):
     return {"rho": pair.r, "p": pair.p_value, "n": pair.n}
 
 
+@_rack_op("control_chart")
+def _op_control_chart(d):
+    from forgespc.capability import calculate_capability
+    from forgespc.charts import individuals_moving_range_chart
+
+    vals = d["values"]
+    lsl = d.get("lsl")
+    usl = d.get("usl")
+
+    # Run chart
+    r = individuals_moving_range_chart(vals)
+    result = {
+        "mean": r.limits.cl,
+        "ucl": r.limits.ucl,
+        "lcl": r.limits.lcl,
+        "in_control": r.in_control,
+        "out_of_control": [
+            {"index": p.index, "value": p.value, "rule": getattr(p, "rule", 1)} for p in r.out_of_control
+        ],
+        "violations": [
+            {
+                "index": v.index,
+                "value": getattr(v, "value", None),
+                "rule": getattr(v, "rule_number", 0),
+                "desc": getattr(v, "description", ""),
+            }
+            for v in r.run_violations
+        ],
+        "n": len(vals),
+    }
+
+    # Capability if specs provided
+    if lsl is not None or usl is not None:
+        cap = calculate_capability(vals, usl=usl, lsl=lsl)
+        result["cpk"] = cap.cpk
+        result["cp"] = cap.cp
+        result["dpmo"] = cap.dpmo
+        result["sigma_level"] = cap.sigma_level
+        result["ppm"] = round(cap.dpmo) if cap.dpmo is not None else None
+
+    return result
+
+
 @_rack_op("regression")
 def _op_regression(d):
     x, y = d["x"], d["y"]
