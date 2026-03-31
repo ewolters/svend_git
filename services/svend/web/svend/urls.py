@@ -37,7 +37,10 @@ def _forgerack_unit_view(request, unit_name):
     )
     if not unit_path.is_file():
         return HttpResponseNotFound(f"Unit not found: {unit_name}")
-    return HttpResponse(unit_path.read_text(), content_type="text/html")
+    resp = HttpResponse(unit_path.read_text(), content_type="text/html")
+    resp["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp["Pragma"] = "no-cache"
+    return resp
 
 
 from agents_api.whiteboard_views import guest_board_view

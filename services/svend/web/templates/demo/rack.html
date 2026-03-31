@@ -703,6 +703,7 @@ if (!ForgeRack.units) ForgeRack.units = {};
             <div class="rack-sidebar-item" data-unit="filter" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#22d3ee;"></span> Filter <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="calc" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#d4884a;"></span> Calc <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="analyst" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#f43f5e;"></span> Analyst <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="sentinel" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#d97706;"></span> Sentinel <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="splitter" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#64748b;"></span> Splitter <span class="rack-sidebar-count"></span></div>
         </div>
 
@@ -1385,10 +1386,10 @@ async function mountUnit(sidebarItem) {
     _unitCounter++;
     const id = unitName.replace(/-/g, '_') + '_' + _unitCounter;
 
-    // Fetch + cache unit HTML from Django view
+    // Fetch + cache unit HTML from Django view (per page load, not across reloads)
     if (!_unitCache[unitName]) {
         try {
-            const resp = await fetch('/app/demo/rack/unit/' + unitName + '/');
+            const resp = await fetch('/app/demo/rack/unit/' + unitName + '/', {cache: 'no-cache'});
             if (!resp.ok) throw new Error(resp.status);
             _unitCache[unitName] = await resp.text();
         } catch (e) {
