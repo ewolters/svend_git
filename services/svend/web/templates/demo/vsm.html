@@ -537,6 +537,36 @@ if (_origShowStepMetrics) {
     function onUp() { dragging = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
 })();
 
+// Create new VSM (reads from new-vsm-dialog inputs)
+async function createNewVSM() {
+    const name = document.getElementById('new-vsm-name').value || 'Untitled VSM';
+    const product = document.getElementById('new-vsm-product').value || '';
+    const demand = document.getElementById('new-vsm-demand').value || '';
+    try {
+        const payload = { name: name, product_family: product, customer_demand: demand };
+        if (currentProjectId) payload.project_id = currentProjectId;
+        const data = await VsmApi.create(payload);
+        hideNewVSMDialog();
+        // Load inline — update URL without full reload
+        const newId = data.id;
+        vsmId = newId;
+        history.pushState({}, '', '/app/demo/vsm/' + newId + '/');
+        await loadVSM(newId);
+        SvToast.success('Created: ' + name);
+    } catch (e) {
+        SvToast.error('Create failed: ' + (e.message || e));
+    }
+}
+
+// Override URL-based vsmId extraction for demo path (/app/demo/vsm/<id>/)
+(function() {
+    const parts = window.location.pathname.split('/');
+    // /app/demo/vsm/<uuid>/ → parts = ['', 'app', 'demo', 'vsm', '<uuid>', '']
+    if (parts[2] === 'demo' && parts[3] === 'vsm' && parts[4]) {
+        vsmId = parts[4].replace('/', '');
+    }
+})();
+
 // Init — same as production
 document.addEventListener('DOMContentLoaded', async () => {
     await setupProjectSelector();
