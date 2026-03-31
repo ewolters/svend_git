@@ -747,7 +747,15 @@ if (!ForgeRack.units) ForgeRack.units = {};
                         <!-- Left: graph + OLR -->
                         <div class="mf-col-graph">
                             <div class="mf-section">
-                                <div class="mf-section-label">Process Graph</div>
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                                    <div class="mf-section-label" style="margin-bottom:0;">Process Graph</div>
+                                    <div class="segment" id="lensSelector" style="border-color:rgba(45,212,191,0.08);">
+                                        <button class="segment-btn active" data-lens="process_map" onclick="setLens(this)">Process</button>
+                                        <button class="segment-btn" data-lens="fmea" onclick="setLens(this)">FMEA</button>
+                                        <button class="segment-btn" data-lens="gap" onclick="setLens(this)">Gap</button>
+                                        <button class="segment-btn" data-lens="control" onclick="setLens(this)">Control</button>
+                                    </div>
+                                </div>
                                 <div class="mf-graph" id="graphView"></div>
                             </div>
                             <div class="mf-section">
@@ -1021,6 +1029,16 @@ function genBolts() {
 //  ATLAS — Live API polling for mainframe instruments
 // ═══════════════════════════════════════════════════════════
 
+// ── Lens state ──
+let _currentLens = 'process_map';
+
+function setLens(btn) {
+    _currentLens = btn.dataset.lens;
+    document.querySelectorAll('#lensSelector .segment-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    atlasLoad(); // reload with new lens
+}
+
 // ── Node type → color + tier mapping ──
 const NODE_COLORS = {
     process_parameter: { color: '#4ade80', bg: 'rgba(74,222,128,0.15)', tier: 0, label: 'Parameter' },
@@ -1227,8 +1245,8 @@ function updateFeed(dashboard) {
 
 // ATLAS polling — load all data
 function atlasLoad() {
-    // Graph data
-    SvApi.get('/api/graph/data/').then(d => {
+    // Graph data — pass current lens
+    SvApi.get('/api/graph/data/?lens=' + _currentLens).then(d => {
         if (d.nodes && d.nodes.length) drawGraph(d.nodes, d.edges);
         if (d.stats) updateHealth(d.stats);
     }).catch(() => {
