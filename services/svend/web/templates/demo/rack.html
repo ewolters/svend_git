@@ -912,62 +912,63 @@ if (!ForgeRack.units) ForgeRack.units = {};
                         </div>
                     </div>
                     <div class="mf-back-body" data-id="atlas">
+                        <!-- Results — accepts result/summary from any analysis unit -->
                         <div class="mf-cluster">
-                            <span class="mf-cluster-label">SPC</span>
+                            <span class="mf-cluster-label">RES</span>
                             <div class="mf-cluster-jacks">
-                                <div class="patch-group"><div class="patch-jack" data-input="spc-chart-1" data-unit-id="atlas"></div><div class="patch-jack-label">chart 1</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="spc-chart-2" data-unit-id="atlas"></div><div class="patch-jack-label">chart 2</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="spc-chart-3" data-unit-id="atlas"></div><div class="patch-jack-label">chart 3</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="spc-chart-4" data-unit-id="atlas"></div><div class="patch-jack-label">chart 4</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="spc-cpk-1" data-unit-id="atlas"></div><div class="patch-jack-label">cpk</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="spc-cpk-2" data-unit-id="atlas"></div><div class="patch-jack-label">cpk</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="spc-viol-1" data-unit-id="atlas"></div><div class="patch-jack-label">viol</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="spc-viol-2" data-unit-id="atlas"></div><div class="patch-jack-label">viol</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="spc-drift" data-unit-id="atlas"></div><div class="patch-jack-label">drift</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="result-1" data-unit-id="atlas"></div><div class="patch-jack-label">result</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="result-2" data-unit-id="atlas"></div><div class="patch-jack-label">result</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="result-3" data-unit-id="atlas"></div><div class="patch-jack-label">result</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="result-4" data-unit-id="atlas"></div><div class="patch-jack-label">result</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="summary-1" data-unit-id="atlas"></div><div class="patch-jack-label">summary</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="summary-2" data-unit-id="atlas"></div><div class="patch-jack-label">summary</div></div>
                             </div>
                         </div>
+                        <!-- Violations — from SENTINEL and monitoring units -->
                         <div class="mf-cluster">
-                            <span class="mf-cluster-label">EXP</span>
+                            <span class="mf-cluster-label">VIO</span>
                             <div class="mf-cluster-jacks">
-                                <div class="patch-group"><div class="patch-jack" data-input="doe-1" data-unit-id="atlas"></div><div class="patch-jack-label">doe 1</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="doe-2" data-unit-id="atlas"></div><div class="patch-jack-label">doe 2</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="effect-1" data-unit-id="atlas"></div><div class="patch-jack-label">effect</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="effect-2" data-unit-id="atlas"></div><div class="patch-jack-label">effect</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="optim" data-unit-id="atlas"></div><div class="patch-jack-label">optim</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="stat-1" data-unit-id="atlas"></div><div class="patch-jack-label">stat</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="stat-2" data-unit-id="atlas"></div><div class="patch-jack-label">stat</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="violations-1" data-unit-id="atlas"></div><div class="patch-jack-label">viol</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="violations-2" data-unit-id="atlas"></div><div class="patch-jack-label">viol</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="violations-3" data-unit-id="atlas"></div><div class="patch-jack-label">viol</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="violations-4" data-unit-id="atlas"></div><div class="patch-jack-label">viol</div></div>
                             </div>
                         </div>
+                        <!-- Clean/validated data — from TRIAGE -->
                         <div class="mf-cluster">
-                            <span class="mf-cluster-label">INV</span>
+                            <span class="mf-cluster-label">DAT</span>
                             <div class="mf-cluster-jacks">
-                                <div class="patch-group"><div class="patch-jack" data-input="cause-1" data-unit-id="atlas"></div><div class="patch-jack-label">cause</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="cause-2" data-unit-id="atlas"></div><div class="patch-jack-label">cause</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="cause-3" data-unit-id="atlas"></div><div class="patch-jack-label">cause</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="hyp-1" data-unit-id="atlas"></div><div class="patch-jack-label">hyp</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="hyp-2" data-unit-id="atlas"></div><div class="patch-jack-label">hyp</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="concl" data-unit-id="atlas"></div><div class="patch-jack-label">concl</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="clean-1" data-unit-id="atlas"></div><div class="patch-jack-label">clean</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="clean-2" data-unit-id="atlas"></div><div class="patch-jack-label">clean</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="flagged-1" data-unit-id="atlas"></div><div class="patch-jack-label">flagged</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="report-1" data-unit-id="atlas"></div><div class="patch-jack-label">report</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="report-2" data-unit-id="atlas"></div><div class="patch-jack-label">report</div></div>
                             </div>
                         </div>
+                        <!-- Transforms — from CALC, FILTER -->
                         <div class="mf-cluster">
-                            <span class="mf-cluster-label">VER</span>
+                            <span class="mf-cluster-label">XFM</span>
                             <div class="mf-cluster-jacks">
-                                <div class="patch-group"><div class="patch-jack" data-input="fft-1" data-unit-id="atlas"></div><div class="patch-jack-label">fft</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="fft-2" data-unit-id="atlas"></div><div class="patch-jack-label">fft</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="pc-1" data-unit-id="atlas"></div><div class="patch-jack-label">pc</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="pc-2" data-unit-id="atlas"></div><div class="patch-jack-label">pc</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="audit" data-unit-id="atlas"></div><div class="patch-jack-label">audit</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="column-1" data-unit-id="atlas"></div><div class="patch-jack-label">column</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="column-2" data-unit-id="atlas"></div><div class="patch-jack-label">column</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="pass-1" data-unit-id="atlas"></div><div class="patch-jack-label">pass</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="reject-1" data-unit-id="atlas"></div><div class="patch-jack-label">reject</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="thru-1" data-unit-id="atlas"></div><div class="patch-jack-label">thru</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="thru-2" data-unit-id="atlas"></div><div class="patch-jack-label">thru</div></div>
                             </div>
                         </div>
+                        <!-- Raw data — from INGEST, INTAKE -->
                         <div class="mf-cluster">
-                            <span class="mf-cluster-label">MSA</span>
+                            <span class="mf-cluster-label">RAW</span>
                             <div class="mf-cluster-jacks">
-                                <div class="patch-group"><div class="patch-jack" data-input="grr-1" data-unit-id="atlas"></div><div class="patch-jack-label">grr</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="grr-2" data-unit-id="atlas"></div><div class="patch-jack-label">grr</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="linear" data-unit-id="atlas"></div><div class="patch-jack-label">linear</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-input="uncert" data-unit-id="atlas"></div><div class="patch-jack-label">uncert</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="parsed-1" data-unit-id="atlas"></div><div class="patch-jack-label">parsed</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="parsed-2" data-unit-id="atlas"></div><div class="patch-jack-label">parsed</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="full-1" data-unit-id="atlas"></div><div class="patch-jack-label">full</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="headers-1" data-unit-id="atlas"></div><div class="patch-jack-label">headers</div></div>
+                                <div class="patch-group"><div class="patch-jack" data-input="meta-1" data-unit-id="atlas"></div><div class="patch-jack-label">meta</div></div>
                             </div>
                         </div>
+                        <!-- Signals out — ATLAS sends to downstream units -->
                         <div class="mf-cluster" style="border-color:rgba(248,113,113,0.1);">
                             <span class="mf-cluster-label" style="color:rgba(248,113,113,0.35);border-right-color:rgba(248,113,113,0.1);">OUT</span>
                             <div class="mf-cluster-jacks">
@@ -977,9 +978,7 @@ if (!ForgeRack.units) ForgeRack.units = {};
                                 <div class="patch-group"><div class="patch-jack" data-output="contrad-2" data-unit-id="atlas"></div><div class="patch-jack-label">contrad</div></div>
                                 <div class="patch-group"><div class="patch-jack" data-output="gap-1" data-unit-id="atlas"></div><div class="patch-jack-label">gap</div></div>
                                 <div class="patch-group"><div class="patch-jack" data-output="gap-2" data-unit-id="atlas"></div><div class="patch-jack-label">gap</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-output="matur" data-unit-id="atlas"></div><div class="patch-jack-label">matur</div></div>
                                 <div class="patch-group"><div class="patch-jack" data-output="context" data-unit-id="atlas"></div><div class="patch-jack-label">context</div></div>
-                                <div class="patch-group"><div class="patch-jack" data-output="priors" data-unit-id="atlas"></div><div class="patch-jack-label">priors</div></div>
                                 <div class="patch-group"><div class="patch-jack" data-output="scope" data-unit-id="atlas"></div><div class="patch-jack-label">scope</div></div>
                             </div>
                         </div>
