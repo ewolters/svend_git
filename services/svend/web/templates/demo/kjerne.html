@@ -381,22 +381,47 @@
     <!-- ═══ Composition Example ═══ -->
     <div style="margin-bottom:24px;">
         <div class="kj-label-bright" style="margin-bottom:10px;">Composition — Station Detail</div>
-        <div class="kj-panel-raised" style="max-width:400px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                <div style="font:600 13px/1 var(--kj-sans);color:var(--kj-text);">Assembly Station</div>
-                <span class="kj-badge red">Bottleneck</span>
+        <div class="kj-panel-raised" style="max-width:480px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div style="font:700 13px/1 var(--kj-industrial);color:var(--kj-text);letter-spacing:0.04em;text-transform:uppercase;">Assembly Station</div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span class="kj-led on-red"></span>
+                    <span class="kj-badge red">Bottleneck</span>
+                </div>
             </div>
-            <div class="kj-detail-grid" style="margin-bottom:8px;">
-                <div><div class="kj-detail-label">Cycle Time</div><div class="kj-value">62s</div></div>
-                <div><div class="kj-detail-label">Takt Ratio</div><div class="kj-value bad">1.03</div></div>
-                <div><div class="kj-detail-label">Uptime</div><div class="kj-value warn">88%</div></div>
-                <div><div class="kj-detail-label">Operators</div><div class="kj-value">3</div></div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+                <div class="kj-lcd-display">
+                    <span class="kj-lcd kj-lcd-lg bad">62s</span>
+                    <span class="kj-lcd-label">Cycle Time</span>
+                </div>
+                <div class="kj-lcd-display">
+                    <span class="kj-lcd kj-lcd-lg bad">1.03</span>
+                    <span class="kj-lcd-label">Takt Ratio</span>
+                </div>
+                <div class="kj-lcd-display">
+                    <span class="kj-lcd kj-lcd-lg warn">88%</span>
+                    <span class="kj-lcd-label">Uptime</span>
+                </div>
+                <div class="kj-lcd-display">
+                    <span class="kj-lcd kj-lcd-lg">3</span>
+                    <span class="kj-lcd-label">Operators</span>
+                </div>
             </div>
-            <div class="kj-meter bad" style="margin-bottom:4px;"><div class="kj-meter-fill" style="width:88%;"></div></div>
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--kj-text-dim);">
-                <span>0%</span><span>Uptime</span><span>100%</span>
+
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+                <div class="kj-label" style="margin:0;min-width:45px;">Uptime</div>
+                <div class="kj-meter bad" style="flex:1;"><div class="kj-meter-fill" style="width:88%;"></div></div>
+                <span class="kj-lcd kj-lcd-sm warn">88%</span>
             </div>
-            <div style="display:flex;gap:6px;margin-top:10px;">
+
+            <div style="display:flex;gap:4px;align-items:center;margin-bottom:12px;">
+                <span class="kj-label" style="margin:0;min-width:45px;">C/O</span>
+                <div class="kj-meter warn" style="flex:1;"><div class="kj-meter-fill" style="width:65%;"></div></div>
+                <span class="kj-lcd kj-lcd-sm">300s</span>
+            </div>
+
+            <div style="display:flex;gap:6px;">
                 <button class="kj-btn kj-btn-primary kj-btn-sm" style="flex:1;">Run OEE</button>
                 <button class="kj-btn kj-btn-sm" style="flex:1;">Line Balance</button>
                 <button class="kj-btn kj-btn-sm" style="flex:1;">SMED</button>
