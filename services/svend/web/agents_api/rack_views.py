@@ -189,25 +189,33 @@ def _op_ttest(d):
     }
 
 
+def _has_variance(vals):
+    """Check if a list has non-zero variance (not all identical)."""
+    if len(vals) < 2:
+        return False
+    return any(v != vals[0] for v in vals[1:])
+
+
 @_rack_op("pearson")
 def _op_pearson(d):
+    x, y = d["x"], d["y"]
+    if not _has_variance(x) or not _has_variance(y):
+        return {"r": 0.0, "p": 1.0, "r_squared": 0.0, "n": len(x), "warning": "zero variance"}
     from forgestat.parametric.correlation import correlation
 
-    result = correlation({"x": d["x"], "y": d["y"]}, method="pearson")
+    result = correlation({"x": x, "y": y}, method="pearson")
     pair = result.pairs[0]
-    return {
-        "r": pair.r,
-        "p": pair.p_value,
-        "r_squared": pair.r_squared,
-        "n": pair.n,
-    }
+    return {"r": pair.r, "p": pair.p_value, "r_squared": pair.r_squared, "n": pair.n}
 
 
 @_rack_op("spearman")
 def _op_spearman(d):
+    x, y = d["x"], d["y"]
+    if not _has_variance(x) or not _has_variance(y):
+        return {"rho": 0.0, "p": 1.0, "n": len(x), "warning": "zero variance"}
     from forgestat.parametric.correlation import correlation
 
-    result = correlation({"x": d["x"], "y": d["y"]}, method="spearman")
+    result = correlation({"x": x, "y": y}, method="spearman")
     pair = result.pairs[0]
     return {"rho": pair.r, "p": pair.p_value, "n": pair.n}
 
