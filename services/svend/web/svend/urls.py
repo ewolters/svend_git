@@ -259,6 +259,7 @@ urlpatterns = varta_urls + [
     # ── Demo surfaces (Object 271) ──
     path("app/demo/rack/new/", _app_view("demo/rack.html"), name="demo_rack_new"),
     path("app/demo/rack/unit/<str:unit_name>/", _forgerack_unit_view, name="forgerack_unit"),
+    path("app/demo/vsm/", _app_view("demo/vsm.html"), name="demo_vsm"),
     path("app/iso/", _app_view("qms.html"), name="iso"),  # redirect legacy
     path("app/iso-docs/", _app_view("iso_doc.html"), name="iso_doc"),
     path("app/iso-docs/<uuid:doc_id>/", _app_view("iso_doc.html"), name="iso_doc_edit"),
