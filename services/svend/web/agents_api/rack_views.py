@@ -266,6 +266,15 @@ def rack_compute(request):
                     pass  # skip non-numeric
             data[key] = coerced
 
+    logger.info(
+        "rack compute op=%s keys=%s lens=%s",
+        op,
+        list(data.keys()),
+        {k: len(v) if isinstance(v, list) else type(v).__name__ for k, v in data.items()},
+    )
+    if op in ("pearson", "spearman") and "x" in data and "y" in data:
+        logger.info("  x[:5]=%s y[:5]=%s", data["x"][:5], data["y"][:5])
+
     try:
         result = _RACK_OPS[op](data)
         # Sanitize NaN/Inf → null for valid JSON
