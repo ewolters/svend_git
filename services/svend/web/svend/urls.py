@@ -263,6 +263,7 @@ urlpatterns = varta_urls + [
     path("app/demo/rack/new/", _app_view("demo/rack.html"), name="demo_rack_new"),
     path("app/demo/rack/unit/<str:unit_name>/", _forgerack_unit_view, name="forgerack_unit"),
     path("app/demo/vsm/", _app_view("demo/vsm.html"), name="demo_vsm"),
+    path("app/demo/kjerne/", _app_view("demo/kjerne.html"), name="demo_kjerne"),
     path("app/demo/vsm/<uuid:vsm_id>/", _app_view("demo/vsm.html"), name="demo_vsm_edit"),
     path("app/iso/", _app_view("qms.html"), name="iso"),  # redirect legacy
     path("app/iso-docs/", _app_view("iso_doc.html"), name="iso_doc"),

@@ -1,0 +1,275 @@
+{% extends "base_app.html" %}
+{% load static %}
+{% block title %}Kjerne Components{% endblock %}
+{% block container_class %}sv-full{% endblock %}
+
+{% block extra_head %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/kjerne-theme.css' %}">
+{% endblock %}
+
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:24px;background:var(--kj-bg);">
+
+    <div style="margin-bottom:24px;">
+        <div style="font:700 18px/1 var(--kj-sans);color:var(--kj-text);margin-bottom:4px;">KJERNE</div>
+        <div style="font:400 11px/1 var(--kj-mono);color:var(--kj-text-dim);letter-spacing:0.08em;">MANUFACTURER COMPONENT LIBRARY</div>
+    </div>
+
+    <!-- ═══ Panels ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Panels</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+            <div class="kj-panel">
+                <div class="kj-label">Recessed Panel</div>
+                <div class="kj-value">kj-panel</div>
+                <div style="color:var(--kj-text-dim);font-size:10px;margin-top:4px;">Stamped inset — for data sections, metrics, sidebar groups</div>
+            </div>
+            <div class="kj-panel-raised">
+                <div class="kj-label">Raised Panel</div>
+                <div class="kj-value">kj-panel-raised</div>
+                <div style="color:var(--kj-text-dim);font-size:10px;margin-top:4px;">Steel surface — for cards, containers, overlays</div>
+            </div>
+            <div class="kj-chart" style="display:flex;align-items:center;justify-content:center;min-height:80px;">
+                <div class="kj-empty">kj-chart — screen bezel viewport</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Readouts ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Readouts</div>
+        <div class="kj-panel" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;">
+            <div class="kj-readout">
+                <div class="kj-readout-value">14</div>
+                <div class="kj-readout-label">Nodes</div>
+            </div>
+            <div class="kj-readout">
+                <div class="kj-readout-value">18</div>
+                <div class="kj-readout-label">Edges</div>
+            </div>
+            <div class="kj-readout good">
+                <div class="kj-readout-value">1.47</div>
+                <div class="kj-readout-label">Cpk</div>
+            </div>
+            <div class="kj-readout warn">
+                <div class="kj-readout-value">2</div>
+                <div class="kj-readout-label">Stale</div>
+            </div>
+            <div class="kj-readout bad">
+                <div class="kj-readout-value">1</div>
+                <div class="kj-readout-label">Contra</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Values ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Values</div>
+        <div class="kj-panel" style="display:flex;gap:20px;align-items:baseline;flex-wrap:wrap;">
+            <div><div class="kj-label">Standard</div><div class="kj-value">25.02 mm</div></div>
+            <div><div class="kj-label">Large</div><div class="kj-value-lg">87.3%</div></div>
+            <div><div class="kj-label">XL Accent</div><div class="kj-value-xl">42</div></div>
+            <div><div class="kj-label">Good</div><div class="kj-value good">PASS</div></div>
+            <div><div class="kj-label">Warning</div><div class="kj-value warn">MARGINAL</div></div>
+            <div><div class="kj-label">Bad</div><div class="kj-value bad">FAIL</div></div>
+        </div>
+    </div>
+
+    <!-- ═══ LEDs ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">LEDs</div>
+        <div class="kj-panel" style="display:flex;gap:16px;align-items:center;">
+            <div style="display:flex;align-items:center;gap:6px;"><span class="kj-led"></span><span style="font-size:10px;color:var(--kj-text-dim);">Off</span></div>
+            <div style="display:flex;align-items:center;gap:6px;"><span class="kj-led on-green"></span><span style="font-size:10px;color:var(--kj-text-dim);">Green</span></div>
+            <div style="display:flex;align-items:center;gap:6px;"><span class="kj-led on-amber"></span><span style="font-size:10px;color:var(--kj-text-dim);">Amber</span></div>
+            <div style="display:flex;align-items:center;gap:6px;"><span class="kj-led on-red"></span><span style="font-size:10px;color:var(--kj-text-dim);">Red</span></div>
+            <div style="display:flex;align-items:center;gap:6px;"><span class="kj-led on-blue"></span><span style="font-size:10px;color:var(--kj-text-dim);">Blue</span></div>
+        </div>
+    </div>
+
+    <!-- ═══ Meters ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Meters</div>
+        <div class="kj-panel">
+            <div style="margin-bottom:8px;">
+                <div class="kj-label">Default (75%)</div>
+                <div class="kj-meter"><div class="kj-meter-fill" style="width:75%;"></div></div>
+            </div>
+            <div style="margin-bottom:8px;">
+                <div class="kj-label">Good (90%)</div>
+                <div class="kj-meter good"><div class="kj-meter-fill" style="width:90%;"></div></div>
+            </div>
+            <div style="margin-bottom:8px;">
+                <div class="kj-label">Warning (50%)</div>
+                <div class="kj-meter warn"><div class="kj-meter-fill" style="width:50%;"></div></div>
+            </div>
+            <div>
+                <div class="kj-label">Bad (20%)</div>
+                <div class="kj-meter bad"><div class="kj-meter-fill" style="width:20%;"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Buttons ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Buttons</div>
+        <div class="kj-panel" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button class="kj-btn">Default</button>
+            <button class="kj-btn kj-btn-primary">Primary</button>
+            <button class="kj-btn kj-btn-danger">Danger</button>
+            <button class="kj-btn kj-btn-sm">Small</button>
+            <button class="kj-btn kj-btn-primary kj-btn-sm">Small Primary</button>
+            <button class="kj-btn kj-btn-danger kj-btn-sm">Small Danger</button>
+        </div>
+    </div>
+
+    <!-- ═══ Inputs ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Inputs</div>
+        <div class="kj-panel" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+            <div>
+                <div class="kj-label">Text Input</div>
+                <input class="kj-input" type="text" value="25.02" placeholder="Enter value">
+            </div>
+            <div>
+                <div class="kj-label">Number Input</div>
+                <input class="kj-input" type="number" value="460" placeholder="Demand">
+            </div>
+            <div>
+                <div class="kj-label">Select</div>
+                <select class="kj-select">
+                    <option>I-MR Chart</option>
+                    <option>X-bar R</option>
+                    <option>p-Chart</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Segment Controls ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Segment Controls</div>
+        <div class="kj-panel" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
+            <div class="kj-segment">
+                <button class="kj-segment-btn active">Process</button>
+                <button class="kj-segment-btn">FMEA</button>
+                <button class="kj-segment-btn">Gap</button>
+                <button class="kj-segment-btn">Control</button>
+            </div>
+            <div class="kj-segment">
+                <button class="kj-segment-btn active">Phase 1</button>
+                <button class="kj-segment-btn">Phase 2</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Badges ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Badges</div>
+        <div class="kj-panel" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="kj-badge">Default</span>
+            <span class="kj-badge green">Approved</span>
+            <span class="kj-badge amber">Pending</span>
+            <span class="kj-badge red">Critical</span>
+            <span class="kj-badge blue">Active</span>
+        </div>
+    </div>
+
+    <!-- ═══ Detail Grid ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Detail Grid</div>
+        <div class="kj-panel">
+            <div class="kj-detail-grid">
+                <div><div class="kj-detail-label">Cycle Time</div><div class="kj-value">45s</div></div>
+                <div><div class="kj-detail-label">Changeover</div><div class="kj-value">300s</div></div>
+                <div><div class="kj-detail-label">Uptime</div><div class="kj-value">95%</div></div>
+                <div><div class="kj-detail-label">Operators</div><div class="kj-value">2</div></div>
+                <div><div class="kj-detail-label">Batch Size</div><div class="kj-value">50</div></div>
+                <div><div class="kj-detail-label">Scrap</div><div class="kj-value bad">1.5%</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Table ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Table</div>
+        <div class="kj-panel" style="padding:0;overflow:hidden;">
+            <table class="kj-table">
+                <thead>
+                    <tr><th>Station</th><th>C/T</th><th>Uptime</th><th>Bottleneck</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Press</td><td class="mono">45s</td><td class="mono">95%</td><td>No</td><td><span class="kj-badge green">OK</span></td></tr>
+                    <tr><td>Assembly</td><td class="mono">62s</td><td class="mono">88%</td><td style="color:var(--kj-red);font-weight:600;">YES</td><td><span class="kj-badge red">Bottleneck</span></td></tr>
+                    <tr><td>Inspection</td><td class="mono">30s</td><td class="mono">99%</td><td>No</td><td><span class="kj-badge green">OK</span></td></tr>
+                    <tr><td>Pack</td><td class="mono">20s</td><td class="mono">97%</td><td>No</td><td><span class="kj-badge blue">Active</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══ Feed ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Evidence Feed</div>
+        <div class="kj-panel">
+            <div class="kj-feed">
+                <div class="kj-feed-item"><span class="kj-feed-time">14:32</span><span class="kj-feed-text">SPC violation detected on Zone 3 temperature — 2 points beyond 2-sigma</span></div>
+                <div class="kj-feed-item"><span class="kj-feed-time">14:28</span><span class="kj-feed-text">Capability study completed — Cpk = 1.47 (bore diameter)</span></div>
+                <div class="kj-feed-item"><span class="kj-feed-time">14:15</span><span class="kj-feed-text">Process confirmation: system works — coolant monitoring procedure</span></div>
+                <div class="kj-feed-item"><span class="kj-feed-time">13:50</span><span class="kj-feed-text">Investigation opened: customer complaint L-2847</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Labels ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Labels & Typography</div>
+        <div class="kj-panel">
+            <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:baseline;">
+                <div><div class="kj-label">kj-label</div><div style="font-size:10px;color:var(--kj-text-dim);">Section header, dim</div></div>
+                <div><div class="kj-label-bright">kj-label-bright</div><div style="font-size:10px;color:var(--kj-text-dim);">Section header, visible</div></div>
+                <div><div class="kj-detail-label">kj-detail-label</div><div style="font-size:10px;color:var(--kj-text-dim);">Field label</div></div>
+                <div><div class="kj-mfr-mark">KJERNE INSTRUMENTS</div><div style="font-size:10px;color:var(--kj-text-dim);">Manufacturer mark</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Empty State ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Empty State</div>
+        <div class="kj-chart" style="min-height:100px;">
+            <div class="kj-empty">No data available — connect a data source</div>
+        </div>
+    </div>
+
+    <!-- ═══ Composition Example ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Composition — Station Detail</div>
+        <div class="kj-panel-raised" style="max-width:400px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <div style="font:600 13px/1 var(--kj-sans);color:var(--kj-text);">Assembly Station</div>
+                <span class="kj-badge red">Bottleneck</span>
+            </div>
+            <div class="kj-detail-grid" style="margin-bottom:8px;">
+                <div><div class="kj-detail-label">Cycle Time</div><div class="kj-value">62s</div></div>
+                <div><div class="kj-detail-label">Takt Ratio</div><div class="kj-value bad">1.03</div></div>
+                <div><div class="kj-detail-label">Uptime</div><div class="kj-value warn">88%</div></div>
+                <div><div class="kj-detail-label">Operators</div><div class="kj-value">3</div></div>
+            </div>
+            <div class="kj-meter bad" style="margin-bottom:4px;"><div class="kj-meter-fill" style="width:88%;"></div></div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--kj-text-dim);">
+                <span>0%</span><span>Uptime</span><span>100%</span>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:10px;">
+                <button class="kj-btn kj-btn-primary kj-btn-sm" style="flex:1;">Run OEE</button>
+                <button class="kj-btn kj-btn-sm" style="flex:1;">Line Balance</button>
+                <button class="kj-btn kj-btn-sm" style="flex:1;">SMED</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="kj-mfr-mark" style="text-align:center;padding:16px;">KJERNE INSTRUMENTS — SVEND MANUFACTURING PLATFORM</div>
+
+</div>
+{% endblock %}
