@@ -7,6 +7,11 @@
 <link rel="stylesheet" href="{% static 'css/vsm.css' %}">
 <script src="{% static 'js/vsm-state.js' %}"></script>
 <script src="{% static 'js/vsm-api.js' %}"></script>
+<script src="{% static 'js/vsm-canvas.js' %}"></script>
+<script src="{% static 'js/vsm-metrics.js' %}"></script>
+<script src="{% static 'js/vsm-interaction.js' %}"></script>
+<script src="{% static 'js/vsm-list.js' %}"></script>
+<script src="{% static 'js/vsm-proposals.js' %}"></script>
 {% endblock %}
 
 {% block workspace_style %}
@@ -125,7 +130,7 @@
 {% endblock %}
 
 {% block workspace_toolbar %}
-<span style="font-size:11px;color:var(--text-dim);" id="vsmToolbarTitle">Select a map</span>
+<span style="font-size:11px;color:var(--text-dim);" id="vsmToolbarTitle"><span id="vsm-name">Select a map</span></span>
 <div style="margin-left:auto;display:flex;gap:4px;">
     <button class="sv-btn sv-btn-sm sv-btn-ghost" id="btnNewVSM" onclick="createVSMDemo()">+ New</button>
 </div>
@@ -158,6 +163,58 @@
         <!-- VSM list overlay -->
         <div id="vsm-list-overlay" style="display:none;position:absolute;inset:0;background:var(--bg-primary);overflow-y:auto;z-index:5;">
             <div class="vsm-list" id="vsmListContainer"></div>
+        </div>
+
+        <!-- Properties panel (used by vsm-interaction.js) -->
+        <div class="properties-panel" id="properties-panel">
+            <h4 id="prop-panel-title">Properties</h4>
+            <div class="property-group"><label>Name</label><input id="prop-name" type="text"></div>
+            <div class="prop-row">
+                <div class="property-group"><label>Cycle Time (s)</label><input id="prop-ct" type="number"></div>
+                <div class="property-group"><label>Changeover (s)</label><input id="prop-co" type="number"></div>
+            </div>
+            <div class="prop-row">
+                <div class="property-group"><label>Uptime %</label><input id="prop-uptime" type="number"></div>
+                <div class="property-group"><label>Operators</label><input id="prop-ops" type="number"></div>
+            </div>
+            <div class="prop-row">
+                <div class="property-group"><label>Batch Size</label><input id="prop-batch" type="number"></div>
+                <div class="property-group"><label>Scrap %</label><input id="prop-scrap" type="number"></div>
+            </div>
+            <div id="prop-delay-group" style="display:none;" class="property-group"><label>Delay Type</label><select id="prop-delay-type"><option value="inventory">Inventory</option><option value="queue">Queue</option><option value="transport">Transport</option><option value="batch">Batch</option></select></div>
+            <div id="prop-dos-group" style="display:none;" class="property-group"><label>Days of Supply</label><input id="prop-dos" type="number"></div>
+            <div id="prop-kaizen-text-group" style="display:none;" class="property-group"><label>Kaizen Text</label><textarea id="prop-kaizen-text" rows="2"></textarea></div>
+            <div id="prop-kaizen-priority-group" style="display:none;" class="property-group"><label>Priority</label><select id="prop-kaizen-priority"><option value="normal">Normal</option><option value="high">High</option></select></div>
+            <div id="prop-kaizen-hypothesis-group" style="display:none;"></div>
+            <div id="prop-entity-detail-group" style="display:none;" class="property-group"><label>Detail</label><input id="prop-entity-detail" type="text"></div>
+            <div id="prop-wc-group" style="display:none;">
+                <div class="prop-row"><div class="property-group"><label>Width</label><input id="prop-wc-width" type="number"></div><div class="property-group"><label>Height</label><input id="prop-wc-height" type="number"></div></div>
+                <div id="prop-wc-effective-ct" style="font-size:0.75rem;color:var(--text-dim);margin-top:4px;"></div>
+                <div id="prop-wc-members" style="font-size:0.7rem;color:var(--text-dim);margin-top:2px;"></div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:12px;">
+                <button class="sv-btn sv-btn-sm sv-btn-primary" onclick="saveProperties()">Save</button>
+                <button class="sv-btn sv-btn-sm sv-btn-danger" onclick="deleteSelected()">Delete</button>
+            </div>
+        </div>
+
+        <!-- Step metrics overlay (used by vsm-metrics.js) -->
+        <div class="step-metrics-panel" id="step-metrics-panel">
+            <div class="smp-header"><h4 id="smp-title">Step</h4><button class="smp-close" onclick="closeStepMetrics()">&#x2715;</button></div>
+            <div id="smp-banner" class="smp-banner" style="display:none;"></div>
+            <div class="smp-kpi-grid">
+                <div class="smp-kpi"><div class="smp-kpi-label">C/T</div><div class="smp-kpi-value" id="smp-ct">—</div></div>
+                <div class="smp-kpi"><div class="smp-kpi-label">Uptime</div><div class="smp-kpi-value" id="smp-uptime">—</div></div>
+                <div class="smp-kpi"><div class="smp-kpi-label">Takt Ratio</div><div class="smp-kpi-value" id="smp-takt-ratio">—</div></div>
+                <div class="smp-kpi"><div class="smp-kpi-label">Exceeds Takt</div><div class="smp-kpi-value" id="smp-exceeds">—</div></div>
+            </div>
+            <div class="smp-section-title">Annotations</div>
+            <div id="smp-annotations"></div>
+            <div id="suggested-calcs" style="display:none;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);">
+                <div class="smp-section-title">Suggested Calculators</div>
+                <div id="suggested-calcs-list"></div>
+            </div>
+            <button class="smp-open-calcs" onclick="document.querySelector('.cockpit-tab[data-tab=station]').click(); showStationInCockpit(selectedElement);">Open in Cockpit</button>
         </div>
     </div>
 
@@ -355,6 +412,15 @@ function createVSMDemo() {
         document.removeEventListener('mouseup', onUp);
     }
 })();
+
+// Hook: when step metrics panel opens, also update cockpit Station tab
+const _origShowStepMetrics = typeof showStepMetrics === 'function' ? showStepMetrics : null;
+if (_origShowStepMetrics) {
+    window.showStepMetrics = function(step) {
+        _origShowStepMetrics(step);
+        showStationInCockpit(step);
+    };
+}
 
 // Init
 loadVSMListDemo();
