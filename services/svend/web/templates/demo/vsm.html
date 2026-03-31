@@ -301,32 +301,32 @@ async function loadVSMDemo(id) {
     }
 }
 
-// Create new VSM — modal instead of browser prompt
+// Create new VSM — SvModal (create returns id, must call open)
 function createVSMDemo() {
-    SvModal.create({
+    const modalId = SvModal.create({
         title: 'New Value Stream Map',
-        body: `<div class="sv-field" style="margin-bottom:10px;">
-            <label class="sv-label">Name</label>
-            <input class="sv-input" id="newVsmName" type="text" value="New Value Stream" autofocus>
-        </div>
-        <div class="sv-field" style="margin-bottom:10px;">
-            <label class="sv-label">Product Family</label>
-            <input class="sv-input" id="newVsmProduct" type="text" placeholder="Optional">
-        </div>
-        <div class="sv-field">
-            <label class="sv-label">Customer Demand</label>
-            <input class="sv-input" id="newVsmDemand" type="text" placeholder="e.g. 100 units/shift">
-        </div>`,
+        body: '<div class="sv-field" style="margin-bottom:10px;">' +
+            '<label class="sv-label">Name</label>' +
+            '<input class="sv-input" id="newVsmName" type="text" value="New Value Stream">' +
+            '</div>' +
+            '<div class="sv-field" style="margin-bottom:10px;">' +
+            '<label class="sv-label">Product Family</label>' +
+            '<input class="sv-input" id="newVsmProduct" type="text" placeholder="Optional">' +
+            '</div>' +
+            '<div class="sv-field">' +
+            '<label class="sv-label">Customer Demand</label>' +
+            '<input class="sv-input" id="newVsmDemand" type="text" placeholder="e.g. 100 units/shift">' +
+            '</div>',
         actions: [
-            { label: 'Cancel', onClick: () => SvModal.close() },
-            { label: 'Create', primary: true, onClick: async () => {
+            { label: 'Cancel', onclick: function() { SvModal.close(modalId); } },
+            { label: 'Create', className: 'sv-btn-primary', onclick: async function() {
                 const name = document.getElementById('newVsmName').value || 'Untitled VSM';
                 const product = document.getElementById('newVsmProduct').value || '';
                 const demand = document.getElementById('newVsmDemand').value || '';
-                SvModal.close();
+                SvModal.close(modalId);
                 try {
                     const data = await VsmApi.create({
-                        name,
+                        name: name,
                         product_family: product,
                         customer_demand: demand,
                     });
@@ -338,8 +338,8 @@ function createVSMDemo() {
             }},
         ],
     });
-    // Focus the name input after modal renders
-    setTimeout(() => { const el = document.getElementById('newVsmName'); if (el) { el.focus(); el.select(); } }, 100);
+    SvModal.open(modalId);
+    setTimeout(function() { var el = document.getElementById('newVsmName'); if (el) { el.focus(); el.select(); } }, 100);
 }
 
 // Cockpit resize
