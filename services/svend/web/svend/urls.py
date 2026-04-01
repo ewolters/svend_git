@@ -255,18 +255,15 @@ urlpatterns = varta_urls + [
         "app/demo/", _app_view("migration_dashboard.html"), name="migration_dashboard"
     ),  # staff-only — migration tracker
     path("app/demo/rack/", _app_view("rack_demo.html"), name="rack_demo"),
-    path("app/demo/main/", _app_view("app_main.html"), name="app_main_demo"),
-    # ── Demo surfaces (Object 271) ──
-    path("app/demo/rack/new/", _app_view("demo/rack.html"), name="demo_rack_new"),
+    # ── Demo surfaces ──
+    path("app/demo/rack/", _app_view("demo/rack.html"), name="demo_rack"),
     path("app/demo/rack/unit/<str:unit_name>/", _forgerack_unit_view, name="forgerack_unit"),
     path(
         "api/rack/compute/",
         __import__("agents_api.rack_views", fromlist=["rack_compute"]).rack_compute,
         name="rack_compute",
     ),
-    path("app/demo/vsm/", _app_view("demo/vsm.html"), name="demo_vsm"),
     path("app/demo/kjerne/", _app_view("demo/kjerne.html"), name="demo_kjerne"),
-    path("app/demo/vsm/<uuid:vsm_id>/", _app_view("demo/vsm.html"), name="demo_vsm_edit"),
     path("app/iso/", _app_view("qms.html"), name="iso"),  # redirect legacy
     path("app/iso-docs/", _app_view("iso_doc.html"), name="iso_doc"),
     path("app/iso-docs/<uuid:doc_id>/", _app_view("iso_doc.html"), name="iso_doc_edit"),
