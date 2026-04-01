@@ -321,10 +321,37 @@ def _op_histogram(d):
 def _op_gage_rr(d):
     from forgespc.gage import gage_rr_crossed
 
+    parts = d["parts"]
+    operators = d["operators"]
+    measurements = d["measurements"]
+
+    # Validate balanced design before calling forgespc
+    combos = set()
+    for p, o in zip(parts, operators):
+        combos.add((str(p), str(o)))
+    unique_parts = set(str(p) for p in parts)
+    unique_ops = set(str(o) for o in operators)
+    expected = len(unique_parts) * len(unique_ops)
+    actual_combos = len(set((str(p), str(o)) for p, o in zip(parts, operators)))
+    if actual_combos < expected:
+        missing = expected - actual_combos
+        return {
+            "error_type": "unbalanced_design",
+            "message": (
+                f"Unbalanced design: {len(unique_parts)} parts x {len(unique_ops)} operators = "
+                f"{expected} combinations expected, but only {actual_combos} found ({missing} missing). "
+                f"Each part must be measured by every operator for crossed Gage R&R."
+            ),
+            "n_parts": len(unique_parts),
+            "n_operators": len(unique_ops),
+            "parts": sorted(unique_parts),
+            "operators": sorted(unique_ops),
+        }
+
     result = gage_rr_crossed(
-        parts=d["parts"],
-        operators=d["operators"],
-        measurements=d["measurements"],
+        parts=parts,
+        operators=operators,
+        measurements=measurements,
         tolerance=d.get("tolerance"),
     )
     return {
