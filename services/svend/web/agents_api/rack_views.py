@@ -317,6 +317,34 @@ def _op_histogram(d):
     }
 
 
+@_rack_op("gage_rr")
+def _op_gage_rr(d):
+    from forgespc.gage import gage_rr_crossed
+
+    result = gage_rr_crossed(
+        parts=d["parts"],
+        operators=d["operators"],
+        measurements=d["measurements"],
+        tolerance=d.get("tolerance"),
+    )
+    return {
+        "repeatability": result.var_repeatability,
+        "reproducibility": result.var_reproducibility,
+        "grr": result.var_grr,
+        "part_variation": result.var_part,
+        "total_variation": result.var_total,
+        "grr_percent": result.grr_percent,
+        "ndc": result.ndc,
+        "assessment": result.assessment,
+        "n_parts": result.n_parts,
+        "n_operators": result.n_operators,
+        "n_replicates": result.n_replicates,
+        "n_total": result.n_total,
+        "pct_contribution": result.pct_contribution,
+        "pct_study_var": result.pct_study_var,
+    }
+
+
 @_rack_op("regression")
 def _op_regression(d):
     x, y = d["x"], d["y"]
