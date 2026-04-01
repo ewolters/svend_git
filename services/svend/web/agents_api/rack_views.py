@@ -222,45 +222,142 @@ def _op_spearman(d):
 
 @_rack_op("control_chart")
 def _op_control_chart(d):
-    from forgespc.capability import calculate_capability
-    from forgespc.charts import individuals_moving_range_chart
+    from forgespc.advanced import cusum_chart, ewma_chart, xbar_s_chart
+    from forgespc.charts import (
+        c_chart,
+        individuals_moving_range_chart,
+        np_chart,
+        p_chart,
+        u_chart,
+        xbar_r_chart,
+    )
 
     vals = d["values"]
+    chart_type = d.get("chart_type", "imr")
+    rules_mode = d.get("rules", "nelson")
     lsl = d.get("lsl")
     usl = d.get("usl")
+    subgroups = d.get("subgroups")  # list of lists for X-bar charts
 
-    # Run chart
-    r = individuals_moving_range_chart(vals)
+    # ── Dispatch by chart type ──────────────────────────────────
+    if chart_type in ("xbar_r", "xbar_s") and subgroups:
+        if chart_type == "xbar_r":
+            r = xbar_r_chart(subgroups, usl=usl, lsl=lsl)
+        else:
+            r = xbar_s_chart(subgroups)
+    elif chart_type == "p":
+        sample_sizes = d.get("sample_sizes", [len(vals)] * len(vals))
+        r = p_chart([int(v) for v in vals], [int(s) for s in sample_sizes])
+    elif chart_type == "np":
+        sample_size = d.get("sample_size", len(vals))
+        r = np_chart([int(v) for v in vals], int(sample_size))
+    elif chart_type == "c":
+        r = c_chart([int(v) for v in vals])
+    elif chart_type == "u":
+        unit_counts = d.get("unit_counts", [1.0] * len(vals))
+        r = u_chart([int(v) for v in vals], [float(u) for u in unit_counts])
+    elif chart_type == "cusum":
+        cr = cusum_chart(vals)
+        # CUSUM has a different result shape
+        ooc_indices = set(cr.signals_up + cr.signals_down)
+        result = {
+            "mean": cr.target,
+            "ucl": cr.h * cr.sigma,
+            "lcl": -cr.h * cr.sigma,
+            "chart_data": cr.cusum_pos,
+            "chart_data_neg": cr.cusum_neg,
+            "in_control": cr.in_control,
+            "out_of_control": [
+                {"index": i, "value": cr.cusum_pos[i] if i in cr.signals_up else cr.cusum_neg[i], "rule": 1}
+                for i in sorted(ooc_indices)
+            ],
+            "violations": [],
+            "n": cr.n,
+            "chart_type": "cusum",
+        }
+        _add_capability(result, vals, usl, lsl)
+        return result
+    elif chart_type == "ewma":
+        er = ewma_chart(vals)
+        ooc = set(er.out_of_control_indices)
+        result = {
+            "mean": er.target,
+            "ucl": er.ucl_steady,
+            "lcl": er.lcl_steady,
+            "chart_data": er.ewma_values,
+            "ucl_series": er.ucl,
+            "lcl_series": er.lcl,
+            "in_control": er.in_control,
+            "out_of_control": [{"index": i, "value": er.ewma_values[i], "rule": 1} for i in sorted(ooc)],
+            "violations": [],
+            "n": er.n,
+            "chart_type": "ewma",
+        }
+        _add_capability(result, vals, usl, lsl)
+        return result
+    else:
+        # Default: I-MR
+        r = individuals_moving_range_chart(vals, usl=usl, lsl=lsl)
+
+    # ── Standard Shewhart result ────────────────────────────────
+    ooc_list = []
+    for p in r.out_of_control:
+        ooc_list.append({"index": p.get("index", 0), "value": p.get("value", 0), "rule": p.get("rule", 1)})
+
+    # Apply Nelson rules only if requested
+    violations = []
+    if rules_mode != "none":
+        for v in r.run_violations:
+            violations.append(
+                {
+                    "index": v.get("index", 0),
+                    "value": v.get("value", None),
+                    "rule": v.get("rule_number", 0),
+                    "desc": v.get("description", ""),
+                }
+            )
+
     result = {
         "mean": r.limits.cl,
         "ucl": r.limits.ucl,
         "lcl": r.limits.lcl,
-        "in_control": r.in_control,
-        "out_of_control": [
-            {"index": p.index, "value": p.value, "rule": getattr(p, "rule", 1)} for p in r.out_of_control
-        ],
-        "violations": [
-            {
-                "index": v.index,
-                "value": getattr(v, "value", None),
-                "rule": getattr(v, "rule_number", 0),
-                "desc": getattr(v, "description", ""),
-            }
-            for v in r.run_violations
-        ],
+        "in_control": r.in_control if rules_mode != "none" else (len(ooc_list) == 0),
+        "out_of_control": ooc_list,
+        "violations": violations,
         "n": len(vals),
+        "chart_type": chart_type,
     }
 
-    # Capability if specs provided
-    if lsl is not None or usl is not None:
-        cap = calculate_capability(vals, usl=usl, lsl=lsl)
-        result["cpk"] = cap.cpk
-        result["cp"] = cap.cp
-        result["dpmo"] = cap.dpmo
-        result["sigma_level"] = cap.sigma_level
-        result["ppm"] = round(cap.dpmo) if cap.dpmo is not None else None
+    # Secondary chart (MR for I-MR, R for X-bar/R, S for X-bar/S)
+    if r.secondary_chart:
+        sc = r.secondary_chart
+        result["secondary"] = {
+            "chart_type": sc.chart_type,
+            "mean": sc.limits.cl,
+            "ucl": sc.limits.ucl,
+            "lcl": sc.limits.lcl,
+            "data_points": sc.data_points,
+        }
 
+    _add_capability(result, vals, usl, lsl)
     return result
+
+
+def _add_capability(result, vals, usl, lsl):
+    """Append full capability indices if spec limits provided."""
+    if usl is None and lsl is None:
+        return
+    from forgespc.capability import calculate_capability
+
+    cap = calculate_capability(vals, usl=usl, lsl=lsl)
+    result["cpk"] = cap.cpk
+    result["cp"] = cap.cp
+    result["pp"] = cap.pp
+    result["ppk"] = cap.ppk
+    result["dpmo"] = cap.dpmo
+    result["sigma_level"] = cap.sigma_level
+    result["yield_percent"] = cap.yield_percent
+    result["ppm"] = round(cap.dpmo) if cap.dpmo is not None else None
 
 
 @_rack_op("histogram")
