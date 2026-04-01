@@ -18,6 +18,7 @@ if (!ForgeRack.registerUnit) {
 if (!ForgeRack.units) ForgeRack.units = {};
 </script>
 <script src="{% static 'js/units.js' %}"></script>
+<script src="{% static 'js/units_mfd.js' %}"></script>
 <script src="{% static 'js/wiring.js' %}"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════
@@ -695,6 +696,7 @@ if (!ForgeRack.units) ForgeRack.units = {};
             <div class="rack-sidebar-item" data-unit="chart-panel" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Chart Panel <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="readout" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#e2e8f0;"></span> Register <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="narrative" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#22c55e;"></span> Narrative <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="mfd" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#00e5ff;"></span> Prism MFD <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="correlator" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#38bdf8;"></span> Correlator <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="spectrum" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#38bdf8;"></span> Spectrum <span class="rack-sidebar-count"></span></div>
         </div>
@@ -724,6 +726,7 @@ if (!ForgeRack.units) ForgeRack.units = {};
             <div class="rack-sidebar-group-label">Utility</div>
             <div class="rack-sidebar-item" data-unit="scribble" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#22c55e;"></span> Scribble Strip <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="clock" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#94a3b8;"></span> Pulse Clock <span class="rack-sidebar-count"></span></div>
+            <div class="rack-sidebar-item" data-unit="counter" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#a3b18a;"></span> Counter <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="blank-1u" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#3a3f3a;"></span> Blank 1U <span class="rack-sidebar-count"></span></div>
             <div class="rack-sidebar-item" data-unit="blank-2u" onclick="mountUnit(this)"><span class="rack-sidebar-dot" style="background:#3a3f3a;"></span> Blank 2U <span class="rack-sidebar-count"></span></div>
         </div>
