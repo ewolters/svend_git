@@ -254,7 +254,6 @@ urlpatterns = varta_urls + [
     path(
         "app/demo/", _app_view("migration_dashboard.html"), name="migration_dashboard"
     ),  # staff-only — migration tracker
-    path("app/demo/rack/", _app_view("rack_demo.html"), name="rack_demo"),
     # ── Demo surfaces ──
     path("app/demo/rack/", _app_view("demo/rack.html"), name="demo_rack"),
     path("app/demo/rack/unit/<str:unit_name>/", _forgerack_unit_view, name="forgerack_unit"),
