@@ -43,16 +43,21 @@
 }
 
 
-/* ══ PANEL SURFACE — anodized aluminum with micro-texture ══ */
+/* ══ PANEL SURFACE — anodized aluminum with real depth ══ */
 
 .kj-panel {
     background:
-        repeating-linear-gradient(180deg, rgba(255,255,255,0.003) 0px, transparent 1px, transparent 3px),
+        /* Brushed grain */
+        repeating-linear-gradient(180deg, rgba(255,255,255,0.006) 0px, transparent 1px, transparent 3px),
+        /* Surface gradient with specular */
+        radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.015), transparent 60%),
         linear-gradient(160deg, var(--kj-surface) 0%, var(--kj-surface-dark) 40%, #101315 60%, var(--kj-surface-dark) 100%);
     border: 1px solid var(--kj-border);
+    border-top-color: var(--kj-border-heavy);
     border-radius: 2px;
     box-shadow:
         inset 0 2px 6px rgba(0,0,0,0.5),
+        inset 0 0 1px rgba(0,0,0,0.3),
         0 1px 0 rgba(255,255,255,0.02);
     padding: 10px 12px;
     position: relative;
@@ -60,42 +65,79 @@
 
 .kj-panel-raised {
     background:
-        repeating-linear-gradient(180deg, rgba(255,255,255,0.005) 0px, transparent 1px, transparent 3px),
+        /* Brushed grain — slightly stronger */
+        repeating-linear-gradient(180deg, rgba(255,255,255,0.008) 0px, transparent 1px, transparent 3px),
+        /* Off-center specular highlight */
+        radial-gradient(ellipse at 35% 25%, rgba(255,255,255,0.025), transparent 55%),
+        /* Color variation */
+        radial-gradient(ellipse at 75% 70%, rgba(74,159,110,0.008), transparent 45%),
         linear-gradient(160deg, #1c2024 0%, #181c20 30%, #1a1e22 50%, #161a1e 80%);
     border: 1px solid var(--kj-border-heavy);
     border-bottom-color: var(--kj-border);
     border-radius: 2px;
     box-shadow:
         0 2px 8px rgba(0,0,0,0.5),
-        inset 0 1px 0 rgba(255,255,255,0.04);
+        inset 0 1px 0 rgba(255,255,255,0.05);
     padding: 12px 14px;
     position: relative;
 }
-/* Micro-sparkle on raised panels */
+/* Micro-sparkle on raised panels — anodized finish */
 .kj-panel-raised::before {
     content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0; border-radius: 2px;
     background:
-        radial-gradient(circle 1px at 20% 30%, rgba(74,159,110,0.006), transparent),
-        radial-gradient(circle 1px at 65% 70%, rgba(74,159,110,0.004), transparent),
-        radial-gradient(circle 1px at 85% 20%, rgba(74,159,110,0.005), transparent);
+        radial-gradient(circle 1px at 15% 25%, rgba(74,159,110,0.008), transparent),
+        radial-gradient(circle 1px at 45% 65%, rgba(74,159,110,0.006), transparent),
+        radial-gradient(circle 1px at 75% 15%, rgba(74,159,110,0.007), transparent),
+        radial-gradient(circle 1px at 60% 80%, rgba(74,159,110,0.005), transparent),
+        radial-gradient(circle 1px at 90% 45%, rgba(74,159,110,0.006), transparent);
 }
 
 
-/* ══ LABELS — stamped into the panel ══ */
+/* ══ GROOVE — section separator within a panel ══ */
+
+.kj-groove {
+    height: 0;
+    border-top: 1px solid rgba(0,0,0,0.5);
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+    margin: 10px 0;
+}
+/* Full-bleed groove (extends to panel edges) */
+.kj-groove-full {
+    height: 0;
+    border-top: 1px solid rgba(0,0,0,0.5);
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+    margin: 10px -12px;
+}
+
+
+/* ══ LABELS — silk-screened / laser-engraved into surface ══ */
 
 .kj-label {
     font: 700 9px/1 var(--kj-industrial);
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--kj-text-label);
+    /* Engraved look — shadow creates depth */
+    color: transparent;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.06), 0 -1px 0 rgba(0,0,0,0.4);
+    -webkit-text-stroke: 0.3px var(--kj-text-label);
     margin-bottom: 6px;
 }
 .kj-label-bright {
     font: 700 10px/1 var(--kj-industrial);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--kj-text-secondary);
+    color: transparent;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.08), 0 -1px 0 rgba(0,0,0,0.5);
+    -webkit-text-stroke: 0.3px var(--kj-text-secondary);
     margin-bottom: 8px;
+}
+/* Plain label variant (for small UI, no engraving needed) */
+.kj-label-plain {
+    font: 700 9px/1 var(--kj-industrial);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--kj-text-label);
+    margin-bottom: 6px;
 }
 
 
@@ -317,7 +359,9 @@
 .kj-detail-label {
     font: 700 8px/1 var(--kj-industrial);
     text-transform: uppercase; letter-spacing: 0.08em;
-    color: var(--kj-text-label);
+    color: transparent;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.05), 0 -1px 0 rgba(0,0,0,0.3);
+    -webkit-text-stroke: 0.3px var(--kj-text-label);
     margin-bottom: 2px;
 }
 
@@ -356,23 +400,26 @@
 
 .kj-lcd {
     display: inline-block;
-    padding: 4px 8px;
-    background: #050708;
-    border: 1px solid rgba(0,0,0,0.6);
+    padding: 5px 10px;
+    background: #040506;
+    border: 1px solid rgba(0,0,0,0.7);
     border-radius: 2px;
     box-shadow:
-        inset 0 2px 6px rgba(0,0,0,0.6),
-        0 1px 0 rgba(255,255,255,0.015);
+        inset 0 2px 8px rgba(0,0,0,0.7),
+        inset 0 0 1px rgba(0,0,0,0.4),
+        /* Bezel highlight — light catches the top edge */
+        0 1px 0 rgba(255,255,255,0.025),
+        0 -1px 0 rgba(0,0,0,0.3);
     font: 600 14px/1 var(--kj-mono);
     color: var(--kj-accent);
     text-shadow: 0 0 6px var(--kj-accent-glow);
     text-align: center;
     min-width: 40px;
-    /* Faint scanlines */
+    /* Scanlines */
     background-image: repeating-linear-gradient(
-        0deg, transparent 0px, rgba(0,0,0,0.06) 1px, transparent 2px
+        0deg, transparent 0px, rgba(0,0,0,0.07) 1px, transparent 2px
     );
-    background-color: #050708;
+    background-color: #040506;
 }
 .kj-lcd.good { color: var(--kj-green); text-shadow: 0 0 6px rgba(34,197,94,0.15); }
 .kj-lcd.warn { color: var(--kj-amber); text-shadow: 0 0 6px rgba(245,158,11,0.15); }
@@ -403,12 +450,18 @@
 
 .kj-dial { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
 .kj-dial-knob {
-    width: 32px; height: 32px; border-radius: 50%;
+    width: 34px; height: 34px; border-radius: 50%;
     background:
-        radial-gradient(circle at 38% 35%, rgba(255,255,255,0.08), transparent 60%),
-        conic-gradient(from 220deg, #3a3e42 0%, #4a4e52 20%, #3a3e42 40%, #1e2226 70%, #3a3e42 100%);
-    border: 2px solid #101418;
-    box-shadow: 0 3px 6px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+        /* Specular highlight */
+        radial-gradient(circle at 38% 32%, rgba(255,255,255,0.12), transparent 50%),
+        /* Machined conic gradient */
+        conic-gradient(from 220deg, #3e4246 0%, #505458 20%, #3e4246 40%, #1e2226 70%, #3e4246 100%);
+    border: 2px solid #0c1014;
+    box-shadow:
+        0 3px 8px rgba(0,0,0,0.7),
+        0 1px 2px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.1),
+        inset 0 -1px 2px rgba(0,0,0,0.3);
     position: relative; cursor: pointer;
 }
 .kj-dial-knob::after {
