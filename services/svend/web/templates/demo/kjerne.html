@@ -421,6 +421,59 @@
         </div>
     </div>
 
+    <!-- ═══ Additional Controls ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">Additional Controls</div>
+        <div class="kj-panel-raised" style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+            <!-- Progress Ring -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <div class="kj-progress-ring" style="width:48px;height:48px;">
+                    <svg width="48" height="48"><circle class="kj-progress-ring-track" cx="24" cy="24" r="20"/><circle class="kj-progress-ring-fill" cx="24" cy="24" r="20" stroke-dasharray="125.6" stroke-dashoffset="31.4"/></svg>
+                    <div class="kj-progress-ring-label">75%</div>
+                </div>
+                <span class="kj-lcd-label">Progress Ring</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <div class="kj-progress-ring" style="width:48px;height:48px;">
+                    <svg width="48" height="48"><circle class="kj-progress-ring-track" cx="24" cy="24" r="20"/><circle class="kj-progress-ring-fill" cx="24" cy="24" r="20" stroke-dasharray="125.6" stroke-dashoffset="100" style="stroke:var(--kj-red);"/></svg>
+                    <div class="kj-progress-ring-label" style="color:var(--kj-red);">20%</div>
+                </div>
+                <span class="kj-lcd-label">Low</span>
+            </div>
+
+            <div style="width:1px;height:50px;background:var(--kj-border);"></div>
+
+            <!-- Thumb Wheel -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <div class="kj-thumb-wheel">
+                    <button class="kj-thumb-wheel-btn">&#x25C0;</button>
+                    <div class="kj-thumb-wheel-display">0.05</div>
+                    <button class="kj-thumb-wheel-btn">&#x25B6;</button>
+                </div>
+                <span class="kj-lcd-label">Alpha</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <div class="kj-thumb-wheel">
+                    <button class="kj-thumb-wheel-btn">&#x25C0;</button>
+                    <div class="kj-thumb-wheel-display">460</div>
+                    <button class="kj-thumb-wheel-btn">&#x25B6;</button>
+                </div>
+                <span class="kj-lcd-label">Demand</span>
+            </div>
+
+            <div style="width:1px;height:50px;background:var(--kj-border);"></div>
+
+            <!-- Indicator Dots -->
+            <div style="display:flex;gap:10px;align-items:center;">
+                <div style="display:flex;align-items:center;gap:4px;"><span class="kj-dot green"></span><span style="font:9px var(--kj-sans);color:var(--kj-text-dim);">OK</span></div>
+                <div style="display:flex;align-items:center;gap:4px;"><span class="kj-dot amber"></span><span style="font:9px var(--kj-sans);color:var(--kj-text-dim);">Warn</span></div>
+                <div style="display:flex;align-items:center;gap:4px;"><span class="kj-dot red"></span><span style="font:9px var(--kj-sans);color:var(--kj-text-dim);">Alarm</span></div>
+                <div style="display:flex;align-items:center;gap:4px;"><span class="kj-dot blue"></span><span style="font:9px var(--kj-sans);color:var(--kj-text-dim);">Active</span></div>
+                <div style="display:flex;align-items:center;gap:4px;"><span class="kj-dot"></span><span style="font:9px var(--kj-sans);color:var(--kj-text-dim);">Off</span></div>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══ Empty State ═══ -->
     <div style="margin-bottom:24px;">
         <div class="kj-label-bright" style="margin-bottom:10px;">Empty State</div>
