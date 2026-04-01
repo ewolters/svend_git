@@ -370,6 +370,57 @@
         </div>
     </div>
 
+    <!-- ═══ MFD Display ═══ -->
+    <div style="margin-bottom:24px;">
+        <div class="kj-label-bright" style="margin-bottom:10px;">MFD Display — Glass Cockpit Viewport</div>
+        <div class="kj-mfd" style="height:280px;">
+            <!-- Status strip -->
+            <div class="kj-mfd-status">
+                <div class="kj-mfd-status-cell cyan">SPC</div>
+                <div class="kj-mfd-status-cell white">Bore Diameter</div>
+                <div class="kj-mfd-status-cell white">n=40</div>
+                <div class="kj-mfd-status-cell green">IN CTRL</div>
+                <div class="kj-mfd-status-cell" style="margin-left:auto;">Cpk 1.47</div>
+            </div>
+
+            <div style="display:flex;flex:1;overflow:hidden;">
+                <!-- Left bezel keys -->
+                <div class="kj-mfd-keys left">
+                    <button class="kj-mfd-key active">I-MR</button>
+                    <button class="kj-mfd-key">Xbar</button>
+                    <button class="kj-mfd-key">CAP</button>
+                    <button class="kj-mfd-key">RULE</button>
+                    <button class="kj-mfd-key">HIST</button>
+                </div>
+
+                <!-- Screen content -->
+                <div class="kj-mfd-screen">
+                    <div class="kj-chart" style="position:absolute;inset:0;border:none;border-radius:0;box-shadow:none;">
+                        <div class="kj-empty" style="color:rgba(0,229,255,0.08);">Chart renders here — ForgeViz or data table</div>
+                    </div>
+                </div>
+
+                <!-- Right bezel keys -->
+                <div class="kj-mfd-keys right">
+                    <button class="kj-mfd-key">ZOOM</button>
+                    <button class="kj-mfd-key">PAN</button>
+                    <button class="kj-mfd-key">MARK</button>
+                    <button class="kj-mfd-key">WIRE</button>
+                    <button class="kj-mfd-key">SAVE</button>
+                </div>
+            </div>
+
+            <!-- Soft keys -->
+            <div class="kj-mfd-softkeys">
+                <button class="kj-mfd-softkey active">30D</button>
+                <button class="kj-mfd-softkey">90D</button>
+                <button class="kj-mfd-softkey">1Y</button>
+                <button class="kj-mfd-softkey">ALL</button>
+                <button class="kj-mfd-softkey">EXPORT</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══ Empty State ═══ -->
     <div style="margin-bottom:24px;">
         <div class="kj-label-bright" style="margin-bottom:10px;">Empty State</div>

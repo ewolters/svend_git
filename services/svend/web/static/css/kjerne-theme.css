@@ -373,7 +373,7 @@
 .kj-feed-text { color: var(--kj-text-secondary); }
 
 
-/* ══ CHART VIEWPORT — screen cavity ══ */
+/* ══ CHART VIEWPORT — simple screen cavity ══ */
 
 .kj-chart {
     background: #050608;
@@ -382,6 +382,113 @@
     box-shadow: inset 0 2px 10px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.015);
     position: relative; overflow: hidden; min-height: 120px;
 }
+
+
+/* ══ MFD DISPLAY — glass cockpit multi-function display ══ */
+
+.kj-mfd {
+    background: #000;
+    border: 1px solid #1a1a1a;
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6), inset 0 0 1px rgba(0,0,0,0.8);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Status strip — top bar */
+.kj-mfd-status {
+    display: flex;
+    padding: 0;
+    background: #0a0a0a;
+    border-bottom: 1px solid #1a1a1a;
+    font: 600 9px/1 'Helvetica Neue', 'Arial', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.kj-mfd-status-cell {
+    padding: 3px 8px;
+    border-right: 1px solid #1a1a1a;
+    color: rgba(255,255,255,0.3);
+}
+.kj-mfd-status-cell:last-child { border-right: none; }
+.kj-mfd-status-cell.cyan { color: #00e5ff; }
+.kj-mfd-status-cell.green { color: #22c55e; }
+.kj-mfd-status-cell.amber { color: #f59e0b; }
+.kj-mfd-status-cell.red { color: #ef4444; }
+.kj-mfd-status-cell.white { color: rgba(255,255,255,0.6); }
+
+/* Screen area */
+.kj-mfd-screen {
+    flex: 1;
+    position: relative;
+    background: #000;
+    overflow: hidden;
+}
+/* Scan line overlay */
+.kj-mfd-screen::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent 0px, rgba(0,229,255,0.003) 1px, transparent 2px);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Bezel key strip — left or right edge */
+.kj-mfd-keys {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 4px;
+    background: #050505;
+    min-width: 44px;
+}
+.kj-mfd-keys.left { border-right: 1px solid #1a1a1a; }
+.kj-mfd-keys.right { border-left: 1px solid #1a1a1a; }
+
+.kj-mfd-key {
+    padding: 4px 2px;
+    font: 700 7px/1 'Helvetica Neue', 'Arial', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.25);
+    background: linear-gradient(180deg, #1a1a1a, #111);
+    border: 1px solid #222;
+    border-radius: 1px;
+    cursor: pointer;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+    transition: all 0.1s;
+}
+.kj-mfd-key:hover { color: rgba(255,255,255,0.5); background: linear-gradient(180deg, #222, #181818); }
+.kj-mfd-key:active { transform: translateY(1px); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3); }
+.kj-mfd-key.active { color: var(--kj-accent); border-color: rgba(74,159,110,0.3); }
+
+/* Soft keys — bottom strip */
+.kj-mfd-softkeys {
+    display: flex;
+    background: #0a0a0a;
+    border-top: 1px solid #1a1a1a;
+}
+.kj-mfd-softkey {
+    flex: 1;
+    padding: 4px 2px;
+    font: 700 7px/1 'Helvetica Neue', 'Arial', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(255,255,255,0.2);
+    background: transparent;
+    border: none;
+    border-right: 1px solid #1a1a1a;
+    cursor: pointer;
+    text-align: center;
+    transition: color 0.1s;
+}
+.kj-mfd-softkey:last-child { border-right: none; }
+.kj-mfd-softkey:hover { color: rgba(255,255,255,0.5); }
+.kj-mfd-softkey.active { color: var(--kj-accent); }
 
 
 /* ══ EMPTY STATE ══ */
