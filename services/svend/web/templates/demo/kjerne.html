@@ -378,53 +378,128 @@
         </div>
     </div>
 
-    <!-- ═══ Composition Example ═══ -->
+    <!-- ═══ Composition — Full Instrument Panel ═══ -->
     <div style="margin-bottom:24px;">
-        <div class="kj-label-bright" style="margin-bottom:10px;">Composition — Station Detail</div>
-        <div class="kj-panel-raised" style="max-width:480px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                <div style="font:700 13px/1 var(--kj-industrial);color:var(--kj-text);letter-spacing:0.04em;text-transform:uppercase;">Assembly Station</div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <span class="kj-led on-red"></span>
-                    <span class="kj-badge red">Bottleneck</span>
+        <div class="kj-label-bright" style="margin-bottom:10px;">Composition — Station Inspector (Full Instrument)</div>
+
+        <!-- The instrument panel -->
+        <div style="
+            max-width:560px;
+            position:relative;
+            background:
+                repeating-linear-gradient(180deg, rgba(255,255,255,0.004) 0px, transparent 1px, transparent 3px),
+                linear-gradient(160deg, #181c20 0%, #141820 30%, #161a1e 50%, #12161a 80%);
+            border: 1px solid var(--kj-border-heavy);
+            border-radius: 2px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.03);
+            overflow: hidden;
+        ">
+            <!-- Corner screws -->
+            <div class="kj-screw" style="position:absolute;top:5px;left:5px;"></div>
+            <div class="kj-screw" style="position:absolute;top:5px;right:5px;"></div>
+            <div class="kj-screw" style="position:absolute;bottom:5px;left:5px;"></div>
+            <div class="kj-screw" style="position:absolute;bottom:5px;right:5px;"></div>
+
+            <!-- Nameplate bar -->
+            <div style="
+                display:flex;align-items:center;gap:8px;
+                padding:6px 24px;
+                border-bottom:2px solid rgba(0,0,0,0.4);
+                background: linear-gradient(180deg, rgba(255,255,255,0.008), rgba(0,0,0,0.12));
+            ">
+                <span class="kj-led on-red"></span>
+                <span style="
+                    font:800 14px/1 var(--kj-industrial);
+                    color:transparent;
+                    text-shadow: 0 1px 0 rgba(74,159,110,0.35), 0 -1px 0 rgba(0,0,0,0.6);
+                    -webkit-text-stroke: 0.3px rgba(74,159,110,0.2);
+                    letter-spacing:0.18em;text-transform:uppercase;
+                ">Assembly</span>
+                <span style="font:300 9px/1 var(--kj-industrial);color:rgba(74,159,110,0.15);letter-spacing:0.06em;font-style:italic;">Station Inspector</span>
+
+                <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+                    <div style="display:flex;align-items:center;gap:3px;">
+                        <span class="kj-led on-red"></span>
+                        <span style="font:700 7px/1 var(--kj-industrial);color:rgba(239,68,68,0.3);letter-spacing:0.08em;">BOTTLENECK</span>
+                    </div>
+                    <div style="width:1px;height:12px;background:rgba(74,159,110,0.06);"></div>
+                    <span style="font:600 8px/1 'Courier New',monospace;color:rgba(74,159,110,0.12);letter-spacing:0.06em;">KJ-SI-01</span>
                 </div>
             </div>
 
-            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-                <div class="kj-lcd-display">
-                    <span class="kj-lcd kj-lcd-lg bad">62s</span>
-                    <span class="kj-lcd-label">Cycle Time</span>
+            <!-- Main readout section -->
+            <div style="padding:10px 24px;">
+                <!-- Primary LCD readouts -->
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+                    <div class="kj-lcd-display">
+                        <span class="kj-lcd kj-lcd-lg bad">62s</span>
+                        <span class="kj-lcd-label">Cycle Time</span>
+                    </div>
+                    <div class="kj-lcd-display">
+                        <span class="kj-lcd kj-lcd-lg bad">1.03</span>
+                        <span class="kj-lcd-label">Takt Ratio</span>
+                    </div>
+                    <div class="kj-lcd-display">
+                        <span class="kj-lcd kj-lcd-lg warn">88%</span>
+                        <span class="kj-lcd-label">Uptime</span>
+                    </div>
+                    <div class="kj-lcd-display">
+                        <span class="kj-lcd kj-lcd-lg">3</span>
+                        <span class="kj-lcd-label">Operators</span>
+                    </div>
+                    <div class="kj-lcd-display">
+                        <span class="kj-lcd kj-lcd-lg">50</span>
+                        <span class="kj-lcd-label">Batch</span>
+                    </div>
+                    <div class="kj-lcd-display">
+                        <span class="kj-lcd kj-lcd-lg warn">1.5%</span>
+                        <span class="kj-lcd-label">Scrap</span>
+                    </div>
                 </div>
-                <div class="kj-lcd-display">
-                    <span class="kj-lcd kj-lcd-lg bad">1.03</span>
-                    <span class="kj-lcd-label">Takt Ratio</span>
+
+                <!-- Groove separator -->
+                <div style="height:1px;background:rgba(0,0,0,0.4);margin:8px -24px;box-shadow:0 1px 0 rgba(255,255,255,0.015);"></div>
+
+                <!-- Meters with LCD readouts -->
+                <div style="padding-top:8px;">
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                        <div class="kj-label" style="margin:0;min-width:50px;">Uptime</div>
+                        <div class="kj-meter bad" style="flex:1;"><div class="kj-meter-fill" style="width:88%;"></div></div>
+                        <span class="kj-lcd kj-lcd-sm warn">88%</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                        <div class="kj-label" style="margin:0;min-width:50px;">C/O</div>
+                        <div class="kj-meter warn" style="flex:1;"><div class="kj-meter-fill" style="width:65%;"></div></div>
+                        <span class="kj-lcd kj-lcd-sm">300s</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <div class="kj-label" style="margin:0;min-width:50px;">Yield</div>
+                        <div class="kj-meter good" style="flex:1;"><div class="kj-meter-fill" style="width:96%;"></div></div>
+                        <span class="kj-lcd kj-lcd-sm good">96%</span>
+                    </div>
                 </div>
-                <div class="kj-lcd-display">
-                    <span class="kj-lcd kj-lcd-lg warn">88%</span>
-                    <span class="kj-lcd-label">Uptime</span>
-                </div>
-                <div class="kj-lcd-display">
-                    <span class="kj-lcd kj-lcd-lg">3</span>
-                    <span class="kj-lcd-label">Operators</span>
+
+                <!-- Groove separator -->
+                <div style="height:1px;background:rgba(0,0,0,0.4);margin:10px -24px;box-shadow:0 1px 0 rgba(255,255,255,0.015);"></div>
+
+                <!-- Controls section -->
+                <div style="display:flex;gap:6px;padding-top:6px;">
+                    <button class="kj-btn kj-btn-primary kj-btn-sm" style="flex:1;">Run OEE</button>
+                    <button class="kj-btn kj-btn-sm" style="flex:1;">Line Balance</button>
+                    <button class="kj-btn kj-btn-sm" style="flex:1;">SMED</button>
+                    <button class="kj-btn kj-btn-sm" style="flex:1;">Queue</button>
                 </div>
             </div>
 
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
-                <div class="kj-label" style="margin:0;min-width:45px;">Uptime</div>
-                <div class="kj-meter bad" style="flex:1;"><div class="kj-meter-fill" style="width:88%;"></div></div>
-                <span class="kj-lcd kj-lcd-sm warn">88%</span>
-            </div>
-
-            <div style="display:flex;gap:4px;align-items:center;margin-bottom:12px;">
-                <span class="kj-label" style="margin:0;min-width:45px;">C/O</span>
-                <div class="kj-meter warn" style="flex:1;"><div class="kj-meter-fill" style="width:65%;"></div></div>
-                <span class="kj-lcd kj-lcd-sm">300s</span>
-            </div>
-
-            <div style="display:flex;gap:6px;">
-                <button class="kj-btn kj-btn-primary kj-btn-sm" style="flex:1;">Run OEE</button>
-                <button class="kj-btn kj-btn-sm" style="flex:1;">Line Balance</button>
-                <button class="kj-btn kj-btn-sm" style="flex:1;">SMED</button>
+            <!-- Footer — model plate -->
+            <div style="
+                padding:3px 24px;
+                border-top:1px solid rgba(0,0,0,0.4);
+                background:rgba(0,0,0,0.08);
+                display:flex;justify-content:space-between;
+            ">
+                <span class="kj-mfr-mark">KJERNE INSTRUMENTS</span>
+                <span style="font:400 7px/1 'Courier New',monospace;color:rgba(255,255,255,0.04);">MADE IN NORWAY</span>
             </div>
         </div>
     </div>
