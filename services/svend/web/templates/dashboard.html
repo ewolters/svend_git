@@ -2,239 +2,144 @@
 {# MIGRATION: Tier 1 | Status: PENDING | Target rack: workspace | Use sv-* widgets + shared JS (SvApi, SvModal, SvFormat, SvCanvas, ForgeViz) #}
 {% block title %}SVEND - Dashboard{% endblock %}
 
+{% load static %}
 {% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/kjerne-theme.css' %}">
 <style>
-/* ============================================================================
-   DASHBOARD - Main hub after login
-   ============================================================================ */
-
 body > main { padding: 0 !important; }
 body > main > .container { max-width: none !important; padding: 0 !important; }
 
-.dashboard {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 48px 24px;
-}
+.dashboard { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
 
-.dashboard-header {
-    margin-bottom: 48px;
-}
-
+.dashboard-header { margin-bottom: 36px; }
 .dashboard-header h1 {
-    font-size: 32px;
-    font-weight: 600;
-    margin: 0 0 8px 0;
+    font: 700 24px/1 var(--kj-industrial);
+    color: var(--kj-text);
+    letter-spacing: 0.04em;
+    margin: 0 0 6px;
 }
-
-.dashboard-header p {
-    font-size: 15px;
-    color: var(--text-secondary);
-    margin: 0;
-}
+.dashboard-header p { font: 400 13px/1.4 var(--kj-sans); color: var(--kj-text-dim); margin: 0; }
 
 /* Tool Grid */
-.tool-section {
-    margin-bottom: 40px;
-}
-
+.tool-section { margin-bottom: 32px; }
 .tool-section-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-dim);
+    font: 700 10px/1 var(--kj-industrial);
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 16px;
-    padding-left: 4px;
+    letter-spacing: 0.12em;
+    color: transparent;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.08), 0 -1px 0 rgba(0,0,0,0.4);
+    -webkit-text-stroke: 0.5px var(--kj-text-dim);
+    margin-bottom: 12px;
+    padding-left: 2px;
 }
 
 .tool-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
+    gap: 10px;
 }
 
 .tool-card {
     display: flex;
     align-items: flex-start;
-    gap: 14px;
-    padding: 16px 20px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    gap: 12px;
+    padding: 14px 16px;
+    background:
+        repeating-linear-gradient(180deg, rgba(255,255,255,0.005) 0px, transparent 1px, transparent 3px),
+        linear-gradient(160deg, var(--kj-surface) 0%, var(--kj-surface-dark) 40%, #101315 60%, var(--kj-surface-dark) 100%);
+    border: 1px solid var(--kj-border);
+    border-radius: 2px;
     text-decoration: none;
     color: inherit;
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.02);
 }
-
 .tool-card:hover {
-    border-color: var(--accent-primary-border);
+    border-color: var(--kj-accent);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03);
 }
 
 .tool-icon {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--accent-primary-dim);
-    border-radius: 6px;
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--kj-cavity);
+    border: 1px solid rgba(0,0,0,0.4);
+    border-radius: 2px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
     flex-shrink: 0;
 }
+.tool-icon svg { width: 20px; height: 20px; color: var(--kj-accent); }
 
-.tool-icon svg {
-    width: 24px;
-    height: 24px;
-    color: var(--accent);
-}
-
-.tool-content {
-    flex: 1;
-    min-width: 0;
-}
-
+.tool-content { flex: 1; min-width: 0; }
 .tool-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text-primary);
+    font: 600 13px/1 var(--kj-sans);
+    color: var(--kj-text);
     margin-bottom: 4px;
 }
-
 .tool-desc {
-    font-size: 13px;
-    color: var(--text-secondary);
-    line-height: 1.5;
+    font: 400 11px/1.4 var(--kj-sans);
+    color: var(--kj-text-dim);
 }
 
-.tool-card.primary {
-    border-color: var(--accent-primary-border);
-}
-
+.tool-card.primary { border-color: rgba(74,159,110,0.3); }
 .tool-card.primary .tool-icon {
-    background: var(--accent);
+    background: rgba(74,159,110,0.15);
+    border-color: rgba(74,159,110,0.25);
 }
+.tool-card.primary .tool-icon svg { color: var(--kj-accent); }
 
-.tool-card.primary .tool-icon svg {
-    color: #fff;
-}
-
-/* Coming Soon */
-.tool-card.coming-soon {
-    opacity: 0.5;
-    pointer-events: none;
-}
-
+.tool-card.coming-soon { opacity: 0.4; pointer-events: none; }
 .tool-badge {
-    font-size: 10px;
-    padding: 2px 8px;
-    background: var(--bg-secondary);
-    border-radius: 4px;
-    color: var(--text-dim);
-    margin-left: 8px;
-}
-
-/* Quick Stats */
-.stats-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 40px;
-}
-
-.stat-card {
-    padding: 16px 20px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-}
-
-.stat-value {
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--text-primary);
-    line-height: 1;
-    margin-bottom: 4px;
-}
-
-.stat-label {
-    font-size: 13px;
-    color: var(--text-dim);
+    font: 700 8px/1 var(--kj-industrial);
+    padding: 2px 6px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(0,0,0,0.4);
+    border-radius: 1px;
+    color: var(--kj-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-left: 6px;
 }
 
 /* Recent Section */
-.recent-section {
-    margin-top: 48px;
-}
+.recent-section { margin-top: 36px; }
 
 .recent-list {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    background:
+        repeating-linear-gradient(180deg, rgba(255,255,255,0.004) 0px, transparent 1px, transparent 3px),
+        var(--kj-surface);
+    border: 1px solid var(--kj-border);
+    border-radius: 2px;
     overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 
 .recent-item {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    text-decoration: none;
-    color: inherit;
-    transition: background 0.15s;
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(0,0,0,0.3);
+    text-decoration: none; color: inherit;
+    transition: background 0.1s;
 }
-
-.recent-item:last-child {
-    border-bottom: none;
-}
-
-.recent-item:hover {
-    background: var(--bg-hover);
-}
+.recent-item:last-child { border-bottom: none; }
+.recent-item:hover { background: rgba(255,255,255,0.015); }
 
 .recent-icon {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-secondary);
-    border-radius: 8px;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--kj-cavity);
+    border: 1px solid rgba(0,0,0,0.4);
+    border-radius: 2px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
     flex-shrink: 0;
 }
+.recent-icon svg { width: 16px; height: 16px; color: var(--kj-text-dim); }
 
-.recent-icon svg {
-    width: 18px;
-    height: 18px;
-    color: var(--text-secondary);
-}
+.recent-content { flex: 1; min-width: 0; }
+.recent-title { font: 500 13px/1 var(--kj-sans); color: var(--kj-text); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recent-meta { font: 400 10px/1 var(--kj-mono); color: var(--kj-text-dim); }
 
-.recent-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.recent-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text-primary);
-    margin-bottom: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.recent-meta {
-    font-size: 12px;
-    color: var(--text-dim);
-}
-
-.recent-empty {
-    padding: 40px;
-    text-align: center;
-    color: var(--text-dim);
-    font-size: 14px;
-}
+.recent-empty { padding: 32px; text-align: center; color: var(--kj-text-dim); font: 12px var(--kj-sans); }
 </style>
 {% endblock %}
 
