@@ -558,6 +558,96 @@ def _op_doe_design(d):
     }
 
 
+@_rack_op("doe_analyze")
+def _op_doe_analyze(d):
+    from forgedoe.analysis.regression import fit_model
+
+    coded_matrix = d.get("coded_matrix", [])
+    responses = d.get("responses", [])
+    factor_names = d.get("factor_names", [])
+    model_type = d.get("model", "linear+interactions")
+    alpha = float(d.get("alpha", 0.05))
+
+    if not coded_matrix or not responses:
+        return {"error_type": "missing_data", "message": "Need coded_matrix and responses."}
+    if len(coded_matrix) != len(responses):
+        return {
+            "error_type": "length_mismatch",
+            "message": f"Matrix has {len(coded_matrix)} runs but got {len(responses)} responses.",
+        }
+
+    ar = fit_model(coded_matrix, responses, factor_names, model_type=model_type, alpha=alpha)
+
+    return {
+        "model_type": ar.model_type,
+        "coefficients": ar.coefficients,
+        "se_coefficients": ar.se_coefficients,
+        "t_values": ar.t_values,
+        "p_values": ar.p_values,
+        "significant_terms": ar.significant_terms,
+        "r_squared": ar.r_squared,
+        "r_squared_adj": ar.r_squared_adj,
+        "residual_std": ar.residual_std,
+        "f_statistic": ar.f_statistic,
+        "f_p_value": ar.f_p_value,
+        "effects": ar.effects,
+        "alpha": ar.alpha,
+    }
+
+
+@_rack_op("doe_optimize")
+def _op_doe_optimize(d):
+    from forgedoe.analysis.optimization import optimize_responses
+    from forgedoe.analysis.regression import fit_model
+    from forgedoe.core.types import Factor, Response
+
+    coded_matrix = d.get("coded_matrix", [])
+    responses_data = d.get("responses", {})  # {name: {values: [], goal: "maximize|minimize|target", ...}}
+    factor_defs = d.get("factors", [])
+    factor_names = d.get("factor_names", [])
+    model_type = d.get("model", "linear+interactions")
+    alpha = float(d.get("alpha", 0.05))
+
+    if not coded_matrix or not responses_data:
+        return {"error_type": "missing_data", "message": "Need coded_matrix and responses."}
+
+    factors = [Factor(f["name"], f["low"], f["high"]) for f in factor_defs]
+
+    # Fit model for each response
+    analysis_results = {}
+    response_specs = []
+    for rname, rspec in responses_data.items():
+        vals = rspec.get("values", [])
+        if len(vals) != len(coded_matrix):
+            return {
+                "error_type": "length_mismatch",
+                "message": f"Response '{rname}': {len(vals)} values but {len(coded_matrix)} runs.",
+            }
+        ar = fit_model(coded_matrix, vals, factor_names, model_type=model_type, alpha=alpha)
+        analysis_results[rname] = ar
+
+        goal = rspec.get("goal", "maximize")
+        response_specs.append(
+            Response(
+                name=rname,
+                maximize=(goal == "maximize"),
+                minimize=(goal == "minimize"),
+                target=rspec.get("target"),
+                lower_limit=rspec.get("lower_limit"),
+                upper_limit=rspec.get("upper_limit"),
+                importance=rspec.get("importance", 1.0),
+            )
+        )
+
+    opt = optimize_responses(analysis_results, factors, response_specs, n_starts=d.get("n_starts", 200))
+
+    return {
+        "optimal_settings": opt.optimal_settings,
+        "predicted_responses": opt.predicted_responses,
+        "desirability": opt.desirability,
+    }
+
+
 @_rack_op("regression")
 def _op_regression(d):
     x, y = d["x"], d["y"]
