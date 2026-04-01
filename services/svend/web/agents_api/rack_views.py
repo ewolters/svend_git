@@ -372,6 +372,51 @@ def _op_gage_rr(d):
     }
 
 
+@_rack_op("doe_design")
+def _op_doe_design(d):
+    from forgedoe.core.types import Factor
+    from forgedoe.designs.factorial import fractional_factorial, full_factorial
+    from forgedoe.designs.response_surface import box_behnken_design, central_composite_design
+    from forgedoe.designs.screening import definitive_screening_design
+
+    factors = [Factor(f["name"], f["low"], f["high"]) for f in d["factors"]]
+    design_type = d.get("design", "full")
+
+    designers = {
+        "full": lambda: full_factorial(factors, randomize=True),
+        "fractional": lambda: fractional_factorial(factors, resolution=d.get("resolution", 3), randomize=True),
+        "ccd": lambda: central_composite_design(factors, randomize=True),
+        "bbd": lambda: box_behnken_design(factors, randomize=True),
+        "dsd": lambda: definitive_screening_design(factors, randomize=True),
+    }
+
+    if design_type not in designers:
+        return {
+            "error_type": "unknown_design",
+            "message": f"Unknown design: {design_type}. Available: {list(designers.keys())}",
+        }
+
+    dm = designers[design_type]()
+    nat = dm.to_natural()
+
+    # Build run sheet as list of dicts with natural values
+    runs = []
+    for i in range(dm.n_runs):
+        row = {"run": dm.run_order[i]}
+        for j, f in enumerate(dm.factors):
+            row[f.name] = nat.matrix[i][j]
+        runs.append(row)
+
+    return {
+        "design_type": dm.design_type,
+        "n_runs": dm.n_runs,
+        "n_factors": dm.n_factors,
+        "factor_names": [f.name for f in dm.factors],
+        "runs": runs,
+        "coded_matrix": dm.matrix,
+    }
+
+
 @_rack_op("regression")
 def _op_regression(d):
     x, y = d["x"], d["y"]
