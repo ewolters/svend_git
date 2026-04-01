@@ -472,36 +472,80 @@ def _op_gage_rr(d):
 @_rack_op("doe_design")
 def _op_doe_design(d):
     from forgedoe.core.types import Factor
-    from forgedoe.designs.factorial import fractional_factorial, full_factorial
+    from forgedoe.designs.classical import latin_square, randomized_block, taguchi
+    from forgedoe.designs.evop import evop_phase
+    from forgedoe.designs.factorial import fractional_factorial, full_factorial, plackett_burman
+    from forgedoe.designs.mixture import extreme_vertices, simplex_centroid, simplex_lattice
+    from forgedoe.designs.optimal import d_optimal, i_optimal
     from forgedoe.designs.response_surface import box_behnken_design, central_composite_design
     from forgedoe.designs.screening import definitive_screening_design
+    from forgedoe.designs.space_filling import latin_hypercube, maximin_lhs
+    from forgedoe.designs.split_plot import split_plot, split_plot_ccd
 
-    factors = [Factor(f["name"], f["low"], f["high"]) for f in d["factors"]]
+    factors = [Factor(f["name"], f["low"], f["high"]) for f in d.get("factors", [])]
     design_type = d.get("design", "full")
+    n_runs_req = d.get("n_runs", 20)
 
+    # ── Design dispatch ─────────────────────────────────────────
     designers = {
+        # Factorial
         "full": lambda: full_factorial(factors, randomize=True),
         "fractional": lambda: fractional_factorial(factors, resolution=d.get("resolution", 3), randomize=True),
+        "plackett_burman": lambda: plackett_burman(factors, randomize=True),
+        # Response surface
         "ccd": lambda: central_composite_design(factors, randomize=True),
         "bbd": lambda: box_behnken_design(factors, randomize=True),
+        # Screening
         "dsd": lambda: definitive_screening_design(factors, randomize=True),
+        # Classical
+        "latin_square": lambda: latin_square([f.name for f in factors], randomize=True),
+        "rcbd": lambda: randomized_block(len(factors), d.get("n_blocks", 3), d.get("replicates", 1)),
+        "taguchi": lambda: taguchi(factors, array_type=d.get("array_type", "auto")),
+        # Optimal
+        "d_optimal": lambda: d_optimal(factors, n_runs_req, model=d.get("model", "linear")),
+        "i_optimal": lambda: i_optimal(factors, n_runs_req, model=d.get("model", "quadratic")),
+        # Space-filling
+        "lhs": lambda: latin_hypercube(factors, n_samples=n_runs_req, randomize=True),
+        "maximin_lhs": lambda: maximin_lhs(factors, n_samples=n_runs_req),
+        # Mixture
+        "simplex_lattice": lambda: simplex_lattice(len(factors), degree=d.get("degree", 2)),
+        "simplex_centroid": lambda: simplex_centroid(len(factors), augment_axial=d.get("augment", False)),
+        "extreme_vertices": lambda: extreme_vertices(len(factors)),
+        # Split-plot
+        "split_plot": lambda: split_plot(
+            factors[: len(factors) // 2],
+            factors[len(factors) // 2 :],
+            n_replicates=d.get("replicates", 1),
+        ),
+        "split_plot_ccd": lambda: split_plot_ccd(
+            factors[: len(factors) // 2],
+            factors[len(factors) // 2 :],
+        ),
+        # EVOP
+        "evop": lambda: evop_phase(factors),
     }
 
     if design_type not in designers:
         return {
             "error_type": "unknown_design",
-            "message": f"Unknown design: {design_type}. Available: {list(designers.keys())}",
+            "message": f"Unknown design: {design_type}. Available: {sorted(designers.keys())}",
         }
 
     dm = designers[design_type]()
-    nat = dm.to_natural()
 
-    # Build run sheet as list of dicts with natural values
+    # Mixture designs have no natural scale (proportions), others do
+    try:
+        nat = dm.to_natural()
+        matrix = nat.matrix
+    except Exception:
+        matrix = dm.matrix
+
+    # Build run sheet as list of dicts
     runs = []
     for i in range(dm.n_runs):
-        row = {"run": dm.run_order[i]}
+        row = {"run": dm.run_order[i] if dm.run_order else i + 1}
         for j, f in enumerate(dm.factors):
-            row[f.name] = nat.matrix[i][j]
+            row[f.name] = matrix[i][j]
         runs.append(row)
 
     return {
