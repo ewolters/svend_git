@@ -116,10 +116,9 @@
     font: 700 9px/1 var(--kj-industrial);
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    /* Engraved look — shadow creates depth */
     color: transparent;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.06), 0 -1px 0 rgba(0,0,0,0.4);
-    -webkit-text-stroke: 0.3px var(--kj-text-label);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.08), 0 -1px 0 rgba(0,0,0,0.4);
+    -webkit-text-stroke: 0.5px var(--kj-text-dim);
     margin-bottom: 6px;
 }
 .kj-label-bright {
@@ -127,8 +126,8 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: transparent;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.08), 0 -1px 0 rgba(0,0,0,0.5);
-    -webkit-text-stroke: 0.3px var(--kj-text-secondary);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.1), 0 -1px 0 rgba(0,0,0,0.5);
+    -webkit-text-stroke: 0.5px var(--kj-text-secondary);
     margin-bottom: 8px;
 }
 /* Plain label variant (for small UI, no engraving needed) */
@@ -360,8 +359,8 @@
     font: 700 8px/1 var(--kj-industrial);
     text-transform: uppercase; letter-spacing: 0.08em;
     color: transparent;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.05), 0 -1px 0 rgba(0,0,0,0.3);
-    -webkit-text-stroke: 0.3px var(--kj-text-label);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.07), 0 -1px 0 rgba(0,0,0,0.3);
+    -webkit-text-stroke: 0.4px var(--kj-text-dim);
     margin-bottom: 2px;
 }
 
