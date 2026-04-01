@@ -449,6 +449,27 @@
 {% endblock %}
 
 {% block workspace_scripts %}
+// ── Global state (required by extracted vsm-*.js modules) ──
+var currentVSM = null;
+var vsmId = null;
+var currentProjectId = null;
+var selectedElement = null;
+var selectedElementType = null;
+var currentTool = 'select';
+var currentFlowType = null;
+var flowSourceStep = null;
+var zoom = 1;
+var panX = 0;
+var panY = 0;
+var isPanning = false;
+var lastMouseX = 0;
+var lastMouseY = 0;
+var vsmHistory = [];
+var vsmHistoryIndex = -1;
+var VSM_MAX_HISTORY = 50;
+var wasDragged = false;
+var stepMetricsClickTimer = null;
+
 // Cockpit tab switching
 function switchCockpitTab(btn) {
     document.querySelectorAll('.cockpit-tab').forEach(t => t.classList.remove('active'));
