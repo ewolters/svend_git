@@ -389,15 +389,24 @@ def rack_compute(request):
 
     logger = logging.getLogger("forgerack.compute")
 
+    # Coerce lists that look numeric (first non-null element is a number)
     for key, val in data.items():
-        if isinstance(val, list):
-            coerced = []
-            for v in val:
-                try:
-                    coerced.append(float(v))
-                except (TypeError, ValueError):
-                    pass  # skip non-numeric
-            data[key] = coerced
+        if isinstance(val, list) and len(val) > 0:
+            # Check if the first non-null value is numeric
+            first = next((v for v in val if v is not None and str(v).strip()), None)
+            try:
+                float(first)
+                is_numeric = True
+            except (TypeError, ValueError):
+                is_numeric = False
+            if is_numeric:
+                coerced = []
+                for v in val:
+                    try:
+                        coerced.append(float(v))
+                    except (TypeError, ValueError):
+                        pass
+                data[key] = coerced
 
     logger.info(
         "rack compute op=%s keys=%s lens=%s",
