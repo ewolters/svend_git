@@ -3,21 +3,23 @@
 {% block title %}A3 Report - SVEND{% endblock %}
 
 {% block extra_head %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/kjerne-theme.css' %}">
 <style>
-/* A3 Report Styling */
+/* A3 Report Styling — Kjerne Instruments */
 .a3-container {
-    --a3-bg: var(--bg-secondary);
-    --a3-border: var(--border);
-    --a3-header: #2c5f2d;
-    --a3-text: var(--text-primary);
-    --a3-section-bg: var(--bg-card);
-    --a3-section-header-bg: var(--bg-tertiary);
-    --a3-input-focus: rgba(74, 159, 110, 0.1);
+    --a3-bg: var(--kj-surface);
+    --a3-border: var(--kj-border);
+    --a3-header: linear-gradient(180deg, #1a3d2a 0%, #0f2318 100%);
+    --a3-text: var(--kj-text);
+    --a3-section-bg: var(--kj-surface);
+    --a3-section-header-bg: rgba(255,255,255,0.02);
+    --a3-input-focus: rgba(74, 159, 110, 0.06);
 
     max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: var(--kj-sans);
 }
 
 /* Light theme overrides for paper look */
@@ -33,9 +35,10 @@
     gap: 12px;
     margin-bottom: 20px;
     padding: 12px 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    background: linear-gradient(180deg, #1e2226 0%, var(--kj-surface) 100%);
+    border: 1px solid var(--kj-border);
+    border-radius: 3px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 3px rgba(0,0,0,0.3);
 }
 
 .a3-toolbar-group {
@@ -46,74 +49,84 @@
 
 .a3-toolbar-group:not(:last-child) {
     padding-right: 12px;
-    border-right: 1px solid var(--border);
+    border-right: 1px solid var(--kj-border);
 }
 
 .a3-btn {
     padding: 8px 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-primary);
+    background: linear-gradient(180deg, #464a4e 0%, #2a2e32 100%);
+    border: 1px solid var(--kj-border-heavy);
+    border-radius: 2px;
+    color: var(--kj-text);
     cursor: pointer;
-    font-size: 13px;
+    font-size: 11px;
+    font-family: var(--kj-industrial);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
     display: flex;
     align-items: center;
     gap: 6px;
     transition: all 0.15s;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 2px rgba(0,0,0,0.3);
 }
 
 .a3-btn:hover {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: white;
+    background: linear-gradient(180deg, #525659 0%, #343840 100%);
+    border-color: var(--kj-accent);
+    color: var(--kj-text);
 }
 
 .a3-btn.primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: white;
+    background: linear-gradient(180deg, #5ab87a 0%, #3d8a5a 100%);
+    border-color: rgba(0,0,0,0.3);
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 2px rgba(0,0,0,0.3);
 }
 
 .a3-status {
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 1px;
+    font-size: 9px;
+    font-weight: 600;
+    font-family: var(--kj-industrial);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
-.a3-status.draft { background: rgba(100, 100, 100, 0.2); color: var(--text-secondary); }
-.a3-status.in_progress { background: rgba(25, 118, 210, 0.2); color: #64b5f6; }
-.a3-status.review { background: rgba(245, 124, 0, 0.2); color: #ffb74d; }
-.a3-status.complete { background: rgba(56, 142, 60, 0.2); color: #81c784; }
+.a3-status.draft { background: rgba(100, 100, 100, 0.15); color: var(--kj-text-dim); border: 1px solid var(--kj-border); }
+.a3-status.in_progress { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+.a3-status.review { background: rgba(217,119,6,0.15); color: #fbbf24; border: 1px solid rgba(217,119,6,0.3); }
+.a3-status.complete { background: rgba(74,159,110,0.15); color: var(--kj-accent); border: 1px solid rgba(74,159,110,0.3); }
 
 .a3-status-select {
     padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-    border: 1px solid var(--border);
-    background: var(--bg-card);
-    color: var(--text-primary);
+    border-radius: 2px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--kj-industrial);
+    border: 1px solid var(--kj-border);
+    background: var(--kj-cavity);
+    color: var(--kj-text);
     cursor: pointer;
     outline: none;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 
 .a3-status-select:focus {
-    border-color: var(--accent);
+    border-color: var(--kj-accent);
 }
 
 .a3-status-select option {
-    background: var(--bg-card);
-    color: var(--text-primary);
+    background: var(--kj-surface);
+    color: var(--kj-text);
 }
 
 /* A3 Paper Layout */
 .a3-paper {
     background: var(--a3-section-bg);
-    border: 2px solid var(--border);
-    border-radius: 4px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    border: 2px solid var(--kj-border-heavy);
+    border-radius: 3px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     overflow: hidden;
 }
 
@@ -124,12 +137,14 @@
     padding: 16px 20px;
     background: var(--a3-header);
     color: white;
+    border-bottom: 1px solid rgba(74,159,110,0.3);
 }
 
 .a3-title {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
     flex: 1;
+    font-family: var(--kj-sans);
 }
 
 .a3-title input {
@@ -140,15 +155,17 @@
     font-weight: inherit;
     width: 100%;
     outline: none;
+    font-family: var(--kj-sans);
 }
 
 .a3-title input::placeholder {
-    color: rgba(255,255,255,0.6);
+    color: rgba(255,255,255,0.4);
 }
 
 .a3-meta {
-    font-size: 12px;
+    font-size: 11px;
     opacity: 0.9;
+    font-family: var(--kj-mono);
 }
 
 .a3-grid {
@@ -169,11 +186,14 @@
     padding: 8px 12px;
     background: var(--a3-section-header-bg);
     border-bottom: 1px solid var(--a3-border);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
-    color: var(--accent-primary);
+    color: transparent;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.08), 0 -1px 0 rgba(0,0,0,0.4);
+    -webkit-text-stroke: 0.5px var(--kj-text-dim);
+    font-family: var(--kj-industrial);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.1em;
 }
 
 .a3-section-actions {
@@ -183,18 +203,22 @@
 
 .a3-section-btn {
     padding: 2px 8px;
-    background: var(--bg-card);
-    border: 1px solid var(--a3-border);
-    border-radius: 4px;
-    font-size: 10px;
+    background: linear-gradient(180deg, #464a4e 0%, #2a2e32 100%);
+    border: 1px solid var(--kj-border);
+    border-radius: 2px;
+    font-size: 9px;
     cursor: pointer;
-    color: var(--text-secondary);
+    color: var(--kj-text-dim);
+    font-family: var(--kj-industrial);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
 .a3-section-btn:hover {
-    background: var(--accent-primary);
+    background: linear-gradient(180deg, #5ab87a 0%, #3d8a5a 100%);
     color: white;
-    border-color: var(--accent-primary);
+    border-color: rgba(0,0,0,0.3);
 }
 
 .a3-section-content {
@@ -210,14 +234,14 @@
     resize: vertical;
     font-size: 13px;
     line-height: 1.5;
-    font-family: inherit;
+    font-family: var(--kj-sans);
     outline: none;
     background: transparent;
-    color: var(--text-primary);
+    color: var(--kj-text);
 }
 
 .a3-section-content textarea::placeholder {
-    color: var(--text-dim);
+    color: var(--kj-text-dim);
 }
 
 .a3-section-content textarea:focus {
@@ -233,10 +257,11 @@
 .a3-diagram-container {
     margin: 8px 0;
     padding: 8px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    background: var(--kj-cavity);
+    border: 1px solid var(--kj-border);
+    border-radius: 3px;
     position: relative;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 
 .a3-diagram-container svg {
@@ -247,25 +272,28 @@
 }
 
 .a3-diagram-label {
-    font-size: 10px;
-    color: var(--text-dim);
+    font-size: 9px;
+    color: var(--kj-text-dim);
     margin-bottom: 4px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-family: var(--kj-industrial);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
 .a3-diagram-remove {
     background: none;
     border: none;
-    color: var(--text-dim);
+    color: var(--kj-text-dim);
     cursor: pointer;
     font-size: 14px;
     padding: 2px 6px;
 }
 
 .a3-diagram-remove:hover {
-    color: #e74c3c;
+    color: #ef5350;
 }
 
 @media print {
@@ -280,7 +308,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0,0,0,0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -293,9 +321,9 @@
 }
 
 .a3-modal {
-    background-color: var(--card-bg) !important;
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    background-color: var(--kj-surface) !important;
+    border: 1px solid var(--kj-border-heavy);
+    border-radius: 4px;
     width: 500px;
     max-height: 80vh;
     overflow: auto;
@@ -304,9 +332,10 @@
 
 .a3-modal-header {
     padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--kj-border);
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--kj-text);
+    font-family: var(--kj-sans);
 }
 
 .a3-modal-body {
@@ -315,7 +344,7 @@
 
 .a3-modal-footer {
     padding: 12px 20px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--kj-border);
     display: flex;
     justify-content: flex-end;
     gap: 8px;
@@ -323,33 +352,35 @@
 
 .a3-import-item {
     padding: 12px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    border: 1px solid var(--kj-border);
+    border-radius: 2px;
     margin-bottom: 8px;
     cursor: pointer;
     transition: all 0.15s;
-    background: var(--bg-secondary);
+    background: var(--kj-cavity);
 }
 
 .a3-import-item:hover {
-    border-color: var(--accent-primary);
-    background: rgba(74, 159, 110, 0.1);
+    border-color: var(--kj-accent);
+    background: rgba(74, 159, 110, 0.08);
 }
 
 .a3-import-item.selected {
-    border-color: var(--accent-primary);
-    background: rgba(74, 159, 110, 0.2);
+    border-color: var(--kj-accent);
+    background: rgba(74, 159, 110, 0.15);
 }
 
 .a3-import-item-title {
     font-weight: 500;
     margin-bottom: 4px;
-    color: var(--text-primary);
+    color: var(--kj-text);
+    font-family: var(--kj-sans);
 }
 
 .a3-import-item-meta {
-    font-size: 12px;
-    color: var(--text-dim);
+    font-size: 11px;
+    color: var(--kj-text-dim);
+    font-family: var(--kj-mono);
 }
 
 /* Project selector */
@@ -360,24 +391,26 @@
 .a3-project-selector select {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 14px;
-    background: var(--bg-card);
-    color: var(--text-primary);
+    border: 1px solid var(--kj-border);
+    border-radius: 2px;
+    font-size: 13px;
+    background: var(--kj-cavity);
+    color: var(--kj-text);
+    font-family: var(--kj-sans);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 
 /* Ensure modal body text is readable */
 .a3-modal-body p {
-    color: var(--text-secondary);
+    color: var(--kj-text-dim);
 }
 
 /* Action Items */
 .a3-action-items-panel {
     margin-top: 16px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg-card);
+    border: 1px solid var(--kj-border);
+    border-radius: 3px;
+    background: var(--kj-surface);
 }
 
 .a3-action-items-header {
@@ -385,17 +418,20 @@
     justify-content: space-between;
     align-items: center;
     padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-tertiary);
-    border-radius: 6px 6px 0 0;
+    border-bottom: 1px solid var(--kj-border);
+    background: rgba(255,255,255,0.02);
+    border-radius: 3px 3px 0 0;
 }
 
 .a3-action-items-header span {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--accent-primary);
+    letter-spacing: 0.1em;
+    color: transparent;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.08), 0 -1px 0 rgba(0,0,0,0.4);
+    -webkit-text-stroke: 0.5px var(--kj-text-dim);
+    font-family: var(--kj-industrial);
 }
 
 .a3-action-list {
@@ -408,9 +444,10 @@
     content: 'No action items yet.';
     display: block;
     padding: 16px;
-    color: var(--text-dim);
-    font-size: 13px;
+    color: var(--kj-text-dim);
+    font-size: 12px;
     text-align: center;
+    font-family: var(--kj-sans);
 }
 
 .a3-action-item {
@@ -418,7 +455,7 @@
     align-items: center;
     gap: 10px;
     padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--kj-border);
     font-size: 13px;
 }
 
@@ -428,44 +465,53 @@
 
 .a3-action-title {
     flex: 1;
-    color: var(--text-primary);
+    color: var(--kj-text);
+    font-family: var(--kj-sans);
 }
 
 .a3-action-owner {
     padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
+    border-radius: 1px;
+    font-size: 10px;
+    background: rgba(255,255,255,0.04);
+    color: var(--kj-text-dim);
     white-space: nowrap;
+    font-family: var(--kj-industrial);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border: 1px solid var(--kj-border);
 }
 
 .a3-action-due {
     font-size: 11px;
-    color: var(--text-dim);
+    color: var(--kj-text-dim);
     white-space: nowrap;
+    font-family: var(--kj-mono);
 }
 
 .a3-action-status {
-    padding: 3px 10px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 1px;
+    font-size: 9px;
+    font-weight: 600;
     cursor: pointer;
     border: none;
     white-space: nowrap;
     user-select: none;
+    font-family: var(--kj-industrial);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
-.a3-action-status.not_started { background: rgba(100, 100, 100, 0.2); color: var(--text-secondary); }
-.a3-action-status.in_progress { background: rgba(25, 118, 210, 0.2); color: #64b5f6; }
-.a3-action-status.completed { background: rgba(56, 142, 60, 0.2); color: #81c784; }
-.a3-action-status.blocked { background: rgba(211, 47, 47, 0.2); color: #ef5350; }
+.a3-action-status.not_started { background: rgba(100, 100, 100, 0.15); color: var(--kj-text-dim); border: 1px solid var(--kj-border); }
+.a3-action-status.in_progress { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+.a3-action-status.completed { background: rgba(74,159,110,0.15); color: var(--kj-accent); border: 1px solid rgba(74,159,110,0.3); }
+.a3-action-status.blocked { background: rgba(211, 47, 47, 0.15); color: #ef5350; border: 1px solid rgba(211,47,47,0.3); }
 
 .a3-action-delete {
     background: none;
     border: none;
-    color: var(--text-dim);
+    color: var(--kj-text-dim);
     cursor: pointer;
     font-size: 16px;
     padding: 0 4px;
@@ -473,14 +519,14 @@
 }
 
 .a3-action-delete:hover {
-    color: #e74c3c;
+    color: #ef5350;
 }
 
 /* Inline add form */
 .a3-action-add-form {
     display: none;
     padding: 12px 14px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--kj-border);
     gap: 8px;
     align-items: flex-end;
     flex-wrap: wrap;
@@ -491,24 +537,29 @@
 }
 
 .a3-action-add-form label {
-    font-size: 11px;
-    color: var(--text-secondary);
+    font-size: 9px;
+    color: var(--kj-text-dim);
     display: block;
     margin-bottom: 3px;
+    font-family: var(--kj-industrial);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
 .a3-action-add-form input {
     padding: 6px 10px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
+    border: 1px solid var(--kj-border);
+    border-radius: 2px;
     font-size: 13px;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
+    background: var(--kj-cavity);
+    color: var(--kj-text);
     outline: none;
+    font-family: var(--kj-sans);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 
 .a3-action-add-form input:focus {
-    border-color: var(--accent);
+    border-color: var(--kj-accent);
 }
 
 .a3-action-add-form .field-title { flex: 2; min-width: 140px; }
@@ -526,18 +577,19 @@
     padding: 10px;
     line-height: 1.7;
     font-size: 0.85rem;
-    color: var(--text-primary);
+    color: var(--kj-text);
     min-height: 120px;
+    font-family: var(--kj-sans);
 }
 .section-rendered p { margin: 0 0 0.5em 0; }
-.section-rendered strong { color: var(--accent); }
+.section-rendered strong { color: var(--kj-accent); }
 .section-rendered ul, .section-rendered ol { margin: 0.3em 0; padding-left: 1.5em; }
 .section-rendered li { margin: 2px 0; }
-.section-rendered hr { border: none; border-top: 1px solid var(--border); margin: 0.5em 0; }
+.section-rendered hr { border: none; border-top: 1px solid var(--kj-border); margin: 0.5em 0; }
 .section-rendered table { width: 100%; border-collapse: collapse; margin: 0.5em 0; font-size: 0.8rem; }
-.section-rendered th, .section-rendered td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
-.section-rendered th { background: var(--bg-tertiary); font-weight: 600; }
-.section-rendered .empty { color: var(--text-dim); font-style: italic; }
+.section-rendered th, .section-rendered td { border: 1px solid var(--kj-border); padding: 4px 8px; text-align: left; }
+.section-rendered th { background: rgba(255,255,255,0.02); font-weight: 600; font-family: var(--kj-industrial); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.06em; color: var(--kj-text-dim); }
+.section-rendered .empty { color: var(--kj-text-dim); font-style: italic; }
 
 /* DSW import picker */
 .dsw-picker label { display: block; margin: 6px 0; cursor: pointer; }
@@ -588,7 +640,7 @@
 
         <div class="a3-toolbar-group">
             <button class="a3-btn" onclick="autoPopulate()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                     <path d="M12 2a10 10 0 1 0 10 10"/>
                     <path d="M12 12l4-4"/>
                     <path d="M16 4v4h-4"/>
