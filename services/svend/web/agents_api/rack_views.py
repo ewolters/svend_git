@@ -471,7 +471,7 @@ def _op_gage_rr(d):
 
 @_rack_op("doe_design")
 def _op_doe_design(d):
-    from forgedoe.core.types import Factor
+    from forgedoe.core.types import Factor, FactorType
     from forgedoe.designs.classical import latin_square, randomized_block, taguchi
     from forgedoe.designs.evop import evop_phase
     from forgedoe.designs.factorial import fractional_factorial, full_factorial, plackett_burman
@@ -482,7 +482,12 @@ def _op_doe_design(d):
     from forgedoe.designs.space_filling import latin_hypercube, maximin_lhs
     from forgedoe.designs.split_plot import split_plot, split_plot_ccd
 
-    factors = [Factor(f["name"], f["low"], f["high"]) for f in d.get("factors", [])]
+    factors = []
+    for f in d.get("factors", []):
+        if f.get("factor_type") == "categorical":
+            factors.append(Factor(f["name"], factor_type=FactorType.CATEGORICAL, levels=f.get("levels", [])))
+        else:
+            factors.append(Factor(f["name"], f.get("low", -1), f.get("high", 1)))
     design_type = d.get("design", "full")
     n_runs_req = d.get("n_runs", 20)
 
@@ -540,12 +545,19 @@ def _op_doe_design(d):
     except Exception:
         matrix = dm.matrix
 
-    # Build run sheet as list of dicts
+    # Build run sheet as list of dicts — map categorical coded values to level names
     runs = []
     for i in range(dm.n_runs):
         row = {"run": dm.run_order[i] if dm.run_order else i + 1}
         for j, f in enumerate(dm.factors):
-            row[f.name] = matrix[i][j]
+            val = matrix[i][j]
+            if f.factor_type == FactorType.CATEGORICAL and f.levels:
+                # Map coded value to level: round to nearest int index
+                idx = int(round((val + 1) / 2 * (len(f.levels) - 1)))
+                idx = max(0, min(idx, len(f.levels) - 1))
+                row[f.name] = f.levels[idx]
+            else:
+                row[f.name] = val
         runs.append(row)
 
     return {
