@@ -154,11 +154,179 @@ body { background: #111; }
 
 <!-- Standard Rotary Knob -->
 <div class="wb-card">
-    <div class="wb-card-title">Rotary Knob</div>
-    <div class="wb-card-desc">Standard conic-gradient knob with specular highlight. 32px typical. Knurled variant available.</div>
+    <div class="wb-card-title">Rotary Knob (smooth)</div>
+    <div class="wb-card-desc">Standard conic-gradient knob with specular highlight. 32px typical.</div>
     <div class="wb-showcase dark-panel">
         <div class="dial-knob" style="width:32px;height:32px;"></div>
         <div class="dial-knob" style="width:24px;height:24px;"></div>
+    </div>
+</div>
+
+<!-- Grippy Rotary Knob -->
+<div class="wb-card" style="grid-column: span 2;">
+    <div class="wb-card-title">Grippy Rotary Knob</div>
+    <div class="wb-card-desc">Knurled edge (repeating-conic-gradient), recessed colored indicator cap. 36px / 28px / 22px.</div>
+    <div class="wb-showcase dark-panel" style="gap:24px;">
+
+        <!-- 36px — green accent -->
+        <div style="text-align:center;">
+            <div style="position:relative;width:36px;height:36px;">
+                <!-- Knurled outer ring -->
+                <div style="position:absolute;inset:0;border-radius:50%;
+                    background: repeating-conic-gradient(
+                        from 0deg,
+                        #2a2a28 0deg 10deg,
+                        #1a1a18 10deg 20deg
+                    );
+                    box-shadow: 0 3px 6px rgba(0,0,0,0.5);
+                "></div>
+                <!-- Body -->
+                <div style="position:absolute;inset:3px;border-radius:50%;
+                    background:radial-gradient(circle at 38% 34%, rgba(255,240,215,0.08), transparent 50%),
+                        radial-gradient(circle, #252524 0%, #1e1e1c 40%, #161614 100%);
+                    border:1px solid #0a0a08;
+                    box-shadow: inset 0 1px 0 rgba(255,240,215,0.05), inset 0 -1px 2px rgba(0,0,0,0.3);
+                "></div>
+                <!-- Indicator cap — recessed, colored -->
+                <div style="position:absolute;top:5px;left:50%;transform:translateX(-50%);
+                    width:6px;height:6px;border-radius:50%;
+                    background:radial-gradient(circle at 40% 35%, #6aee8a, #3aaa5a 60%, #2a8a4a);
+                    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4), 0 0 4px rgba(78,173,128,0.2);
+                "></div>
+            </div>
+            <div class="wb-label" style="margin-top:6px;">36px green</div>
+        </div>
+
+        <!-- 36px — amber accent -->
+        <div style="text-align:center;">
+            <div style="position:relative;width:36px;height:36px;">
+                <div style="position:absolute;inset:0;border-radius:50%;
+                    background: repeating-conic-gradient(
+                        from 0deg,
+                        #2a2a28 0deg 10deg,
+                        #1a1a18 10deg 20deg
+                    );
+                    box-shadow: 0 3px 6px rgba(0,0,0,0.5);
+                "></div>
+                <div style="position:absolute;inset:3px;border-radius:50%;
+                    background:radial-gradient(circle at 38% 34%, rgba(255,240,215,0.08), transparent 50%),
+                        radial-gradient(circle, #252524 0%, #1e1e1c 40%, #161614 100%);
+                    border:1px solid #0a0a08;
+                    box-shadow: inset 0 1px 0 rgba(255,240,215,0.05), inset 0 -1px 2px rgba(0,0,0,0.3);
+                "></div>
+                <div style="position:absolute;top:5px;left:50%;transform:translateX(-50%);
+                    width:6px;height:6px;border-radius:50%;
+                    background:radial-gradient(circle at 40% 35%, #f0c060, #d09030 60%, #b07020);
+                    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4), 0 0 4px rgba(217,119,6,0.2);
+                "></div>
+            </div>
+            <div class="wb-label" style="margin-top:6px;">36px amber</div>
+        </div>
+
+        <!-- 28px — cyan accent -->
+        <div style="text-align:center;">
+            <div style="position:relative;width:28px;height:28px;">
+                <div style="position:absolute;inset:0;border-radius:50%;
+                    background: repeating-conic-gradient(
+                        from 0deg,
+                        #2a2a28 0deg 12deg,
+                        #1a1a18 12deg 24deg
+                    );
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+                "></div>
+                <div style="position:absolute;inset:3px;border-radius:50%;
+                    background:radial-gradient(circle at 38% 34%, rgba(255,240,215,0.08), transparent 50%),
+                        radial-gradient(circle, #252524 0%, #1e1e1c 40%, #161614 100%);
+                    border:1px solid #0a0a08;
+                    box-shadow: inset 0 1px 0 rgba(255,240,215,0.05), inset 0 -1px 2px rgba(0,0,0,0.3);
+                "></div>
+                <div style="position:absolute;top:4px;left:50%;transform:translateX(-50%);
+                    width:5px;height:5px;border-radius:50%;
+                    background:radial-gradient(circle at 40% 35%, #60e0f0, #30b0c0 60%, #2090a0);
+                    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4), 0 0 4px rgba(34,211,238,0.2);
+                "></div>
+            </div>
+            <div class="wb-label" style="margin-top:6px;">28px cyan</div>
+        </div>
+
+        <!-- 28px — red accent -->
+        <div style="text-align:center;">
+            <div style="position:relative;width:28px;height:28px;">
+                <div style="position:absolute;inset:0;border-radius:50%;
+                    background: repeating-conic-gradient(
+                        from 0deg,
+                        #2a2a28 0deg 12deg,
+                        #1a1a18 12deg 24deg
+                    );
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+                "></div>
+                <div style="position:absolute;inset:3px;border-radius:50%;
+                    background:radial-gradient(circle at 38% 34%, rgba(255,240,215,0.08), transparent 50%),
+                        radial-gradient(circle, #252524 0%, #1e1e1c 40%, #161614 100%);
+                    border:1px solid #0a0a08;
+                    box-shadow: inset 0 1px 0 rgba(255,240,215,0.05), inset 0 -1px 2px rgba(0,0,0,0.3);
+                "></div>
+                <div style="position:absolute;top:4px;left:50%;transform:translateX(-50%);
+                    width:5px;height:5px;border-radius:50%;
+                    background:radial-gradient(circle at 40% 35%, #f06060, #c03030 60%, #a02020);
+                    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4), 0 0 4px rgba(239,68,68,0.2);
+                "></div>
+            </div>
+            <div class="wb-label" style="margin-top:6px;">28px red</div>
+        </div>
+
+        <!-- 22px — white/cream accent (small) -->
+        <div style="text-align:center;">
+            <div style="position:relative;width:22px;height:22px;">
+                <div style="position:absolute;inset:0;border-radius:50%;
+                    background: repeating-conic-gradient(
+                        from 0deg,
+                        #2a2a28 0deg 15deg,
+                        #1a1a18 15deg 30deg
+                    );
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+                "></div>
+                <div style="position:absolute;inset:2px;border-radius:50%;
+                    background:radial-gradient(circle at 38% 34%, rgba(255,240,215,0.08), transparent 50%),
+                        radial-gradient(circle, #252524 0%, #1e1e1c 40%, #161614 100%);
+                    border:1px solid #0a0a08;
+                    box-shadow: inset 0 1px 0 rgba(255,240,215,0.05), inset 0 -1px 2px rgba(0,0,0,0.3);
+                "></div>
+                <div style="position:absolute;top:3px;left:50%;transform:translateX(-50%);
+                    width:4px;height:4px;border-radius:50%;
+                    background:radial-gradient(circle at 40% 35%, #e8e0d0, #c8c0b0 60%, #a8a090);
+                    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4), 0 0 3px rgba(220,210,180,0.15);
+                "></div>
+            </div>
+            <div class="wb-label" style="margin-top:6px;">22px cream</div>
+        </div>
+
+        <!-- 22px — orange accent -->
+        <div style="text-align:center;">
+            <div style="position:relative;width:22px;height:22px;">
+                <div style="position:absolute;inset:0;border-radius:50%;
+                    background: repeating-conic-gradient(
+                        from 0deg,
+                        #2a2a28 0deg 15deg,
+                        #1a1a18 15deg 30deg
+                    );
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+                "></div>
+                <div style="position:absolute;inset:2px;border-radius:50%;
+                    background:radial-gradient(circle at 38% 34%, rgba(255,240,215,0.08), transparent 50%),
+                        radial-gradient(circle, #252524 0%, #1e1e1c 40%, #161614 100%);
+                    border:1px solid #0a0a08;
+                    box-shadow: inset 0 1px 0 rgba(255,240,215,0.05), inset 0 -1px 2px rgba(0,0,0,0.3);
+                "></div>
+                <div style="position:absolute;top:3px;left:50%;transform:translateX(-50%);
+                    width:4px;height:4px;border-radius:50%;
+                    background:radial-gradient(circle at 40% 35%, #f09040, #d07020 60%, #b05010);
+                    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4), 0 0 3px rgba(249,115,22,0.2);
+                "></div>
+            </div>
+            <div class="wb-label" style="margin-top:6px;">22px orange</div>
+        </div>
+
     </div>
 </div>
 
