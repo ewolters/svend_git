@@ -4,22 +4,21 @@
 
 {% block extra_head %}
 {% load static %}
-<link rel="stylesheet" href="{% static 'css/kjerne-theme.css' %}">
 <style>
 /* A3 Report Styling — Kjerne Instruments */
 .a3-container {
-    --a3-bg: var(--kj-surface);
-    --a3-border: var(--kj-border);
+    --a3-bg: var(--bg-secondary);
+    --a3-border: var(--border);
     --a3-header: linear-gradient(180deg, #1a3d2a 0%, #0f2318 100%);
-    --a3-text: var(--kj-text);
-    --a3-section-bg: var(--kj-surface);
+    --a3-text: var(--text-primary);
+    --a3-section-bg: var(--bg-secondary);
     --a3-section-header-bg: rgba(255,255,255,0.02);
     --a3-input-focus: rgba(74, 159, 110, 0.06);
 
     max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
-    font-family: var(--kj-sans);
+    font-family: 'Inter', system-ui, sans-serif;
 }
 
 /* Light theme overrides for paper look */
@@ -35,8 +34,8 @@
     gap: 12px;
     margin-bottom: 20px;
     padding: 12px 16px;
-    background: linear-gradient(180deg, #1e2226 0%, var(--kj-surface) 100%);
-    border: 1px solid var(--kj-border);
+    background: linear-gradient(180deg, #1e2226 0%, var(--bg-secondary) 100%);
+    border: 1px solid var(--border);
     border-radius: 3px;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 3px rgba(0,0,0,0.3);
 }
@@ -49,20 +48,20 @@
 
 .a3-toolbar-group:not(:last-child) {
     padding-right: 12px;
-    border-right: 1px solid var(--kj-border);
+    border-right: 1px solid var(--border);
 }
 
 .a3-btn {
     padding: 0 16px;
     height: 34px;
     background: linear-gradient(180deg, #464a4e 0%, #2a2e32 100%);
-    border: 1px solid var(--kj-border-heavy);
+    border: 1px solid var(--border-heavy);
     border-radius: 2px;
-    color: var(--kj-text);
+    color: var(--text-primary);
     cursor: pointer;
     font-size: 12px;
     font-weight: 500;
-    font-family: var(--kj-sans);
+    font-family: 'Inter', system-ui, sans-serif;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -74,8 +73,8 @@
 
 .a3-btn:hover {
     background: linear-gradient(180deg, #525659 0%, #343840 100%);
-    border-color: var(--kj-accent);
-    color: var(--kj-text);
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
 }
 
 .a3-btn.primary {
@@ -90,15 +89,15 @@
     border-radius: 1px;
     font-size: 9px;
     font-weight: 600;
-    font-family: var(--kj-industrial);
+    font-family: var(--font-label);
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
 
-.a3-status.draft { background: rgba(100, 100, 100, 0.15); color: var(--kj-text-dim); border: 1px solid var(--kj-border); }
+.a3-status.draft { background: rgba(100, 100, 100, 0.15); color: var(--text-dim); border: 1px solid var(--border); }
 .a3-status.in_progress { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
 .a3-status.review { background: rgba(217,119,6,0.15); color: #fbbf24; border: 1px solid rgba(217,119,6,0.3); }
-.a3-status.complete { background: rgba(74,159,110,0.15); color: var(--kj-accent); border: 1px solid rgba(74,159,110,0.3); }
+.a3-status.complete { background: rgba(74,159,110,0.15); color: var(--accent-primary); border: 1px solid rgba(74,159,110,0.3); }
 
 .a3-status-select {
     padding: 0 12px;
@@ -106,28 +105,28 @@
     border-radius: 2px;
     font-size: 12px;
     font-weight: 500;
-    font-family: var(--kj-sans);
-    border: 1px solid var(--kj-border);
-    background: var(--kj-cavity);
-    color: var(--kj-text);
+    font-family: 'Inter', system-ui, sans-serif;
+    border: 1px solid var(--border);
+    background: rgba(0,0,0,0.3);
+    color: var(--text-primary);
     cursor: pointer;
     outline: none;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 
 .a3-status-select:focus {
-    border-color: var(--kj-accent);
+    border-color: var(--accent-primary);
 }
 
 .a3-status-select option {
-    background: var(--kj-surface);
-    color: var(--kj-text);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
 }
 
 /* A3 Paper Layout */
 .a3-paper {
     background: var(--a3-section-bg);
-    border: 2px solid var(--kj-border-heavy);
+    border: 2px solid var(--border-heavy);
     border-radius: 3px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     overflow: hidden;
@@ -147,7 +146,7 @@
     font-size: 18px;
     font-weight: 600;
     flex: 1;
-    font-family: var(--kj-sans);
+    font-family: 'Inter', system-ui, sans-serif;
 }
 
 .a3-title input {
@@ -158,7 +157,7 @@
     font-weight: inherit;
     width: 100%;
     outline: none;
-    font-family: var(--kj-sans);
+    font-family: 'Inter', system-ui, sans-serif;
 }
 
 .a3-title input::placeholder {
@@ -168,7 +167,7 @@
 .a3-meta {
     font-size: 11px;
     opacity: 0.9;
-    font-family: var(--kj-mono);
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .a3-grid {
@@ -191,9 +190,9 @@
     border-bottom: 1px solid var(--a3-border);
     font-size: 11px;
     font-weight: 600;
-    color: var(--kj-text-label);
+    color: var(--text-dim);
     text-shadow: 0 1px 0 rgba(255,255,255,0.06);
-    font-family: var(--kj-industrial);
+    font-family: var(--font-label);
     text-transform: uppercase;
     letter-spacing: 0.1em;
 }
@@ -206,12 +205,12 @@
 .a3-section-btn {
     padding: 2px 8px;
     background: linear-gradient(180deg, #464a4e 0%, #2a2e32 100%);
-    border: 1px solid var(--kj-border);
+    border: 1px solid var(--border);
     border-radius: 2px;
     font-size: 10px;
     cursor: pointer;
-    color: var(--kj-text-dim);
-    font-family: var(--kj-sans);
+    color: var(--text-dim);
+    font-family: 'Inter', system-ui, sans-serif;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
@@ -234,14 +233,14 @@
     resize: vertical;
     font-size: 13px;
     line-height: 1.5;
-    font-family: var(--kj-sans);
+    font-family: 'Inter', system-ui, sans-serif;
     outline: none;
     background: transparent;
-    color: var(--kj-text);
+    color: var(--text-primary);
 }
 
 .a3-section-content textarea::placeholder {
-    color: var(--kj-text-dim);
+    color: var(--text-dim);
 }
 
 .a3-section-content textarea:focus {
@@ -257,8 +256,8 @@
 .a3-diagram-container {
     margin: 8px 0;
     padding: 8px;
-    background: var(--kj-cavity);
-    border: 1px solid var(--kj-border);
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
     border-radius: 3px;
     position: relative;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
@@ -273,12 +272,12 @@
 
 .a3-diagram-label {
     font-size: 9px;
-    color: var(--kj-text-dim);
+    color: var(--text-dim);
     margin-bottom: 4px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-family: var(--kj-industrial);
+    font-family: var(--font-label);
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
@@ -286,7 +285,7 @@
 .a3-diagram-remove {
     background: none;
     border: none;
-    color: var(--kj-text-dim);
+    color: var(--text-dim);
     cursor: pointer;
     font-size: 14px;
     padding: 2px 6px;
@@ -321,8 +320,8 @@
 }
 
 .a3-modal {
-    background-color: var(--kj-surface) !important;
-    border: 1px solid var(--kj-border-heavy);
+    background-color: var(--bg-secondary) !important;
+    border: 1px solid var(--border-heavy);
     border-radius: 4px;
     width: 500px;
     max-height: 80vh;
@@ -332,10 +331,10 @@
 
 .a3-modal-header {
     padding: 16px 20px;
-    border-bottom: 1px solid var(--kj-border);
+    border-bottom: 1px solid var(--border);
     font-weight: 600;
-    color: var(--kj-text);
-    font-family: var(--kj-sans);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
 }
 
 .a3-modal-body {
@@ -344,7 +343,7 @@
 
 .a3-modal-footer {
     padding: 12px 20px;
-    border-top: 1px solid var(--kj-border);
+    border-top: 1px solid var(--border);
     display: flex;
     justify-content: flex-end;
     gap: 8px;
@@ -352,35 +351,35 @@
 
 .a3-import-item {
     padding: 12px;
-    border: 1px solid var(--kj-border);
+    border: 1px solid var(--border);
     border-radius: 2px;
     margin-bottom: 8px;
     cursor: pointer;
     transition: all 0.15s;
-    background: var(--kj-cavity);
+    background: rgba(0,0,0,0.3);
 }
 
 .a3-import-item:hover {
-    border-color: var(--kj-accent);
+    border-color: var(--accent-primary);
     background: rgba(74, 159, 110, 0.08);
 }
 
 .a3-import-item.selected {
-    border-color: var(--kj-accent);
+    border-color: var(--accent-primary);
     background: rgba(74, 159, 110, 0.15);
 }
 
 .a3-import-item-title {
     font-weight: 500;
     margin-bottom: 4px;
-    color: var(--kj-text);
-    font-family: var(--kj-sans);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
 }
 
 .a3-import-item-meta {
     font-size: 11px;
-    color: var(--kj-text-dim);
-    font-family: var(--kj-mono);
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
 }
 
 /* Project selector */
@@ -391,26 +390,26 @@
 .a3-project-selector select {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid var(--kj-border);
+    border: 1px solid var(--border);
     border-radius: 2px;
     font-size: 13px;
-    background: var(--kj-cavity);
-    color: var(--kj-text);
-    font-family: var(--kj-sans);
+    background: rgba(0,0,0,0.3);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 
 /* Ensure modal body text is readable */
 .a3-modal-body p {
-    color: var(--kj-text-dim);
+    color: var(--text-dim);
 }
 
 /* Action Items */
 .a3-action-items-panel {
     margin-top: 16px;
-    border: 1px solid var(--kj-border);
+    border: 1px solid var(--border);
     border-radius: 3px;
-    background: var(--kj-surface);
+    background: var(--bg-secondary);
 }
 
 .a3-action-items-header {
@@ -418,7 +417,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 10px 14px;
-    border-bottom: 1px solid var(--kj-border);
+    border-bottom: 1px solid var(--border);
     background: rgba(255,255,255,0.02);
     border-radius: 3px 3px 0 0;
 }
@@ -428,9 +427,9 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--kj-text-label);
+    color: var(--text-dim);
     text-shadow: 0 1px 0 rgba(255,255,255,0.06);
-    font-family: var(--kj-industrial);
+    font-family: var(--font-label);
 }
 
 .a3-action-list {
@@ -443,10 +442,10 @@
     content: 'No action items yet.';
     display: block;
     padding: 16px;
-    color: var(--kj-text-dim);
+    color: var(--text-dim);
     font-size: 12px;
     text-align: center;
-    font-family: var(--kj-sans);
+    font-family: 'Inter', system-ui, sans-serif;
 }
 
 .a3-action-item {
@@ -454,7 +453,7 @@
     align-items: center;
     gap: 10px;
     padding: 10px 14px;
-    border-bottom: 1px solid var(--kj-border);
+    border-bottom: 1px solid var(--border);
     font-size: 13px;
 }
 
@@ -464,8 +463,8 @@
 
 .a3-action-title {
     flex: 1;
-    color: var(--kj-text);
-    font-family: var(--kj-sans);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
 }
 
 .a3-action-owner {
@@ -473,19 +472,19 @@
     border-radius: 1px;
     font-size: 10px;
     background: rgba(255,255,255,0.04);
-    color: var(--kj-text-dim);
+    color: var(--text-dim);
     white-space: nowrap;
-    font-family: var(--kj-industrial);
+    font-family: var(--font-label);
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    border: 1px solid var(--kj-border);
+    border: 1px solid var(--border);
 }
 
 .a3-action-due {
     font-size: 11px;
-    color: var(--kj-text-dim);
+    color: var(--text-dim);
     white-space: nowrap;
-    font-family: var(--kj-mono);
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .a3-action-status {
@@ -497,20 +496,20 @@
     border: none;
     white-space: nowrap;
     user-select: none;
-    font-family: var(--kj-industrial);
+    font-family: var(--font-label);
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
 
-.a3-action-status.not_started { background: rgba(100, 100, 100, 0.15); color: var(--kj-text-dim); border: 1px solid var(--kj-border); }
+.a3-action-status.not_started { background: rgba(100, 100, 100, 0.15); color: var(--text-dim); border: 1px solid var(--border); }
 .a3-action-status.in_progress { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
-.a3-action-status.completed { background: rgba(74,159,110,0.15); color: var(--kj-accent); border: 1px solid rgba(74,159,110,0.3); }
+.a3-action-status.completed { background: rgba(74,159,110,0.15); color: var(--accent-primary); border: 1px solid rgba(74,159,110,0.3); }
 .a3-action-status.blocked { background: rgba(211, 47, 47, 0.15); color: #ef5350; border: 1px solid rgba(211,47,47,0.3); }
 
 .a3-action-delete {
     background: none;
     border: none;
-    color: var(--kj-text-dim);
+    color: var(--text-dim);
     cursor: pointer;
     font-size: 16px;
     padding: 0 4px;
@@ -525,7 +524,7 @@
 .a3-action-add-form {
     display: none;
     padding: 12px 14px;
-    border-top: 1px solid var(--kj-border);
+    border-top: 1px solid var(--border);
     gap: 8px;
     align-items: flex-end;
     flex-wrap: wrap;
@@ -537,28 +536,28 @@
 
 .a3-action-add-form label {
     font-size: 9px;
-    color: var(--kj-text-dim);
+    color: var(--text-dim);
     display: block;
     margin-bottom: 3px;
-    font-family: var(--kj-industrial);
+    font-family: var(--font-label);
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
 
 .a3-action-add-form input {
     padding: 6px 10px;
-    border: 1px solid var(--kj-border);
+    border: 1px solid var(--border);
     border-radius: 2px;
     font-size: 13px;
-    background: var(--kj-cavity);
-    color: var(--kj-text);
+    background: rgba(0,0,0,0.3);
+    color: var(--text-primary);
     outline: none;
-    font-family: var(--kj-sans);
+    font-family: 'Inter', system-ui, sans-serif;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 
 .a3-action-add-form input:focus {
-    border-color: var(--kj-accent);
+    border-color: var(--accent-primary);
 }
 
 .a3-action-add-form .field-title { flex: 2; min-width: 140px; }
@@ -576,19 +575,19 @@
     padding: 10px;
     line-height: 1.7;
     font-size: 0.85rem;
-    color: var(--kj-text);
+    color: var(--text-primary);
     min-height: 120px;
-    font-family: var(--kj-sans);
+    font-family: 'Inter', system-ui, sans-serif;
 }
 .section-rendered p { margin: 0 0 0.5em 0; }
-.section-rendered strong { color: var(--kj-accent); }
+.section-rendered strong { color: var(--accent-primary); }
 .section-rendered ul, .section-rendered ol { margin: 0.3em 0; padding-left: 1.5em; }
 .section-rendered li { margin: 2px 0; }
-.section-rendered hr { border: none; border-top: 1px solid var(--kj-border); margin: 0.5em 0; }
+.section-rendered hr { border: none; border-top: 1px solid var(--border); margin: 0.5em 0; }
 .section-rendered table { width: 100%; border-collapse: collapse; margin: 0.5em 0; font-size: 0.8rem; }
-.section-rendered th, .section-rendered td { border: 1px solid var(--kj-border); padding: 4px 8px; text-align: left; }
-.section-rendered th { background: rgba(255,255,255,0.02); font-weight: 600; font-family: var(--kj-industrial); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.06em; color: var(--kj-text-dim); }
-.section-rendered .empty { color: var(--kj-text-dim); font-style: italic; }
+.section-rendered th, .section-rendered td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
+.section-rendered th { background: rgba(255,255,255,0.02); font-weight: 600; font-family: var(--font-label); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.06em; color: var(--text-dim); }
+.section-rendered .empty { color: var(--text-dim); font-style: italic; }
 
 /* DSW import picker */
 .dsw-picker label { display: block; margin: 6px 0; cursor: pointer; }

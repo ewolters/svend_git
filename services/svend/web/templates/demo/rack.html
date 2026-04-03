@@ -807,6 +807,43 @@ if (!ForgeRack.units) ForgeRack.units = {};
         <feFuncB type="linear" slope="3.5" intercept="-1.2" />
       </feComponentTransfer>
     </filter>
+
+    <!-- ── MATTE SURFACE NOISE ──
+         Very high frequency isotropic noise at low contrast.
+         Breaks up flat digital color into a physical surface.
+         Like the fine grain of powder-coated or anodized metal. -->
+    <filter id="matte-noise" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise"
+        baseFrequency="1.8 1.8"
+        numOctaves="3"
+        seed="5"
+        stitchTiles="stitch"
+        result="noise" />
+      <feColorMatrix type="saturate" values="0" in="noise" result="gray" />
+      <feComponentTransfer in="gray" result="matte">
+        <feFuncR type="linear" slope="1.5" intercept="-0.25" />
+        <feFuncG type="linear" slope="1.5" intercept="-0.25" />
+        <feFuncB type="linear" slope="1.5" intercept="-0.25" />
+      </feComponentTransfer>
+    </filter>
+
+    <!-- ── SCREW HIGHLIGHT ──
+         Radial noise for metallic screw/fastener surfaces.
+         Creates the milled concentric rings on a Phillips head. -->
+    <filter id="screw-metal" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="turbulence"
+        baseFrequency="0.3 2.5"
+        numOctaves="2"
+        seed="9"
+        stitchTiles="stitch"
+        result="noise" />
+      <feColorMatrix type="saturate" values="0" in="noise" result="gray" />
+      <feComponentTransfer in="gray" result="metal">
+        <feFuncR type="linear" slope="2" intercept="-0.5" />
+        <feFuncG type="linear" slope="2" intercept="-0.5" />
+        <feFuncB type="linear" slope="2" intercept="-0.5" />
+      </feComponentTransfer>
+    </filter>
   </defs>
 </svg>
 

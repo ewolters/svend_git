@@ -7,10 +7,12 @@
  * ══════════════════════════════════════════════════════════════
  *
  *  NAMING: sv-{component}[-{variant}]
- *  COLORS: CSS variables only — never hardcoded
- *  RADIUS: 4px (inputs/buttons), 6px (cards/panels), full (pills/dots)
+ *  COLORS: CSS variables only — never hardcoded hex/rgb in templates
+ *  RADIUS: var(--radius-sm) 4px, var(--radius-md) 6px, var(--radius-lg) 12px, 9999px (full). No others.
  *  SPACING: 4px grid (4, 6, 8, 10, 12, 14, 16, 20, 24)
- *  FONTS: Inter (UI), JetBrains Mono (values/code)
+ *  FONTS: Inter (UI), JetBrains Mono (values/code), var(--font-label) for industrial labels
+ *  HOVER: Cards → border-color change only. Rows → bg-hover. No translateY, no box-shadow.
+ *  SKEUO: ForgeRack only. No kj-panel, brushed grain, or SVG feTurbulence in main product.
  *
  * ══════════════════════════════════════════════════════════════
  */
