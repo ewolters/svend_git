@@ -1195,6 +1195,149 @@ body { background: #111; }
     </div>
 </div>
 
+<!-- Progress Ring -->
+<div class="wb-card">
+    <div class="wb-card-title">Progress Ring</div>
+    <div class="wb-card-desc">SVG circular gauge. Percentage label inside. Good for OEE, yield, completion.</div>
+    <div class="wb-showcase dark-panel" style="gap:20px;padding:20px;">
+        <!-- 75% — accent -->
+        <div style="text-align:center;">
+            <div style="position:relative;width:48px;height:48px;">
+                <svg width="48" height="48" style="transform:rotate(-90deg);">
+                    <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
+                    <circle cx="24" cy="24" r="20" fill="none" stroke="#4ade80" stroke-width="3"
+                        stroke-dasharray="125.6" stroke-dashoffset="31.4" stroke-linecap="round"/>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+                    font:700 12px/1 'JetBrains Mono',monospace;color:rgba(74,222,128,0.7);">75%</div>
+            </div>
+            <div class="wb-label" style="margin-top:4px;">accent</div>
+        </div>
+        <!-- 40% — amber -->
+        <div style="text-align:center;">
+            <div style="position:relative;width:48px;height:48px;">
+                <svg width="48" height="48" style="transform:rotate(-90deg);">
+                    <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
+                    <circle cx="24" cy="24" r="20" fill="none" stroke="#f59e0b" stroke-width="3"
+                        stroke-dasharray="125.6" stroke-dashoffset="75.4" stroke-linecap="round"/>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+                    font:700 12px/1 'JetBrains Mono',monospace;color:rgba(245,158,11,0.7);">40%</div>
+            </div>
+            <div class="wb-label" style="margin-top:4px;">warn</div>
+        </div>
+        <!-- 15% — red -->
+        <div style="text-align:center;">
+            <div style="position:relative;width:48px;height:48px;">
+                <svg width="48" height="48" style="transform:rotate(-90deg);">
+                    <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
+                    <circle cx="24" cy="24" r="20" fill="none" stroke="#ef4444" stroke-width="3"
+                        stroke-dasharray="125.6" stroke-dashoffset="106.8" stroke-linecap="round"/>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+                    font:700 12px/1 'JetBrains Mono',monospace;color:rgba(239,68,68,0.7);">15%</div>
+            </div>
+            <div class="wb-label" style="margin-top:4px;">bad</div>
+        </div>
+    </div>
+</div>
+
+<!-- Horizontal Meter -->
+<div class="wb-card">
+    <div class="wb-card-title">Horizontal Meter</div>
+    <div class="wb-card-desc">Fill bar with good/warn/bad states. Complement to vertical VU meter.</div>
+    <div class="wb-showcase dark-panel" style="flex-direction:column;gap:8px;padding:16px;">
+        <div style="display:flex;gap:6px;align-items:center;">
+            <span style="font:700 10px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);width:36px;">Good</span>
+            <div style="flex:1;height:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(0,0,0,0.4);border-radius:4px;overflow:hidden;">
+                <div style="width:92%;height:100%;background:#22c55e;border-radius:3px;transition:width 0.3s;"></div>
+            </div>
+            <span style="font:700 10px/1 'JetBrains Mono',monospace;color:rgba(34,197,94,0.6);width:30px;text-align:right;">92%</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+            <span style="font:700 10px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);width:36px;">Warn</span>
+            <div style="flex:1;height:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(0,0,0,0.4);border-radius:4px;overflow:hidden;">
+                <div style="width:55%;height:100%;background:#f59e0b;border-radius:3px;transition:width 0.3s;"></div>
+            </div>
+            <span style="font:700 10px/1 'JetBrains Mono',monospace;color:rgba(245,158,11,0.6);width:30px;text-align:right;">55%</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+            <span style="font:700 10px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);width:36px;">Bad</span>
+            <div style="flex:1;height:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(0,0,0,0.4);border-radius:4px;overflow:hidden;">
+                <div style="width:18%;height:100%;background:#ef4444;border-radius:3px;transition:width 0.3s;"></div>
+            </div>
+            <span style="font:700 10px/1 'JetBrains Mono',monospace;color:rgba(239,68,68,0.6);width:30px;text-align:right;">18%</span>
+        </div>
+    </div>
+</div>
+
+<!-- Fader -->
+<div class="wb-card">
+    <div class="wb-card-title">Fader</div>
+    <div class="wb-card-desc">Vertical slider. Track with knurled thumb. Mixing desk / gain control style.</div>
+    <div class="wb-showcase dark-panel" style="gap:24px;padding:20px;">
+        <div style="text-align:center;">
+            <div style="position:relative;width:16px;height:60px;">
+                <!-- Track -->
+                <div style="position:absolute;left:50%;transform:translateX(-50%);top:0;bottom:0;
+                    width:4px;background:#0a0a08;border-radius:2px;
+                    box-shadow:inset 0 1px 3px rgba(0,0,0,0.6);
+                "></div>
+                <!-- Thumb — high position -->
+                <div style="position:absolute;top:8px;left:50%;transform:translateX(-50%);
+                    width:14px;height:8px;border-radius:2px;
+                    background:linear-gradient(180deg, #5a5a58, #4a4a48 30%, #3a3a38 70%, #2e2e2c);
+                    border:1px solid rgba(0,0,0,0.4);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.08);
+                ">
+                    <!-- Grip lines -->
+                    <div style="position:absolute;top:2px;left:3px;right:3px;height:1px;background:rgba(255,255,255,0.06);"></div>
+                    <div style="position:absolute;top:4px;left:3px;right:3px;height:1px;background:rgba(255,255,255,0.06);"></div>
+                </div>
+            </div>
+            <div class="wb-label" style="margin-top:6px;">high</div>
+        </div>
+        <div style="text-align:center;">
+            <div style="position:relative;width:16px;height:60px;">
+                <div style="position:absolute;left:50%;transform:translateX(-50%);top:0;bottom:0;
+                    width:4px;background:#0a0a08;border-radius:2px;
+                    box-shadow:inset 0 1px 3px rgba(0,0,0,0.6);
+                "></div>
+                <!-- Thumb — mid position -->
+                <div style="position:absolute;top:26px;left:50%;transform:translateX(-50%);
+                    width:14px;height:8px;border-radius:2px;
+                    background:linear-gradient(180deg, #5a5a58, #4a4a48 30%, #3a3a38 70%, #2e2e2c);
+                    border:1px solid rgba(0,0,0,0.4);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.08);
+                ">
+                    <div style="position:absolute;top:2px;left:3px;right:3px;height:1px;background:rgba(255,255,255,0.06);"></div>
+                    <div style="position:absolute;top:4px;left:3px;right:3px;height:1px;background:rgba(255,255,255,0.06);"></div>
+                </div>
+            </div>
+            <div class="wb-label" style="margin-top:6px;">mid</div>
+        </div>
+        <div style="text-align:center;">
+            <div style="position:relative;width:16px;height:60px;">
+                <div style="position:absolute;left:50%;transform:translateX(-50%);top:0;bottom:0;
+                    width:4px;background:#0a0a08;border-radius:2px;
+                    box-shadow:inset 0 1px 3px rgba(0,0,0,0.6);
+                "></div>
+                <!-- Thumb — low position -->
+                <div style="position:absolute;top:46px;left:50%;transform:translateX(-50%);
+                    width:14px;height:8px;border-radius:2px;
+                    background:linear-gradient(180deg, #5a5a58, #4a4a48 30%, #3a3a38 70%, #2e2e2c);
+                    border:1px solid rgba(0,0,0,0.4);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.08);
+                ">
+                    <div style="position:absolute;top:2px;left:3px;right:3px;height:1px;background:rgba(255,255,255,0.06);"></div>
+                    <div style="position:absolute;top:4px;left:3px;right:3px;height:1px;background:rgba(255,255,255,0.06);"></div>
+                </div>
+            </div>
+            <div class="wb-label" style="margin-top:6px;">low</div>
+        </div>
+    </div>
+</div>
+
 <!-- LED Bank -->
 <div class="wb-card">
     <div class="wb-card-title">LED Bank</div>

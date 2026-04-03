@@ -422,8 +422,8 @@ urlpatterns = varta_urls + [
     path("api/iso/", include("agents_api.iso_urls")),  # ISO 9001 QMS (Team/Enterprise)
     path("api/notifications/", include("notifications.urls")),  # NTF-001
     path("api/loop/", include("loop.urls")),  # LOOP-001: Signals, Commitments, Transitions
-    # All QMS UI routes point to single placeholder — being rebuilt
-    path("app/loop/", _app_view("qms.html"), name="loop_dashboard"),
+    # Loop operating surface — OLR-001 QMS
+    path("app/loop/", _app_view("loop.html"), name="loop_dashboard"),
     # Auditor portal (external-facing, token-auth — this one works)
     # (All Loop Shell routes removed — QMS being rebuilt as single surface)
     path(
