@@ -1009,8 +1009,8 @@ body { background: #111; }
     <div class="wb-card-title">Nameplate</div>
     <div class="wb-card-desc">Unit identity strip. Model number, manufacturer, LED, hex bolts.</div>
     <div class="wb-showcase" style="padding:0;flex-direction:column;">
-        <div style="
-            display:flex;align-items:center;gap:10px;width:100%;
+        <div class="tex-brushed-fine" style="
+            display:flex;align-items:center;gap:10px;width:100%;position:relative;overflow:hidden;
             padding:6px 16px;
             border-bottom:2px solid rgba(0,0,0,0.4);
             background: linear-gradient(180deg, #2e3226 0%, #282c22 50%, #22261c 100%);
@@ -1286,9 +1286,11 @@ body { background: #111; }
                 <!-- Thumb — high position -->
                 <div style="position:absolute;top:8px;left:50%;transform:translateX(-50%);
                     width:14px;height:8px;border-radius:2px;
-                    background:linear-gradient(180deg, #5a5a58, #4a4a48 30%, #3a3a38 70%, #2e2e2c);
+                    background:
+                        repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 2px),
+                        linear-gradient(180deg, #5a5a58, #4a4a48 30%, #3a3a38 70%, #2e2e2c);
                     border:1px solid rgba(0,0,0,0.4);
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.08);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.1);
                 ">
                     <!-- Grip lines -->
                     <div style="position:absolute;top:2px;left:3px;right:3px;height:1px;background:rgba(255,255,255,0.06);"></div>
@@ -1306,9 +1308,11 @@ body { background: #111; }
                 <!-- Thumb — mid position -->
                 <div style="position:absolute;top:26px;left:50%;transform:translateX(-50%);
                     width:14px;height:8px;border-radius:2px;
-                    background:linear-gradient(180deg, #5a5a58, #4a4a48 30%, #3a3a38 70%, #2e2e2c);
+                    background:
+                        repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 2px),
+                        linear-gradient(180deg, #5a5a58, #4a4a48 30%, #3a3a38 70%, #2e2e2c);
                     border:1px solid rgba(0,0,0,0.4);
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.08);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.1);
                 ">
                     <div style="position:absolute;top:2px;left:3px;right:3px;height:1px;background:rgba(255,255,255,0.06);"></div>
                     <div style="position:absolute;top:4px;left:3px;right:3px;height:1px;background:rgba(255,255,255,0.06);"></div>
@@ -1325,9 +1329,11 @@ body { background: #111; }
                 <!-- Thumb — low position -->
                 <div style="position:absolute;top:46px;left:50%;transform:translateX(-50%);
                     width:14px;height:8px;border-radius:2px;
-                    background:linear-gradient(180deg, #5a5a58, #4a4a48 30%, #3a3a38 70%, #2e2e2c);
+                    background:
+                        repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 2px),
+                        linear-gradient(180deg, #5a5a58, #4a4a48 30%, #3a3a38 70%, #2e2e2c);
                     border:1px solid rgba(0,0,0,0.4);
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.08);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.1);
                 ">
                     <div style="position:absolute;top:2px;left:3px;right:3px;height:1px;background:rgba(255,255,255,0.06);"></div>
                     <div style="position:absolute;top:4px;left:3px;right:3px;height:1px;background:rgba(255,255,255,0.06);"></div>
@@ -1416,7 +1422,7 @@ body { background: #111; }
     <div class="wb-card-title">Frame Bezel</div>
     <div class="wb-card-desc">Beveled border around CRT displays. 3D depth frame. Wraps .crt-screen.</div>
     <div class="wb-showcase" style="padding:12px;">
-        <div class="frame-bezel" style="width:120px;padding:4px;">
+        <div class="frame-bezel tex-matte" style="width:120px;padding:4px;position:relative;overflow:hidden;">
             <div style="height:40px;background:#010301;border:2px solid #000;border-radius:2px;
                 box-shadow:inset 0 2px 6px rgba(0,0,0,0.5);
                 display:flex;align-items:center;justify-content:center;">
@@ -1431,7 +1437,7 @@ body { background: #111; }
     <div class="wb-card-title">Carry Handle</div>
     <div class="wb-card-desc">Top-mounted transport handle. Recessed machined aluminum. 60×6px.</div>
     <div class="wb-showcase dark-panel" style="padding:20px;">
-        <div class="carry-handle" style="position:relative;"></div>
+        <div class="carry-handle tex-brushed" style="position:relative;overflow:hidden;"></div>
     </div>
 </div>
 
@@ -1464,8 +1470,8 @@ body { background: #111; }
         <div style="text-align:center;">
             <div style="width:14px;height:14px;border-radius:50%;position:relative;
                 background:radial-gradient(circle at 40% 35%, #e04040, #a02020 60%, #801010);
-                border:2px solid #8a8a88;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+                border:2px solid #9a9a98;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2), 0 0 0 1px rgba(0,0,0,0.3);
             ">
                 <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
                     width:4px;height:4px;border-radius:50%;
@@ -1518,7 +1524,7 @@ body { background: #111; }
         <div style="text-align:center;">
             <div style="position:relative;width:80px;height:48px;overflow:hidden;">
                 <!-- Face plate -->
-                <div style="position:absolute;inset:0;
+                <div class="tex-matte" style="position:absolute;inset:0;overflow:hidden;
                     background:radial-gradient(ellipse at 50% 90%, #e8e0d0, #d8d0c0 40%, #c8c0b0 80%);
                     border:2px solid #3a3a38;border-radius:4px 4px 0 0;
                     box-shadow: inset 0 2px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.4);
@@ -1554,7 +1560,7 @@ body { background: #111; }
         <!-- Dark face gauge -->
         <div style="text-align:center;">
             <div style="position:relative;width:80px;height:48px;overflow:hidden;">
-                <div style="position:absolute;inset:0;
+                <div class="tex-matte" style="position:absolute;inset:0;overflow:hidden;
                     background:radial-gradient(ellipse at 50% 90%, #1e1e1c, #161614 40%, #101010 80%);
                     border:2px solid #3a3a38;border-radius:4px 4px 0 0;
                     box-shadow: inset 0 2px 6px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.4);
@@ -1708,7 +1714,7 @@ body { background: #111; }
         <div style="text-align:center;">
             <div style="position:relative;width:20px;height:28px;">
                 <!-- Housing -->
-                <div style="position:absolute;inset:0;
+                <div class="tex-matte" style="position:absolute;inset:0;overflow:hidden;
                     background:linear-gradient(180deg, #2a2a28, #1e1e1c 30%, #161614 70%, #1a1a18);
                     border:1px solid rgba(0,0,0,0.5);border-radius:2px;
                     box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.04);
@@ -1735,17 +1741,17 @@ body { background: #111; }
         <div style="text-align:center;">
             <div style="display:flex;gap:1px;">
                 <div style="position:relative;width:20px;height:28px;">
-                    <div style="position:absolute;inset:0;background:linear-gradient(180deg, #2a2a28, #1e1e1c 30%, #161614 70%, #1a1a18);border:1px solid rgba(0,0,0,0.5);border-radius:2px 0 0 2px;box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.04);"></div>
+                    <div class="tex-matte" style="position:absolute;inset:0;overflow:hidden;background:linear-gradient(180deg, #2a2a28, #1e1e1c 30%, #161614 70%, #1a1a18);border:1px solid rgba(0,0,0,0.5);border-radius:2px 0 0 2px;box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.04);"></div>
                     <div style="position:absolute;top:4px;left:3px;right:2px;height:12px;background:#e8e0d0;border:1px solid rgba(0,0,0,0.3);border-radius:1px 0 0 1px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 2px rgba(0,0,0,0.15);"><span style="font:700 10px/1 'Arial',sans-serif;color:#1a1a18;">0</span></div>
                     <div style="position:absolute;bottom:2px;left:2px;right:2px;height:8px;background:repeating-linear-gradient(90deg, #3a3a38 0px, #3a3a38 1px, #2a2a28 1px, #2a2a28 3px);border-radius:1px;"></div>
                 </div>
                 <div style="position:relative;width:20px;height:28px;">
-                    <div style="position:absolute;inset:0;background:linear-gradient(180deg, #2a2a28, #1e1e1c 30%, #161614 70%, #1a1a18);border:1px solid rgba(0,0,0,0.5);box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.04);"></div>
+                    <div class="tex-matte" style="position:absolute;inset:0;overflow:hidden;background:linear-gradient(180deg, #2a2a28, #1e1e1c 30%, #161614 70%, #1a1a18);border:1px solid rgba(0,0,0,0.5);box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.04);"></div>
                     <div style="position:absolute;top:4px;left:2px;right:2px;height:12px;background:#e8e0d0;border:1px solid rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 2px rgba(0,0,0,0.15);"><span style="font:700 10px/1 'Arial',sans-serif;color:#1a1a18;">4</span></div>
                     <div style="position:absolute;bottom:2px;left:2px;right:2px;height:8px;background:repeating-linear-gradient(90deg, #3a3a38 0px, #3a3a38 1px, #2a2a28 1px, #2a2a28 3px);border-radius:1px;"></div>
                 </div>
                 <div style="position:relative;width:20px;height:28px;">
-                    <div style="position:absolute;inset:0;background:linear-gradient(180deg, #2a2a28, #1e1e1c 30%, #161614 70%, #1a1a18);border:1px solid rgba(0,0,0,0.5);border-radius:0 2px 2px 0;box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.04);"></div>
+                    <div class="tex-matte" style="position:absolute;inset:0;overflow:hidden;background:linear-gradient(180deg, #2a2a28, #1e1e1c 30%, #161614 70%, #1a1a18);border:1px solid rgba(0,0,0,0.5);border-radius:0 2px 2px 0;box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.04);"></div>
                     <div style="position:absolute;top:4px;left:2px;right:3px;height:12px;background:#e8e0d0;border:1px solid rgba(0,0,0,0.3);border-radius:0 1px 1px 0;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 2px rgba(0,0,0,0.15);"><span style="font:700 10px/1 'Arial',sans-serif;color:#1a1a18;">2</span></div>
                     <div style="position:absolute;bottom:2px;left:2px;right:2px;height:8px;background:repeating-linear-gradient(90deg, #3a3a38 0px, #3a3a38 1px, #2a2a28 1px, #2a2a28 3px);border-radius:1px;"></div>
                 </div>
