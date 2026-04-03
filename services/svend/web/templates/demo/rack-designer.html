@@ -460,38 +460,36 @@ body { background: #111; }
             <div class="wb-label" style="margin-top:6px;">center</div>
         </div>
 
-        <!-- Toggle DOWN -->
+        <!-- Toggle DOWN — bat straight down, short shaft, teardrop below base -->
         <div style="text-align:center;">
-            <div style="position:relative;width:24px;height:40px;">
+            <div style="position:relative;width:20px;height:44px;">
+                <!-- Bat handle — straight down, short, in front of base -->
+                <div style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);z-index:2;
+                    width:4px;height:14px;
+                    background:linear-gradient(90deg, #6a6a68, #8a8a88 30%, #9a9a98 50%, #8a8a88 70%, #6a6a68);
+                    border-radius:2px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.3), inset 0 -1px 0 rgba(255,255,255,0.08);
+                "></div>
+                <!-- Teardrop tip — hanging below -->
+                <div style="position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);z-index:2;
+                    width:8px;height:10px;
+                    background:linear-gradient(0deg, #9a9a98, #7a7a78 60%, #6a6a68);
+                    border-radius:3px 3px 4px 4px;
+                    box-shadow: 0 2px 3px rgba(0,0,0,0.4), inset 0 -1px 0 rgba(255,255,255,0.12);
+                "></div>
                 <!-- Base plate -->
-                <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+                <div style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:1;
                     width:18px;height:14px;border-radius:2px;
                     background:linear-gradient(180deg, #4a4a48, #3a3a38 40%, #2a2a28);
                     border:1px solid rgba(0,0,0,0.5);
                     box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.06);
                 "></div>
                 <!-- Pivot hole -->
-                <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+                <div style="position:absolute;bottom:22px;left:50%;transform:translateX(-50%);z-index:1;
                     width:6px;height:6px;border-radius:50%;
                     background:radial-gradient(circle, #0a0a08, #1a1a18);
                     box-shadow: inset 0 1px 2px rgba(0,0,0,0.6);
                 "></div>
-                <!-- Bat + teardrop as one rotated group -->
-                <div style="position:absolute;bottom:10px;left:50%;transform-origin:0% 100%;transform:translateX(-2px) rotate(150deg);">
-                    <!-- Handle -->
-                    <div style="width:4px;height:22px;
-                        background:linear-gradient(90deg, #6a6a68, #8a8a88 30%, #9a9a98 50%, #8a8a88 70%, #6a6a68);
-                        border-radius:2px;
-                        box-shadow: 0 -2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
-                    "></div>
-                    <!-- Teardrop tip -->
-                    <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);
-                        width:8px;height:10px;
-                        background:linear-gradient(180deg, #9a9a98, #7a7a78 60%, #6a6a68);
-                        border-radius:4px 4px 3px 3px;
-                        box-shadow: 0 -1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
-                    "></div>
-                </div>
             </div>
             <div class="wb-label" style="margin-top:6px;">down (off)</div>
         </div>
