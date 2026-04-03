@@ -818,12 +818,37 @@ body { background: #111; }
 </div>
 
 <!-- Grip Selector -->
-<div class="wb-card">
+<div class="wb-card" style="grid-column: span 2;">
     <div class="wb-card-title">Grip Selector</div>
-    <div class="wb-card-desc">2-3 position slide switch with knurled thumb. Klinisch/Keysight style.</div>
-    <div class="wb-showcase clinical-panel">
-        <div class="grip-selector" style="--grip-positions:3;">
-            <div class="grip-thumb"></div>
+    <div class="wb-card-desc">2-3 position slide switch with knurled thumb. Manufacturer-tinted variants.</div>
+    <div class="wb-showcase dark-panel" style="gap:20px;flex-wrap:wrap;padding:20px;">
+        <!-- 2-position default -->
+        <div style="text-align:center;">
+            <div class="grip-selector" data-pos="0">
+                <div class="grip-selector-option active">ON</div>
+                <div class="grip-selector-option">OFF</div>
+                <div class="grip-selector-thumb"></div>
+            </div>
+            <div class="wb-label" style="margin-top:6px;">2-pos default</div>
+        </div>
+        <!-- 3-position Klinisch -->
+        <div style="text-align:center;" class="mfr-klinisch">
+            <div class="grip-selector" data-positions="3" data-pos="1">
+                <div class="grip-selector-option">CLEAN</div>
+                <div class="grip-selector-option active">PASS</div>
+                <div class="grip-selector-option">REJECT</div>
+                <div class="grip-selector-thumb"></div>
+            </div>
+            <div class="wb-label" style="margin-top:6px;">3-pos klinisch</div>
+        </div>
+        <!-- 2-position Keysight -->
+        <div style="text-align:center;" class="mfr-keysight">
+            <div class="grip-selector" data-pos="1">
+                <div class="grip-selector-option">RAW</div>
+                <div class="grip-selector-option active">FILT</div>
+                <div class="grip-selector-thumb"></div>
+            </div>
+            <div class="wb-label" style="margin-top:6px;">2-pos keysight</div>
         </div>
     </div>
 </div>
