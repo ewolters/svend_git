@@ -1039,6 +1039,304 @@ body { background: #111; }
     </div>
 </div>
 
+<!-- ═══════════════ MORE CONTROLS ═══════════════ -->
+<div class="wb-section">More Controls</div>
+
+<!-- Slide Switch -->
+<div class="wb-card">
+    <div class="wb-card-title">Slide Switch</div>
+    <div class="wb-card-desc">Thumb slider. On/off with accent color. 26×12px.</div>
+    <div class="wb-showcase dark-panel" style="gap:20px;">
+        <div style="text-align:center;">
+            <div class="switch-slide"><div class="switch-slide-thumb"></div></div>
+            <div class="wb-label" style="margin-top:6px;">off</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="switch-slide on"><div class="switch-slide-thumb"></div></div>
+            <div class="wb-label" style="margin-top:6px;">on</div>
+        </div>
+    </div>
+</div>
+
+<!-- Momentary Switch -->
+<div class="wb-card">
+    <div class="wb-card-title">Momentary Switch</div>
+    <div class="wb-card-desc">Round push button. Press to activate, spring return. 18px.</div>
+    <div class="wb-showcase dark-panel" style="gap:20px;">
+        <div class="switch-momentary"></div>
+        <div class="switch-momentary" style="border-color:var(--device-accent);"></div>
+    </div>
+</div>
+
+<!-- Fluke Selector Dial -->
+<div class="wb-card">
+    <div class="wb-card-title">Fluke Selector Dial</div>
+    <div class="wb-card-desc">Conic-gradient rotary with orange indicator. 48px. Ring labels around perimeter.</div>
+    <div class="wb-showcase steel-panel" style="padding:24px;">
+        <div style="position:relative;width:52px;height:52px;">
+            <div class="fluke-selector" style="width:52px;height:52px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Garmin Softkeys -->
+<div class="wb-card">
+    <div class="wb-card-title">Garmin Softkeys</div>
+    <div class="wb-card-desc">Bottom menu row. Avionics-style function buttons. Active state = cyan.</div>
+    <div class="wb-showcase" style="background:#0a0a0a;padding:12px;flex-direction:column;gap:6px;">
+        <div class="garmin-softkeys" style="width:100%;">
+            <button class="garmin-softkey active">MAP</button>
+            <button class="garmin-softkey">WPT</button>
+            <button class="garmin-softkey">AUX</button>
+            <button class="garmin-softkey">FPL</button>
+            <button class="garmin-softkey">PROC</button>
+        </div>
+    </div>
+</div>
+
+<!-- Garmin LCD Strip -->
+<div class="wb-card">
+    <div class="wb-card-title">Garmin LCD Strip</div>
+    <div class="wb-card-desc">Colored status bar cells. Green/cyan/white variants. 18px tall.</div>
+    <div class="wb-showcase" style="background:#0a0a0a;padding:12px;">
+        <div class="garmin-strip" style="width:100%;">
+            <div class="garmin-strip-cell cyan">NAV1</div>
+            <div class="garmin-strip-cell white">118.00</div>
+            <div class="garmin-strip-cell green">COM1</div>
+            <div class="garmin-strip-cell white">—</div>
+        </div>
+    </div>
+</div>
+
+<!-- MFD Bezel Keys -->
+<div class="wb-card">
+    <div class="wb-card-title">MFD Bezel Keys</div>
+    <div class="wb-card-desc">Side-mount physical buttons. Cockpit-style. 40×32px.</div>
+    <div class="wb-showcase" style="background:#0a0a0a;padding:16px;gap:4px;">
+        <button class="mfd-bezel-key"><span class="mfd-key-label">MAP</span></button>
+        <button class="mfd-bezel-key"><span class="mfd-key-label">TFC</span></button>
+        <button class="mfd-bezel-key"><span class="mfd-key-label">WX</span></button>
+    </div>
+</div>
+
+<!-- ═══════════════ MORE DISPLAYS ═══════════════ -->
+<div class="wb-section">More Displays</div>
+
+<!-- Fluke LCD (proper CSS class) -->
+<div class="wb-card">
+    <div class="wb-card-title">Fluke LCD (CSS class)</div>
+    <div class="wb-card-desc">Green-tint LCD with ghost digits and overlay value. Proper .fluke-lcd class.</div>
+    <div class="wb-showcase steel-panel" style="padding:16px;">
+        <div class="fluke-lcd" style="width:140px;padding:8px 10px;">
+            <div class="fluke-lcd-ghost" style="font-size:28px;">888.888</div>
+            <div class="fluke-lcd-value" style="font-size:28px;">3.847</div>
+        </div>
+    </div>
+</div>
+
+<!-- Kosmos Mechanical Counter -->
+<div class="wb-card">
+    <div class="wb-card-title">Kosmos Mechanical Counter</div>
+    <div class="wb-card-desc">Soviet-style digit wheels. Roller shadow at top/bottom. Olive phosphor text.</div>
+    <div class="wb-showcase" style="padding:16px;">
+        <div class="kosmos-wheel">
+            <div class="kosmos-digit">0</div>
+            <div class="kosmos-digit">1</div>
+            <div class="kosmos-digit">4</div>
+            <div class="kosmos-digit">7</div>
+            <div class="kosmos-digit">2</div>
+            <div class="kosmos-digit">9</div>
+        </div>
+    </div>
+</div>
+
+<!-- VU Meter -->
+<div class="wb-card">
+    <div class="wb-card-title">VU Meter</div>
+    <div class="wb-card-desc">Vertical bar fill. Height-based level indicator. 8px wide.</div>
+    <div class="wb-showcase dark-panel" style="gap:12px;padding:16px;align-items:flex-end;">
+        <div style="text-align:center;">
+            <div class="vu-meter" style="height:50px;"><div class="vu-meter-fill" style="height:80%;"></div></div>
+            <div class="wb-label" style="margin-top:4px;">80%</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="vu-meter" style="height:50px;"><div class="vu-meter-fill" style="height:45%;"></div></div>
+            <div class="wb-label" style="margin-top:4px;">45%</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="vu-meter" style="height:50px;"><div class="vu-meter-fill" style="height:15%;"></div></div>
+            <div class="wb-label" style="margin-top:4px;">15%</div>
+        </div>
+    </div>
+</div>
+
+<!-- LED Bank -->
+<div class="wb-card">
+    <div class="wb-card-title">LED Bank</div>
+    <div class="wb-card-desc">Row of LEDs with labels beneath. Status indicator strip.</div>
+    <div class="wb-showcase dark-panel" style="flex-direction:column;gap:2px;padding:16px;">
+        <div class="led-bank">
+            <span class="led green"></span>
+            <span class="led green"></span>
+            <span class="led amber"></span>
+            <span class="led red"></span>
+            <span class="led"></span>
+        </div>
+        <div class="led-bank-labels">
+            <span>OK</span>
+            <span>RN</span>
+            <span>WN</span>
+            <span>AL</span>
+            <span>--</span>
+        </div>
+    </div>
+</div>
+
+<!-- Radar Sweep -->
+<div class="wb-card">
+    <div class="wb-card-title">Radar Sweep</div>
+    <div class="wb-card-desc">Animated scan line overlay. 6-second cycle. Guardian manufacturer only.</div>
+    <div class="wb-showcase" style="background:#0e110e;--device-accent:#d97706;padding:0;overflow:hidden;">
+        <div class="rack-unit-front mfr-guardian" style="width:100%;height:60px;position:relative;background:#0e110e;">
+            <div class="radar-sweep" style="position:absolute;inset:0;">
+                <div style="padding:16px;font:11px/1.5 'JetBrains Mono',monospace;color:rgba(217,119,6,0.2);">
+                    Monitoring... ▮
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Badge / Status Labels -->
+<div class="wb-card">
+    <div class="wb-card-title">Badge / Status Label</div>
+    <div class="wb-card-desc">Inline status indicators. Dot prefix, colored border. 5 variants.</div>
+    <div class="wb-showcase dark-panel" style="gap:8px;flex-wrap:wrap;padding:16px;">
+        <span class="badge badge-green">PASS</span>
+        <span class="badge badge-amber">WARN</span>
+        <span class="badge badge-red">FAIL</span>
+        <span class="badge badge-blue">INFO</span>
+        <span class="badge badge-accent">3²</span>
+    </div>
+</div>
+
+<!-- ═══════════════ STRUCTURAL / DECORATIVE ═══════════════ -->
+<div class="wb-section">Structural &amp; Decorative</div>
+
+<!-- Apothecary Bubble Level -->
+<div class="wb-card">
+    <div class="wb-card-title">Bubble Level</div>
+    <div class="wb-card-desc">Apothecary precision indicator. Translucent housing, floating bubble. 32×10px.</div>
+    <div class="wb-showcase clinical-panel" style="gap:20px;padding:20px;">
+        <div class="apothecary-level"><div class="apothecary-bubble"></div></div>
+    </div>
+</div>
+
+<!-- Apothecary Glass Panel -->
+<div class="wb-card">
+    <div class="wb-card-title">Glass Panel</div>
+    <div class="wb-card-desc">Apothecary draft shield. Translucent overlay with subtle blur. Container for gauges.</div>
+    <div class="wb-showcase clinical-panel" style="padding:16px;">
+        <div class="apothecary-glass" style="width:120px;height:50px;display:flex;align-items:center;justify-content:center;">
+            <span style="font:11px/1 'Courier New',monospace;color:rgba(220,210,180,0.3);">protected</span>
+        </div>
+    </div>
+</div>
+
+<!-- Frame Bezel -->
+<div class="wb-card">
+    <div class="wb-card-title">Frame Bezel</div>
+    <div class="wb-card-desc">Beveled border around CRT displays. 3D depth frame. Wraps .crt-screen.</div>
+    <div class="wb-showcase" style="padding:12px;">
+        <div class="frame-bezel" style="width:120px;padding:4px;">
+            <div style="height:40px;background:#010301;border:2px solid #000;border-radius:2px;
+                box-shadow:inset 0 2px 6px rgba(0,0,0,0.5);
+                display:flex;align-items:center;justify-content:center;">
+                <span style="font:10px/1 'JetBrains Mono',monospace;color:rgba(163,177,138,0.15);">screen</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Carry Handle -->
+<div class="wb-card">
+    <div class="wb-card-title">Carry Handle</div>
+    <div class="wb-card-desc">Top-mounted transport handle. Recessed machined aluminum. 60×6px.</div>
+    <div class="wb-showcase dark-panel" style="padding:20px;">
+        <div class="carry-handle" style="position:relative;"></div>
+    </div>
+</div>
+
+<!-- Paper Tape Output -->
+<div class="wb-card">
+    <div class="wb-card-title">Paper Tape Output</div>
+    <div class="wb-card-desc">Receipt-style results area. Cream paper, perforated left edge. Apothecary/precision.</div>
+    <div class="wb-showcase clinical-panel" style="padding:12px;">
+        <div style="width:140px;height:70px;position:relative;overflow:hidden;
+            background:linear-gradient(180deg, #f8f6f0, #f4f2ec);
+            border:1px solid rgba(0,0,0,0.08);border-radius:1px;
+            box-shadow:inset 0 1px 3px rgba(0,0,0,0.06), 0 1px 0 rgba(255,255,255,0.5);">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:8px;
+                background:repeating-linear-gradient(180deg, transparent 0px, transparent 6px, rgba(0,0,0,0.03) 6px, rgba(0,0,0,0.03) 7px);
+                border-right:1px solid rgba(0,0,0,0.04);"></div>
+            <div style="padding:6px 8px 6px 12px;font:10px/1.6 'Courier New',monospace;color:#3a4a3a;">
+                R&amp;R% = 12.4<br>
+                ndc = 8<br>
+                PASS ✓
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Banana Posts -->
+<div class="wb-card">
+    <div class="wb-card-title">Banana Posts</div>
+    <div class="wb-card-desc">Measurement terminals. Red/black pair. Chrome ring with center hole.</div>
+    <div class="wb-showcase steel-panel" style="gap:16px;padding:20px;">
+        <div style="text-align:center;">
+            <div style="width:14px;height:14px;border-radius:50%;position:relative;
+                background:radial-gradient(circle at 40% 35%, #e04040, #a02020 60%, #801010);
+                border:2px solid #8a8a88;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+            ">
+                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                    width:4px;height:4px;border-radius:50%;
+                    background:#0a0a08;box-shadow:inset 0 1px 1px rgba(0,0,0,0.5);"></div>
+            </div>
+            <div class="wb-label" style="margin-top:4px;">V+</div>
+        </div>
+        <div style="text-align:center;">
+            <div style="width:14px;height:14px;border-radius:50%;position:relative;
+                background:radial-gradient(circle at 40% 35%, #3a3a38, #1a1a18 60%, #0a0a08);
+                border:2px solid #8a8a88;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+            ">
+                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                    width:4px;height:4px;border-radius:50%;
+                    background:#0a0a08;box-shadow:inset 0 1px 1px rgba(0,0,0,0.5);"></div>
+            </div>
+            <div class="wb-label" style="margin-top:4px;">COM</div>
+        </div>
+    </div>
+</div>
+
+<!-- Panel Tabs -->
+<div class="wb-card">
+    <div class="wb-card-title">Panel Tabs</div>
+    <div class="wb-card-desc">Result view selector. Active/inactive states. Resolver/analyst style.</div>
+    <div class="wb-showcase dark-panel" style="padding:16px;gap:3px;">
+        <button style="background:rgba(94,234,212,0.06);border:1px solid rgba(94,234,212,0.1);
+            color:rgba(94,234,212,0.35);font:700 9px/1 'Consolas',monospace;
+            padding:4px 8px;border-radius:2px;cursor:pointer;letter-spacing:0.08em;">ANOVA</button>
+        <button style="background:transparent;border:1px solid rgba(94,234,212,0.05);
+            color:rgba(94,234,212,0.15);font:700 9px/1 'Consolas',monospace;
+            padding:4px 8px;border-radius:2px;cursor:pointer;letter-spacing:0.08em;">EFFECTS</button>
+        <button style="background:transparent;border:1px solid rgba(94,234,212,0.05);
+            color:rgba(94,234,212,0.15);font:700 9px/1 'Consolas',monospace;
+            padding:4px 8px;border-radius:2px;cursor:pointer;letter-spacing:0.08em;">OPTIM</button>
+    </div>
+</div>
+
 <!-- ═══════════════ SPECIALTY WIDGETS ═══════════════ -->
 <div class="wb-section">Specialty Widgets</div>
 
