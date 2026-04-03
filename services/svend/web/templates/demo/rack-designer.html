@@ -1,0 +1,581 @@
+{% extends "base_app.html" %}
+{% block title %}Rack Designer — Widget Board{% endblock %}
+{% block container_class %}sv-full{% endblock %}
+
+{% block extra_head %}
+{{ block.super }}
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/rack.css' %}">
+<style>
+:root { --device-accent: #4ade80; }
+
+body { background: #111; }
+
+.wb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 24px;
+    padding: 24px;
+}
+
+.wb-card {
+    background: linear-gradient(145deg, #1e1e1e, #1a1a1a);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.wb-card-title {
+    font: 700 11px/1 'Courier New', monospace;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding-bottom: 8px;
+}
+
+.wb-card-desc {
+    font: 400 10px/1.4 'Courier New', monospace;
+    color: rgba(255,255,255,0.2);
+}
+
+.wb-showcase {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: linear-gradient(165deg, #2a2e22 0%, #242820 30%, #282c24 50%, #1e2218 80%);
+    border-radius: 4px;
+    min-height: 60px;
+    position: relative;
+    --device-accent: #a3b18a;
+}
+
+.wb-showcase.dark-panel {
+    background: linear-gradient(160deg, #141714, #111411 40%, #0e110e);
+}
+
+.wb-showcase.steel-panel {
+    background: linear-gradient(160deg, #1c1c1c, #1f1f1f 40%, #1d1d1d);
+}
+
+.wb-showcase.warm-panel {
+    background: linear-gradient(160deg, #2a2720, #252218 40%, #201e16);
+    --device-accent: #d4a574;
+}
+
+.wb-showcase.clinical-panel {
+    background: linear-gradient(160deg, #4a5040, #454a3c 40%, #3f4438);
+    --device-accent: #dcd2b4;
+}
+
+.wb-label {
+    font: 600 8px/1 'Courier New', monospace;
+    color: rgba(255,255,255,0.15);
+    text-align: center;
+    width: 100%;
+}
+
+/* Section headers */
+.wb-section {
+    grid-column: 1 / -1;
+    font: 700 14px/1 'Courier New', monospace;
+    color: rgba(78,173,128,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    padding: 12px 0 0;
+    border-bottom: 1px solid rgba(78,173,128,0.1);
+}
+
+/* Texture swatches */
+.wb-swatch {
+    width: 80px;
+    height: 60px;
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="padding:16px 24px;">
+    <h1 style="font:700 18px/1 'Courier New',monospace;color:rgba(78,173,128,0.6);letter-spacing:0.15em;text-transform:uppercase;margin:0 0 4px;">
+        ForgeRack Widget Board
+    </h1>
+    <p style="font:400 11px/1.4 'Courier New',monospace;color:rgba(255,255,255,0.2);margin:0;">
+        Visual catalog of all widget types, textures, and manufacturer identities. Foundation for the rack unit composer.
+    </p>
+</div>
+
+<div class="wb-grid">
+
+<!-- ═══════════════ INTERACTIVE CONTROLS ═══════════════ -->
+<div class="wb-section">Interactive Controls</div>
+
+<!-- Chickenhead Dial -->
+<div class="wb-card">
+    <div class="wb-card-title">Chickenhead Dial</div>
+    <div class="wb-card-desc">Kosmos-style rotary selector. Angular wedge pointer with indicator line. 50px.</div>
+    <div class="wb-showcase">
+        <div style="position:relative;width:50px;height:50px;">
+            <div style="position:absolute;inset:-3px;border-radius:50%;background:#141810;
+                box-shadow:inset 0 2px 5px rgba(0,0,0,0.6);"></div>
+            <div style="position:absolute;inset:0;">
+                <div style="position:absolute;inset:4px;border-radius:50%;
+                    background:radial-gradient(circle at 38% 34%, rgba(255,240,215,0.07), transparent 45%),
+                        radial-gradient(circle, #222220 0%, #1a1a18 50%, #121210 100%);
+                    border:2px solid #0a0a08;
+                    box-shadow: 0 3px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,240,215,0.04);"></div>
+                <div style="position:absolute;top:-1px;left:50%;transform:translateX(-50%);
+                    width:10px;height:16px;background:linear-gradient(180deg, #1e1e1c, #141412 60%, #1a1a18);
+                    clip-path:polygon(50% 0%, 95% 70%, 80% 100%, 20% 100%, 5% 70%);"></div>
+                <div style="position:absolute;top:1px;left:50%;transform:translateX(-50%);
+                    width:1.5px;height:11px;background:#d0d0c8;border-radius:0.5px;
+                    box-shadow:0 0 2px rgba(208,208,200,0.4);"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Standard Rotary Knob -->
+<div class="wb-card">
+    <div class="wb-card-title">Rotary Knob</div>
+    <div class="wb-card-desc">Standard conic-gradient knob with specular highlight. 32px typical. Knurled variant available.</div>
+    <div class="wb-showcase dark-panel">
+        <div class="dial-knob" style="width:32px;height:32px;"></div>
+        <div class="dial-knob" style="width:24px;height:24px;"></div>
+    </div>
+</div>
+
+<!-- Push Buttons -->
+<div class="wb-card">
+    <div class="wb-card-title">Push Buttons</div>
+    <div class="wb-card-desc">Momentary, toggle, backlit. Multiple styles per manufacturer.</div>
+    <div class="wb-showcase" style="gap:8px;">
+        <!-- Backlit square (Kosmos) -->
+        <button style="
+            width:40px;height:40px;cursor:pointer;
+            background:radial-gradient(circle at 50% 45%, #2a2a28, #1a1a18 50%, #0e0e0c);
+            border:2px solid #0a0a08;border-radius:3px;
+            color:#a3b18a;font:700 14px/1 sans-serif;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,240,215,0.04), inset 0 -2px 4px rgba(0,0,0,0.3);
+            display:flex;align-items:center;justify-content:center;
+        ">&#x25B6;</button>
+        <!-- Metal momentary -->
+        <button style="
+            padding:4px 10px;font:700 10px/1 'Courier New',monospace;color:#a3b18a;
+            background:linear-gradient(180deg, #1e2218, #161a12);
+            border:2px solid #0a0a08;border-radius:2px;cursor:pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.03);
+        ">ACTION</button>
+        <!-- Tek button -->
+        <button class="tek-btn" style="font-size:9px;padding:4px 7px;">CURSOR</button>
+    </div>
+</div>
+
+<!-- Rocker Switch -->
+<div class="wb-card">
+    <div class="wb-card-title">Rocker Switch</div>
+    <div class="wb-card-desc">On/off rocker, 14×20px. Spring-loaded visual feedback.</div>
+    <div class="wb-showcase dark-panel">
+        <div class="switch-rocker"></div>
+        <div class="switch-rocker active"></div>
+    </div>
+</div>
+
+<!-- Segment Buttons -->
+<div class="wb-card">
+    <div class="wb-card-title">Segment Button Group</div>
+    <div class="wb-card-desc">2-4 grouped selectors. Size variants: sm, md, lg.</div>
+    <div class="wb-showcase dark-panel" style="flex-direction:column;gap:8px;">
+        <div style="display:flex;gap:0;">
+            <button class="segment-btn active" style="font-size:9px;padding:4px 8px;">NORM</button>
+            <button class="segment-btn" style="font-size:9px;padding:4px 8px;">LOG</button>
+            <button class="segment-btn" style="font-size:9px;padding:4px 8px;">SQRT</button>
+        </div>
+        <div style="display:flex;gap:0;">
+            <button class="segment-btn sm active">ON</button>
+            <button class="segment-btn sm">OFF</button>
+        </div>
+    </div>
+</div>
+
+<!-- Grip Selector -->
+<div class="wb-card">
+    <div class="wb-card-title">Grip Selector</div>
+    <div class="wb-card-desc">2-3 position slide switch with knurled thumb. Klinisch/Keysight style.</div>
+    <div class="wb-showcase clinical-panel">
+        <div class="grip-selector" style="--grip-positions:3;">
+            <div class="grip-thumb"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Text / Number Inputs -->
+<div class="wb-card">
+    <div class="wb-card-title">Recessed Inputs</div>
+    <div class="wb-card-desc">Text and number entry. Phosphor glow text, deep inset shadow. 11px JetBrains Mono.</div>
+    <div class="wb-showcase" style="flex-direction:column;gap:6px;">
+        <input type="text" value="Temperature" style="
+            width:140px;background:#080a06;border:2px solid #0a0a08;
+            color:#a3b18a;padding:5px 6px;border-radius:2px;
+            font:11px/1 'JetBrains Mono',monospace;
+            box-shadow:inset 0 2px 4px rgba(0,0,0,0.5);
+            text-shadow: 0 0 3px rgba(163,177,138,0.15);">
+        <input type="number" value="20" style="
+            width:60px;background:#080a06;border:2px solid #0a0a08;
+            color:#b8c8a0;padding:5px 6px;border-radius:2px;text-align:center;
+            font:11px/1 'JetBrains Mono',monospace;
+            box-shadow:inset 0 2px 4px rgba(0,0,0,0.5);
+            text-shadow: 0 0 3px rgba(163,177,138,0.15);">
+    </div>
+</div>
+
+<!-- ═══════════════ DISPLAYS ═══════════════ -->
+<div class="wb-section">Displays &amp; Readouts</div>
+
+<!-- LED Indicators -->
+<div class="wb-card">
+    <div class="wb-card-title">LED Indicators</div>
+    <div class="wb-card-desc">10px standard, 14px large. Housing with inset ring. 6 states: off, green, amber, red, blue, accent.</div>
+    <div class="wb-showcase dark-panel" style="gap:16px;">
+        <div class="led-housing"><span class="led"></span></div>
+        <div class="led-housing"><span class="led green"></span></div>
+        <div class="led-housing"><span class="led amber"></span></div>
+        <div class="led-housing"><span class="led red"></span></div>
+        <div class="led-housing"><span class="led blue"></span></div>
+        <div class="led-housing"><span class="led lg green"></span></div>
+    </div>
+</div>
+
+<!-- 7-Segment Readout -->
+<div class="wb-card">
+    <div class="wb-card-title">7-Segment Readout</div>
+    <div class="wb-card-desc">Digital numeric display. sm/md/lg sizes. States: good (green), warn (amber), bad (red).</div>
+    <div class="wb-showcase dark-panel" style="flex-direction:column;gap:8px;">
+        <div class="readout lg">42.07</div>
+        <div class="readout good">98.6</div>
+        <div class="readout warn sm">3.14</div>
+        <div class="readout bad sm">0.00</div>
+    </div>
+</div>
+
+<!-- CRT Display -->
+<div class="wb-card">
+    <div class="wb-card-title">CRT Display</div>
+    <div class="wb-card-desc">Phosphor screen with scanlines, bloom, and edge shadow. Primary data viewport.</div>
+    <div class="wb-showcase" style="padding:8px;">
+        <div class="frame-bezel" style="width:100%;padding:4px;
+            background: linear-gradient(145deg, #343830 0%, #282c24 20%, #1e221a 80%, #161a12 100%);
+            border-radius:3px;box-shadow: 0 3px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,240,215,0.03);">
+            <div class="crt-screen" style="height:80px;border-radius:2px;position:relative;overflow:hidden;
+                background:#010301;border:2px solid #000;box-shadow: inset 0 3px 12px rgba(0,0,0,0.8);">
+                <div class="crt-scanlines" style="position:absolute;inset:0;background:repeating-linear-gradient(180deg, transparent, transparent 2px, rgba(163,177,138,0.005) 2px, rgba(163,177,138,0.005) 4px);pointer-events:none;z-index:6;"></div>
+                <div class="crt-bloom" style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%, rgba(163,177,138,0.012), transparent 65%);pointer-events:none;z-index:5;"></div>
+                <div style="padding:8px;font:11px/1.5 'JetBrains Mono',monospace;color:rgba(163,177,138,0.25);text-shadow: 0 0 3px currentColor;position:relative;z-index:1;">
+                    &gt; Factor: Temperature<br>
+                    &gt; Range: [150, 220]<br>
+                    &gt; Type: Continuous_
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LCD Display (Fluke) -->
+<div class="wb-card">
+    <div class="wb-card-title">LCD Display</div>
+    <div class="wb-card-desc">Fluke-style tan LCD with ghost digits. 28px value overlay.</div>
+    <div class="wb-showcase steel-panel">
+        <div style="width:120px;height:50px;
+            background:linear-gradient(180deg, #c8bd9f, #b8ad8f);
+            border:2px solid #8a8060;border-radius:2px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+            display:flex;align-items:center;justify-content:flex-end;padding:0 8px;
+            position:relative;">
+            <span style="font:300 28px/1 'Courier New',monospace;color:rgba(100,90,70,0.12);position:absolute;right:8px;">88888</span>
+            <span style="font:700 28px/1 'Courier New',monospace;color:#3a3520;position:relative;">3.847</span>
+        </div>
+    </div>
+</div>
+
+<!-- Nixie Tube -->
+<div class="wb-card">
+    <div class="wb-card-title">Nixie Tube Display</div>
+    <div class="wb-card-desc">Vakuum-style glowing digit tubes. Stacked inactive ghosts, amber active overlay.</div>
+    <div class="wb-showcase" style="background:linear-gradient(165deg, #1a1410, #161210 40%, #121010);--device-accent:#e8a050;">
+        <div style="display:flex;gap:3px;">
+            <div style="width:22px;height:36px;background:rgba(0,0,0,0.4);border:1px solid rgba(232,160,80,0.08);border-radius:2px;
+                display:flex;align-items:center;justify-content:center;position:relative;
+                box-shadow:inset 0 0 8px rgba(0,0,0,0.5);">
+                <span style="font:300 24px/1 'Courier New',monospace;color:rgba(232,160,80,0.08);position:absolute;">8</span>
+                <span style="font:700 24px/1 'Courier New',monospace;color:rgba(232,160,80,0.7);text-shadow:0 0 6px rgba(232,160,80,0.3);position:relative;">4</span>
+            </div>
+            <div style="width:22px;height:36px;background:rgba(0,0,0,0.4);border:1px solid rgba(232,160,80,0.08);border-radius:2px;
+                display:flex;align-items:center;justify-content:center;position:relative;
+                box-shadow:inset 0 0 8px rgba(0,0,0,0.5);">
+                <span style="font:300 24px/1 'Courier New',monospace;color:rgba(232,160,80,0.08);position:absolute;">8</span>
+                <span style="font:700 24px/1 'Courier New',monospace;color:rgba(232,160,80,0.7);text-shadow:0 0 6px rgba(232,160,80,0.3);position:relative;">2</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scope Grid -->
+<div class="wb-card">
+    <div class="wb-card-title">Scope Grid</div>
+    <div class="wb-card-desc">Tektronix-style oscilloscope viewport. Major grid, center crosshair, minor ticks.</div>
+    <div class="wb-showcase dark-panel" style="padding:8px;">
+        <div style="width:100%;height:80px;position:relative;
+            background:
+                linear-gradient(rgba(78,173,128,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(78,173,128,0.04) 1px, transparent 1px);
+            background-size: 20px 20px;
+            border:1px solid rgba(78,173,128,0.08);">
+            <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(78,173,128,0.08);"></div>
+            <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(78,173,128,0.08);"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ LABELS & STRUCTURE ═══════════════ -->
+<div class="wb-section">Labels &amp; Structure</div>
+
+<!-- Stamped Metal Tag -->
+<div class="wb-card">
+    <div class="wb-card-title">Stamped Metal Tag</div>
+    <div class="wb-card-desc">Greyscale matte plate with rivets. Equipment identification labels.</div>
+    <div class="wb-showcase" style="flex-direction:column;gap:10px;">
+        <div style="display:inline-flex;align-items:center;gap:4px;
+            background:linear-gradient(180deg, #58585a, #48484a);
+            border:1px solid rgba(0,0,0,0.4);border-radius:1px;
+            padding:4px 14px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,240,215,0.05);
+        ">
+            <div style="width:3px;height:3px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #707072, #3a3a3c);
+                box-shadow:inset 0 0.5px 0.5px rgba(255,240,215,0.1), 0 0.5px 1px rgba(0,0,0,0.3);"></div>
+            <span style="font:700 9px/1 'Courier New',monospace;color:rgba(208,208,200,0.6);text-transform:uppercase;letter-spacing:0.1em;
+                text-shadow: 0 -1px 0 rgba(0,0,0,0.4), 0 1px 0 rgba(255,240,215,0.03);">Category</span>
+            <div style="width:3px;height:3px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #707072, #3a3a3c);
+                box-shadow:inset 0 0.5px 0.5px rgba(255,240,215,0.1), 0 0.5px 1px rgba(0,0,0,0.3);"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Nameplate -->
+<div class="wb-card">
+    <div class="wb-card-title">Nameplate</div>
+    <div class="wb-card-desc">Unit identity strip. Model number, manufacturer, LED, hex bolts.</div>
+    <div class="wb-showcase" style="padding:0;flex-direction:column;">
+        <div style="
+            display:flex;align-items:center;gap:10px;width:100%;
+            padding:6px 16px;
+            border-bottom:2px solid rgba(0,0,0,0.4);
+            background: linear-gradient(180deg, #2e3226 0%, #282c22 50%, #22261c 100%);
+        ">
+            <div class="led-housing"><span class="led lg green"></span></div>
+            <span style="font:700 13px/1 'Courier New',monospace;color:rgba(163,177,138,0.4);letter-spacing:0.2em;text-transform:uppercase;">DSh-K11</span>
+            <span style="font:400 8px/1 'Courier New',monospace;color:rgba(163,177,138,0.15);">DIMITROV-SHAPOVALOV</span>
+        </div>
+    </div>
+</div>
+
+<!-- Hex Bolts -->
+<div class="wb-card">
+    <div class="wb-card-title">Hex Bolts &amp; Fasteners</div>
+    <div class="wb-card-desc">Hex bolt (7-9px), Phillips screw, rivet. Panel mounting hardware.</div>
+    <div class="wb-showcase" style="gap:20px;">
+        <!-- Hex bolt -->
+        <div style="width:9px;height:9px;
+            background:radial-gradient(circle at 35% 35%, #5a5e4a, #3a3e2e 40%, #2a2e22 70%, #1e2218);
+            clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>
+        <!-- Phillips screw -->
+        <div class="rack-screw" style="display:block !important;position:relative;"></div>
+        <!-- Rivet -->
+        <div style="width:4px;height:4px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #707072, #3a3a3c);
+            box-shadow:inset 0 0.5px 0.5px rgba(255,240,215,0.1), 0 0.5px 1px rgba(0,0,0,0.3);"></div>
+    </div>
+</div>
+
+<!-- Patch Jack -->
+<div class="wb-card">
+    <div class="wb-card-title">Patch Jack</div>
+    <div class="wb-card-desc">Back-panel signal connector. 14-16px circular jack with label. The wiring system.</div>
+    <div class="wb-showcase steel-panel" style="gap:18px;">
+        <div class="patch-group">
+            <div class="patch-jack"></div>
+            <div class="patch-jack-label">output</div>
+        </div>
+        <div class="patch-group">
+            <div class="patch-jack"></div>
+            <div class="patch-jack-label">input</div>
+        </div>
+    </div>
+</div>
+
+<!-- Serial Tag -->
+<div class="wb-card">
+    <div class="wb-card-title">Serial Tag</div>
+    <div class="wb-card-desc">Back-panel identification. Stamped S/N with manufacturer info.</div>
+    <div class="wb-showcase steel-panel">
+        <span class="serial-tag">S/N strategist_001</span>
+    </div>
+</div>
+
+<!-- ═══════════════ TEXTURES ═══════════════ -->
+<div class="wb-section">Surface Textures</div>
+
+<!-- Texture Swatches -->
+<div class="wb-card" style="grid-column: span 2;">
+    <div class="wb-card-title">Material Library</div>
+    <div class="wb-card-desc">Shared surface textures applied via SVG feTurbulence filters. Manufacturer-independent.</div>
+    <div class="wb-showcase steel-panel" style="gap:16px;flex-wrap:wrap;justify-content:flex-start;padding:20px;">
+        <div style="text-align:center;">
+            <div class="wb-swatch tex-brushed" style="background:linear-gradient(160deg, #2a2e22, #1e2218);"></div>
+            <div class="wb-label" style="margin-top:4px;">tex-brushed</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="wb-swatch tex-brushed-fine" style="background:linear-gradient(160deg, #2a2e22, #1e2218);"></div>
+            <div class="wb-label" style="margin-top:4px;">tex-brushed-fine</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="wb-swatch tex-matte" style="background:linear-gradient(160deg, #2a2e22, #1e2218);"></div>
+            <div class="wb-label" style="margin-top:4px;">tex-matte</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="wb-swatch tex-mottled" style="background:linear-gradient(160deg, #2a2e22, #1e2218);"></div>
+            <div class="wb-label" style="margin-top:4px;">tex-mottled</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="wb-swatch tex-anodized" style="background:linear-gradient(160deg, #2a2e22, #1e2218);"></div>
+            <div class="wb-label" style="margin-top:4px;">tex-anodized</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="wb-swatch tex-carbon" style="background:linear-gradient(160deg, #1a1a1a, #141414);"></div>
+            <div class="wb-label" style="margin-top:4px;">tex-carbon</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="wb-swatch tex-tolex" style="background:linear-gradient(160deg, #1a1410, #161210);"></div>
+            <div class="wb-label" style="margin-top:4px;">tex-tolex</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="wb-swatch tex-diamond" style="background:linear-gradient(160deg, #1c1c1c, #181818);"></div>
+            <div class="wb-label" style="margin-top:4px;">tex-diamond</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="wb-swatch tex-hammertone" style="background:linear-gradient(160deg, #2a2e22, #1e2218);"></div>
+            <div class="wb-label" style="margin-top:4px;">tex-hammertone</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="wb-swatch tex-leather" style="background:linear-gradient(160deg, #2a2720, #201e16);"></div>
+            <div class="wb-label" style="margin-top:4px;">tex-leather</div>
+        </div>
+    </div>
+</div>
+
+<!-- Wear Effects -->
+<div class="wb-card">
+    <div class="wb-card-title">Wear Effects</div>
+    <div class="wb-card-desc">Overlay aging effects. Stackable on any surface.</div>
+    <div class="wb-showcase steel-panel" style="gap:16px;flex-wrap:wrap;">
+        <div style="text-align:center;">
+            <div class="wb-swatch wear-scratches" style="background:linear-gradient(160deg, #2a2e22, #1e2218);"></div>
+            <div class="wb-label" style="margin-top:4px;">scratches</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="wb-swatch wear-patina" style="background:linear-gradient(160deg, #2a2e22, #1e2218);"></div>
+            <div class="wb-label" style="margin-top:4px;">patina</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="wb-swatch wear-dust" style="background:linear-gradient(160deg, #2a2e22, #1e2218);"></div>
+            <div class="wb-label" style="margin-top:4px;">dust</div>
+        </div>
+        <div style="text-align:center;">
+            <div class="wb-swatch wear-chips" style="background:linear-gradient(160deg, #2a2e22, #1e2218);"></div>
+            <div class="wb-label" style="margin-top:4px;">chips</div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ MANUFACTURER PANELS ═══════════════ -->
+<div class="wb-section">Manufacturer Identities</div>
+
+<!-- Kosmos -->
+<div class="wb-card">
+    <div class="wb-card-title">Kosmos</div>
+    <div class="wb-card-desc">Soviet military. Olive powder coat, chickenhead dials, stamped tags, Cyrillic accents.</div>
+    <div class="wb-showcase" style="height:40px;"></div>
+</div>
+
+<!-- Vakuum -->
+<div class="wb-card">
+    <div class="wb-card-title">Vakuum</div>
+    <div class="wb-card-desc">Tube amplifier. Dark burgundy-brown, nixie tubes, copper/amber accents, heater glow.</div>
+    <div class="wb-showcase" style="background:linear-gradient(165deg, #1a1410, #161210 40%, #121010);--device-accent:#e8a050;height:40px;"></div>
+</div>
+
+<!-- Guardian -->
+<div class="wb-card">
+    <div class="wb-card-title">Guardian</div>
+    <div class="wb-card-desc">Rugged monitoring. Dark steel, orange accent, CRT bezel, trace dividers, VFD readouts.</div>
+    <div class="wb-showcase" style="background:linear-gradient(160deg, #141714, #111411);--device-accent:#d97706;height:40px;"></div>
+</div>
+
+<!-- Apothecary -->
+<div class="wb-card">
+    <div class="wb-card-title">Apothecary</div>
+    <div class="wb-card-desc">Clinical precision. Cream/sage, brass hardware, glass panels, bubble level, thumbwheel.</div>
+    <div class="wb-showcase clinical-panel" style="height:40px;"></div>
+</div>
+
+<!-- Meridian -->
+<div class="wb-card">
+    <div class="wb-card-title">Meridian</div>
+    <div class="wb-card-desc">Warm brass DOE. Brushed texture, CRT bezel, carry handle, silkscreen panels.</div>
+    <div class="wb-showcase warm-panel" style="height:40px;"></div>
+</div>
+
+<!-- Tektronix -->
+<div class="wb-card">
+    <div class="wb-card-title">Tektronix</div>
+    <div class="wb-card-desc">Test &amp; measurement. Instrument black, cyan accent, scope grid, tek-btn groups.</div>
+    <div class="wb-showcase dark-panel" style="--device-accent:#22d3ee;height:40px;"></div>
+</div>
+
+<!-- Fluke -->
+<div class="wb-card">
+    <div class="wb-card-title">Fluke</div>
+    <div class="wb-card-desc">Multimeter. Armored casing, orange accent, LCD display, selector dial.</div>
+    <div class="wb-showcase steel-panel" style="--device-accent:#f97316;height:40px;"></div>
+</div>
+
+<!-- Steelwerk -->
+<div class="wb-card">
+    <div class="wb-card-title">Steelwerk</div>
+    <div class="wb-card-desc">East German industrial. Dark slate, cool white accent, CRT primary, utilitarian.</div>
+    <div class="wb-showcase" style="background:linear-gradient(160deg, #0f110f, #0d0f0d);--device-accent:#e0e0e0;height:40px;"></div>
+</div>
+
+<!-- Nordkraft -->
+<div class="wb-card">
+    <div class="wb-card-title">Nordkraft</div>
+    <div class="wb-card-desc">Scandinavian warmth. Birch/stone palette, clean geometry, readout-focused.</div>
+    <div class="wb-showcase warm-panel" style="--device-accent:#c8b8a0;height:40px;"></div>
+</div>
+
+<!-- Tokamak -->
+<div class="wb-card">
+    <div class="wb-card-title">Tokamak</div>
+    <div class="wb-card-desc">Nuclear reactor aesthetic. Dark with vent perforations, CRT heavy, warning accents.</div>
+    <div class="wb-showcase dark-panel" style="--device-accent:#ef4444;height:40px;"></div>
+</div>
+
+</div>
+{% endblock %}

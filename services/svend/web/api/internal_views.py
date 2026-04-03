@@ -297,6 +297,12 @@ def dashboard_view(request):
     return render(request, "internal_dashboard.html")
 
 
+@never_cache
+@user_passes_test(can_access_internal, login_url="/login/")
+def rack_designer_view(request):
+    return render(request, "demo/rack-designer.html")
+
+
 # ---------------------------------------------------------------------------
 # API: Overview KPIs
 # ---------------------------------------------------------------------------

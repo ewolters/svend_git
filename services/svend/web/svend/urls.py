@@ -42,7 +42,7 @@ def _forgerack_unit_view(request, unit_name):
 
 from agents_api.whiteboard_views import guest_board_view
 from api.blog_views import blog_detail, blog_list
-from api.internal_views import dashboard_view
+from api.internal_views import dashboard_view, rack_designer_view
 from api.landing_views import (
     ci_hub_view,
     education_view,
@@ -394,6 +394,7 @@ urlpatterns = varta_urls + [
         name="django.contrib.sitemaps.views.sitemap",
     ),
     path("internal/dashboard/", dashboard_view, name="internal-dashboard"),
+    path("internal/rack-designer/", rack_designer_view, name="rack-designer"),
     path("admin/", admin.site.urls),
     path("api/", include("api.urls")),
     path("api/files/", include("files.urls")),
