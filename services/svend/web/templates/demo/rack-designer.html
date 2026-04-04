@@ -330,6 +330,9 @@ function switchTab(tab) {
             <div style="font:700 10px/1 'Courier New',monospace;color:rgba(78,173,128,0.4);text-transform:uppercase;
                 letter-spacing:0.1em;padding:8px 0 3px;border-bottom:1px solid rgba(78,173,128,0.1);margin-bottom:2px;">Hardware</div>
             <div class="cv-pal-item" draggable="true" data-widget="hex-bolt" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Hex Bolt</div>
+            <div class="cv-pal-item" draggable="true" data-widget="phillips-screw" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Phillips Screw</div>
+            <div class="cv-pal-item" draggable="true" data-widget="slot-screw" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Slot Screw</div>
+            <div class="cv-pal-item" draggable="true" data-widget="rivet" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Rivet</div>
             <div class="cv-pal-item" draggable="true" data-widget="banana-post" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Banana Post</div>
             <div class="cv-pal-item" draggable="true" data-widget="carry-handle" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Carry Handle</div>
             <div class="cv-pal-item" draggable="true" data-widget="vent-hex" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Vent Grille</div>
@@ -2246,7 +2249,10 @@ function switchTab(tab) {
         'inset-panel':      { w: 160, h: 100 },
         'raised-plate':     { w: 140, h: 80 },
         'bezel-frame':      { w: 180, h: 120 },
-        'hex-bolt':         { w: 10, h: 10 },
+        'hex-bolt':         { w: 16, h: 16 },
+        'phillips-screw':   { w: 16, h: 16 },
+        'slot-screw':       { w: 14, h: 14 },
+        'rivet':            { w: 8, h: 8 },
         'vent-hex':         { w: 80, h: 50 },
         'tube':             { w: 30, h: 60 },
         'thumbwheel':       { w: 22, h: 30 },
@@ -2332,14 +2338,36 @@ function switchTab(tab) {
                     '<span style="font:700 10px/1 \'Courier New\',monospace;color:rgba(163,177,138,0.3);text-transform:uppercase;letter-spacing:0.12em;">SECTION</span></div>';
             case 'hex-bolt':
                 return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">' +
-                    '<div style="width:14px;height:14px;' +
-                    'background:radial-gradient(circle at 35% 35%, #6a6e5a, #4a4e3e 35%, #3a3e2e 60%, #2a2e22);' +
-                    'clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);' +
-                    'box-shadow: 0 1px 2px rgba(0,0,0,0.4);">' +
-                    '<div style="width:6px;height:6px;margin:4px auto;' +
-                    'background:radial-gradient(circle at 40% 35%, #5a5e4a, #2a2e22);' +
-                    'clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>' +
+                    '<svg width="14" height="14" viewBox="0 0 14 14">' +
+                    '<defs><filter id="hb-shadow"><feDropShadow dx="0" dy="1" stdDeviation="0.5" flood-opacity="0.4"/></filter></defs>' +
+                    '<polygon points="7,0.5 13,3.5 13,10.5 7,13.5 1,10.5 1,3.5" fill="url(#hb-body)" filter="url(#hb-shadow)"/>' +
+                    '<radialGradient id="hb-body" cx="40%" cy="35%"><stop offset="0%" stop-color="#6a6e5a"/><stop offset="40%" stop-color="#4a4e3e"/><stop offset="100%" stop-color="#2a2e22"/></radialGradient>' +
+                    '<polygon points="7,3 10,4.5 10,9.5 7,11 4,9.5 4,4.5" fill="url(#hb-inner)"/>' +
+                    '<radialGradient id="hb-inner" cx="45%" cy="40%"><stop offset="0%" stop-color="#5a5e4a"/><stop offset="100%" stop-color="#1e2218"/></radialGradient>' +
+                    '</svg></div>';
+            case 'phillips-screw':
+                return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">' +
+                    '<div style="width:14px;height:14px;border-radius:50%;position:relative;' +
+                    'background:radial-gradient(circle at 38% 34%, #7a7a78, #5a5a58 35%, #3a3a38 70%, #2a2a28);' +
+                    'box-shadow: 0 1px 2px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,240,215,0.08);">' +
+                    '<div style="position:absolute;top:50%;left:2px;right:2px;height:1.5px;transform:translateY(-50%);' +
+                    'background:linear-gradient(90deg, transparent 10%, rgba(0,0,0,0.4) 30%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.4) 70%, transparent 90%);"></div>' +
+                    '<div style="position:absolute;left:50%;top:2px;bottom:2px;width:1.5px;transform:translateX(-50%);' +
+                    'background:linear-gradient(180deg, transparent 10%, rgba(0,0,0,0.4) 30%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.4) 70%, transparent 90%);"></div>' +
                     '</div></div>';
+            case 'slot-screw':
+                return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">' +
+                    '<div style="width:12px;height:12px;border-radius:50%;position:relative;' +
+                    'background:radial-gradient(circle at 38% 34%, #7a7a78, #5a5a58 35%, #3a3a38 70%, #2a2a28);' +
+                    'box-shadow: 0 1px 2px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,240,215,0.08);">' +
+                    '<div style="position:absolute;top:50%;left:1.5px;right:1.5px;height:1.5px;transform:translateY(-50%);' +
+                    'background:linear-gradient(90deg, transparent 5%, rgba(0,0,0,0.5) 20%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.5) 80%, transparent 95%);"></div>' +
+                    '</div></div>';
+            case 'rivet':
+                return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">' +
+                    '<div style="width:6px;height:6px;border-radius:50%;' +
+                    'background:radial-gradient(circle at 35% 30%, #8a8a88, #5a5a58 50%, #3a3a38);' +
+                    'box-shadow: 0 0.5px 1px rgba(0,0,0,0.4), inset 0 0.5px 0 rgba(255,240,215,0.12);"></div></div>';
             case 'vent-hex':
                 return '<div style="width:100%;height:100%;border-radius:2px;background:radial-gradient(circle at 50% 50%, #080808 3px, transparent 3px),radial-gradient(circle at 50% 50%, #080808 3px, transparent 3px);background-size: 10px 17.3px;background-position: 0 0, 5px 8.65px;background-color: #1a1c1a;border:1px solid rgba(0,0,0,0.4);box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);"></div>';
             case 'tube':
