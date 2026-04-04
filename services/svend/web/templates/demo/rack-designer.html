@@ -2280,6 +2280,13 @@ function switchTab(tab) {
                     '<div style="position:absolute;inset:4px;border-radius:50%;background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.15), transparent 45%), radial-gradient(circle at 60% 70%, rgba(0,0,0,0.15), transparent 50%), #3aaa5a;border:1px solid rgba(0,0,0,0.4);box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></div>' +
                     '<div style="position:absolute;top:3px;left:50%;transform:translateX(-50%);width:2px;height:10px;border-radius:1px;background:#d0d0c8;box-shadow: 0 0 2px rgba(255,255,255,0.3);"></div>' +
                     '</div>';
+            case 'smooth-knob':
+                return '<div style="position:relative;width:32px;height:32px;margin:auto;">' +
+                    '<div style="position:absolute;inset:0;border-radius:50%;' +
+                    'background:conic-gradient(from 130deg, #3a3a38, #4a4a48 15%, #5a5a58 30%, #4a4a48 50%, #3a3a38 70%, #2a2a28 85%, #3a3a38);' +
+                    'box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,240,215,0.06);"></div>' +
+                    '<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);' +
+                    'width:2px;height:10px;border-radius:1px;background:#d0d0c8;box-shadow:0 0 2px rgba(208,208,200,0.3);"></div></div>';
             case 'button-square':
                 return '<div style="width:40px;height:40px;margin:auto;background:radial-gradient(circle at 50% 45%, #2a2a28, #1a1a18 50%, #0e0e0c);border:2px solid #0a0a08;border-radius:3px;box-shadow: 0 3px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,240,215,0.04), inset 0 -2px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:rgba(163,177,138,0.4);font:700 14px/1 sans-serif;">&#x25B6;</div>';
             case 'button-backlit':
@@ -2290,6 +2297,14 @@ function switchTab(tab) {
                     '<div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:4px;height:24px;background:linear-gradient(90deg, #5a5a58, #787876 20%, #9a9a98 40%, #b0b0ae 50%, #9a9a98 60%, #787876 80%, #5a5a58);border-radius:2px;box-shadow: 0 -2px 4px rgba(0,0,0,0.3);"></div>' +
                     '<div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:8px;height:10px;background:radial-gradient(circle at 40% 30%, rgba(255,255,255,0.15), transparent 50%),linear-gradient(180deg, #a8a8a6, #8a8a88 40%, #6a6a68 80%, #5a5a58);border-radius:4px 4px 3px 3px;box-shadow: 0 -1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2);"></div>' +
                     '</div>';
+            case 'rocker':
+                return '<div style="width:16px;height:24px;margin:auto;position:relative;' +
+                    'background:linear-gradient(180deg, #3a3a38, #2a2a28 40%, #1e1e1c);' +
+                    'border:1px solid #0a0a08;border-radius:2px;' +
+                    'box-shadow: 0 2px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.04);">' +
+                    '<div style="position:absolute;top:2px;left:2px;right:2px;height:9px;border-radius:1px;' +
+                    'background:linear-gradient(180deg, #4a4a48, #3a3a38);' +
+                    'box-shadow:inset 0 -1px 0 rgba(0,0,0,0.3), 0 1px 0 rgba(255,240,215,0.03);"></div></div>';
             case 'led':
                 return '<div style="margin:auto;" class="led-housing"><span class="led ' + _c + '"></span></div>';
             case 'jewel-lamp':
@@ -2309,6 +2324,71 @@ function switchTab(tab) {
                     '<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%, rgba(163,177,138,0.012), transparent 65%);pointer-events:none;"></div>' +
                     '<div style="padding:8px;font:11px/1.5 monospace;color:rgba(163,177,138,0.2);text-shadow: 0 0 3px currentColor;">CRT_</div>' +
                     '</div></div>';
+            case 'nixie':
+                return '<div style="display:flex;gap:2px;align-items:center;justify-content:center;height:100%;">' +
+                    '<div style="width:18px;height:32px;background:rgba(0,0,0,0.4);border:1px solid rgba(232,160,80,0.08);border-radius:2px;' +
+                    'display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 8px rgba(0,0,0,0.5);">' +
+                    '<span style="font:300 20px/1 monospace;color:rgba(232,160,80,0.08);position:absolute;">8</span>' +
+                    '<span style="font:700 20px/1 monospace;color:rgba(232,160,80,0.7);text-shadow:0 0 6px rgba(232,160,80,0.3);position:relative;">4</span></div>' +
+                    '<div style="width:18px;height:32px;background:rgba(0,0,0,0.4);border:1px solid rgba(232,160,80,0.08);border-radius:2px;' +
+                    'display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 8px rgba(0,0,0,0.5);">' +
+                    '<span style="font:300 20px/1 monospace;color:rgba(232,160,80,0.08);position:absolute;">8</span>' +
+                    '<span style="font:700 20px/1 monospace;color:rgba(232,160,80,0.7);text-shadow:0 0 6px rgba(232,160,80,0.3);position:relative;">2</span></div></div>';
+            case 'gauge':
+                return '<div style="position:relative;width:80px;height:48px;overflow:hidden;margin:auto;">' +
+                    '<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 90%, #e8e0d0, #d8d0c0 40%, #c8c0b0 80%);border:2px solid #3a3a38;border-radius:4px 4px 0 0;box-shadow:inset 0 2px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.4);"></div>' +
+                    '<div style="position:absolute;bottom:2px;left:50%;transform-origin:bottom center;transform:translateX(-50%) rotate(-25deg);width:1.5px;height:32px;background:linear-gradient(180deg, #c03030, #a02020 60%, #1a1a18);border-radius:1px 1px 0 0;"></div>' +
+                    '<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:6px;height:3px;border-radius:3px 3px 0 0;background:radial-gradient(circle at 50% 30%, #b0b0ae, #6a6a68);"></div></div>';
+            case 'vu-meter':
+                return '<div style="width:100%;height:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(0,0,0,0.4);border-radius:4px;' +
+                    'display:flex;flex-direction:column-reverse;overflow:hidden;">' +
+                    '<div style="width:100%;height:65%;background:var(--device-accent,#4ade80);border-radius:3px;transition:height 0.3s;"></div></div>';
+            case 'h-meter':
+                return '<div style="width:100%;height:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(0,0,0,0.4);border-radius:4px;overflow:hidden;">' +
+                    '<div style="width:70%;height:100%;background:var(--device-accent,#4ade80);border-radius:3px;"></div></div>';
+            case 'fader':
+                return '<div style="position:relative;width:100%;height:100%;display:flex;justify-content:center;">' +
+                    '<div style="width:4px;height:100%;background:#0a0a08;border-radius:2px;box-shadow:inset 0 1px 3px rgba(0,0,0,0.6);"></div>' +
+                    '<div style="position:absolute;top:30%;left:50%;transform:translateX(-50%);width:14px;height:8px;border-radius:2px;' +
+                    'background:repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 2px),' +
+                    'linear-gradient(180deg, #5a5a58, #4a4a48 30%, #3a3a38 70%, #2e2e2c);border:1px solid rgba(0,0,0,0.4);' +
+                    'box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.1);"></div></div>';
+            case 'segment-group':
+                return '<div style="display:flex;gap:0;height:100%;align-items:center;">' +
+                    '<div style="padding:4px 8px;font:700 10px/1 monospace;color:var(--device-accent,#4ade80);background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);cursor:pointer;">A</div>' +
+                    '<div style="padding:4px 8px;font:700 10px/1 monospace;color:rgba(255,255,255,0.15);background:rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.04);cursor:pointer;">B</div>' +
+                    '<div style="padding:4px 8px;font:700 10px/1 monospace;color:rgba(255,255,255,0.15);background:rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.04);cursor:pointer;">C</div></div>';
+            case 'thumbwheel':
+                return '<div style="position:relative;width:100%;height:100%;">' +
+                    '<div style="position:absolute;inset:0;background:linear-gradient(180deg, #2a2a28, #1e1e1c 30%, #161614 70%, #1a1a18);border:1px solid rgba(0,0,0,0.5);border-radius:2px;box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,240,215,0.04);"></div>' +
+                    '<div style="position:absolute;top:3px;left:3px;right:3px;height:14px;background:#e8e0d0;border:1px solid rgba(0,0,0,0.3);border-radius:1px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 2px rgba(0,0,0,0.15);">' +
+                    '<span style="font:700 11px/1 Arial,sans-serif;color:#1a1a18;">7</span></div>' +
+                    '<div style="position:absolute;bottom:2px;left:3px;right:3px;height:8px;background:repeating-linear-gradient(90deg, #3a3a38 0px, #3a3a38 1px, #2a2a28 1px, #2a2a28 3px);border-radius:1px;"></div></div>';
+            case 'banana-post':
+                return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">' +
+                    '<div style="width:14px;height:14px;border-radius:50%;position:relative;' +
+                    'background:radial-gradient(circle at 40% 35%, #e04040, #a02020 60%, #801010);' +
+                    'border:2px solid #9a9a98;box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2), 0 0 0 1px rgba(0,0,0,0.3);">' +
+                    '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:4px;height:4px;border-radius:50%;' +
+                    'background:#0a0a08;box-shadow:inset 0 1px 1px rgba(0,0,0,0.5);"></div></div></div>';
+            case 'progress-ring':
+                return '<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;">' +
+                    '<svg width="48" height="48" style="transform:rotate(-90deg);">' +
+                    '<circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>' +
+                    '<circle cx="24" cy="24" r="20" fill="none" stroke="#4ade80" stroke-width="3" stroke-dasharray="125.6" stroke-dashoffset="31.4" stroke-linecap="round"/></svg>' +
+                    '<div style="position:absolute;font:700 12px/1 monospace;color:rgba(74,222,128,0.7);">75%</div></div>';
+            case 'carry-handle':
+                return '<div style="width:60px;height:6px;margin:auto;border-radius:3px;' +
+                    'background:linear-gradient(180deg, #2a2a2a, #1a1a1a);' +
+                    'box-shadow:inset 0 1px 2px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.02);"></div>';
+            case 'paper-tape':
+                return '<div style="width:100%;height:100%;position:relative;overflow:hidden;' +
+                    'background:linear-gradient(180deg, #f8f6f0, #f4f2ec);border:1px solid rgba(0,0,0,0.08);border-radius:1px;' +
+                    'box-shadow:inset 0 1px 3px rgba(0,0,0,0.06), 0 1px 0 rgba(255,255,255,0.5);">' +
+                    '<div style="position:absolute;left:0;top:0;bottom:0;width:8px;' +
+                    'background:repeating-linear-gradient(180deg, transparent 0px, transparent 6px, rgba(0,0,0,0.03) 6px, rgba(0,0,0,0.03) 7px);' +
+                    'border-right:1px solid rgba(0,0,0,0.04);"></div>' +
+                    '<div style="padding:6px 8px 6px 12px;font:10px/1.6 monospace;color:#3a4a3a;">data_</div></div>';
             case 'lcd':
                 return '<div style="height:100%;background:linear-gradient(180deg, #9aaa8a, #8a9a7a);border:2px solid #2a2a2a;border-radius:2px;box-shadow: inset 0 1px 3px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:flex-end;padding:0 8px;position:relative;">' +
                     '<span style="font:300 22px/1 monospace;color:rgba(40,50,35,0.08);position:absolute;right:8px;">888.88</span>' +
