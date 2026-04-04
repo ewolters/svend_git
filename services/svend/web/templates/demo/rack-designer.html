@@ -390,6 +390,13 @@ function switchTab(tab) {
                         </select>
                     </label>
                 </div>
+                <!-- Dial labels (shown only for dial/knob types) -->
+                <div id="cv-prop-labels-row" style="display:none;margin-top:6px;display:none;align-items:center;gap:8px;">
+                    <label style="font:10px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);">Dial Labels
+                        <input id="cv-prop-labels" type="text" placeholder="CLASS, OPT, LHS, MIX..." style="width:300px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);color:#f59e0b;padding:3px;font:11px/1 'JetBrains Mono',monospace;border-radius:2px;margin-left:4px;" onchange="cvUpdateProp()">
+                    </label>
+                    <span style="font:10px/1 'Courier New',monospace;color:rgba(255,255,255,0.12);">comma-separated, max 6</span>
+                </div>
             </div>
 
             <!-- Export output -->
@@ -2341,6 +2348,11 @@ function switchTab(tab) {
         document.getElementById('cv-prop-note').value = w.note || '';
         document.getElementById('cv-prop-texture').value = w.texture || '';
         document.getElementById('cv-prop-wear').value = w.wear || '';
+
+        // Show dial labels row for dial/knob types
+        var isDial = ['chickenhead-dial', 'knurled-knob', 'smooth-knob'].indexOf(w.type) >= 0;
+        document.getElementById('cv-prop-labels-row').style.display = isDial ? 'flex' : 'none';
+        document.getElementById('cv-prop-labels').value = (w.labels || []).join(', ');
     }
 
     function startDrag(e) {
@@ -2460,6 +2472,40 @@ function switchTab(tab) {
         }
         w.texture = newTex;
         w.wear = newWear;
+
+        // Dial labels
+        var isDial = ['chickenhead-dial', 'knurled-knob', 'smooth-knob'].indexOf(w.type) >= 0;
+        if (isDial && el) {
+            var labelStr = document.getElementById('cv-prop-labels').value || '';
+            var labels = labelStr.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+            labels = labels.slice(0, 6);
+            w.labels = labels;
+
+            // Remove old labels
+            var old = el.querySelectorAll('.cv-dial-label');
+            old.forEach(function(o) { o.remove(); });
+
+            // Place new labels around the dial center
+            if (labels.length > 0) {
+                var cx = w.w / 2;
+                var cy = (w.type === 'chickenhead-dial') ? (w.h / 2 + 4) : (w.h / 2);
+                var r = Math.max(w.w, w.h) / 2 + 14;
+                var startAngle = -90;
+                var sweep = Math.min(300, labels.length * 60);
+                for (var i = 0; i < labels.length; i++) {
+                    var angle = startAngle + (labels.length > 1 ? (sweep / (labels.length - 1)) * i : 0);
+                    var rad = angle * Math.PI / 180;
+                    var lx = cx + Math.cos(rad) * r;
+                    var ly = cy + Math.sin(rad) * r;
+                    var lbl = document.createElement('div');
+                    lbl.className = 'cv-dial-label';
+                    lbl.style.cssText = 'position:absolute;font:700 10px/1 Courier New,monospace;color:rgba(208,208,200,0.3);white-space:nowrap;' +
+                        'left:' + lx + 'px;top:' + ly + 'px;transform:translate(-50%,-50%);pointer-events:none;z-index:5;';
+                    lbl.textContent = labels[i];
+                    el.appendChild(lbl);
+                }
+            }
+        }
     };
 
     window.cvDeleteSelected = function() {
@@ -2490,6 +2536,7 @@ function switchTab(tab) {
                 if (w.note) o.note = w.note;
                 if (w.texture) o.texture = w.texture;
                 if (w.wear) o.wear = w.wear;
+                if (w.labels && w.labels.length) o.labels = w.labels;
                 return o;
             })
         };
