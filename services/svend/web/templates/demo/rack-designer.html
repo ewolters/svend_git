@@ -185,6 +185,15 @@ function switchTab(tab) {
 
     <!-- Toolbar -->
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+        <!-- Width selector -->
+        <span style="font:700 11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);">Width:</span>
+        <select id="cv-width" onchange="cvResize()" style="
+            background:#1a1a1a;border:1px solid rgba(78,173,128,0.2);color:rgba(78,173,128,0.6);
+            padding:4px 8px;font:11px/1 'Courier New',monospace;border-radius:2px;">
+            <option value="345">Half (345px)</option>
+            <option value="690" selected>Full (690px)</option>
+        </select>
+
         <!-- U-height selector -->
         <span style="font:700 11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);">Height:</span>
         <select id="cv-u-height" onchange="cvResize()" style="
@@ -2322,7 +2331,9 @@ function switchTab(tab) {
     // Global functions
     window.cvResize = function() {
         var u = parseInt(document.getElementById('cv-u-height').value);
+        var w = parseInt(document.getElementById('cv-width').value);
         panel.style.height = (u * 42) + 'px';
+        panel.style.width = w + 'px';
     };
 
     window.cvUpdatePanel = function() {
@@ -2366,6 +2377,7 @@ function switchTab(tab) {
 
     window.cvExport = function() {
         var out = {
+            width: parseInt(document.getElementById('cv-width').value),
             u_height: parseInt(document.getElementById('cv-u-height').value),
             panel_texture: document.getElementById('cv-texture').value,
             widgets: _widgets.map(function(w) {
