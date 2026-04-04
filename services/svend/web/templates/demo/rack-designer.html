@@ -251,42 +251,73 @@ function switchTab(tab) {
     <div style="display:flex;gap:16px;">
 
         <!-- Widget palette -->
-        <div id="cv-palette" style="width:140px;flex-shrink:0;display:flex;flex-direction:column;gap:2px;
+        <div id="cv-palette" style="width:150px;flex-shrink:0;display:flex;flex-direction:column;gap:1px;
             background:#141414;border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:8px;
-            max-height:520px;overflow-y:auto;">
-            <div style="font:700 10px/1 'Courier New',monospace;color:rgba(255,255,255,0.25);text-transform:uppercase;
-                letter-spacing:0.1em;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;">Widgets</div>
+            max-height:560px;overflow-y:auto;">
 
-            <div class="cv-pal-item" draggable="true" data-widget="chickenhead-dial" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Chickenhead Dial</div>
-            <div class="cv-pal-item" draggable="true" data-widget="knurled-knob" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Knurled Knob</div>
-            <div class="cv-pal-item" draggable="true" data-widget="smooth-knob" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Smooth Knob</div>
-            <div class="cv-pal-item" draggable="true" data-widget="button-square" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Square Button</div>
-            <div class="cv-pal-item" draggable="true" data-widget="button-backlit" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Backlit Button</div>
-            <div class="cv-pal-item" draggable="true" data-widget="toggle" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Toggle Switch</div>
-            <div class="cv-pal-item" draggable="true" data-widget="rocker" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Rocker Switch</div>
-            <div class="cv-pal-item" draggable="true" data-widget="led" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">LED</div>
-            <div class="cv-pal-item" draggable="true" data-widget="jewel-lamp" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Jewel Lamp</div>
-            <div class="cv-pal-item" draggable="true" data-widget="crt" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">CRT Screen</div>
-            <div class="cv-pal-item" draggable="true" data-widget="lcd" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">LCD Display</div>
-            <div class="cv-pal-item" draggable="true" data-widget="nixie" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Nixie Tube</div>
-            <div class="cv-pal-item" draggable="true" data-widget="readout" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">7-Seg Readout</div>
-            <div class="cv-pal-item" draggable="true" data-widget="gauge" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Needle Gauge</div>
-            <div class="cv-pal-item" draggable="true" data-widget="vu-meter" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">VU Meter</div>
-            <div class="cv-pal-item" draggable="true" data-widget="h-meter" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Horiz Meter</div>
-            <div class="cv-pal-item" draggable="true" data-widget="fader" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Fader</div>
-            <div class="cv-pal-item" draggable="true" data-widget="input-text" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Text Input</div>
-            <div class="cv-pal-item" draggable="true" data-widget="input-number" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Number Input</div>
-            <div class="cv-pal-item" draggable="true" data-widget="segment-group" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Segment Group</div>
-            <div class="cv-pal-item" draggable="true" data-widget="stamped-tag" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Stamped Tag</div>
-            <div class="cv-pal-item" draggable="true" data-widget="nameplate" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Nameplate</div>
-            <div class="cv-pal-item" draggable="true" data-widget="hex-bolt" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Hex Bolt</div>
-            <div class="cv-pal-item" draggable="true" data-widget="vent-hex" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Vent Grille</div>
-            <div class="cv-pal-item" draggable="true" data-widget="tube" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Vacuum Tube</div>
-            <div class="cv-pal-item" draggable="true" data-widget="thumbwheel" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Thumbwheel</div>
-            <div class="cv-pal-item" draggable="true" data-widget="banana-post" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Banana Post</div>
-            <div class="cv-pal-item" draggable="true" data-widget="progress-ring" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Progress Ring</div>
-            <div class="cv-pal-item" draggable="true" data-widget="carry-handle" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Carry Handle</div>
-            <div class="cv-pal-item" draggable="true" data-widget="paper-tape" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Paper Tape</div>
+            <!-- Knobs & Dials -->
+            <div style="font:700 10px/1 'Courier New',monospace;color:rgba(78,173,128,0.4);text-transform:uppercase;
+                letter-spacing:0.1em;padding:6px 0 3px;border-bottom:1px solid rgba(78,173,128,0.1);margin-bottom:2px;">Knobs</div>
+            <div class="cv-pal-item" draggable="true" data-widget="chickenhead-dial" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Chickenhead Dial</div>
+            <div class="cv-pal-item" draggable="true" data-widget="knurled-knob" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Knurled Knob</div>
+            <div class="cv-pal-item" draggable="true" data-widget="smooth-knob" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Smooth Knob</div>
+
+            <!-- Buttons & Switches -->
+            <div style="font:700 10px/1 'Courier New',monospace;color:rgba(78,173,128,0.4);text-transform:uppercase;
+                letter-spacing:0.1em;padding:8px 0 3px;border-bottom:1px solid rgba(78,173,128,0.1);margin-bottom:2px;">Buttons</div>
+            <div class="cv-pal-item" draggable="true" data-widget="button-square" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Panel Button</div>
+            <div class="cv-pal-item" draggable="true" data-widget="button-backlit" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Backlit Button</div>
+            <div class="cv-pal-item" draggable="true" data-widget="toggle" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Toggle Switch</div>
+            <div class="cv-pal-item" draggable="true" data-widget="rocker" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Rocker Switch</div>
+            <div class="cv-pal-item" draggable="true" data-widget="segment-group" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Segment Group</div>
+            <div class="cv-pal-item" draggable="true" data-widget="fader" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Fader</div>
+
+            <!-- Indicators -->
+            <div style="font:700 10px/1 'Courier New',monospace;color:rgba(78,173,128,0.4);text-transform:uppercase;
+                letter-spacing:0.1em;padding:8px 0 3px;border-bottom:1px solid rgba(78,173,128,0.1);margin-bottom:2px;">Indicators</div>
+            <div class="cv-pal-item" draggable="true" data-widget="led" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">LED</div>
+            <div class="cv-pal-item" draggable="true" data-widget="jewel-lamp" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Jewel Lamp</div>
+            <div class="cv-pal-item" draggable="true" data-widget="vu-meter" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">VU Meter</div>
+            <div class="cv-pal-item" draggable="true" data-widget="h-meter" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Horiz Meter</div>
+            <div class="cv-pal-item" draggable="true" data-widget="progress-ring" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Progress Ring</div>
+
+            <!-- Displays -->
+            <div style="font:700 10px/1 'Courier New',monospace;color:rgba(78,173,128,0.4);text-transform:uppercase;
+                letter-spacing:0.1em;padding:8px 0 3px;border-bottom:1px solid rgba(78,173,128,0.1);margin-bottom:2px;">Displays</div>
+            <div class="cv-pal-item" draggable="true" data-widget="crt" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">CRT Screen</div>
+            <div class="cv-pal-item" draggable="true" data-widget="lcd" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">LCD Display</div>
+            <div class="cv-pal-item" draggable="true" data-widget="nixie" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Nixie Tube</div>
+            <div class="cv-pal-item" draggable="true" data-widget="readout" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">7-Seg Readout</div>
+            <div class="cv-pal-item" draggable="true" data-widget="gauge" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Needle Gauge</div>
+            <div class="cv-pal-item" draggable="true" data-widget="paper-tape" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Paper Tape</div>
+
+            <!-- Inputs -->
+            <div style="font:700 10px/1 'Courier New',monospace;color:rgba(78,173,128,0.4);text-transform:uppercase;
+                letter-spacing:0.1em;padding:8px 0 3px;border-bottom:1px solid rgba(78,173,128,0.1);margin-bottom:2px;">Inputs</div>
+            <div class="cv-pal-item" draggable="true" data-widget="input-text" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Text Input</div>
+            <div class="cv-pal-item" draggable="true" data-widget="input-number" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Number Input</div>
+            <div class="cv-pal-item" draggable="true" data-widget="thumbwheel" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Thumbwheel</div>
+
+            <!-- Labels & Text -->
+            <div style="font:700 10px/1 'Courier New',monospace;color:rgba(78,173,128,0.4);text-transform:uppercase;
+                letter-spacing:0.1em;padding:8px 0 3px;border-bottom:1px solid rgba(78,173,128,0.1);margin-bottom:2px;">Labels</div>
+            <div class="cv-pal-item" draggable="true" data-widget="nameplate" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Nameplate</div>
+            <div class="cv-pal-item" draggable="true" data-widget="stamped-tag" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Stamped Tag</div>
+            <div class="cv-pal-item" draggable="true" data-widget="stencil-text" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Stencil Text</div>
+            <div class="cv-pal-item" draggable="true" data-widget="silkscreen-text" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Silkscreen Text</div>
+
+            <!-- Hardware -->
+            <div style="font:700 10px/1 'Courier New',monospace;color:rgba(78,173,128,0.4);text-transform:uppercase;
+                letter-spacing:0.1em;padding:8px 0 3px;border-bottom:1px solid rgba(78,173,128,0.1);margin-bottom:2px;">Hardware</div>
+            <div class="cv-pal-item" draggable="true" data-widget="hex-bolt" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Hex Bolt</div>
+            <div class="cv-pal-item" draggable="true" data-widget="banana-post" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Banana Post</div>
+            <div class="cv-pal-item" draggable="true" data-widget="carry-handle" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Carry Handle</div>
+            <div class="cv-pal-item" draggable="true" data-widget="vent-hex" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Vent Grille</div>
+
+            <!-- Decorative -->
+            <div style="font:700 10px/1 'Courier New',monospace;color:rgba(78,173,128,0.4);text-transform:uppercase;
+                letter-spacing:0.1em;padding:8px 0 3px;border-bottom:1px solid rgba(78,173,128,0.1);margin-bottom:2px;">Decorative</div>
+            <div class="cv-pal-item" draggable="true" data-widget="tube" style="padding:5px 6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Vacuum Tube</div>
         </div>
 
         <!-- Canvas area -->
@@ -2141,6 +2172,8 @@ function switchTab(tab) {
         'segment-group':    { w: 120, h: 24 },
         'stamped-tag':      { w: 80, h: 22 },
         'nameplate':        { w: 300, h: 30 },
+        'stencil-text':     { w: 60, h: 16 },
+        'silkscreen-text':  { w: 80, h: 16 },
         'hex-bolt':         { w: 10, h: 10 },
         'vent-hex':         { w: 80, h: 50 },
         'tube':             { w: 30, h: 60 },
@@ -2200,6 +2233,22 @@ function switchTab(tab) {
                     '<div style="width:3px;height:3px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #707072, #3a3a3c);"></div>' +
                     '<span style="font:700 10px/1 monospace;color:rgba(208,208,200,0.45);text-transform:uppercase;letter-spacing:0.1em;text-shadow: 0 -0.5px 0 rgba(0,0,0,0.25), 0 0.5px 0 rgba(255,240,215,0.08);">LABEL</span>' +
                     '<div style="width:3px;height:3px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #707072, #3a3a3c);"></div></div>';
+            case 'nameplate':
+                return '<div class="tex-brushed-fine" style="display:flex;align-items:center;gap:8px;width:100%;height:100%;position:relative;overflow:hidden;' +
+                    'padding:4px 12px;border-bottom:2px solid rgba(0,0,0,0.4);' +
+                    'background: linear-gradient(180deg, #2e3226 0%, #282c22 50%, #22261c 100%);">' +
+                    '<div class="led-housing"><span class="led lg green"></span></div>' +
+                    '<span style="font:700 13px/1 monospace;color:rgba(163,177,138,0.4);letter-spacing:0.2em;text-transform:uppercase;' +
+                    'text-shadow: 0 -1px 0 rgba(0,0,0,0.5), 0 1px 0 rgba(255,240,215,0.02);">MODEL</span>' +
+                    '<span style="font:400 10px/1 monospace;color:rgba(163,177,138,0.15);">MANUFACTURER</span></div>';
+            case 'stencil-text':
+                return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">' +
+                    '<span style="font:700 10px/1 \'Courier New\',monospace;color:rgba(208,208,200,0.25);text-transform:uppercase;letter-spacing:0.15em;' +
+                    'text-shadow: 0 1px 0 rgba(0,0,0,0.3);">LABEL</span></div>';
+            case 'silkscreen-text':
+                return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;' +
+                    'background:rgba(163,177,138,0.04);border-radius:8px;padding:2px 8px;">' +
+                    '<span style="font:700 10px/1 \'Courier New\',monospace;color:rgba(163,177,138,0.3);text-transform:uppercase;letter-spacing:0.12em;">SECTION</span></div>';
             case 'hex-bolt':
                 return '<div style="width:9px;height:9px;margin:auto;background:radial-gradient(circle at 35% 35%, #5a5e4a, #3a3e2e 40%, #2a2e22 70%, #1e2218);clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>';
             case 'vent-hex':
@@ -2295,6 +2344,17 @@ function switchTab(tab) {
     });
 
     document.addEventListener('mouseup', function() { _dragging = null; });
+
+    // Delete/Backspace to remove selected widget
+    document.addEventListener('keydown', function(e) {
+        if (!_selected) return;
+        // Don't delete if focus is in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.preventDefault();
+            window.cvDeleteSelected();
+        }
+    });
 
     // Palette drag
     document.querySelectorAll('.cv-pal-item').forEach(function(item) {
