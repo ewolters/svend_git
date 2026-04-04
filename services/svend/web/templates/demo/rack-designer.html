@@ -2316,12 +2316,12 @@ function switchTab(tab) {
             case 'readout':
                 return '<div class="readout" style="width:100%;text-align:center;">0.00</div>';
             case 'stamped-tag':
-                return '<div class="tex-matte" style="display:inline-flex;align-items:center;gap:4px;position:relative;overflow:hidden;background:linear-gradient(180deg, #58585a, #48484a);border:1px solid rgba(0,0,0,0.4);border-radius:1px;padding:4px 14px;box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,240,215,0.05);margin:auto;">' +
+                return '<div style="display:inline-flex;align-items:center;gap:4px;position:relative;overflow:hidden;background:linear-gradient(180deg, #58585a, #48484a);border:1px solid rgba(0,0,0,0.4);border-radius:1px;padding:4px 14px;box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,240,215,0.05);margin:auto;">' +
                     '<div style="width:3px;height:3px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #707072, #3a3a3c);"></div>' +
                     '<span style="font:700 10px/1 monospace;color:rgba(208,208,200,0.45);text-transform:uppercase;letter-spacing:0.1em;text-shadow: 0 -0.5px 0 rgba(0,0,0,0.25), 0 0.5px 0 rgba(255,240,215,0.08);">LABEL</span>' +
                     '<div style="width:3px;height:3px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #707072, #3a3a3c);"></div></div>';
             case 'nameplate':
-                return '<div class="tex-brushed-fine" style="display:flex;align-items:center;gap:8px;width:100%;height:100%;position:relative;overflow:hidden;' +
+                return '<div style="display:flex;align-items:center;gap:8px;width:100%;height:100%;position:relative;overflow:hidden;' +
                     'padding:4px 12px;border-bottom:2px solid rgba(0,0,0,0.4);' +
                     'background: linear-gradient(180deg, #2e3226 0%, #282c22 50%, #22261c 100%);">' +
                     '<div class="led-housing"><span class="led lg green"></span></div>' +
@@ -2568,15 +2568,19 @@ function switchTab(tab) {
         if (el) {
             el.style.left = w.x + 'px'; el.style.top = w.y + 'px';
             el.style.width = w.w + 'px'; el.style.height = w.h + 'px';
-            // Remove old texture/wear classes
+            // Remove old texture/wear classes from container AND all children
             var texClasses = ['tex-brushed','tex-brushed-fine','tex-matte','tex-mottled','tex-anodized','tex-carbon','tex-tolex','tex-diamond','tex-hammertone','tex-leather'];
             var wearClasses = ['wear-scratches','wear-patina','wear-dust','wear-chips'];
-            texClasses.concat(wearClasses).forEach(function(c) { el.classList.remove(c); });
-            // Apply new
+            var allClasses = texClasses.concat(wearClasses);
+            allClasses.forEach(function(c) { el.classList.remove(c); });
+            el.querySelectorAll('*').forEach(function(child) {
+                allClasses.forEach(function(c) { child.classList.remove(c); });
+            });
+            // Apply new to outer container only
             if (newTex) el.classList.add(newTex);
             if (newWear) el.classList.add(newWear);
-            // Ensure positioned for ::before pseudo
             if (newTex || newWear) { el.style.overflow = 'hidden'; }
+            else { el.style.overflow = ''; }
         }
         w.texture = newTex;
         w.wear = newWear;
