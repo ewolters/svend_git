@@ -262,6 +262,11 @@ urlpatterns = varta_urls + [
         __import__("agents_api.rack_views", fromlist=["rack_compute"]).rack_compute,
         name="rack_compute",
     ),
+    path(
+        "api/rack/export-runsheet/",
+        __import__("agents_api.rack_views", fromlist=["rack_export_runsheet"]).rack_export_runsheet,
+        name="rack_export_runsheet",
+    ),
     path("app/demo/kjerne/", _app_view("demo/kjerne.html"), name="demo_kjerne"),
     path("app/iso/", _app_view("qms.html"), name="iso"),  # redirect legacy
     path("app/iso-docs/", _app_view("iso_doc.html"), name="iso_doc"),

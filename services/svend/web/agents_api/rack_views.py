@@ -3,7 +3,7 @@
 import json
 import statistics
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
@@ -748,3 +748,101 @@ def rack_compute(request):
     except Exception as e:
         logger.exception("rack compute error: op=%s", op)
         return JsonResponse({"error": str(e)}, status=422)
+
+
+@require_auth
+@require_http_methods(["POST"])
+def rack_export_runsheet(request):
+    """Export a DOE run sheet as Excel (.xlsx).
+
+    POST /api/rack/export-runsheet/
+    Body: {"factor_names": ["Temp", "Press"], "runs": [{"run": 1, "Temp": 150, "Press": 2.0}, ...], "design_type": "Full Factorial"}
+    Returns: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    """
+    import io
+
+    import openpyxl
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    factor_names = body.get("factor_names", [])
+    runs = body.get("runs", [])
+    design_type = body.get("design_type", "DOE")
+    n_runs = body.get("n_runs", len(runs))
+
+    if not factor_names or not runs:
+        return JsonResponse({"error": "Missing factor_names or runs"}, status=400)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Run Sheet"
+
+    # Styles
+    header_font = Font(name="Courier New", bold=True, size=10)
+    header_fill = PatternFill(start_color="2A2E22", end_color="2A2E22", fill_type="solid")
+    header_font_white = Font(name="Courier New", bold=True, size=10, color="A3B18A")
+    data_font = Font(name="Courier New", size=10)
+    thin_border = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
+    )
+
+    # Title row
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(factor_names) + 2)
+    ws["A1"] = f"{design_type} — {n_runs} runs"
+    ws["A1"].font = Font(name="Courier New", bold=True, size=12)
+
+    # Headers: Run | Factor1 | Factor2 | ... | Response
+    headers = ["Run"] + factor_names + ["Response"]
+    for col_idx, header in enumerate(headers, 1):
+        cell = ws.cell(row=3, column=col_idx, value=header)
+        cell.font = header_font_white
+        cell.fill = header_fill
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal="center")
+
+    # Data rows
+    for row_idx, run in enumerate(runs, 4):
+        # Run number
+        cell = ws.cell(row=row_idx, column=1, value=run.get("run", row_idx - 3))
+        cell.font = data_font
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal="center")
+
+        # Factor values
+        for col_idx, fname in enumerate(factor_names, 2):
+            val = run.get(fname, "")
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.font = data_font
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal="center")
+
+        # Empty response column
+        cell = ws.cell(row=row_idx, column=len(factor_names) + 2, value="")
+        cell.border = thin_border
+
+    # Column widths
+    ws.column_dimensions["A"].width = 8
+    for col_idx, fname in enumerate(factor_names, 2):
+        ws.column_dimensions[get_column_letter(col_idx)].width = max(len(fname) + 4, 12)
+    ws.column_dimensions[get_column_letter(len(factor_names) + 2)].width = 14
+
+    # Write to buffer
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    safe_name = design_type.replace(" ", "_").replace("/", "-")
+    response["Content-Disposition"] = f'attachment; filename="runsheet_{safe_name}_{n_runs}runs.xlsx"'
+    return response
