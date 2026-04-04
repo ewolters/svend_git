@@ -42,7 +42,7 @@ def _forgerack_unit_view(request, unit_name):
 
 from agents_api.whiteboard_views import guest_board_view
 from api.blog_views import blog_detail, blog_list
-from api.internal_views import dashboard_view, rack_designer_view
+from api.internal_views import dashboard_view, rack_designer_view, rack_layout_api
 from api.landing_views import (
     ci_hub_view,
     education_view,
@@ -268,6 +268,7 @@ urlpatterns = varta_urls + [
         name="rack_export_runsheet",
     ),
     path("app/demo/kjerne/", _app_view("demo/kjerne.html"), name="demo_kjerne"),
+    path("app/demo/analysis/", _app_view("demo/analysis_workbench.html"), name="demo_analysis"),
     path("app/iso/", _app_view("qms.html"), name="iso"),  # redirect legacy
     path("app/iso-docs/", _app_view("iso_doc.html"), name="iso_doc"),
     path("app/iso-docs/<uuid:doc_id>/", _app_view("iso_doc.html"), name="iso_doc_edit"),
@@ -400,6 +401,7 @@ urlpatterns = varta_urls + [
     ),
     path("internal/dashboard/", dashboard_view, name="internal-dashboard"),
     path("internal/rack-designer/", rack_designer_view, name="rack-designer"),
+    path("api/internal/rack-layout/", rack_layout_api, name="rack-layout-api"),
     path("admin/", admin.site.urls),
     path("api/", include("api.urls")),
     path("api/files/", include("files.urls")),

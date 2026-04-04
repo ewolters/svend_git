@@ -254,6 +254,13 @@ function switchTab(tab) {
         <div style="width:1px;height:20px;background:rgba(255,255,255,0.06);margin:0 4px;"></div>
 
         <!-- Actions -->
+        <input id="cv-save-name" type="text" placeholder="unit-name" value="strategist" style="
+            width:100px;background:#1a1a1a;border:1px solid rgba(78,173,128,0.2);color:rgba(78,173,128,0.6);
+            padding:4px 8px;font:11px/1 'Courier New',monospace;border-radius:2px;">
+        <button onclick="cvSave()" style="padding:4px 12px;font:700 11px/1 'Courier New',monospace;color:rgba(78,173,128,0.6);
+            background:rgba(78,173,128,0.08);border:1px solid rgba(78,173,128,0.3);border-radius:2px;cursor:pointer;">Save</button>
+        <button onclick="cvLoad()" style="padding:4px 12px;font:700 11px/1 'Courier New',monospace;color:rgba(245,158,11,0.6);
+            background:transparent;border:1px solid rgba(245,158,11,0.2);border-radius:2px;cursor:pointer;">Load</button>
         <button onclick="cvClear()" style="padding:4px 12px;font:700 11px/1 'Courier New',monospace;color:rgba(239,68,68,0.5);
             background:transparent;border:1px solid rgba(239,68,68,0.2);border-radius:2px;cursor:pointer;">Clear</button>
         <button onclick="cvExport()" style="padding:4px 12px;font:700 11px/1 'Courier New',monospace;color:rgba(78,173,128,0.6);
@@ -2630,6 +2637,109 @@ function switchTab(tab) {
         var ta = document.getElementById('cv-export');
         ta.value = JSON.stringify(out, null, 2);
         ta.style.display = 'block';
+    };
+
+    function _buildExportData() {
+        return {
+            width: parseInt(document.getElementById('cv-width').value),
+            u_height: parseInt(document.getElementById('cv-u-height').value),
+            panel_preset: document.getElementById('cv-texture').value,
+            panel_surface: document.getElementById('cv-panel-texture').value,
+            widgets: _widgets.map(function(w) {
+                var o = { type: w.type, x: w.x, y: w.y, w: w.w, h: w.h };
+                if (w.note) o.note = w.note;
+                if (w.texture) o.texture = w.texture;
+                if (w.wear) o.wear = w.wear;
+                if (w.labels && w.labels.length) o.labels = w.labels;
+                if (w.color) o.color = w.color;
+                return o;
+            })
+        };
+    }
+
+    window.cvSave = function() {
+        var name = document.getElementById('cv-save-name').value.trim();
+        if (!name || !/^[a-z0-9_-]+$/.test(name)) {
+            alert('Unit name must be lowercase letters, numbers, hyphens, underscores.');
+            return;
+        }
+        var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+        var token = csrf ? csrf.value : document.cookie.replace(/.*csrftoken=([^;]*).*/, '$1');
+        fetch('/api/internal/rack-layout/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
+            body: JSON.stringify({ name: name, layout: _buildExportData() })
+        }).then(function(r) { return r.json(); }).then(function(d) {
+            if (d.ok) alert('Saved to ' + d.path);
+            else alert('Error: ' + (d.error || 'unknown'));
+        }).catch(function(e) { alert('Save failed: ' + e); });
+    };
+
+    window.cvLoad = function() {
+        var name = document.getElementById('cv-save-name').value.trim();
+        if (!name || !/^[a-z0-9_-]+$/.test(name)) {
+            alert('Unit name must be lowercase letters, numbers, hyphens, underscores.');
+            return;
+        }
+        fetch('/api/internal/rack-layout/?name=' + encodeURIComponent(name))
+        .then(function(r) { return r.json(); }).then(function(d) {
+            if (d.error) { alert('Error: ' + d.error); return; }
+            var layout = d.layout;
+            // Clear current
+            window.cvClear();
+            // Restore panel settings
+            if (layout.width) { document.getElementById('cv-width').value = layout.width; }
+            if (layout.u_height) { document.getElementById('cv-u-height').value = layout.u_height; }
+            if (layout.panel_preset) { document.getElementById('cv-texture').value = layout.panel_preset; }
+            if (layout.panel_surface) { document.getElementById('cv-panel-texture').value = layout.panel_surface; }
+            window.cvResize();
+            window.cvUpdatePanel();
+            // Place widgets
+            (layout.widgets || []).forEach(function(wd) {
+                var w = placeWidget(wd.type, wd.x, wd.y);
+                if (wd.w) w.w = wd.w;
+                if (wd.h) w.h = wd.h;
+                if (wd.note) w.note = wd.note;
+                if (wd.texture) w.texture = wd.texture;
+                if (wd.wear) w.wear = wd.wear;
+                if (wd.labels) w.labels = wd.labels;
+                if (wd.color) w.color = wd.color;
+                var el = document.getElementById(w.id);
+                if (el) {
+                    el.style.width = w.w + 'px';
+                    el.style.height = w.h + 'px';
+                    // Apply texture/wear
+                    if (w.texture) { el.classList.add(w.texture); el.style.overflow = 'hidden'; }
+                    if (w.wear) { el.classList.add(w.wear); el.style.overflow = 'hidden'; }
+                    // Re-render for color/labels
+                    if (w.color || w.labels) el.innerHTML = renderWidget(w.type, w);
+                    // Re-place dial labels
+                    if (w.labels && w.labels.length) {
+                        var isDial = ['chickenhead-dial', 'knurled-knob', 'smooth-knob'].indexOf(w.type) >= 0;
+                        if (isDial) {
+                            var dialSize = (w.type === 'chickenhead-dial') ? 50 : (w.type === 'knurled-knob' ? 36 : 32);
+                            var cx = w.w / 2;
+                            var cy = (w.type === 'chickenhead-dial') ? (8 + dialSize / 2) : (w.h / 2);
+                            var r = dialSize / 2 + 18;
+                            var startAngle = -90;
+                            var sweep = Math.min(300, w.labels.length * 60);
+                            for (var i = 0; i < w.labels.length; i++) {
+                                var angle = startAngle + (w.labels.length > 1 ? (sweep / (w.labels.length - 1)) * i : 0);
+                                var rad = angle * Math.PI / 180;
+                                var lx = cx + Math.cos(rad) * r;
+                                var ly = cy + Math.sin(rad) * r;
+                                var lbl = document.createElement('div');
+                                lbl.className = 'cv-dial-label';
+                                lbl.style.cssText = 'position:absolute;font:700 10px/1 Courier New,monospace;color:rgba(208,208,200,0.3);white-space:nowrap;' +
+                                    'left:' + lx + 'px;top:' + ly + 'px;transform:translate(-50%,-50%);pointer-events:none;z-index:5;';
+                                lbl.textContent = w.labels[i];
+                                el.appendChild(lbl);
+                            }
+                        }
+                    }
+                }
+            });
+        }).catch(function(e) { alert('Load failed: ' + e); });
     };
 })();
 </script>

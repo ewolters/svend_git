@@ -12,9 +12,11 @@ from django.conf import settings
 from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Avg, Count, F, Q, Sum
 from django.db.models.functions import TruncDate, TruncHour
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import BasePermission, IsAdminUser
 from rest_framework.response import Response
@@ -301,6 +303,41 @@ def dashboard_view(request):
 @user_passes_test(can_access_internal, login_url="/login/")
 def rack_designer_view(request):
     return render(request, "demo/rack-designer.html")
+
+
+@csrf_exempt
+@user_passes_test(can_access_internal, login_url="/login/")
+def rack_layout_api(request):
+    """Save/load rack unit layout JSON to ~/forgerack/units/{name}/layout.json."""
+    import re
+    from pathlib import Path
+
+    RACK_DIR = Path.home() / "forgerack" / "units"
+
+    if request.method == "POST":
+        try:
+            body = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        name = body.get("name", "").strip()
+        if not name or not re.match(r"^[a-z0-9_-]+$", name):
+            return JsonResponse({"error": "Invalid unit name"}, status=400)
+        layout = body.get("layout", {})
+        unit_dir = RACK_DIR / name
+        unit_dir.mkdir(parents=True, exist_ok=True)
+        (unit_dir / "layout.json").write_text(json.dumps(layout, indent=2))
+        return JsonResponse({"ok": True, "path": str(unit_dir / "layout.json")})
+
+    elif request.method == "GET":
+        name = request.GET.get("name", "").strip()
+        if not name or not re.match(r"^[a-z0-9_-]+$", name):
+            return JsonResponse({"error": "Invalid unit name"}, status=400)
+        layout_file = RACK_DIR / name / "layout.json"
+        if not layout_file.exists():
+            return JsonResponse({"error": "No layout found"}, status=404)
+        return JsonResponse({"layout": json.loads(layout_file.read_text())})
+
+    return JsonResponse({"error": "Method not allowed"}, status=405)
 
 
 # ---------------------------------------------------------------------------
