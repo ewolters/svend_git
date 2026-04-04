@@ -359,10 +359,36 @@ function switchTab(tab) {
                         <input id="cv-prop-h" type="number" style="width:50px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);color:#4ade80;padding:3px;font:11px/1 'JetBrains Mono',monospace;border-radius:2px;margin-left:4px;" onchange="cvUpdateProp()">
                     </label>
                     <label style="font:10px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);">Note
-                        <input id="cv-prop-note" type="text" placeholder="annotation..." style="width:200px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);color:#f59e0b;padding:3px;font:11px/1 'JetBrains Mono',monospace;border-radius:2px;margin-left:4px;" onchange="cvUpdateProp()">
+                        <input id="cv-prop-note" type="text" placeholder="annotation..." style="width:160px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);color:#f59e0b;padding:3px;font:11px/1 'JetBrains Mono',monospace;border-radius:2px;margin-left:4px;" onchange="cvUpdateProp()">
                     </label>
                     <button onclick="cvDeleteSelected()" style="padding:3px 10px;font:700 10px/1 'Courier New',monospace;color:rgba(239,68,68,0.6);
                         background:transparent;border:1px solid rgba(239,68,68,0.2);border-radius:2px;cursor:pointer;margin-left:auto;">Delete</button>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px;">
+                    <label style="font:10px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);">Texture
+                        <select id="cv-prop-texture" onchange="cvUpdateProp()" style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);color:#4ade80;padding:3px;font:11px/1 'JetBrains Mono',monospace;border-radius:2px;margin-left:4px;">
+                            <option value="">None</option>
+                            <option value="tex-brushed">Brushed</option>
+                            <option value="tex-brushed-fine">Brushed Fine</option>
+                            <option value="tex-matte">Matte</option>
+                            <option value="tex-mottled">Mottled</option>
+                            <option value="tex-anodized">Anodized</option>
+                            <option value="tex-carbon">Carbon</option>
+                            <option value="tex-tolex">Tolex</option>
+                            <option value="tex-diamond">Diamond</option>
+                            <option value="tex-hammertone">Hammertone</option>
+                            <option value="tex-leather">Leather</option>
+                        </select>
+                    </label>
+                    <label style="font:10px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);">Wear
+                        <select id="cv-prop-wear" onchange="cvUpdateProp()" style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);color:#4ade80;padding:3px;font:11px/1 'JetBrains Mono',monospace;border-radius:2px;margin-left:4px;">
+                            <option value="">None</option>
+                            <option value="wear-scratches">Scratches</option>
+                            <option value="wear-patina">Patina</option>
+                            <option value="wear-dust">Dust</option>
+                            <option value="wear-chips">Chips</option>
+                        </select>
+                    </label>
                 </div>
             </div>
 
@@ -2313,6 +2339,8 @@ function switchTab(tab) {
         document.getElementById('cv-prop-w').value = w.w;
         document.getElementById('cv-prop-h').value = w.h;
         document.getElementById('cv-prop-note').value = w.note || '';
+        document.getElementById('cv-prop-texture').value = w.texture || '';
+        document.getElementById('cv-prop-wear').value = w.wear || '';
     }
 
     function startDrag(e) {
@@ -2399,6 +2427,10 @@ function switchTab(tab) {
     window.cvUpdatePanel = function() {
         var tex = document.getElementById('cv-texture').value;
         panel.style.background = _panels[tex] || _panels.olive;
+        // Apply matte texture to the panel itself
+        var panelTexClasses = ['tex-brushed','tex-brushed-fine','tex-matte','tex-mottled'];
+        panelTexClasses.forEach(function(c) { panel.classList.remove(c); });
+        panel.classList.add('tex-matte');
     };
 
     window.cvUpdateProp = function() {
@@ -2410,11 +2442,24 @@ function switchTab(tab) {
         w.w = parseInt(document.getElementById('cv-prop-w').value) || 40;
         w.h = parseInt(document.getElementById('cv-prop-h').value) || 40;
         w.note = document.getElementById('cv-prop-note').value || '';
+        var newTex = document.getElementById('cv-prop-texture').value || '';
+        var newWear = document.getElementById('cv-prop-wear').value || '';
         var el = document.getElementById(_selected);
         if (el) {
             el.style.left = w.x + 'px'; el.style.top = w.y + 'px';
             el.style.width = w.w + 'px'; el.style.height = w.h + 'px';
+            // Remove old texture/wear classes
+            var texClasses = ['tex-brushed','tex-brushed-fine','tex-matte','tex-mottled','tex-anodized','tex-carbon','tex-tolex','tex-diamond','tex-hammertone','tex-leather'];
+            var wearClasses = ['wear-scratches','wear-patina','wear-dust','wear-chips'];
+            texClasses.concat(wearClasses).forEach(function(c) { el.classList.remove(c); });
+            // Apply new
+            if (newTex) el.classList.add(newTex);
+            if (newWear) el.classList.add(newWear);
+            // Ensure positioned for ::before pseudo
+            if (newTex || newWear) { el.style.overflow = 'hidden'; }
         }
+        w.texture = newTex;
+        w.wear = newWear;
     };
 
     window.cvDeleteSelected = function() {
@@ -2441,7 +2486,11 @@ function switchTab(tab) {
             u_height: parseInt(document.getElementById('cv-u-height').value),
             panel_texture: document.getElementById('cv-texture').value,
             widgets: _widgets.map(function(w) {
-                return { type: w.type, x: w.x, y: w.y, w: w.w, h: w.h, note: w.note };
+                var o = { type: w.type, x: w.x, y: w.y, w: w.w, h: w.h };
+                if (w.note) o.note = w.note;
+                if (w.texture) o.texture = w.texture;
+                if (w.wear) o.wear = w.wear;
+                return o;
             })
         };
         var ta = document.getElementById('cv-export');
