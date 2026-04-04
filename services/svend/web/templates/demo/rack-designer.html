@@ -2212,41 +2212,41 @@ function switchTab(tab) {
 
     // Widget default sizes
     var _defaults = {
-        'chickenhead-dial': { w: 100, h: 90 },
-        'knurled-knob':     { w: 50, h: 50 },
-        'smooth-knob':      { w: 40, h: 40 },
-        'button-square':    { w: 40, h: 40 },
-        'button-backlit':   { w: 32, h: 32 },
-        'toggle':           { w: 24, h: 44 },
-        'rocker':           { w: 20, h: 28 },
-        'led':              { w: 14, h: 14 },
-        'jewel-lamp':       { w: 22, h: 22 },
-        'crt':              { w: 200, h: 120 },
-        'lcd':              { w: 120, h: 44 },
-        'nixie':            { w: 60, h: 40 },
-        'readout':          { w: 80, h: 28 },
-        'gauge':            { w: 90, h: 52 },
-        'vu-meter':         { w: 16, h: 60 },
-        'h-meter':          { w: 140, h: 14 },
-        'fader':            { w: 18, h: 60 },
-        'input-text':       { w: 100, h: 28 },
-        'input-number':     { w: 50, h: 28 },
-        'segment-group':    { w: 120, h: 24 },
-        'stamped-tag':      { w: 80, h: 22 },
-        'nameplate':        { w: 300, h: 30 },
-        'stencil-text':     { w: 60, h: 16 },
-        'silkscreen-text':  { w: 80, h: 16 },
-        'inset-panel':      { w: 160, h: 100 },
-        'raised-plate':     { w: 140, h: 80 },
-        'bezel-frame':      { w: 180, h: 120 },
-        'hex-bolt':         { w: 10, h: 10 },
-        'vent-hex':         { w: 80, h: 50 },
-        'tube':             { w: 30, h: 60 },
-        'thumbwheel':       { w: 22, h: 30 },
-        'banana-post':      { w: 18, h: 18 },
-        'progress-ring':    { w: 50, h: 50 },
-        'carry-handle':     { w: 70, h: 8 },
-        'paper-tape':       { w: 140, h: 80 },
+        'chickenhead-dial': { w: 120, h: 108 },
+        'knurled-knob':     { w: 60, h: 60 },
+        'smooth-knob':      { w: 48, h: 48 },
+        'button-square':    { w: 48, h: 48 },
+        'button-backlit':   { w: 38, h: 38 },
+        'toggle':           { w: 28, h: 52 },
+        'rocker':           { w: 24, h: 34 },
+        'led':              { w: 18, h: 18 },
+        'jewel-lamp':       { w: 26, h: 26 },
+        'crt':              { w: 240, h: 144 },
+        'lcd':              { w: 144, h: 52 },
+        'nixie':            { w: 72, h: 48 },
+        'readout':          { w: 96, h: 34 },
+        'gauge':            { w: 108, h: 62 },
+        'vu-meter':         { w: 20, h: 72 },
+        'h-meter':          { w: 168, h: 18 },
+        'fader':            { w: 22, h: 72 },
+        'input-text':       { w: 120, h: 34 },
+        'input-number':     { w: 60, h: 34 },
+        'segment-group':    { w: 144, h: 30 },
+        'stamped-tag':      { w: 96, h: 26 },
+        'nameplate':        { w: 360, h: 36 },
+        'stencil-text':     { w: 72, h: 20 },
+        'silkscreen-text':  { w: 96, h: 20 },
+        'inset-panel':      { w: 192, h: 120 },
+        'raised-plate':     { w: 168, h: 96 },
+        'bezel-frame':      { w: 216, h: 144 },
+        'hex-bolt':         { w: 16, h: 16 },
+        'vent-hex':         { w: 96, h: 60 },
+        'tube':             { w: 36, h: 72 },
+        'thumbwheel':       { w: 26, h: 36 },
+        'banana-post':      { w: 22, h: 22 },
+        'progress-ring':    { w: 60, h: 60 },
+        'carry-handle':     { w: 84, h: 10 },
+        'paper-tape':       { w: 168, h: 96 },
     };
 
     // Render widget HTML by type
@@ -2324,7 +2324,15 @@ function switchTab(tab) {
                     'background:rgba(163,177,138,0.04);border-radius:8px;padding:2px 8px;">' +
                     '<span style="font:700 10px/1 \'Courier New\',monospace;color:rgba(163,177,138,0.3);text-transform:uppercase;letter-spacing:0.12em;">SECTION</span></div>';
             case 'hex-bolt':
-                return '<div style="width:9px;height:9px;margin:auto;background:radial-gradient(circle at 35% 35%, #5a5e4a, #3a3e2e 40%, #2a2e22 70%, #1e2218);clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>';
+                return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">' +
+                    '<div style="width:14px;height:14px;' +
+                    'background:radial-gradient(circle at 35% 35%, #6a6e5a, #4a4e3e 35%, #3a3e2e 60%, #2a2e22);' +
+                    'clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);' +
+                    'box-shadow: 0 1px 2px rgba(0,0,0,0.4);">' +
+                    '<div style="width:6px;height:6px;margin:4px auto;' +
+                    'background:radial-gradient(circle at 40% 35%, #5a5e4a, #2a2e22);' +
+                    'clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>' +
+                    '</div></div>';
             case 'vent-hex':
                 return '<div style="width:100%;height:100%;border-radius:2px;background:radial-gradient(circle at 50% 50%, #080808 3px, transparent 3px),radial-gradient(circle at 50% 50%, #080808 3px, transparent 3px);background-size: 10px 17.3px;background-position: 0 0, 5px 8.65px;background-color: #1a1c1a;border:1px solid rgba(0,0,0,0.4);box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);"></div>';
             case 'tube':
