@@ -152,15 +152,190 @@ body { background: #111; }
   </defs>
 </svg>
 
-<div style="padding:16px 24px;">
-    <h1 style="font:700 22px/1 'Courier New',monospace;color:rgba(78,173,128,0.6);letter-spacing:0.15em;text-transform:uppercase;margin:0 0 6px;">
-        ForgeRack Widget Board
-    </h1>
-    <p style="font:400 13px/1.4 'Courier New',monospace;color:rgba(255,255,255,0.2);margin:0;">
-        Visual catalog of all widget types, textures, and manufacturer identities. Foundation for the rack unit composer.
-    </p>
+<!-- ══ TAB BAR ══ -->
+<div style="padding:16px 24px 0;display:flex;align-items:flex-end;gap:0;">
+    <button id="tab-board" onclick="switchTab('board')" style="
+        padding:8px 20px;font:700 13px/1 'Courier New',monospace;color:rgba(78,173,128,0.6);
+        background:#1a1a1a;border:1px solid rgba(78,173,128,0.15);border-bottom:none;
+        border-radius:4px 4px 0 0;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;
+    ">Board</button>
+    <button id="tab-canvas" onclick="switchTab('canvas')" style="
+        padding:8px 20px;font:700 13px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);
+        background:transparent;border:1px solid transparent;border-bottom:none;
+        border-radius:4px 4px 0 0;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;
+    ">Canvas</button>
+    <div style="flex:1;border-bottom:1px solid rgba(78,173,128,0.15);"></div>
 </div>
 
+<script>
+function switchTab(tab) {
+    document.getElementById('panel-board').style.display = tab === 'board' ? 'block' : 'none';
+    document.getElementById('panel-canvas').style.display = tab === 'canvas' ? 'block' : 'none';
+    document.getElementById('tab-board').style.background = tab === 'board' ? '#1a1a1a' : 'transparent';
+    document.getElementById('tab-board').style.color = tab === 'board' ? 'rgba(78,173,128,0.6)' : 'rgba(255,255,255,0.2)';
+    document.getElementById('tab-board').style.borderColor = tab === 'board' ? 'rgba(78,173,128,0.15)' : 'transparent';
+    document.getElementById('tab-canvas').style.background = tab === 'canvas' ? '#1a1a1a' : 'transparent';
+    document.getElementById('tab-canvas').style.color = tab === 'canvas' ? 'rgba(78,173,128,0.6)' : 'rgba(255,255,255,0.2)';
+    document.getElementById('tab-canvas').style.borderColor = tab === 'canvas' ? 'rgba(78,173,128,0.15)' : 'transparent';
+}
+</script>
+
+<!-- ══ CANVAS PANEL ══ -->
+<div id="panel-canvas" style="display:none;padding:16px 24px;">
+
+    <!-- Toolbar -->
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+        <!-- U-height selector -->
+        <span style="font:700 11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);">Height:</span>
+        <select id="cv-u-height" onchange="cvResize()" style="
+            background:#1a1a1a;border:1px solid rgba(78,173,128,0.2);color:rgba(78,173,128,0.6);
+            padding:4px 8px;font:11px/1 'Courier New',monospace;border-radius:2px;">
+            <option value="2">2U (84px)</option>
+            <option value="3">3U (126px)</option>
+            <option value="4" selected>4U (168px)</option>
+            <option value="5">5U (210px)</option>
+            <option value="6">6U (252px)</option>
+            <option value="8">8U (336px)</option>
+            <option value="10">10U (420px)</option>
+            <option value="11">11U (462px)</option>
+            <option value="12">12U (504px)</option>
+        </select>
+
+        <div style="width:1px;height:20px;background:rgba(255,255,255,0.06);margin:0 4px;"></div>
+
+        <!-- Snap grid -->
+        <span style="font:700 11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);">Snap:</span>
+        <select id="cv-snap" style="
+            background:#1a1a1a;border:1px solid rgba(78,173,128,0.2);color:rgba(78,173,128,0.6);
+            padding:4px 8px;font:11px/1 'Courier New',monospace;border-radius:2px;">
+            <option value="1">1px</option>
+            <option value="4" selected>4px</option>
+            <option value="8">8px</option>
+            <option value="16">16px</option>
+        </select>
+
+        <div style="width:1px;height:20px;background:rgba(255,255,255,0.06);margin:0 4px;"></div>
+
+        <!-- Texture selector -->
+        <span style="font:700 11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);">Panel:</span>
+        <select id="cv-texture" onchange="cvUpdatePanel()" style="
+            background:#1a1a1a;border:1px solid rgba(78,173,128,0.2);color:rgba(78,173,128,0.6);
+            padding:4px 8px;font:11px/1 'Courier New',monospace;border-radius:2px;">
+            <option value="olive">Olive (Kosmos)</option>
+            <option value="dark">Dark (Steelwerk)</option>
+            <option value="warm">Warm (Meridian)</option>
+            <option value="clinical">Clinical (Klinisch)</option>
+            <option value="burgundy">Burgundy (Vakuum)</option>
+            <option value="black">Black (Tektronix)</option>
+        </select>
+
+        <div style="width:1px;height:20px;background:rgba(255,255,255,0.06);margin:0 4px;"></div>
+
+        <!-- Actions -->
+        <button onclick="cvClear()" style="padding:4px 12px;font:700 11px/1 'Courier New',monospace;color:rgba(239,68,68,0.5);
+            background:transparent;border:1px solid rgba(239,68,68,0.2);border-radius:2px;cursor:pointer;">Clear</button>
+        <button onclick="cvExport()" style="padding:4px 12px;font:700 11px/1 'Courier New',monospace;color:rgba(78,173,128,0.6);
+            background:transparent;border:1px solid rgba(78,173,128,0.2);border-radius:2px;cursor:pointer;">Export JSON</button>
+    </div>
+
+    <!-- Layout: palette + canvas -->
+    <div style="display:flex;gap:16px;">
+
+        <!-- Widget palette -->
+        <div id="cv-palette" style="width:140px;flex-shrink:0;display:flex;flex-direction:column;gap:2px;
+            background:#141414;border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:8px;
+            max-height:520px;overflow-y:auto;">
+            <div style="font:700 10px/1 'Courier New',monospace;color:rgba(255,255,255,0.25);text-transform:uppercase;
+                letter-spacing:0.1em;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;">Widgets</div>
+
+            <div class="cv-pal-item" draggable="true" data-widget="chickenhead-dial" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Chickenhead Dial</div>
+            <div class="cv-pal-item" draggable="true" data-widget="knurled-knob" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Knurled Knob</div>
+            <div class="cv-pal-item" draggable="true" data-widget="smooth-knob" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Smooth Knob</div>
+            <div class="cv-pal-item" draggable="true" data-widget="button-square" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Square Button</div>
+            <div class="cv-pal-item" draggable="true" data-widget="button-backlit" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Backlit Button</div>
+            <div class="cv-pal-item" draggable="true" data-widget="toggle" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Toggle Switch</div>
+            <div class="cv-pal-item" draggable="true" data-widget="rocker" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Rocker Switch</div>
+            <div class="cv-pal-item" draggable="true" data-widget="led" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">LED</div>
+            <div class="cv-pal-item" draggable="true" data-widget="jewel-lamp" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Jewel Lamp</div>
+            <div class="cv-pal-item" draggable="true" data-widget="crt" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">CRT Screen</div>
+            <div class="cv-pal-item" draggable="true" data-widget="lcd" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">LCD Display</div>
+            <div class="cv-pal-item" draggable="true" data-widget="nixie" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Nixie Tube</div>
+            <div class="cv-pal-item" draggable="true" data-widget="readout" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">7-Seg Readout</div>
+            <div class="cv-pal-item" draggable="true" data-widget="gauge" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Needle Gauge</div>
+            <div class="cv-pal-item" draggable="true" data-widget="vu-meter" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">VU Meter</div>
+            <div class="cv-pal-item" draggable="true" data-widget="h-meter" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Horiz Meter</div>
+            <div class="cv-pal-item" draggable="true" data-widget="fader" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Fader</div>
+            <div class="cv-pal-item" draggable="true" data-widget="input-text" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Text Input</div>
+            <div class="cv-pal-item" draggable="true" data-widget="input-number" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Number Input</div>
+            <div class="cv-pal-item" draggable="true" data-widget="segment-group" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Segment Group</div>
+            <div class="cv-pal-item" draggable="true" data-widget="stamped-tag" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Stamped Tag</div>
+            <div class="cv-pal-item" draggable="true" data-widget="nameplate" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Nameplate</div>
+            <div class="cv-pal-item" draggable="true" data-widget="hex-bolt" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Hex Bolt</div>
+            <div class="cv-pal-item" draggable="true" data-widget="vent-hex" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Vent Grille</div>
+            <div class="cv-pal-item" draggable="true" data-widget="tube" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Vacuum Tube</div>
+            <div class="cv-pal-item" draggable="true" data-widget="thumbwheel" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Thumbwheel</div>
+            <div class="cv-pal-item" draggable="true" data-widget="banana-post" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Banana Post</div>
+            <div class="cv-pal-item" draggable="true" data-widget="progress-ring" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Progress Ring</div>
+            <div class="cv-pal-item" draggable="true" data-widget="carry-handle" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Carry Handle</div>
+            <div class="cv-pal-item" draggable="true" data-widget="paper-tape" style="padding:6px;cursor:grab;font:11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);border-radius:2px;">Paper Tape</div>
+        </div>
+
+        <!-- Canvas area -->
+        <div style="flex:1;position:relative;">
+            <!-- The panel surface -->
+            <div id="cv-panel" style="
+                position:relative;width:690px;height:168px;
+                background:
+                    radial-gradient(ellipse at 30% 40%, rgba(163,177,138,0.01), transparent 50%),
+                    linear-gradient(165deg, #2a2e22 0%, #242820 30%, #282c24 50%, #1e2218 80%);
+                border:1px solid rgba(255,255,255,0.08);border-radius:2px;
+                overflow:hidden;
+            ">
+                <!-- Grid overlay -->
+                <div id="cv-grid" style="position:absolute;inset:0;pointer-events:none;
+                    background:
+                        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+                    background-size: 42px 42px;z-index:100;"></div>
+
+                <!-- Placed widgets render here -->
+            </div>
+
+            <!-- Properties panel (shows when widget selected) -->
+            <div id="cv-props" style="display:none;margin-top:12px;padding:12px;
+                background:#141414;border:1px solid rgba(255,255,255,0.06);border-radius:4px;">
+                <div style="font:700 11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);margin-bottom:8px;">PROPERTIES</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <label style="font:10px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);">X
+                        <input id="cv-prop-x" type="number" style="width:50px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);color:#4ade80;padding:3px;font:11px/1 'JetBrains Mono',monospace;border-radius:2px;margin-left:4px;" onchange="cvUpdateProp()">
+                    </label>
+                    <label style="font:10px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);">Y
+                        <input id="cv-prop-y" type="number" style="width:50px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);color:#4ade80;padding:3px;font:11px/1 'JetBrains Mono',monospace;border-radius:2px;margin-left:4px;" onchange="cvUpdateProp()">
+                    </label>
+                    <label style="font:10px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);">W
+                        <input id="cv-prop-w" type="number" style="width:50px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);color:#4ade80;padding:3px;font:11px/1 'JetBrains Mono',monospace;border-radius:2px;margin-left:4px;" onchange="cvUpdateProp()">
+                    </label>
+                    <label style="font:10px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);">H
+                        <input id="cv-prop-h" type="number" style="width:50px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);color:#4ade80;padding:3px;font:11px/1 'JetBrains Mono',monospace;border-radius:2px;margin-left:4px;" onchange="cvUpdateProp()">
+                    </label>
+                    <label style="font:10px/1 'Courier New',monospace;color:rgba(255,255,255,0.2);">Note
+                        <input id="cv-prop-note" type="text" placeholder="annotation..." style="width:200px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);color:#f59e0b;padding:3px;font:11px/1 'JetBrains Mono',monospace;border-radius:2px;margin-left:4px;" onchange="cvUpdateProp()">
+                    </label>
+                    <button onclick="cvDeleteSelected()" style="padding:3px 10px;font:700 10px/1 'Courier New',monospace;color:rgba(239,68,68,0.6);
+                        background:transparent;border:1px solid rgba(239,68,68,0.2);border-radius:2px;cursor:pointer;margin-left:auto;">Delete</button>
+                </div>
+            </div>
+
+            <!-- Export output -->
+            <textarea id="cv-export" style="display:none;margin-top:12px;width:100%;height:200px;
+                background:#0a0a0a;border:1px solid rgba(78,173,128,0.2);color:rgba(78,173,128,0.5);
+                padding:12px;font:11px/1.4 'JetBrains Mono',monospace;border-radius:4px;resize:vertical;"></textarea>
+        </div>
+    </div>
+</div>
+
+<!-- ══ BOARD PANEL ══ -->
+<div id="panel-board" style="padding:0 24px 24px;">
 <div class="wb-grid">
 
 <!-- ═══════════════ INTERACTIVE CONTROLS ═══════════════ -->
@@ -1911,4 +2086,296 @@ body { background: #111; }
 </div>
 
 </div>
+</div><!-- /panel-board -->
+
+<script>
+(function() {
+    'use strict';
+
+    var _widgets = [];
+    var _selected = null;
+    var _dragging = null;
+    var _dragOffset = { x: 0, y: 0 };
+    var _counter = 0;
+
+    // Panel backgrounds per texture preset
+    var _panels = {
+        olive:    'radial-gradient(ellipse at 30% 40%, rgba(163,177,138,0.01), transparent 50%), linear-gradient(165deg, #2a2e22 0%, #242820 30%, #282c24 50%, #1e2218 80%)',
+        dark:     'linear-gradient(160deg, #141714, #111411 40%, #0e110e)',
+        warm:     'linear-gradient(160deg, #2a2720, #252218 40%, #201e16)',
+        clinical: 'linear-gradient(160deg, #4a5040, #454a3c 40%, #3f4438)',
+        burgundy: 'linear-gradient(165deg, #1a1410, #161210 40%, #121010)',
+        black:    'linear-gradient(160deg, #0e100e, #0b0d0b 40%, #080a08)',
+    };
+
+    // Widget default sizes
+    var _defaults = {
+        'chickenhead-dial': { w: 100, h: 90 },
+        'knurled-knob':     { w: 50, h: 50 },
+        'smooth-knob':      { w: 40, h: 40 },
+        'button-square':    { w: 40, h: 40 },
+        'button-backlit':   { w: 32, h: 32 },
+        'toggle':           { w: 24, h: 44 },
+        'rocker':           { w: 20, h: 28 },
+        'led':              { w: 14, h: 14 },
+        'jewel-lamp':       { w: 22, h: 22 },
+        'crt':              { w: 200, h: 120 },
+        'lcd':              { w: 120, h: 44 },
+        'nixie':            { w: 60, h: 40 },
+        'readout':          { w: 80, h: 28 },
+        'gauge':            { w: 90, h: 52 },
+        'vu-meter':         { w: 16, h: 60 },
+        'h-meter':          { w: 140, h: 14 },
+        'fader':            { w: 18, h: 60 },
+        'input-text':       { w: 100, h: 28 },
+        'input-number':     { w: 50, h: 28 },
+        'segment-group':    { w: 120, h: 24 },
+        'stamped-tag':      { w: 80, h: 22 },
+        'nameplate':        { w: 300, h: 30 },
+        'hex-bolt':         { w: 10, h: 10 },
+        'vent-hex':         { w: 80, h: 50 },
+        'tube':             { w: 30, h: 60 },
+        'thumbwheel':       { w: 22, h: 30 },
+        'banana-post':      { w: 18, h: 18 },
+        'progress-ring':    { w: 50, h: 50 },
+        'carry-handle':     { w: 70, h: 8 },
+        'paper-tape':       { w: 140, h: 80 },
+    };
+
+    // Render widget HTML by type
+    function renderWidget(type) {
+        switch (type) {
+            case 'chickenhead-dial':
+                return '<div style="position:relative;width:50px;height:50px;margin:8px auto 0;">' +
+                    '<div style="position:absolute;inset:-3px;border-radius:50%;background:#141810;box-shadow:inset 0 2px 5px rgba(0,0,0,0.6);"></div>' +
+                    '<div style="position:absolute;inset:4px;border-radius:50%;background:radial-gradient(circle at 38% 34%, rgba(255,240,215,0.07), transparent 45%),radial-gradient(circle, #222220 0%, #1a1a18 50%, #121210 100%);border:2px solid #0a0a08;box-shadow: 0 3px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,240,215,0.04);"></div>' +
+                    '<div style="position:absolute;top:-1px;left:50%;transform:translateX(-50%);width:10px;height:16px;background:linear-gradient(180deg, #1e1e1c, #141412 60%, #1a1a18);clip-path:polygon(50% 0%, 95% 70%, 80% 100%, 20% 100%, 5% 70%);"></div>' +
+                    '<div style="position:absolute;top:1px;left:50%;transform:translateX(-50%);width:1.5px;height:11px;background:#d0d0c8;border-radius:0.5px;box-shadow:0 0 2px rgba(208,208,200,0.4);"></div>' +
+                    '<div style="position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);width:12px;height:8px;background:linear-gradient(0deg, #1a1a18, #1e1e1c 60%, #141412);border-radius:0 0 3px 3px;border:2px solid #0a0a08;border-top:none;"></div>' +
+                    '</div>';
+            case 'knurled-knob':
+                return '<div style="position:relative;width:36px;height:36px;margin:auto;">' +
+                    '<div style="position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(from 0deg, #2e2e2c 0deg 10deg, #1a1a18 10deg 20deg);box-shadow: 0 3px 6px rgba(0,0,0,0.6);"></div>' +
+                    '<div style="position:absolute;inset:4px;border-radius:50%;background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.15), transparent 45%), radial-gradient(circle at 60% 70%, rgba(0,0,0,0.15), transparent 50%), #3aaa5a;border:1px solid rgba(0,0,0,0.4);box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"></div>' +
+                    '<div style="position:absolute;top:3px;left:50%;transform:translateX(-50%);width:2px;height:10px;border-radius:1px;background:#d0d0c8;box-shadow: 0 0 2px rgba(255,255,255,0.3);"></div>' +
+                    '</div>';
+            case 'button-square':
+                return '<div style="width:40px;height:40px;margin:auto;background:radial-gradient(circle at 50% 45%, #2a2a28, #1a1a18 50%, #0e0e0c);border:2px solid #0a0a08;border-radius:3px;box-shadow: 0 3px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,240,215,0.04), inset 0 -2px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:rgba(163,177,138,0.4);font:700 14px/1 sans-serif;">&#x25B6;</div>';
+            case 'button-backlit':
+                return '<div style="width:28px;height:28px;margin:auto;border:none;border-radius:2px;background:linear-gradient(180deg, #2e502e, #1e3a1e 30%, #163016 70%, #123012);box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 1px 0 rgba(100,255,100,0.06), 0 0 0 1px rgba(0,0,0,0.6), 0 0 8px rgba(78,173,128,0.15);display:flex;align-items:center;justify-content:center;font:700 9px/1 monospace;color:rgba(120,220,140,0.7);text-shadow: 0 0 4px rgba(78,173,128,0.5);">ON</div>';
+            case 'toggle':
+                return '<div style="position:relative;width:20px;height:40px;margin:auto;">' +
+                    '<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:18px;height:14px;border-radius:2px;background:linear-gradient(180deg, #505050, #3e3e3c 30%, #2e2e2c 70%, #242422);border:1px solid rgba(0,0,0,0.5);box-shadow: 0 1px 3px rgba(0,0,0,0.4);"></div>' +
+                    '<div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:4px;height:24px;background:linear-gradient(90deg, #5a5a58, #787876 20%, #9a9a98 40%, #b0b0ae 50%, #9a9a98 60%, #787876 80%, #5a5a58);border-radius:2px;box-shadow: 0 -2px 4px rgba(0,0,0,0.3);"></div>' +
+                    '<div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:8px;height:10px;background:radial-gradient(circle at 40% 30%, rgba(255,255,255,0.15), transparent 50%),linear-gradient(180deg, #a8a8a6, #8a8a88 40%, #6a6a68 80%, #5a5a58);border-radius:4px 4px 3px 3px;box-shadow: 0 -1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2);"></div>' +
+                    '</div>';
+            case 'led':
+                return '<div style="margin:auto;" class="led-housing"><span class="led green"></span></div>';
+            case 'jewel-lamp':
+                return '<div style="position:relative;width:18px;height:18px;margin:auto;"><div style="position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(from 135deg, #5a5a58, #9a9a98, #b0b0ae, #9a9a98, #5a5a58, #4a4a48, #5a5a58);box-shadow: 0 1px 3px rgba(0,0,0,0.5);"></div><div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.3), transparent 50%),radial-gradient(circle, #40e870, #20b050 50%, #108030);box-shadow: 0 0 8px rgba(64,232,112,0.4), inset 0 -2px 3px rgba(0,0,0,0.3);"></div></div>';
+            case 'crt':
+                return '<div class="frame-bezel tex-matte" style="height:100%;padding:4px;position:relative;overflow:hidden;background: linear-gradient(145deg, #343830 0%, #282c24 20%, #1e221a 80%, #161a12 100%);border-radius:3px;box-shadow: 0 3px 6px rgba(0,0,0,0.5);">' +
+                    '<div style="height:100%;border-radius:2px;position:relative;overflow:hidden;background:#010301;border:2px solid #000;box-shadow: inset 0 3px 12px rgba(0,0,0,0.8);">' +
+                    '<div style="position:absolute;inset:0;background:repeating-linear-gradient(180deg, transparent, transparent 2px, rgba(163,177,138,0.005) 2px, rgba(163,177,138,0.005) 4px);pointer-events:none;"></div>' +
+                    '<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%, rgba(163,177,138,0.012), transparent 65%);pointer-events:none;"></div>' +
+                    '<div style="padding:8px;font:11px/1.5 monospace;color:rgba(163,177,138,0.2);text-shadow: 0 0 3px currentColor;">CRT_</div>' +
+                    '</div></div>';
+            case 'lcd':
+                return '<div style="height:100%;background:linear-gradient(180deg, #9aaa8a, #8a9a7a);border:2px solid #2a2a2a;border-radius:2px;box-shadow: inset 0 1px 3px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:flex-end;padding:0 8px;position:relative;">' +
+                    '<span style="font:300 22px/1 monospace;color:rgba(40,50,35,0.08);position:absolute;right:8px;">888.88</span>' +
+                    '<span style="font:700 22px/1 monospace;color:#0a1208;position:relative;">—</span></div>';
+            case 'readout':
+                return '<div class="readout" style="width:100%;text-align:center;">0.00</div>';
+            case 'stamped-tag':
+                return '<div class="tex-matte" style="display:inline-flex;align-items:center;gap:4px;position:relative;overflow:hidden;background:linear-gradient(180deg, #58585a, #48484a);border:1px solid rgba(0,0,0,0.4);border-radius:1px;padding:4px 14px;box-shadow: 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,240,215,0.05);margin:auto;">' +
+                    '<div style="width:3px;height:3px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #707072, #3a3a3c);"></div>' +
+                    '<span style="font:700 10px/1 monospace;color:rgba(208,208,200,0.45);text-transform:uppercase;letter-spacing:0.1em;text-shadow: 0 -0.5px 0 rgba(0,0,0,0.25), 0 0.5px 0 rgba(255,240,215,0.08);">LABEL</span>' +
+                    '<div style="width:3px;height:3px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #707072, #3a3a3c);"></div></div>';
+            case 'hex-bolt':
+                return '<div style="width:9px;height:9px;margin:auto;background:radial-gradient(circle at 35% 35%, #5a5e4a, #3a3e2e 40%, #2a2e22 70%, #1e2218);clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>';
+            case 'vent-hex':
+                return '<div style="width:100%;height:100%;border-radius:2px;background:radial-gradient(circle at 50% 50%, #080808 3px, transparent 3px),radial-gradient(circle at 50% 50%, #080808 3px, transparent 3px);background-size: 10px 17.3px;background-position: 0 0, 5px 8.65px;background-color: #1a1c1a;border:1px solid rgba(0,0,0,0.4);box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);"></div>';
+            case 'tube':
+                return '<div style="position:relative;width:28px;height:56px;margin:auto;">' +
+                    '<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:24px;height:12px;border-radius:2px 2px 4px 4px;background:linear-gradient(180deg, #2a2826, #1e1c1a 40%, #161412);border:1px solid rgba(0,0,0,0.5);"></div>' +
+                    '<div style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:12px;height:28px;background:linear-gradient(180deg, rgba(80,70,60,0.3), rgba(60,50,40,0.5) 40%, rgba(80,70,60,0.3));border-radius:1px;"></div>' +
+                    '<div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:20px;height:20px;border-radius:50%;background:radial-gradient(circle, rgba(255,140,40,0.25), rgba(255,100,20,0.08) 50%, transparent 70%);"></div>' +
+                    '<div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:22px;height:46px;border-radius:11px 11px 4px 4px;background:linear-gradient(160deg, rgba(255,240,215,0.04), transparent 30%);border:1px solid rgba(255,240,215,0.06);box-shadow: inset 0 0 8px rgba(255,140,40,0.04), 0 0 6px rgba(255,140,40,0.06);"></div>' +
+                    '<div style="position:absolute;top:4px;left:8px;width:2px;height:30px;border-radius:1px;background:linear-gradient(180deg, rgba(255,240,215,0.08), transparent 40%);"></div>' +
+                    '</div>';
+            case 'input-text':
+                return '<input type="text" value="factor" style="width:100%;height:100%;background:#080a06;border:2px solid #0a0a08;color:#a3b18a;padding:5px 6px;border-radius:2px;font:11px/1 monospace;box-shadow:inset 0 2px 4px rgba(0,0,0,0.5);box-sizing:border-box;">';
+            case 'input-number':
+                return '<input type="number" value="20" style="width:100%;height:100%;background:#080a06;border:2px solid #0a0a08;color:#a3b18a;padding:5px 6px;border-radius:2px;text-align:center;font:11px/1 monospace;box-shadow:inset 0 2px 4px rgba(0,0,0,0.5);box-sizing:border-box;">';
+            default:
+                return '<div style="width:100%;height:100%;background:rgba(78,173,128,0.06);border:1px dashed rgba(78,173,128,0.2);border-radius:2px;display:flex;align-items:center;justify-content:center;font:10px/1 monospace;color:rgba(78,173,128,0.3);">' + type + '</div>';
+        }
+    }
+
+    function snap(v) {
+        var s = parseInt(document.getElementById('cv-snap').value) || 4;
+        return Math.round(v / s) * s;
+    }
+
+    function placeWidget(type, x, y) {
+        var d = _defaults[type] || { w: 60, h: 40 };
+        var id = 'cw-' + (++_counter);
+        var w = { id: id, type: type, x: snap(x), y: snap(y), w: d.w, h: d.h, note: '' };
+        _widgets.push(w);
+
+        var el = document.createElement('div');
+        el.id = id;
+        el.dataset.cwIdx = _widgets.length - 1;
+        el.style.cssText = 'position:absolute;left:' + w.x + 'px;top:' + w.y + 'px;width:' + w.w + 'px;height:' + w.h + 'px;cursor:move;z-index:10;outline:1px solid transparent;';
+        el.innerHTML = renderWidget(type);
+        el.addEventListener('mousedown', startDrag);
+        el.addEventListener('click', function(e) { e.stopPropagation(); selectWidget(w.id); });
+
+        document.getElementById('cv-panel').appendChild(el);
+        selectWidget(id);
+        return w;
+    }
+
+    function selectWidget(id) {
+        // Deselect previous
+        if (_selected) {
+            var prev = document.getElementById(_selected);
+            if (prev) prev.style.outline = '1px solid transparent';
+        }
+        _selected = id;
+        var el = document.getElementById(id);
+        if (el) el.style.outline = '1px solid rgba(78,173,128,0.5)';
+
+        var w = _widgets.find(function(w) { return w.id === id; });
+        if (!w) return;
+
+        document.getElementById('cv-props').style.display = 'block';
+        document.getElementById('cv-prop-x').value = w.x;
+        document.getElementById('cv-prop-y').value = w.y;
+        document.getElementById('cv-prop-w').value = w.w;
+        document.getElementById('cv-prop-h').value = w.h;
+        document.getElementById('cv-prop-note').value = w.note || '';
+    }
+
+    function startDrag(e) {
+        var el = e.currentTarget;
+        var w = _widgets.find(function(w) { return w.id === el.id; });
+        if (!w) return;
+        _dragging = w;
+        var rect = el.getBoundingClientRect();
+        _dragOffset.x = e.clientX - rect.left;
+        _dragOffset.y = e.clientY - rect.top;
+        e.preventDefault();
+    }
+
+    document.addEventListener('mousemove', function(e) {
+        if (!_dragging) return;
+        var panel = document.getElementById('cv-panel');
+        var pr = panel.getBoundingClientRect();
+        var nx = snap(e.clientX - pr.left - _dragOffset.x);
+        var ny = snap(e.clientY - pr.top - _dragOffset.y);
+        _dragging.x = Math.max(0, Math.min(nx, panel.offsetWidth - _dragging.w));
+        _dragging.y = Math.max(0, Math.min(ny, panel.offsetHeight - _dragging.h));
+        var el = document.getElementById(_dragging.id);
+        if (el) { el.style.left = _dragging.x + 'px'; el.style.top = _dragging.y + 'px'; }
+        // Update props if selected
+        if (_selected === _dragging.id) {
+            document.getElementById('cv-prop-x').value = _dragging.x;
+            document.getElementById('cv-prop-y').value = _dragging.y;
+        }
+    });
+
+    document.addEventListener('mouseup', function() { _dragging = null; });
+
+    // Palette drag
+    document.querySelectorAll('.cv-pal-item').forEach(function(item) {
+        item.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('widget-type', item.dataset.widget);
+        });
+        item.addEventListener('mouseenter', function() { item.style.background = 'rgba(78,173,128,0.08)'; });
+        item.addEventListener('mouseleave', function() { item.style.background = 'transparent'; });
+    });
+
+    var panel = document.getElementById('cv-panel');
+    panel.addEventListener('dragover', function(e) { e.preventDefault(); });
+    panel.addEventListener('drop', function(e) {
+        e.preventDefault();
+        var type = e.dataTransfer.getData('widget-type');
+        if (!type) return;
+        var pr = panel.getBoundingClientRect();
+        var d = _defaults[type] || { w: 60, h: 40 };
+        placeWidget(type, e.clientX - pr.left - d.w / 2, e.clientY - pr.top - d.h / 2);
+    });
+
+    // Click panel to deselect
+    panel.addEventListener('click', function(e) {
+        if (e.target === panel || e.target.id === 'cv-grid') {
+            if (_selected) {
+                var prev = document.getElementById(_selected);
+                if (prev) prev.style.outline = '1px solid transparent';
+            }
+            _selected = null;
+            document.getElementById('cv-props').style.display = 'none';
+        }
+    });
+
+    // Global functions
+    window.cvResize = function() {
+        var u = parseInt(document.getElementById('cv-u-height').value);
+        panel.style.height = (u * 42) + 'px';
+    };
+
+    window.cvUpdatePanel = function() {
+        var tex = document.getElementById('cv-texture').value;
+        panel.style.background = _panels[tex] || _panels.olive;
+    };
+
+    window.cvUpdateProp = function() {
+        if (!_selected) return;
+        var w = _widgets.find(function(w) { return w.id === _selected; });
+        if (!w) return;
+        w.x = parseInt(document.getElementById('cv-prop-x').value) || 0;
+        w.y = parseInt(document.getElementById('cv-prop-y').value) || 0;
+        w.w = parseInt(document.getElementById('cv-prop-w').value) || 40;
+        w.h = parseInt(document.getElementById('cv-prop-h').value) || 40;
+        w.note = document.getElementById('cv-prop-note').value || '';
+        var el = document.getElementById(_selected);
+        if (el) {
+            el.style.left = w.x + 'px'; el.style.top = w.y + 'px';
+            el.style.width = w.w + 'px'; el.style.height = w.h + 'px';
+        }
+    };
+
+    window.cvDeleteSelected = function() {
+        if (!_selected) return;
+        var el = document.getElementById(_selected);
+        if (el) el.remove();
+        _widgets = _widgets.filter(function(w) { return w.id !== _selected; });
+        _selected = null;
+        document.getElementById('cv-props').style.display = 'none';
+    };
+
+    window.cvClear = function() {
+        _widgets.forEach(function(w) { var el = document.getElementById(w.id); if (el) el.remove(); });
+        _widgets = [];
+        _selected = null;
+        _counter = 0;
+        document.getElementById('cv-props').style.display = 'none';
+        document.getElementById('cv-export').style.display = 'none';
+    };
+
+    window.cvExport = function() {
+        var out = {
+            u_height: parseInt(document.getElementById('cv-u-height').value),
+            panel_texture: document.getElementById('cv-texture').value,
+            widgets: _widgets.map(function(w) {
+                return { type: w.type, x: w.x, y: w.y, w: w.w, h: w.h, note: w.note };
+            })
+        };
+        var ta = document.getElementById('cv-export');
+        ta.value = JSON.stringify(out, null, 2);
+        ta.style.display = 'block';
+    };
+})();
+</script>
 {% endblock %}
