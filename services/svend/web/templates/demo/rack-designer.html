@@ -238,6 +238,19 @@ function switchTab(tab) {
             <option value="black">Black (Tektronix)</option>
         </select>
 
+        <!-- Panel texture -->
+        <span style="font:700 11px/1 'Courier New',monospace;color:rgba(255,255,255,0.3);">Surface:</span>
+        <select id="cv-panel-texture" onchange="cvUpdatePanel()" style="
+            background:#1a1a1a;border:1px solid rgba(78,173,128,0.2);color:rgba(78,173,128,0.6);
+            padding:4px 8px;font:11px/1 'Courier New',monospace;border-radius:2px;">
+            <option value="tex-matte" selected>Matte</option>
+            <option value="tex-brushed">Brushed</option>
+            <option value="tex-brushed-fine">Brushed Fine</option>
+            <option value="tex-mottled">Mottled</option>
+            <option value="tex-hammertone">Hammertone</option>
+            <option value="">None</option>
+        </select>
+
         <div style="width:1px;height:20px;background:rgba(255,255,255,0.06);margin:0 4px;"></div>
 
         <!-- Actions -->
@@ -2437,12 +2450,12 @@ function switchTab(tab) {
     };
 
     window.cvUpdatePanel = function() {
-        var tex = document.getElementById('cv-texture').value;
-        panel.style.background = _panels[tex] || _panels.olive;
-        // Apply matte texture to the panel itself
-        var panelTexClasses = ['tex-brushed','tex-brushed-fine','tex-matte','tex-mottled'];
+        var preset = document.getElementById('cv-texture').value;
+        var surface = document.getElementById('cv-panel-texture').value;
+        panel.style.background = _panels[preset] || _panels.olive;
+        var panelTexClasses = ['tex-brushed','tex-brushed-fine','tex-matte','tex-mottled','tex-hammertone'];
         panelTexClasses.forEach(function(c) { panel.classList.remove(c); });
-        panel.classList.add('tex-matte');
+        if (surface) panel.classList.add(surface);
     };
 
     window.cvUpdateProp = function() {
@@ -2530,7 +2543,8 @@ function switchTab(tab) {
         var out = {
             width: parseInt(document.getElementById('cv-width').value),
             u_height: parseInt(document.getElementById('cv-u-height').value),
-            panel_texture: document.getElementById('cv-texture').value,
+            panel_preset: document.getElementById('cv-texture').value,
+            panel_surface: document.getElementById('cv-panel-texture').value,
             widgets: _widgets.map(function(w) {
                 var o = { type: w.type, x: w.x, y: w.y, w: w.w, h: w.h };
                 if (w.note) o.note = w.note;
