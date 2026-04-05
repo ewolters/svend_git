@@ -3295,6 +3295,413 @@ def forge_nominal_logistic(df, config):
 
 
 # =============================================================================
+# Dunnett's Test (vs Control)
+# =============================================================================
+
+
+def forge_dunnett(df, config):
+    """Dunnett's test via forgestat."""
+    from forgestat.posthoc.comparisons import dunnett
+    from forgeviz.charts.generic import bar
+
+    response = config.get("response") or config.get("var")
+    factor = config.get("factor") or config.get("group_var")
+    control = config.get("control")
+    alpha = _alpha(config)
+
+    if not response or not factor:
+        raise ValueError("Dunnett's test requires response and factor")
+
+    data = df[[response, factor]].dropna()
+    levels = sorted(data[factor].unique().tolist(), key=str)
+
+    if control is None or control not in levels:
+        control = levels[0]
+
+    control_data = pd.to_numeric(data[data[factor] == control][response], errors="coerce").dropna().values
+    treatments = [lev for lev in levels if lev != control]
+    treatment_data = [
+        pd.to_numeric(data[data[factor] == lev][response], errors="coerce").dropna().values for lev in treatments
+    ]
+
+    result = dunnett(
+        control_data,
+        *treatment_data,
+        control_name=str(control),
+        treatment_names=[str(t) for t in treatments],
+        alpha=alpha,
+    )
+
+    # Build comparisons from result
+    comparisons = []
+    for comp in result.comparisons:
+        comparisons.append(
+            {
+                "treatment": comp.group2,
+                "control": comp.group1,
+                "mean_diff": round(comp.mean_diff, 4),
+                "p_value": comp.p_value,
+                "reject": comp.significant or comp.reject,
+            }
+        )
+
+    n_sig = sum(1 for c in comparisons if c["reject"])
+
+    # Bar chart of differences
+    chart = bar(
+        categories=[c["treatment"] for c in comparisons],
+        values=[c["mean_diff"] for c in comparisons],
+        title=f"Dunnett's Test — Difference from Control ({control})",
+        y_label=f"Difference from {control}",
+    )
+    plots = [_to_chart(chart)]
+
+    comp_items = [
+        (c["treatment"], f"diff = {c['mean_diff']:.4f}, p = {_pval_str(c['p_value'])}" + (" *" if c["reject"] else ""))
+        for c in comparisons
+    ]
+
+    return {
+        "plots": plots,
+        "statistics": {"comparisons": comparisons, "control": str(control)},
+        "assumptions": {},
+        "summary": _rich_summary(
+            "DUNNETT'S TEST (vs Control)",
+            [
+                (
+                    "Design",
+                    [
+                        ("Response", response),
+                        ("Factor", factor),
+                        ("Control group", str(control)),
+                        ("N (control)", str(len(control_data))),
+                    ],
+                ),
+                ("Comparisons", comp_items),
+                ("Result", [(f"{n_sig}/{len(comparisons)}", "treatments differ from control")]),
+            ],
+        ),
+        "narrative": {
+            "verdict": f"Dunnett's: {n_sig} of {len(comparisons)} treatments differ from control ({control})",
+            "body": (
+                f"Comparing all treatments against <strong>{control}</strong>. "
+                + (f"{n_sig} show significant differences." if n_sig else "No treatments differ from control.")
+            ),
+            "next_steps": "Dunnett's test is more powerful than Tukey when comparing only to a control group.",
+            "chart_guidance": "Bar chart shows mean difference from control for each treatment. Significant differences are highlighted.",
+        },
+        "guide_observation": f"Dunnett's vs {control}: {n_sig}/{len(comparisons)} treatments differ.",
+        "diagnostics": [],
+    }
+
+
+# =============================================================================
+# Hsu's MCB (Multiple Comparisons with the Best)
+# =============================================================================
+
+
+def forge_hsu_mcb(df, config):
+    """Hsu's MCB — which groups could be the best."""
+    from scipy import stats as sp_stats
+
+    response = config.get("response") or config.get("var")
+    factor = config.get("factor") or config.get("group_var")
+    alpha = _alpha(config)
+    direction = config.get("direction", "max")
+
+    if not response or not factor:
+        raise ValueError("Hsu's MCB requires response and factor")
+
+    data = df[[response, factor]].dropna()
+    groups = sorted(data[factor].unique(), key=str)
+    k = len(groups)
+
+    group_data = {
+        str(g): pd.to_numeric(data[data[factor] == g][response], errors="coerce").dropna().values for g in groups
+    }
+    group_means = {g: float(np.mean(v)) for g, v in group_data.items()}
+    group_ns = {g: len(v) for g, v in group_data.items()}
+    n_total = sum(group_ns.values())
+
+    ss_w = sum(float(np.sum((v - np.mean(v)) ** 2)) for v in group_data.values())
+    df_w = n_total - k
+    mse = ss_w / df_w if df_w > 0 else 0
+
+    t_crit = sp_stats.t.ppf(1 - alpha / (2 * (k - 1)), df_w) if df_w > 0 else 2.0
+
+    best_group = max(group_means, key=group_means.get) if direction == "max" else min(group_means, key=group_means.get)
+
+    comparisons = []
+    for g in group_data:
+        mean_g = group_means[g]
+        mean_best = group_means[best_group]
+        diff = mean_g - mean_best if direction == "max" else mean_best - mean_g
+        se = np.sqrt(mse * (1 / group_ns[g] + 1 / group_ns[best_group])) if mse > 0 else 0
+        lower = diff - t_crit * se
+        upper = diff + t_crit * se
+
+        if g == best_group:
+            could_be_best = True
+            lower_mcb, upper_mcb = 0.0, max(0, upper)
+        else:
+            lower_mcb = min(0, lower)
+            upper_mcb = min(0, upper)
+            could_be_best = upper_mcb >= 0
+
+        comparisons.append(
+            {
+                "group": g,
+                "mean": round(float(mean_g), 4),
+                "diff_from_best": round(float(diff), 4),
+                "lower": round(float(lower_mcb), 4),
+                "upper": round(float(upper_mcb), 4),
+                "could_be_best": could_be_best,
+                "is_best": g == best_group,
+            }
+        )
+
+    n_could = sum(1 for c in comparisons if c["could_be_best"])
+
+    comp_items = [
+        (
+            c["group"],
+            f"mean={c['mean']:.4f}, diff={c['diff_from_best']:.4f}, CI=[{c['lower']:.4f}, {c['upper']:.4f}] {'← COULD BE BEST' if c['could_be_best'] else ''}",
+        )
+        for c in comparisons
+    ]
+
+    return {
+        "plots": [],
+        "statistics": {
+            "comparisons": comparisons,
+            "best_group": best_group,
+            "direction": direction,
+            "mse": round(mse, 4),
+        },
+        "assumptions": {},
+        "summary": _rich_summary(
+            "HSU'S MCB (MULTIPLE COMPARISONS WITH THE BEST)",
+            [
+                (
+                    "Design",
+                    [
+                        ("Response", response),
+                        ("Factor", f"{factor} ({k} groups)"),
+                        ("Direction", "Higher is better" if direction == "max" else "Lower is better"),
+                        ("Best group", f"{best_group} (mean = {group_means[best_group]:.4f})"),
+                    ],
+                ),
+                ("MCB Intervals", comp_items),
+                ("Result", [(f"{n_could}/{k}", "groups could be the best")]),
+            ],
+        ),
+        "narrative": {
+            "verdict": f"Hsu's MCB: {n_could} of {k} groups could be the best",
+            "body": f"Current best: <strong>{best_group}</strong> ({direction}). {n_could} group{'s' if n_could != 1 else ''} cannot be ruled out as best.",
+            "next_steps": "MCB identifies which groups could plausibly be the best. Narrow the field with more data.",
+            "chart_guidance": "Groups with CI including zero could be the best. Groups entirely below zero are eliminated.",
+        },
+        "guide_observation": f"Hsu's MCB: {n_could}/{k} groups could be best. Best={best_group}.",
+        "diagnostics": [],
+    }
+
+
+# =============================================================================
+# Main Effects Plot
+# =============================================================================
+
+
+def forge_main_effects(df, config):
+    """Main effects plot for DOE analysis."""
+    from forgeviz.charts.generic import multi_line
+
+    response = config.get("response") or config.get("var")
+    factors = config.get("factors", [])
+
+    if not response or not factors:
+        raise ValueError("Main effects requires response and factors")
+
+    y = pd.to_numeric(df[response], errors="coerce").dropna()
+    grand_mean = float(y.mean())
+
+    plots = []
+    effect_ranges = []
+    effect_items = []
+
+    for factor in factors:
+        factor_means = df.groupby(factor)[response].apply(lambda x: float(pd.to_numeric(x, errors="coerce").mean()))
+        levels = [str(lv) for lv in factor_means.index]
+        means = list(factor_means.values)
+
+        chart = multi_line(
+            x=levels,
+            series={"Mean": means, "Grand Mean": [grand_mean] * len(levels)},
+            title=f"Main Effect: {factor}",
+            x_label=factor,
+            y_label=f"Mean {response}",
+            show_markers=True,
+        )
+        plots.append(_to_chart(chart))
+
+        f_range = max(means) - min(means)
+        effect_ranges.append((factor, f_range))
+
+        for lv, m in zip(levels, means):
+            effect = m - grand_mean
+            effect_items.append((f"{factor}={lv}", f"{m:.4f} (effect: {effect:+.4f})"))
+
+    effect_ranges.sort(key=lambda x: x[1], reverse=True)
+    top_factor, top_range = effect_ranges[0]
+
+    return {
+        "plots": plots,
+        "statistics": {
+            "grand_mean": round(grand_mean, 4),
+            "effects": {f: round(r, 4) for f, r in effect_ranges},
+            "n": len(y),
+        },
+        "assumptions": {},
+        "summary": _rich_summary(
+            "MAIN EFFECTS PLOT",
+            [
+                (
+                    "Design",
+                    [
+                        ("Response", response),
+                        ("Factors", ", ".join(factors)),
+                        ("Grand Mean", f"{grand_mean:.4f}"),
+                    ],
+                ),
+                ("Effects (deviation from grand mean)", effect_items),
+                ("Largest Effect", [(top_factor, f"range = {top_range:.4f}")]),
+            ],
+        ),
+        "narrative": {
+            "verdict": f"Main Effects — {top_factor} has the largest effect (range = {top_range:.4f})",
+            "body": (
+                f"Across {len(factors)} factors, <strong>{top_factor}</strong> produces the widest swing "
+                f"in mean {response} ({top_range:.4f}). Grand mean = {grand_mean:.4f}."
+                + (
+                    f" Second: {effect_ranges[1][0]} (range = {effect_ranges[1][1]:.4f})."
+                    if len(effect_ranges) > 1
+                    else ""
+                )
+            ),
+            "next_steps": "Steep slopes = strong effects, flat lines = negligible. Run interaction plot to check independence.",
+            "chart_guidance": "Each panel shows how one factor's levels shift the response mean. Dashed line is grand mean.",
+        },
+        "guide_observation": f"Main effects: {top_factor} has largest effect (range={top_range:.4f}).",
+        "diagnostics": [],
+    }
+
+
+# =============================================================================
+# Interaction Plot
+# =============================================================================
+
+
+def forge_interaction(df, config):
+    """Interaction plot for two factors."""
+    from forgeviz.charts.generic import multi_line
+
+    response = config.get("response") or config.get("var")
+    factor1 = config.get("factor1")
+    factor2 = config.get("factor2")
+
+    if not all([response, factor1, factor2]):
+        raise ValueError("Interaction plot requires response, factor1, and factor2")
+
+    # Calculate cell means
+    interaction_means = (
+        df.groupby([factor1, factor2])[response]
+        .apply(lambda x: float(pd.to_numeric(x, errors="coerce").mean()))
+        .unstack()
+    )
+
+    levels1 = [str(lv) for lv in interaction_means.index]
+    levels2 = [str(lv) for lv in interaction_means.columns]
+
+    series = {}
+    for lev2 in interaction_means.columns:
+        series[str(lev2)] = [round(float(v), 4) for v in interaction_means[lev2].values]
+
+    chart = multi_line(
+        x=levels1,
+        series=series,
+        title=f"Interaction: {factor1} × {factor2}",
+        x_label=factor1,
+        y_label=f"Mean {response}",
+        show_markers=True,
+    )
+    plots = [_to_chart(chart)]
+
+    # Simple interaction detection
+    has_interaction = False
+    if len(levels2) >= 2 and len(levels1) >= 2:
+        slopes = []
+        for lev2 in interaction_means.columns:
+            vals = interaction_means[lev2].values
+            slope = (vals[-1] - vals[0]) / (len(vals) - 1) if len(vals) > 1 else 0
+            slopes.append(float(slope))
+        slope_diff = max(slopes) - min(slopes)
+        mean_slope = float(np.mean(slopes))
+        has_interaction = slope_diff > 0.1 * abs(mean_slope) if mean_slope != 0 else slope_diff > 0.1
+
+    if has_interaction:
+        verdict = f"Interaction detected — {factor1} × {factor2}"
+        body = (
+            f"The effect of <strong>{factor1}</strong> on {response} depends on <strong>{factor2}</strong> "
+            f"(non-parallel lines). Optimize jointly, not independently."
+        )
+        nxt = "Factors interact — optimize jointly. Confirm with ANOVA interaction term."
+    else:
+        verdict = f"No strong interaction — {factor1} × {factor2}"
+        body = (
+            f"Lines are approximately parallel — <strong>{factor1}</strong> and <strong>{factor2}</strong> "
+            f"act independently on {response}."
+        )
+        nxt = "Factors appear independent — optimize each separately."
+
+    return {
+        "plots": plots,
+        "statistics": {
+            "cell_means": {str(k): round(float(v), 4) for k, v in interaction_means.stack().items()},
+            "has_interaction": has_interaction,
+        },
+        "assumptions": {},
+        "summary": _rich_summary(
+            "INTERACTION PLOT",
+            [
+                (
+                    "Design",
+                    [
+                        ("Response", response),
+                        ("X-axis factor", factor1),
+                        ("Trace factor", factor2),
+                    ],
+                ),
+                (
+                    "Cell Means",
+                    [
+                        (f"{factor1}={l1}, {factor2}={l2}", f"{interaction_means.loc[l1_raw, l2_raw]:.4f}")
+                        for l1, l1_raw in zip(levels1, interaction_means.index)
+                        for l2, l2_raw in zip(levels2, interaction_means.columns)
+                    ],
+                ),
+            ],
+        ),
+        "narrative": {
+            "verdict": verdict,
+            "body": body,
+            "next_steps": nxt,
+            "chart_guidance": "Parallel lines = no interaction. Crossing or diverging lines = interaction.",
+        },
+        "guide_observation": f"Interaction {factor1}×{factor2}: {'detected' if has_interaction else 'not detected'}.",
+        "diagnostics": [],
+    }
+
+
+# =============================================================================
 # Registry: maps analysis_id → forge handler
 # =============================================================================
 
@@ -3330,6 +3737,10 @@ FORGE_HANDLERS = {
     "dunn": forge_dunn,
     "bonferroni_test": forge_bonferroni,
     "scheffe_test": forge_scheffe,
+    "dunnett": forge_dunnett,
+    "hsu_mcb": forge_hsu_mcb,
+    "main_effects": forge_main_effects,
+    "interaction": forge_interaction,
     # Regression
     "regression": forge_regression,
     "logistic": forge_logistic,
@@ -3409,6 +3820,10 @@ def run_forge_stats(analysis_id, df, config):
             "ordinal_logistic": ("stats", "ordinal_logistic"),
             "orthogonal_regression": ("stats", "orthogonal_regression"),
             "nominal_logistic": ("stats", "nominal_logistic"),
+            "dunnett": ("stats", "dunnett"),
+            "hsu_mcb": ("stats", "hsu_mcb"),
+            "main_effects": ("stats", "main_effects"),
+            "interaction": ("stats", "interaction"),
         }
         if analysis_id in _EDU_REMAP:
             edu_type, edu_id = _EDU_REMAP[analysis_id]
