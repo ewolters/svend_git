@@ -191,7 +191,7 @@ function switchTab(tab) {
             background:#1a1a1a;border:1px solid rgba(78,173,128,0.2);color:rgba(78,173,128,0.6);
             padding:4px 8px;font:11px/1 'Courier New',monospace;border-radius:2px;">
             <option value="345">Half (345px)</option>
-            <option value="690" selected>Full (690px)</option>
+            <option value="690" selected>Full (690px = rack width)</option>
         </select>
 
         <!-- U-height selector -->
@@ -367,6 +367,16 @@ function switchTab(tab) {
                         linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
                         linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
                     background-size: 42px 42px;z-index:100;"></div>
+
+                <!-- Rail dead zones — 36px each side, where rack rails cover the panel -->
+                <div id="cv-rail-left" style="position:absolute;top:0;bottom:0;left:0;width:36px;
+                    background:repeating-linear-gradient(to bottom, rgba(20,24,20,0.7) 0px, rgba(26,30,26,0.7) 50%, rgba(28,32,28,0.7) 100%);
+                    border-right:1px solid rgba(42,48,42,0.5);
+                    pointer-events:none;z-index:101;"></div>
+                <div id="cv-rail-right" style="position:absolute;top:0;bottom:0;right:0;width:36px;
+                    background:repeating-linear-gradient(to bottom, rgba(20,24,20,0.7) 0px, rgba(26,30,26,0.7) 50%, rgba(28,32,28,0.7) 100%);
+                    border-left:1px solid rgba(42,48,42,0.5);
+                    pointer-events:none;z-index:101;"></div>
 
                 <!-- Placed widgets render here -->
             </div>
@@ -2622,6 +2632,14 @@ function switchTab(tab) {
         var w = parseInt(document.getElementById('cv-width').value);
         panel.style.height = (u * 42) + 'px';
         panel.style.width = w + 'px';
+        // Rail dead zones: 36px at full width, hidden at half width (half-width units mount inboard)
+        var railL = document.getElementById('cv-rail-left');
+        var railR = document.getElementById('cv-rail-right');
+        if (railL && railR) {
+            var show = (w >= 690);
+            railL.style.display = show ? '' : 'none';
+            railR.style.display = show ? '' : 'none';
+        }
     };
 
     window.cvUpdatePanel = function() {
