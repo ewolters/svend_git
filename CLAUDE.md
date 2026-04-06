@@ -194,7 +194,7 @@ There are no shortcuts. Follow the lifecycle: `draft → submitted → approved 
 │   │   │       ├── models.py          # SysLogEntry, IntegrityViolation, DriftViolation,
 │   │   │       │                      #   ComplianceCheck, ComplianceReport, CalibrationReport,
 │   │   │       │                      #   ChangeRequest, ChangeLog, RiskAssessment, AgentVote
-│   │   │       ├── compliance.py      # 28 automated compliance checks
+│   │   │       ├── compliance.py      # 31 automated compliance checks
 │   │   │       ├── standards.py       # Standards parser (machine-readable hooks)
 │   │   │       ├── utils.py           # generate_entry(), verify_chain_integrity()
 │   │   │       ├── events.py          # Audit event catalog
@@ -479,29 +479,41 @@ Run `python manage.py run_compliance --standards` to verify all assertions + tes
 Run `python manage.py run_compliance --standards --run-tests` to execute linked tests.
 Run `python manage.py run_compliance --all` to run all 28 infrastructure checks.
 
-## Compliance Checks (32)
+## Compliance Checks (31)
 
 | Check | Category | Schedule | SOC 2 |
 |-------|----------|----------|-------|
 | audit_integrity | processing_integrity | Daily (critical) | CC7.2, CC7.3 |
 | security_config | security | Daily (critical) | CC6.1, CC6.2 |
 | access_logging | security | Daily (critical) | CC6.1, CC7.1 |
-| standards_compliance | processing_integrity | Daily (critical) | CC4.1, CC9.1 |
 | change_management | processing_integrity | Daily (critical) | CC8.1, CC3.4 |
-| test_execution | processing_integrity | Daily (critical) | CC4.1, CC7.2 |
-| test_coverage | processing_integrity | Daily (critical) | CC4.1 |
+| sla_compliance | processing_integrity | Daily (critical) | CC4.1 |
 | tenant_isolation_lint | security | Daily (critical) | CC6.3 |
 | dependency_vuln | security | Mon/Fri | CC6.2 |
 | ssl_tls | confidentiality | Mon/Fri | CC6.2 |
+| log_completeness | security | Monday | CC7.1 |
+| security_headers | security | Monday | CC6.1 |
+| architecture | processing_integrity | Monday | CC4.1 |
+| architecture_map | processing_integrity | Monday | CC4.1 |
 | encryption_status | confidentiality | Tuesday | CC6.1 |
 | password_policy | security | Tuesday | CC6.1 |
+| session_security | security | Tuesday | CC6.1 |
+| secret_management | confidentiality | Tuesday | CC6.1 |
+| policy_review | processing_integrity | Tuesday | CC4.1 |
+| privacy_data_export | privacy | Tuesday | CC7.2 |
 | permission_coverage | security | Wednesday | CC6.1, CC6.2 |
 | backup_freshness | availability | Wednesday | CC9.2 |
-| data_retention | privacy | Thursday | CC7.2 |
+| error_handling | processing_integrity | Wednesday | CC4.1 |
+| incident_readiness | processing_integrity | Wednesday | CC4.1 |
 | output_quality | processing_integrity | Wednesday | CC4.1, CC7.2 |
-| calibration_coverage | processing_integrity | Wednesday | CC4.1, CC7.2 |
 | complexity_governance | processing_integrity | Wednesday | CC4.1 |
 | endpoint_coverage | processing_integrity | Wednesday | CC4.1, CC7.2 |
+| caching | security | Wednesday | CC6.1 |
+| data_retention | privacy | Thursday | CC7.2 |
+| rate_limiting | security | Thursday | CC6.1 |
+| roadmap | processing_integrity | Thursday | CC4.1 |
+| risk_registry | processing_integrity | Thursday | CC4.1 |
+| forge_ecosystem | processing_integrity | Thursday | CC4.1, CC7.2, CC8.1 |
 
 ## Data Model (Two Systems — Dual-Write Phase 2)
 

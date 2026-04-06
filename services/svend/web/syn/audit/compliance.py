@@ -1,7 +1,7 @@
 """
 Automated compliance check implementations.
 
-Provides 32 checks covering SOC 2 trust service categories:
+Provides 31 checks covering SOC 2 trust service categories:
 Security, Availability, Confidentiality, Processing Integrity, Privacy.
 
 Checks run on a rotating daily schedule via syn.sched.
@@ -668,12 +668,14 @@ DAILY_CRITICAL = [
     "tenant_isolation_lint",
 ]
 WEEKDAY_ROTATION = {
-    0: ["dependency_vuln", "ssl_tls", "log_completeness", "security_headers"],
+    0: ["dependency_vuln", "ssl_tls", "log_completeness", "security_headers", "architecture", "architecture_map"],
     1: [
         "encryption_status",
         "password_policy",
         "session_security",
         "secret_management",
+        "policy_review",
+        "privacy_data_export",
     ],
     2: [
         "permission_coverage",
@@ -683,12 +685,14 @@ WEEKDAY_ROTATION = {
         "output_quality",
         "complexity_governance",
         "endpoint_coverage",
+        "caching",
     ],
     3: [
         "data_retention",
         "rate_limiting",
         "roadmap",
         "risk_registry",
+        "forge_ecosystem",
     ],
     4: ["dependency_vuln", "ssl_tls"],
 }
