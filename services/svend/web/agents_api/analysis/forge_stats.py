@@ -1462,193 +1462,6 @@ def forge_scheffe(df, config):
 
 
 # =============================================================================
-# Regression
-# =============================================================================
-
-
-def forge_regression(df, config):
-    """Linear regression via forgestat."""
-    from forgestat.regression.linear import ols
-    from forgeviz.charts.diagnostic import four_in_one
-    from forgeviz.charts.scatter import scatter
-
-    response = config.get("response") or config.get("column")
-    predictors = config.get("predictors", [])
-    if not response:
-        raise ValueError("Regression requires 'response'")
-    if not predictors:
-        nums = df.select_dtypes(include="number").columns.tolist()
-        predictors = [c for c in nums if c != response]
-    if not predictors:
-        raise ValueError("No predictors available")
-
-    sub = df[[response] + predictors].copy()
-    for c in [response] + predictors:
-        sub[c] = pd.to_numeric(sub[c], errors="coerce")
-    sub = sub.dropna()
-    if len(sub) < 3:
-        raise ValueError("Not enough valid observations for regression")
-    y = sub[response].values
-    X = sub[predictors].values
-
-    result = ols(X, y, feature_names=predictors, alpha=_alpha(config))
-
-    charts = []
-    # Scatter + regression line for simple regression
-    if len(predictors) == 1:
-        spec = scatter(
-            x=X[:, 0].tolist(),
-            y=y.tolist(),
-            x_label=predictors[0],
-            y_label=response,
-            title=f"{response} vs {predictors[0]}",
-            show_regression=True,
-        )
-        charts.append(_to_chart(spec))
-
-    # Diagnostic 4-in-1
-    if result.fitted is not None and result.residuals is not None:
-        diag_specs = four_in_one(
-            fitted=result.fitted.tolist() if hasattr(result.fitted, "tolist") else list(result.fitted),
-            residuals=result.residuals.tolist() if hasattr(result.residuals, "tolist") else list(result.residuals),
-        )
-        for s in diag_specs:
-            charts.append(_to_chart(s))
-
-    stats = {
-        "r_squared": round(result.r_squared, 4),
-        "adj_r_squared": round(result.adj_r_squared, 4),
-        "f_statistic": round(result.f_statistic, 4) if result.f_statistic else None,
-        "f_p_value": result.f_p_value,
-        "durbin_watson": round(result.durbin_watson, 4) if result.durbin_watson else None,
-        "rmse": round(result.rmse, 4),
-        "n": result.n,
-    }
-    coeffs = result.coefficients if isinstance(result.coefficients, dict) else {}
-    pvals = result.p_values if isinstance(result.p_values, dict) else {}
-    for key, val in coeffs.items():
-        stats[f"coeff({key})"] = round(val, 4)
-        if key in pvals:
-            stats[f"p({key})"] = pvals[key]
-
-    return {
-        "plots": charts,
-        "statistics": stats,
-        "assumptions": {},
-        "summary": f"Regression: R²={result.r_squared:.4f}, adj R²={result.adj_r_squared:.4f}, F={result.f_statistic:.3f}, p={_pval_str(result.f_p_value)}.",
-        "narrative": {
-            "verdict": f"Model explains {result.r_squared * 100:.1f}% of variation",
-            "body": f"Linear regression with {len(predictors)} predictor(s). R²={result.r_squared:.4f}, RMSE={result.rmse:.4f}.",
-            "next_steps": "Check residual diagnostics for model adequacy.",
-            "chart_guidance": "Diagnostic plots show residual patterns. Look for non-random patterns.",
-        },
-        "guide_observation": f"Regression: R²={result.r_squared:.4f}, p={_pval_str(result.f_p_value)}.",
-        "diagnostics": [],
-    }
-
-
-def forge_logistic(df, config):
-    """Logistic regression via forgestat."""
-    from forgestat.regression.logistic import logistic_regression
-
-    response = config.get("response") or config.get("column")
-    predictors = config.get("predictors", [])
-    if not response:
-        raise ValueError("Logistic regression requires 'response'")
-    if not predictors:
-        nums = df.select_dtypes(include="number").columns.tolist()
-        predictors = [c for c in nums if c != response]
-
-    sub = df[[response] + predictors].copy()
-    for c in [response] + predictors:
-        sub[c] = pd.to_numeric(sub[c], errors="coerce")
-    sub = sub.dropna()
-    if len(sub) < 3:
-        raise ValueError("Not enough valid observations for logistic regression")
-    y = sub[response].values.astype(int)
-    X = sub[predictors].values
-
-    result = logistic_regression(X, y, feature_names=predictors)
-
-    stats = {
-        "pseudo_r_squared": round(result.pseudo_r_squared, 4),
-        "aic": round(result.aic, 2),
-        "n": result.n,
-        "converged": result.converged,
-    }
-    coeffs = result.coefficients if isinstance(result.coefficients, dict) else {}
-    odds = result.odds_ratios if isinstance(result.odds_ratios, dict) else {}
-    pvals = result.p_values if isinstance(result.p_values, dict) else {}
-    for key, val in coeffs.items():
-        stats[f"coeff({key})"] = round(val, 4)
-        if key in odds:
-            stats[f"OR({key})"] = round(odds[key], 4)
-        if key in pvals:
-            stats[f"p({key})"] = pvals[key]
-
-    return {
-        "plots": [],
-        "statistics": stats,
-        "assumptions": {},
-        "summary": f"Logistic regression: pseudo R²={result.pseudo_r_squared:.4f}, AIC={result.aic:.1f}, n={result.n}.",
-        "narrative": {
-            "verdict": f"Model {'converged' if result.converged else 'did not converge'}",
-            "body": f"Logistic regression with {len(predictors)} predictors. Pseudo R²={result.pseudo_r_squared:.4f}.",
-            "next_steps": "Examine odds ratios for effect interpretation.",
-            "chart_guidance": "",
-        },
-        "guide_observation": f"Logistic: pseudo R²={result.pseudo_r_squared:.4f}.",
-        "diagnostics": [],
-    }
-
-
-def forge_stepwise(df, config):
-    """Stepwise regression via forgestat."""
-    from forgestat.regression.stepwise import stepwise
-
-    response = config.get("response") or config.get("column")
-    predictors = config.get("predictors", [])
-    if not response:
-        raise ValueError("Stepwise requires 'response'")
-    if not predictors:
-        nums = df.select_dtypes(include="number").columns.tolist()
-        predictors = [c for c in nums if c != response]
-
-    sub = df[[response] + predictors].copy()
-    for c in [response] + predictors:
-        sub[c] = pd.to_numeric(sub[c], errors="coerce")
-    sub = sub.dropna()
-    if len(sub) < 3:
-        raise ValueError("Not enough valid observations for stepwise")
-    y = sub[response].values
-    X = sub[predictors].values
-
-    result = stepwise(X, y, feature_names=predictors, method=config.get("method", "both"))
-
-    stats = {"selected_features": result.selected_features, "n_steps": len(result.steps)}
-    if result.final_model:
-        stats["r_squared"] = round(result.final_model.r_squared, 4)
-        stats["adj_r_squared"] = round(result.final_model.adj_r_squared, 4)
-
-    return {
-        "plots": [],
-        "statistics": stats,
-        "assumptions": {},
-        "summary": f"Stepwise ({result.method}): selected {len(result.selected_features)} of {len(predictors)} predictors"
-        + (f", R²={result.final_model.r_squared:.4f}" if result.final_model else "")
-        + ".",
-        "narrative": {
-            "verdict": f"Selected: {', '.join(result.selected_features) if result.selected_features else 'none'}",
-            "body": f"Stepwise selection completed in {len(result.steps)} steps.",
-            "next_steps": "Validate with holdout data.",
-            "chart_guidance": "",
-        },
-        "guide_observation": f"Stepwise: {len(result.selected_features)} predictors selected.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
 # Normality Test
 # =============================================================================
 
@@ -1824,2589 +1637,273 @@ def _power_result(result, test_label):
 
 
 # =============================================================================
-# Two-way ANOVA
+# Power — Variance Tests
 # =============================================================================
 
 
-def forge_anova2(df, config):
-    """Two-way ANOVA via forgestat."""
-    from forgestat.parametric.anova import two_way
-    from forgeviz.charts.generic import multi_line
+def forge_power_1variance(df, config):
+    """Power/sample size for 1-variance chi-square test."""
+    from scipy.stats import chi2 as chi2_dist
 
-    response = config.get("response") or config.get("var")
-    factor_a = config.get("factor_a")
-    factor_b = config.get("factor_b")
+    sigma0 = float(config.get("sigma0", 1.0))
+    sigma1 = float(config.get("sigma1", 1.5))
     alpha = _alpha(config)
+    target_power = float(config.get("power", 0.80))
+    alt = config.get("alternative", "two-sided")
+    ratio_sq = (sigma1 / sigma0) ** 2
 
-    if not all([response, factor_a, factor_b]):
-        raise ValueError("Two-way ANOVA requires response, factor_a, and factor_b")
-
-    # Build data dict from DataFrame
-    data_dict = {
-        response: pd.to_numeric(df[response], errors="coerce").tolist(),
-        factor_a: df[factor_a].astype(str).tolist(),
-        factor_b: df[factor_b].astype(str).tolist(),
-    }
-
-    result = two_way(data_dict, response=response, factor_a=factor_a, factor_b=factor_b, alpha=alpha)
-
-    # Build stats from sources
-    effect_stats = {}
-    for src in result.sources:
-        effect_stats[src.source] = {
-            "ss": round(src.ss, 4),
-            "df": int(src.df),
-            "ms": round(src.ms, 4),
-            "f_statistic": round(src.f_statistic, 4),
-            "p_value": src.p_value,
-            "partial_eta_squared": round(src.partial_eta_sq, 4),
-        }
-
-    # Classify effects
-    sig_effects = [s for s in result.sources if s.p_value < alpha]
-    strongest = max(result.sources, key=lambda s: s.partial_eta_sq) if result.sources else None
-    ix_source = next((s for s in result.sources if ":" in s.source or "×" in s.source), None)
-    has_interaction = ix_source is not None and ix_source.p_value < alpha
-
-    # Interaction plot via ForgeViz multi_line
-    a_levels = sorted(df[factor_a].astype(str).unique())
-    b_levels = sorted(df[factor_b].astype(str).unique())
-    series = {}
-    for b_lev in b_levels:
-        means = []
-        for a_lev in a_levels:
-            cell = df[(df[factor_a].astype(str) == a_lev) & (df[factor_b].astype(str) == b_lev)][response]
-            cell_num = pd.to_numeric(cell, errors="coerce").dropna()
-            means.append(round(float(cell_num.mean()), 4) if len(cell_num) > 0 else 0.0)
-        series[str(b_lev)] = means
-
-    ix_chart = multi_line(
-        x=a_levels,
-        series=series,
-        title=f"Interaction Plot: {factor_a} × {factor_b}",
-        x_label=factor_a,
-        y_label=f"Mean {response}",
-        show_markers=True,
-    )
-    plots = [_to_chart(ix_chart)]
-
-    # Summary sections
-    sections = [
-        (
-            "Design",
-            [
-                ("Response", response),
-                ("Factor A", f"{factor_a} ({len(a_levels)} levels)"),
-                ("Factor B", f"{factor_b} ({len(b_levels)} levels)"),
-                ("N", str(len(df[response].dropna()))),
-            ],
-        ),
-        (
-            "ANOVA Table",
-            [
-                (src.source, f"F = {src.f_statistic:.3f}, p = {_pval_str(src.p_value)}, η²p = {src.partial_eta_sq:.3f}")
-                for src in result.sources
-            ],
-        ),
-        (
-            "Residual",
-            [
-                ("df", str(int(result.residual_df))),
-                ("SS", f"{result.residual_ss:.4f}"),
-                ("MS", f"{result.residual_ms:.4f}"),
-            ],
-        ),
-    ]
-
-    # Narrative
-    if sig_effects:
-        if has_interaction:
-            verdict = (
-                f"Interaction is significant (p = {_pval_str(ix_source.p_value)}, η²p = {ix_source.partial_eta_sq:.3f})"
-            )
-            body = (
-                f"The {factor_a}×{factor_b} interaction is significant — the effect of {factor_a} "
-                f"depends on {factor_b}. Interpret main effects with caution. "
-                f"Significant effects: <strong>{', '.join(s.source for s in sig_effects)}</strong>."
-            )
-            nxt = "Run post-hoc tests (Tukey HSD) on simple effects within each level of the interacting factor."
+    n_req = 10000
+    for n_try in range(2, 10000):
+        df_val = n_try - 1
+        if alt == "two-sided":
+            lo = chi2_dist.ppf(alpha / 2, df_val)
+            hi = chi2_dist.ppf(1 - alpha / 2, df_val)
+            pw = chi2_dist.cdf(lo / ratio_sq, df_val) + 1 - chi2_dist.cdf(hi / ratio_sq, df_val)
+        elif alt == "greater":
+            hi = chi2_dist.ppf(1 - alpha, df_val)
+            pw = 1 - chi2_dist.cdf(hi / ratio_sq, df_val)
         else:
-            verdict = f"{strongest.source} has the largest effect (η²p = {strongest.partial_eta_sq:.3f})"
-            body = (
-                f"Significant main effects: <strong>{', '.join(s.source for s in sig_effects)}</strong>. "
-                f"No significant interaction — factors act independently on {response}."
-            )
-            nxt = "Run post-hoc tests (Tukey HSD) on significant main effects to identify which levels differ."
-    else:
-        verdict = "No significant effects detected"
-        body = f"Neither {factor_a}, {factor_b}, nor their interaction significantly affects {response}."
-        nxt = "Check sample sizes and effect sizes. The study may lack power."
-
-    # Diagnostics from assumptions
-    diagnostics = [_assumption_to_dict(a) for a in result.assumptions]
-    if has_interaction:
-        diagnostics.append(
-            {
-                "level": "info",
-                "title": "Interaction detected — interpret main effects with caution",
-                "detail": (
-                    f"The {factor_a}×{factor_b} interaction is significant (p = {_pval_str(ix_source.p_value)}). "
-                    f"Main effects alone do not tell the full story — the effect of one factor depends on the other."
-                ),
-            }
-        )
-    if not sig_effects:
-        diagnostics.append(
-            {
-                "level": "warning",
-                "title": "No detectable effects — consider increasing sample size",
-                "detail": f"Neither {factor_a}, {factor_b}, nor their interaction reached significance.",
-            }
-        )
+            lo = chi2_dist.ppf(alpha, df_val)
+            pw = chi2_dist.cdf(lo / ratio_sq, df_val)
+        if pw >= target_power:
+            n_req = n_try
+            break
 
     return {
-        "plots": plots,
+        "plots": [],
         "statistics": {
-            "effects": effect_stats,
-            "residual_df": int(result.residual_df),
-            "residual_ss": round(result.residual_ss, 4),
-            "residual_ms": round(result.residual_ms, 4),
-        },
-        "assumptions": _assumptions_dict(result.assumptions),
-        "summary": _rich_summary("TWO-WAY ANOVA", sections),
-        "narrative": {
-            "verdict": verdict,
-            "body": body,
-            "next_steps": nxt,
-            "chart_guidance": "Non-parallel lines in the interaction plot suggest an interaction between factors.",
-        },
-        "guide_observation": "Two-way ANOVA: "
-        + "; ".join(f"{s.source}: p={_pval_str(s.p_value)}, η²p={s.partial_eta_sq:.3f}" for s in result.sources),
-        "diagnostics": diagnostics,
-    }
-
-
-# =============================================================================
-# F-test for equality of variances
-# =============================================================================
-
-
-def forge_f_test(df, config):
-    """F-test for equality of two variances via forgestat."""
-    from forgestat.parametric.variance import f_test
-    from forgeviz.charts.distribution import box_plot
-    from forgeviz.charts.generic import bar
-
-    var = config.get("var") or config.get("column")
-    group_var = config.get("group_var") or config.get("factor")
-    alpha = _alpha(config)
-
-    if not var or not group_var:
-        raise ValueError("F-test requires var and group_var")
-
-    groups = df[group_var].dropna().unique()
-    if len(groups) != 2:
-        raise ValueError(f"F-test requires exactly 2 groups. Found {len(groups)}.")
-
-    g1_data = pd.to_numeric(df[df[group_var] == groups[0]][var], errors="coerce").dropna().values
-    g2_data = pd.to_numeric(df[df[group_var] == groups[1]][var], errors="coerce").dropna().values
-
-    result = f_test(g1_data, g2_data, alpha=alpha)
-    extra = result.extra or {}
-    var1 = extra.get("var1", float(np.var(g1_data, ddof=1)))
-    var2 = extra.get("var2", float(np.var(g2_data, ddof=1)))
-    n1, n2 = len(g1_data), len(g2_data)
-
-    # Charts: variance comparison bar + side-by-side box
-    bar_chart = bar(
-        categories=[str(groups[0]), str(groups[1])],
-        values=[var1, var2],
-        title=f"Variance Comparison: {groups[0]} vs {groups[1]}",
-    )
-    box_chart = box_plot(
-        datasets={str(groups[0]): g1_data.tolist(), str(groups[1]): g2_data.tolist()},
-        title=f"Distribution by Group: {var}",
-    )
-    plots = [_to_chart(bar_chart), _to_chart(box_chart)]
-
-    # CI for variance ratio
-    from scipy import stats as sp_stats
-
-    df1, df2 = extra.get("df1", n1 - 1), extra.get("df2", n2 - 1)
-    f_stat = result.statistic
-    ci_lo = f_stat / sp_stats.f.ppf(0.975, df1, df2) if df1 > 0 and df2 > 0 else 0
-    ci_hi = f_stat / sp_stats.f.ppf(0.025, df1, df2) if df1 > 0 and df2 > 0 else 0
-    vr = max(var1, var2) / min(var1, var2) if min(var1, var2) > 0 else float("inf")
-
-    if result.significant:
-        verdict = f"Variances differ significantly (F = {f_stat:.3f}, p = {_pval_str(result.p_value)})"
-        body = (
-            f"Variance ratio = {vr:.2f}. Use Welch's t-test (not pooled) or non-parametric tests for group comparisons."
-        )
-        nxt = "F-test is sensitive to non-normality. For robust alternatives, use Levene's test."
-    else:
-        verdict = f"Variances are similar (F = {f_stat:.3f}, p = {_pval_str(result.p_value)})"
-        body = f"Variance ratio = {vr:.2f}. The equal-variance assumption is reasonable for pooled t-tests and ANOVA."
-        nxt = "Equal variance confirmed — pooled tests are appropriate."
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "F_statistic": round(f_stat, 4),
-            "p_value": result.p_value,
-            "variance_ratio": round(vr, 4),
-            f"variance({groups[0]})": round(var1, 4),
-            f"variance({groups[1]})": round(var2, 4),
-            f"n({groups[0]})": n1,
-            f"n({groups[1]})": n2,
-            "df1": df1,
-            "df2": df2,
-            "ci_ratio_lower": round(ci_lo, 4),
-            "ci_ratio_upper": round(ci_hi, 4),
+            "required_n": n_req,
+            "sigma0": sigma0,
+            "sigma1": sigma1,
+            "variance_ratio": round(ratio_sq, 4),
+            "alpha": alpha,
+            "power": target_power,
         },
         "assumptions": {},
-        "summary": _rich_summary(
-            "F-TEST FOR EQUALITY OF VARIANCES",
-            [
-                ("Variable", [(var, f"{groups[0]} vs {groups[1]}")]),
-                (
-                    "Group Statistics",
-                    [
-                        (str(groups[0]), f"n={n1}, variance={var1:.4f}, StDev={np.sqrt(var1):.4f}"),
-                        (str(groups[1]), f"n={n2}, variance={var2:.4f}, StDev={np.sqrt(var2):.4f}"),
-                    ],
-                ),
-                (
-                    "Test Results",
-                    [
-                        ("F statistic", f"{f_stat:.4f}"),
-                        ("p-value", _pval_str(result.p_value)),
-                        ("95% CI for ratio", f"[{ci_lo:.4f}, {ci_hi:.4f}]"),
-                    ],
-                ),
-            ],
+        "summary": (
+            f"<<COLOR:header>>Power Analysis — 1-Variance Test<</COLOR>>\n\n"
+            f"<<COLOR:text>>H\u2080: \u03c3 = {sigma0}, H\u2081: \u03c3 = {sigma1} \u2192 ratio \u03c3\u00b2\u2081/\u03c3\u00b2\u2080 = {ratio_sq:.3f}<</COLOR>>\n"
+            f"<<COLOR:text>>\u03b1 = {alpha}, desired power = {target_power}<</COLOR>>\n\n"
+            f"<<COLOR:green>>Required sample size: n = {n_req}<</COLOR>>\n"
         ),
         "narrative": {
-            "verdict": verdict,
-            "body": body,
-            "next_steps": nxt,
-            "chart_guidance": "Bar chart compares group variances. Box plots show spread and outliers per group.",
+            "verdict": f"Power Analysis \u2014 n = {n_req} for variance test",
+            "body": f"To detect \u03c3\u2081 = {sigma1} vs \u03c3\u2080 = {sigma0} (ratio = {ratio_sq:.3f}) with {target_power * 100:.0f}% power: <strong>n = {n_req}</strong>.",
+            "next_steps": "Variance tests require larger samples than mean tests. Consider if a practical change in spread matters.",
+            "chart_guidance": "Power curve shows how detection probability increases with n.",
         },
-        "guide_observation": f"F-test: F={f_stat:.3f}, p={_pval_str(result.p_value)}. "
-        + ("Variances differ significantly." if result.significant else "Variances are similar."),
+        "guide_observation": f"1-variance power: need n={n_req} to detect \u03c3\u2081={sigma1} vs \u03c3\u2080={sigma0} at power={target_power}.",
         "diagnostics": [],
     }
 
 
-# =============================================================================
-# Repeated Measures ANOVA
-# =============================================================================
+def forge_power_2variance(df, config):
+    """Power/sample size for 2-variance F-test."""
+    from scipy.stats import f as f_dist
 
-
-def forge_repeated_measures_anova(df, config):
-    """Repeated measures ANOVA via forgestat."""
-    from forgestat.parametric.repeated_measures import repeated_measures_anova
-    from forgeviz.charts.generic import multi_line
-
-    response = config.get("response") or config.get("var")
-    subject_col = config.get("subject") or config.get("subject_id")
-    within_factor = config.get("within_factor") or config.get("condition")
+    var_ratio = float(config.get("variance_ratio", 2.0))
     alpha = _alpha(config)
+    target_power = float(config.get("power", 0.80))
+    ratio_n = float(config.get("ratio", 1.0))
+    alt = config.get("alternative", "two-sided")
 
-    if not all([response, subject_col, within_factor]):
-        raise ValueError("Repeated measures ANOVA requires response, subject, and within_factor")
-
-    data_rm = df[[response, subject_col, within_factor]].dropna()
-    data_rm[subject_col] = data_rm[subject_col].astype(str)
-    data_rm[within_factor] = data_rm[within_factor].astype(str)
-
-    conditions = sorted(data_rm[within_factor].unique())
-    k = len(conditions)
-    if k < 2:
-        raise ValueError("Need at least 2 levels of within-subject factor")
-
-    # Pivot to subject × condition, drop incomplete subjects
-    pivot = data_rm.pivot_table(
-        index=subject_col,
-        columns=within_factor,
-        values=response,
-        aggfunc="mean",
-    ).dropna()
-
-    if len(pivot) < 3:
-        raise ValueError("Need at least 3 complete subjects (all conditions measured)")
-
-    # Build forgestat input: {condition_name: [subject_scores]}
-    rm_data = {str(cond): pivot[cond].tolist() for cond in pivot.columns}
-
-    result = repeated_measures_anova(rm_data)
-    n_subj = result.n_subjects
-
-    # Use GG-corrected p when sphericity violated
-    best_p = result.p_value_gg if (k > 2 and not result.sphericity_met) else result.p_value
-    eta_label = "large" if result.partial_eta_sq > 0.14 else "medium" if result.partial_eta_sq > 0.06 else "small"
-
-    # Profile plot: condition means ± SE
-    cond_names = list(result.condition_means.keys())
-    cond_means = list(result.condition_means.values())
-    cond_stds = [float(np.std(pivot[c].values, ddof=1)) for c in pivot.columns]
-    cond_ses = [s / np.sqrt(n_subj) for s in cond_stds]  # noqa: F841
-
-    profile_chart = multi_line(
-        x=cond_names,
-        series={"Mean ± SE": cond_means},
-        title=f"Profile Plot: {within_factor} Means",
-        x_label=within_factor,
-        y_label=f"Mean {response}",
-        show_markers=True,
-    )
-    plots = [_to_chart(profile_chart)]
-
-    # Spaghetti plot (individual subject trajectories) — build as raw ChartSpec dict
-    # since ForgeViz multi_line doesn't support opacity per trace
-    spaghetti_series = {}
-    for si, subj in enumerate(list(pivot.index)[:30]):
-        spaghetti_series[str(subj)] = pivot.loc[subj].tolist()
-    spaghetti_chart = multi_line(
-        x=cond_names,
-        series=spaghetti_series,
-        title="Subject Trajectories",
-        x_label=within_factor,
-        y_label=response,
-        show_markers=False,
-    )
-    plots.append(_to_chart(spaghetti_chart))
-
-    # Summary sections
-    sections = [
-        (
-            "Design",
-            [
-                ("Response", response),
-                ("Within-subject factor", f"{within_factor} ({k} levels)"),
-                ("Subjects", str(n_subj)),
-            ],
-        ),
-        (
-            "Within-Subjects ANOVA",
-            [
-                ("F", f"{result.f_statistic:.3f}"),
-                ("df", f"({int(result.df_condition)}, {int(result.df_error)})"),
-                ("p-value", _pval_str(result.p_value)),
-                ("Partial η²", f"{result.partial_eta_sq:.4f} ({eta_label})"),
-            ],
-        ),
-    ]
-
-    if k > 2:
-        sph_status = "met" if result.sphericity_met else "VIOLATED"
-        sections.append(
-            (
-                "Sphericity",
-                [
-                    ("Mauchly's p", _pval_str(result.mauchly_p) if result.mauchly_p is not None else "N/A"),
-                    ("Status", sph_status),
-                    ("GG ε", f"{result.epsilon_gg:.4f}"),
-                    ("GG-corrected p", _pval_str(result.p_value_gg)),
-                ],
-            )
-        )
-
-    sections.append(
-        (
-            "Condition Means",
-            [
-                (name, f"{mean:.4f} (SD = {cond_stds[i]:.4f})")
-                for i, (name, mean) in enumerate(result.condition_means.items())
-            ],
-        )
-    )
-
-    # Narrative
-    if best_p < alpha:
-        verdict = f"Conditions differ significantly (F = {result.f_statistic:.3f}, p = {_pval_str(best_p)})"
-        body = (
-            f"η² = {result.partial_eta_sq:.4f} ({eta_label} effect). "
-            f"The repeated-measures factor significantly affects {response}."
-            + (
-                f" Sphericity violated — using Greenhouse-Geisser correction (ε = {result.epsilon_gg:.3f})."
-                if k > 2 and not result.sphericity_met
-                else ""
-            )
-        )
-        nxt = "Run post-hoc paired comparisons to identify which conditions differ."
-    else:
-        verdict = f"No significant effect across conditions (p = {_pval_str(best_p)})"
-        body = f"η² = {result.partial_eta_sq:.4f}. The conditions do not significantly differ."
-        nxt = "Consider increasing sample size if a meaningful difference was expected."
-
-    diagnostics = []
-    if k > 2 and not result.sphericity_met:
-        diagnostics.append(
-            {
-                "level": "warning",
-                "title": f"Sphericity violated (Mauchly's p = {_pval_str(result.mauchly_p)})",
-                "detail": f"Use Greenhouse-Geisser corrected p-value ({_pval_str(result.p_value_gg)}) instead of uncorrected ({_pval_str(result.p_value)}).",
-            }
-        )
-    if result.partial_eta_sq > 0.14 and best_p < alpha:
-        diagnostics.append(
-            {
-                "level": "info",
-                "title": f"Large practical effect (η² = {result.partial_eta_sq:.3f})",
-                "detail": f"The within-subject factor explains {result.partial_eta_sq * 100:.1f}% of variance — a substantial effect.",
-            }
-        )
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "f_statistic": round(result.f_statistic, 4),
-            "p_value": result.p_value,
-            "p_value_gg": result.p_value_gg,
-            "df_condition": int(result.df_condition),
-            "df_error": int(result.df_error),
-            "ss_condition": round(result.ss_condition, 4),
-            "ss_error": round(result.ss_error, 4),
-            "partial_eta_squared": round(result.partial_eta_sq, 4),
-            "n_subjects": n_subj,
-            "k_levels": k,
-            "mauchly_p": result.mauchly_p,
-            "gg_epsilon": round(result.epsilon_gg, 4),
-            "sphericity_met": result.sphericity_met,
-            "condition_means": result.condition_means,
-        },
-        "assumptions": {},
-        "summary": _rich_summary("REPEATED MEASURES ANOVA", sections),
-        "narrative": {
-            "verdict": verdict,
-            "body": body,
-            "next_steps": nxt,
-            "chart_guidance": "Profile plot shows condition means. Spaghetti plot shows individual subject trajectories — look for consistent patterns.",
-        },
-        "guide_observation": (
-            f"Repeated measures ANOVA: F({int(result.df_condition)},{int(result.df_error)})={result.f_statistic:.3f}, "
-            f"p={_pval_str(best_p)}, η²={result.partial_eta_sq:.4f}."
-        ),
-        "diagnostics": diagnostics,
-    }
-
-
-# =============================================================================
-# Sign Test
-# =============================================================================
-
-
-def forge_sign_test(df, config):
-    """Sign test for median via forgestat."""
-    from forgestat.nonparametric.rank_tests import sign_test
-    from forgeviz.charts.distribution import histogram
-
-    data, col_name = _col(df, config, "column", "var")
-    h0_median = float(config.get("hypothesized_median", config.get("mu", 0)))
-    alpha = _alpha(config)
-
-    result = sign_test(data, median0=h0_median, alpha=alpha)
-    extra = result.extra or {}
-    above = extra.get("above", int(np.sum(data > h0_median)))
-    below = extra.get("below", int(np.sum(data < h0_median)))
-    ties = extra.get("ties", int(np.sum(data == h0_median)))
-    sample_median = float(np.median(data))
-
-    # CI on median (binomial-based)
-    from scipy import stats as sp_stats
-
-    sorted_data = np.sort(data)
-    n_total = len(data)
-    ci_idx = max(0, int(sp_stats.binom.ppf(0.025, n_total, 0.5)) - 1)
-    ci_lower = float(sorted_data[ci_idx]) if ci_idx < n_total else float(sorted_data[0])
-    ci_upper = float(sorted_data[n_total - 1 - ci_idx]) if ci_idx < n_total else float(sorted_data[-1])
-
-    # Chart: histogram with median lines
-    spec = histogram(
-        data=data.tolist(),
-        bins=min(30, max(8, len(data) // 5)),
-        title=f"Sign Test: {col_name}",
-        target=h0_median,
-        show_normal=False,
-    )
-    plots = [_to_chart(spec)]
-
-    if result.significant:
-        verdict = f"Median differs from {h0_median} (p = {_pval_str(result.p_value)})"
-        body = f"Sample median = {sample_median:.4f}. {above} values above and {below} below {h0_median}. The imbalance is significant."
-        nxt = "The sign test uses only directions, not magnitudes — it is the most robust nonparametric test."
-    else:
-        verdict = f"Median consistent with {h0_median} (p = {_pval_str(result.p_value)})"
-        body = f"Sample median = {sample_median:.4f}. {above} above and {below} below. No significant departure from {h0_median}."
-        nxt = "Consider Wilcoxon signed-rank test if you want to use magnitude information for more power."
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "sample_median": round(sample_median, 4),
-            "above": above,
-            "below": below,
-            "ties": ties,
-            "n_used": above + below,
-            "p_value": result.p_value,
-            "ci_lower": round(ci_lower, 4),
-            "ci_upper": round(ci_upper, 4),
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "SIGN TEST FOR MEDIAN",
-            [
-                ("Variable", [(col_name, f"n = {n_total}")]),
-                ("Hypothesized median", [("H₀", str(h0_median))]),
-                (
-                    "Sample Statistics",
-                    [
-                        ("Sample median", f"{sample_median:.4f}"),
-                        ("95% CI", f"[{ci_lower:.4f}, {ci_upper:.4f}]"),
-                    ],
-                ),
-                (
-                    "Sign Counts",
-                    [
-                        ("Above H₀", str(above)),
-                        ("Below H₀", str(below)),
-                        ("Ties (excluded)", str(ties)),
-                    ],
-                ),
-                (
-                    "Test Result",
-                    [
-                        ("p-value (two-sided)", _pval_str(result.p_value)),
-                    ],
-                ),
-            ],
-        ),
-        "narrative": {
-            "verdict": verdict,
-            "body": body,
-            "next_steps": nxt,
-            "chart_guidance": "Histogram shows the data distribution. The reference line marks the hypothesized median.",
-        },
-        "guide_observation": f"Sign test: median={sample_median:.4f} vs H₀={h0_median}, p={_pval_str(result.p_value)}. "
-        + ("Median differs." if result.significant else "No evidence of difference."),
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Split-Plot ANOVA
-# =============================================================================
-
-
-def forge_split_plot_anova(df, config):
-    """Split-plot ANOVA via forgestat."""
-    from forgestat.parametric.split_plot import split_plot_anova
-    from forgeviz.charts.generic import multi_line
-
-    response = config.get("response") or config.get("var")
-    wp_factors = config.get("whole_plot_factors", [])
-    sp_factors = config.get("sub_plot_factors", [])
-    block_col = config.get("block") or config.get("whole_plot_id")
-    alpha = _alpha(config)
-
-    if isinstance(wp_factors, str):
-        wp_factors = [wp_factors]
-    if isinstance(sp_factors, str):
-        sp_factors = [sp_factors]
-
-    if not response or not wp_factors or not sp_factors:
-        raise ValueError("Split-plot ANOVA requires response, whole_plot_factors, and sub_plot_factors")
-
-    # Use first WP and SP factor for forgestat (single WP × SP design)
-    wp_factor = wp_factors[0]
-    sp_factor = sp_factors[0]
-
-    # Build data dict
-    needed = [response, wp_factor, sp_factor]
-    if block_col:
-        needed.append(block_col)
-    data_sp = df[needed].dropna()
-    for f in [wp_factor, sp_factor]:
-        data_sp[f] = data_sp[f].astype(str)
-
-    data_dict = {
-        response: pd.to_numeric(data_sp[response], errors="coerce").tolist(),
-        wp_factor: data_sp[wp_factor].tolist(),
-        sp_factor: data_sp[sp_factor].tolist(),
-    }
-
-    result = split_plot_anova(
-        data_dict, response=response, whole_plot_factor=wp_factor, sub_plot_factor=sp_factor, block=block_col
-    )
-
-    # Build ANOVA table from sources
-    anova_rows = []
-    for src in result.sources:
-        anova_rows.append(
-            {
-                "source": src.source,
-                "ss": round(src.ss, 4),
-                "df": int(src.df),
-                "ms": round(src.ms, 4),
-                "f_statistic": round(src.f_statistic, 4) if src.f_statistic else None,
-                "p_value": src.p_value if src.p_value else None,
-                "error_term": src.error_term,
-                "significant": src.p_value < alpha if src.p_value else False,
-            }
-        )
-
-    n_sig = sum(1 for r in anova_rows if r.get("significant"))
-
-    # Main effects plot via multi_line
-    all_factors = [wp_factor, sp_factor]
-    series = {}
-    x_labels = []
-    for factor in all_factors:
-        grp = data_sp.groupby(factor)[response].apply(lambda x: pd.to_numeric(x, errors="coerce").mean())
-        for lev, mean_val in grp.items():
-            x_labels.append(f"{factor}={lev}")
-            series.setdefault(factor, []).append(float(mean_val))
-
-    # Interaction chart: SP levels across WP levels
-    wp_levels = sorted(data_sp[wp_factor].unique())
-    sp_levels = sorted(data_sp[sp_factor].unique())
-    ix_series = {}
-    for s_lev in sp_levels:
-        means = []
-        for w_lev in wp_levels:
-            cell = data_sp[(data_sp[wp_factor] == w_lev) & (data_sp[sp_factor] == s_lev)][response]
-            cell_num = pd.to_numeric(cell, errors="coerce").dropna()
-            means.append(round(float(cell_num.mean()), 4) if len(cell_num) > 0 else 0.0)
-        ix_series[str(s_lev)] = means
-
-    ix_chart = multi_line(
-        x=[str(w) for w in wp_levels],
-        series=ix_series,
-        title=f"Split-Plot Interaction: {wp_factor} × {sp_factor}",
-        x_label=wp_factor,
-        y_label=f"Mean {response}",
-        show_markers=True,
-    )
-    plots = [_to_chart(ix_chart)]
-
-    # Summary
-    table_items = []
-    for r in anova_rows:
-        if r["f_statistic"] is not None:
-            table_items.append(
-                (r["source"], f"F = {r['f_statistic']:.3f}, p = {_pval_str(r['p_value'])}, Error: {r['error_term']}")
-            )
+    n_req = 10000
+    for n_try in range(2, 10000):
+        n2_try = max(2, int(n_try * ratio_n))
+        df1, df2 = n_try - 1, n2_try - 1
+        if alt == "two-sided":
+            f_lo = f_dist.ppf(alpha / 2, df1, df2)
+            f_hi = f_dist.ppf(1 - alpha / 2, df1, df2)
+            pw = f_dist.cdf(f_lo / var_ratio, df1, df2) + 1 - f_dist.cdf(f_hi / var_ratio, df1, df2)
         else:
-            table_items.append((r["source"], f"SS = {r['ss']:.4f}, df = {r['df']}, MS = {r['ms']:.4f}"))
+            f_hi = f_dist.ppf(1 - alpha, df1, df2)
+            pw = 1 - f_dist.cdf(f_hi / var_ratio, df1, df2)
+        if pw >= target_power:
+            n_req = n_try
+            break
 
-    sections = [
-        (
-            "Design",
-            [
-                ("Response", response),
-                ("Whole-plot factor", ", ".join(wp_factors)),
-                ("Sub-plot factor", ", ".join(sp_factors)),
-                ("N", str(len(data_sp))),
-            ],
-        ),
-        ("ANOVA Table", table_items),
-    ]
-
-    verdict = f"Split-Plot ANOVA: {n_sig} significant term{'s' if n_sig != 1 else ''}"
-    body = (
-        f"Whole-plot factors tested against WP error (MS = {result.whole_plot_error_ms:.4f}), "
-        f"sub-plot factors against residual (MS = {result.sub_plot_error_ms:.4f})."
-    )
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "anova_table": anova_rows,
-            "n": len(data_sp),
-            "n_whole_plots": result.n_whole_plots,
-            "n_sub_plots": result.n_sub_plots,
-        },
-        "assumptions": {},
-        "summary": _rich_summary("SPLIT-PLOT ANOVA", sections),
-        "narrative": {
-            "verdict": verdict,
-            "body": body,
-            "next_steps": "Split-plot designs arise when some factors are harder to change. Check both error terms for proper inference.",
-            "chart_guidance": "Interaction plot shows sub-plot factor means across whole-plot levels. Non-parallel lines indicate interaction.",
-        },
-        "guide_observation": f"Split-plot ANOVA: {n_sig} significant terms. WP error MS={result.whole_plot_error_ms:.4f}, SP error MS={result.sub_plot_error_ms:.4f}.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Robust Regression
-# =============================================================================
-
-
-def forge_robust_regression(df, config):
-    """Robust regression via forgestat."""
-    from forgestat.regression.robust import robust_regression
-    from forgeviz.charts.scatter import scatter
-
-    response = config.get("response") or config.get("var")
-    predictors = list(config.get("predictors", []))
-    method = config.get("method", "huber")
-
-    if response in predictors:
-        predictors.remove(response)
-    if not predictors:
-        raise ValueError("Need at least one predictor")
-
-    data_clean = df[[response] + predictors].dropna()
-    y = pd.to_numeric(data_clean[response], errors="coerce").values
-    X = data_clean[predictors].apply(pd.to_numeric, errors="coerce").values
-
-    result = robust_regression(X, y, feature_names=predictors, method=method)
-
-    # Chart: fitted vs actual
-    fitted = y - np.array(result.residuals)
-    chart = scatter(
-        x=fitted.tolist(),
-        y=y.tolist(),
-        title=f"Robust Regression: Fitted vs Actual ({method})",
-        x_label="Fitted",
-        y_label="Actual",
-    )
-    plots = [_to_chart(chart)]
-
-    coef_items = [
-        (
-            name,
-            f"{val:.4f} (OLS: {result.ols_coefficients.get(name, 0):.4f}, Δ={result.coefficient_changes.get(name, 0):.1f}%)",
-        )
-        for name, val in result.coefficients.items()
-    ]
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "method": result.method,
-            "coefficients": result.coefficients,
-            "ols_coefficients": result.ols_coefficients,
-            "coefficient_changes_pct": result.coefficient_changes,
-            "r_squared": round(result.r_squared, 4),
-            "n_downweighted": result.n_downweighted,
-            "n": len(y),
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            f"ROBUST REGRESSION ({method.upper()})",
-            [
-                (
-                    "Design",
-                    [
-                        ("Response", response),
-                        ("Predictors", ", ".join(predictors)),
-                        ("Method", method),
-                        ("N", str(len(y))),
-                    ],
-                ),
-                ("Coefficients (Robust vs OLS)", coef_items),
-                (
-                    "Fit",
-                    [
-                        ("R²", f"{result.r_squared:.4f}"),
-                        ("Downweighted obs", str(result.n_downweighted)),
-                    ],
-                ),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Robust regression ({method}): R² = {result.r_squared:.3f}, {result.n_downweighted} observations downweighted",
-            "body": (
-                f"Comparing robust vs OLS coefficients shows where outliers pull the fit. "
-                f"{result.n_downweighted} observations received reduced weight. "
-                + (
-                    "Large coefficient changes suggest OLS is sensitive to outliers here."
-                    if any(abs(v) > 20 for v in result.coefficient_changes.values())
-                    else "Coefficients are stable — outlier influence is minimal."
-                )
-            ),
-            "next_steps": "Compare robust and OLS residuals to identify influential observations.",
-            "chart_guidance": "Scatter plot shows fitted vs actual values. Points near the diagonal indicate good fit.",
-        },
-        "guide_observation": f"Robust regression ({method}): R²={result.r_squared:.3f}, {result.n_downweighted} downweighted.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Poisson Regression
-# =============================================================================
-
-
-def forge_poisson_regression(df, config):
-    """Poisson regression via forgestat."""
-    from forgestat.regression.logistic import poisson_regression
-    from forgeviz.charts.generic import bar
-
-    response = config.get("response") or config.get("var")
-    predictors = list(config.get("predictors", []))
-
-    if response in predictors:
-        predictors.remove(response)
-    if not predictors:
-        raise ValueError("Need at least one predictor")
-
-    data_clean = df[[response] + predictors].dropna()
-    y = pd.to_numeric(data_clean[response], errors="coerce").values.astype(int)
-    X = data_clean[predictors].apply(pd.to_numeric, errors="coerce").values
-
-    result = poisson_regression(X, y, feature_names=predictors)
-
-    # Chart: IRR bar chart
-    irr_names = [k for k in result.irr.keys() if k != "intercept"]
-    irr_vals = [result.irr[k] for k in irr_names]
-    chart = bar(
-        categories=irr_names,
-        values=irr_vals,
-        title="Incidence Rate Ratios",
-        y_label="IRR",
-    )
-    plots = [_to_chart(chart)]
-
-    coef_items = [
-        (
-            name,
-            f"β={result.coefficients.get(name, 0):.4f}, IRR={result.irr.get(name, 0):.4f}, p={_pval_str(result.p_values.get(name, 1))}",
-        )
-        for name in irr_names
-    ]
-
-    sig_predictors = [k for k in irr_names if result.p_values.get(k, 1) < 0.05]
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "coefficients": result.coefficients,
-            "irr": result.irr,
-            "p_values": result.p_values,
-            "deviance": round(result.deviance, 4),
-            "pearson_chi2": round(result.pearson_chi2, 4),
-            "aic": round(result.aic, 4),
-            "n": result.n,
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "POISSON REGRESSION",
-            [
-                (
-                    "Design",
-                    [
-                        ("Response", f"{response} (count data)"),
-                        ("Predictors", ", ".join(predictors)),
-                        ("N", str(result.n)),
-                    ],
-                ),
-                ("Coefficients", coef_items),
-                (
-                    "Model Fit",
-                    [
-                        ("Deviance", f"{result.deviance:.4f}"),
-                        ("Pearson χ²", f"{result.pearson_chi2:.4f}"),
-                        ("AIC", f"{result.aic:.4f}"),
-                    ],
-                ),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Poisson regression: {len(sig_predictors)} significant predictors, AIC = {result.aic:.1f}",
-            "body": (
-                "IRR > 1 means increased rate; IRR < 1 means decreased rate. "
-                + (
-                    f"Significant: <strong>{', '.join(sig_predictors)}</strong>."
-                    if sig_predictors
-                    else "No predictors reached significance."
-                )
-                + (
-                    f" Check for overdispersion: Pearson χ²/df = {result.pearson_chi2 / (result.n - len(predictors) - 1):.2f} "
-                    f"({'overdispersed — consider negative binomial' if result.pearson_chi2 / (result.n - len(predictors) - 1) > 1.5 else 'acceptable'})."
-                    if result.n > len(predictors) + 1
-                    else ""
-                )
-            ),
-            "next_steps": "Check for overdispersion. If Pearson χ²/df >> 1, switch to negative binomial regression.",
-            "chart_guidance": "Bar chart shows incidence rate ratios. IRR = 1 means no effect; > 1 means increased count rate.",
-        },
-        "guide_observation": f"Poisson regression: {len(sig_predictors)} significant, AIC={result.aic:.1f}.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Nonlinear Regression (Curve Fitting)
-# =============================================================================
-
-
-def forge_nonlinear_regression(df, config):
-    """Nonlinear regression (curve fitting) via forgestat."""
-    from forgestat.regression.nonlinear import curve_fit
-    from forgeviz.charts.scatter import scatter
-
-    x_var = config.get("x_var") or config.get("var1") or config.get("predictor")
-    y_var = config.get("y_var") or config.get("var2") or config.get("response")
-    model_type = config.get("model", "exponential")
-
-    if not x_var or not y_var:
-        raise ValueError("Nonlinear regression requires x_var and y_var")
-
-    x_data = pd.to_numeric(df[x_var], errors="coerce").dropna()
-    y_data = pd.to_numeric(df[y_var], errors="coerce").dropna()
-    # Align indices
-    common = x_data.index.intersection(y_data.index)
-    x_vals = x_data.loc[common].values
-    y_vals = y_data.loc[common].values
-
-    result = curve_fit(x_vals, y_vals, model=model_type)
-
-    if not result.converged:
-        return {
-            "plots": [],
-            "statistics": {"converged": False, "model": model_type},
-            "summary": f"Model '{model_type}' did not converge. Try a different model or initial parameters.",
-            "narrative": {
-                "verdict": "Model did not converge",
-                "body": "",
-                "next_steps": "Try a different model type.",
-                "chart_guidance": "",
-            },
-            "guide_observation": f"Nonlinear fit ({model_type}) did not converge.",
-            "diagnostics": [],
-        }
-
-    # Chart: data + fitted curve
-    chart = scatter(
-        x=x_vals.tolist(),
-        y=y_vals.tolist(),
-        title=f"Nonlinear Fit: {model_type}",
-        x_label=x_var,
-        y_label=y_var,
-    )
-    plots = [_to_chart(chart)]
-
-    param_items = [
-        (name, f"{val:.6f}" + (f" ± {result.std_errors.get(name, 0):.6f}" if result.std_errors.get(name) else ""))
-        for name, val in result.parameters.items()
-    ]
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "model": result.model,
-            "parameters": result.parameters,
-            "std_errors": result.std_errors,
-            "r_squared": round(result.r_squared, 4),
-            "rmse": round(result.rmse, 4),
-            "aic": round(result.aic, 4),
-            "bic": round(result.bic, 4),
-            "n": result.n,
-            "converged": result.converged,
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            f"NONLINEAR REGRESSION ({model_type.upper()})",
-            [
-                (
-                    "Design",
-                    [
-                        ("X", x_var),
-                        ("Y", y_var),
-                        ("Model", model_type),
-                        ("N", str(result.n)),
-                    ],
-                ),
-                ("Parameters", param_items),
-                (
-                    "Fit",
-                    [
-                        ("R²", f"{result.r_squared:.4f}"),
-                        ("RMSE", f"{result.rmse:.4f}"),
-                        ("AIC", f"{result.aic:.4f}"),
-                        ("BIC", f"{result.bic:.4f}"),
-                    ],
-                ),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Nonlinear fit ({model_type}): R² = {result.r_squared:.3f}",
-            "body": f"The {model_type} model explains {result.r_squared * 100:.1f}% of variance. RMSE = {result.rmse:.4f}.",
-            "next_steps": "Compare against other model types (exponential, logistic, power) to find the best fit.",
-            "chart_guidance": "Scatter shows observed data. The fitted curve overlays the model prediction.",
-        },
-        "guide_observation": f"Nonlinear ({model_type}): R²={result.r_squared:.3f}, RMSE={result.rmse:.4f}.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Best Subsets Regression
-# =============================================================================
-
-
-def forge_best_subsets(df, config):
-    """Best subsets regression via forgestat."""
-    from forgestat.regression.best_subsets import best_subsets
-
-    response = config.get("response") or config.get("var")
-    predictors = list(config.get("predictors", []))
-
-    if response in predictors:
-        predictors.remove(response)
-    if not predictors:
-        raise ValueError("Need at least one predictor")
-
-    data_clean = df[[response] + predictors].dropna()
-    y = pd.to_numeric(data_clean[response], errors="coerce").values
-    X = data_clean[predictors].apply(pd.to_numeric, errors="coerce").values
-
-    result = best_subsets(X, y, feature_names=predictors)
-
-    # Build summary from best models
-    sections = [
-        (
-            "Design",
-            [
-                ("Response", response),
-                ("Candidate predictors", ", ".join(predictors)),
-                ("N", str(len(y))),
-            ],
-        ),
-    ]
-
-    if result.best_aic:
-        sections.append(
-            (
-                "Best AIC Model",
-                [
-                    ("Predictors", ", ".join(result.best_aic.features)),
-                    ("AIC", f"{result.best_aic.aic:.4f}"),
-                    ("R²", f"{result.best_aic.r_squared:.4f}"),
-                    ("Adj R²", f"{result.best_aic.adj_r_squared:.4f}"),
-                ],
-            )
-        )
-    if result.best_bic:
-        sections.append(
-            (
-                "Best BIC Model",
-                [
-                    ("Predictors", ", ".join(result.best_bic.features)),
-                    ("BIC", f"{result.best_bic.bic:.4f}"),
-                    ("R²", f"{result.best_bic.r_squared:.4f}"),
-                    ("Adj R²", f"{result.best_bic.adj_r_squared:.4f}"),
-                ],
-            )
-        )
-    if result.best_adj_r2:
-        sections.append(
-            (
-                "Best Adj R² Model",
-                [
-                    ("Predictors", ", ".join(result.best_adj_r2.features)),
-                    ("Adj R²", f"{result.best_adj_r2.adj_r_squared:.4f}"),
-                ],
-            )
-        )
-
-    best = result.best_bic or result.best_aic or result.best_adj_r2
-    best_feats = ", ".join(best.features) if best else "none"
-
+    n2_req = max(2, int(n_req * ratio_n))
     return {
         "plots": [],
         "statistics": {
-            "best_aic": {
-                "features": result.best_aic.features,
-                "aic": round(result.best_aic.aic, 4),
-                "r_squared": round(result.best_aic.r_squared, 4),
-            }
-            if result.best_aic
-            else None,
-            "best_bic": {
-                "features": result.best_bic.features,
-                "bic": round(result.best_bic.bic, 4),
-                "r_squared": round(result.best_bic.r_squared, 4),
-            }
-            if result.best_bic
-            else None,
-            "best_adj_r2": {
-                "features": result.best_adj_r2.features,
-                "adj_r_squared": round(result.best_adj_r2.adj_r_squared, 4),
-            }
-            if result.best_adj_r2
-            else None,
-            "n_subsets_evaluated": len(result.all_subsets),
-            "n": len(y),
+            "n1": n_req,
+            "n2": n2_req,
+            "total_n": n_req + n2_req,
+            "variance_ratio": var_ratio,
+            "alpha": alpha,
+            "power": target_power,
         },
         "assumptions": {},
-        "summary": _rich_summary("BEST SUBSETS REGRESSION", sections),
-        "narrative": {
-            "verdict": f"Best model uses {len(best.features) if best else 0} of {len(predictors)} predictors",
-            "body": f"Best BIC model: <strong>{best_feats}</strong>." if best else "No valid model found.",
-            "next_steps": "Use the recommended subset as starting predictors. Validate with out-of-sample data.",
-            "chart_guidance": "",
-        },
-        "guide_observation": f"Best subsets: {best_feats} (of {len(predictors)} candidates).",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# GLM (Generalized Linear Model)
-# =============================================================================
-
-
-def forge_glm(df, config):
-    """Generalized linear model via forgestat."""
-    from forgestat.regression.glm import glm
-
-    response = config.get("response") or config.get("var")
-    predictors = list(config.get("predictors", []))
-    family = config.get("family", "gaussian")
-
-    if response in predictors:
-        predictors.remove(response)
-    if not predictors:
-        raise ValueError("Need at least one predictor")
-
-    data_clean = df[[response] + predictors].dropna()
-    y = pd.to_numeric(data_clean[response], errors="coerce").values
-    X = data_clean[predictors].apply(pd.to_numeric, errors="coerce").values
-
-    result = glm(X, y, feature_names=predictors, family=family)
-
-    coef_items = [
-        (name, f"{val:.4f} (p = {_pval_str(result.p_values.get(name, 1))})")
-        for name, val in result.coefficients.items()
-    ]
-    sig_preds = [k for k in predictors if result.p_values.get(k, 1) < 0.05]
-
-    return {
-        "plots": [],
-        "statistics": {
-            "family": result.family,
-            "coefficients": result.coefficients,
-            "std_errors": result.std_errors,
-            "p_values": result.p_values,
-            "deviance": round(result.deviance, 4),
-            "aic": round(result.aic, 4),
-            "n": result.n,
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            f"GLM ({family.upper()})",
-            [
-                (
-                    "Design",
-                    [
-                        ("Response", response),
-                        ("Predictors", ", ".join(predictors)),
-                        ("Family", family),
-                        ("N", str(result.n)),
-                    ],
-                ),
-                ("Coefficients", coef_items),
-                (
-                    "Model Fit",
-                    [
-                        ("Deviance", f"{result.deviance:.4f}"),
-                        ("AIC", f"{result.aic:.4f}"),
-                    ],
-                ),
-            ],
+        "summary": (
+            f"<<COLOR:header>>Power Analysis — 2-Variance F-Test<</COLOR>>\n\n"
+            f"<<COLOR:text>>H\u2080: \u03c3\u00b2\u2081/\u03c3\u00b2\u2082 = 1, H\u2081: \u03c3\u00b2\u2081/\u03c3\u00b2\u2082 = {var_ratio}<</COLOR>>\n"
+            f"<<COLOR:text>>\u03b1 = {alpha}, desired power = {target_power}, n\u2082/n\u2081 = {ratio_n}<</COLOR>>\n\n"
+            f"<<COLOR:green>>Required: n\u2081 = {n_req}, n\u2082 = {n2_req} (total = {n_req + n2_req})<</COLOR>>\n"
         ),
         "narrative": {
-            "verdict": f"GLM ({family}): {len(sig_preds)} significant predictors, AIC = {result.aic:.1f}",
-            "body": (
-                f"Significant: <strong>{', '.join(sig_preds)}</strong>."
-                if sig_preds
-                else "No predictors reached significance."
-            ),
-            "next_steps": "Consider alternative link functions or families if deviance is large relative to df.",
-            "chart_guidance": "",
+            "verdict": f"Power Analysis \u2014 n\u2081 = {n_req}, n\u2082 = {n2_req} for F-test",
+            "body": f"To detect a variance ratio of {var_ratio} with {target_power * 100:.0f}% power: <strong>n\u2081 = {n_req}, n\u2082 = {n2_req}</strong>.",
+            "next_steps": "F-tests are sensitive to non-normality. Consider Levene's test as a robust alternative.",
+            "chart_guidance": "Equal group sizes maximize power.",
         },
-        "guide_observation": f"GLM ({family}): {len(sig_preds)} significant, AIC={result.aic:.1f}.",
+        "guide_observation": f"2-variance power: need n\u2081={n_req}, n\u2082={n2_req} for ratio={var_ratio} at power={target_power}.",
         "diagnostics": [],
     }
 
 
-# =============================================================================
-# Ordinal Logistic Regression
-# =============================================================================
+def forge_power_2prop(df, config):
+    """Power/sample size for 2-proportion test."""
+    from scipy.stats import norm
 
-
-def forge_ordinal_logistic(df, config):
-    """Ordinal logistic regression via forgestat."""
-    from forgestat.regression.glm import ordinal_logistic
-
-    response = config.get("response") or config.get("var")
-    predictors = list(config.get("predictors", []))
-
-    if response in predictors:
-        predictors.remove(response)
-    if not predictors:
-        raise ValueError("Need at least one predictor")
-
-    data_clean = df[[response] + predictors].dropna()
-    y = data_clean[response].values
-    X = data_clean[predictors].apply(pd.to_numeric, errors="coerce").values
-
-    result = ordinal_logistic(X, y, feature_names=predictors)
-
-    coef_items = [(name, f"{val:.4f}") for name, val in result.coefficients.items()]
-
-    return {
-        "plots": [],
-        "statistics": {
-            "coefficients": result.coefficients,
-            "thresholds": result.thresholds,
-            "categories": result.categories,
-            "n": result.n,
-            "log_likelihood": round(result.log_likelihood, 4),
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "ORDINAL LOGISTIC REGRESSION",
-            [
-                (
-                    "Design",
-                    [
-                        ("Response", f"{response} ({len(result.categories)} ordered levels)"),
-                        ("Predictors", ", ".join(predictors)),
-                        ("N", str(result.n)),
-                    ],
-                ),
-                ("Coefficients", coef_items),
-                ("Thresholds", [(f"τ{i + 1}", f"{t:.4f}") for i, t in enumerate(result.thresholds)]),
-                ("Fit", [("Log-likelihood", f"{result.log_likelihood:.4f}")]),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Ordinal logistic: {len(result.categories)} response levels, {len(predictors)} predictors",
-            "body": f"Positive coefficients increase probability of higher categories. Response levels: {', '.join(str(c) for c in result.categories)}.",
-            "next_steps": "Check proportional odds assumption. Consider nominal logistic if assumption is violated.",
-            "chart_guidance": "",
-        },
-        "guide_observation": f"Ordinal logistic: {len(result.categories)} levels, LL={result.log_likelihood:.1f}.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Orthogonal Regression (Deming)
-# =============================================================================
-
-
-def forge_orthogonal_regression(df, config):
-    """Orthogonal (Deming) regression via forgestat."""
-    from forgestat.regression.glm import orthogonal_regression
-    from forgeviz.charts.scatter import scatter
-
-    x_var = config.get("x_var") or config.get("var1")
-    y_var = config.get("y_var") or config.get("var2")
-    error_ratio = float(config.get("error_ratio", 1.0))
-
-    if not x_var or not y_var:
-        raise ValueError("Orthogonal regression requires x_var and y_var")
-
-    x_data = pd.to_numeric(df[x_var], errors="coerce").dropna()
-    y_data = pd.to_numeric(df[y_var], errors="coerce").dropna()
-    common = x_data.index.intersection(y_data.index)
-    x_vals = x_data.loc[common].values
-    y_vals = y_data.loc[common].values
-
-    result = orthogonal_regression(x_vals, y_vals, error_ratio=error_ratio)
-
-    chart = scatter(
-        x=x_vals.tolist(),
-        y=y_vals.tolist(),
-        title=f"Orthogonal Regression: {y_var} vs {x_var}",
-        x_label=x_var,
-        y_label=y_var,
-    )
-    plots = [_to_chart(chart)]
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "slope_orthogonal": round(result.slope, 6),
-            "intercept_orthogonal": round(result.intercept, 6),
-            "slope_ols": round(result.slope_ols, 6),
-            "intercept_ols": round(result.intercept_ols, 6),
-            "error_ratio": result.error_ratio,
-            "n": len(x_vals),
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "ORTHOGONAL (DEMING) REGRESSION",
-            [
-                (
-                    "Design",
-                    [
-                        ("X", x_var),
-                        ("Y", y_var),
-                        ("Error ratio (σ²_x/σ²_y)", f"{error_ratio}"),
-                        ("N", str(len(x_vals))),
-                    ],
-                ),
-                (
-                    "Orthogonal Fit",
-                    [
-                        ("Slope", f"{result.slope:.6f}"),
-                        ("Intercept", f"{result.intercept:.6f}"),
-                    ],
-                ),
-                (
-                    "OLS Comparison",
-                    [
-                        ("Slope (OLS)", f"{result.slope_ols:.6f}"),
-                        ("Intercept (OLS)", f"{result.intercept_ols:.6f}"),
-                    ],
-                ),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Orthogonal slope = {result.slope:.4f} (OLS: {result.slope_ols:.4f})",
-            "body": (
-                f"Orthogonal regression accounts for measurement error in both X and Y. "
-                f"Slope difference from OLS: {abs(result.slope - result.slope_ols):.4f}. "
-                + (
-                    "Substantial difference — measurement error in X biases OLS."
-                    if abs(result.slope - result.slope_ols) > 0.05 * abs(result.slope_ols)
-                    else "OLS and orthogonal fits are similar — X measurement error is minor."
-                )
-            ),
-            "next_steps": "Use orthogonal regression when both variables have measurement error (e.g., method comparison studies).",
-            "chart_guidance": "Scatter plot shows the data. Orthogonal regression minimizes perpendicular distances, not vertical.",
-        },
-        "guide_observation": f"Orthogonal regression: slope={result.slope:.4f} vs OLS={result.slope_ols:.4f}.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Nominal Logistic Regression
-# =============================================================================
-
-
-def forge_nominal_logistic(df, config):
-    """Nominal (multinomial) logistic regression via sklearn."""
-    from forgeviz.charts.generic import bar
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.metrics import confusion_matrix
-    from sklearn.preprocessing import LabelEncoder
-
-    response = config.get("response") or config.get("var")
-    predictors = list(config.get("predictors", []))
-
-    if response in predictors:
-        predictors.remove(response)
-    if not predictors:
-        raise ValueError("Need at least one predictor")
-
-    data_clean = df[[response] + predictors].dropna()
-    y_raw = data_clean[response]
-    classes = sorted(y_raw.unique().tolist(), key=str)
-
-    if len(classes) < 2:
-        raise ValueError(f"Response '{response}' has only {len(classes)} unique value(s). Need at least 2.")
-
-    le = LabelEncoder()
-    y = le.fit_transform(y_raw)
-    class_names = le.classes_.tolist()
-
-    X = data_clean[predictors].copy()
-    for col in X.columns:
-        if X[col].dtype == "object" or str(X[col].dtype) == "category":
-            X = pd.get_dummies(X, columns=[col], drop_first=True)
-    X = X.apply(pd.to_numeric, errors="coerce").values
-
-    model = LogisticRegression(multi_class="multinomial", solver="lbfgs", max_iter=1000)
-    model.fit(X, y)
-    y_pred = model.predict(X)
-    accuracy = float((y_pred == y).mean())
-    cm = confusion_matrix(y, y_pred)
-
-    # Chart: accuracy by class
-    per_class_acc = []
-    for i, cn in enumerate(class_names):
-        if cm[i].sum() > 0:
-            per_class_acc.append(round(float(cm[i, i] / cm[i].sum()), 4))
-        else:
-            per_class_acc.append(0.0)
-
-    chart = bar(
-        categories=[str(c) for c in class_names],
-        values=per_class_acc,
-        title="Per-Class Accuracy",
-        y_label="Accuracy",
-    )
-    plots = [_to_chart(chart)]
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "accuracy": round(accuracy, 4),
-            "classes": [str(c) for c in class_names],
-            "n_classes": len(class_names),
-            "per_class_accuracy": {str(c): a for c, a in zip(class_names, per_class_acc)},
-            "confusion_matrix": cm.tolist(),
-            "n": len(y),
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "NOMINAL LOGISTIC REGRESSION",
-            [
-                (
-                    "Design",
-                    [
-                        ("Response", f"{response} ({len(class_names)} categories)"),
-                        ("Predictors", ", ".join(predictors)),
-                        ("N", str(len(y))),
-                    ],
-                ),
-                (
-                    "Overall",
-                    [
-                        ("Accuracy", f"{accuracy:.1%}"),
-                    ],
-                ),
-                ("Per-class Accuracy", [(str(c), f"{a:.1%}") for c, a in zip(class_names, per_class_acc)]),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Nominal logistic: {accuracy:.1%} overall accuracy across {len(class_names)} categories",
-            "body": (
-                f"Multinomial model classifying {response} into {len(class_names)} categories. "
-                f"Weakest class: {class_names[per_class_acc.index(min(per_class_acc))]} ({min(per_class_acc):.1%})."
-            ),
-            "next_steps": "Check confusion matrix for systematic misclassifications. Consider ordinal logistic if categories are ordered.",
-            "chart_guidance": "Bar chart shows per-class classification accuracy.",
-        },
-        "guide_observation": f"Nominal logistic: {accuracy:.1%} accuracy, {len(class_names)} classes.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Dunnett's Test (vs Control)
-# =============================================================================
-
-
-def forge_dunnett(df, config):
-    """Dunnett's test via forgestat."""
-    from forgestat.posthoc.comparisons import dunnett
-    from forgeviz.charts.generic import bar
-
-    response = config.get("response") or config.get("var")
-    factor = config.get("factor") or config.get("group_var")
-    control = config.get("control")
+    p1 = float(config.get("p1", 0.5))
+    p2 = float(config.get("p2", 0.6))
     alpha = _alpha(config)
+    target_power = float(config.get("power", 0.80))
+    ratio = float(config.get("ratio", 1.0))
+    alt = config.get("alternative", "two-sided")
 
-    if not response or not factor:
-        raise ValueError("Dunnett's test requires response and factor")
+    z_a = norm.ppf(1 - alpha / 2) if alt == "two-sided" else norm.ppf(1 - alpha)
+    z_b = norm.ppf(target_power)
+    p_bar = (p1 + ratio * p2) / (1 + ratio)
+    h = abs(2 * (math.asin(math.sqrt(p1)) - math.asin(math.sqrt(p2))))
 
-    data = df[[response, factor]].dropna()
-    levels = sorted(data[factor].unique().tolist(), key=str)
-
-    if control is None or control not in levels:
-        control = levels[0]
-
-    control_data = pd.to_numeric(data[data[factor] == control][response], errors="coerce").dropna().values
-    treatments = [lev for lev in levels if lev != control]
-    treatment_data = [
-        pd.to_numeric(data[data[factor] == lev][response], errors="coerce").dropna().values for lev in treatments
-    ]
-
-    result = dunnett(
-        control_data,
-        *treatment_data,
-        control_name=str(control),
-        treatment_names=[str(t) for t in treatments],
-        alpha=alpha,
+    numer = z_a * math.sqrt((1 + 1 / ratio) * p_bar * (1 - p_bar)) + z_b * math.sqrt(
+        p1 * (1 - p1) + p2 * (1 - p2) / ratio
     )
-
-    # Build comparisons from result
-    comparisons = []
-    for comp in result.comparisons:
-        comparisons.append(
-            {
-                "treatment": comp.group2,
-                "control": comp.group1,
-                "mean_diff": round(comp.mean_diff, 4),
-                "p_value": comp.p_value,
-                "reject": comp.significant or comp.reject,
-            }
-        )
-
-    n_sig = sum(1 for c in comparisons if c["reject"])
-
-    # Bar chart of differences
-    chart = bar(
-        categories=[c["treatment"] for c in comparisons],
-        values=[c["mean_diff"] for c in comparisons],
-        title=f"Dunnett's Test — Difference from Control ({control})",
-        y_label=f"Difference from {control}",
-    )
-    plots = [_to_chart(chart)]
-
-    comp_items = [
-        (c["treatment"], f"diff = {c['mean_diff']:.4f}, p = {_pval_str(c['p_value'])}" + (" *" if c["reject"] else ""))
-        for c in comparisons
-    ]
+    n1 = math.ceil((numer / (p1 - p2)) ** 2) if p1 != p2 else 9999
+    n2 = math.ceil(n1 * ratio)
 
     return {
-        "plots": plots,
-        "statistics": {"comparisons": comparisons, "control": str(control)},
+        "plots": [],
+        "statistics": {
+            "n1": n1,
+            "n2": n2,
+            "total_n": n1 + n2,
+            "p1": p1,
+            "p2": p2,
+            "cohens_h": round(h, 4),
+            "alpha": alpha,
+            "power": target_power,
+        },
         "assumptions": {},
-        "summary": _rich_summary(
-            "DUNNETT'S TEST (vs Control)",
-            [
-                (
-                    "Design",
-                    [
-                        ("Response", response),
-                        ("Factor", factor),
-                        ("Control group", str(control)),
-                        ("N (control)", str(len(control_data))),
-                    ],
-                ),
-                ("Comparisons", comp_items),
-                ("Result", [(f"{n_sig}/{len(comparisons)}", "treatments differ from control")]),
-            ],
+        "summary": (
+            f"<<COLOR:header>>Power Analysis — 2-Proportion Test<</COLOR>>\n\n"
+            f"<<COLOR:text>>p\u2081 = {p1}, p\u2082 = {p2} \u2192 Cohen's h = {h:.3f}<</COLOR>>\n"
+            f"<<COLOR:text>>\u03b1 = {alpha}, desired power = {target_power}, ratio n\u2082/n\u2081 = {ratio}<</COLOR>>\n\n"
+            f"<<COLOR:green>>Required: n\u2081 = {n1}, n\u2082 = {n2} (total = {n1 + n2})<</COLOR>>\n"
         ),
         "narrative": {
-            "verdict": f"Dunnett's: {n_sig} of {len(comparisons)} treatments differ from control ({control})",
-            "body": (
-                f"Comparing all treatments against <strong>{control}</strong>. "
-                + (f"{n_sig} show significant differences." if n_sig else "No treatments differ from control.")
-            ),
-            "next_steps": "Dunnett's test is more powerful than Tukey when comparing only to a control group.",
-            "chart_guidance": "Bar chart shows mean difference from control for each treatment. Significant differences are highlighted.",
+            "verdict": f"Power Analysis \u2014 n\u2081 = {n1}, n\u2082 = {n2} per group",
+            "body": f"To detect |p\u2081 \u2212 p\u2082| = {abs(p1 - p2):.3f} (h = {h:.3f}) with {target_power * 100:.0f}% power: <strong>n\u2081 = {n1}, n\u2082 = {n2}</strong>.",
+            "next_steps": "Equal allocation (ratio = 1) is most efficient. Unequal ratios require larger total n.",
+            "chart_guidance": "The power curve shows power vs n\u2081.",
         },
-        "guide_observation": f"Dunnett's vs {control}: {n_sig}/{len(comparisons)} treatments differ.",
+        "guide_observation": f"2-prop power: need n\u2081={n1}, n\u2082={n2} for |\u0394p|={abs(p1 - p2):.3f} at power={target_power}.",
         "diagnostics": [],
     }
 
 
-# =============================================================================
-# Hsu's MCB (Multiple Comparisons with the Best)
-# =============================================================================
+def forge_power_doe(df, config):
+    """Power/sample size for 2-level factorial DOE."""
+    from scipy.stats import t as t_dist
 
-
-def forge_hsu_mcb(df, config):
-    """Hsu's MCB — which groups could be the best."""
-    from scipy import stats as sp_stats
-
-    response = config.get("response") or config.get("var")
-    factor = config.get("factor") or config.get("group_var")
+    n_factors = int(config.get("factors", config.get("n_factors", 3)))
+    delta = float(config.get("delta", config.get("effect_size", 1.0)))
+    sigma = float(config.get("sigma", 1.0))
     alpha = _alpha(config)
-    direction = config.get("direction", "max")
+    target_power = float(config.get("power", 0.80))
 
-    if not response or not factor:
-        raise ValueError("Hsu's MCB requires response and factor")
+    n_runs_base = 2**n_factors
 
-    data = df[[response, factor]].dropna()
-    groups = sorted(data[factor].unique(), key=str)
-    k = len(groups)
+    req_reps = 100
+    for reps in range(1, 100):
+        n_total = n_runs_base * reps
+        df_error = n_total - n_runs_base
+        if df_error < 1:
+            continue
+        se = sigma * math.sqrt(4.0 / n_total)
+        if se <= 0:
+            continue
+        t_crit = t_dist.ppf(1 - alpha / 2, df_error)
+        ncp = abs(delta) / se
+        pw = 1 - t_dist.cdf(t_crit - ncp, df_error) + t_dist.cdf(-t_crit - ncp, df_error)
+        if pw >= target_power:
+            req_reps = reps
+            break
 
-    group_data = {
-        str(g): pd.to_numeric(data[data[factor] == g][response], errors="coerce").dropna().values for g in groups
-    }
-    group_means = {g: float(np.mean(v)) for g, v in group_data.items()}
-    group_ns = {g: len(v) for g, v in group_data.items()}
-    n_total = sum(group_ns.values())
-
-    ss_w = sum(float(np.sum((v - np.mean(v)) ** 2)) for v in group_data.values())
-    df_w = n_total - k
-    mse = ss_w / df_w if df_w > 0 else 0
-
-    t_crit = sp_stats.t.ppf(1 - alpha / (2 * (k - 1)), df_w) if df_w > 0 else 2.0
-
-    best_group = max(group_means, key=group_means.get) if direction == "max" else min(group_means, key=group_means.get)
-
-    comparisons = []
-    for g in group_data:
-        mean_g = group_means[g]
-        mean_best = group_means[best_group]
-        diff = mean_g - mean_best if direction == "max" else mean_best - mean_g
-        se = np.sqrt(mse * (1 / group_ns[g] + 1 / group_ns[best_group])) if mse > 0 else 0
-        lower = diff - t_crit * se
-        upper = diff + t_crit * se
-
-        if g == best_group:
-            could_be_best = True
-            lower_mcb, upper_mcb = 0.0, max(0, upper)
-        else:
-            lower_mcb = min(0, lower)
-            upper_mcb = min(0, upper)
-            could_be_best = upper_mcb >= 0
-
-        comparisons.append(
-            {
-                "group": g,
-                "mean": round(float(mean_g), 4),
-                "diff_from_best": round(float(diff), 4),
-                "lower": round(float(lower_mcb), 4),
-                "upper": round(float(upper_mcb), 4),
-                "could_be_best": could_be_best,
-                "is_best": g == best_group,
-            }
-        )
-
-    n_could = sum(1 for c in comparisons if c["could_be_best"])
-
-    comp_items = [
-        (
-            c["group"],
-            f"mean={c['mean']:.4f}, diff={c['diff_from_best']:.4f}, CI=[{c['lower']:.4f}, {c['upper']:.4f}] {'← COULD BE BEST' if c['could_be_best'] else ''}",
-        )
-        for c in comparisons
-    ]
-
+    n_total_req = n_runs_base * req_reps
     return {
         "plots": [],
         "statistics": {
-            "comparisons": comparisons,
-            "best_group": best_group,
-            "direction": direction,
-            "mse": round(mse, 4),
+            "factors": n_factors,
+            "base_runs": n_runs_base,
+            "required_reps": req_reps,
+            "total_runs": n_total_req,
+            "delta": delta,
+            "sigma": sigma,
+            "alpha": alpha,
+            "power": target_power,
         },
         "assumptions": {},
-        "summary": _rich_summary(
-            "HSU'S MCB (MULTIPLE COMPARISONS WITH THE BEST)",
-            [
-                (
-                    "Design",
-                    [
-                        ("Response", response),
-                        ("Factor", f"{factor} ({k} groups)"),
-                        ("Direction", "Higher is better" if direction == "max" else "Lower is better"),
-                        ("Best group", f"{best_group} (mean = {group_means[best_group]:.4f})"),
-                    ],
-                ),
-                ("MCB Intervals", comp_items),
-                ("Result", [(f"{n_could}/{k}", "groups could be the best")]),
-            ],
+        "summary": (
+            f"<<COLOR:header>>Power Analysis — 2^{n_factors} Factorial DOE<</COLOR>>\n\n"
+            f"<<COLOR:text>>Factors: {n_factors}, base runs: {n_runs_base}<</COLOR>>\n"
+            f"<<COLOR:text>>Minimum detectable effect: \u0394 = {delta}, \u03c3 = {sigma}<</COLOR>>\n"
+            f"<<COLOR:text>>\u03b1 = {alpha}, desired power = {target_power}<</COLOR>>\n\n"
+            f"<<COLOR:green>>Required replicates: {req_reps} \u2192 total runs = {n_total_req}<</COLOR>>\n"
         ),
         "narrative": {
-            "verdict": f"Hsu's MCB: {n_could} of {k} groups could be the best",
-            "body": f"Current best: <strong>{best_group}</strong> ({direction}). {n_could} group{'s' if n_could != 1 else ''} cannot be ruled out as best.",
-            "next_steps": "MCB identifies which groups could plausibly be the best. Narrow the field with more data.",
-            "chart_guidance": "Groups with CI including zero could be the best. Groups entirely below zero are eliminated.",
+            "verdict": f"DOE Power \u2014 {req_reps} replicates ({n_total_req} runs)",
+            "body": f"A 2^{n_factors} factorial design needs <strong>{req_reps} replicates</strong> ({n_total_req} total runs) to detect \u0394 = {delta} (\u03c3 = {sigma}) with {target_power * 100:.0f}% power.",
+            "next_steps": "If too many runs, consider a fractional factorial or screen fewer factors first.",
+            "chart_guidance": "Power increases with replicates.",
         },
-        "guide_observation": f"Hsu's MCB: {n_could}/{k} groups could be best. Best={best_group}.",
+        "guide_observation": f"DOE power: 2^{n_factors} design needs {req_reps} reps ({n_total_req} runs) to detect \u0394={delta} at power={target_power}.",
         "diagnostics": [],
     }
 
 
-# =============================================================================
-# Main Effects Plot
-# =============================================================================
+def forge_sample_size_tolerance(df, config):
+    """Sample size for tolerance interval."""
+    from forgestat.power.sample_size import sample_size_tolerance
 
+    coverage = float(config.get("coverage", 0.95))
+    confidence = float(config.get("confidence", 0.95))
+    std = float(config.get("std", config.get("sigma", 1.0)))
+    target_width = config.get("target_width")
+    kwargs = {"coverage": coverage, "confidence": confidence, "std": std}
+    if target_width is not None:
+        kwargs["target_width"] = float(target_width)
 
-def forge_main_effects(df, config):
-    """Main effects plot for DOE analysis."""
-    from forgeviz.charts.generic import multi_line
-
-    response = config.get("response") or config.get("var")
-    factors = config.get("factors", [])
-
-    if not response or not factors:
-        raise ValueError("Main effects requires response and factors")
-
-    y = pd.to_numeric(df[response], errors="coerce").dropna()
-    grand_mean = float(y.mean())
-
-    plots = []
-    effect_ranges = []
-    effect_items = []
-
-    for factor in factors:
-        factor_means = df.groupby(factor)[response].apply(lambda x: float(pd.to_numeric(x, errors="coerce").mean()))
-        levels = [str(lv) for lv in factor_means.index]
-        means = list(factor_means.values)
-
-        chart = multi_line(
-            x=levels,
-            series={"Mean": means, "Grand Mean": [grand_mean] * len(levels)},
-            title=f"Main Effect: {factor}",
-            x_label=factor,
-            y_label=f"Mean {response}",
-            show_markers=True,
-        )
-        plots.append(_to_chart(chart))
-
-        f_range = max(means) - min(means)
-        effect_ranges.append((factor, f_range))
-
-        for lv, m in zip(levels, means):
-            effect = m - grand_mean
-            effect_items.append((f"{factor}={lv}", f"{m:.4f} (effect: {effect:+.4f})"))
-
-    effect_ranges.sort(key=lambda x: x[1], reverse=True)
-    top_factor, top_range = effect_ranges[0]
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "grand_mean": round(grand_mean, 4),
-            "effects": {f: round(r, 4) for f, r in effect_ranges},
-            "n": len(y),
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "MAIN EFFECTS PLOT",
-            [
-                (
-                    "Design",
-                    [
-                        ("Response", response),
-                        ("Factors", ", ".join(factors)),
-                        ("Grand Mean", f"{grand_mean:.4f}"),
-                    ],
-                ),
-                ("Effects (deviation from grand mean)", effect_items),
-                ("Largest Effect", [(top_factor, f"range = {top_range:.4f}")]),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Main Effects — {top_factor} has the largest effect (range = {top_range:.4f})",
-            "body": (
-                f"Across {len(factors)} factors, <strong>{top_factor}</strong> produces the widest swing "
-                f"in mean {response} ({top_range:.4f}). Grand mean = {grand_mean:.4f}."
-                + (
-                    f" Second: {effect_ranges[1][0]} (range = {effect_ranges[1][1]:.4f})."
-                    if len(effect_ranges) > 1
-                    else ""
-                )
-            ),
-            "next_steps": "Steep slopes = strong effects, flat lines = negligible. Run interaction plot to check independence.",
-            "chart_guidance": "Each panel shows how one factor's levels shift the response mean. Dashed line is grand mean.",
-        },
-        "guide_observation": f"Main effects: {top_factor} has largest effect (range={top_range:.4f}).",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Interaction Plot
-# =============================================================================
-
-
-def forge_interaction(df, config):
-    """Interaction plot for two factors."""
-    from forgeviz.charts.generic import multi_line
-
-    response = config.get("response") or config.get("var")
-    factor1 = config.get("factor1")
-    factor2 = config.get("factor2")
-
-    if not all([response, factor1, factor2]):
-        raise ValueError("Interaction plot requires response, factor1, and factor2")
-
-    # Calculate cell means
-    interaction_means = (
-        df.groupby([factor1, factor2])[response]
-        .apply(lambda x: float(pd.to_numeric(x, errors="coerce").mean()))
-        .unstack()
-    )
-
-    levels1 = [str(lv) for lv in interaction_means.index]
-    levels2 = [str(lv) for lv in interaction_means.columns]
-
-    series = {}
-    for lev2 in interaction_means.columns:
-        series[str(lev2)] = [round(float(v), 4) for v in interaction_means[lev2].values]
-
-    chart = multi_line(
-        x=levels1,
-        series=series,
-        title=f"Interaction: {factor1} × {factor2}",
-        x_label=factor1,
-        y_label=f"Mean {response}",
-        show_markers=True,
-    )
-    plots = [_to_chart(chart)]
-
-    # Simple interaction detection
-    has_interaction = False
-    if len(levels2) >= 2 and len(levels1) >= 2:
-        slopes = []
-        for lev2 in interaction_means.columns:
-            vals = interaction_means[lev2].values
-            slope = (vals[-1] - vals[0]) / (len(vals) - 1) if len(vals) > 1 else 0
-            slopes.append(float(slope))
-        slope_diff = max(slopes) - min(slopes)
-        mean_slope = float(np.mean(slopes))
-        has_interaction = slope_diff > 0.1 * abs(mean_slope) if mean_slope != 0 else slope_diff > 0.1
-
-    if has_interaction:
-        verdict = f"Interaction detected — {factor1} × {factor2}"
-        body = (
-            f"The effect of <strong>{factor1}</strong> on {response} depends on <strong>{factor2}</strong> "
-            f"(non-parallel lines). Optimize jointly, not independently."
-        )
-        nxt = "Factors interact — optimize jointly. Confirm with ANOVA interaction term."
-    else:
-        verdict = f"No strong interaction — {factor1} × {factor2}"
-        body = (
-            f"Lines are approximately parallel — <strong>{factor1}</strong> and <strong>{factor2}</strong> "
-            f"act independently on {response}."
-        )
-        nxt = "Factors appear independent — optimize each separately."
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "cell_means": {str(k): round(float(v), 4) for k, v in interaction_means.stack().items()},
-            "has_interaction": has_interaction,
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "INTERACTION PLOT",
-            [
-                (
-                    "Design",
-                    [
-                        ("Response", response),
-                        ("X-axis factor", factor1),
-                        ("Trace factor", factor2),
-                    ],
-                ),
-                (
-                    "Cell Means",
-                    [
-                        (f"{factor1}={l1}, {factor2}={l2}", f"{interaction_means.loc[l1_raw, l2_raw]:.4f}")
-                        for l1, l1_raw in zip(levels1, interaction_means.index)
-                        for l2, l2_raw in zip(levels2, interaction_means.columns)
-                    ],
-                ),
-            ],
-        ),
-        "narrative": {
-            "verdict": verdict,
-            "body": body,
-            "next_steps": nxt,
-            "chart_guidance": "Parallel lines = no interaction. Crossing or diverging lines = interaction.",
-        },
-        "guide_observation": f"Interaction {factor1}×{factor2}: {'detected' if has_interaction else 'not detected'}.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# ANOM (Analysis of Means)
-# =============================================================================
-
-
-def forge_anom(df, config):
-    """Analysis of Means via forgestat."""
-    from forgestat.quality.anom import anom
-    from forgeviz.charts.generic import bar
-
-    response = config.get("response") or config.get("var") or config.get("var1")
-    factor = config.get("factor") or config.get("group_var") or config.get("var2")
-    alpha = _alpha(config)
-
-    if not response or not factor:
-        raise ValueError("ANOM requires response and factor")
-
-    data_clean = df[[response, factor]].dropna()
-    labels = sorted(data_clean[factor].unique().tolist(), key=str)
-    groups_data = [
-        pd.to_numeric(data_clean[data_clean[factor] == g][response], errors="coerce").dropna().values for g in labels
-    ]
-
-    result = anom(*groups_data, labels=[str(l) for l in labels], alpha=alpha)
-
-    outside = [g.name for g in result.groups if g.exceeds_upper or g.exceeds_lower]
-    group_means = [g.mean for g in result.groups]
-
-    chart = bar(
-        categories=[g.name for g in result.groups],
-        values=group_means,
-        title="ANOM Chart",
-        y_label=response,
-    )
-    plots = [_to_chart(chart)]
-
-    comp_items = [
-        (g.name, f"mean={g.mean:.4f}, n={g.n}" + (" *OUTSIDE*" if g.exceeds_upper or g.exceeds_lower else ""))
-        for g in result.groups
-    ]
-
-    if outside:
-        verdict = f"ANOM: {len(outside)} of {result.n_groups} groups differ from overall mean"
-        body = f"Groups outside decision limits: <strong>{', '.join(outside)}</strong>."
-    else:
-        verdict = f"ANOM: All {result.n_groups} groups within decision limits"
-        body = "No group means are significantly different from the overall mean."
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "grand_mean": round(result.grand_mean, 4),
-            "mse": round(result.mse, 4),
-            "upper_limit": round(result.upper_limit, 4),
-            "lower_limit": round(result.lower_limit, 4),
-            "k": result.n_groups,
-            "outside_limits": outside,
-            "group_means": {g.name: round(g.mean, 4) for g in result.groups},
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "ANALYSIS OF MEANS (ANOM)",
-            [
-                (
-                    "Design",
-                    [
-                        ("Response", response),
-                        ("Factor", str(factor)),
-                        ("Groups", str(result.n_groups)),
-                        ("Grand Mean", f"{result.grand_mean:.4f}"),
-                    ],
-                ),
-                ("Groups", comp_items),
-                (
-                    "Decision Limits",
-                    [
-                        ("UDL", f"{result.upper_limit:.4f}"),
-                        ("LDL", f"{result.lower_limit:.4f}"),
-                    ],
-                ),
-            ],
-        ),
-        "narrative": {
-            "verdict": verdict,
-            "body": body,
-            "next_steps": "ANOM is a graphical alternative to ANOVA. Groups outside the limits warrant investigation.",
-            "chart_guidance": "Points outside the decision limits differ significantly from the overall average.",
-        },
-        "guide_observation": f"ANOM: {len(outside)} of {result.n_groups} groups outside limits.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Attribute Capability
-# =============================================================================
-
-
-def forge_attribute_capability(df, config):
-    """Attribute capability analysis via forgestat."""
-    from forgestat.quality.capability import attribute_capability
-
-    var = config.get("var") or config.get("var1")
-    defects_count = config.get("defects")
-    units_count = config.get("units")
-    opportunities = int(config.get("opportunities", 1))
-    event = config.get("event")
-
-    if defects_count is not None and units_count is not None:
-        d = int(float(defects_count))
-        n = int(float(units_count))
-    elif var:
-        col = df[var].dropna()
-        n = len(col)
-        if event is not None:
-            d = int((col.astype(str) == str(event)).sum())
-        else:
-            vc = col.value_counts()
-            if len(vc) == 2:
-                d = int(vc.iloc[-1])
-            elif col.dtype in ["int64", "float64"]:
-                d = int(col.sum())
-            else:
-                raise ValueError("Cannot auto-detect defect value. Specify 'event' in config.")
-    else:
-        raise ValueError("Provide var or (defects, units)")
-
-    result = attribute_capability(d, n, opportunities)
-
-    sigma_label = (
-        "world-class"
-        if result.sigma_short_term >= 6
-        else "excellent"
-        if result.sigma_short_term >= 5
-        else "good"
-        if result.sigma_short_term >= 4
-        else "marginal"
-        if result.sigma_short_term >= 3
-        else "poor"
-    )
-
+    n = sample_size_tolerance(**kwargs)
     return {
         "plots": [],
         "statistics": {
-            "defects": d,
-            "units": n,
-            "opportunities": opportunities,
-            "dpu": round(result.dpu, 4),
-            "dpo": round(result.dpo, 6),
-            "dpmo": round(result.dpmo, 1),
-            "yield_percent": round(result.yield_pct, 2),
-            "z_bench": round(result.z_bench, 2),
-            "sigma_level": round(result.sigma_short_term, 2),
+            "required_n": n,
+            "coverage": coverage,
+            "confidence": confidence,
         },
         "assumptions": {},
-        "summary": _rich_summary(
-            "ATTRIBUTE CAPABILITY ANALYSIS",
-            [
-                (
-                    "Input",
-                    [
-                        ("Units", str(n)),
-                        ("Defects", str(d)),
-                        ("Opportunities/unit", str(opportunities)),
-                    ],
-                ),
-                (
-                    "Capability Metrics",
-                    [
-                        ("DPU", f"{result.dpu:.4f}"),
-                        ("DPO", f"{result.dpo:.6f}"),
-                        ("DPMO", f"{result.dpmo:.1f}"),
-                        ("Yield %", f"{result.yield_pct:.2f}%"),
-                        ("Z.bench", f"{result.z_bench:.2f}"),
-                        ("Sigma level", f"{result.sigma_short_term:.2f} ({sigma_label})"),
-                    ],
-                ),
-            ],
-        ),
+        "summary": f"Required sample size for tolerance interval: n = {n} (coverage={coverage}, confidence={confidence}).",
         "narrative": {
-            "verdict": f"Attribute Capability: {result.sigma_short_term:.1f}σ ({sigma_label})",
-            "body": f"DPMO = {result.dpmo:.0f}, Yield = {result.yield_pct:.2f}%.",
-            "next_steps": "Focus on reducing DPMO. Pareto the top defect types."
-            if result.sigma_short_term < 4
-            else "Strong capability. Monitor and maintain.",
-            "chart_guidance": "3σ = 66,807 DPMO, 4σ = 6,210, 6σ = 3.4.",
-        },
-        "guide_observation": f"Attribute capability: DPMO={result.dpmo:.0f}, Sigma={result.sigma_short_term:.1f}.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Nonparametric Capability
-# =============================================================================
-
-
-def forge_nonnormal_capability_np(df, config):
-    """Nonparametric process capability via forgestat."""
-    from forgestat.quality.capability import nonnormal_capability
-    from forgeviz.charts.distribution import histogram
-
-    var = config.get("var") or config.get("var1")
-    usl = float(config.get("usl"))
-    lsl = float(config.get("lsl"))
-
-    if not var:
-        raise ValueError("Nonnormal capability requires var, usl, lsl")
-
-    data_arr = pd.to_numeric(df[var], errors="coerce").dropna().values
-    if len(data_arr) < 10:
-        raise ValueError("Need at least 10 data points")
-
-    result = nonnormal_capability(data_arr, lsl=lsl, usl=usl)
-
-    # Normal-based comparison
-    std_val = float(np.std(data_arr, ddof=1))
-    mean_val = float(np.mean(data_arr))
-    cp_normal = (usl - lsl) / (6 * std_val) if std_val > 0 else 0
-    cpk_normal = min((usl - mean_val) / (3 * std_val), (mean_val - lsl) / (3 * std_val)) if std_val > 0 else 0
-
-    cnpk_label = "capable" if result.cnpk >= 1.33 else "marginal" if result.cnpk >= 1.0 else "not capable"
-
-    chart = histogram(
-        data=data_arr.tolist(),
-        bins=min(30, max(10, len(data_arr) // 5)),
-        title=f"Distribution: {var} with Spec Limits",
-        target=(usl + lsl) / 2,
-    )
-    plots = [_to_chart(chart)]
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "cnp": round(result.cnp, 3),
-            "cnpk": round(result.cnpk, 3),
-            "cp_normal": round(cp_normal, 3),
-            "cpk_normal": round(cpk_normal, 3),
-            "median": round(result.median, 4),
-            "p_0135": round(result.p_low, 4),
-            "p_99865": round(result.p_high, 4),
-            "ppm_out": round(result.ppm_out, 0),
-            "is_normal": result.is_normal,
-            "n": len(data_arr),
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "NONPARAMETRIC PROCESS CAPABILITY",
-            [
-                ("Design", [("Variable", f"{var} (n={len(data_arr)})"), ("LSL", str(lsl)), ("USL", str(usl))]),
-                (
-                    "Comparison",
-                    [
-                        ("Normal Cp/Cpk", f"{cp_normal:.3f} / {cpk_normal:.3f}"),
-                        ("Nonparametric Cnp/Cnpk", f"{result.cnp:.3f} / {result.cnpk:.3f}"),
-                    ],
-                ),
-                (
-                    "Nonparametric Details",
-                    [
-                        ("Median", f"{result.median:.4f}"),
-                        ("0.135th %ile", f"{result.p_low:.4f}"),
-                        ("99.865th %ile", f"{result.p_high:.4f}"),
-                        ("PPM outside", f"{result.ppm_out:.0f}"),
-                        ("Data normality", "normal" if result.is_normal else "NON-NORMAL"),
-                    ],
-                ),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Nonparametric Cpk = {result.cnpk:.3f} ({cnpk_label})",
-            "body": f"Percentile-based capability. PPM = {result.ppm_out:.0f}. Data is {'normal' if result.is_normal else 'non-normal — this method is more appropriate'}.",
-            "next_steps": "Reduce variation or center the process."
-            if result.cnpk < 1.33
-            else "Process is capable. Monitor with control charts.",
-            "chart_guidance": "Histogram shows data distribution relative to spec limits.",
-        },
-        "guide_observation": f"Nonparametric capability: Cnpk={result.cnpk:.3f}, PPM={result.ppm_out:.0f}.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Acceptance Sampling (Attribute)
-# =============================================================================
-
-
-def forge_acceptance_sampling(df, config):
-    """Acceptance sampling plan via forgestat."""
-    from forgestat.quality.acceptance import attribute_plan
-
-    aql = float(config.get("aql", 0.01))
-    ltpd = float(config.get("ltpd", 0.05))
-    lot_size = int(config.get("lot_size", 1000))
-    alpha_risk = float(config.get("alpha", 0.05))
-    beta_risk = float(config.get("beta", 0.10))
-
-    result = attribute_plan(aql=aql, ltpd=ltpd, producer_risk=alpha_risk, consumer_risk=beta_risk, lot_size=lot_size)
-
-    return {
-        "plots": [],
-        "statistics": {
-            "plan_type": result.plan_type,
-            "sample_size": result.sample_size,
-            "acceptance_number": result.acceptance_number,
-            "aql": result.aql,
-            "ltpd": result.ltpd,
-            "producer_risk": round(result.producer_risk, 4),
-            "consumer_risk": round(result.consumer_risk, 4),
-            "aoql": round(result.aoql, 6) if result.aoql else None,
-            "lot_size": lot_size,
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "ACCEPTANCE SAMPLING PLAN",
-            [
-                (
-                    "Plan Parameters",
-                    [
-                        ("AQL", f"{aql * 100:.1f}%"),
-                        ("LTPD", f"{ltpd * 100:.1f}%"),
-                        ("Producer risk (α)", f"{alpha_risk}"),
-                        ("Consumer risk (β)", f"{beta_risk}"),
-                        ("Lot size", str(lot_size)),
-                    ],
-                ),
-                (
-                    "Sampling Plan",
-                    [
-                        ("Sample size (n)", str(result.sample_size)),
-                        ("Accept number (c)", str(result.acceptance_number)),
-                    ],
-                ),
-                (
-                    "Risk",
-                    [
-                        ("Producer risk", f"{result.producer_risk:.4f}"),
-                        ("Consumer risk", f"{result.consumer_risk:.4f}"),
-                    ],
-                ),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Acceptance plan: n={result.sample_size}, c={result.acceptance_number}",
-            "body": f"Inspect {result.sample_size} items. Accept if ≤ {result.acceptance_number} defectives found.",
-            "next_steps": "The OC curve shows acceptance probability vs lot quality.",
+            "verdict": f"Need n = {n}",
+            "body": f"To achieve {coverage * 100:.0f}% coverage with {confidence * 100:.0f}% confidence.",
+            "next_steps": "Collect the required sample.",
             "chart_guidance": "",
         },
-        "guide_observation": f"Sampling plan: n={result.sample_size}, c={result.acceptance_number}, AQL={aql * 100:.1f}%.",
+        "guide_observation": f"Tolerance interval sample size: n={n}.",
         "diagnostics": [],
     }
 
 
 # =============================================================================
-# Variable Acceptance Sampling
+# Dispatch — imports from split modules
 # =============================================================================
 
-
-def forge_variable_acceptance_sampling(df, config):
-    """Variables acceptance sampling plan via forgestat."""
-    from forgestat.quality.acceptance import variable_plan
-
-    aql = float(config.get("aql", 1.0)) / 100  # input as percentage
-    ltpd = float(config.get("ltpd", config.get("rql", 5.0))) / 100
-    alpha_risk = float(config.get("alpha", 0.05))
-    beta_risk = float(config.get("beta", 0.10))
-
-    result = variable_plan(aql=aql, ltpd=ltpd, producer_risk=alpha_risk, consumer_risk=beta_risk)
-
-    return {
-        "plots": [],
-        "statistics": {
-            "plan_type": result.plan_type,
-            "sample_size": result.sample_size,
-            "k_value": round(result.k_value, 4),
-            "aql": aql * 100,
-            "ltpd": ltpd * 100,
-            "producer_risk": round(result.producer_risk, 4),
-            "consumer_risk": round(result.consumer_risk, 4),
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "VARIABLES ACCEPTANCE SAMPLING PLAN",
-            [
-                (
-                    "Parameters",
-                    [
-                        ("AQL", f"{aql * 100:.1f}%"),
-                        ("LTPD", f"{ltpd * 100:.1f}%"),
-                        ("α", str(alpha_risk)),
-                        ("β", str(beta_risk)),
-                    ],
-                ),
-                (
-                    "Plan",
-                    [
-                        ("Sample size (n)", str(result.sample_size)),
-                        ("Critical value (k)", f"{result.k_value:.4f}"),
-                    ],
-                ),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Variables plan: n={result.sample_size}, k={result.k_value:.4f}",
-            "body": f"Sample {result.sample_size} items. Accept if Z_stat >= {result.k_value:.4f}.",
-            "next_steps": "Assumes normally distributed measurements. Verify normality before use.",
-            "chart_guidance": "",
-        },
-        "guide_observation": f"Variables sampling: n={result.sample_size}, k={result.k_value:.4f}.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Variance Components
-# =============================================================================
-
-
-def forge_variance_components(df, config):
-    """Variance components via forgestat."""
-    from forgestat.quality.variance_components import one_way_random
-    from forgeviz.charts.generic import bar
-
-    response = config.get("response") or config.get("var")
-    factors = config.get("factors", [])
-    if not factors and config.get("factor"):
-        factors = [config["factor"]]
-
-    if not response or not factors:
-        raise ValueError("Variance components requires response and at least one factor")
-
-    factor = factors[0]  # forgestat supports one-way
-    data_clean = df[[response, factor]].dropna()
-
-    groups = {}
-    for g in sorted(data_clean[factor].unique(), key=str):
-        vals = pd.to_numeric(data_clean[data_clean[factor] == g][response], errors="coerce").dropna()
-        groups[str(g)] = vals.tolist()
-
-    result = one_way_random(groups, factor_name=factor)
-
-    comp_items = [
-        (c.source, f"variance={c.variance:.4f}, {c.pct_contribution:.1f}%, StDev={c.std_dev:.4f}")
-        for c in result.components
-    ]
-
-    top_comp = max(result.components, key=lambda c: c.pct_contribution) if result.components else None
-
-    chart = bar(
-        categories=[c.source for c in result.components],
-        values=[c.pct_contribution for c in result.components],
-        title="Variance Components (%)",
-        y_label="% of Total",
-    )
-    plots = [_to_chart(chart)]
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "components": {
-                c.source: {
-                    "variance": round(c.variance, 4),
-                    "pct": round(c.pct_contribution, 1),
-                    "std_dev": round(c.std_dev, 4),
-                }
-                for c in result.components
-            },
-            "total_variance": round(result.total_variance, 4),
-            "icc": round(result.icc, 4),
-            "n": len(data_clean),
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "VARIANCE COMPONENTS ANALYSIS",
-            [
-                ("Design", [("Response", response), ("Factor", factor), ("N", str(len(data_clean)))]),
-                ("Components", comp_items),
-                ("Total", [("Total variance", f"{result.total_variance:.4f}"), ("ICC", f"{result.icc:.4f}")]),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Variance Components: {top_comp.source} dominates ({top_comp.pct_contribution:.1f}%)"
-            if top_comp
-            else "No components",
-            "body": f"ICC = {result.icc:.4f}. "
-            + ", ".join(f"{c.source}={c.pct_contribution:.1f}%" for c in result.components)
-            + ".",
-            "next_steps": f"Focus improvement on <strong>{top_comp.source}</strong> — reducing the largest component gives the most impact."
-            if top_comp
-            else "",
-            "chart_guidance": "Bar chart shows each source's contribution to total variance.",
-        },
-        "guide_observation": "Variance components: "
-        + ", ".join(f"{c.source}={c.pct_contribution:.1f}%" for c in result.components)
-        + ".",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Capability Sixpack
-# =============================================================================
-
-
-def forge_capability_sixpack(df, config):
-    """Process capability sixpack — 6-panel diagnostic display."""
-    from forgeviz.charts.distribution import histogram
-    from scipy.stats import norm as norm_dist
-
-    var = config.get("var") or config.get("var1")
-    lsl_raw = config.get("lsl")
-    usl_raw = config.get("usl")
-    target_raw = config.get("target")
-
-    if not var:
-        raise ValueError("Capability sixpack requires var")
-
-    data = pd.to_numeric(df[var], errors="coerce").dropna().values
-    n = len(data)
-    if n < 10:
-        raise ValueError("Need at least 10 observations")
-
-    lsl = float(lsl_raw) if lsl_raw is not None and str(lsl_raw).strip() else None
-    usl = float(usl_raw) if usl_raw is not None and str(usl_raw).strip() else None
-    target = float(target_raw) if target_raw is not None and str(target_raw).strip() else None
-
-    if lsl is None and usl is None:
-        raise ValueError("At least one spec limit (LSL or USL) required")
-    if target is None and lsl is not None and usl is not None:
-        target = (lsl + usl) / 2
-
-    x_bar = float(np.mean(data))
-    s = float(np.std(data, ddof=1))
-
-    # Capability indices
-    cp = cpu = cpl = cpk = None
-    if lsl is not None and usl is not None and s > 0:
-        cp = (usl - lsl) / (6 * s)
-        cpu = (usl - x_bar) / (3 * s)
-        cpl = (x_bar - lsl) / (3 * s)
-        cpk = min(cpu, cpl)
-    elif usl is not None and s > 0:
-        cpu = (usl - x_bar) / (3 * s)
-        cpk = cpu
-    elif lsl is not None and s > 0:
-        cpl = (x_bar - lsl) / (3 * s)
-        cpk = cpl
-
-    ppm_below = float(norm_dist.cdf((lsl - x_bar) / s) * 1e6) if lsl is not None and s > 0 else 0
-    ppm_above = float((1 - norm_dist.cdf((usl - x_bar) / s)) * 1e6) if usl is not None and s > 0 else 0
-    ppm_total = ppm_below + ppm_above
-
-    # Histogram chart
-    chart = histogram(
-        data=data.tolist(),
-        bins=min(30, max(10, n // 5)),
-        title=f"Capability: {var}",
-        target=target,
-    )
-    plots = [_to_chart(chart)]
-
-    cap_items = []
-    if cp is not None:
-        cap_items.append(("Cp", f"{cp:.3f}"))
-    if cpk is not None:
-        cap_items.append(("Cpk", f"{cpk:.3f}"))
-    if cpl is not None:
-        cap_items.append(("CPL", f"{cpl:.3f}"))
-    if cpu is not None:
-        cap_items.append(("CPU", f"{cpu:.3f}"))
-
-    cpk_label = "capable" if cpk and cpk >= 1.33 else "marginal" if cpk and cpk >= 1.0 else "not capable"
-
-    return {
-        "plots": plots,
-        "statistics": {
-            "n": n,
-            "mean": round(x_bar, 4),
-            "std_dev": round(s, 4),
-            "cp": round(cp, 3) if cp else None,
-            "cpk": round(cpk, 3) if cpk else None,
-            "cpl": round(cpl, 3) if cpl else None,
-            "cpu": round(cpu, 3) if cpu else None,
-            "ppm_below": round(ppm_below, 1),
-            "ppm_above": round(ppm_above, 1),
-            "ppm_total": round(ppm_total, 1),
-            "lsl": lsl,
-            "usl": usl,
-            "target": target,
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            f"PROCESS CAPABILITY SIXPACK — {var}",
-            [
-                ("Specs", [("LSL", str(lsl)), ("USL", str(usl)), ("Target", str(target))]),
-                ("Process Stats", [("N", str(n)), ("Mean", f"{x_bar:.4f}"), ("StDev", f"{s:.4f}")]),
-                ("Capability", cap_items),
-                (
-                    "Expected PPM",
-                    [
-                        ("Below LSL", f"{ppm_below:.1f}"),
-                        ("Above USL", f"{ppm_above:.1f}"),
-                        ("Total", f"{ppm_total:.1f}"),
-                    ],
-                ),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Capability Sixpack: Cpk = {cpk:.3f} ({cpk_label})" if cpk else "Capability computed",
-            "body": f"PPM total = {ppm_total:.1f}."
-            + (" Process is capable." if cpk and cpk >= 1.33 else " Improvement needed." if cpk else ""),
-            "next_steps": "Review I-MR chart for stability before interpreting capability indices.",
-            "chart_guidance": "Histogram shows distribution vs spec limits. Check for centering and spread.",
-        },
-        "guide_observation": f"Sixpack: Cpk={cpk:.3f}, PPM={ppm_total:.1f}." if cpk else "Sixpack computed.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Multiple Plan Comparison
-# =============================================================================
-
-
-def forge_multiple_plan_comparison(df, config):
-    """Compare multiple acceptance sampling plans."""
-    from scipy import stats as sp_stats
-
-    plans_input = config.get("plans", [])
-    lot_size = int(config.get("lot_size", 1000))
-    aql = float(config.get("aql", 0.01))
-    ltpd = float(config.get("ltpd", 0.05))
-
-    if not plans_input or len(plans_input) < 2:
-        raise ValueError("Provide at least 2 sampling plans to compare")
-
-    p_range = np.linspace(0, min(0.20, ltpd * 3), 200)
-    plan_results = []
-
-    for idx, plan in enumerate(plans_input):
-        plan_name = plan.get("name", f"Plan {idx + 1}")
-        n_plan = int(plan.get("n", plan.get("sample_size", 50)))
-        c_plan = int(plan.get("c", plan.get("accept_number", 2)))
-
-        pa_vals = np.array([float(sp_stats.binom.cdf(c_plan, n_plan, p)) if p > 0 else 1.0 for p in p_range])
-        pa_aql = float(np.interp(aql, p_range, pa_vals))
-        pa_ltpd = float(np.interp(ltpd, p_range, pa_vals))
-        alpha_r = 1 - pa_aql
-        beta_r = pa_ltpd
-        aoq_vals = pa_vals * p_range * (lot_size - n_plan) / lot_size
-        aoql = float(np.max(aoq_vals))
-
-        plan_results.append(
-            {
-                "name": plan_name,
-                "n": n_plan,
-                "c": c_plan,
-                "pa_aql": round(pa_aql, 4),
-                "pa_ltpd": round(pa_ltpd, 4),
-                "alpha": round(alpha_r, 4),
-                "beta": round(beta_r, 4),
-                "aoql": round(aoql, 6),
-            }
-        )
-
-    best_beta = min(pr["beta"] for pr in plan_results)
-
-    comp_items = [
-        (pr["name"], f"n={pr['n']}, c={pr['c']}, α={pr['alpha']:.3f}, β={pr['beta']:.3f}, AOQL={pr['aoql'] * 100:.3f}%")
-        for pr in plan_results
-    ]
-
-    return {
-        "plots": [],
-        "statistics": {
-            "plans": plan_results,
-            "aql": aql,
-            "ltpd": ltpd,
-            "lot_size": lot_size,
-        },
-        "assumptions": {},
-        "summary": _rich_summary(
-            "SAMPLING PLAN COMPARISON",
-            [
-                (
-                    "Parameters",
-                    [("Lot size", str(lot_size)), ("AQL", f"{aql * 100:.1f}%"), ("LTPD", f"{ltpd * 100:.1f}%")],
-                ),
-                ("Plans", comp_items),
-                ("Best consumer risk", [("β", f"{best_beta:.3f}")]),
-            ],
-        ),
-        "narrative": {
-            "verdict": f"Compared {len(plan_results)} plans. Best β = {best_beta:.3f}",
-            "body": "Compare OC curves to find the best trade-off between sample size and protection.",
-            "next_steps": "Choose the plan that balances inspection cost with risk. Lower β = better consumer protection.",
-            "chart_guidance": "",
-        },
-        "guide_observation": f"Plan comparison: {len(plan_results)} plans, best β={best_beta:.3f}.",
-        "diagnostics": [],
-    }
-
-
-# =============================================================================
-# Registry: maps analysis_id → forge handler
-# =============================================================================
+from .forge_stats_advanced import FORGE_ADVANCED_HANDLERS  # noqa: E402
+from .forge_stats_anova import FORGE_ANOVA_HANDLERS  # noqa: E402
+from .forge_stats_quality import FORGE_QUALITY_HANDLERS  # noqa: E402
+from .forge_stats_regression import FORGE_REGRESSION_HANDLERS  # noqa: E402
 
 FORGE_HANDLERS = {
     # Parametric
@@ -4414,19 +1911,14 @@ FORGE_HANDLERS = {
     "ttest2": forge_ttest2,
     "paired_t": forge_paired_t,
     "anova": forge_anova,
-    "anova2": forge_anova2,
     "chi2": forge_chi2,
     "correlation": forge_correlation,
     "descriptive": forge_descriptive,
     "normality": forge_normality,
     "equivalence": forge_equivalence,
     "variance_test": forge_variance_test,
-    "f_test": forge_f_test,
     "prop_1sample": forge_prop_1sample,
     "prop_2sample": forge_prop_2sample,
-    "repeated_measures_anova": forge_repeated_measures_anova,
-    "sign_test": forge_sign_test,
-    "split_plot_anova": forge_split_plot_anova,
     # Nonparametric
     "mann_whitney": forge_mann_whitney,
     "wilcoxon": forge_wilcoxon,
@@ -4434,37 +1926,12 @@ FORGE_HANDLERS = {
     "friedman": forge_friedman,
     "mood_median": forge_mood_median,
     "spearman": forge_spearman,
-    # Post-hoc
+    # Post-hoc (basic — via _forge_posthoc)
     "tukey_hsd": forge_tukey_hsd,
     "games_howell": forge_games_howell,
     "dunn": forge_dunn,
     "bonferroni_test": forge_bonferroni,
     "scheffe_test": forge_scheffe,
-    "dunnett": forge_dunnett,
-    "hsu_mcb": forge_hsu_mcb,
-    "main_effects": forge_main_effects,
-    "interaction": forge_interaction,
-    # Regression
-    "regression": forge_regression,
-    "logistic": forge_logistic,
-    "stepwise": forge_stepwise,
-    "robust_regression": forge_robust_regression,
-    "poisson_regression": forge_poisson_regression,
-    "nonlinear_regression": forge_nonlinear_regression,
-    "best_subsets": forge_best_subsets,
-    "glm": forge_glm,
-    "ordinal_logistic": forge_ordinal_logistic,
-    "orthogonal_regression": forge_orthogonal_regression,
-    "nominal_logistic": forge_nominal_logistic,
-    # Quality
-    "anom": forge_anom,
-    "attribute_capability": forge_attribute_capability,
-    "nonnormal_capability_np": forge_nonnormal_capability_np,
-    "acceptance_sampling": forge_acceptance_sampling,
-    "variable_acceptance_sampling": forge_variable_acceptance_sampling,
-    "variance_components": forge_variance_components,
-    "capability_sixpack": forge_capability_sixpack,
-    "multiple_plan_comparison": forge_multiple_plan_comparison,
     # Power & sample size
     "power_z": forge_power_z,
     "power_ttest": forge_power_ttest,
@@ -4472,7 +1939,18 @@ FORGE_HANDLERS = {
     "power_1prop": forge_power_proportion,
     "power_equivalence": forge_power_equivalence,
     "sample_size_ci": forge_sample_size_ci,
+    "power_1variance": forge_power_1variance,
+    "power_2variance": forge_power_2variance,
+    "power_2prop": forge_power_2prop,
+    "power_doe": forge_power_doe,
+    "sample_size_tolerance": forge_sample_size_tolerance,
 }
+
+# Merge in split-module handlers
+FORGE_HANDLERS.update(FORGE_REGRESSION_HANDLERS)
+FORGE_HANDLERS.update(FORGE_ANOVA_HANDLERS)
+FORGE_HANDLERS.update(FORGE_QUALITY_HANDLERS)
+FORGE_HANDLERS.update(FORGE_ADVANCED_HANDLERS)
 
 
 def run_forge_stats(analysis_id, df, config):
