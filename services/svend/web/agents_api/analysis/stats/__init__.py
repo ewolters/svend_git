@@ -1,11 +1,13 @@
 """Statistical analysis dispatcher.
 
 Routes analysis_id to the appropriate sub-module.
+Forge-backed handlers are tried first; legacy handlers are the fallback.
 """
 
 import logging
 
 from ..exploratory import run_exploratory
+from ..forge_stats import run_forge_stats
 from .advanced import _run_advanced
 from .nonparametric import _run_nonparametric
 from .parametric import _run_parametric
@@ -138,7 +140,18 @@ _EXPLORATORY = {
 
 
 def run_statistical_analysis(df, analysis_id, config):
-    """Run statistical analysis — routes to sub-module by analysis_id."""
+    """Run statistical analysis — routes to sub-module by analysis_id.
+
+    Forge-backed handlers (forgestat + ForgeViz) are tried first.
+    If the analysis_id isn't ported yet, or the forge handler fails,
+    falls back to the legacy inline implementation.
+    """
+    # Try forge-backed handler first (Object 271 migration)
+    forge_result = run_forge_stats(analysis_id, df, config)
+    if forge_result is not None:
+        return forge_result
+
+    # Legacy fallback
     if analysis_id in _PARAMETRIC:
         return _run_parametric(analysis_id, df, config)
     elif analysis_id in _NONPARAMETRIC:

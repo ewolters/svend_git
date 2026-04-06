@@ -1,5 +1,10 @@
-"""SPC analysis package."""
+"""SPC analysis package.
 
+Forge-backed handlers (forgespc + ForgeViz) are tried first.
+Legacy handlers are the fallback.
+"""
+
+from ..forge_spc import run_forge_spc
 from .advanced import (
     run_cusum,
     run_ewma,
@@ -60,7 +65,16 @@ _DISPATCH = {
 
 
 def run_spc_analysis(df, analysis_id, config):
-    """Run SPC analysis."""
+    """Run SPC analysis.
+
+    Forge-backed handlers (forgespc + ForgeViz) are tried first.
+    Falls back to legacy if not ported or on failure.
+    """
+    # Try forge-backed handler first (Object 271 migration)
+    forge_result = run_forge_spc(analysis_id, df, config)
+    if forge_result is not None:
+        return forge_result
+
     # Bridge: Bayesian SPC suite
     if analysis_id.startswith("bayes_spc_"):
         from ..viz import run_visualization
