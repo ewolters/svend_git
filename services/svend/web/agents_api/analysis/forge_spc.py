@@ -16,6 +16,7 @@ import math
 
 import numpy as np
 import pandas as pd
+from scipy import stats as sp_stats
 
 logger = logging.getLogger(__name__)
 
@@ -1708,6 +1709,667 @@ def forge_entropy_spc(df, config):
 
 
 # =============================================================================
+# Laney Charts (overdispersion-corrected)
+# =============================================================================
+
+
+def _laney_chart(df, config, chart_type):
+    """Laney p' or u' chart with overdispersion correction."""
+
+    if chart_type == "p":
+        defectives, def_col = _int_col(df, config, "defectives_column")
+        sample_sizes, sz_col = _int_col(df, config, "sample_size_column")
+        proportions = [d / s if s > 0 else 0 for d, s in zip(defectives, sample_sizes)]
+        p_bar = sum(defectives) / sum(sample_sizes)
+        expected_std = [math.sqrt(p_bar * (1 - p_bar) / s) if s > 0 else 0 for s in sample_sizes]
+    else:
+        defects, def_col = _int_col(df, config, "defects_column")
+        units, u_col = _float_col(df, config, "units_column")
+        proportions = [d / u if u > 0 else 0 for d, u in zip(defects, units)]
+        u_bar = sum(defects) / sum(units)
+        expected_std = [math.sqrt(u_bar / u) if u > 0 else 0 for u in units]
+
+    # Laney sigma_z: ratio of actual to expected variation in Z-scores
+    if any(s > 0 for s in expected_std):
+        z_scores = [
+            (p - (p_bar if chart_type == "p" else u_bar)) / s if s > 0 else 0 for p, s in zip(proportions, expected_std)
+        ]
+        sigma_z = float(np.std(z_scores, ddof=1)) if len(z_scores) > 1 else 1.0
+    else:
+        sigma_z = 1.0
+
+    cl = p_bar if chart_type == "p" else u_bar
+    ucl_vals = [cl + 3 * s * sigma_z for s in expected_std]
+    lcl_vals = [max(0, cl - 3 * s * sigma_z) for s in expected_std]
+
+    ooc = [i for i, p in enumerate(proportions) if p > ucl_vals[i] or p < lcl_vals[i]]
+    status = "IN CONTROL" if not ooc else "OUT OF CONTROL"
+    label = "p'" if chart_type == "p" else "u'"
+
+    return _jsonify(
+        {
+            "plots": [],
+            "statistics": {
+                "center_line": round(cl, 6),
+                "sigma_z": round(sigma_z, 4),
+                "n_ooc": len(ooc),
+                "n_samples": len(proportions),
+                "status": status,
+            },
+            "summary": _rich_summary(
+                f"LANEY {label.upper()} CHART",
+                [
+                    ("Laney Correction", [("Sigma Z", f"{sigma_z:.4f}"), ("Center line", f"{cl:.6f}")]),
+                    ("Status", [("Process", status), ("OOC Points", str(len(ooc)))]),
+                ],
+            ),
+            "narrative": {
+                "verdict": f"Laney {label}: {status}, \u03c3_Z = {sigma_z:.4f}",
+                "body": f"Overdispersion factor \u03c3_Z = {sigma_z:.4f}. {'Limits widened' if sigma_z > 1 else 'Limits narrowed'} vs standard chart.",
+                "next_steps": "\u03c3_Z > 1 means standard limits are too tight (false alarms). Laney corrects this.",
+                "chart_guidance": f"Laney {label} chart adjusts limits for overdispersion.",
+            },
+            "assumptions": {},
+            "diagnostics": [],
+            "guide_observation": f"Laney {label}: \u03c3_Z={sigma_z:.4f}, {len(ooc)} OOC, {status}.",
+        }
+    )
+
+
+def forge_laney_p(df, config):
+    """Laney p' chart."""
+    return _laney_chart(df, config, "p")
+
+
+def forge_laney_u(df, config):
+    """Laney u' chart."""
+    return _laney_chart(df, config, "u")
+
+
+# =============================================================================
+# Moving Average / Zone Chart
+# =============================================================================
+
+
+def forge_moving_average(df, config):
+    """Moving average control chart."""
+    data, col_name = _col(df, config, "column", "var1")
+    span = int(config.get("span", config.get("window", 5)))
+
+    ma = pd.Series(data).rolling(window=span, min_periods=1).mean().values
+    mr = np.abs(np.diff(data))
+    mr_bar = float(mr.mean()) if len(mr) > 0 else 0
+    sigma = mr_bar / 1.128  # d2 for n=2
+
+    cl = float(data.mean())
+    # MA limits tighten with span
+    ucl_vals = [cl + 3 * sigma / math.sqrt(min(i + 1, span)) for i in range(len(data))]
+    lcl_vals = [cl - 3 * sigma / math.sqrt(min(i + 1, span)) for i in range(len(data))]
+
+    ooc = [i for i in range(len(ma)) if ma[i] > ucl_vals[i] or ma[i] < lcl_vals[i]]
+    status = "IN CONTROL" if not ooc else "OUT OF CONTROL"
+
+    return _jsonify(
+        {
+            "plots": [],
+            "statistics": {
+                "center_line": round(cl, 4),
+                "span": span,
+                "sigma": round(sigma, 4),
+                "n_ooc": len(ooc),
+                "n": len(data),
+                "status": status,
+            },
+            "summary": _rich_summary(
+                "MOVING AVERAGE CHART",
+                [
+                    ("Parameters", [("Span", str(span)), ("CL", f"{cl:.4f}"), ("\u03c3", f"{sigma:.4f}")]),
+                    ("Status", [("Process", status), ("OOC Points", str(len(ooc)))]),
+                ],
+            ),
+            "narrative": {
+                "verdict": f"MA({span}) chart: {status}",
+                "body": f"Moving average with span {span}. Smooths short-term variation to detect sustained shifts.",
+                "next_steps": "Larger span = more smoothing but slower detection.",
+                "chart_guidance": "MA line with tightening limits as span fills.",
+            },
+            "assumptions": {},
+            "diagnostics": [],
+            "guide_observation": f"MA({span}): CL={cl:.4f}, {len(ooc)} OOC, {status}.",
+        }
+    )
+
+
+def forge_zone_chart(df, config):
+    """Zone chart (cumulative score)."""
+    data, col_name = _col(df, config, "column", "var1")
+
+    mean = float(data.mean())
+    mr = np.abs(np.diff(data))
+    sigma = float(mr.mean() / 1.128) if len(mr) > 0 else float(data.std(ddof=1))
+
+    # Zone scoring: A=4, B=2, C=0 (each side)
+    scores = []
+    cum_score = 0
+    ooc = []
+    for i, x in enumerate(data):
+        z = abs(x - mean) / sigma if sigma > 0 else 0
+        if z > 3:
+            s = 8
+        elif z > 2:
+            s = 4
+        elif z > 1:
+            s = 2
+        else:
+            s = 0
+        cum_score = max(0, cum_score + s - 1)  # decay toward 0
+        scores.append(cum_score)
+        if cum_score >= 8:
+            ooc.append(i)
+            cum_score = 0
+
+    status = "IN CONTROL" if not ooc else "OUT OF CONTROL"
+
+    return _jsonify(
+        {
+            "plots": [],
+            "statistics": {
+                "mean": round(mean, 4),
+                "sigma": round(sigma, 4),
+                "n_signals": len(ooc),
+                "n": len(data),
+                "status": status,
+            },
+            "summary": _rich_summary(
+                "ZONE CHART",
+                [
+                    ("Parameters", [("Mean", f"{mean:.4f}"), ("\u03c3", f"{sigma:.4f}")]),
+                    ("Status", [("Process", status), ("Zone signals", str(len(ooc)))]),
+                ],
+            ),
+            "narrative": {
+                "verdict": f"Zone chart: {status}, {len(ooc)} signals",
+                "body": "Zone scoring accumulates penalty for points far from center. Score >= 8 triggers a signal.",
+                "next_steps": "Zone charts detect patterns that single-rule charts miss.",
+                "chart_guidance": "Cumulative score plot. Spikes = zone rule violations.",
+            },
+            "assumptions": {},
+            "diagnostics": [],
+            "guide_observation": f"Zone: {len(ooc)} signals, {status}.",
+        }
+    )
+
+
+# =============================================================================
+# Rare Event Charts
+# =============================================================================
+
+
+def forge_g_chart(df, config):
+    """G chart (events between occurrences)."""
+    data, col_name = _col(df, config, "column", "var1")
+    g_bar = float(data.mean())
+
+    # Geometric distribution limits
+    ucl = g_bar + 3 * math.sqrt(g_bar * (g_bar + 1)) if g_bar > 0 else 0
+    lcl = max(0, g_bar - 3 * math.sqrt(g_bar * (g_bar + 1))) if g_bar > 0 else 0
+
+    ooc = [i for i, x in enumerate(data) if x > ucl or x < lcl]
+    status = "IN CONTROL" if not ooc else "OUT OF CONTROL"
+
+    return _jsonify(
+        {
+            "plots": [],
+            "statistics": {
+                "g_bar": round(g_bar, 4),
+                "UCL": round(ucl, 4),
+                "LCL": round(lcl, 4),
+                "n_ooc": len(ooc),
+                "n": len(data),
+                "status": status,
+            },
+            "summary": _rich_summary(
+                "G CHART (EVENTS BETWEEN)",
+                [
+                    ("Limits", [("g-bar", f"{g_bar:.4f}"), ("UCL", f"{ucl:.4f}"), ("LCL", f"{lcl:.4f}")]),
+                    ("Status", [("Process", status)]),
+                ],
+            ),
+            "narrative": {
+                "verdict": f"G chart: {status}",
+                "body": f"G chart for rare events. Mean gap = {g_bar:.2f}.",
+                "next_steps": "Short gaps = increased event rate.",
+                "chart_guidance": "Each point = count between events.",
+            },
+            "assumptions": {},
+            "diagnostics": [],
+            "guide_observation": f"G chart: g-bar={g_bar:.4f}, {len(ooc)} OOC.",
+        }
+    )
+
+
+def forge_t_chart(df, config):
+    """T chart (time between events)."""
+    data, col_name = _col(df, config, "column", "var1")
+
+    # Transform to approximate normality (Weibull assumption)
+    # Use ln transform for exponential-like data
+    log_data = np.log(data[data > 0]) if (data > 0).any() else data
+    mean_log = float(log_data.mean())
+    mr_log = np.abs(np.diff(log_data))
+    sigma_log = float(mr_log.mean() / 1.128) if len(mr_log) > 0 else float(log_data.std(ddof=1))
+
+    ucl_log = mean_log + 3 * sigma_log
+    lcl_log = mean_log - 3 * sigma_log
+    ucl = math.exp(ucl_log)
+    lcl = max(0, math.exp(lcl_log))
+
+    ooc = [i for i, x in enumerate(data) if x > 0 and (math.log(x) > ucl_log or math.log(x) < lcl_log)]
+    status = "IN CONTROL" if not ooc else "OUT OF CONTROL"
+
+    return _jsonify(
+        {
+            "plots": [],
+            "statistics": {
+                "mean_time": round(float(data.mean()), 4),
+                "UCL": round(ucl, 4),
+                "LCL": round(lcl, 4),
+                "n_ooc": len(ooc),
+                "n": len(data),
+                "status": status,
+            },
+            "summary": _rich_summary(
+                "T CHART (TIME BETWEEN EVENTS)",
+                [
+                    ("Limits (back-transformed)", [("UCL", f"{ucl:.4f}"), ("LCL", f"{lcl:.4f}")]),
+                    ("Status", [("Process", status)]),
+                ],
+            ),
+            "narrative": {
+                "verdict": f"T chart: {status}",
+                "body": f"T chart for time between rare events. Mean time = {data.mean():.2f}.",
+                "next_steps": "Short times = increased event rate.",
+                "chart_guidance": "Log-transformed time between events.",
+            },
+            "assumptions": {},
+            "diagnostics": [],
+            "guide_observation": f"T chart: mean={data.mean():.2f}, {len(ooc)} OOC.",
+        }
+    )
+
+
+# =============================================================================
+# Capability — Extended
+# =============================================================================
+
+
+def forge_nonnormal_capability(df, config):
+    """Nonnormal process capability."""
+    from forgestat.core.distributions import box_cox
+
+    data, col_name = _col(df, config, "column", "var1")
+    lsl = float(config.get("lsl", data.min()))
+    usl = float(config.get("usl", data.max()))
+
+    # Percentile-based capability (distribution-free)
+    p_lower = float(np.percentile(data, 0.135))
+    p_upper = float(np.percentile(data, 99.865))
+    pp_range = p_upper - p_lower
+    spec_range = usl - lsl
+
+    ppk = (
+        min(
+            (usl - np.median(data)) / (p_upper - np.median(data)), (np.median(data) - lsl) / (np.median(data) - p_lower)
+        )
+        if pp_range > 0
+        else 0
+    )
+    pp = spec_range / pp_range if pp_range > 0 else 0
+
+    # Try Box-Cox transform for parametric capability
+    shift = abs(data.min()) + 1 if data.min() <= 0 else 0
+    try:
+        transformed, lam = box_cox((data + shift).tolist())
+        t_lsl = ((lsl + shift) ** lam - 1) / lam if lam != 0 else math.log(lsl + shift)
+        t_usl = ((usl + shift) ** lam - 1) / lam if lam != 0 else math.log(usl + shift)
+        t_mean = float(np.mean(transformed))
+        t_std = float(np.std(transformed, ddof=1))
+        cpk_transformed = min((t_usl - t_mean) / (3 * t_std), (t_mean - t_lsl) / (3 * t_std)) if t_std > 0 else 0
+    except Exception:
+        lam = None
+        cpk_transformed = None
+
+    return _jsonify(
+        {
+            "plots": [],
+            "statistics": {
+                "pp": round(pp, 4),
+                "ppk": round(ppk, 4),
+                "cpk_transformed": round(cpk_transformed, 4) if cpk_transformed is not None else None,
+                "lambda": round(float(lam), 4) if lam is not None else None,
+                "percentile_lower": round(p_lower, 4),
+                "percentile_upper": round(p_upper, 4),
+                "lsl": lsl,
+                "usl": usl,
+                "n": len(data),
+            },
+            "summary": _rich_summary(
+                "NONNORMAL CAPABILITY",
+                [
+                    ("Percentile Method", [("Pp", f"{pp:.4f}"), ("Ppk", f"{ppk:.4f}")]),
+                    (
+                        "Box-Cox Transform",
+                        [
+                            ("Cpk (transformed)", f"{cpk_transformed:.4f}" if cpk_transformed else "N/A"),
+                            ("\u03bb", f"{lam:.4f}" if lam else "N/A"),
+                        ],
+                    ),
+                ],
+            ),
+            "narrative": {
+                "verdict": f"Ppk = {ppk:.4f} (percentile), Cpk = {cpk_transformed:.4f} (transformed)"
+                if cpk_transformed
+                else f"Ppk = {ppk:.4f}",
+                "body": "Nonnormal capability using percentile and Box-Cox methods.",
+                "next_steps": "Report the method appropriate for your distribution.",
+                "chart_guidance": "",
+            },
+            "assumptions": {},
+            "diagnostics": [],
+            "guide_observation": f"Nonnormal cap: Ppk={ppk:.4f}.",
+        }
+    )
+
+
+def forge_between_within(df, config):
+    """Between/within capability analysis."""
+    data, col_name = _col(df, config, "column", "var1")
+    subgroup_size = int(config.get("subgroup_size", 5))
+    lsl = float(config.get("lsl", data.mean() - 3 * data.std()))
+    usl = float(config.get("usl", data.mean() + 3 * data.std()))
+
+    subgroups = _build_subgroups(data, subgroup_size)
+    within_ranges = [np.ptp(sg) for sg in subgroups if len(sg) > 1]
+    within_std = float(np.mean(within_ranges) / 2.326) if within_ranges else float(data.std(ddof=1))  # d2 for n=5
+
+    overall_std = float(data.std(ddof=1))
+    between_var = max(0, overall_std**2 - within_std**2)
+    between_std = math.sqrt(between_var)
+
+    mean = float(data.mean())
+    cpk_within = min((usl - mean) / (3 * within_std), (mean - lsl) / (3 * within_std)) if within_std > 0 else 0
+    ppk_overall = min((usl - mean) / (3 * overall_std), (mean - lsl) / (3 * overall_std)) if overall_std > 0 else 0
+
+    return _jsonify(
+        {
+            "plots": [],
+            "statistics": {
+                "within_std": round(within_std, 4),
+                "between_std": round(between_std, 4),
+                "overall_std": round(overall_std, 4),
+                "cpk_within": round(cpk_within, 4),
+                "ppk_overall": round(ppk_overall, 4),
+                "lsl": lsl,
+                "usl": usl,
+                "mean": round(mean, 4),
+                "n": len(data),
+            },
+            "summary": _rich_summary(
+                "BETWEEN/WITHIN CAPABILITY",
+                [
+                    (
+                        "Variation",
+                        [
+                            ("Within \u03c3", f"{within_std:.4f}"),
+                            ("Between \u03c3", f"{between_std:.4f}"),
+                            ("Overall \u03c3", f"{overall_std:.4f}"),
+                        ],
+                    ),
+                    ("Capability", [("Cpk (within)", f"{cpk_within:.4f}"), ("Ppk (overall)", f"{ppk_overall:.4f}")]),
+                ],
+            ),
+            "narrative": {
+                "verdict": f"Cpk(within) = {cpk_within:.4f}, Ppk(overall) = {ppk_overall:.4f}",
+                "body": f"Gap between Cpk and Ppk indicates between-subgroup variation (\u03c3_b = {between_std:.4f}).",
+                "next_steps": "Large Cpk-Ppk gap = subgroup-level shifts. Investigate batch/lot/shift effects.",
+                "chart_guidance": "",
+            },
+            "assumptions": {},
+            "diagnostics": [],
+            "guide_observation": f"B/W: Cpk={cpk_within:.4f}, Ppk={ppk_overall:.4f}, \u03c3_b={between_std:.4f}.",
+        }
+    )
+
+
+def forge_degradation_capability(df, config):
+    """Degradation capability (time-to-threshold)."""
+    data, col_name = _col(df, config, "column", "var1")
+    threshold = float(config.get("threshold", config.get("usl", data.max())))
+    time_col = config.get("time_col")
+
+    n = len(data)
+    if time_col and time_col in df.columns:
+        times = pd.to_numeric(df[time_col], errors="coerce").dropna().values[:n]
+    else:
+        times = np.arange(1, n + 1, dtype=float)
+
+    # Linear degradation model: y = a + b*t
+    min_len = min(len(times), len(data))
+    slope, intercept, r, p, se = sp_stats.linregress(times[:min_len], data[:min_len])
+    ttf = (threshold - intercept) / slope if slope != 0 else float("inf")
+
+    return _jsonify(
+        {
+            "plots": [],
+            "statistics": {
+                "slope": round(slope, 6),
+                "intercept": round(intercept, 4),
+                "r_squared": round(r**2, 4),
+                "time_to_threshold": round(ttf, 2) if math.isfinite(ttf) else None,
+                "threshold": threshold,
+                "n": n,
+            },
+            "summary": _rich_summary(
+                "DEGRADATION CAPABILITY",
+                [
+                    ("Degradation Model", [("Slope", f"{slope:.6f}"), ("R\u00b2", f"{r**2:.4f}")]),
+                    (
+                        "Prediction",
+                        [
+                            ("Time to threshold", f"{ttf:.2f}" if math.isfinite(ttf) else "N/A"),
+                            ("Threshold", f"{threshold}"),
+                        ],
+                    ),
+                ],
+            ),
+            "narrative": {
+                "verdict": f"TTF = {ttf:.1f}" if math.isfinite(ttf) else "No degradation trend",
+                "body": f"Linear degradation rate = {slope:.6f}/unit time. R\u00b2 = {r**2:.4f}.",
+                "next_steps": "Use TTF for maintenance scheduling. Consider nonlinear models if R\u00b2 is low.",
+                "chart_guidance": "Degradation path with threshold line.",
+            },
+            "assumptions": {},
+            "diagnostics": [],
+            "guide_observation": f"Degradation: slope={slope:.6f}, TTF={ttf:.1f}"
+            if math.isfinite(ttf)
+            else f"Degradation: slope={slope:.6f}.",
+        }
+    )
+
+
+# =============================================================================
+# Multivariate SPC
+# =============================================================================
+
+
+def forge_mewma(df, config):
+    """Multivariate EWMA control chart."""
+    cols = config.get("columns") or config.get("variables") or list(df.select_dtypes(include="number").columns)
+    lam = float(config.get("lambda", 0.1))
+    alpha = float(config.get("alpha", 0.05))
+
+    clean = df[cols].dropna()
+    data = clean.values
+    n, p = data.shape
+    mean = data.mean(axis=0)
+    cov = np.cov(data.T)
+
+    # MEWMA statistic
+    z = np.zeros(p)
+    t2_values = []
+    for i in range(n):
+        z = lam * data[i] + (1 - lam) * z
+        # Covariance of z
+        sigma_z = (lam / (2 - lam)) * (1 - (1 - lam) ** (2 * (i + 1))) * cov
+        try:
+            t2 = float(z @ np.linalg.inv(sigma_z) @ z)
+        except np.linalg.LinAlgError:
+            t2 = 0.0
+        t2_values.append(t2)
+
+    # UCL from chi-square
+    from scipy.stats import chi2
+
+    ucl = float(chi2.ppf(1 - alpha, p))
+    ooc = [i for i, t in enumerate(t2_values) if t > ucl]
+    status = "IN CONTROL" if not ooc else "OUT OF CONTROL"
+
+    return _jsonify(
+        {
+            "plots": [],
+            "statistics": {
+                "lambda": lam,
+                "ucl": round(ucl, 4),
+                "n_variables": p,
+                "n": n,
+                "n_ooc": len(ooc),
+                "status": status,
+            },
+            "summary": _rich_summary(
+                "MEWMA CHART",
+                [
+                    ("Parameters", [("\u03bb", f"{lam}"), ("UCL", f"{ucl:.4f}"), ("Variables", str(p))]),
+                    ("Status", [("Process", status), ("OOC Points", str(len(ooc)))]),
+                ],
+            ),
+            "narrative": {
+                "verdict": f"MEWMA: {status}",
+                "body": f"Multivariate EWMA with \u03bb={lam}, {p} variables. {len(ooc)} OOC points.",
+                "next_steps": "Decompose T\u00b2 to identify contributing variables.",
+                "chart_guidance": "T\u00b2 statistic vs UCL.",
+            },
+            "assumptions": {},
+            "diagnostics": [],
+            "guide_observation": f"MEWMA: \u03bb={lam}, {len(ooc)} OOC, {status}.",
+        }
+    )
+
+
+def forge_generalized_variance(df, config):
+    """|S| chart for multivariate dispersion."""
+    cols = config.get("columns") or config.get("variables") or list(df.select_dtypes(include="number").columns)
+    subgroup_size = int(config.get("subgroup_size", 5))
+
+    clean = df[cols].dropna()
+    data = clean.values
+    n, p = data.shape
+
+    # Compute |S| for each subgroup
+    subgroups = [data[i : i + subgroup_size] for i in range(0, n - subgroup_size + 1, subgroup_size)]
+    det_values = []
+    for sg in subgroups:
+        if len(sg) >= p:
+            det_values.append(float(np.linalg.det(np.cov(sg.T))))
+        else:
+            det_values.append(0.0)
+
+    if not det_values:
+        raise ValueError("Not enough data for subgroups")
+
+    mean_det = float(np.mean(det_values))
+    std_det = float(np.std(det_values, ddof=1))
+    ucl = mean_det + 3 * std_det
+    lcl = max(0, mean_det - 3 * std_det)
+
+    ooc = [i for i, d in enumerate(det_values) if d > ucl or d < lcl]
+    status = "IN CONTROL" if not ooc else "OUT OF CONTROL"
+
+    return _jsonify(
+        {
+            "plots": [],
+            "statistics": {
+                "mean_det": round(mean_det, 6),
+                "ucl": round(ucl, 6),
+                "lcl": round(lcl, 6),
+                "n_subgroups": len(det_values),
+                "n_ooc": len(ooc),
+                "status": status,
+            },
+            "summary": _rich_summary(
+                "|S| CHART (GENERALIZED VARIANCE)",
+                [
+                    ("Limits", [("Mean |S|", f"{mean_det:.6f}"), ("UCL", f"{ucl:.6f}"), ("LCL", f"{lcl:.6f}")]),
+                    ("Status", [("Process", status), ("OOC Points", str(len(ooc)))]),
+                ],
+            ),
+            "narrative": {
+                "verdict": f"|S| chart: {status}",
+                "body": f"Generalized variance chart for {p} variables. Monitors covariance structure stability.",
+                "next_steps": "OOC signals indicate changes in multivariate dispersion.",
+                "chart_guidance": "|S| values with control limits.",
+            },
+            "assumptions": {},
+            "diagnostics": [],
+            "guide_observation": f"|S|: mean={mean_det:.6f}, {len(ooc)} OOC, {status}.",
+        }
+    )
+
+
+def forge_conformal_monitor(df, config):
+    """Conformal monitoring (online drift detection)."""
+    from forgespc.conformal import conformal_control
+
+    data, col_name = _col(df, config, "column", "var1")
+    alpha = float(config.get("alpha", 0.05))
+    cal_frac = float(config.get("calibration_fraction", 0.5))
+
+    result = conformal_control(data.tolist(), alpha=alpha, calibration_fraction=cal_frac)
+
+    n_ooc = len(result.ooc_indices) if result.ooc_indices else 0
+    status = "IN CONTROL" if result.in_control else "DRIFT DETECTED"
+
+    return _jsonify(
+        {
+            "plots": [],
+            "statistics": {
+                "n": len(data),
+                "n_calibration": result.n_calibration,
+                "n_monitoring": result.n_monitoring,
+                "threshold": round(result.threshold, 4),
+                "n_ooc": n_ooc,
+                "status": status,
+            },
+            "summary": _rich_summary(
+                "CONFORMAL MONITOR",
+                [
+                    ("Setup", [("Calibration", str(result.n_calibration)), ("Monitoring", str(result.n_monitoring))]),
+                    ("Status", [("Process", status), ("Nonconforming", str(n_ooc))]),
+                ],
+            ),
+            "narrative": {
+                "verdict": f"Conformal monitor: {status}",
+                "body": f"Online monitoring with conformal prediction. {n_ooc} nonconforming points.",
+                "next_steps": "Investigate distribution shift if drift detected.",
+                "chart_guidance": "Nonconformity scores vs threshold.",
+            },
+            "assumptions": {},
+            "diagnostics": [],
+            "guide_observation": f"Conformal monitor: {n_ooc} nonconforming, {status}.",
+        }
+    )
+
+
+# =============================================================================
 # Handler Registry
 # =============================================================================
 
@@ -1726,6 +2388,18 @@ FORGE_SPC_HANDLERS = {
     "np_chart": forge_np_chart,
     "conformal_control": forge_conformal_control,
     "entropy_spc": forge_entropy_spc,
+    "laney_p": forge_laney_p,
+    "laney_u": forge_laney_u,
+    "moving_average": forge_moving_average,
+    "zone_chart": forge_zone_chart,
+    "g_chart": forge_g_chart,
+    "t_chart": forge_t_chart,
+    "nonnormal_capability": forge_nonnormal_capability,
+    "between_within": forge_between_within,
+    "degradation_capability": forge_degradation_capability,
+    "mewma": forge_mewma,
+    "generalized_variance": forge_generalized_variance,
+    "conformal_monitor": forge_conformal_monitor,
 }
 
 

@@ -1902,6 +1902,7 @@ def forge_sample_size_tolerance(df, config):
 
 from .forge_stats_advanced import FORGE_ADVANCED_HANDLERS  # noqa: E402
 from .forge_stats_anova import FORGE_ANOVA_HANDLERS  # noqa: E402
+from .forge_stats_exploratory import FORGE_EXPLORATORY_HANDLERS  # noqa: E402
 from .forge_stats_msa import FORGE_MSA_HANDLERS  # noqa: E402
 from .forge_stats_quality import FORGE_QUALITY_HANDLERS  # noqa: E402
 from .forge_stats_regression import FORGE_REGRESSION_HANDLERS  # noqa: E402
@@ -1952,6 +1953,7 @@ FORGE_HANDLERS.update(FORGE_REGRESSION_HANDLERS)
 FORGE_HANDLERS.update(FORGE_ANOVA_HANDLERS)
 FORGE_HANDLERS.update(FORGE_QUALITY_HANDLERS)
 FORGE_HANDLERS.update(FORGE_ADVANCED_HANDLERS)
+FORGE_HANDLERS.update(FORGE_EXPLORATORY_HANDLERS)
 FORGE_HANDLERS.update(FORGE_MSA_HANDLERS)
 
 
