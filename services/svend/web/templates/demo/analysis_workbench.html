@@ -1,0 +1,1622 @@
+{% extends "base_app.html" %}
+{# MIGRATION: Tier 2 | Status: IN PROGRESS | Object 271 — Analysis Workbench rebuild. ForgeViz only, no Plotly. #}
+{% block title %}Analysis Workbench - SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ============================================================================
+   ANALYSIS WORKBENCH — Object 271 rebuild
+   Same structural elements as investigations.html
+   4-pane layout: Data | Charts | Statistics+Narrative | Config
+   ForgeViz charts only — no Plotly dependency
+   ============================================================================ */
+
+body > main { padding: 0 !important; }
+body > main > .container { max-width: none !important; padding: 0 !important; }
+
+.aw-layout {
+    display: flex;
+    height: calc(100vh - 56px);
+}
+
+/* --- Sidebar (analysis picker) --- */
+.aw-sidebar {
+    width: 260px;
+    border-right: 1px solid var(--border-heavy);
+    background: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.aw-sidebar-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.aw-sidebar-header h3 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+}
+
+.aw-sidebar-search {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.aw-sidebar-search input {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 12px;
+    box-sizing: border-box;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+.aw-sidebar-search input:focus { border-color: var(--accent-primary); outline: none; }
+.aw-sidebar-search input::placeholder { color: var(--text-dim); }
+
+.aw-sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.aw-category {
+    border-bottom: 1px solid var(--border);
+}
+
+.aw-category-header {
+    padding: 10px 16px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.15s;
+    user-select: none;
+}
+.aw-category-header:hover { background: var(--bg-hover); }
+
+.aw-category-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    font-family: var(--font-label);
+}
+
+.aw-category-count {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.aw-category-items { display: none; }
+.aw-category.open .aw-category-items { display: block; }
+
+.aw-analysis-item {
+    padding: 7px 16px 7px 28px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    transition: background 0.15s;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+.aw-analysis-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.aw-analysis-item.active { background: var(--accent-primary-dim); border-left: 3px solid var(--accent-primary); color: var(--text-primary); }
+
+/* === Main area === */
+.aw-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-secondary);
+}
+
+/* --- Toolbar --- */
+.aw-toolbar {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-primary);
+    flex-shrink: 0;
+}
+
+.aw-toolbar-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.aw-toolbar-spacer { flex: 1; }
+
+.aw-data-indicator {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    white-space: nowrap;
+}
+.aw-data-indicator.loaded { color: var(--accent-primary); border-color: var(--accent-primary-border); }
+
+/* === Pane system === */
+.aw-panes {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.aw-pane-row {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+.aw-pane {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    margin: 2px;
+    border-radius: 3px;
+}
+
+.aw-pane-header {
+    display: flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 10px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 6px;
+}
+
+.aw-pane-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    font-family: var(--font-label);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.aw-pane-label svg { width: 13px; height: 13px; opacity: 0.6; }
+
+.aw-pane-tabs {
+    display: flex;
+    margin-left: auto;
+    gap: 0;
+}
+
+.aw-pane-tab {
+    padding: 3px 9px;
+    font-size: 10px;
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+.aw-pane-tab:hover { color: var(--text-secondary); }
+.aw-pane-tab.active { background: var(--accent-primary-dim); color: var(--accent-primary); border-radius: 2px; }
+
+.aw-pane-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.aw-pane-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-dim);
+    font-size: 12px;
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    gap: 8px;
+}
+
+/* --- Data pane (worksheet) --- */
+.aw-worksheet {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+.aw-worksheet th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-secondary);
+    padding: 4px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+    font-size: 10px;
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    z-index: 1;
+}
+.aw-worksheet th.row-num {
+    text-align: center;
+    width: 40px;
+    color: var(--text-dim);
+    background: var(--bg-primary);
+}
+.aw-worksheet td {
+    padding: 3px 8px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+.aw-worksheet td.row-num {
+    text-align: center;
+    color: var(--text-dim);
+    background: var(--bg-primary);
+    border-right: 1px solid var(--border-heavy);
+    font-size: 10px;
+}
+
+/* --- Charts pane --- */
+.aw-chart-container {
+    padding: 12px;
+    min-height: 280px;
+}
+
+.aw-chart-slot {
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    padding: 8px;
+    min-height: 260px;
+}
+
+.aw-chart-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    font-family: var(--font-label);
+    margin-bottom: 6px;
+    padding: 0 4px;
+}
+
+/* --- Results pane (statistics + narrative + assumptions) --- */
+.aw-results-body { padding: 12px; }
+
+.aw-section {
+    margin-bottom: 20px;
+}
+
+.aw-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    font-family: var(--font-label);
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 5px;
+}
+
+/* Evidence header strip */
+.aw-evidence-strip {
+    display: flex;
+    gap: 20px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    margin-bottom: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.aw-evidence-stat { text-align: center; }
+.aw-evidence-stat .value {
+    font-size: 16px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent-primary);
+}
+.aw-evidence-stat .label {
+    font-size: 9px;
+    color: var(--text-dim);
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+}
+
+.aw-status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-family: var(--font-label);
+    letter-spacing: 0.06em;
+}
+.aw-status-badge.significant { background: rgba(74,159,110,0.12); color: var(--accent-primary); border: 1px solid var(--accent-primary-border); }
+.aw-status-badge.not-significant { background: rgba(255,255,255,0.08); color: var(--text-dim); border: 1px solid var(--border); }
+
+/* Assumptions row */
+.aw-assumptions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.aw-assumption {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    font-weight: 500;
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.aw-assumption.pass { background: rgba(74,159,110,0.12); color: var(--accent-primary); border: 1px solid var(--accent-primary-border); }
+.aw-assumption.warn { background: var(--sv-amber-bg); color: var(--sv-amber); border: 1px solid rgba(250,204,21,0.3); }
+.aw-assumption.fail { background: rgba(208,96,96,0.12); color: var(--error); border: 1px solid var(--error-border); }
+
+.aw-assumption-dot { width: 5px; height: 5px; border-radius: 50%; }
+.aw-assumption.pass .aw-assumption-dot { background: var(--accent-primary); }
+.aw-assumption.warn .aw-assumption-dot { background: var(--sv-amber); }
+.aw-assumption.fail .aw-assumption-dot { background: var(--error); }
+
+/* Stats table */
+.aw-stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+.aw-stats-table th {
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 2px solid var(--border-heavy);
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    font-family: var(--font-label);
+}
+.aw-stats-table td {
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+}
+.aw-stats-table td.mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+
+/* Narrative */
+.aw-narrative {
+    padding: 10px 14px;
+    border-left: 3px solid var(--accent-primary);
+    background: rgba(255,255,255,0.02);
+    font-size: 13px;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.6;
+}
+
+/* --- Config pane --- */
+.aw-config-body { padding: 12px; }
+
+.aw-field { margin-bottom: 10px; }
+.aw-field label {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.aw-field select,
+.aw-field input[type="number"],
+.aw-field input[type="text"] {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 12px;
+    box-sizing: border-box;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+.aw-field select:focus,
+.aw-field input:focus { border-color: var(--accent-primary); outline: none; }
+
+.aw-field-checkboxes {
+    max-height: 100px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 4px 6px;
+    background: var(--bg-secondary);
+}
+.aw-field-checkboxes label {
+    display: block;
+    padding: 2px 0;
+    font-size: 12px;
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
+}
+.aw-field-checkboxes input { margin-right: 6px; }
+
+/* --- Buttons (same as investigations) --- */
+.btn-primary {
+    padding: 8px 16px;
+    background: var(--accent-primary);
+    color: #fff;
+    border: 1px solid var(--accent-primary);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-secondary {
+    padding: 8px 16px;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+.btn-secondary:hover { border-color: var(--accent-primary-border); color: var(--text-primary); }
+
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+
+/* --- Modal (same as investigations) --- */
+.aw-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.aw-modal-overlay.active { display: flex; }
+
+.aw-modal {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 24px;
+    width: 520px;
+    max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    border: 1px solid var(--border-heavy);
+}
+
+.aw-modal h3 { margin: 0 0 16px 0; font-size: 14px; color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; }
+
+.aw-modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+
+/* --- Drop zone --- */
+.aw-dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-md);
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+.aw-dropzone:hover, .aw-dropzone.dragover { border-color: var(--accent-primary); color: var(--text-primary); }
+.aw-dropzone input[type="file"] { display: none; }
+
+/* --- Command output --- */
+.cmd-line { padding: 2px 0; }
+.cmd-echo { color: var(--accent-primary); }
+.cmd-result { color: var(--text-primary); white-space: pre-wrap; }
+.cmd-error { color: var(--error); }
+.cmd-dim { color: var(--text-dim); }
+.cmd-sep { border-bottom: 1px solid var(--border); margin: 4px 0; }
+
+/* --- Loading --- */
+.aw-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-dim);
+    font-size: 12px;
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="aw-layout">
+    <!-- Sidebar: analysis picker -->
+    <div class="aw-sidebar">
+        <div class="aw-sidebar-header">
+            <h3>Analyses</h3>
+            <span class="aw-category-count" id="aw-total-count"></span>
+        </div>
+        <div class="aw-sidebar-search">
+            <input type="text" id="aw-search" placeholder="Search analyses..." oninput="filterAnalyses(this.value)">
+        </div>
+        <div class="aw-sidebar-list" id="aw-categories"></div>
+    </div>
+
+    <!-- Main area: toolbar + 4-pane workspace -->
+    <div class="aw-main">
+        <!-- Toolbar -->
+        <div class="aw-toolbar">
+            <div class="aw-toolbar-title" id="aw-toolbar-title">Analysis Workbench</div>
+            <div class="aw-toolbar-spacer"></div>
+            <div class="aw-data-indicator" id="aw-data-indicator">No data loaded</div>
+            <button class="btn-secondary btn-sm" onclick="showUploadModal()">Upload Data</button>
+            <button class="btn-primary btn-sm" id="aw-run-btn" onclick="runAnalysis()" disabled>Run</button>
+        </div>
+
+        <!-- 4-pane workspace -->
+        <div class="aw-panes">
+            <!-- Top row: Data (worksheet) | Charts (ForgeViz) -->
+            <div class="aw-pane-row" style="flex:1.4;">
+                <!-- DATA pane -->
+                <div class="aw-pane" style="flex:1;">
+                    <div class="aw-pane-header">
+                        <span class="aw-pane-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                            Data
+                        </span>
+                        <div class="aw-pane-tabs">
+                            <button class="aw-pane-tab active">Worksheet</button>
+                        </div>
+                    </div>
+                    <div class="aw-pane-body" id="data-pane">
+                        <div class="aw-pane-empty">Load a dataset to view</div>
+                    </div>
+                </div>
+
+                <!-- CHARTS pane -->
+                <div class="aw-pane" style="flex:1.3;">
+                    <div class="aw-pane-header">
+                        <span class="aw-pane-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                            Charts
+                        </span>
+                        <div class="aw-pane-tabs">
+                            <button class="aw-pane-tab active" onclick="switchChartTab('plots')">Plots</button>
+                            <button class="aw-pane-tab" onclick="switchChartTab('diagnostics')">Diagnostics</button>
+                        </div>
+                    </div>
+                    <div class="aw-pane-body" id="charts-pane">
+                        <div class="aw-pane-empty">Run an analysis to see charts</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom row: Results (stats + narrative) | Config -->
+            <div class="aw-pane-row" style="flex:0.8;">
+                <!-- RESULTS pane (statistics, assumptions, narrative) -->
+                <div class="aw-pane" style="flex:1.5;">
+                    <div class="aw-pane-header">
+                        <span class="aw-pane-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            Results
+                        </span>
+                        <div class="aw-pane-tabs">
+                            <button class="aw-pane-tab active" onclick="switchResultsTab('summary')">Summary</button>
+                            <button class="aw-pane-tab" onclick="switchResultsTab('detail')">Detail</button>
+                            <button class="aw-pane-tab" onclick="switchResultsTab('narrative')">Narrative</button>
+                            <button class="aw-pane-tab" onclick="switchResultsTab('education')">Education</button>
+                        </div>
+                    </div>
+                    <div class="aw-pane-body" id="results-pane">
+                        <div class="aw-pane-empty">No results yet</div>
+                    </div>
+                </div>
+
+                <!-- CONFIG + COMMAND pane -->
+                <div class="aw-pane" style="flex:0.7;">
+                    <div class="aw-pane-header">
+                        <span class="aw-pane-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                            Input
+                        </span>
+                        <div class="aw-pane-tabs">
+                            <button class="aw-pane-tab active" onclick="switchInputTab('config')">Config</button>
+                            <button class="aw-pane-tab" onclick="switchInputTab('command')">Command</button>
+                            <button class="aw-pane-tab" onclick="switchInputTab('history')">History</button>
+                        </div>
+                    </div>
+                    <div class="aw-pane-body" id="input-pane">
+                        <!-- Config tab -->
+                        <div id="aw-input-config">
+                            <div id="config-pane"><div class="aw-pane-empty">Select an analysis</div></div>
+                        </div>
+                        <!-- Command tab (forgepad) -->
+                        <div id="aw-input-command" style="display:none;">
+                            <div style="display:flex;flex-direction:column;height:100%;">
+                                <div id="cmd-output" style="flex:1;overflow-y:auto;padding:8px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;color:var(--text-primary);">
+                                    <div style="color:var(--text-dim);"># ForgePad — type a command, e.g.:</div>
+                                    <div style="color:var(--text-dim);">#   ttest weight mu=12</div>
+                                    <div style="color:var(--text-dim);">#   anova yield ~ group</div>
+                                    <div style="color:var(--text-dim);">#   capability weight lsl=10 usl=15</div>
+                                    <div style="color:var(--text-dim);">#   imr weight</div>
+                                    <div style="color:var(--text-dim);">#   help</div>
+                                </div>
+                                <div style="border-top:1px solid var(--border);padding:6px;display:flex;gap:6px;">
+                                    <span style="color:var(--accent-primary);font-family:'JetBrains Mono',monospace;font-size:12px;line-height:28px;">▸</span>
+                                    <input type="text" id="cmd-input" placeholder="Enter command..."
+                                        style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);font-family:'JetBrains Mono',monospace;font-size:12px;"
+                                        onkeydown="if(event.key==='Enter')runCommand()">
+                                    <button class="btn-primary btn-sm" onclick="runCommand()" style="padding:5px 12px;">Run</button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- History tab -->
+                        <div id="aw-input-history" style="display:none;">
+                            <div id="cmd-history" style="padding:8px;font-size:11px;color:var(--text-dim);">No commands yet</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload modal -->
+<div class="aw-modal-overlay" id="upload-modal">
+    <div class="aw-modal">
+        <h3>Upload Dataset</h3>
+        <div class="aw-dropzone" id="aw-dropzone" onclick="document.getElementById('aw-file-input').click()">
+            <input type="file" id="aw-file-input" accept=".csv,.xlsx,.xls,.tsv" onchange="handleFileSelect(event)">
+            <p style="margin:0 0 8px;font-weight:500;">Drop a file here or click to browse</p>
+            <p style="margin:0;font-size:11px;color:var(--text-dim);">CSV, TSV, XLS, XLSX &middot; Max 10,000 rows</p>
+        </div>
+        <div id="upload-preview" style="display:none;margin-top:12px;"></div>
+        <div class="aw-modal-actions">
+            <button class="btn-secondary" onclick="hideUploadModal()">Cancel</button>
+            <button class="btn-primary" id="upload-confirm-btn" onclick="confirmUpload()" style="display:none;">Load Data</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ============================================================================
+   ANALYSIS WORKBENCH — Object 271
+   4-pane layout: Data | Charts | Results | Config
+   ForgeViz charts only. Same patterns as investigations.html.
+   ============================================================================ */
+
+const DSW_API = '/api/dsw/';
+
+let currentDataId = null;
+let currentDataColumns = [];
+let currentDataRows = 0;
+let currentDataPreview = null; // first N rows for worksheet
+let currentAnalysis = null;    // { type, id, label, category }
+let currentResult = null;
+let pendingFile = null;
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+function apiFetch(url, opts = {}) {
+    return svendFetch(url, opts);
+}
+
+/* ============================================================================
+   Analysis Catalog
+   ============================================================================ */
+
+const ANALYSIS_CATALOG = [
+    { cat: 'Hypothesis Testing', items: [
+        { type: 'stats', id: 'ttest', label: '1-Sample t-Test' },
+        { type: 'stats', id: 'ttest2', label: '2-Sample t-Test' },
+        { type: 'stats', id: 'paired_ttest', label: 'Paired t-Test' },
+        { type: 'stats', id: 'anova', label: 'One-Way ANOVA' },
+        { type: 'stats', id: 'two_way_anova', label: 'Two-Way ANOVA' },
+        { type: 'stats', id: 'chi2', label: 'Chi-Square Test' },
+        { type: 'stats', id: 'fisher_exact', label: 'Fisher Exact Test' },
+        { type: 'stats', id: 'equivalence', label: 'Equivalence Test (TOST)' },
+        { type: 'stats', id: 'proportions', label: '1-Proportion Test' },
+        { type: 'stats', id: 'two_proportions', label: '2-Proportion Test' },
+        { type: 'stats', id: 'variance_test', label: 'Test for Equal Variances' },
+        { type: 'stats', id: 'one_sample_poisson', label: '1-Sample Poisson Rate' },
+        { type: 'stats', id: 'two_sample_poisson', label: '2-Sample Poisson Rate' },
+    ]},
+    { cat: 'Regression', items: [
+        { type: 'stats', id: 'regression', label: 'Linear Regression' },
+        { type: 'stats', id: 'multiple_regression', label: 'Multiple Regression' },
+        { type: 'stats', id: 'logistic', label: 'Logistic Regression' },
+        { type: 'stats', id: 'nonlinear', label: 'Nonlinear Regression' },
+        { type: 'stats', id: 'robust_regression', label: 'Robust Regression' },
+        { type: 'stats', id: 'stepwise', label: 'Stepwise Regression' },
+        { type: 'stats', id: 'best_subsets', label: 'Best Subsets' },
+        { type: 'stats', id: 'glm', label: 'GLM' },
+        { type: 'stats', id: 'poisson_regression', label: 'Poisson Regression' },
+    ]},
+    { cat: 'Nonparametric', items: [
+        { type: 'stats', id: 'mann_whitney', label: 'Mann-Whitney U' },
+        { type: 'stats', id: 'kruskal', label: 'Kruskal-Wallis' },
+        { type: 'stats', id: 'wilcoxon', label: 'Wilcoxon Signed-Rank' },
+        { type: 'stats', id: 'friedman', label: 'Friedman Test' },
+        { type: 'stats', id: 'spearman', label: 'Spearman Correlation' },
+        { type: 'stats', id: 'mood_median', label: "Mood's Median Test" },
+    ]},
+    { cat: 'Post-Hoc', items: [
+        { type: 'stats', id: 'tukey', label: 'Tukey HSD' },
+        { type: 'stats', id: 'dunnett', label: "Dunnett's Test" },
+        { type: 'stats', id: 'games_howell', label: 'Games-Howell' },
+        { type: 'stats', id: 'dunn', label: "Dunn's Test" },
+        { type: 'stats', id: 'scheffe', label: "Scheffé's Test" },
+        { type: 'stats', id: 'bonferroni', label: 'Bonferroni' },
+    ]},
+    { cat: 'Exploratory', items: [
+        { type: 'stats', id: 'descriptive', label: 'Descriptive Statistics' },
+        { type: 'stats', id: 'profiling', label: 'Data Profiling' },
+        { type: 'stats', id: 'correlation_matrix', label: 'Correlation Matrix' },
+        { type: 'stats', id: 'normality', label: 'Normality Test' },
+        { type: 'stats', id: 'outlier_analysis', label: 'Outlier Analysis' },
+        { type: 'stats', id: 'distribution_fit', label: 'Distribution Fitting' },
+        { type: 'stats', id: 'bootstrap', label: 'Bootstrap CI' },
+        { type: 'stats', id: 'box_cox', label: 'Box-Cox Transform' },
+    ]},
+    { cat: 'SPC / Control Charts', items: [
+        { type: 'spc', id: 'imr', label: 'I-MR Chart' },
+        { type: 'spc', id: 'xbar_r', label: 'Xbar-R Chart' },
+        { type: 'spc', id: 'xbar_s', label: 'Xbar-S Chart' },
+        { type: 'spc', id: 'p_chart', label: 'p Chart' },
+        { type: 'spc', id: 'np_chart', label: 'np Chart' },
+        { type: 'spc', id: 'c_chart', label: 'c Chart' },
+        { type: 'spc', id: 'u_chart', label: 'u Chart' },
+        { type: 'spc', id: 'cusum', label: 'CUSUM' },
+        { type: 'spc', id: 'ewma', label: 'EWMA' },
+        { type: 'spc', id: 'laney_p', label: "Laney p'" },
+        { type: 'spc', id: 'laney_u', label: "Laney u'" },
+        { type: 'spc', id: 'mewma', label: 'MEWMA' },
+    ]},
+    { cat: 'Capability', items: [
+        { type: 'spc', id: 'capability', label: 'Process Capability (Sixpack)' },
+        { type: 'spc', id: 'capability_nonnormal', label: 'Nonnormal Capability' },
+        { type: 'spc', id: 'capability_attribute', label: 'Attribute Capability' },
+    ]},
+    { cat: 'Measurement System', items: [
+        { type: 'spc', id: 'gage_rr', label: 'Gage R&R (Crossed)' },
+        { type: 'spc', id: 'gage_rr_nested', label: 'Gage R&R (Nested)' },
+        { type: 'spc', id: 'attribute_agreement', label: 'Attribute Agreement' },
+        { type: 'bayes_msa', id: 'icc', label: 'ICC' },
+        { type: 'bayes_msa', id: 'bland_altman', label: 'Bland-Altman' },
+        { type: 'spc', id: 'linearity_bias', label: 'Linearity & Bias' },
+        { type: 'spc', id: 'type1_gage', label: 'Type 1 Gage Study' },
+    ]},
+    { cat: 'DOE', items: [
+        { type: 'stats', id: 'doe_factorial', label: 'Factorial Design' },
+        { type: 'stats', id: 'doe_fractional', label: 'Fractional Factorial' },
+        { type: 'stats', id: 'doe_rsm', label: 'Response Surface (CCD)' },
+        { type: 'stats', id: 'doe_plackett_burman', label: 'Plackett-Burman' },
+        { type: 'stats', id: 'doe_screening', label: 'Definitive Screening' },
+    ]},
+    { cat: 'Power & Sample Size', items: [
+        { type: 'stats', id: 'power_ttest', label: 'Power: t-Test' },
+        { type: 'stats', id: 'power_anova', label: 'Power: ANOVA' },
+        { type: 'stats', id: 'power_proportion', label: 'Power: Proportion' },
+        { type: 'stats', id: 'power_equivalence', label: 'Power: Equivalence' },
+        { type: 'stats', id: 'sample_size_ci', label: 'Sample Size for CI' },
+    ]},
+    { cat: 'Time Series', items: [
+        { type: 'stats', id: 'decomposition', label: 'Decomposition' },
+        { type: 'stats', id: 'arima', label: 'ARIMA' },
+        { type: 'stats', id: 'acf_pacf', label: 'ACF / PACF' },
+        { type: 'stats', id: 'granger', label: 'Granger Causality' },
+        { type: 'stats', id: 'changepoint', label: 'Changepoint Detection' },
+    ]},
+    { cat: 'Reliability', items: [
+        { type: 'reliability', id: 'weibull', label: 'Weibull Analysis' },
+        { type: 'reliability', id: 'kaplan_meier', label: 'Kaplan-Meier' },
+        { type: 'reliability', id: 'cox_ph', label: 'Cox Proportional Hazards' },
+        { type: 'reliability', id: 'accelerated_life', label: 'Accelerated Life Test' },
+        { type: 'reliability', id: 'test_planning', label: 'Reliability Test Planning' },
+    ]},
+    { cat: 'Bayesian', items: [
+        { type: 'bayesian', id: 'bayes_ttest', label: 'Bayesian t-Test' },
+        { type: 'bayesian', id: 'bayes_anova', label: 'Bayesian ANOVA' },
+        { type: 'bayesian', id: 'bayes_proportion', label: 'Bayesian Proportion' },
+        { type: 'bayesian', id: 'bayes_correlation', label: 'Bayesian Correlation' },
+        { type: 'bayesian', id: 'bayes_regression', label: 'Bayesian Regression' },
+        { type: 'bayesian', id: 'bayes_ab', label: 'Bayesian A/B Test' },
+        { type: 'bayesian', id: 'bayes_changepoint', label: 'Bayesian Changepoint' },
+        { type: 'bayesian', id: 'bayes_capability', label: 'Bayesian Capability' },
+    ]},
+    { cat: 'Visualization', items: [
+        { type: 'viz', id: 'histogram', label: 'Histogram' },
+        { type: 'viz', id: 'boxplot', label: 'Box Plot' },
+        { type: 'viz', id: 'scatter', label: 'Scatter Plot' },
+        { type: 'viz', id: 'matrix_plot', label: 'Matrix Plot' },
+        { type: 'viz', id: 'heatmap', label: 'Heatmap' },
+        { type: 'viz', id: 'pareto', label: 'Pareto Chart' },
+        { type: 'viz', id: 'individual_value', label: 'Individual Value Plot' },
+        { type: 'viz', id: 'interval', label: 'Interval Plot' },
+        { type: 'viz', id: 'dotplot', label: 'Dotplot' },
+        { type: 'viz', id: 'time_series', label: 'Time Series Plot' },
+    ]},
+    { cat: 'Machine Learning', items: [
+        { type: 'ml', id: 'classification', label: 'Classification' },
+        { type: 'ml', id: 'clustering', label: 'Clustering' },
+        { type: 'ml', id: 'pca', label: 'PCA' },
+        { type: 'ml', id: 'random_forest', label: 'Random Forest' },
+        { type: 'ml', id: 'xgboost', label: 'XGBoost' },
+        { type: 'ml', id: 'shap', label: 'SHAP Analysis' },
+    ]},
+    { cat: 'Supply Chain / SIOP', items: [
+        { type: 'siop', id: 'abc_analysis', label: 'ABC Classification' },
+        { type: 'siop', id: 'eoq', label: 'Economic Order Quantity' },
+        { type: 'siop', id: 'safety_stock', label: 'Safety Stock' },
+        { type: 'siop', id: 'kanban', label: 'Kanban Sizing' },
+        { type: 'siop', id: 'epei', label: 'EPEI Calculation' },
+        { type: 'siop', id: 'takt', label: 'Takt Time' },
+        { type: 'siop', id: 'oee', label: 'OEE' },
+    ]},
+    { cat: 'Acceptance Sampling', items: [
+        { type: 'stats', id: 'acceptance_attribute', label: 'Attribute Sampling Plan' },
+        { type: 'stats', id: 'acceptance_variable', label: 'Variable Sampling Plan' },
+    ]},
+];
+
+/* ============================================================================
+   Sidebar
+   ============================================================================ */
+
+function renderSidebar() {
+    const container = document.getElementById('aw-categories');
+    let total = 0;
+
+    container.innerHTML = ANALYSIS_CATALOG.map((cat, ci) => {
+        total += cat.items.length;
+        return `<div class="aw-category" id="aw-cat-${ci}">
+            <div class="aw-category-header" onclick="toggleCategory(${ci})">
+                <span class="aw-category-label">${esc(cat.cat)}</span>
+                <span class="aw-category-count">${cat.items.length}</span>
+            </div>
+            <div class="aw-category-items">
+                ${cat.items.map(item => `<div class="aw-analysis-item"
+                    data-type="${item.type}" data-id="${item.id}"
+                    data-label="${esc(item.label)}" data-cat="${esc(cat.cat)}"
+                    onclick="selectAnalysis(this)">${esc(item.label)}</div>`).join('')}
+            </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('aw-total-count').textContent = total;
+}
+
+function toggleCategory(i) {
+    document.getElementById('aw-cat-' + i).classList.toggle('open');
+}
+
+function filterAnalyses(q) {
+    q = q.toLowerCase().trim();
+    document.querySelectorAll('.aw-category').forEach(cat => {
+        let any = false;
+        cat.querySelectorAll('.aw-analysis-item').forEach(el => {
+            const match = !q || el.dataset.label.toLowerCase().includes(q) || el.dataset.cat.toLowerCase().includes(q);
+            el.style.display = match ? '' : 'none';
+            if (match) any = true;
+        });
+        cat.style.display = any ? '' : 'none';
+        if (q && any) cat.classList.add('open');
+    });
+}
+
+/* ============================================================================
+   Analysis Selection → Config Pane
+   ============================================================================ */
+
+function selectAnalysis(el) {
+    document.querySelectorAll('.aw-analysis-item.active').forEach(a => a.classList.remove('active'));
+    el.classList.add('active');
+
+    currentAnalysis = {
+        type: el.dataset.type,
+        id: el.dataset.id,
+        label: el.dataset.label,
+        category: el.dataset.cat,
+    };
+
+    document.getElementById('aw-toolbar-title').textContent = currentAnalysis.label;
+    document.getElementById('aw-run-btn').disabled = !currentDataId;
+
+    renderConfigPane();
+}
+
+function renderConfigPane() {
+    if (!currentAnalysis) return;
+    const pane = document.getElementById('config-pane');
+    const cols = currentDataColumns;
+    const colOpts = cols.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    const multiCheck = cols.map(c => `<label><input type="checkbox" value="${esc(c)}">${esc(c)}</label>`).join('');
+
+    let html = '<div class="aw-config-body">';
+
+    // Build fields based on analysis type
+    const id = currentAnalysis.id;
+
+    if (['ttest', 'normality', 'descriptive', 'outlier_analysis', 'bootstrap', 'box_cox', 'distribution_fit'].includes(id)) {
+        html += field('Column', `<select id="cfg-column">${colOpts}</select>`);
+        if (id === 'ttest') html += field('Test Value (μ₀)', '<input type="number" id="cfg-mu" value="0" step="any">');
+        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01" min="0.001" max="0.5">');
+    } else if (['ttest2', 'paired_ttest', 'mann_whitney', 'wilcoxon', 'bland_altman'].includes(id)) {
+        html += field('Column 1', `<select id="cfg-col1">${colOpts}</select>`);
+        html += field('Column 2', `<select id="cfg-col2">${cols.length > 1 ? cols.map((c, i) => `<option value="${esc(c)}" ${i===1?'selected':''}>${esc(c)}</option>`).join('') : colOpts}</select>`);
+        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01">');
+    } else if (['anova', 'two_way_anova', 'kruskal', 'friedman', 'mood_median'].includes(id)) {
+        html += field('Response', `<select id="cfg-response">${colOpts}</select>`);
+        html += field('Factor', `<select id="cfg-factor">${colOpts}</select>`);
+        if (id === 'two_way_anova') html += field('Factor 2', `<select id="cfg-factor2">${colOpts}</select>`);
+        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01">');
+    } else if (['regression', 'multiple_regression', 'logistic', 'robust_regression', 'stepwise', 'best_subsets', 'glm', 'poisson_regression', 'nonlinear'].includes(id)) {
+        html += field('Response (Y)', `<select id="cfg-response">${colOpts}</select>`);
+        html += field('Predictors (X)', `<div class="aw-field-checkboxes" id="cfg-predictors">${multiCheck}</div>`);
+        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01">');
+    } else if (['imr', 'xbar_r', 'xbar_s', 'cusum', 'ewma', 'p_chart', 'np_chart', 'c_chart', 'u_chart', 'laney_p', 'laney_u'].includes(id)) {
+        html += field('Data Column', `<select id="cfg-column">${colOpts}</select>`);
+        if (['xbar_r', 'xbar_s'].includes(id)) html += field('Subgroup Size', '<input type="number" id="cfg-subgroup" value="5" min="2" max="25">');
+    } else if (['capability', 'capability_nonnormal'].includes(id)) {
+        html += field('Data Column', `<select id="cfg-column">${colOpts}</select>`);
+        html += field('LSL', '<input type="number" id="cfg-lsl" step="any">');
+        html += field('USL', '<input type="number" id="cfg-usl" step="any">');
+        html += field('Target', '<input type="number" id="cfg-target" step="any">');
+    } else if (['gage_rr', 'gage_rr_nested'].includes(id)) {
+        html += field('Measurement', `<select id="cfg-measurement">${colOpts}</select>`);
+        html += field('Part', `<select id="cfg-part">${colOpts}</select>`);
+        html += field('Operator', `<select id="cfg-operator">${colOpts}</select>`);
+    } else if (currentAnalysis.type === 'viz') {
+        html += field('X Column', `<select id="cfg-col1">${colOpts}</select>`);
+        html += field('Y Column', `<select id="cfg-col2">${cols.length > 1 ? cols.map((c, i) => `<option value="${esc(c)}" ${i===1?'selected':''}>${esc(c)}</option>`).join('') : colOpts}</select>`);
+    } else {
+        html += field('Column', `<select id="cfg-column">${colOpts}</select>`);
+        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01">');
+    }
+
+    if (!currentDataId) {
+        html += '<div style="margin-top:12px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11px;color:var(--text-dim);text-align:center;">Load data first</div>';
+    }
+
+    html += '</div>';
+    pane.innerHTML = html;
+}
+
+function field(label, input) {
+    return `<div class="aw-field"><label>${label}</label>${input}</div>`;
+}
+
+/* ============================================================================
+   Build Config from Pane Inputs
+   ============================================================================ */
+
+function buildConfig() {
+    const cfg = {};
+    const get = id => document.getElementById(id);
+    const val = id => { const el = get(id); return el ? el.value : undefined; };
+    const num = id => { const el = get(id); return el && el.value ? parseFloat(el.value) : undefined; };
+
+    if (val('cfg-alpha')) cfg.alpha = num('cfg-alpha') || 0.05;
+    if (val('cfg-column')) cfg.column = val('cfg-column');
+    if (val('cfg-mu') !== undefined) cfg.test_value = num('cfg-mu') || 0;
+    if (val('cfg-col1')) cfg.column1 = val('cfg-col1');
+    if (val('cfg-col2')) cfg.column2 = val('cfg-col2');
+    if (val('cfg-response')) cfg.response = val('cfg-response');
+    if (val('cfg-factor')) cfg.factor = val('cfg-factor');
+    if (val('cfg-factor2')) cfg.factor2 = val('cfg-factor2');
+    if (val('cfg-subgroup')) cfg.subgroup_size = parseInt(val('cfg-subgroup')) || 5;
+    if (num('cfg-lsl') !== undefined) cfg.lsl = num('cfg-lsl');
+    if (num('cfg-usl') !== undefined) cfg.usl = num('cfg-usl');
+    if (num('cfg-target') !== undefined) cfg.target = num('cfg-target');
+    if (val('cfg-measurement')) cfg.measurement = val('cfg-measurement');
+    if (val('cfg-part')) cfg.part = val('cfg-part');
+    if (val('cfg-operator')) cfg.operator = val('cfg-operator');
+
+    const predictors = get('cfg-predictors');
+    if (predictors) cfg.predictors = [...predictors.querySelectorAll('input:checked')].map(cb => cb.value);
+
+    return cfg;
+}
+
+/* ============================================================================
+   Run Analysis
+   ============================================================================ */
+
+async function runAnalysis() {
+    if (!currentAnalysis || !currentDataId) return;
+
+    const btn = document.getElementById('aw-run-btn');
+    btn.disabled = true;
+    btn.textContent = 'Running\u2026';
+
+    // Show loading in charts + results panes
+    document.getElementById('charts-pane').innerHTML = '<div class="aw-loading">Running analysis\u2026</div>';
+    document.getElementById('results-pane').innerHTML = '<div class="aw-loading">Running analysis\u2026</div>';
+
+    try {
+        const result = await apiFetch(DSW_API + 'analysis/', {
+            method: 'POST',
+            body: JSON.stringify({
+                type: currentAnalysis.type,
+                analysis: currentAnalysis.id,
+                data_id: currentDataId,
+                config: buildConfig(),
+            }),
+        });
+
+        currentResult = result;
+        renderCharts(result);
+        renderResults(result);
+    } catch (e) {
+        document.getElementById('charts-pane').innerHTML = '';
+        document.getElementById('results-pane').innerHTML = `<div style="padding:16px;"><div class="aw-narrative" style="border-left-color:var(--error);">${esc(e.message || 'Analysis failed')}</div></div>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Run';
+    }
+}
+
+/* ============================================================================
+   Charts Pane (ForgeViz)
+   ============================================================================ */
+
+function renderCharts(result) {
+    const pane = document.getElementById('charts-pane');
+    const plots = result.plots || result.charts || [];
+
+    if (plots.length === 0) {
+        pane.innerHTML = '<div class="aw-pane-empty">No charts for this analysis</div>';
+        return;
+    }
+
+    // Check ForgeViz is available
+    if (typeof ForgeViz === 'undefined' || !ForgeViz.render) {
+        pane.innerHTML = '<div class="aw-pane-empty">Chart library not loaded</div>';
+        console.error('ForgeViz not available — check /static/js/forgeviz.js');
+        return;
+    }
+
+    let html = '<div class="aw-chart-container">';
+    plots.forEach((plot, i) => {
+        html += `<div class="aw-chart-slot"><div id="aw-chart-${i}" style="width:100%;min-height:320px;"></div></div>`;
+    });
+    html += '</div>';
+    pane.innerHTML = html;
+
+    // Defer render to next frame so containers have layout dimensions
+    requestAnimationFrame(() => {
+        const chartInstances = [];
+
+        plots.forEach((plot, i) => {
+            const el = document.getElementById('aw-chart-' + i);
+            if (!el || !plot || !plot.traces) return;
+
+            try {
+                const instance = ForgeViz.renderResponsive(el, plot, { theme: 'svend_dark' });
+                chartInstances.push({ el, instance });
+
+                ForgeViz.addToolbar(el, instance, {
+                    filename: (currentAnalysis ? currentAnalysis.id : 'chart') + '_' + i,
+                    showThemeToggle: true,
+                });
+                ForgeViz.enableTitleEdit(el, function() {});
+                ForgeViz.enableAxisEdit(el, function() {});
+                ForgeViz.enableColorPicker(el, function() {});
+            } catch (err) {
+                console.error('ForgeViz render error for chart ' + i + ':', err);
+                el.innerHTML = '<div class="aw-pane-empty">Chart render failed</div>';
+            }
+        });
+
+        // Link charts for cross-selection if multiple
+        if (chartInstances.length > 1) {
+            ForgeViz.linkCharts('aw-results', chartInstances.map(c => c.el));
+        }
+    });
+}
+
+function switchChartTab(tab) {
+    const pane = document.getElementById('charts-pane');
+    if (!pane) return;
+    const header = pane.closest('.aw-pane');
+    if (header) {
+        header.querySelectorAll('.aw-pane-tab').forEach(function(t) {
+            t.classList.toggle('active', t.textContent.toLowerCase() === tab);
+        });
+    }
+}
+
+/* ============================================================================
+   Results Pane (Statistics + Assumptions + Narrative)
+   ============================================================================ */
+
+let currentResultsTab = 'summary';
+
+function renderResults(result) {
+    const pane = document.getElementById('results-pane');
+    currentResult = result;
+
+    // Build all tabs, show the active one
+    let html = '<div class="aw-results-body">';
+
+    // ── SUMMARY TAB ──
+    html += `<div id="aw-tab-summary" style="${currentResultsTab !== 'summary' ? 'display:none;' : ''}">`;
+
+    // Evidence strip
+    const stats = result.statistics || {};
+    const pVal = result.p_value ?? stats.p_value ?? stats.p;
+    const effectSize = result.effect_size ?? stats.effect_size ?? stats.cohens_d ?? stats.r_squared ?? stats.eta_squared;
+    const testStat = stats.t_statistic ?? stats.f_statistic ?? stats.chi2_statistic ?? stats.statistic;
+    const effectLabel = stats.effect_size_label;
+
+    if (pVal !== undefined || effectSize !== undefined || testStat !== undefined) {
+        html += '<div class="aw-evidence-strip">';
+        if (pVal !== undefined && pVal !== null) {
+            const sig = pVal < 0.05;
+            html += `<div class="aw-evidence-stat"><div class="value" style="color:${sig ? 'var(--accent-primary)' : 'var(--text-dim)'};">${typeof pVal === 'number' ? pVal.toFixed(4) : pVal}</div><div class="label">p-value</div></div>`;
+            html += `<span class="aw-status-badge ${sig ? 'significant' : 'not-significant'}">${sig ? 'Significant' : 'Not significant'}</span>`;
+        }
+        if (testStat !== undefined && testStat !== null) {
+            html += `<div class="aw-evidence-stat"><div class="value">${typeof testStat === 'number' ? testStat.toFixed(3) : testStat}</div><div class="label">Test Statistic</div></div>`;
+        }
+        if (effectSize !== undefined && effectSize !== null) {
+            html += `<div class="aw-evidence-stat"><div class="value">${typeof effectSize === 'number' ? effectSize.toFixed(3) : effectSize}</div><div class="label">Effect Size${effectLabel ? ' (' + effectLabel + ')' : ''}</div></div>`;
+        }
+        html += '</div>';
+    }
+
+    // Narrative verdict + body
+    const narr = result.narrative;
+    if (narr && typeof narr === 'object') {
+        html += '<div class="aw-section">';
+        if (narr.verdict) {
+            html += `<div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:8px;font-family:'Inter',system-ui,sans-serif;">${narr.verdict}</div>`;
+        }
+        if (narr.body) {
+            html += `<div class="aw-narrative">${narr.body}</div>`;
+        }
+        if (narr.next_steps) {
+            html += `<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);font-family:'Inter',system-ui,sans-serif;"><strong>Next steps:</strong> ${narr.next_steps}</div>`;
+        }
+        html += '</div>';
+    }
+
+    // Bayesian shadow
+    const bayes = result.bayesian_shadow;
+    if (bayes && bayes.bf10) {
+        const bfColor = bayes.bf10 > 10 ? 'var(--accent-primary)' : bayes.bf10 > 3 ? 'var(--sv-amber)' : 'var(--text-dim)';
+        html += `<div class="aw-section"><div class="aw-section-title">Bayesian Evidence</div>
+            <div class="aw-evidence-strip">
+                <div class="aw-evidence-stat"><div class="value" style="color:${bfColor};">${bayes.bf10 > 10000 ? bayes.bf10.toExponential(1) : bayes.bf10.toFixed(1)}</div><div class="label">BF₁₀ (${esc(bayes.bf_label || '')})</div></div>
+            </div>`;
+        if (bayes.interpretation) {
+            html += `<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;font-family:'Inter',system-ui,sans-serif;">${esc(bayes.interpretation)}</div>`;
+        }
+        html += '</div>';
+    }
+
+    // Assumptions
+    const assumptions = result.assumptions || stats.assumptions;
+    if (assumptions && typeof assumptions === 'object' && Object.keys(assumptions).length) {
+        html += '<div class="aw-section"><div class="aw-section-title">Assumptions</div><div class="aw-assumptions">';
+        for (const [name, check] of Object.entries(assumptions)) {
+            const p = check.pass ?? check.passed ?? (check.p > 0.05);
+            const cls = p ? 'pass' : (check.warning ? 'warn' : 'fail');
+            html += `<div class="aw-assumption ${cls}"><span class="aw-assumption-dot"></span>${esc(name.replace(/_/g, ' '))}${check.p !== undefined && check.p !== null ? ` (p=${check.p.toFixed(3)})` : ''}</div>`;
+        }
+        html += '</div></div>';
+    }
+
+    // Diagnostics
+    const diags = result.diagnostics || [];
+    if (diags.length) {
+        html += '<div class="aw-section"><div class="aw-section-title">Diagnostics</div>';
+        diags.forEach(d => {
+            const icon = d.level === 'warning' ? '⚠' : d.level === 'error' ? '✕' : '✓';
+            const color = d.level === 'warning' ? 'var(--sv-amber)' : d.level === 'error' ? 'var(--error)' : 'var(--accent-primary)';
+            html += `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
+                <span style="color:${color};margin-right:6px;">${icon}</span>
+                <strong>${esc(d.title || '')}</strong>
+                ${d.detail ? `<div style="margin-top:2px;color:var(--text-secondary);font-size:11px;padding-left:18px;">${d.detail}</div>` : ''}
+            </div>`;
+        });
+        html += '</div>';
+    }
+
+    html += '</div>'; // end summary tab
+
+    // ── DETAIL TAB (full statistics table) ──
+    html += `<div id="aw-tab-detail" style="${currentResultsTab !== 'detail' ? 'display:none;' : ''}">`;
+    if (stats && typeof stats === 'object') {
+        const skip = new Set(['assumptions', 'plots', 'charts', 'narrative', 'summary', 'guide_observation']);
+        const entries = Object.entries(stats).filter(([k, v]) => !skip.has(k) && typeof v !== 'object');
+        if (entries.length > 0) {
+            html += `<div class="aw-section"><div class="aw-section-title">All Statistics</div>
+                <table class="aw-stats-table"><thead><tr><th>Measure</th><th>Value</th></tr></thead><tbody>`;
+            entries.forEach(([k, v]) => {
+                const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const fmt = typeof v === 'number' ? (Number.isInteger(v) ? v.toString() : v.toFixed(4)) : String(v);
+                html += `<tr><td>${esc(label)}</td><td class="mono">${esc(fmt)}</td></tr>`;
+            });
+            html += '</tbody></table></div>';
+        }
+    }
+    html += '</div>'; // end detail tab
+
+    // ── NARRATIVE TAB (formatted session output) ──
+    html += `<div id="aw-tab-narrative" style="${currentResultsTab !== 'narrative' ? 'display:none;' : ''}">`;
+    const summary = result.summary || '';
+    if (summary) {
+        // Convert <<COLOR:X>>...<<COLOR>> markup to styled HTML
+        const formatted = summary
+            .replace(/<<COLOR:accent>>/g, '<span style="color:var(--accent-primary);">')
+            .replace(/<<COLOR:title>>/g, '<span style="font-weight:700;font-size:13px;color:var(--text-primary);">')
+            .replace(/<<COLOR:highlight>>/g, '<span style="color:var(--accent-primary);font-weight:500;">')
+            .replace(/<<COLOR:good>>/g, '<span style="color:var(--accent-primary);">')
+            .replace(/<<COLOR:warn>>/g, '<span style="color:var(--sv-amber);">')
+            .replace(/<<COLOR:text>>/g, '<span style="color:var(--text-primary);">')
+            .replace(/<<COLOR>>/g, '</span>')
+            .replace(/\n/g, '<br>');
+        html += `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7;padding:12px;white-space:pre-wrap;">${formatted}</div>`;
+    }
+
+    // Chart guidance
+    if (narr && narr.chart_guidance) {
+        html += `<div style="margin-top:12px;padding:10px 14px;border-left:2px solid var(--accent-primary);font-size:12px;color:var(--text-secondary);font-family:'Inter',system-ui,sans-serif;">
+            <strong>Reading the charts:</strong> ${narr.chart_guidance}</div>`;
+    }
+    html += '</div>'; // end narrative tab
+
+    // ── EDUCATION TAB ──
+    html += `<div id="aw-tab-education" style="${currentResultsTab !== 'education' ? 'display:none;' : ''}">`;
+    const edu = result.education;
+    if (edu) {
+        html += `<div style="padding:12px;">
+            <div class="aw-section-title">${esc(edu.title || 'Education')}</div>
+            <div style="font-size:13px;line-height:1.6;font-family:'Inter',system-ui,sans-serif;color:var(--text-primary);">${edu.content || ''}</div>
+        </div>`;
+    } else {
+        html += '<div class="aw-pane-empty">No education content for this analysis</div>';
+    }
+    html += '</div>'; // end education tab
+
+    html += '</div>'; // end results-body
+    pane.innerHTML = html;
+}
+
+function switchResultsTab(tab) {
+    currentResultsTab = tab;
+    // Hide all tabs, show selected
+    ['summary', 'detail', 'narrative', 'education'].forEach(t => {
+        const el = document.getElementById('aw-tab-' + t);
+        if (el) el.style.display = t === tab ? '' : 'none';
+    });
+    // Update tab button active state
+    const pane = document.getElementById('results-pane');
+    if (pane) {
+        const header = pane.closest('.aw-pane')?.querySelector('.aw-pane-header');
+        if (header) {
+            header.querySelectorAll('.aw-pane-tab').forEach(t => {
+                t.classList.toggle('active', t.textContent.toLowerCase() === tab);
+            });
+        }
+    }
+}
+
+/* ============================================================================
+   Input Pane — Config / Command / History tabs
+   ============================================================================ */
+
+let currentInputTab = 'config';
+let commandHistory = [];
+
+function switchInputTab(tab) {
+    currentInputTab = tab;
+    ['config', 'command', 'history'].forEach(function(t) {
+        const el = document.getElementById('aw-input-' + t);
+        if (el) el.style.display = t === tab ? '' : 'none';
+    });
+    const pane = document.getElementById('input-pane');
+    if (pane) {
+        const header = pane.closest('.aw-pane');
+        if (header) {
+            header.querySelectorAll('.aw-pane-tab').forEach(function(t) {
+                t.classList.toggle('active', t.textContent.toLowerCase() === tab);
+            });
+        }
+    }
+    if (tab === 'command') {
+        setTimeout(function() { document.getElementById('cmd-input').focus(); }, 50);
+    }
+}
+
+async function runCommand() {
+    const input = document.getElementById('cmd-input');
+    const cmd = input.value.trim();
+    if (!cmd) return;
+    input.value = '';
+
+    const output = document.getElementById('cmd-output');
+
+    // Echo command
+    output.innerHTML += '<div class="cmd-line cmd-echo">▸ ' + esc(cmd) + '</div>';
+
+    // Add to history
+    commandHistory.push(cmd);
+    renderHistory();
+
+    // Send to forgepad API
+    try {
+        const result = await apiFetch(DSW_API + 'forgepad/', {
+            method: 'POST',
+            body: JSON.stringify({
+                command: cmd,
+                data_id: currentDataId,
+            }),
+        });
+
+        if (result.success === false || result.error) {
+            output.innerHTML += '<div class="cmd-line cmd-error">' + esc(result.error || 'Command failed') + '</div>';
+        } else {
+            // Summary text
+            if (result.summary) {
+                output.innerHTML += '<div class="cmd-line cmd-result">' + esc(result.summary) + '</div>';
+            }
+            // If it returned charts, render them in the Charts pane
+            if (result.charts && result.charts.length > 0) {
+                renderCharts({ plots: result.charts });
+                output.innerHTML += '<div class="cmd-line cmd-dim">' + result.charts.length + ' chart(s) rendered</div>';
+            }
+            // If it returned statistics, render in Results pane
+            if (result.data || result.statistics) {
+                renderResults({
+                    statistics: result.data || result.statistics || {},
+                    plots: result.charts || [],
+                    summary: result.summary || '',
+                    narrative: result.narrative || { verdict: result.summary || '', body: '', next_steps: '', chart_guidance: '' },
+                    assumptions: {},
+                    diagnostics: [],
+                    education: result.education || null,
+                    bayesian_shadow: result.bayesian_shadow || null,
+                });
+            }
+        }
+    } catch (e) {
+        output.innerHTML += '<div class="cmd-line cmd-error">' + esc(e.message || 'Request failed') + '</div>';
+    }
+
+    output.innerHTML += '<div class="cmd-sep"></div>';
+    output.scrollTop = output.scrollHeight;
+}
+
+function renderHistory() {
+    const el = document.getElementById('cmd-history');
+    if (!commandHistory.length) {
+        el.innerHTML = '<div style="padding:8px;color:var(--text-dim);">No commands yet</div>';
+        return;
+    }
+    el.innerHTML = commandHistory.map(function(cmd, i) {
+        return '<div style="padding:4px 8px;border-bottom:1px solid var(--border);cursor:pointer;font-family:\'JetBrains Mono\',monospace;font-size:11px;" onclick="replayCommand(' + i + ')">' +
+            '<span style="color:var(--text-dim);margin-right:6px;">' + (i + 1) + '</span>' + esc(cmd) + '</div>';
+    }).join('');
+}
+
+function replayCommand(index) {
+    if (commandHistory[index]) {
+        document.getElementById('cmd-input').value = commandHistory[index];
+        switchInputTab('command');
+    }
+}
+
+/* ============================================================================
+   Data Pane (Worksheet)
+   ============================================================================ */
+
+function renderWorksheet(columns, rows) {
+    const pane = document.getElementById('data-pane');
+    if (!columns.length) { pane.innerHTML = '<div class="aw-pane-empty">No data</div>'; return; }
+
+    const maxRows = Math.min(rows.length, 200);
+    let html = '<table class="aw-worksheet"><thead><tr><th class="row-num">#</th>';
+    columns.forEach(c => { html += `<th>${esc(c)}</th>`; });
+    html += '</tr></thead><tbody>';
+
+    for (let r = 0; r < maxRows; r++) {
+        html += `<tr><td class="row-num">${r + 1}</td>`;
+        columns.forEach(c => {
+            const v = rows[r][c];
+            html += `<td>${v !== null && v !== undefined ? esc(String(v)) : ''}</td>`;
+        });
+        html += '</tr>';
+    }
+
+    if (rows.length > maxRows) {
+        html += `<tr><td colspan="${columns.length + 1}" style="text-align:center;color:var(--text-dim);padding:8px;font-size:11px;">${rows.length - maxRows} more rows not shown</td></tr>`;
+    }
+
+    html += '</tbody></table>';
+    pane.innerHTML = html;
+}
+
+/* ============================================================================
+   Upload
+   ============================================================================ */
+
+function showUploadModal() {
+    document.getElementById('upload-modal').classList.add('active');
+    document.getElementById('upload-preview').style.display = 'none';
+    document.getElementById('upload-confirm-btn').style.display = 'none';
+    document.getElementById('aw-file-input').value = '';
+    pendingFile = null;
+}
+
+function hideUploadModal() {
+    document.getElementById('upload-modal').classList.remove('active');
+}
+
+const _dz = document.getElementById('aw-dropzone');
+if (_dz) {
+    _dz.addEventListener('dragover', e => { e.preventDefault(); _dz.classList.add('dragover'); });
+    _dz.addEventListener('dragleave', () => _dz.classList.remove('dragover'));
+    _dz.addEventListener('drop', e => {
+        e.preventDefault(); _dz.classList.remove('dragover');
+        if (e.dataTransfer.files.length) { pendingFile = e.dataTransfer.files[0]; showFilePreview(pendingFile); }
+    });
+}
+
+function handleFileSelect(e) {
+    if (e.target.files.length) { pendingFile = e.target.files[0]; showFilePreview(pendingFile); }
+}
+
+function showFilePreview(file) {
+    const el = document.getElementById('upload-preview');
+    el.style.display = 'block';
+    el.innerHTML = `<div style="padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-primary);font-size:12px;">
+        <strong>${esc(file.name)}</strong>
+        <span style="color:var(--text-dim);margin-left:8px;">${(file.size/1024).toFixed(1)} KB</span></div>`;
+    document.getElementById('upload-confirm-btn').style.display = '';
+}
+
+async function confirmUpload() {
+    if (!pendingFile) return;
+    const btn = document.getElementById('upload-confirm-btn');
+    btn.disabled = true; btn.textContent = 'Uploading\u2026';
+
+    try {
+        const fd = new FormData();
+        fd.append('file', pendingFile);
+
+        const resp = await fetch(DSW_API + 'upload-data/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': svCsrf() },
+            body: fd,
+        });
+        if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || 'Upload failed'); }
+
+        const data = await resp.json();
+        currentDataId = data.id || data.data_id;
+        currentDataColumns = (data.columns || []).map(c => typeof c === 'object' ? c.name : c);
+        currentDataRows = data.rows || 0;
+        currentDataPreview = data.preview || [];
+
+        // Update toolbar indicator
+        const ind = document.getElementById('aw-data-indicator');
+        ind.textContent = `${pendingFile.name} \u2014 ${currentDataRows} \u00d7 ${currentDataColumns.length}`;
+        ind.classList.add('loaded');
+
+        // Populate worksheet
+        if (currentDataPreview.length) {
+            renderWorksheet(currentDataColumns, currentDataPreview);
+        } else {
+            document.getElementById('data-pane').innerHTML = `<div class="aw-pane-empty">${currentDataRows} rows \u00d7 ${currentDataColumns.length} columns loaded</div>`;
+        }
+
+        // Enable run + refresh config
+        if (currentAnalysis) {
+            document.getElementById('aw-run-btn').disabled = false;
+            renderConfigPane();
+        }
+
+        hideUploadModal();
+        svToast('Data loaded', 'success');
+    } catch (e) {
+        svToast(e.message || 'Upload failed', 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Load Data';
+    }
+}
+
+/* ============================================================================
+   Init
+   ============================================================================ */
+
+document.addEventListener('DOMContentLoaded', () => { renderSidebar(); });
+
+window.addEventListener('svendUserReady', function(e) {
+    if (!e.detail.features || !e.detail.features.full_tools) {
+        document.querySelector('.aw-panes').innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;height:100%;">
+                <div style="text-align:center;color:var(--text-dim);">
+                    <p style="font-size:16px;margin-bottom:8px;">Analysis Workbench requires a paid plan.</p>
+                    <a href="/app/account/" class="btn-primary" style="text-decoration:none;">Upgrade</a>
+                </div>
+            </div>`;
+    }
+});
+</script>
+{% endblock %}
