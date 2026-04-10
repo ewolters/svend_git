@@ -70,10 +70,12 @@ def run_spc_analysis(df, analysis_id, config):
     Forge-backed handlers (forgespc + ForgeViz) are tried first.
     Falls back to legacy if not ported or on failure.
     """
-    # Try forge-backed handler first (Object 271 migration)
-    forge_result = run_forge_spc(analysis_id, df, config)
-    if forge_result is not None:
-        return forge_result
+    # Forge intercept DISABLED — forge handlers return ForgeViz specs,
+    # but live workbench expects raw Plotly format. Re-enable only after
+    # workbench renderer is updated or forge handlers output Plotly.
+    # forge_result = run_forge_spc(analysis_id, df, config)
+    # if forge_result is not None:
+    #     return forge_result
 
     # Bridge: Bayesian SPC suite
     if analysis_id.startswith("bayes_spc_"):

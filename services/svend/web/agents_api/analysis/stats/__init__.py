@@ -146,10 +146,12 @@ def run_statistical_analysis(df, analysis_id, config):
     If the analysis_id isn't ported yet, or the forge handler fails,
     falls back to the legacy inline implementation.
     """
-    # Try forge-backed handler first (Object 271 migration)
-    forge_result = run_forge_stats(analysis_id, df, config)
-    if forge_result is not None:
-        return forge_result
+    # Forge intercept DISABLED — forge handlers return ForgeViz specs,
+    # but live workbench expects raw Plotly format. Re-enable only after
+    # workbench renderer is updated or forge handlers output Plotly.
+    # forge_result = run_forge_stats(analysis_id, df, config)
+    # if forge_result is not None:
+    #     return forge_result
 
     # Legacy fallback
     if analysis_id in _PARAMETRIC:

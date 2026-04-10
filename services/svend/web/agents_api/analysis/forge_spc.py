@@ -31,7 +31,7 @@ def _col(df, config, key, fallback_key=None):
 
     Coerces to numeric, drops NaN/non-parseable values.
     """
-    name = config.get(key) or config.get(fallback_key or key)
+    name = config.get(key) or config.get(fallback_key or key) or config.get("measurement") or config.get("response")
     if not name:
         nums = df.select_dtypes(include="number").columns
         if len(nums) == 0:

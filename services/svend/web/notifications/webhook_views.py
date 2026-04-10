@@ -31,7 +31,7 @@ def _get_tier_limit(user):
 
 def _get_user_endpoints(user):
     """Get endpoints owned by user (personal or via tenant)."""
-    from agents_api.permissions import get_tenant
+    from qms_core.permissions import get_tenant
 
     tenant = get_tenant(user)
     if tenant:
@@ -73,7 +73,7 @@ def _list_endpoints(request):
 
 
 def _create_endpoint(request):
-    from agents_api.permissions import get_tenant
+    from qms_core.permissions import get_tenant
 
     try:
         data = json.loads(request.body)

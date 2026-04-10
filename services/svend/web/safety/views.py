@@ -15,7 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import require_feature
-from agents_api.permissions import get_accessible_sites, get_tenant
+from qms_core.permissions import get_accessible_sites, get_tenant
 
 from .models import (
     AuditAssignment,

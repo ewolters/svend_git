@@ -181,61 +181,11 @@ def _dispatch_analysis(analysis_type, df, analysis_id, config, request):
     """
     import importlib
 
-    # ── Forge-first intercept (Object 271) ──
-    # stats and spc are handled in their own __init__.py modules.
-    # bayesian, ml, and misc types are intercepted here.
-    forge_result = None
-    if analysis_type == "bayesian":
-        from .forge_bayesian import run_forge_bayesian
-
-        forge_result = run_forge_bayesian(analysis_id, df, config)
-    elif analysis_type == "ml":
-        from .forge_ml import run_forge_ml
-
-        forge_result = run_forge_ml(analysis_id, df, config)
-    elif analysis_type == "d_type":
-        from .forge_misc import run_forge_d_type
-
-        forge_result = run_forge_d_type(analysis_id, df, config)
-    elif analysis_type == "simulation":
-        from .forge_misc import run_forge_simulation
-
-        forge_result = run_forge_simulation(analysis_id, df, config)
-    elif analysis_type == "causal":
-        from .forge_misc import run_forge_causal
-
-        forge_result = run_forge_causal(analysis_id, df, config)
-    elif analysis_type == "drift":
-        from .forge_misc import run_forge_drift
-
-        forge_result = run_forge_drift(analysis_id, df, config)
-    elif analysis_type == "anytime":
-        from .forge_misc import run_forge_anytime
-
-        forge_result = run_forge_anytime(analysis_id, df, config)
-    elif analysis_type == "quality_econ":
-        from .forge_misc import run_forge_quality_econ
-
-        forge_result = run_forge_quality_econ(analysis_id, df, config)
-    elif analysis_type == "pbs":
-        from .forge_misc import run_forge_pbs
-
-        forge_result = run_forge_pbs(analysis_id, df, config)
-    elif analysis_type == "ishap":
-        from .forge_misc import run_forge_ishap
-
-        forge_result = run_forge_ishap(analysis_id, df, config)
-    elif analysis_type == "bayes_msa":
-        from .forge_misc import run_forge_bayes_msa
-
-        forge_result = run_forge_bayes_msa(analysis_id, df, config)
-    elif analysis_type == "reliability":
-        from .forge_misc import run_forge_reliability
-
-        forge_result = run_forge_reliability(analysis_id, df, config)
-
-    if forge_result is not None:
-        return forge_result
+    # ── Forge-first intercept DISABLED (2026-04-10) ──
+    # Forge handlers return ForgeViz specs but the live workbench expects
+    # raw Plotly format. This broke all chart rendering since 2026-04-06.
+    # Re-enable ONLY in the new demo workbench (Object 271), not here.
+    # See: forge_bayesian.py, forge_ml.py, forge_misc.py for the handlers.
 
     # ── Legacy fallback ──
     route = _ROUTE_TABLE.get(analysis_type)

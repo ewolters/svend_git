@@ -38,9 +38,7 @@ def _run_posthoc(analysis_id, df, config):
         summary += f"<<COLOR:highlight>>Factors:<</COLOR>> {', '.join(factors)}\n"
         summary += f"<<COLOR:highlight>>Grand Mean:<</COLOR>> {y.mean():.4f}\n\n"
 
-        summary += (
-            "<<COLOR:accent>>── Effect Sizes (deviation from grand mean) ──<</COLOR>>\n"
-        )
+        summary += "<<COLOR:accent>>── Effect Sizes (deviation from grand mean) ──<</COLOR>>\n"
 
         colors = ["#4a9f6e", "#47a5e8", "#e89547", "#9f4a4a", "#6c5ce7"]
 
@@ -52,9 +50,7 @@ def _run_posthoc(analysis_id, df, config):
             for level, mean_val in factor_means.items():
                 effect = mean_val - y.mean()
                 direction = "+" if effect > 0 else ""
-                summary += (
-                    f"    {level}: {mean_val:.4f} (effect: {direction}{effect:.4f})\n"
-                )
+                summary += f"    {level}: {mean_val:.4f} (effect: {direction}{effect:.4f})\n"
 
             # Create main effects plot
             levels = [str(lvl) for lvl in factor_means.index.tolist()]
@@ -112,9 +108,7 @@ def _run_posthoc(analysis_id, df, config):
             f"produces the widest swing in mean {response} ({top_range:.4f}). Grand mean = {grand_mean:.4f}."
         )
         if len(effect_ranges) > 1:
-            body += (
-                f" Second: {effect_ranges[1][0]} (range = {effect_ranges[1][1]:.4f})."
-            )
+            body += f" Second: {effect_ranges[1][0]} (range = {effect_ranges[1][1]:.4f})."
         nxt = "Steep slopes = strong effects, flat lines = negligible. Run an interaction plot to check whether factors act independently."
         result["narrative"] = _narrative(
             verdict,
@@ -188,16 +182,14 @@ def _run_posthoc(analysis_id, df, config):
                 slopes.append(slope)
 
             slope_diff = max(slopes) - min(slopes)
-            has_interaction = (
-                slope_diff > 0.1 * abs(np.mean(slopes))
-                if np.mean(slopes) != 0
-                else slope_diff > 0.1
-            )
+            has_interaction = slope_diff > 0.1 * abs(np.mean(slopes)) if np.mean(slopes) != 0 else slope_diff > 0.1
 
             summary += f"<<COLOR:accent>>{'─' * 50}<</COLOR>>\n"
             if has_interaction:
                 summary += "<<COLOR:warning>>POTENTIAL INTERACTION DETECTED<</COLOR>>\n"
-                summary += f"<<COLOR:text>>Lines are not parallel, suggesting {factor1} and {factor2} interact.<</COLOR>>\n"
+                summary += (
+                    f"<<COLOR:text>>Lines are not parallel, suggesting {factor1} and {factor2} interact.<</COLOR>>\n"
+                )
                 summary += f"<<COLOR:text>>The effect of {factor1} depends on the level of {factor2}.<</COLOR>>\n"
             else:
                 summary += "<<COLOR:good>>NO STRONG INTERACTION<</COLOR>>\n"
@@ -205,13 +197,10 @@ def _run_posthoc(analysis_id, df, config):
                 summary += "<<COLOR:text>>Factors may act independently.<</COLOR>>\n"
 
         result["summary"] = summary
-        result["guide_observation"] = (
-            f"Interaction plot for {factor1} × {factor2}. "
-            + (
-                "Non-parallel lines suggest interaction."
-                if "has_interaction" in dir() and has_interaction
-                else "Check for parallel lines."
-            )
+        result["guide_observation"] = f"Interaction plot for {factor1} × {factor2}. " + (
+            "Non-parallel lines suggest interaction."
+            if "has_interaction" in dir() and has_interaction
+            else "Check for parallel lines."
         )
 
         # Narrative
@@ -244,7 +233,7 @@ def _run_posthoc(analysis_id, df, config):
         """
         response = config.get("response") or config.get("var")
         factor = config.get("factor") or config.get("group_var")
-        alpha = 1 - config.get("conf", 95) / 100
+        alpha = 1 - float(config.get("conf", 95)) / 100
 
         from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
@@ -369,9 +358,7 @@ def _run_posthoc(analysis_id, df, config):
             }
         )
 
-        result["guide_observation"] = (
-            f"Tukey HSD: {n_sig}/{n_total} pairwise comparisons significant at α={alpha}."
-        )
+        result["guide_observation"] = f"Tukey HSD: {n_sig}/{n_total} pairwise comparisons significant at α={alpha}."
         result["statistics"] = {
             "pairs": pairs,
             "n_significant": n_sig,
@@ -398,7 +385,7 @@ def _run_posthoc(analysis_id, df, config):
         response = config.get("response") or config.get("var")
         factor = config.get("factor") or config.get("group_var")
         control = config.get("control")
-        alpha = 1 - config.get("conf", 95) / 100
+        alpha = 1 - float(config.get("conf", 95)) / 100
 
         data = df[[response, factor]].dropna()
         levels = data[factor].unique().tolist()
@@ -417,21 +404,11 @@ def _run_posthoc(analysis_id, df, config):
                 from scipy.stats import dunnett as scipy_dunnett
 
                 res = scipy_dunnett(treat_data, control=control_data)
-                p_val = (
-                    float(res.pvalue[0])
-                    if hasattr(res.pvalue, "__len__")
-                    else float(res.pvalue)
-                )
-                stat_val = (
-                    float(res.statistic[0])
-                    if hasattr(res.statistic, "__len__")
-                    else float(res.statistic)
-                )
+                p_val = float(res.pvalue[0]) if hasattr(res.pvalue, "__len__") else float(res.pvalue)
+                stat_val = float(res.statistic[0]) if hasattr(res.statistic, "__len__") else float(res.statistic)
             except (ImportError, AttributeError):
                 # Fallback: Welch t-test with Bonferroni correction
-                stat_val, p_raw = stats.ttest_ind(
-                    treat_data, control_data, equal_var=False
-                )
+                stat_val, p_raw = stats.ttest_ind(treat_data, control_data, equal_var=False)
                 stat_val = float(stat_val)
                 p_val = min(float(p_raw) * len(treatments), 1.0)
 
@@ -457,12 +434,16 @@ def _run_posthoc(analysis_id, df, config):
         summary += f"<<COLOR:highlight>>Control group:<</COLOR>> {control}\n"
         summary += f"<<COLOR:highlight>>Alpha:<</COLOR>> {alpha}\n\n"
 
-        summary += f"<<COLOR:text>>Control: {control} (n={len(control_data)}, mean={np.mean(control_data):.4f})<</COLOR>>\n\n"
+        summary += (
+            f"<<COLOR:text>>Control: {control} (n={len(control_data)}, mean={np.mean(control_data):.4f})<</COLOR>>\n\n"
+        )
         summary += f"{'Treatment':<20} {'Diff':>8} {'Statistic':>10} {'p-value':>8} {'Sig':>5}\n"
         summary += f"{'─' * 55}\n"
         for c in comparisons:
             sig = "<<COLOR:good>>*<</COLOR>>" if c["reject"] else ""
-            summary += f"{c['treatment']:<20} {c['mean_diff']:>8.4f} {c['statistic']:>10.4f} {c['p_value']:>8.4f} {sig:>5}\n"
+            summary += (
+                f"{c['treatment']:<20} {c['mean_diff']:>8.4f} {c['statistic']:>10.4f} {c['p_value']:>8.4f} {sig:>5}\n"
+            )
 
         summary += f"\n<<COLOR:text>>{n_sig}/{len(comparisons)} treatments differ from control<</COLOR>>\n"
 
@@ -473,10 +454,7 @@ def _run_posthoc(analysis_id, df, config):
         for c in comparisons:
             treat_vals = data[data[factor] == c["treatment"]][response].values
             se = float(
-                np.sqrt(
-                    np.var(treat_vals, ddof=1) / len(treat_vals)
-                    + np.var(control_data, ddof=1) / len(control_data)
-                )
+                np.sqrt(np.var(treat_vals, ddof=1) / len(treat_vals) + np.var(control_data, ddof=1) / len(control_data))
             )
             se_bars.append(se)
         result["plots"].append(
@@ -488,10 +466,7 @@ def _run_posthoc(analysis_id, df, config):
                         "x": [c["treatment"] for c in comparisons],
                         "y": [c["mean_diff"] for c in comparisons],
                         "marker": {
-                            "color": [
-                                "#4a9f6e" if c["reject"] else "rgba(90,106,90,0.5)"
-                                for c in comparisons
-                            ],
+                            "color": ["#4a9f6e" if c["reject"] else "rgba(90,106,90,0.5)" for c in comparisons],
                             "line": {"color": "#4a9f6e", "width": 1},
                         },
                         "error_y": {
@@ -511,18 +486,13 @@ def _run_posthoc(analysis_id, df, config):
             }
         )
 
-        result["guide_observation"] = (
-            f"Dunnett's test vs {control}: {n_sig}/{len(comparisons)} treatments differ."
-        )
+        result["guide_observation"] = f"Dunnett's test vs {control}: {n_sig}/{len(comparisons)} treatments differ."
         result["statistics"] = {"comparisons": comparisons, "control": str(control)}
         verdict = f"Dunnett's: {n_sig} of {len(comparisons)} treatments differ from control ({control})"
-        body = (
-            f"Comparing all treatments against the control group <strong>{control}</strong>."
-            + (
-                f" {n_sig} treatment{'s' if n_sig > 1 else ''} show{'s' if n_sig == 1 else ''} a significant difference."
-                if n_sig
-                else " No treatments differ from control."
-            )
+        body = f"Comparing all treatments against the control group <strong>{control}</strong>." + (
+            f" {n_sig} treatment{'s' if n_sig > 1 else ''} show{'s' if n_sig == 1 else ''} a significant difference."
+            if n_sig
+            else " No treatments differ from control."
         )
         result["narrative"] = _narrative(
             verdict,
@@ -537,7 +507,7 @@ def _run_posthoc(analysis_id, df, config):
         """
         response = config.get("response") or config.get("var")
         factor = config.get("factor") or config.get("group_var")
-        alpha = 1 - config.get("conf", 95) / 100
+        alpha = 1 - float(config.get("conf", 95)) / 100
 
         data = df[[response, factor]].dropna()
         levels = sorted(data[factor].unique().tolist(), key=str)
@@ -566,9 +536,7 @@ def _run_posthoc(analysis_id, df, config):
 
             # Welch-Satterthwaite degrees of freedom
             num = (s1["var"] / s1["n"] + s2["var"] / s2["n"]) ** 2
-            denom = (s1["var"] / s1["n"]) ** 2 / (s1["n"] - 1) + (
-                s2["var"] / s2["n"]
-            ) ** 2 / (s2["n"] - 1)
+            denom = (s1["var"] / s1["n"]) ** 2 / (s1["n"] - 1) + (s2["var"] / s2["n"]) ** 2 / (s2["n"] - 1)
             df_welch = num / denom if denom > 0 else 1
 
             q_stat = abs(mean_diff) / se if se > 0 else 0
@@ -687,7 +655,7 @@ def _run_posthoc(analysis_id, df, config):
         """
         var = config.get("var") or config.get("response")
         group_var = config.get("group_var") or config.get("factor")
-        alpha = 1 - config.get("conf", 95) / 100
+        alpha = 1 - float(config.get("conf", 95)) / 100
 
         data = df[[var, group_var]].dropna()
         levels = sorted(data[group_var].unique().tolist(), key=str)
@@ -715,11 +683,7 @@ def _run_posthoc(analysis_id, df, config):
         # Tied-rank correction factor
         ranks = data["_rank"].values
         unique_ranks, counts = np.unique(ranks, return_counts=True)
-        tie_correction = (
-            1 - np.sum(counts**3 - counts) / (n_total**3 - n_total)
-            if n_total > 1
-            else 1
-        )
+        tie_correction = 1 - np.sum(counts**3 - counts) / (n_total**3 - n_total) if n_total > 1 else 1
 
         pairs = []
         for g1, g2 in level_pairs:
@@ -728,11 +692,7 @@ def _run_posthoc(analysis_id, df, config):
             diff = s1["mean_rank"] - s2["mean_rank"]
 
             # Standard error with tie correction
-            se = np.sqrt(
-                tie_correction
-                * (n_total * (n_total + 1) / 12)
-                * (1.0 / s1["n"] + 1.0 / s2["n"])
-            )
+            se = np.sqrt(tie_correction * (n_total * (n_total + 1) / 12) * (1.0 / s1["n"] + 1.0 / s2["n"]))
             z = diff / se if se > 0 else 0
             p_raw = 2 * (1 - stats.norm.cdf(abs(z)))
             p_adj = min(p_raw * n_comparisons, 1.0)  # Bonferroni
@@ -752,9 +712,7 @@ def _run_posthoc(analysis_id, df, config):
         n_sig = sum(1 for p in pairs if p["reject"])
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += (
-            "<<COLOR:title>>DUNN'S TEST (Post-Hoc for Kruskal-Wallis)<</COLOR>>\n"
-        )
+        summary += "<<COLOR:title>>DUNN'S TEST (Post-Hoc for Kruskal-Wallis)<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>Groups:<</COLOR>> {len(levels)} levels of {group_var}\n"
@@ -766,13 +724,17 @@ def _run_posthoc(analysis_id, df, config):
             s = group_info[lev]
             summary += f"  {lev}: n={s['n']}, median={s['median']:.4f}, mean rank={s['mean_rank']:.1f}\n"
 
-        summary += f"\n{'Group 1':<15} {'Group 2':<15} {'Rank Diff':>10} {'Z':>8} {'p-raw':>8} {'p-adj':>8} {'Sig':>5}\n"
+        summary += (
+            f"\n{'Group 1':<15} {'Group 2':<15} {'Rank Diff':>10} {'Z':>8} {'p-raw':>8} {'p-adj':>8} {'Sig':>5}\n"
+        )
         summary += f"{'─' * 75}\n"
         for p in pairs:
             sig = "<<COLOR:good>>*<</COLOR>>" if p["reject"] else ""
             summary += f"{p['group1']:<15} {p['group2']:<15} {p['rank_diff']:>10.2f} {p['z']:>8.4f} {p['p_raw']:>8.4f} {p['p_adj']:>8.4f} {sig:>5}\n"
 
-        summary += f"\n<<COLOR:text>>{n_sig}/{len(pairs)} pairs significantly different (Bonferroni-adjusted)<</COLOR>>\n"
+        summary += (
+            f"\n<<COLOR:text>>{n_sig}/{len(pairs)} pairs significantly different (Bonferroni-adjusted)<</COLOR>>\n"
+        )
 
         result["summary"] = summary
 
@@ -840,9 +802,7 @@ def _run_posthoc(analysis_id, df, config):
             "n_significant": n_sig,
             "n_comparisons": n_comparisons,
         }
-        verdict = (
-            f"Dunn's test: {n_sig} of {len(pairs)} pairs differ (Bonferroni corrected)"
-        )
+        verdict = f"Dunn's test: {n_sig} of {len(pairs)} pairs differ (Bonferroni corrected)"
         body = (
             f"Non-parametric post-hoc following Kruskal-Wallis. <strong>{n_sig}</strong> pair{'s' if n_sig != 1 else ''} significant after Bonferroni correction."
             if n_sig
@@ -872,10 +832,7 @@ def _run_posthoc(analysis_id, df, config):
         groups_sch = sorted(data_sch[factor_sch].unique(), key=str)
         k_sch = len(groups_sch)
 
-        group_data_sch = {
-            str(g): data_sch[data_sch[factor_sch] == g][response_sch].values
-            for g in groups_sch
-        }
+        group_data_sch = {str(g): data_sch[data_sch[factor_sch] == g][response_sch].values for g in groups_sch}
         group_means_sch = {g: np.mean(v) for g, v in group_data_sch.items()}
         group_ns_sch = {g: len(v) for g, v in group_data_sch.items()}
         n_total_sch = sum(group_ns_sch.values())
@@ -918,12 +875,8 @@ def _run_posthoc(analysis_id, df, config):
         summary_sch += "<<COLOR:title>>SCHEFFÉ'S POST-HOC TEST<</COLOR>>\n"
         summary_sch += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary_sch += f"<<COLOR:highlight>>Response:<</COLOR>> {response_sch}\n"
-        summary_sch += (
-            f"<<COLOR:highlight>>Factor:<</COLOR>> {factor_sch} ({k_sch} groups)\n"
-        )
-        summary_sch += (
-            f"<<COLOR:highlight>>MSE:<</COLOR>> {mse_sch:.4f}  (df = {df_within})\n"
-        )
+        summary_sch += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor_sch} ({k_sch} groups)\n"
+        summary_sch += f"<<COLOR:highlight>>MSE:<</COLOR>> {mse_sch:.4f}  (df = {df_within})\n"
         summary_sch += f"<<COLOR:highlight>>Scheffé critical value:<</COLOR>> {scheffe_crit:.4f}\n\n"
 
         summary_sch += f"{'Group 1':<15} {'Group 2':<15} {'Diff':>8} {'SE':>8} {'F':>8} {'p':>8} {'Lower':>8} {'Upper':>8} {'Sig':>5}\n"
@@ -931,7 +884,9 @@ def _run_posthoc(analysis_id, df, config):
         for p in pairs_sch:
             sig_mark = "<<COLOR:good>>*<</COLOR>>" if p["reject"] else ""
             summary_sch += f"{p['group1']:<15} {p['group2']:<15} {p['diff']:>8.4f} {p['se']:>8.4f} {p['f']:>8.3f} {p['p']:>8.4f} {p['lower']:>8.4f} {p['upper']:>8.4f} {sig_mark:>5}\n"
-        summary_sch += f"\n<<COLOR:text>>Summary: {n_sig_sch}/{len(pairs_sch)} pairs significantly different<</COLOR>>\n"
+        summary_sch += (
+            f"\n<<COLOR:text>>Summary: {n_sig_sch}/{len(pairs_sch)} pairs significantly different<</COLOR>>\n"
+        )
         summary_sch += "<<COLOR:text>>Note: Scheffé is the most conservative — controls for ALL possible contrasts, not just pairwise.<</COLOR>>\n"
 
         result["summary"] = summary_sch
@@ -948,10 +903,7 @@ def _run_posthoc(analysis_id, df, config):
                         "y": y_labels_sch,
                         "mode": "markers",
                         "marker": {
-                            "color": [
-                                "#4a9f6e" if p["reject"] else "#5a6a5a"
-                                for p in pairs_sch
-                            ],
+                            "color": ["#4a9f6e" if p["reject"] else "#5a6a5a" for p in pairs_sch],
                             "size": 10,
                         },
                         "error_x": {
@@ -986,9 +938,7 @@ def _run_posthoc(analysis_id, df, config):
             }
         )
 
-        result["guide_observation"] = (
-            f"Scheffé: {n_sig_sch}/{len(pairs_sch)} pairs significant at α={alpha_sch}."
-        )
+        result["guide_observation"] = f"Scheffé: {n_sig_sch}/{len(pairs_sch)} pairs significant at α={alpha_sch}."
         result["statistics"] = {
             "pairs": pairs_sch,
             "mse": mse_sch,
@@ -1025,10 +975,7 @@ def _run_posthoc(analysis_id, df, config):
         groups_bon = sorted(data_bon[factor_bon].unique(), key=str)
         k_bon = len(groups_bon)
 
-        group_data_bon = {
-            str(g): data_bon[data_bon[factor_bon] == g][response_bon].values
-            for g in groups_bon
-        }
+        group_data_bon = {str(g): data_bon[data_bon[factor_bon] == g][response_bon].values for g in groups_bon}
         n_total_bon = sum(len(v) for v in group_data_bon.values())
 
         # Pooled MSE
@@ -1073,12 +1020,12 @@ def _run_posthoc(analysis_id, df, config):
         summary_bon += "<<COLOR:title>>BONFERRONI POST-HOC TEST<</COLOR>>\n"
         summary_bon += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary_bon += f"<<COLOR:highlight>>Response:<</COLOR>> {response_bon}\n"
-        summary_bon += (
-            f"<<COLOR:highlight>>Factor:<</COLOR>> {factor_bon} ({k_bon} groups)\n"
-        )
+        summary_bon += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor_bon} ({k_bon} groups)\n"
         summary_bon += f"<<COLOR:highlight>>Adjusted α:<</COLOR>> {alpha_bon}/{n_comparisons_bon} = {alpha_adj:.6f}\n\n"
 
-        summary_bon += f"{'Group 1':<15} {'Group 2':<15} {'Diff':>8} {'t':>8} {'p-adj':>8} {'Lower':>8} {'Upper':>8} {'Sig':>5}\n"
+        summary_bon += (
+            f"{'Group 1':<15} {'Group 2':<15} {'Diff':>8} {'t':>8} {'p-adj':>8} {'Lower':>8} {'Upper':>8} {'Sig':>5}\n"
+        )
         summary_bon += f"{'─' * 82}\n"
         for p in pairs_bon:
             sig_mark = "<<COLOR:good>>*<</COLOR>>" if p["reject"] else ""
@@ -1098,10 +1045,7 @@ def _run_posthoc(analysis_id, df, config):
                         "y": y_labels_bon,
                         "mode": "markers",
                         "marker": {
-                            "color": [
-                                "#4a9f6e" if p["reject"] else "#5a6a5a"
-                                for p in pairs_bon
-                            ],
+                            "color": ["#4a9f6e" if p["reject"] else "#5a6a5a" for p in pairs_bon],
                             "size": 10,
                         },
                         "error_x": {
@@ -1145,13 +1089,10 @@ def _run_posthoc(analysis_id, df, config):
             "alpha_adjusted": alpha_adj,
         }
         verdict = f"Bonferroni: {n_sig_bon} of {len(pairs_bon)} pairs significant (adj. \u03b1 = {alpha_adj:.4f})"
-        body = (
-            f"Family-wise error controlled by dividing \u03b1 by {len(pairs_bon)} comparisons."
-            + (
-                f" <strong>{n_sig_bon}</strong> pair{'s' if n_sig_bon != 1 else ''} survive correction."
-                if n_sig_bon
-                else " No pairs survive correction."
-            )
+        body = f"Family-wise error controlled by dividing \u03b1 by {len(pairs_bon)} comparisons." + (
+            f" <strong>{n_sig_bon}</strong> pair{'s' if n_sig_bon != 1 else ''} survive correction."
+            if n_sig_bon
+            else " No pairs survive correction."
         )
         result["narrative"] = _narrative(
             verdict,
@@ -1173,18 +1114,13 @@ def _run_posthoc(analysis_id, df, config):
         response_hsu = config.get("response") or config.get("var")
         factor_hsu = config.get("factor") or config.get("group_var")
         alpha_hsu = 1 - config.get("conf", 95) / 100
-        direction = config.get(
-            "direction", "max"
-        )  # "max" = higher is better, "min" = lower is better
+        direction = config.get("direction", "max")  # "max" = higher is better, "min" = lower is better
 
         data_hsu = df[[response_hsu, factor_hsu]].dropna()
         groups_hsu = sorted(data_hsu[factor_hsu].unique(), key=str)
         k_hsu = len(groups_hsu)
 
-        group_data_hsu = {
-            str(g): data_hsu[data_hsu[factor_hsu] == g][response_hsu].values
-            for g in groups_hsu
-        }
+        group_data_hsu = {str(g): data_hsu[data_hsu[factor_hsu] == g][response_hsu].values for g in groups_hsu}
         group_means_hsu = {g: np.mean(v) for g, v in group_data_hsu.items()}
         group_ns_hsu = {g: len(v) for g, v in group_data_hsu.items()}
         n_total_hsu = sum(group_ns_hsu.values())
@@ -1239,25 +1175,19 @@ def _run_posthoc(analysis_id, df, config):
             )
 
         summary_hsu = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary_hsu += (
-            "<<COLOR:title>>HSU'S MCB (MULTIPLE COMPARISONS WITH THE BEST)<</COLOR>>\n"
-        )
+        summary_hsu += "<<COLOR:title>>HSU'S MCB (MULTIPLE COMPARISONS WITH THE BEST)<</COLOR>>\n"
         summary_hsu += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary_hsu += f"<<COLOR:highlight>>Response:<</COLOR>> {response_hsu}\n"
-        summary_hsu += (
-            f"<<COLOR:highlight>>Factor:<</COLOR>> {factor_hsu} ({k_hsu} groups)\n"
-        )
+        summary_hsu += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor_hsu} ({k_hsu} groups)\n"
         summary_hsu += f"<<COLOR:highlight>>Direction:<</COLOR>> {'Higher is better' if direction == 'max' else 'Lower is better'}\n"
-        summary_hsu += f"<<COLOR:highlight>>Best group:<</COLOR>> {best_group} (mean = {group_means_hsu[best_group]:.4f})\n\n"
+        summary_hsu += (
+            f"<<COLOR:highlight>>Best group:<</COLOR>> {best_group} (mean = {group_means_hsu[best_group]:.4f})\n\n"
+        )
 
         summary_hsu += f"{'Group':<20} {'Mean':>8} {'Diff':>8} {'Lower':>8} {'Upper':>8} {'Could be best?':>15}\n"
         summary_hsu += f"{'─' * 72}\n"
         for c in comparisons_hsu:
-            best_mark = (
-                "<<COLOR:good>>YES<</COLOR>>"
-                if c["could_be_best"]
-                else "<<COLOR:warning>>NO<</COLOR>>"
-            )
+            best_mark = "<<COLOR:good>>YES<</COLOR>>" if c["could_be_best"] else "<<COLOR:warning>>NO<</COLOR>>"
             star = " ◄" if c["is_best"] else ""
             summary_hsu += f"{c['group']:<20} {c['mean']:>8.4f} {c['diff_from_best']:>8.4f} {c['lower']:>8.4f} {c['upper']:>8.4f} {best_mark:>15}{star}\n"
 
@@ -1277,23 +1207,14 @@ def _run_posthoc(analysis_id, df, config):
                         "x": [c["diff_from_best"] for c in comparisons_hsu],
                         "y": [c["group"] for c in comparisons_hsu],
                         "marker": {
-                            "color": [
-                                "#4a9f6e" if c["could_be_best"] else "#d94a4a"
-                                for c in comparisons_hsu
-                            ],
+                            "color": ["#4a9f6e" if c["could_be_best"] else "#d94a4a" for c in comparisons_hsu],
                             "size": 10,
                         },
                         "error_x": {
                             "type": "data",
                             "symmetric": False,
-                            "array": [
-                                c["upper"] - c["diff_from_best"]
-                                for c in comparisons_hsu
-                            ],
-                            "arrayminus": [
-                                c["diff_from_best"] - c["lower"]
-                                for c in comparisons_hsu
-                            ],
+                            "array": [c["upper"] - c["diff_from_best"] for c in comparisons_hsu],
+                            "arrayminus": [c["diff_from_best"] - c["lower"] for c in comparisons_hsu],
                             "color": "#5a6a5a",
                         },
                         "showlegend": False,
@@ -1317,9 +1238,7 @@ def _run_posthoc(analysis_id, df, config):
             }
         )
 
-        result["guide_observation"] = (
-            f"Hsu's MCB: {n_could_be_best}/{k_hsu} groups could be best. Best={best_group}."
-        )
+        result["guide_observation"] = f"Hsu's MCB: {n_could_be_best}/{k_hsu} groups could be best. Best={best_group}."
         result["statistics"] = {
             "comparisons": comparisons_hsu,
             "best_group": best_group,
