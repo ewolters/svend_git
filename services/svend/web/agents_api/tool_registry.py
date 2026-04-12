@@ -24,8 +24,8 @@ def register_tools():
         return
     _registered = True
 
-    from . import a3_views, ce_views, ishikawa_views, rca_views, vsm_views
-    from .models import A3Report, RCASession, ValueStreamMap
+    from . import a3_views, ce_views, ishikawa_views, rca_views
+    from .models import A3Report, RCASession
 
     # ------------------------------------------------------------------
     # Ishikawa (Fishbone) Diagrams
@@ -86,31 +86,7 @@ def register_tools():
         },
     )
 
-    # ------------------------------------------------------------------
-    # Value Stream Mapping
-    # URL: /api/vsm/, /api/vsm/<uuid>/...
-    # ------------------------------------------------------------------
-    ToolRouter.register(
-        slug="vsm",
-        model=ValueStreamMap,
-        list_view=vsm_views.list_vsm,
-        create_view=vsm_views.create_vsm,
-        detail_view=vsm_views.get_vsm,
-        update_view=vsm_views.update_vsm,
-        delete_view=vsm_views.delete_vsm,
-        permission="paid",
-        pk_name="vsm_id",
-        actions={
-            "process-step": vsm_views.add_process_step,
-            "inventory": vsm_views.add_inventory,
-            "kaizen": vsm_views.add_kaizen_burst,
-            "future-state": vsm_views.create_future_state,
-            "compare": vsm_views.compare_vsm,
-            "generate-proposals": vsm_views.generate_proposals,
-            "approve-proposal": vsm_views.approve_proposal,
-            "waste-analysis": vsm_views.waste_analysis,
-        },
-    )
+    # VSM — extracted to vsm/ app. URLs at /api/vsm/ via vsm.urls.
 
     # ------------------------------------------------------------------
     # Root Cause Analysis

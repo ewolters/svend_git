@@ -40,7 +40,6 @@ def _forgerack_unit_view(request, unit_name):
     return HttpResponse(unit_path.read_text(), content_type="text/html")
 
 
-from agents_api.whiteboard_views import guest_board_view
 from api.blog_views import blog_detail, blog_list
 from api.internal_views import dashboard_view, rack_designer_view, rack_layout_api
 from api.landing_views import (
@@ -66,6 +65,7 @@ from api.views import compliance_data, compliance_page
 from api.whitepaper_views import whitepaper_detail, whitepaper_list, whitepaper_pdf
 from loop.views import auditor_portal_view
 from syn.varta.urls import urlpatterns as varta_urls
+from whiteboard.views import guest_board_view
 
 # ---------------------------------------------------------------------------
 # ToolRouter (ARCH-001 §10.1) — pluggable QMS tool URL registration
@@ -415,12 +415,13 @@ urlpatterns = varta_urls + [
     path("api/experimenter/", include("agents_api.experimenter_urls")),
     path("api/spc/", include("agents_api.spc_urls")),
     path("api/synara/", include("agents_api.synara_urls")),
-    path("api/whiteboard/", include("agents_api.whiteboard_urls")),  # Collaborative whiteboards
+    path("api/whiteboard/", include("whiteboard.urls")),
     path("api/guide/", include("agents_api.guide_urls")),  # AI guide (rate-limited)
     path("api/reports/", include("agents_api.report_urls")),  # CAPA, 8D reports
     path("api/plantsim/", include("agents_api.plantsim_urls")),  # Plant Simulator (DES)
     path("api/learn/", include("agents_api.learn_urls")),  # Learning module & certification
-    path("api/", include(_get_tool_router_urls())),  # ToolRouter: Ishikawa, C&E, A3, VSM, RCA (ARCH-001 §10.1)
+    path("api/vsm/", include("vsm.urls")),
+    path("api/", include(_get_tool_router_urls())),  # ToolRouter: Ishikawa, C&E, A3, RCA (ARCH-001 §10.1)
     # A3 remove_diagram — parameterized action, not expressible in ToolRouter
     path("api/a3/<uuid:report_id>/diagram/<str:diagram_id>/", _a3_remove_diagram, name="a3-remove-diagram"),
     path("api/fmea/", include("agents_api.fmea_urls")),  # FMEA with Bayesian evidence linking

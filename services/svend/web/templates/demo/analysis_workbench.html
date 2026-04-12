@@ -760,7 +760,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
    ForgeViz charts only. Same patterns as investigations.html.
    ============================================================================ */
 
-const DSW_API = '/api/dsw/';
+const ANALYSIS_API = '/api/analysis/';
 
 let currentDataId = null;
 let currentDataColumns = [];
@@ -1109,7 +1109,7 @@ async function runAnalysis() {
     document.getElementById('results-pane').innerHTML = '<div class="aw-loading">Running analysis\u2026</div>';
 
     try {
-        const result = await apiFetch(DSW_API + 'analysis/', {
+        const result = await apiFetch(ANALYSIS_API + 'run/', {
             method: 'POST',
             body: JSON.stringify({
                 type: currentAnalysis.type,
@@ -1422,7 +1422,7 @@ async function runCommand() {
 
     // Send to forgepad API
     try {
-        const result = await apiFetch(DSW_API + 'forgepad/', {
+        const result = await apiFetch(ANALYSIS_API + 'forgepad/', {
             method: 'POST',
             body: JSON.stringify({
                 command: cmd,
@@ -1561,7 +1561,7 @@ async function confirmUpload() {
         const fd = new FormData();
         fd.append('file', pendingFile);
 
-        const resp = await fetch(DSW_API + 'upload-data/', {
+        const resp = await fetch(ANALYSIS_API + 'upload-data/', {
             method: 'POST',
             headers: { 'X-CSRFToken': svCsrf() },
             body: fd,
