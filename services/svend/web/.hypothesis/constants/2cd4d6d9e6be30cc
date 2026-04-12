@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/capa_urls.py
-# hypothesis_version: 6.151.9
-
-['<uuid:capa_id>/', 'capa_detail', 'capa_launch_rca', 'capa_list', 'capa_stats', 'stats/']

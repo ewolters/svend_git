@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/core/models/investigation.py
-# hypothesis_version: 6.151.9
-
-[300, '-updated_at', 'Active', 'Concluded', 'Contributor', 'Exported', 'Inference', 'Information', 'Intent', 'Open', 'Owner', 'Report', 'Viewer', 'active', 'child_versions', 'concluded', 'content_type', 'contributor', 'core.Project', 'core.Tenant', 'core_investigation', 'exported', 'inference', 'information', 'intent', 'investigation', 'investigations', 'object_id', 'open', 'owned_investigations', 'owner', 'report', 'self', 'tool_links', 'user', 'viewer']

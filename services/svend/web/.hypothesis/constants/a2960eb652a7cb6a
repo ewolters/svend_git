@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0009_whiteboard_models.py
-# hypothesis_version: 6.151.9
-
-[0.0, 1.0, 255, '#4a9f6e', '-updated_at', 'Board', 'BoardParticipant', 'BoardVote', 'ID', 'Untitled Board', 'agents_api', 'agents_api.board', 'board', 'board_participations', 'board_votes', 'color', 'connections', 'created_at', 'cursor_x', 'cursor_y', 'element_id', 'elements', 'id', 'last_seen', 'name', 'ordering', 'owned_boards', 'owner', 'pan_x', 'pan_y', 'participants', 'room_code', 'unique_together', 'updated_at', 'user', 'version', 'votes', 'votes_per_user', 'voting_active', 'zoom']

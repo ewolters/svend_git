@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/agents/experimenter/doe.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.25, 0.5, 100, ' *', ' |', ' | ', '## Design Matrix', '## Factors', '## Notes', '*\\* Center point*', ', ', '---', 'Block', 'Column', 'I', 'II', 'III', 'IV', 'L12', 'L16', 'L18', 'L27', 'L4', 'L8', 'L9', 'Latin Square', 'RCBD', 'Row', 'Treatment', 'V', 'auto', 'block', 'box_behnken', 'center_point', 'coded', 'd_optimal', 'definitive_screening', 'design_type', 'factors', 'i_optimal', 'inf', 'interaction', 'level_names', 'levels', 'linear', 'name', 'notes', 'num_blocks', 'num_center_points', 'num_replicates', 'num_runs', 'orthogonal', 'plackett_burman', 'properties', 'quadratic', 'replicate', 'resolution', 'rotatable', 'run_id', 'run_order', 'runs', 'standard_order', 'taguchi', 'treatment', 'units', '|', '| Run | ', '|-----|']

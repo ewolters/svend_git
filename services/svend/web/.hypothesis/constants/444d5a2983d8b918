@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0023_hoshin_custom_formula.py
-# hypothesis_version: 6.151.9
-
-[200, 500, '0022_hoshin_kanri', 'agents_api', 'calculation_method', 'custom_formula', 'custom_formula_desc', 'hoshinproject']

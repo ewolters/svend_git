@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/notebook_urls.py
-# hypothesis_version: 6.151.9
-
-['<uuid:notebook_id>/', 'front-page/', 'front_matter_add', 'front_page', 'notebook_conclude', 'notebook_detail', 'notebook_list_create', 'notebook_project_a3', 'notebook_pull_tool', 'page_list_create', 'trial_complete', 'trial_detail', 'trial_list_create', 'yokoten/', 'yokoten_adopt', 'yokoten_list']

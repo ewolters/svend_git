@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/agents/experimenter/plots.py
-# hypothesis_version: 6.151.9
-
-[-1.5, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9, 0.99, 1.02, 1.05, 1.2, 1.5, 1.96, 100, 150, '*', '--', '0', ':', 'Agg', 'Coded Level', 'Design Points', 'Factor Level', 'Factors', 'Fitted Values', 'Frequency', 'Normal Q-Q Plot', 'Power = 0.80', 'Power = 0.90', 'RdBu', 'Required Sample Size', 'Residual Diagnostics', 'Residuals', 'Residuals vs Fitted', 'Response', 'Run Order', 'Sample Quantiles', 'Scale-Location', 'Statistical Power', 'Total Sample Size', 'anova', 'auto', 'b-', 'black', 'blue', 'bo-', 'both', 'center', 'correlation', 'effect_size', 'gray', 'green', 'groups', 'large', 'log', 'lower right', 'medium', 'norm', 'o', 'o-', 'orange', 'paired', 'png', 'r', 'r--', 'right', 'sample_size', 'small', 'tight', 'ttest_ind', 'utf-8', 'viridis', 'white', '√|Residuals|']

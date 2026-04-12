@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/qms_views.py
-# hypothesis_version: 6.151.9
-
-[0.4, 0.7, 1.0, 100, 200, 'GET', 'a3', 'active', 'active_fmeas', 'at_risk', 'avg_chain_depth', 'avg_completion', 'avg_pce', 'background', 'bottleneck_count', 'by_status', 'c', 'capa', 'closed', 'countermeasures', 'critical', 'critical_open', 'critical_rows', 'current_condition', 'datetime', 'delayed', 'draft', 'fmea', 'follow_up', 'future', 'goal', 'good', 'high_rows', 'hoshin', 'id', 'implementation_plan', 'is_bottleneck', 'low_rows', 'medium_rows', 'needs_attention', 'on_track_pct', 'open', 'overall_health', 'overall_score', 'overdue', 'rca', 'root_cause', 'rows_without_actions', 'status', 'target_savings', 'total', 'total_projects', 'vsm', 'with_future_state', 'ytd_savings']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/api/serializers.py
-# hypothesis_version: 6.151.9
-
-[100, 10000, 'auto', 'block_reason', 'coder', 'content', 'created_at', 'default', 'difficulty', 'domain', 'haiku', 'id', 'inference_time_ms', 'is_blocked', 'is_verified', 'last_message', 'message_count', 'messages', 'opus', 'qwen', 'reasoning_trace', 'role', 'sonnet', 'synara', 'title', 'tool_calls', 'updated_at']

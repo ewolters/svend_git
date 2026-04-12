@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/notifications/token_views.py
-# hypothesis_version: 6.151.9
-
-[200, 410, '/app/fmea/{id}/', '/app/hoshin/', '/app/qms/#audit-{id}', '/app/qms/#capa-{id}', '/app/qms/#doc-{id}', '/app/qms/#ncr-{id}', '/app/qms/#sig-{id}', '</div></body></html>', 'Done', 'GET', 'POST', 'Token Expired', 'acknowledge', 'action', 'already been used', 'audit', 'capa', 'document', 'expired', 'fmea', 'hoshin_project', 'https://svend.ai', 'is_read', 'ncr', 'review', 'signature', 'text/html', 'training']

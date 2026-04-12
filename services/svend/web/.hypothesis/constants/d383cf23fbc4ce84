@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0045_qmsfieldchange.py
-# hypothesis_version: 6.151.9
-
-['-created_at', 'QMSFieldChange', 'agents_api', 'changed_by', 'created_at', 'db_table', 'field_name', 'id', 'indexes', 'new_value', 'old_value', 'ordering', 'record_id', 'record_type']

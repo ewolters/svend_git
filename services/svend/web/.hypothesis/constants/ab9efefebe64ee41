@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/audit/migrations/0006_add_healthping.py
-# hypothesis_version: 6.151.9
-
-[500, '-timestamp', 'CAL', 'ENC-001', 'ENC-002', 'ENC-003', 'ENC-004', 'ENC-005', 'ENC-006', 'ENC-007', 'ENC-008', 'ENC-009', 'ENC-010', 'ENC-011', 'Health Ping', 'Health Pings', 'HealthPing', 'STD', 'affected_files', 'audit', 'audit_entry_ids', 'audit_health_ping', 'changerequest', 'commit_shas', 'compliance_check_ids', 'db_table', 'drift_violation_ids', 'driftviolation', 'enforcement_check', 'error', 'id', 'implementation_plan', 'indexes', 'is_healthy', 'ordering', 'related_change_ids', 'response_time_ms', 'rollback_plan', 'status_code', 'testing_plan', 'timestamp', 'verbose_name', 'verbose_name_plural']

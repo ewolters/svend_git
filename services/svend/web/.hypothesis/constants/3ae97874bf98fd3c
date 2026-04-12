@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/ce_views.py
-# hypothesis_version: 6.151.9
-
-[0.5, 201, 400, 404, '-updated_at', 'C&E Matrix', 'C&E Matrix Analysis', 'DELETE', 'GET', 'Invalid JSON', 'Matrix not found', 'PATCH', 'POST', 'PUT', 'analysis', 'auto-created', 'ce-matrix', 'ce_matrix', 'complete', 'draft', 'error', 'input_name', 'inputs', 'investigation', 'investigation_id', 'matrices', 'matrix', 'none', 'outputs', 'project', 'project_id', 'scores', 'status', 'success', 'system_type', 'title', 'total', 'variable']

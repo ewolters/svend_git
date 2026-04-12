@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/inference/flywheel.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.2, 0.4, 0.5, 0.7, 0.8, 500, 1000, '-count', '=\\s*([^\\n.]+)', 'ANTHROPIC_API_KEY', 'Could not solve.', 'Opus not available', '\\*\\*([^*]+)\\*\\*', 'complex_query', 'confidence', 'content', 'count', 'domain', 'domain_failures', 'error', 'error_patterns', 'error_type', 'escalation_rate', 'id', 'inference_time_ms', 'low_confidence', 'opus_escalations', 'opus_success', 'opus_success_rate', 'role', 'suggestions', 'synara_failed', 'synara_success', 'synara_success_rate', 'total_queries', 'training_candidates', 'unknown', 'user', 'user_requested', 'verification_failed']

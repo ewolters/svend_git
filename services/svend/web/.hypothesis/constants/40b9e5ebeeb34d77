@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0057_managementreviewtemplate_managementreview_template.py
-# hypothesis_version: 6.151.9
-
-[200, '-created_at', 'agents_api', 'created_at', 'db_table', 'description', 'id', 'is_default', 'iso_review_templates', 'managementreview', 'ordering', 'owner', 'review_templates', 'reviews', 'sections', 'template', 'title', 'updated_at']

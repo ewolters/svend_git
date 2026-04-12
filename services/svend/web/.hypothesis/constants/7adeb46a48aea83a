@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/learn_content/data_fundamentals.py
-# hypothesis_version: 6.151.9
-
-['Data Cleaning', 'Sampling', 'answer', 'calculate_n', 'config', 'content', 'data-cleaning', 'data_cleaner', 'diameter_mm', 'distributions', 'dsw_config', 'dsw_type', 'eda', 'eda_explorer', 'exercise', 'hint', 'id', 'interactive', 'intro', 'key_takeaways', 'practice_questions', 'question', 'sampling', 'show_margin_of_error', 'show_population_size', 'stats:descriptive', 'stats:normality', 'steps', 'title', 'type', 'var']

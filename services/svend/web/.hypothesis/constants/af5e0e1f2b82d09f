@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/spc/helpers.py
-# hypothesis_version: 6.151.9
-
-[0.00135, 0.0027, 0.12, 0.5, 0.99865, 1.0, 390, '#4a9f6e', '#d94a4a', '#e85747', '#e8c547', '#fff', '; ', 'Count Between Events', 'OOC', 'Observation', 'Out of Control', 'Rule 1: Beyond 3σ', 'Rule 2: 9 same side', 'Rule 7: 15 within 1σ', 'Time Between Events', '__len__', 'chart_type', 'cl', 'color', 'customdata', 'dash', 'data', 'decreasing', 'diamond', 'g', 'guide_observation', 'height', 'hovertemplate', 'increasing', 'int32', 'int64', 'interactive', 'layout', 'lcl', 'line', 'lines', 'lines+markers', 'marker', 'markers', 'mode', 'n', 'name', 'narrative', 'ooc_count', 'ooc_indices', 'plots', 'rangeslider', 'scatter', 'showlegend', 'size', 'spc_inspect', 'statistics', 'summary', 'symbol', 't', 'thickness', 'title', 'type', 'ucl', 'var', 'var1', 'visible', 'width', 'x', 'xaxis', 'y', 'yaxis']

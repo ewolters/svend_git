@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/d_type/chart.py
-# hypothesis_version: 6.151.9
-
-[-0.2, 0.0, 0.05, 0.1, 0.15, 0.5, 0.8, 1.5, 200, 400, ' Onset: ', ', ', '.', 'Density', 'JSD', 'JSD (bits)', 'N/A', 'Weighted Excess JSD', 'Window', 'bar', 'color', 'colorbar', 'colorscale', 'content', 'dash', 'data', 'date', 'education', 'end', 'factor', 'factor_jsds', 'fill', 'fillcolor', 'guide_observation', 'h', 'heatmap', 'height', 'hovertemplate', 'info_scores', 'label', 'layout', 'legend', 'len', 'line', 'lines', 'lines+markers', 'marker', 'max_factor', 'max_info_score', 'max_jsd', 'measurement', 'midpoint', 'mode', 'n_factors', 'n_windows', 'name', 'narrative', 'noise_floor', 'onset', 'orientation', 'plots', 'rangemode', 'scatter', 'size', 'start', 'statistics', 'step_size', 'summary', 'time_col', 'title', 'tozero', 'tozeroy', 'type', 'variable', 'width', 'window_idx', 'window_size', 'x', 'xaxis', 'y', 'yaxis', 'z']

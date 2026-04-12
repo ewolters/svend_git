@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/synara/synara.py
-# hypothesis_version: 6.151.9
-
-[0.1, 0.3, 0.5, 0.7, 1.0, 'Hypothesis not found', 'Synara', 'behavior_class', 'description', 'domain_conditions', 'downstream_effects', 'error', 'event', 'evidence', 'evidence_against', 'evidence_for', 'evidence_id', 'expansion', 'expansion_signal', 'expansion_signals', 'graph', 'hypotheses', 'hypothesis_id', 'id', 'likelihoods', 'links', 'most_supported', 'most_weakened', 'new_hypothesis', 'posterior', 'posteriors', 'prior', 'propagated_changes', 'unknown', 'unknown_factor', 'update_history', 'upstream_causes', 'user']

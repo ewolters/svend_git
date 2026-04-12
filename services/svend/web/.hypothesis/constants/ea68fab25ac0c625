@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/notifications/urls.py
-# hypothesis_version: 6.151.9
-
-['notification_list', 'notification_stream', 'preferences/', 'read-all/', 'stream/', 'unread-count/', 'unsubscribe/']

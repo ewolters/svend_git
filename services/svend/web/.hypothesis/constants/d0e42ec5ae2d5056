@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0067_universal_checklists.py
-# hypothesis_version: 6.151.9
-
-[300, '-created_at', '1.0', 'Blocked', 'Checklist', 'ChecklistExecution', 'Complete', 'Do-Confirm', 'In Progress', 'Not Started', 'Read-Do', 'agents_api', 'agents_api.checklist', 'agents_api.site', 'blocked', 'category', 'checklist', 'checklist_executions', 'checklist_type', 'checklists', 'complete', 'completed_at', 'created_at', 'db_table', 'description', 'do_confirm', 'entity_id', 'entity_type', 'executions', 'executor', 'id', 'idx_clexec_entity', 'in_progress', 'indexes', 'is_template', 'items', 'name', 'not_started', 'ordering', 'owner', 'read_do', 'responses', 'site', 'started_at', 'status', 'updated_at', 'version']

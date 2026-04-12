@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/api/migrations/0007_feedback.py
-# hypothesis_version: 6.151.9
-
-[200, '-created_at', 'Bug Report', 'Feature Request', 'Feedback', 'Other', 'Question', 'api', 'bug', 'category', 'created_at', 'db_table', 'feature', 'feedback', 'id', 'message', 'new', 'ordering', 'other', 'page', 'question', 'status', 'user']

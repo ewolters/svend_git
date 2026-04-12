@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/audit/migrations/0010_add_risk_registry.py
-# hypothesis_version: 6.151.9
-
-[100, 200, '-created_at', '-rpn', 'Accepted', 'Availability', 'Closed', 'Compliance', 'Confidentiality', 'Identified', 'Integrity', 'Mitigated', 'Mitigating', 'Operational', 'Privacy', 'Risk Entries', 'Risk Entry', 'RiskEntry', 'Security', 'accepted', 'audit', 'audit.changerequest', 'availability', 'category', 'closed', 'compliance', 'confidentiality', 'created_at', 'db_table', 'description', 'detectability', 'id', 'identified', 'indexes', 'integrity', 'likelihood', 'mitigated', 'mitigating', 'mitigation_plan', 'operational', 'ordering', 'owner', 'privacy', 'related_crs', 'risk_entries', 'risk_entry_rpn', 'risk_entry_status', 'rpn', 'security', 'severity', 'source_cr', 'status', 'syn_audit_risk_entry', 'title', 'updated_at', 'verbose_name', 'verbose_name_plural']

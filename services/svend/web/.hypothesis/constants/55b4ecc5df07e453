@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0034_remove_valuestreammap_vsm_has_single_owner_and_more.py
-# hypothesis_version: 6.151.9
-
-['agents_api', 'created_by', 'detection', 'fmearow', 'occurrence', 'parent_vsm', 'severity', 'tenant', 'valuestreammap', 'vsm_has_single_owner']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0012_a3_report.py
-# hypothesis_version: 6.151.9
-
-[255, '-updated_at', 'A3 Report', 'A3 Reports', 'A3Report', 'Archived', 'Complete', 'Draft', 'In Progress', 'Problem/theme title', 'Under Review', 'a3_reports', 'agents_api', 'archived', 'background', 'complete', 'core', 'core.project', 'countermeasures', 'created_at', 'current_condition', 'db_table', 'draft', 'follow_up', 'goal', 'id', 'implementation_plan', 'imported_from', 'in_progress', 'ordering', 'owner', 'project', 'review', 'root_cause', 'status', 'title', 'updated_at', 'verbose_name', 'verbose_name_plural']

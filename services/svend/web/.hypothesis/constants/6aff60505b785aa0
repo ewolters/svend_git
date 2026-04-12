@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0014_loginattempt_user_email_verification_token_sent_at.py
-# hypothesis_version: 6.151.9
-
-[255, 'ID', 'LoginAttempt', 'accounts', 'attempted_at', 'db_table', 'id', 'ip_address', 'login_attempts', 'user', 'username', 'was_successful']

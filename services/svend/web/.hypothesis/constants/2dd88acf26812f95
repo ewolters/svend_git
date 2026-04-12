@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/sched/temporal/reflex.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.5, 1.0, 500, '*', '_trigger_context', '_triggered_at', '_triggered_by', 'action_type', 'affected_schedules', 'affected_tasks', 'available_schedules', 'compensating_tasks', 'completed', 'completed_at', 'core', 'delay_seconds', 'delayed_schedules', 'error_message', 'executing', 'expired', 'expires_at', 'failed', 'health_*', 'history_size', 'interval_adjustments', 'outcome_id', 'pattern', 'paused_schedules', 'paused_tenants', 'payload', 'pending', 'priority', 'priority_adjustments', 'priority_boosts', 'queue', 'reverted', 'rule_id', 'started_at', 'status', 'synara.health.check', 'task_name', 'temporal_reflex', 'tenant_id', 'throttled_tenants', 'triggered_at', 'triggered_by', 'triggered_by_rule', 'ttl_adjustments', 'ttl_extensions', 'ttl_reductions']

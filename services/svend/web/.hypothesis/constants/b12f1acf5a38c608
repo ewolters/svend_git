@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/d_type/__init__.py
-# hypothesis_version: 6.151.9
-
-['d_chart', 'd_cpk', 'd_equiv', 'd_multi', 'd_nonnorm', 'd_sig', 'guide_observation', 'plots', 'summary']

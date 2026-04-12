@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/synara/kernel.py
-# hypothesis_version: 6.151.9
-
-[0.1, 0.5, 0.7, 1.0, 'Evidence', 'HypothesisRegion', 'contributes', 'created_at', 'evidence', 'hypotheses', 'links', 'timestamp', 'uncertain', 'user']

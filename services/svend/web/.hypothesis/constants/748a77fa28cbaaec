@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/forge/urls.py
-# hypothesis_version: 6.151.9
-
-['download', 'forge', 'generate', 'health', 'job_result', 'job_status', 'jobs/<uuid:job_id>', 'list_schemas', 'schemas', 'usage']

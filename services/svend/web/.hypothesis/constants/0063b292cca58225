@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0012_remove_user_partner_code_and_more.py
-# hypothesis_version: 6.151.9
-
-['Founder ($19/month)', 'Free', 'Team ($99/month)', 'accounts', 'enterprise', 'founder', 'free', 'partner_code', 'pro', 'team', 'tier', 'user']

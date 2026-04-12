@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/chat/migrations/0001_initial.py
-# hypothesis_version: 6.151.9
-
-[255, '-updated_at', 'Assistant', 'Conversation', 'Message', 'SharedConversation', 'System', 'User', 'assistant', 'block_reason', 'blocked', 'chat.conversation', 'content', 'conversation', 'conversations', 'created_at', 'db_table', 'difficulty', 'domain', 'expires_at', 'id', 'inference_time_ms', 'messages', 'ordering', 'reasoning_trace', 'role', 'share', 'shared_conversations', 'system', 'title', 'tool_calls', 'updated_at', 'user', 'verified', 'view_count']

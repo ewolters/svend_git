@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/token_views.py
-# hypothesis_version: 6.151.9
-
-[200, 404, 409, 410, '</div></body></html>', 'Already Actioned', 'Confirmed', 'Decline', 'Declined', 'GET', 'HTTP_ACCEPT', 'Link Expired', 'Not Found', 'POST', 'action', 'already been used', 'application/json', 'btn', 'btn btn-decline', 'commitment_id', 'confirm_availability', 'confirmed', 'decline', 'declined', 'employee', 'error', 'expired', 'ok', 'project__project', 'requested', 'requested_by', 'status', 'text/html', 'updated_at']

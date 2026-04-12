@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0007_cacheentry.py
-# hypothesis_version: 6.151.9
-
-[255, 'CacheEntry', 'agents_api', 'created_at', 'db_table', 'expires_at', 'hit_count', 'id', 'indexes', 'key', 'last_accessed', 'namespace', 'pickle', 'session_cache', 'user_id', 'value', 'value_type']

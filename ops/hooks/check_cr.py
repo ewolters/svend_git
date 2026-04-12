@@ -23,13 +23,11 @@ import os
 import subprocess
 import sys
 
-# Add the Django project to the path and chdir so pydantic-settings finds .env
-WEB_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "services", "svend", "web"
-)
-WEB_DIR = os.path.normpath(WEB_DIR)
-sys.path.insert(0, WEB_DIR)
-os.chdir(WEB_DIR)
+# Add the Django project root to the path and chdir so pydantic-settings finds .env
+PROJECT_ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
+PROJECT_ROOT = os.path.normpath(PROJECT_ROOT)
+sys.path.insert(0, PROJECT_ROOT)
+os.chdir(PROJECT_ROOT)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "svend.settings")
 
 # Load env from /etc/svend/env if it exists (server hardening moved .env there)
@@ -85,15 +83,8 @@ def _file_matches_cr(staged_files, affected_files):
     else:
         return False
 
-    # Repo-relative prefix for web/ files (staged paths are from repo root)
-    web_prefix = "services/svend/web/"
-
     for staged in staged_files:
-        # Strip web prefix for matching against CR patterns
-        # (CRs typically list paths relative to web/, e.g. "agents_api/views.py")
         rel = staged
-        if staged.startswith(web_prefix):
-            rel = staged[len(web_prefix) :]
 
         for pattern in patterns:
             # Exact match

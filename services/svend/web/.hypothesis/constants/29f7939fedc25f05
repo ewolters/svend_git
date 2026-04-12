@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/learn_content/statistical_inference.py
-# hypothesis_version: 6.151.9
-
-[25.0, 'Confidence Intervals', 'Interpreting Results', 'answer', 'choosing-tests', 'ci_visualizer', 'confidence-intervals', 'config', 'content', 'diameter_mm', 'dsw_config', 'dsw_type', 'effect-sizes', 'exercise', 'factor', 'hint', 'id', 'interactive', 'interpreting-results', 'intro', 'key_takeaways', 'line', 'mean', 'mu', 'multiple-comparisons', 'p-values-deep-dive', 'practice_questions', 'pvalue_simulator', 'question', 'recommend_test', 'response', 'results_interpreter', 'show_ci_visualizer', 'show_decision_tree', 'statistic', 'stats:anova', 'stats:bootstrap_ci', 'stats:ttest', 'steps', 'test_selector', 'title', 'type', 'var', 'var1']

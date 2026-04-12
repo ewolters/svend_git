@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/api/migrations/0015_site_visit_model.py
-# hypothesis_version: 6.151.9
-
-[200, 300, 500, '-viewed_at', 'SiteVisit', 'api', 'country', 'db_table', 'id', 'indexes', 'ip_hash', 'is_bot', 'method', 'ordering', 'path', 'referrer', 'referrer_domain', 'site_visits', 'user_agent', 'viewed_at']

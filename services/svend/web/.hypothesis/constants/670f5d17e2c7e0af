@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/log/handlers.py
-# hypothesis_version: 6.151.9
-
-['()', 'CRITICAL', 'DEBUG', 'ERROR', 'INFO', 'WARNING', 'Z', 'actor_id', 'application', 'class', 'console', 'context', 'correlation', 'correlation_id', 'django', 'exception', 'filters', 'format', 'formatter', 'formatters', 'funcName', 'handlers', 'hostname', 'is_active', 'json', 'level', 'lineno', 'logger', 'loggers', 'message', 'metadata', 'min_level', 'operation', 'pathname', 'process_id', 'propagate', 'request_id', 'resource_id', 'resource_type', 'retention_days', 'stream_name', 'style', 'syn', 'synara', 'tenant', 'tenant_id', 'thread_id', 'timestamp', 'traceback', 'type', 'user_id', 'verbose', 'version', '{']

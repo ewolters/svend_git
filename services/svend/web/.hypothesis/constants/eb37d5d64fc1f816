@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/urls.py
-# hypothesis_version: 6.151.9
-
-['accounts', 'billing/cancel/', 'billing/checkout/', 'billing/portal/', 'billing/status/', 'billing/success/', 'billing/webhook', 'billing/webhook/', 'checkout', 'checkout_cancel', 'checkout_success', 'founder_availability', 'portal', 'stripe_webhook', 'stripe_webhook_alias', 'subscription_status', 'webhooks/stripe', 'webhooks/stripe/']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/core/migrations/0005_org_invitation.py
-# hypothesis_version: 6.151.9
-
-[254, '-created_at', 'Accepted', 'Admin', 'Cancelled', 'Expired', 'Member', 'OrgInvitation', 'Owner', 'Pending', 'Viewer', 'accepted', 'admin', 'cancelled', 'core', 'core.tenant', 'core_org_invitation', 'created_at', 'db_table', 'email', 'expired', 'expires_at', 'id', 'invitations', 'invited_by', 'member', 'ordering', 'org_invitations_sent', 'owner', 'pending', 'role', 'status', 'tenant', 'token', 'viewer']

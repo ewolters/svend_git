@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/sched/dashboard/__init__.py
-# hypothesis_version: 6.151.9
-
-['CircuitMetrics', 'DLQMetrics', 'DashboardConfig', 'DashboardMetrics', 'DashboardService', 'QueueMetrics', 'ScheduleMetrics', 'TaskTypeMetrics', 'WorkerMetrics', 'dashboard_circuits', 'dashboard_dlq', 'dashboard_overview', 'dashboard_queues', 'dashboard_schedules', 'dashboard_workers']

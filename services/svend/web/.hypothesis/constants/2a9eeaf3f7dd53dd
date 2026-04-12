@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/core/models.py
-# hypothesis_version: 6.151.9
-
-['AuditMixin', 'CorrelationMixin', 'EventEmitterMixin', 'LifecycleMixin', 'MetadataMixin', 'SecretStore', 'SoftDeleteManager', 'SoftDeleteMixin', 'SynaraEntity', 'SynaraEntityManager', 'SynaraImmutableLog', 'SynaraRegistry', 'TenantMixin', 'VersioningMixin']

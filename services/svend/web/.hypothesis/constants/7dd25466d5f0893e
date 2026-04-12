@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0009_user_stripe_customer_id_hash_and_more.py
-# hypothesis_version: 6.151.9
-
-[500, '0008_email_opt_out', 'accounts', 'stripe_customer_id', 'user']

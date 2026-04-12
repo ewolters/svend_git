@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/cache.py
-# hypothesis_version: 6.151.9
-
-[1800, 3600, '(default)', 'by_namespace', 'count', 'deleted', 'expired_entries', 'expires_at', 'hit_count', 'id', 'json', 'last_accessed', 'model', 'namespace', 'pickle', 'synara', 'total_entries', 'user_id', 'utf-8', 'value', 'value_type']

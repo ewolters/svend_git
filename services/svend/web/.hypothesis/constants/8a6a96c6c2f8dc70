@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/notifications/migrations/0001_initial.py
-# hypothesis_version: 6.151.9
-
-[300, '-created_at', 'Action Item Due', 'Approval Request', 'Assignment Change', 'Audit Scheduled', 'CAPA Status Change', 'E-Signature Request', 'NCR Assigned', 'NCR Overdue', 'Notification', 'SPC Alarm', 'System Notification', 'Training Due', 'Training Expired', 'action_due', 'approval_request', 'assignment', 'audit_scheduled', 'capa_status', 'created_at', 'db_table', 'doc_review', 'entity_id', 'entity_type', 'esig_request', 'id', 'indexes', 'is_read', 'message', 'ncr_assigned', 'ncr_overdue', 'notification_type', 'notifications', 'ntf_recipient_unread', 'ordering', 'recipient', 'review_due', 'spc_alarm', 'system', 'title', 'training_due', 'training_expired']

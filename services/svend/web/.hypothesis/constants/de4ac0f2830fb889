@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/ml/boosting.py
-# hypothesis_version: 6.151.9
-
-[0.1, 0.3, 0.5, 0.75, 0.8, 100, '0.1', 'accuracy', 'auto', 'balanced', 'can_save', 'category', 'classification', 'colsample_bytree', 'conformal', 'conformal_state', 'eval_metric', 'features', 'free', 'guide_observation', 'is_unbalance', 'learning_rate', 'lightgbm', 'logloss', 'max_depth', 'metrics', 'model_key', 'model_type', 'n_estimators', 'num_leaves', 'object', 'plots', 'predict_proba', 'r2', 'random_state', 'regression', 'rmse', 'scale_pos_weight', 'split_seed', 'statistics', 'subsample', 'summary', 'target', 'task_type', 'tier', 'use_label_encoder', 'verbosity', 'xgboost']

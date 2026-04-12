@@ -41,6 +41,20 @@ PRINT_EXEMPT_PATHS = {
     "conftest.py",
     # Scripts
     "scripts/",
+    # Migrations use print for progress
+    "migrations/",
+    # Log handlers use stderr print as fallback when logging fails
+    "syn/log/",
+    # Synara engine debug output
+    "synara/synara.py",
+    # LLM service debug output
+    "llm_service.py",
+    # Bayesian module example output
+    "bayesian.py",
+    # Scheduler dashboard metrics examples
+    "dashboard/metrics.py",
+    # Agent example code
+    "agents/experimenter/",
 }
 
 # All debug patterns (not just print) are blocked everywhere except tests

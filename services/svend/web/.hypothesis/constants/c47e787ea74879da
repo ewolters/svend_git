@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/api/migrations/0012_remove_whitepaperdownload_path_and_more.py
-# hypothesis_version: 6.151.9
-
-['api', 'path', 'referrer', 'whitepaperdownload']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/api/migrations/0004_blog_view_analytics.py
-# hypothesis_version: 6.151.9
-
-[200, 300, 500, '-viewed_at', 'BlogView', 'api', 'api.blogpost', 'blog_views', 'country', 'db_table', 'id', 'indexes', 'ip_hash', 'is_bot', 'ordering', 'path', 'post', 'referrer', 'referrer_domain', 'user_agent', 'viewed_at', 'views']

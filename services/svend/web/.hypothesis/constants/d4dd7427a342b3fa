@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0017_add_a3_embedded_diagrams.py
-# hypothesis_version: 6.151.9
-
-['a3report', 'agents_api', 'embedded_diagrams']

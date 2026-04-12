@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/llm_manager.py
-# hypothesis_version: 6.151.9
-
-[0.7, 120.0, 4096, 'ANTHROPIC_API_KEY', 'ENTERPRISE', 'FOUNDER', 'FREE', 'PRO', 'TEAM', 'anthropic', 'api_key_set', 'available', 'content', 'custom_llm', 'disabled', 'error', 'haiku', 'input_tokens', 'limit', 'loaded', 'max_tokens', 'messages', 'model', 'models', 'opus', 'output_tokens', 'rate_limit', 'rate_limited', 'remaining', 'sonnet', 'stop_reason', 'subscription_tier', 'system', 'temperature', 'tier_mapping', 'usage']

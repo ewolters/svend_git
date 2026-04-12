@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/chat/admin.py
-# hypothesis_version: 6.151.9
-
-['...', 'Reject selected', 'activate_selected', 'activated_at', 'approve_selected', 'candidate_type', 'checkpoint_path', 'content', 'content_preview', 'conversation', 'created_at', 'date', 'domain', 'error', 'expires_at', 'export_approved', 'has_fallback_used', 'has_gate_passed', 'has_safety_passed', 'input_preview', 'input_text', 'is_active', 'is_blocked', 'is_verified', 'message_count', 'model_type', 'name', 'reject_selected', 'request_count', 'role', 'status', 'title', 'tokens_input', 'tokens_output', 'total_time_ms', 'updated_at', 'user', 'user__email', 'user__username', 'view_count']

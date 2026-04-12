@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/sched/migrations/0002_remove_schedule_syn_idx_sched_tnt_enabled_and_more.py
-# hypothesis_version: 6.151.9
-
-['0001_initial', 'enabled', 'is_enabled', 'is_success', 'next_run_at', 'sched', 'schedule', 'success', 'taskexecution', 'tenant_id']

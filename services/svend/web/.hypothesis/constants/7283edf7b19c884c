@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/sched/execution/queue.py
-# hypothesis_version: 6.151.9
-
-[0.0, -1000, 100, 1000, 10000, '-priority_score', 'avg_wait_time_ms', 'circuit_breaker', 'created_at', 'last_dispatch_time', 'last_fetch_time', 'max_wait_time_ms', 'metadata', 'queued_by_queue', 'queued_by_tenant', 'total_dispatched', 'total_queued', 'total_rejected']

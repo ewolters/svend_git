@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/forge/generators/text.py
-# hypothesis_version: 6.151.9
-
-[0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 200, 'App keeps crashing', "Can't reset password", 'Delivery delay', 'Feature not working', 'General inquiry', 'Invoice discrepancy', 'Login issues', 'Refund not received', 'Update email address', 'account', 'assistant', 'billing', 'body', 'category', 'closed', 'content', 'conversation', 'conversation_id', 'created_at', 'customer_email', 'customer_id', 'customer_name', 'ecommerce', 'general', 'helpful_votes', 'high', 'id', 'in_progress', 'low', 'medium', 'messages', 'negative', 'neutral', 'open', 'pending_customer', 'positive', 'priority', 'product_id', 'rating', 'resolved', 'review', 'review_id', 'role', 'satisfaction_score', 'sentiment', 'shipping', 'status', 'subject', 'technical', 'text', 'ticket', 'ticket_id', 'timestamp', 'updated_at', 'urgent', 'user', 'verified_purchase']

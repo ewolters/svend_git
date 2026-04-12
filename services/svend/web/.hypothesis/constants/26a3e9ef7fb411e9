@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/api/migrations/0014_crm_lead_bounced_invalid_stages.py
-# hypothesis_version: 6.151.9
-
-['0013_crm_models', 'Bounced', 'Churned', 'Contacted', 'Customer', 'Demo', 'Engaged', 'Invalid', 'Lost', 'Prospect', 'Trial', 'api', 'bounced', 'churned', 'contacted', 'crmlead', 'customer', 'demo', 'engaged', 'invalid', 'lost', 'prospect', 'stage', 'trial']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/conformal.py
-# hypothesis_version: 6.151.9
-
-[0.05, 0.1, 1.0, 'classification', 'method', 'n_cal', 'qhat', 'qhats', 'regression', 'split_abs_residual', 'split_softmax', 'threshold', 'type']

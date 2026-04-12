@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0007_add_onboarding_completed_at.py
-# hypothesis_version: 6.151.9
-
-['accounts', 'user']

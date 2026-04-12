@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/dsw_urls.py
-# hypothesis_version: 6.151.9
-
-['analysis/', 'analyst/', 'analyst_assistant', 'delete_model', 'download/', 'download_data', 'download_model', 'dsw_download', 'dsw_from_data', 'dsw_from_intent', 'execute/', 'execute_code', 'explain-selection/', 'from-data/', 'from-intent/', 'generate-code/', 'generate_code', 'hypothesis-timeline/', 'list_models', 'model_report', 'model_versions', 'models/', 'models/save/', 'models/summary/', 'models_summary', 'optimize_model', 'retrain_model', 'retrieve-data/', 'retrieve_data', 'run_analysis', 'run_model', 'save_model', 'transform/', 'transform_data', 'triage/', 'triage/scan/', 'triage_data', 'triage_scan', 'upload-data/', 'upload_data']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/forge/models.py
-# hypothesis_version: 6.151.9
-
-[100, 500, 1000, '-created_at', 'API Key', 'API Keys', 'Cancelled', 'Completed', 'Failed', 'Premium', 'Processing', 'Queued', 'Standard', 'Tabular', 'Text', 'api_key', 'cancelled', 'completed', 'completed_at', 'created_at', 'domain', 'error_message', 'failed', 'forge_api_keys', 'forge_jobs', 'jobs', 'jsonl', 'name', 'period_end', 'period_start', 'premium', 'processing', 'progress', 'queued', 'records_generated', 'result_path', 'result_size_bytes', 'standard', 'started_at', 'status', 'tabular', 'text', 'usage_logs']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/ce_urls.py
-# hypothesis_version: 6.151.9
-
-['ce_create', 'ce_delete', 'ce_get', 'ce_list', 'ce_update', 'sessions/', 'sessions/create/']

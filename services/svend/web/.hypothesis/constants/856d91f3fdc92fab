@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0066_audit_checklist_results.py
-# hypothesis_version: 6.151.9
-
-['agents_api', 'checklist_results', 'internalaudit']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0004_add_problem_model.py
-# hypothesis_version: 6.151.9
-
-[100, 255, '-updated_at', 'Abandoned', 'Active', 'Problem', 'Resolved', 'abandoned', 'active', 'agents_api', 'available_data', 'bias_warnings', 'can_experiment', 'constraints', 'created_at', 'dead_ends', 'domain', 'effect_confidence', 'effect_description', 'effect_magnitude', 'evidence', 'hypotheses', 'id', 'key_uncertainties', 'medium', 'ordering', 'prior_beliefs', 'probable_causes', 'problem', 'problems', 'resolution_summary', 'resolved', 'stakeholders', 'status', 'title', 'updated_at', 'user']

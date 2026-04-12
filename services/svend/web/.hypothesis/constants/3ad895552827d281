@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/sched/execution/worker_pool.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.1, 30.0, 60.0, -1000, 100, 1000, 'HandlerNotFoundError', 'Unknown error', 'WorkerPool-Dispatch', 'WorkerPool-Fetch', 'WorkerPool-Scale', 'active_workers', 'attempt', 'avg_duration_ms', 'avg_task_duration_ms', 'busy', 'busy_workers', 'capacity', 'direction', 'down', 'duration_ms', 'error_type', 'idle', 'idle_workers', 'last_scale_time', 'new_count', 'previous_count', 'queue_depth', 'reason', 'recycling', 'resource_class', 'scale_down_count', 'scale_up_count', 'starting', 'status', 'stopped', 'stopping', 'task_id', 'task_threshold', 'tasks_completed', 'tasks_failed', 'tasks_timed_out', 'timestamp', 'total_workers', 'up', 'utilization', 'worker_id', 'workers_by_class', 'workers_recycled']

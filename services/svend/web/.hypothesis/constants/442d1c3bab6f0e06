@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0002_invitecode.py
-# hypothesis_version: 6.151.9
-
-[255, '0001_initial', 'ID', 'InviteCode', 'accounts', 'code', 'created_at', 'db_table', 'id', 'invite_codes', 'invite_codes_used', 'is_active', 'max_uses', 'note', 'times_used', 'used_by']

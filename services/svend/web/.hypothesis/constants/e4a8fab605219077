@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/experimenter_urls.py
-# hypothesis_version: 6.151.9
-
-['analyze/', 'chat/', 'contour/', 'design/', 'design/types/', 'designs/', 'experimenter_analyze', 'experimenter_chat', 'experimenter_contour', 'experimenter_design', 'experimenter_full', 'experimenter_models', 'experimenter_power', 'full/', 'models/', 'optimize/', 'power/']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0041_doc_supplier_full.py
-# hypothesis_version: 6.151.9
-
-['-created_at', 'Approved', 'Calibration', 'Component', 'Conditional', 'Disqualified', 'DocumentRevision', 'DocumentStatusChange', 'Equipment', 'Other', 'Pending Approval', 'Raw Material', 'Service', 'SupplierStatusChange', 'Suspended', 'agents_api', 'approved', 'approved_by_user', 'approved_documents', 'calibration', 'change_summary', 'changed_by', 'component', 'conditional', 'contact_phone', 'content_snapshot', 'controlled_documents', 'controlleddocument', 'core', 'core.project', 'created_at', 'db_table', 'disqualified', 'document', 'equipment', 'evaluation_scores', 'files', 'files.userfile', 'from_status', 'id', 'note', 'ordering', 'other', 'pending', 'raw_material', 'retention_years', 'revisions', 'service', 'source_study', 'status', 'status_changes', 'supplier', 'supplier_type', 'supplierrecord', 'suspended', 'to_status', 'version']

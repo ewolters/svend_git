@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/api/migrations/0019_roadmapitem.py
-# hypothesis_version: 6.151.9
-
-[200, '-created_at', 'Billing', 'Cancelled', 'Deferred', 'Enterprise', 'Forge', 'Free', 'In Progress', 'Infrastructure', 'Learn', 'Planned', 'Platform', 'Professional', 'Quality Management', 'RoadmapItem', 'Shipped', 'Team', 'Workbench', 'api', 'area', 'billing', 'cancelled', 'change_request_id', 'converted', 'created_at', 'crmlead', 'db_table', 'deferred', 'description', 'dsw', 'email_opted_out', 'emailrecipient', 'enterprise', 'experimentassignment', 'failed', 'forge', 'free', 'gated', 'has_converted', 'has_failed', 'id', 'in_progress', 'indexes', 'infrastructure', 'is_email_opted_out', 'is_gated', 'is_public', 'learn', 'ordering', 'planned', 'platform', 'professional', 'qms', 'quarter', 'roadmap_items', 'shipped', 'shipped_at', 'sort_order', 'status', 'team', 'tier', 'title', 'updated_at', 'whitepaper', 'workbench']

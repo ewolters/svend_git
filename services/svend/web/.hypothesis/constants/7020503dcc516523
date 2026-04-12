@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/api/boundaries/registry.py
-# hypothesis_version: 6.151.9
-
-['.', '1.0.0', 'code', 'contract_code', 'contracts', 'correlation_id', 'description', 'failure_domain', 'fatal', 'generated_at', 'idempotency_strategy', 'input_schema', 'loc', 'output_schema', 'register', 'total_count', 'version']

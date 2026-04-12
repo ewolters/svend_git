@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/agents/experimenter/agent.py
-# hypothesis_version: 6.151.9
-
-[0.05, 0.3, 0.5, 0.8, 500, '## Power Analysis', '## Recommendations', '## Summary', '## Visualizations', '## Warnings', '.', 'A', 'B', 'C', 'Design Matrix', 'Factorial experiment', 'Power Curve', 'Power analysis', 'Response', 'anova', 'categorical', 'ccd', 'chi_square', 'correlation', 'data:image', 'design', 'fractional_factorial', 'full', 'full_factorial', 'goal', 'latin_square', 'levels', 'name', 'parameters', 'plots', 'power', 'power_analysis', 'randomized_block', 'rcbd', 'recommendations', 'request_type', 'required_n', 'response_surface', 'sample_size', 'summary', 'test_type', 'ttest', 'ttest_ind', 'ttest_paired', 'units', 'warnings']

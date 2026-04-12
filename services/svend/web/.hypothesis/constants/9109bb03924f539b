@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/sched/backpressure/controller.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.1, 0.3, 0.5, 0.8, 0.99, 100, 1000, ', ', 'current_level', 'decisions_allowed', 'decisions_denied', 'decisions_total', 'dlq_threshold', 'emergency_triggers', 'health_status', 'last_emergency', 'last_level_change', 'level_changes', 'paused_task_count', 'time_at_level']

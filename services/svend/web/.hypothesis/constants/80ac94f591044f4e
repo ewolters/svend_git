@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0010_board_project_link.py
-# hypothesis_version: 6.151.9
-
-['agents_api', 'board', 'boards', 'core', 'core.project', 'project']

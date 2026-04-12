@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/constants.py
-# hypothesis_version: 6.151.9
-
-[200, 1000, 9999, 'Advanced', 'Analyst', 'Beginner', 'Consultant', 'Consulting', 'Education', 'Engineer', 'Enterprise (5000+)', 'Executive', 'Finance', 'Founder ($19/month)', 'Free', 'Government', 'Healthcare', 'Intermediate', 'Large (501-5000)', 'Manager', 'Manufacturing', 'Medium (51-500)', 'Other', 'Researcher', 'Small (1-50)', 'Student', 'Team ($99/month)', 'Technology', 'advanced', 'ai_assistant', 'analyst', 'available', 'basic_dsw', 'basic_ml', 'beginner', 'collaboration', 'consultant', 'consulting', 'education', 'engineer', 'enterprise', 'executive', 'finance', 'forge_api', 'founder', 'free', 'full_tools', 'government', 'healthcare', 'hoshin_kanri', 'intermediate', 'large', 'manager', 'manufacturing', 'medium', 'other', 'priority_support', 'pro', 'remaining', 'researcher', 'safety', 'small', 'student', 'team', 'technology', 'total', 'used']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/core/urls.py
-# hypothesis_version: 6.151.9
-
-['check_consistency', 'dataset_data', 'dataset_detail', 'dataset_list', 'entity_detail', 'entity_list', 'evidence/from-code/', 'evidence_detail', 'evidence_from_code', 'evidence_list', 'graph/', 'graph/entities/', 'graph/relationships/', 'hypothesis_detail', 'hypothesis_list', 'knowledge_graph', 'link_evidence', 'org/', 'org/accept-invite/', 'org/create/', 'org/employees/', 'org/invitations/', 'org/invite/', 'org/members/', 'org/sites/', 'org/sites/create/', 'org_change_role', 'org_create', 'org_create_employee', 'org_create_site', 'org_delete_employee', 'org_delete_site', 'org_employees', 'org_info', 'org_invitations', 'org_invite', 'org_members', 'org_remove_member', 'org_sites', 'org_update_employee', 'org_update_site', 'project_comment', 'project_detail', 'project_hub', 'project_list', 'project_recalculate', 'projects/', 'relationship_list', 'suggest_lr']

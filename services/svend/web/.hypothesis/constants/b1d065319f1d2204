@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0003_add_saved_models.py
-# hypothesis_version: 6.151.9
-
-[100, 255, 500, '-created_at', 'SavedModel', 'agents_api', 'created_at', 'description', 'dsw_result_id', 'feature_names', 'id', 'metrics', 'model_path', 'model_type', 'name', 'ordering', 'saved_models', 'target_name', 'user']

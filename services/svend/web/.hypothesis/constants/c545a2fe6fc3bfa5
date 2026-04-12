@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/core/admin.py
-# hypothesis_version: 6.151.9
-
-['...', 'Statement', 'Summary', 'confidence', 'created_at', 'current_phase', 'current_probability', 'description', 'design_type', 'direction', 'email', 'evidence', 'expires_at', 'hypothesis', 'id', 'invited_at', 'invited_by', 'is_active', 'joined_at', 'likelihood_ratio', 'max_members', 'member_count', 'name', 'plan', 'project', 'result_type', 'role', 'row_count', 'slug', 'source_type', 'statement', 'statement_preview', 'status', 'summary', 'summary_preview', 'tenant', 'tenant__name', 'title', 'token', 'updated_at', 'user', 'user__email']

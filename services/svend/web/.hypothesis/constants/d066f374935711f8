@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/workbench/graph_views.py
-# hypothesis_version: 6.151.9
-
-[0.5, 400, 404, '-created_at', 'DELETE', 'Edge not found', 'GET', 'Invalid JSON', 'Node not found', 'POST', 'Signal not found', 'artifact_id', 'causes', 'chains', 'chains_found', 'count', 'created_at', 'depth', 'dismissed', 'edge', 'edge_id', 'edges', 'error', 'event_data', 'event_type', 'evidence_id', 'expansion_needed', 'from', 'from_node', 'graph_id', 'hypothesis', 'id', 'label', 'led_to_dead_end', 'led_to_insight', 'likelihood', 'likelihoods', 'limit', 'log_id', 'logs', 'max_likelihood', 'mechanism', 'metadata', 'new_hypothesis', 'new_node', 'new_weight', 'node', 'node_id', 'nodes', 'old_weight', 'pending', 'resolution', 'resolved', 'signal', 'signal_id', 'signals', 'source', 'status', 'success', 'supports', 'system', 'title', 'to', 'to_node', 'type', 'updates', 'user', 'weakens', 'weight', 'workbench_id']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/base_tool_model.py
-# hypothesis_version: 6.151.9
-
-[255, '%(class)s_owned', '%(class)s_records', 'Tool record title', 'agents_api.Site', 'core.Project', 'correlation_id', 'created_at', 'created_by', 'description', 'draft', 'id', 'owner_id', 'project_id', 'site_id', 'status', 'title', 'updated_at', 'updated_by']

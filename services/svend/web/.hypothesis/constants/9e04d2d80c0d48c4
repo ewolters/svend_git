@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/core/migrations/0022_archetype_assignment.py
-# hypothesis_version: 6.151.9
-
-[100, '-created_at', 'ArchetypeAssignment', 'cluster_distances', 'cluster_id', 'cluster_label', 'core', 'created_at', 'db_table', 'feature_vector', 'id', 'indexes', 'instrument_version', 'session_id', 'silhouette_score', 'user']

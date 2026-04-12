@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/api/migrations/0009_automation_compound_triggers.py
-# hypothesis_version: 6.151.9
-
-['AND', 'Churn signal', 'Feature unused', 'Inactive for N days', 'OR', 'Query limit near', 'Query milestone', 'and', 'api', 'automationrule', 'churn_signal', 'feature_unused', 'inactive_days', 'milestone', 'or', 'query_limit_near', 'signup_no_query', 'trigger_2', 'trigger_2_config', 'trigger_logic']

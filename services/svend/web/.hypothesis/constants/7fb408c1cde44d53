@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0043_add_plant_simulation.py
-# hypothesis_version: 6.151.9
-
-[0.0, 1.0, 255, '-updated_at', 'PlantSimulation', 'Untitled Plant', 'agents_api', 'connections', 'core', 'core.project', 'created_at', 'db_table', 'derived_simulations', 'description', 'id', 'metric_snapshots', 'name', 'ordering', 'owner', 'pan_x', 'pan_y', 'plant_simulation', 'plant_simulations', 'project', 'simulation_config', 'simulation_results', 'sinks', 'source_vsm', 'sources', 'stations', 'updated_at', 'work_centers', 'zoom']

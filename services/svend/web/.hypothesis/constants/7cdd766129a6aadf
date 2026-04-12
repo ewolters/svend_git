@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0054_electronicsignature.py
-# hypothesis_version: 6.151.9
-
-[255, '-created_at', 'Additional context', 'Approved', 'Authored', 'Delta of changes', 'ElectronicSignature', 'IP address of actor', 'Reason for change', 'Rejected', 'Reviewed', 'State after change', 'State before change', 'Witnessed', 'abstract', 'actor', 'actor_ip', 'add', 'after_snapshot', 'agents_api', 'approved', 'authored', 'before_snapshot', 'changes', 'constraints', 'correlation_id', 'created_at', 'db_table', 'default_permissions', 'document_id', 'document_type', 'entry_hash', 'event_name', 'id', 'idx_esig_doc', 'idx_esig_signer_time', 'idx_esig_tenant_time', 'indexes', 'meaning', 'metadata', 'ordering', 'previous_hash', 'reason', 'rejected', 'reviewed', 'signer', 'system', 'tenant_id', 'user_agent', 'view', 'witnessed']

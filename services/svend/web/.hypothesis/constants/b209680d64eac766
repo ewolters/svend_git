@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/analysis/d_type/sig.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.01, 0.1, 0.4, 1.5, 100, 300, 340, 'JSD (bits)', 'Mean JSD', 'Peak JSD', 'Process Signatures', 'bar', 'barmode', 'coerce', 'color', 'content', 'data', 'education', 'factor', 'fill', 'fillcolor', 'group', 'group_divergences', 'guide_observation', 'height', 'layout', 'line', 'lines', 'marker', 'max_jsd', 'mean_jsd', 'measurement', 'mode', 'n_groups', 'name', 'narrative', 'outside', 'peak_time', 'plots', 'profile', 'reference', 'rmse', 'scatter', 'showlegend', 'statistics', 'summary', 'text', 'textposition', 'time', 'time_col', 'title', 'tozeroy', 'type', 'values', 'variable', 'width', 'x', 'xaxis', 'y', 'yaxis']

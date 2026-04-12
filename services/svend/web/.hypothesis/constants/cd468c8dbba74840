@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/api/migrations/0021_plan_link_crs.py
-# hypothesis_version: 6.151.9
-
-['0020_plandocument', 'api', 'change_request_ids', 'plandocument', 'roadmap_items']

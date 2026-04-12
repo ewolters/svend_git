@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0027_action_item_source.py
-# hypothesis_version: 6.151.9
-
-['0026_site_access', 'actionitem', 'agents_api', 'source_id', 'source_type']

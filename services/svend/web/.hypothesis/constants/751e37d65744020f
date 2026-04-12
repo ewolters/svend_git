@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/api/migrations/0017_add_duration_to_sitevisit.py
-# hypothesis_version: 6.151.9
-
-['api', 'duration_ms', 'sitevisit']

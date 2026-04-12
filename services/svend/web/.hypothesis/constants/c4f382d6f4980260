@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/investigation_urls.py
-# hypothesis_version: 6.151.9
-
-['investigation_detail', 'investigation_export', 'investigation_graph', 'investigation_reopen', 'investigation_tools']

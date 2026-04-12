@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/forge/migrations/0006_alter_apikey_tier.py
-# hypothesis_version: 6.151.9
-
-['Founder ($19/month)', 'Free', 'Team ($99/month)', 'apikey', 'enterprise', 'forge', 'founder', 'free', 'pro', 'team', 'tier']

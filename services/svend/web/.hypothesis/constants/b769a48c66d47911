@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/tests_privacy.py
-# hypothesis_version: 6.151.9
-
-[200, 201, 204, 400, 401, 403, 404, 410, 429, '.json', '/api/auth/profile/', 'Content-Disposition', 'New bio', 'Updated Name', 'analysis_results', 'application/json', 'attachment', 'bio', 'cancel@test.com', 'cancelother', 'cancelother@test.com', 'canceluser', 'clean@test.com', 'cleanuser', 'completed', 'conversations', 'corr@test.com', 'corruser', 'display_name', 'email', 'event_name', 'expired_count', 'export@test.com', 'export_id', 'export_metadata', 'exportuser', 'id', 'notifications', 'other@test.com', 'otheruser', 'pass', 'pending', 'pii@test.com', 'piiuser', 'processing', 'profile', 'saved_models', 'status', 'subscription', 'task@test.com', 'taskother', 'taskother@test.com', 'taskuser', 'test', 'testpass123!', 'triage_results', 'usage_summary', 'username', 'view@test.com', 'viewuser', 'w']

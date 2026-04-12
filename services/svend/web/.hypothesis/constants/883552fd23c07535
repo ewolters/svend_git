@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0055_rename_recurrence_check_to_is_recurrence_checked.py
-# hypothesis_version: 6.151.9
-
-['agents_api', 'capareport', 'recurrence_check']

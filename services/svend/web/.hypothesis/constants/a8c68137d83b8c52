@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0004_user_is_founder_locked_alter_user_tier.py
-# hypothesis_version: 6.151.9
-
-['Founder ($19/month)', 'Free', 'Pro ($29/month)', 'Team ($79/month)', 'accounts', 'enterprise', 'founder', 'free', 'is_founder_locked', 'pro', 'team', 'tier', 'user']

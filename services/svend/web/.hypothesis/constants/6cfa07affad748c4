@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/harada_urls.py
-# hypothesis_version: 6.151.9
-
-['archetype/', 'diary/', 'goals/', 'harada_archetype', 'harada_diary', 'harada_diary_detail', 'harada_goal_detail', 'harada_goals', 'harada_history', 'harada_questionnaire', 'harada_routines', 'harada_submit', 'harada_window', 'harada_window_cell', 'questionnaire/', 'routines/', 'routines/history/', 'window/']

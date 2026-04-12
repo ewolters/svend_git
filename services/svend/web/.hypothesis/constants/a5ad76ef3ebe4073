@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/safety/urls.py
-# hypothesis_version: 6.151.9
-
-['auditors/', 'cards/', 'dashboard/', 'pareto/', 'safety_auditors', 'safety_card_detail', 'safety_cards', 'safety_dashboard', 'safety_pareto', 'safety_process_card', 'safety_schedules', 'safety_sites', 'safety_zone_detail', 'safety_zones', 'schedules/', 'sites/', 'zones/']

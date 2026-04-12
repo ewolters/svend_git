@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/dsw/dispatch.py
-# hypothesis_version: 6.151.9
-
-[400, 500, 1000, 10000, 'Invalid JSON', 'POST', 'analysis', 'analysis_data', 'analysis_id', 'analysis_type', 'anytime', 'bayes_msa', 'bayesian', 'causal', 'config', 'd_type', 'data', 'data_', 'data_analysis', 'data_id', 'drift', 'error', 'evidence_id', 'features', 'guide_observation', 'id', 'ishap', 'latin-1', 'meta', 'ml', 'model', 'model_key', 'observation', 'pbs', 'plots', 'plots_count', 'problem_id', 'problem_updated', 'project_id', 'quality_econ', 'read', 'reliability', 'result_id', 'save_result', 'simulation', 'spc', 'stats', 'summary', 'svend_analysis', 'title', 'type', 'utf-8', 'viz']

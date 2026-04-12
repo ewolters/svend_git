@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/qms_urls.py
-# hypothesis_version: 6.151.9
-
-['attachments/', 'dashboard/', 'qms_attachment_list', 'qms_dashboard']

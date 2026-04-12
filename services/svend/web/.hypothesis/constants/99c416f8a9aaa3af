@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/safety/migrations/0003_zone_metadata.py
-# hypothesis_version: 6.151.9
-
-[255, 'Biweekly', 'Critical', 'High', 'Low', 'Medium', 'Monthly', 'Quarterly', 'Weekly', 'audit_frequency', 'auto_fmea_severity', 'biweekly', 'critical', 'five_s_baseline', 'five_s_target', 'frontierzone', 'hazard_types', 'hierarchy_controls', 'high', 'last_audited', 'location_detail', 'low', 'medium', 'monthly', 'parent_zone', 'photo_reference', 'preferred_auditors', 'quarterly', 'risk_level', 'safety', 'safety.frontierzone', 'sub_zones', 'tags', 'updated_at', 'weekly']

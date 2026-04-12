@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0070_project_templates.py
-# hypothesis_version: 6.151.9
-
-[300, 'Budgeted New', 'Contingency', 'Energy Reduction', 'Extended Project', 'Kaizen Event', 'Labor Savings', 'Material Savings', 'Other', 'ProjectTemplate', 'Quality Improvement', 'Safety Improvement', 'Unplanned/Reactive', 'agents_api', 'agents_api.site', 'budgeted_new', 'calculation_method', 'carryover', 'checklist_ids', 'contingency', 'created_at', 'db_table', 'default_actions', 'description', 'energy', 'id', 'kaizen', 'labor', 'material', 'name', 'opportunity', 'ordering', 'other', 'owner', 'project', 'project_class', 'project_templates', 'project_type', 'quality', 'safety', 'site', 'throughput', 'unplanned', 'updated_at']

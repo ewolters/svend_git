@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/admin.py
-# hypothesis_version: 6.151.9
-
-['-date_joined', 'Admin generated', 'Analytics', 'Preferences', 'Profile', 'Rate Limiting', 'Referrals', 'Subscription', 'avatar_url', 'bio', 'code', 'completed_at', 'created_at', 'current_period_end', 'current_theme', 'display_name', 'email', 'expires_at', 'fields', 'file_path', 'generate_codes', 'id', 'is_active', 'is_complimentary', 'is_staff', 'last_active_at', 'max_uses', 'note', 'preferences', 'queries_reset_at', 'queries_today', 'referral_code', 'referred_by', 'status', 'stripe_customer_id', 'tier', 'times_used', 'total_queries', 'total_tokens_used', 'updated_at', 'user', 'user__email', 'user__username', 'username']

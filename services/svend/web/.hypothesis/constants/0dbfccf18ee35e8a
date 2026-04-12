@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/forge/generators/__init__.py
-# hypothesis_version: 6.151.9
-
-['TabularGenerator', 'TextGenerator']

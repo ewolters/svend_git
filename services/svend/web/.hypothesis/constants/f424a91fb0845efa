@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/svend_config/config.py
-# hypothesis_version: 6.151.9
-
-[0.4, 0.7, 587, ',', '.env', 'SMTP server host', 'SMTP server port', 'SMTP username', 'SVEND_', 'Use TLS for SMTP', 'cuda', 'dev', 'ignore', 'k', 'kjerne', 'prod', 'resend', 'smtp.resend.com', 'staging', 'utf-8']

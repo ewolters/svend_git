@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/audit/apps.py
-# hypothesis_version: 6.151.9
-
-['Synara Audit System', 'audit', 'syn.audit']

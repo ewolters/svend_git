@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/forge/migrations/0002_schema_templates.py
-# hypothesis_version: 6.151.9
-
-[0.01, 100, 500, 10000, 100000, '0001_initial', 'SchemaTemplate', 'books', 'bool', 'cancelled', 'category', 'clothing', 'constraints', 'conversation', 'created_at', 'customer_id', 'customer_service', 'data_type', 'date', 'datetime', 'delivered', 'description', 'domain', 'ecommerce', 'ecommerce_order', 'ecommerce_product', 'ecommerce_review', 'ecommerce_user', 'electronics', 'email', 'float', 'forge', 'home', 'in_stock', 'int', 'is_premium', 'lifetime_value', 'max', 'max_length', 'min', 'min_length', 'name', 'nullable', 'order_id', 'pending', 'phone', 'price', 'processing', 'product_id', 'quantity', 'rating', 'review', 'schema_def', 'shipped', 'shipping_address', 'signup_date', 'sports', 'status', 'string', 'tabular', 'text', 'text_type', 'ticket', 'total_price', 'type', 'unit_price', 'user_id', 'uuid', 'values']

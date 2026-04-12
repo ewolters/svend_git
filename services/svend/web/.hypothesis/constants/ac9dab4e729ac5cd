@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/problem_urls.py
-# hypothesis_version: 6.151.9
-
-['<uuid:problem_id>/', 'add_evidence', 'add_hypothesis', 'advance_phase', 'generate_hypotheses', 'get_context_file', 'get_phase_guidance', 'interview_answer', 'interview_save', 'interview_skip', 'interview_status', 'problem_detail', 'problems_list', 'reject_hypothesis', 'resolve_problem', 'set_methodology', 'start_interview']

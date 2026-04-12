@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0047_add_spc_measurement_to_fmearow.py
-# hypothesis_version: 6.151.9
-
-[255, 'agents_api', 'fmearow', 'spc_measurement']

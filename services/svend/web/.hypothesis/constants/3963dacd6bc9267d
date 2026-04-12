@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/agents/experimenter/stats.py
-# hypothesis_version: 6.151.9
-
-[0.05, 0.1, 0.2, 0.25, 0.3, 0.4, 0.5, 0.8, 0.95, 1.0, 10000, 'Correlation test', 'Estimating mean', 'Independent t-test', 'Paired t-test', 'Two proportions', 'alpha', 'anova', 'confidence', 'd', 'effect_size', 'expected_proportion', 'f', 'groups', 'large', 'margin_of_error', 'medium', 'negligible', 'power', 'r', 'small', 'std_dev', 'test_type', 'total_sample_size', 'ttest_ind', 'unknown']

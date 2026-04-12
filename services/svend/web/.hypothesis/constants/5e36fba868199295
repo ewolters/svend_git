@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/synara/dsl.py
-# hypothesis_version: 6.151.9
-
-['!=', '"', "'", '(', ')', '.', '<', '<=', '=', '==', '>', '>=', 'Comparison', 'Empty expression', 'Empty hypothesis', 'Expression', 'LogicalExpr', 'Quantified', '[', '^', 'all', 'always', 'and', 'antecedent', 'any', 'body', 'code', 'comparison', 'condition', 'consequent', 'does not equal', 'domain', 'equals', 'false', 'for all', 'for none', 'for some', 'formal', 'if', 'implication', 'implies', 'is at least', 'is at most', 'is greater than', 'is less than', 'is_falsifiable', 'left', 'literal', 'logical', 'name', 'natural', 'never', 'none', 'not', 'not any', 'op', 'operands', 'or', 'over', 'parse_errors', 'quantified', 'quantifier', 'quantifiers', 'raw', 'right', 'some', 'sometimes', 'structure', 'then', 'true', 'type', 'unknown', 'value', 'variable', 'variables', 'when', 'xor', '∀', '∀¬', '∃', '∧', '∨', '⊕']

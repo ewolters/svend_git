@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0005_add_dmaic_phases.py
-# hypothesis_version: 6.151.9
-
-['A3 Problem Solving', 'Analyze', 'Control', 'Define', 'Improve', 'Measure', 'None/General', 'Plan-Do-Check-Act', 'Six Sigma DMAIC', 'a3', 'agents_api', 'analyze', 'control', 'define', 'dmaic', 'dmaic_phase', 'doe', 'improve', 'measure', 'methodology', 'none', 'pdca', 'phase_history', 'problem']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/workbench/admin.py
-# hypothesis_version: 6.151.9
-
-['AI Guide', 'Artifacts', 'Canvas', 'Conclusion', 'Content', 'Metadata', 'Model', 'Relationships', 'Template State', 'Timestamps', 'Title', 'artifact_count', 'artifact_type', 'classes', 'collapse', 'conclusion', 'connections', 'content', 'created_at', 'datasets', 'description', 'fields', 'guide_observations', 'id', 'layout', 'model_path', 'probability', 'source', 'source_artifact_id', 'status', 'supports_hypotheses', 'tags', 'template', 'template_state', 'title', 'title_or_id', 'updated_at', 'user', 'user__email', 'user__username', 'weakens_hypotheses', 'workbench', 'workbench__title']

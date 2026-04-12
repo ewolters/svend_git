@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/log/migrations/0002_request_metric.py
-# hypothesis_version: 6.151.9
-
-[0.0, 255, '-bucket_start', '0001_initial', 'Request Metric', 'Request Metrics', 'RequestMetric', 'bucket_minutes', 'bucket_start', 'created_at', 'db_table', 'duration_samples', 'error_count', 'id', 'indexes', 'max_duration_ms', 'method', 'min_duration_ms', 'ordering', 'path_pattern', 'request_count', 'status_class', 'syn_log', 'syn_request_metric', 'total_duration_ms', 'unique_together', 'verbose_name', 'verbose_name_plural']

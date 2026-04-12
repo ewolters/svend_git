@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/embeddings.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.5, 384, 8000, 'all-MiniLM-L6-v2', 'claim', 'cpu', 'cuda']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/api/migrations/0003_add_onboarding_models.py
-# hypothesis_version: 6.151.9
-
-['Failed', 'OnboardingEmail', 'OnboardingSurvey', 'Pending', 'Sent', 'Skipped', 'api', 'biggest_challenge', 'confidence_stats', 'created_at', 'db_table', 'email_key', 'experience_level', 'failed', 'helpful_emails', 'id', 'industry', 'learning_path', 'onboarding_emails', 'onboarding_survey', 'onboarding_surveys', 'opened_at', 'ordering', 'organization_size', 'pending', 'primary_goal', 'role', 'scheduled_for', 'sent', 'sent_at', 'skipped', 'skipped_emails', 'status', 'tools_used', 'unique_together', 'updated_at', 'urgency', 'user']

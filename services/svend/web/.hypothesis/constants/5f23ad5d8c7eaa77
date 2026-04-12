@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/audit/signals.py
-# hypothesis_version: 6.151.9
-
-[3600, 'CRITICAL', 'HIGH', 'audit.DriftViolation', 'audit.SysLogEntry', 'audit.drift.resolved', 'audit.entry.created', 'resolved_by', 'system']

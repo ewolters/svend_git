@@ -1,0 +1,36 @@
+# Caddy configuration for svend.ai
+# Automatic HTTPS via Let's Encrypt
+
+svend.ai, www.svend.ai {
+    # Reverse proxy to gunicorn
+    reverse_proxy localhost:8000
+
+    # Serve static files directly
+    handle_path /static/* {
+        root * {$SVEND_STATIC_ROOT:/home/eric/kjerne/staticfiles}
+        file_server
+    }
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+
+        # HSTS — force HTTPS for 2 years, include subdomains, allow preload list
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+        # CSP handled by Django CONTENT_SECURITY_POLICY middleware (single source of truth)
+        # Removed from Caddy to prevent drift — see svend/settings.py CSP config
+
+        # Permissions-Policy — disable unused browser APIs
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(self)"
+    }
+
+    # Logs
+    log {
+        output file /var/log/caddy/svend.log
+        format json
+    }
+}

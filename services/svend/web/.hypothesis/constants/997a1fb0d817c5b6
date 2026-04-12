@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/front_page_tasks.py
-# hypothesis_version: 6.151.9
-
-[0.1, 0.9, 200, 500, 1000, '-created_at', 'Anti-pattern', 'Note', '```', 'anti_pattern', 'auto', 'content', 'contradictions', 'cuda', 'digest', 'error', 'front_matter', 'generated_at', 'generation_time_ms', 'hash_unchanged', 'input_ids', 'missing user_id', 'no_learnings', 'pt', 'reason', 'role', 'skipped', 'source_hash', 'source_items', 'svend.front_page', 'themes', 'user', 'user not found', 'user_id']

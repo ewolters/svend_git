@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/workbench/migrations/0003_add_project_model.py
-# hypothesis_version: 6.151.9
-
-[255, '-updated_at', 'Active', 'Archived', 'Completed', 'Hypothesis Modified', 'Hypothesis Refuted', 'Hypothesis Supported', 'Inconclusive', 'Project', 'active', 'archived', 'completed', 'conclusion', 'conclusion_status', 'created_at', 'db_table', 'description', 'domain', 'epistemic_logs', 'epistemiclog', 'hypothesis', 'id', 'inconclusive', 'knowledge_graph', 'knowledge_graphs', 'knowledgegraph', 'modified', 'ordering', 'project', 'projects', 'refuted', 'status', 'supported', 'title', 'updated_at', 'user', 'workbench', 'workbench.project', 'workbench.workbench', 'workbenches']

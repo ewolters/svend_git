@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0016_rename_was_successful_to_is_successful.py
-# hypothesis_version: 6.151.9
-
-['accounts', 'is_successful', 'loginattempt', 'was_successful']

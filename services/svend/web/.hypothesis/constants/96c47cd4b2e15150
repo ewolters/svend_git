@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/chat/migrations/0003_modelversion_usagelog.py
-# hypothesis_version: 6.151.9
-
-[100, 500, '-created_at', '-date', 'Diffusion', 'Intuition', 'Language Model', 'MoE Reasoner', 'ModelVersion', 'Safety Router', 'UsageLog', 'Verifier', 'activated_at', 'blocked_count', 'chat', 'checkpoint_path', 'constraints', 'created_at', 'date', 'db_table', 'description', 'diffusion', 'domain_counts', 'error_count', 'id', 'intuition', 'is_active', 'language_model', 'metrics', 'model_type', 'model_versions', 'name', 'ordering', 'reasoner', 'request_count', 'safety_router', 'tokens_input', 'tokens_output', 'total_inference_ms', 'unique_together', 'usage_logs', 'user', 'verifier']

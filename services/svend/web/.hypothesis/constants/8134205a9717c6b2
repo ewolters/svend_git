@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/core/mixins.py
-# hypothesis_version: 6.151.9
-
-[255, '.', '1.0.0', 'AuditMixin', 'CorrelationMixin', 'Deletion timestamp', 'EventEmitterMixin', 'Extensible metadata', 'LifecycleMixin', 'MetadataMixin', 'Soft delete flag', 'SoftDeleteManager', 'SoftDeleteMixin', 'TenantMixin', 'VersioningMixin', 'action', 'actor', 'causal', 'code', 'correlation_id', 'created', 'deleted_at', 'deleted_by', 'emit_event', 'entity_id', 'entity_type', 'from_status', 'is_deleted', 'metadata', 'reason', 'status', 'status_changed', 'tenant_id', 'timestamp', 'to_status', 'updated', 'updated_by']

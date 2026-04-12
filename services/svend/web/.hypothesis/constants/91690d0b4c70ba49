@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/sched/temporal/__init__.py
-# hypothesis_version: 6.151.9
-
-['ActionType', 'CompensatingTask', 'ReflexOutcome', 'ReflexState', 'TemporalAction', 'TemporalController', 'TemporalMetrics', 'TemporalPolicy', 'TemporalPolicyRule', 'TemporalReflex', 'TemporalTrigger', 'TriggerType']

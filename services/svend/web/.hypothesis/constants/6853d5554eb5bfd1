@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/sched/backpressure/health.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.3, 0.5, 0.6, 0.8, 0.9, 0.95, 1.0, 100, 1000, 'BLOCKED', 'ESCALATED', 'active', 'avg_duration', 'avg_ms', 'cascade', 'cascade_depth', 'circuits', 'collected_at', 'critical', 'degraded', 'denial_rate', 'depth', 'depth_exceeded_count', 'dlq', 'duration_ms', 'escalation_rate', 'failed_last_minute', 'governance', 'growth_rate', 'half_open', 'healthy', 'idle', 'in_flight', 'latency', 'max_depth', 'max_depth_seen', 'open', 'open_ratio', 'p95_ms', 'pending', 'pending_count', 'queue', 'size', 'status', 'stressed', 'throughput', 'total', 'trend', 'unknown', 'utilization', 'workers']

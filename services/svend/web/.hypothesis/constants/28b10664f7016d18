@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/workbench/migrations/0005_alter_epistemiclog_led_to_dead_end_and_more.py
-# hypothesis_version: 6.151.9
-
-['epistemiclog', 'has_led_to_dead_end', 'has_led_to_insight', 'led_to_dead_end', 'led_to_insight', 'workbench']

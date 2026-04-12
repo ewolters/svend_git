@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0030_alter_boardvote_unique_together_alter_boardvote_user_and_more.py
-# hypothesis_version: 6.151.9
-
-[100, '#ff7eb9', 'BoardGuestInvite', 'Edit', 'Edit + Vote', 'View Only', 'agents_api', 'agents_api.board', 'board', 'board_votes', 'boardguestinvite', 'boardvote', 'color', 'created_at', 'cursor_x', 'cursor_y', 'display_name', 'edit', 'edit_vote', 'element_id', 'expires_at', 'guest_invite', 'guest_invite__isnull', 'guest_invites', 'id', 'is_active', 'last_seen', 'permission', 'token', 'unique_guest_vote', 'unique_user_vote', 'user', 'user__isnull', 'view', 'votes']

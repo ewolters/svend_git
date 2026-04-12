@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/safety/migrations/0002_frontiercard_classification_and_more.py
-# hypothesis_version: 6.151.9
-
-[100, 300, '0001_initial', 'Deep Dive', 'General', 'New Process/Area', 'Not done', 'Overhead & Below', 'Pending', 'Post-Incident', 'Routine Frontier', 'Seasonal/Temporary', 'Temporal Frontier', 'Transition Zone', 'Within 24 hours', 'Yes, on the spot', 'classification', 'close_loop_method', 'close_loop_notes', 'deep_dive', 'five_s_scores', 'frontiercard', 'frontierzone', 'general', 'hidden_infra', 'immediate', 'new_process', 'not_done', 'operator_concern', 'operator_ergonomic', 'operator_improvement', 'operator_near_miss', 'operator_quick_win', 'operator_role', 'operator_tenure', 'overhead_below', 'pending', 'pipeline_logged', 'post_incident', 'routine', 'safety', 'safety_observations', 'seasonal', 'temporal', 'transition', 'within_24h', 'zone_reason', 'zone_type']

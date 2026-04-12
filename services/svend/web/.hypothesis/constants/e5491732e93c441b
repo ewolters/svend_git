@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/core/models/tenant.py
-# hypothesis_version: 6.151.9
-
-[100, 255, '-created_at', 'Accepted', 'Admin', 'Cancelled', 'Enterprise', 'Expired', 'Member', 'Owner', 'Pending', 'Team', 'Viewer', 'accepted', 'admin', 'cancelled', 'core_membership', 'core_org_invitation', 'core_tenant', 'enterprise', 'expired', 'invitations', 'invitations_sent', 'member', 'memberships', 'org_invitations_sent', 'owner', 'pending', 'team', 'tenant', 'user', 'viewer']

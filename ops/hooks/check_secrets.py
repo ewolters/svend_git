@@ -33,15 +33,11 @@ SECRET_PATTERNS = [
     (re.compile(r"""['"]whsec_[a-zA-Z0-9]{20,}['"]"""), "Stripe webhook secret"),
     # Generic secret assignment patterns
     (
-        re.compile(
-            r"""(?:SECRET_KEY|ENCRYPTION_KEY|JWT_SECRET)\s*=\s*['"][^'"]{10,}['"]"""
-        ),
+        re.compile(r"""(?:SECRET_KEY|ENCRYPTION_KEY|JWT_SECRET)\s*=\s*['"][^'"]{10,}['"]"""),
         "Hardcoded secret key",
     ),
     (
-        re.compile(
-            r"""(?:password|passwd|pwd)\s*=\s*['"][^'"]{6,}['"]""", re.IGNORECASE
-        ),
+        re.compile(r"""(?:password|passwd|pwd)\s*=\s*['"][^'"]{6,}['"]""", re.IGNORECASE),
         "Hardcoded password",
     ),
     # Database URLs with credentials
@@ -62,6 +58,8 @@ EXEMPT_PATHS = {
     "check_secrets.py",  # This file itself
     "check_cr.py",  # CR hook references secret patterns in docs
     "conftest.py",  # Test fixtures use test passwords
+    "SECRETS_COMPLIANCE.md",  # Documentation shows example env vars
+    "integration_tests.py",  # Test fixtures with fake keys
 }
 
 # Paths where password patterns are expected (test files use test credentials)
@@ -130,8 +128,10 @@ def main():
         except Exception:
             continue
 
-        # Test files are exempt from password patterns (test credentials are not secrets)
+        # Test files are exempt from all secret patterns (test credentials are not secrets)
         is_test_file = any(p in filename for p in EXEMPT_PATH_PREFIXES)
+        if is_test_file:
+            continue
 
         for i, line in enumerate(content.splitlines(), 1):
             stripped = line.strip()
@@ -145,9 +145,7 @@ def main():
                     continue
                 if pattern.search(line):
                     # Redact the actual secret in output
-                    safe_line = (
-                        stripped[:40] + "..." if len(stripped) > 40 else stripped
-                    )
+                    safe_line = stripped[:40] + "..." if len(stripped) > 40 else stripped
                     violations.append((filepath, i, description, safe_line))
 
     if violations:

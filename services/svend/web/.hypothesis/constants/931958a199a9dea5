@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/middleware.py
-# hypothesis_version: 6.151.9
-
-[200, 300, 429, 500, '/', '/admin/', '/api/', '/api/agents/', '/api/chat/', '/api/inference/', '/api/query/', '/app/', '/app/safety/', '/billing/', '/billing/checkout/', '/favicon.ico', '/health/', '/media/', '/robots.txt', '/sitemap.xml', '/static/', ':', 'Cache-Control', 'GET', 'HTTP_CF_IPCOUNTRY', 'HTTP_REFERER', 'HTTP_USER_AGENT', 'POST', 'REMOTE_ADDR', 'T1', 'XX', 'error', 'last_active_at', 'limit', 'safety.svend.ai', 'subscription', 'tier', 'upgrade_url', 'used', 'user']

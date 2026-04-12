@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/chat/migrations/0004_eventlog.py
-# hypothesis_version: 6.151.9
-
-[100, 200, '-created_at', 'Error', 'EventLog', 'Feature Use', 'Milestone', 'Page View', 'Session Start', 'action', 'category', 'chat', 'created_at', 'db_table', 'error', 'event_logs', 'event_type', 'events', 'feature_use', 'id', 'indexes', 'label', 'metadata', 'milestone', 'ordering', 'page', 'page_view', 'session_id', 'session_start', 'user']

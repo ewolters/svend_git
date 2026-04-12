@@ -72,15 +72,14 @@ def main():
             stripped = line.strip()
 
             # Skip comments and docstrings
-            if (
-                stripped.startswith("#")
-                or stripped.startswith('"""')
-                or stripped.startswith("'''")
-            ):
+            if stripped.startswith("#") or stripped.startswith('"""') or stripped.startswith("'''"):
                 continue
 
             # Check for in-memory increment patterns
             if INCREMENT_PATTERN.search(stripped) or REASSIGN_PATTERN.search(stripped):
+                # noqa: nonatomic suppresses this warning
+                if "# noqa: nonatomic" in line or "# noqa:nonatomic" in line:
+                    continue
                 # Check if there's a self.save() nearby (within 5 lines)
                 nearby = "\n".join(lines[i : min(i + 5, len(lines))])
                 if "self.save(" in nearby or ".save(update_fields=" in nearby:
@@ -101,9 +100,7 @@ def main():
         print("  Fix: use F() expressions instead:")
         print("    Model.objects.filter(pk=self.pk).update(field=F('field') + N)")
         print()
-        print(
-            "  If this is intentional (e.g., in-memory only), add a # noqa: nonatomic comment."
-        )
+        print("  If this is intentional (e.g., in-memory only), add a # noqa: nonatomic comment.")
         print("=" * 70)
         print()
         sys.exit(1)

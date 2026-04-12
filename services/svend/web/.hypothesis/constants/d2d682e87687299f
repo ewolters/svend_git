@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/syn/audit/utils.py
-# hypothesis_version: 6.151.9
-
-[100, '-timestamp', '0', 'Chain is intact', 'IntegrityViolation', 'No entries to verify', 'SysLogEntry', 'chain_break', 'entry_id', 'genesis_valid', 'hash_mismatch', 'id', 'invalid_genesis', 'is_valid', 'message', 'missing_entry', 'total_entries', 'type', 'verification_error', 'violations']

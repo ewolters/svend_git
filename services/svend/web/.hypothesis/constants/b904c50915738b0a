@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0033_vsm_enterprise_tenant.py
-# hypothesis_version: 6.151.9
-
-['+', 'OR', 'agents_api', 'core', 'core.tenant', 'created_by', 'owner', 'owner__isnull', 'status', 'tenant', 'tenant__isnull', 'value_stream_maps', 'valuestreammap', 'vsm_has_single_owner']

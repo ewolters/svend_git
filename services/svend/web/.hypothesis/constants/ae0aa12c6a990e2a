@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/notifications/models.py
-# hypothesis_version: 6.151.9
-
-[300, '-created_at', 'Action Item Due', 'Approval Request', 'Assignment Change', 'Audit Scheduled', 'CAPA Status Change', 'E-Signature Request', 'Incident Created', 'Incident Escalated', 'Incident Resolved', 'NCR Assigned', 'NCR Overdue', 'SPC Alarm', 'System Notification', 'Training Due', 'Training Expired', 'action_due', 'approval_request', 'assignment', 'audit_scheduled', 'capa_status', 'created_at', 'doc_review', 'entity_id', 'entity_type', 'esig_request', 'id', 'incident_created', 'incident_escalated', 'incident_resolved', 'is_read', 'message', 'ncr_assigned', 'ncr_overdue', 'notification_type', 'notifications', 'ntf_recipient_unread', 'recipient', 'recipient_id', 'review_due', 'spc_alarm', 'system', 'title', 'training_due', 'training_expired']

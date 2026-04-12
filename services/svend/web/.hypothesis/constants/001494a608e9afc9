@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/permissions.py
-# hypothesis_version: 6.151.9
-
-[400, 'admin', 'created_by', 'error', 'member', 'site', 'site_id', 'tenant', 'user_id']

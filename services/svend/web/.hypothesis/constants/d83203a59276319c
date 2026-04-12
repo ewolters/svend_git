@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0001_initial.py
-# hypothesis_version: 6.151.9
-
-[255, '-created_at', 'DSWResult', 'Workflow', 'created_at', 'data', 'dsw_results', 'id', 'last_run', 'name', 'ordering', 'result_type', 'steps', 'user', 'workflows']

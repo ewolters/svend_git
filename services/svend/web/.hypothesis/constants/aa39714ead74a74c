@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/ishikawa_views.py
-# hypothesis_version: 6.151.9
-
-[0.5, 201, 400, 404, '-updated_at', 'DELETE', 'Diagram not found', 'GET', 'Invalid JSON', 'Ishikawa Analysis', 'Ishikawa Diagram', 'PATCH', 'POST', 'PUT', 'analysis', 'auto-created', 'branches', 'category', 'causes', 'complete', 'diagram', 'diagrams', 'draft', 'effect', 'error', 'investigation', 'investigation_id', 'ishikawa', 'none', 'project', 'project_id', 'status', 'success', 'system_type', 'text', 'title', 'variable']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/accounts/migrations/0010_encrypt_existing_data.py
-# hypothesis_version: 6.151.9
-
-['User', 'accounts', 'utf-8']

@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/notifications/tasks.py
-# hypothesis_version: 6.151.9
-
-[100, '-created_at', 'acknowledge', 'args', 'daily', 'deleted', 'email_enabled', 'email_failed_at', 'email_mode', 'email_sent_at', 'error', 'immediate', 'muted_types', 'notification', 'notification_id', 'notifications', 'period', 'preferences', 'rate_limit', 'reason', 'sent', 'skipped', 'token_id', 'user', 'users_emailed', 'weekly']

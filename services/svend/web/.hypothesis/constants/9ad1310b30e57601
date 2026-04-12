@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/agents_api/migrations/0020_add_vsm_customers_suppliers.py
-# hypothesis_version: 6.151.9
-
-['agents_api', 'customers', 'suppliers', 'valuestreammap']

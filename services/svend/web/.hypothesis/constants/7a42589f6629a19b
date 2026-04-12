@@ -1,4 +1,0 @@
-# file: /home/eric/kjerne/services/svend/web/api/whitepaper_views.py
-# hypothesis_version: 6.151.9
-
-[200, 500, '-published_at', 'Content-Disposition', 'HTTP_REFERER', 'HTTP_USER_AGENT', 'REMOTE_ADDR', '[^\\w\\-.]', '_', 'application/pdf', 'https://svend.ai', 'paper', 'papers', 'whitepaper', 'whitepapers.html']
