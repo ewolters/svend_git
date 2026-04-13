@@ -52,31 +52,17 @@ function calcTakt() {
 
     // Takt gauge chart
     const gaugeMax = Math.max(taktMin * 2, 10);
-    Plotly.newPlot('takt-chart', [{
-        type: 'indicator', mode: 'gauge+number',
-        value: taktMin,
-        number: { suffix: ' min', font: { size: 28, color: '#e0e0e0' } },
-        gauge: {
-            axis: { range: [0, gaugeMax], tickfont: { color: '#9aaa9a' } },
-            bar: { color: '#4a9f6e' },
-            bgcolor: 'rgba(255,255,255,0.05)',
-            steps: [
-                { range: [0, 1], color: 'rgba(231,76,60,0.25)' },
-                { range: [1, 5], color: 'rgba(74,159,110,0.25)' },
-                { range: [5, gaugeMax], color: 'rgba(243,156,18,0.25)' }
-            ],
-            threshold: { line: { color: '#e74c3c', width: 2 }, value: taktMin }
-        }
-    }], {
-        margin: { t: 30, b: 10, l: 30, r: 30 },
-        paper_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        annotations: [
-            { x: 0.17, y: 0.28, text: '<1 min: high-speed risk', showarrow: false, font: { size: 10, color: '#e74c3c' } },
-            { x: 0.5, y: -0.05, text: '1-5 min: optimal', showarrow: false, font: { size: 10, color: '#4a9f6e' } },
-            { x: 0.83, y: 0.28, text: '>5 min: batch risk', showarrow: false, font: { size: 10, color: '#f39c12' } }
-        ]
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('takt-chart'), {
+        title: '', chart_type: 'gauge',
+        gauge: { value: taktMin, min: 0, max: gaugeMax, label: 'min' },
+        zones: [
+            { low: 0, high: 1, axis: 'y', color: 'rgba(231,76,60,0.35)', label: '<1 min: high-speed risk' },
+            { low: 1, high: 5, axis: 'y', color: 'rgba(74,159,110,0.35)', label: '1-5 min: optimal' },
+            { low: 5, high: gaugeMax, axis: 'y', color: 'rgba(243,156,18,0.35)', label: '>5 min: batch risk' }
+        ],
+        traces: [], reference_lines: [], markers: [],
+        x_axis: { label: '' }, y_axis: { label: '' }
+    });
 
     renderNextSteps('takt-next-steps', [
         { title: 'Staff the Line', desc: 'Calculate operators needed at this takt', calcId: 'rto' },
@@ -210,24 +196,18 @@ function renderYamazumi() {
         hovertemplate: '%{x}<br>Free: %{y}s<extra></extra>',
     };
 
-    Plotly.newPlot('yamazumi-chart', [workTrace, capacityTrace], {
-        barmode: 'stack',
-        shapes: [{
-            type: 'line', x0: -0.5, x1: names.length - 0.5, y0: takt, y1: takt,
-            line: { color: '#e74c3c', width: 2, dash: 'dash' }
-        }],
-        annotations: [{
-            x: names.length - 0.5, y: takt, text: `Takt: ${takt}s`,
-            showarrow: false, xanchor: 'left', font: { color: '#e74c3c', size: 11 }
-        }],
-        margin: { t: 20, b: 60, l: 50, r: 80 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        yaxis: { title: 'Cycle Time (sec)', gridcolor: 'rgba(255,255,255,0.1)' },
-        xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
-        showlegend: true,
-        legend: { orientation: 'h', y: -0.15, x: 0.5, xanchor: 'center' },
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('yamazumi-chart'), {
+        title: '', chart_type: 'stacked_bar',
+        traces: [
+            { x: names, y: times, name: 'Work Content', trace_type: 'bar', color: workTrace.marker.color },
+            { x: names, y: freeCapacity, name: 'Free Capacity', trace_type: 'bar', color: 'rgba(255,255,255,0.15)' }
+        ],
+        reference_lines: [
+            { value: takt, axis: 'y', color: '#e74c3c', dash: 'dashed', label: `Takt: ${takt}s` }
+        ],
+        zones: [], markers: [],
+        y_axis: { label: 'Cycle Time (sec)' }, x_axis: { label: '' }
+    });
 
     const total = times.reduce((a, b) => a + b, 0);
     const totalFree = freeCapacity.reduce((a, b) => a + b, 0);
@@ -444,72 +424,20 @@ function calcSafety() {
         }
     }
 
-    Plotly.newPlot('safety-chart', [
-        {
-            x: fillX,
-            y: fillY,
-            type: 'scatter',
-            mode: 'none',
-            fill: 'tozeroy',
-            fillcolor: 'rgba(74, 159, 110, 0.4)',
-            name: 'Service Level',
-            hoverinfo: 'skip'
-        },
-        {
-            x: xVals,
-            y: yVals,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'Demand Distribution',
-            line: { color: '#4a9f6e', width: 2 }
-        }
-    ], {
-        shapes: [
-            {
-                type: 'line',
-                x0: meanDemand, x1: meanDemand,
-                y0: 0, y1: Math.max(...yVals) * 1.1,
-                line: { color: '#3a7f8f', width: 2, dash: 'dash' }
-            },
-            {
-                type: 'line',
-                x0: rop, x1: rop,
-                y0: 0, y1: Math.max(...yVals) * 1.1,
-                line: { color: '#e74c3c', width: 2 }
-            }
+    ForgeViz.render(document.getElementById('safety-chart'), {
+        title: '', chart_type: 'line',
+        traces: [
+            { x: fillX, y: fillY, name: 'Service Level', trace_type: 'area', color: 'rgba(74,159,110,0.4)', fill: 'tozeroy' },
+            { x: xVals, y: yVals, name: 'Demand Distribution', trace_type: 'line', color: '#4a9f6e', width: 2 }
         ],
-        annotations: [
-            {
-                x: meanDemand, y: Math.max(...yVals) * 1.05,
-                text: `Mean: ${Math.round(meanDemand)}`,
-                showarrow: false,
-                font: { color: '#3a7f8f', size: 11 }
-            },
-            {
-                x: rop, y: Math.max(...yVals) * 0.85,
-                text: `ROP: ${Math.round(rop)}`,
-                showarrow: false,
-                font: { color: '#e74c3c', size: 11 },
-                xanchor: 'left'
-            }
+        reference_lines: [
+            { value: meanDemand, axis: 'x', color: '#3a7f8f', dash: 'dashed', label: `Mean: ${Math.round(meanDemand)}` },
+            { value: rop, axis: 'x', color: '#e74c3c', label: `ROP: ${Math.round(rop)}` }
         ],
-        margin: { t: 20, b: 40, l: 50, r: 20 },
-        paper_bgcolor: 'transparent',
-        plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: {
-            title: 'Demand During Lead Time (units)',
-            gridcolor: 'rgba(255,255,255,0.1)',
-            zeroline: false
-        },
-        yaxis: {
-            title: 'Probability',
-            gridcolor: 'rgba(255,255,255,0.1)',
-            zeroline: false,
-            showticklabels: false
-        },
-        showlegend: false
-    }, { responsive: true, displayModeBar: false });
+        zones: [], markers: [],
+        x_axis: { label: 'Demand During Lead Time (units)' },
+        y_axis: { label: 'Probability' }
+    });
 
     // Update derivation
     document.getElementById('safety-derivation-body').innerHTML = `
@@ -623,69 +551,21 @@ function calcEOQ() {
         totalCosts.push(oc + hc);
     }
 
-    Plotly.newPlot('eoq-chart', [
-        {
-            x: quantities,
-            y: orderCosts,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'Order Cost',
-            line: { color: '#3a7f8f', width: 2 }
-        },
-        {
-            x: quantities,
-            y: holdCosts,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'Holding Cost',
-            line: { color: '#e89547', width: 2 }
-        },
-        {
-            x: quantities,
-            y: totalCosts,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'Total Cost',
-            line: { color: '#4a9f6e', width: 3 }
-        }
-    ], {
-        shapes: [{
-            type: 'line',
-            x0: eoq, x1: eoq,
-            y0: 0, y1: total * 1.5,
-            line: { color: '#e74c3c', width: 2, dash: 'dash' }
-        }],
-        annotations: [{
-            x: eoq, y: total,
-            text: `EOQ: ${Math.round(eoq)}`,
-            showarrow: true,
-            arrowhead: 2,
-            arrowcolor: '#e74c3c',
-            font: { color: '#e74c3c', size: 12 },
-            ax: 40, ay: -30
-        }],
-        margin: { t: 20, b: 50, l: 60, r: 20 },
-        paper_bgcolor: 'transparent',
-        plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: {
-            title: 'Order Quantity',
-            gridcolor: 'rgba(255,255,255,0.1)',
-            zeroline: false
-        },
-        yaxis: {
-            title: 'Annual Cost ($)',
-            gridcolor: 'rgba(255,255,255,0.1)',
-            zeroline: false
-        },
-        legend: {
-            orientation: 'h',
-            y: -0.35,
-            x: 0.5,
-            xanchor: 'center'
-        },
-        hovermode: 'x unified'
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('eoq-chart'), {
+        title: '', chart_type: 'line',
+        traces: [
+            { x: quantities, y: orderCosts, name: 'Order Cost', trace_type: 'line', color: '#3a7f8f', width: 2 },
+            { x: quantities, y: holdCosts, name: 'Holding Cost', trace_type: 'line', color: '#e89547', width: 2 },
+            { x: quantities, y: totalCosts, name: 'Total Cost', trace_type: 'line', color: '#4a9f6e', width: 3 }
+        ],
+        reference_lines: [
+            { value: eoq, axis: 'x', color: '#e74c3c', dash: 'dashed', label: `EOQ: ${Math.round(eoq)}` }
+        ],
+        markers: [{ x: eoq, y: total, label: `EOQ: ${Math.round(eoq)}`, color: '#e74c3c' }],
+        zones: [],
+        x_axis: { label: 'Order Quantity' },
+        y_axis: { label: 'Annual Cost ($)' }
+    });
 
     // Update derivation
     document.getElementById('eoq-derivation-body').innerHTML = `
@@ -810,41 +690,18 @@ function calcOEE() {
     const perfLoss = availability * (1 - performance) * 100;
     const qualLoss = availability * performance * (1 - quality) * 100;
 
-    Plotly.newPlot('oee-chart', [{
-        values: [oee, availLoss, perfLoss, qualLoss],
-        labels: ['OEE', 'Avail Loss', 'Perf Loss', 'Quality Loss'],
-        type: 'pie',
-        hole: 0.55,
-        marker: {
-            colors: [
-                oee >= 85 ? '#27ae60' : oee >= 65 ? '#f39c12' : '#e74c3c',
-                '#e74c3c',
-                '#f39c12',
-                '#9b59b6'
-            ]
-        },
-        textinfo: 'percent',
-        textposition: 'inside',
-        textfont: { size: 12, color: '#fff' },
-        hovertemplate: '%{label}: %{value:.1f}%<extra></extra>',
-        sort: false
-    }], {
-        margin: { t: 10, b: 40, l: 10, r: 10 },
-        paper_bgcolor: 'transparent',
-        showlegend: true,
-        legend: {
-            orientation: 'h',
-            y: -0.1,
-            x: 0.5,
-            xanchor: 'center',
-            font: { size: 10, color: '#9aaa9a' }
-        },
-        annotations: [{
-            text: `<b>${oee.toFixed(0)}%</b>`,
-            showarrow: false,
-            font: { size: 32, color: oee >= 85 ? '#27ae60' : oee >= 65 ? '#f39c12' : '#e74c3c' }
-        }]
-    }, { responsive: true, displayModeBar: false });
+    const oeeColor = oee >= 85 ? '#27ae60' : oee >= 65 ? '#f39c12' : '#e74c3c';
+    ForgeViz.render(document.getElementById('oee-chart'), {
+        title: '', chart_type: 'donut',
+        traces: [{ type: 'donut',
+            labels: ['OEE', 'Avail Loss', 'Perf Loss', 'Quality Loss'],
+            values: [oee, availLoss, perfLoss, qualLoss],
+            colors: [oeeColor, '#e74c3c', '#f39c12', '#9b59b6'],
+            center_label: `${oee.toFixed(0)}%`
+        }],
+        reference_lines: [], zones: [], markers: [],
+        x_axis: { label: '' }, y_axis: { label: '' }
+    });
 
     // Publish to shared state
     SvendOps.publish('oee', oee, '%', 'OEE');
@@ -908,20 +765,13 @@ function renderBottleneck() {
     const bottleneckIdx = bottleneckData.findIndex(s => s.time === maxTime);
     const colors = bottleneckData.map((s, i) => i === bottleneckIdx ? '#e74c3c' : '#4a9f6e');
 
-    Plotly.newPlot('bottleneck-chart', [{
-        x: bottleneckData.map(s => s.name),
-        y: bottleneckData.map(s => s.time),
-        type: 'bar',
-        marker: { color: colors },
-        text: bottleneckData.map(s => `${s.time}s`),
-        textposition: 'outside',
-    }], {
-        margin: { t: 20, b: 60, l: 50, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        yaxis: { title: 'Cycle Time (sec)', gridcolor: 'rgba(255,255,255,0.1)' },
-        xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('bottleneck-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [{ x: bottleneckData.map(s => s.name), y: bottleneckData.map(s => s.time),
+            name: '', trace_type: 'bar', color: colors }],
+        reference_lines: [], zones: [], markers: [],
+        y_axis: { label: 'Cycle Time (sec)' }, x_axis: { label: '' }
+    });
 
     const constraint = bottleneckData[bottleneckIdx];
     document.getElementById('bottleneck-name').textContent = constraint.name;
@@ -1007,26 +857,15 @@ function calcLittles() {
     const actualWip = solve === 'wip' ? result : wip;
     const actualThr = solve === 'throughput' ? result : thr;
     const actualLt = solve === 'leadtime' ? result : lt;
-    Plotly.newPlot('littles-chart', [{
-        x: ['WIP (L)', 'Throughput (λ)', 'Lead Time (W)'],
-        y: [actualWip, actualThr, actualLt],
-        type: 'bar',
-        marker: { color: ['#3498db', '#27ae60', '#f39c12'] },
-        text: [`${actualWip.toFixed(1)} units`, `${actualThr.toFixed(1)} /hr`, `${actualLt.toFixed(1)} hrs`],
-        textposition: 'outside',
-        textfont: { size: 12, color: '#a0a0a0' }
-    }], {
-        margin: { t: 40, b: 40, l: 50, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        yaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
-        xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
-        annotations: [{
-            x: 0.5, y: 1.12, xref: 'paper', yref: 'paper',
-            text: `L = λ × W → ${actualWip.toFixed(1)} = ${actualThr.toFixed(1)} × ${actualLt.toFixed(1)}`,
-            showarrow: false, font: { size: 12, color: '#e0e0e0' }
-        }]
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('littles-chart'), {
+        title: `L = λ × W → ${actualWip.toFixed(1)} = ${actualThr.toFixed(1)} × ${actualLt.toFixed(1)}`,
+        chart_type: 'bar',
+        traces: [{ x: ['WIP (L)', 'Throughput (λ)', 'Lead Time (W)'],
+            y: [actualWip, actualThr, actualLt],
+            name: '', trace_type: 'bar', color: ['#3498db', '#27ae60', '#f39c12'] }],
+        reference_lines: [], zones: [], markers: [],
+        y_axis: { label: '' }, x_axis: { label: '' }
+    });
 }
 
 // ============================================================================
@@ -1104,29 +943,19 @@ function calcTurns() {
 
     // Turns gauge chart
     const turnsMax = Math.max(turns * 2, 24);
-    Plotly.newPlot('turns-chart', [{
-        type: 'indicator', mode: 'gauge+number',
-        value: turns,
-        number: { suffix: '/yr', font: { size: 28, color: '#e0e0e0' } },
-        gauge: {
-            axis: { range: [0, turnsMax], tickfont: { color: '#9aaa9a' } },
-            bar: { color: turns >= 12 ? '#27ae60' : turns >= 6 ? '#f39c12' : '#e74c3c' },
-            bgcolor: 'rgba(255,255,255,0.05)',
-            steps: [
-                { range: [0, 4], color: 'rgba(231,76,60,0.25)' },
-                { range: [4, 8], color: 'rgba(243,156,18,0.2)' },
-                { range: [8, 12], color: 'rgba(243,156,18,0.15)' },
-                { range: [12, turnsMax], color: 'rgba(39,174,96,0.25)' }
-            ]
-        }
-    }], {
-        margin: { t: 30, b: 10, l: 30, r: 30 },
-        paper_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        annotations: [
-            { x: 0.5, y: -0.05, text: 'Mfg avg: 6-8 | Retail: 8-12 | World class: 20+', showarrow: false, font: { size: 10, color: '#9aaa9a' } }
-        ]
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('turns-chart'), {
+        title: 'Mfg avg: 6-8 | Retail: 8-12 | World class: 20+', subtitle: '',
+        chart_type: 'gauge',
+        gauge: { value: turns, min: 0, max: turnsMax, label: '/yr' },
+        zones: [
+            { low: 0, high: 4, axis: 'y', color: 'rgba(231,76,60,0.35)', label: 'Low' },
+            { low: 4, high: 8, axis: 'y', color: 'rgba(243,156,18,0.3)', label: 'Avg' },
+            { low: 8, high: 12, axis: 'y', color: 'rgba(243,156,18,0.2)', label: 'Good' },
+            { low: 12, high: turnsMax, axis: 'y', color: 'rgba(39,174,96,0.35)', label: 'Excellent' }
+        ],
+        traces: [], reference_lines: [], markers: [],
+        x_axis: { label: '' }, y_axis: { label: '' }
+    });
 
     SvendOps.publish('turns', parseFloat(turns.toFixed(1)), '/yr', 'Inv Turns');
     SvendOps.publish('daysOnHand', parseFloat(doh.toFixed(1)), 'days', 'Inv Turns');
@@ -1190,22 +1019,16 @@ function calcCOQ() {
     `;
 
     // Pie chart
-    Plotly.newPlot('coq-chart', [{
-        values: [prevention, appraisal, internal, external],
-        labels: ['Prevention', 'Appraisal', 'Internal Failure', 'External Failure'],
-        type: 'pie',
-        marker: {
+    ForgeViz.render(document.getElementById('coq-chart'), {
+        title: '', chart_type: 'pie',
+        traces: [{ type: 'pie',
+            labels: ['Prevention', 'Appraisal', 'Internal Failure', 'External Failure'],
+            values: [prevention, appraisal, internal, external],
             colors: ['#4a9f6e', '#3a7f8f', '#e89547', '#e74c3c']
-        },
-        textinfo: 'label+percent',
-        textposition: 'outside',
-        textfont: { size: 11, color: '#9aaa9a' },
-        hovertemplate: '%{label}: $%{value:,.0f}<extra></extra>'
-    }], {
-        margin: { t: 20, b: 20, l: 20, r: 20 },
-        paper_bgcolor: 'transparent',
-        showlegend: false
-    }, { responsive: true, displayModeBar: false });
+        }],
+        reference_lines: [], zones: [], markers: [],
+        x_axis: { label: '' }, y_axis: { label: '' }
+    });
 
     SvendOps.publish('coqTotal', total, '$', 'COQ');
     SvendOps.publish('coqFailure', failure, '$', 'COQ');
@@ -1265,26 +1088,16 @@ function calcLineEff() {
     let cumulative = scheduled;
     const measures = ['absolute', 'relative', 'relative', 'relative', 'relative', 'total'];
 
-    Plotly.newPlot('lineeff-chart', [{
-        type: 'waterfall',
-        orientation: 'v',
-        x: categories,
-        y: values.map((v, i) => i === 5 ? running : v),
-        measure: measures,
-        connector: { line: { color: 'rgba(255,255,255,0.2)' } },
-        decreasing: { marker: { color: '#e74c3c' } },
-        increasing: { marker: { color: '#4a9f6e' } },
-        totals: { marker: { color: '#3a7f8f' } },
-        text: values.map((v, i) => i === 0 ? `${scheduled}` : i === 5 ? `${running}` : `${Math.abs(v)}`),
-        textposition: 'outside'
-    }], {
-        margin: { t: 20, b: 60, l: 50, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        yaxis: { title: 'Minutes', gridcolor: 'rgba(255,255,255,0.1)' },
-        xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
-        showlegend: false
-    }, { responsive: true, displayModeBar: false });
+    // Waterfall as stacked bar (positive=green, negative=red, total=blue)
+    const waterfallColors = values.map((v, i) => i === 0 || i === 5 ? '#3a7f8f' : '#e74c3c');
+    ForgeViz.render(document.getElementById('lineeff-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [{ x: categories,
+            y: values.map((v, i) => i === 5 ? running : Math.abs(v)),
+            name: '', trace_type: 'bar', color: waterfallColors }],
+        reference_lines: [], zones: [], markers: [],
+        y_axis: { label: 'Minutes' }, x_axis: { label: '' }
+    });
 
     SvendOps.publish('lineEffCalc', parseFloat(efficiency.toFixed(1)), '%', 'Line Eff');
     SvendOps.publish('lineEffActualRate', parseFloat(actualRate.toFixed(0)), '/hr', 'Line Eff');
@@ -1350,19 +1163,18 @@ function calcOLE() {
     const perfLoss = availability * (1 - performance) * 100;
     const qualLoss = availability * performance * (1 - quality) * 100;
 
-    Plotly.newPlot('ole-chart', [{
-        values: [ole, availLoss, perfLoss, qualLoss],
-        labels: ['OLE', 'Availability Loss', 'Performance Loss', 'Quality Loss'],
-        type: 'pie', hole: 0.6,
-        marker: { colors: [ole >= 85 ? '#27ae60' : ole >= 65 ? '#f39c12' : '#e74c3c', '#e74c3c', '#f39c12', '#9b59b6'] },
-        textinfo: 'percent', textposition: 'outside',
-        textfont: { size: 10, color: '#9aaa9a' }, sort: false
-    }], {
-        margin: { t: 20, b: 20, l: 20, r: 20 },
-        paper_bgcolor: 'transparent', showlegend: false,
-        annotations: [{ text: `<b>${ole.toFixed(0)}%</b>`, showarrow: false,
-            font: { size: 24, color: ole >= 85 ? '#27ae60' : ole >= 65 ? '#f39c12' : '#e74c3c' } }]
-    }, { responsive: true, displayModeBar: false });
+    const oleColor = ole >= 85 ? '#27ae60' : ole >= 65 ? '#f39c12' : '#e74c3c';
+    ForgeViz.render(document.getElementById('ole-chart'), {
+        title: '', chart_type: 'donut',
+        traces: [{ type: 'donut',
+            labels: ['OLE', 'Availability Loss', 'Performance Loss', 'Quality Loss'],
+            values: [ole, availLoss, perfLoss, qualLoss],
+            colors: [oleColor, '#e74c3c', '#f39c12', '#9b59b6'],
+            center_label: `${ole.toFixed(0)}%`
+        }],
+        reference_lines: [], zones: [], markers: [],
+        x_axis: { label: '' }, y_axis: { label: '' }
+    });
 
     SvendOps.publish('ole', parseFloat(ole.toFixed(1)), '%', 'OLE');
 }
@@ -1451,18 +1263,16 @@ function calcCycle() {
         </div>
     `;
 
-    Plotly.newPlot('cycletime-chart', [{
-        values: [va, nva, wait],
-        labels: ['Value-Add', 'Non Value-Add', 'Wait'],
-        type: 'pie',
-        marker: { colors: ['#4a9f6e', '#f39c12', '#e74c3c'] },
-        textinfo: 'label+percent',
-        textposition: 'inside',
-        textfont: { size: 12, color: '#fff' }
-    }], {
-        margin: { t: 20, b: 20, l: 20, r: 20 },
-        paper_bgcolor: 'transparent', showlegend: false
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('cycletime-chart'), {
+        title: '', chart_type: 'pie',
+        traces: [{ type: 'pie',
+            labels: ['Value-Add', 'Non Value-Add', 'Wait'],
+            values: [va, nva, wait],
+            colors: ['#4a9f6e', '#f39c12', '#e74c3c']
+        }],
+        reference_lines: [], zones: [], markers: [],
+        x_axis: { label: '' }, y_axis: { label: '' }
+    });
 
     SvendOps.publish('cycleTimeTotal', total, 'sec', 'Cycle Time');
     SvendOps.publish('cycleTimeVA', va, 'sec', 'Cycle Time');
@@ -1573,30 +1383,18 @@ function calcBA() {
         return { ...m, change, pctChange, improved };
     });
 
-    Plotly.newPlot('beforeafter-chart', [
-        {
-            x: improvements.map(m => m.metric),
-            y: improvements.map(m => m.before),
-            type: 'bar', name: 'Before',
-            marker: { color: '#666' }
-        },
-        {
-            x: improvements.map(m => m.metric),
-            y: improvements.map(m => m.after),
-            type: 'bar', name: 'After',
-            marker: { color: improvements.map(m => m.improved ? '#4a9f6e' : '#e74c3c') },
-            text: improvements.map(m => `${m.pctChange >= 0 ? '+' : ''}${m.pctChange.toFixed(1)}%`),
-            textposition: 'outside'
-        }
-    ], {
-        barmode: 'group',
-        margin: { t: 20, b: 80, l: 50, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        yaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
-        xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
-        legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' }
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('beforeafter-chart'), {
+        title: '', chart_type: 'grouped_bar',
+        traces: [
+            { x: improvements.map(m => m.metric), y: improvements.map(m => m.before),
+              name: 'Before', trace_type: 'bar', color: '#666' },
+            { x: improvements.map(m => m.metric), y: improvements.map(m => m.after),
+              name: 'After', trace_type: 'bar',
+              color: improvements.map(m => m.improved ? '#4a9f6e' : '#e74c3c') }
+        ],
+        reference_lines: [], zones: [], markers: [],
+        y_axis: { label: '' }, x_axis: { label: '' }
+    });
 
     // Show Synara action bar
     const actionBar = document.getElementById('ba-synara-action');
@@ -1757,13 +1555,15 @@ function calcHeijunka() {
         marker: { color: colors[p.product] }
     }));
 
-    Plotly.newPlot('heijunka-chart', traces, {
-        barmode: 'stack',
-        margin: { t: 20, b: 60, l: 40, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        yaxis: { title: 'Units', gridcolor: 'rgba(255,255,255,0.1)' },
-        xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
-        legend: { orientation: 'h', y: -0.25, x: 0.5, xanchor: 'center' }
-    }, { responsive: true, displayModeBar: false });
+    const fvTraces = heijunkaData.map(p => ({
+        x: Array.from({ length: Math.min(10, intervals) }, (_, i) => `Pitch ${i + 1}`),
+        y: boxData.map(slot => slot.filter(s => s === p.product).length),
+        name: p.product, trace_type: 'bar', color: colors[p.product]
+    }));
+    ForgeViz.render(document.getElementById('heijunka-chart'), {
+        title: '', chart_type: 'stacked_bar',
+        traces: fvTraces,
+        reference_lines: [], zones: [], markers: [],
+        y_axis: { label: 'Units' }, x_axis: { label: '' }
+    });
 }
