@@ -157,36 +157,12 @@ function calcSMED() {
         });
     }
 
-    Plotly.newPlot('smed-chart', [{
-        type: 'bar',
-        x: names,
-        y: heights,
-        base: bases,
-        text: heights.map(h => `${h} min`),
-        textposition: 'outside',
-        textfont: { size: 11, color: '#a0a0a0' },
-        marker: { color: colors },
-        hovertemplate: '%{x}: %{y} min<extra></extra>'
-    }], {
-        margin: { t: 40, b: 100, l: 50, r: 20 },
-        paper_bgcolor: 'transparent',
-        plot_bgcolor: 'transparent',
-        shapes: shapes,
-        xaxis: {
-            tickangle: -30,
-            tickfont: { size: 11, color: '#a0a0a0' },
-            gridcolor: 'rgba(150,150,150,0.1)'
-        },
-        yaxis: {
-            title: 'Minutes',
-            titlefont: { size: 12, color: '#a0a0a0' },
-            tickfont: { size: 11, color: '#a0a0a0' },
-            gridcolor: 'rgba(150,150,150,0.1)',
-            zeroline: true,
-            zerolinecolor: 'rgba(150,150,150,0.3)'
-        },
-        showlegend: false
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('smed-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [{ x: names, y: heights, name: '', trace_type: 'bar', color: colors }],
+        reference_lines: [], zones: [], markers: [],
+        y_axis: { label: 'Minutes' }, x_axis: { label: '' }
+    });
 
     // Publish to shared state
     SvendOps.publish('changeoverInternal', internal, 'min', 'SMED');
@@ -680,18 +656,12 @@ function renderPFAChart(m) {
     const values = cats.map(k => m.totals[k] || 0);
     const labels = cats.map(k => PFA_CATEGORIES[k].name);
 
-    Plotly.newPlot('pfa-chart', [{
-        type: 'pie',
-        values: values,
-        labels: labels,
-        marker: { colors: colors },
-        textinfo: 'label+percent',
-        hole: 0.4
-    }], {
-        margin: { t: 20, b: 20, l: 20, r: 20 },
-        paper_bgcolor: 'transparent',
-        showlegend: false
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('pfa-chart'), {
+        title: '', chart_type: 'donut',
+        traces: [{ type: 'donut', labels: labels, values: values, colors: colors }],
+        reference_lines: [], zones: [], markers: [],
+        x_axis: { label: '' }, y_axis: { label: '' }
+    });
 }
 
 function renderPFAFlow() {
@@ -910,16 +880,10 @@ function renderWFAChart(m) {
     const values = cats.map(k => m.totals[k] || 0);
     const labels = cats.map(k => WFA_CATEGORIES[k].name);
 
-    Plotly.newPlot('wfa-chart', [{
-        type: 'bar',
-        x: labels,
-        y: values,
-        marker: { color: colors }
-    }], {
-        margin: { t: 20, b: 60, l: 40, r: 20 },
-        paper_bgcolor: 'transparent',
-        plot_bgcolor: 'transparent',
-        xaxis: { tickangle: -45, color: '#a0a0a0' },
-        yaxis: { title: 'Seconds', color: '#a0a0a0', gridcolor: 'rgba(160, 160, 160, 0.2)' }
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('wfa-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [{ x: labels, y: values, name: '', trace_type: 'bar', color: colors }],
+        reference_lines: [], zones: [], markers: [],
+        y_axis: { label: 'Seconds' }, x_axis: { label: '' }
+    });
 }

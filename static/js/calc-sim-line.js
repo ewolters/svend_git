@@ -536,36 +536,15 @@ function updateLineChart() {
     const h = lineSimState.history;
     if (h.time.length < 2) return;
 
-    Plotly.newPlot('ls-chart', [
-        {
-            x: h.time,
-            y: h.wip,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'WIP',
-            line: { color: '#f39c12', width: 2 },
-            yaxis: 'y',
-        },
-        {
-            x: h.time,
-            y: h.throughput,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'Throughput/hr',
-            line: { color: '#4a9f6e', width: 2 },
-            yaxis: 'y2',
-        }
-    ], {
-        margin: { t: 20, b: 60, l: 50, r: 50 },
-        paper_bgcolor: 'transparent',
-        plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: { title: 'Time (sec)', gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { title: 'WIP', gridcolor: 'rgba(255,255,255,0.1)', side: 'left' },
-        yaxis2: { title: 'Units/hr', overlaying: 'y', side: 'right', gridcolor: 'transparent' },
-        legend: { orientation: 'h', y: 1.05, x: 0.5, xanchor: 'center' },
-        showlegend: true,
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('ls-chart'), {
+        title: '', chart_type: 'line',
+        traces: [
+            { x: h.time, y: h.wip, name: 'WIP', trace_type: 'line', color: '#f39c12', width: 2 },
+            { x: h.time, y: h.throughput, name: 'Throughput/hr', trace_type: 'line', color: '#4a9f6e', width: 2 }
+        ],
+        reference_lines: [], zones: [], markers: [],
+        x_axis: { label: 'Time (sec)' }, y_axis: { label: 'WIP / Units/hr' }
+    });
 }
 
 function updateLineStationStats(takt) {
@@ -755,7 +734,7 @@ function resetLineSim() {
     renderOrders();
     updateDeliveryMetrics();
 
-    Plotly.purge('ls-chart');
+    document.getElementById('ls-chart').innerHTML = '';
     renderLineVisual();
 }
 

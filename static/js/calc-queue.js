@@ -92,34 +92,17 @@ function calcQueue() {
         waitTimes.push(testWq);
     }
 
-    Plotly.newPlot('queue-chart', [{
-        x: utils,
-        y: waitTimes,
-        type: 'scatter',
-        mode: 'lines',
-        fill: 'tozeroy',
-        fillcolor: 'rgba(74, 159, 110, 0.2)',
-        line: { color: '#4a9f6e', width: 2 }
-    }], {
-        shapes: [{
-            type: 'line',
-            x0: rho * 100, x1: rho * 100,
-            y0: 0, y1: Math.max(...waitTimes),
-            line: { color: '#e74c3c', width: 2, dash: 'dash' }
-        }],
-        annotations: [{
-            x: rho * 100, y: Wq * 60,
-            text: `Current: ${(Wq * 60).toFixed(1)} min`,
-            showarrow: true, arrowhead: 2, arrowcolor: '#e74c3c',
-            font: { color: '#e74c3c', size: 11 },
-            ax: 40, ay: -20
-        }],
-        margin: { t: 20, b: 50, l: 60, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: { title: 'Utilization (%)', gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { title: 'Wait Time (min)', gridcolor: 'rgba(255,255,255,0.1)' }
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('queue-chart'), {
+        title: '', chart_type: 'area',
+        traces: [
+            { x: utils, y: waitTimes, name: 'Wait Time', trace_type: 'area', fill: 'tozeroy', color: '#4a9f6e', width: 2 }
+        ],
+        reference_lines: [
+            { value: rho * 100, axis: 'x', color: '#e74c3c', dash: 'dashed', label: '' }
+        ],
+        markers: [{ x: rho * 100, y: Wq * 60, label: `Current: ${(Wq * 60).toFixed(1)} min`, color: '#e74c3c' }],
+        x_axis: { label: 'Utilization (%)' }, y_axis: { label: 'Wait Time (min)' }
+    });
 
     // Update derivation
     document.getElementById('queue-derivation-body').innerHTML = `
@@ -305,32 +288,17 @@ function calcQueueFinite() {
         blockProbs.push(testP * 100);
     }
 
-    Plotly.newPlot('qf-chart', [{
-        x: caps,
-        y: blockProbs,
-        type: 'scatter',
-        mode: 'lines+markers',
-        fill: 'tozeroy',
-        fillcolor: 'rgba(231, 76, 60, 0.2)',
-        line: { color: '#e74c3c', width: 2 },
-        marker: { size: 4 }
-    }], {
-        shapes: [{
-            type: 'line', x0: K, x1: K, y0: 0, y1: Math.max(...blockProbs),
-            line: { color: '#4a9f6e', width: 2, dash: 'dash' }
-        }],
-        annotations: [{
-            x: K, y: Pk * 100,
-            text: `K=${K}: ${(Pk * 100).toFixed(1)}%`,
-            showarrow: true, arrowhead: 2, arrowcolor: '#4a9f6e',
-            font: { color: '#4a9f6e', size: 11 }, ax: 30, ay: -20
-        }],
-        margin: { t: 20, b: 50, l: 60, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: { title: 'System Capacity (K)', gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { title: 'Blocking Probability (%)', gridcolor: 'rgba(255,255,255,0.1)' }
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('qf-chart'), {
+        title: '', chart_type: 'area',
+        traces: [
+            { x: caps, y: blockProbs, name: 'Blocking %', trace_type: 'area', fill: 'tozeroy', color: '#e74c3c', width: 2, marker_size: 4 }
+        ],
+        reference_lines: [
+            { value: K, axis: 'x', color: '#4a9f6e', dash: 'dashed', label: '' }
+        ],
+        markers: [{ x: K, y: Pk * 100, label: `K=${K}: ${(Pk * 100).toFixed(1)}%`, color: '#4a9f6e' }],
+        x_axis: { label: 'System Capacity (K)' }, y_axis: { label: 'Blocking Probability (%)' }
+    });
 }
 
 function calcBlockingProb(lambda, mu, c, K) {
@@ -472,21 +440,13 @@ function calcQueuePriority() {
     `;
 
     // Chart
-    Plotly.newPlot('qp-chart', [{
-        x: results.map(r => r.name),
-        y: results.map(r => r.Wq),
-        type: 'bar',
-        marker: { color: results.map(r => r.color) },
-        text: results.map(r => r.Wq.toFixed(1) + ' min'),
-        textposition: 'outside',
-        textfont: { size: 11, color: '#a0a0a0' }
-    }], {
-        margin: { t: 20, b: 80, l: 60, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: { tickangle: -20, gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { title: 'Average Wait (min)', gridcolor: 'rgba(255,255,255,0.1)' }
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('qp-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { x: results.map(r => r.name), y: results.map(r => r.Wq), name: 'Wait Time', trace_type: 'bar', color: results.map(r => r.color) }
+        ],
+        x_axis: { label: '' }, y_axis: { label: 'Average Wait (min)' }
+    });
 
     // Update derivation
     const prioritySteps = results.map((r, i) => `
@@ -593,51 +553,19 @@ function calcOptimizer() {
     `;
 
     // Chart
-    Plotly.newPlot('qo-chart', [
-        {
-            x: data.map(d => d.c),
-            y: data.map(d => d.staffCostHr),
-            type: 'bar',
-            name: 'Server Cost',
-            marker: { color: '#3a7f8f' }
-        },
-        {
-            x: data.map(d => d.c),
-            y: data.map(d => d.waitCostHr),
-            type: 'bar',
-            name: 'Wait Cost',
-            marker: { color: '#e89547' }
-        },
-        {
-            x: data.map(d => d.c),
-            y: data.map(d => d.totalCost),
-            type: 'scatter',
-            mode: 'lines+markers',
-            name: 'Total Cost',
-            yaxis: 'y2',
-            line: { color: '#4a9f6e', width: 3 },
-            marker: { size: 8 }
-        }
-    ], {
-        barmode: 'stack',
-        shapes: [{
-            type: 'line', x0: optimalC, x1: optimalC, y0: 0, y1: Math.max(...data.map(d => d.totalCost)) * 1.1,
-            line: { color: '#e8c547', width: 3, dash: 'dash' }
-        }],
-        annotations: [{
-            x: optimalC, y: optimal?.totalCost,
-            text: `Optimal: ${optimalC} servers`,
-            showarrow: true, arrowhead: 2, arrowcolor: '#e8c547',
-            font: { color: '#e8c547', size: 12 }, ax: 40, ay: -30
-        }],
-        margin: { t: 30, b: 50, l: 60, r: 60 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: { title: 'Number of Servers', dtick: 1, gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { title: 'Cost Component ($/hr)', gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis2: { title: 'Total Cost ($/hr)', overlaying: 'y', side: 'right', gridcolor: 'rgba(255,255,255,0.0)' },
-        legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' }
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('qo-chart'), {
+        title: '', chart_type: 'stacked_bar',
+        traces: [
+            { x: data.map(d => d.c), y: data.map(d => d.staffCostHr), name: 'Server Cost', trace_type: 'bar', color: '#3a7f8f' },
+            { x: data.map(d => d.c), y: data.map(d => d.waitCostHr), name: 'Wait Cost', trace_type: 'bar', color: '#e89547' },
+            { x: data.map(d => d.c), y: data.map(d => d.totalCost), name: 'Total Cost', trace_type: 'line', color: '#4a9f6e', width: 3 }
+        ],
+        reference_lines: [
+            { value: optimalC, axis: 'x', color: '#e8c547', dash: 'dashed', label: '' }
+        ],
+        markers: [{ x: optimalC, y: optimal?.totalCost, label: `Optimal: ${optimalC} servers`, color: '#e8c547' }],
+        x_axis: { label: 'Number of Servers' }, y_axis: { label: 'Cost Component ($/hr)' }
+    });
 
     // Table
     document.getElementById('qo-table').innerHTML = `
@@ -772,30 +700,14 @@ function calcTandem() {
     `;
 
     // Chart - stacked bar
-    Plotly.newPlot('qt-chart', [
-        {
-            x: results.map(r => r.name),
-            y: results.map(r => r.Wq),
-            type: 'bar',
-            name: 'Wait Time',
-            marker: { color: 'rgba(231, 76, 60, 0.7)' }
-        },
-        {
-            x: results.map(r => r.name),
-            y: results.map(r => 60 / r.mu),
-            type: 'bar',
-            name: 'Service Time',
-            marker: { color: results.map(r => r.color) }
-        }
-    ], {
-        barmode: 'stack',
-        margin: { t: 20, b: 60, l: 60, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { title: 'Time (min)', gridcolor: 'rgba(255,255,255,0.1)' },
-        legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' }
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('qt-chart'), {
+        title: '', chart_type: 'stacked_bar',
+        traces: [
+            { x: results.map(r => r.name), y: results.map(r => r.Wq), name: 'Wait Time', trace_type: 'bar', color: 'rgba(231, 76, 60, 0.7)' },
+            { x: results.map(r => r.name), y: results.map(r => 60 / r.mu), name: 'Service Time', trace_type: 'bar', color: results.map(r => r.color) }
+        ],
+        x_axis: { label: '' }, y_axis: { label: 'Time (min)' }
+    });
 
     // Update derivation
     const tandemSteps = results.map(r => `

@@ -94,22 +94,18 @@ function calcABC() {
 
     // Pareto chart
     const colors = items.map(i => i.category === 'A' ? '#4a9f6e' : i.category === 'B' ? '#e8c547' : '#e89547');
-    Plotly.newPlot('abc-chart', [
-        { x: items.map(i => i.name), y: items.map(i => i.value), type: 'bar', marker: { color: colors }, name: 'Value' },
-        { x: items.map(i => i.name), y: items.map(i => i.cumPct), type: 'scatter', mode: 'lines+markers', yaxis: 'y2', name: 'Cumulative %', line: { color: '#e74c3c', width: 2 } }
-    ], {
-        shapes: [
-            { type: 'line', x0: -0.5, x1: items.length-0.5, y0: aPct, y1: aPct, yref: 'y2', line: { color: '#4a9f6e', width: 1, dash: 'dash' } },
-            { type: 'line', x0: -0.5, x1: items.length-0.5, y0: bPct, y1: bPct, yref: 'y2', line: { color: '#e8c547', width: 1, dash: 'dash' } }
+    ForgeViz.render(document.getElementById('abc-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { x: items.map(i => i.name), y: items.map(i => i.value), name: 'Value', trace_type: 'bar', color: colors },
+            { x: items.map(i => i.name), y: items.map(i => i.cumPct), name: 'Cumulative %', trace_type: 'line', color: '#e74c3c', width: 2 }
         ],
-        yaxis: { title: 'Value ($)', gridcolor: 'rgba(255,255,255,0.1)', zeroline: false },
-        yaxis2: { title: 'Cumulative %', overlaying: 'y', side: 'right', range: [0, 105], gridcolor: 'rgba(255,255,255,0.05)' },
-        margin: { t: 20, b: 80, l: 60, r: 60 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        legend: { orientation: 'h', y: -0.4, x: 0.5, xanchor: 'center' },
-        hovermode: 'x unified'
-    }, { responsive: true, displayModeBar: false });
+        reference_lines: [
+            { value: aPct, axis: 'y', color: '#4a9f6e', dash: 'dashed', label: 'A cutoff' },
+            { value: bPct, axis: 'y', color: '#e8c547', dash: 'dashed', label: 'B cutoff' }
+        ],
+        x_axis: { label: '' }, y_axis: { label: 'Value ($)' }
+    });
 
     SvendOps.publish('abcAItems', aItems.length, 'items', 'ABC Analysis');
     SvendOps.publish('abcBItems', bItems.length, 'items', 'ABC Analysis');
@@ -198,17 +194,15 @@ function calcDemandProfile() {
     document.getElementById('dp-adi').textContent = adi.toFixed(2);
 
     // Demand time series chart
-    Plotly.newPlot('dp-chart', [
-        { x: values.map((_, i) => `P${i+1}`), y: values, type: 'bar', marker: { color: values.map(v => v > 0 ? patternColors[pattern] : 'rgba(255,255,255,0.1)') }, name: 'Demand' },
-        { x: values.map((_, i) => `P${i+1}`), y: Array(values.length).fill(mean), type: 'scatter', mode: 'lines', name: `Mean (${mean.toFixed(0)})`, line: { color: '#e74c3c', dash: 'dash', width: 1 } }
-    ], {
-        margin: { t: 20, b: 50, l: 50, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        yaxis: { title: 'Demand', gridcolor: 'rgba(255,255,255,0.1)', zeroline: false },
-        legend: { orientation: 'h', y: -0.3, x: 0.5, xanchor: 'center' },
-        hovermode: 'x unified'
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('dp-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { x: values.map((_, i) => `P${i+1}`), y: values, name: 'Demand', trace_type: 'bar', color: values.map(v => v > 0 ? patternColors[pattern] : 'rgba(255,255,255,0.1)') },
+            { x: values.map((_, i) => `P${i+1}`), y: Array(values.length).fill(mean), name: `Mean (${mean.toFixed(0)})`, trace_type: 'line', color: '#e74c3c', width: 1 }
+        ],
+        reference_lines: [],
+        x_axis: { label: '' }, y_axis: { label: 'Demand' }
+    });
 
     SvendOps.publish('demandPattern', pattern, '', 'Demand Profile');
     SvendOps.publish('demandMean', mean, 'units', 'Demand Profile');
@@ -278,21 +272,19 @@ function calcServiceLevel() {
         <div class="calc-breakdown-row"><span>Holding cost at optimal</span><span>$${Math.round(optSS * holdingCost).toLocaleString()}/yr</span></div>
         <div class="calc-breakdown-row"><span>Formula</span><span>Min(Holding + Stockout cost) over SL range</span></div>`;
 
-    Plotly.newPlot('sl-chart', [
-        { x: levels, y: holdCosts, type: 'scatter', mode: 'lines', name: 'Holding Cost', line: { color: '#3a7f8f', width: 2 } },
-        { x: levels, y: stockCosts, type: 'scatter', mode: 'lines', name: 'Stockout Cost', line: { color: '#e89547', width: 2 } },
-        { x: levels, y: totalCosts, type: 'scatter', mode: 'lines', name: 'Total Cost', line: { color: '#4a9f6e', width: 3 } }
-    ], {
-        shapes: [{ type: 'line', x0: optLevel, x1: optLevel, y0: 0, y1: minCost * 2, line: { color: '#e74c3c', width: 2, dash: 'dash' } }],
-        annotations: [{ x: optLevel, y: minCost, text: `Optimal: ${optLevel.toFixed(1)}%`, showarrow: true, arrowhead: 2, arrowcolor: '#e74c3c', font: { color: '#e74c3c', size: 12 }, ax: 40, ay: -30 }],
-        margin: { t: 20, b: 50, l: 70, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: { title: 'Service Level (%)', gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { title: 'Annual Cost ($)', gridcolor: 'rgba(255,255,255,0.1)', zeroline: false },
-        legend: { orientation: 'h', y: -0.35, x: 0.5, xanchor: 'center' },
-        hovermode: 'x unified'
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('sl-chart'), {
+        title: '', chart_type: 'line',
+        traces: [
+            { x: levels, y: holdCosts, name: 'Holding Cost', trace_type: 'line', color: '#3a7f8f', width: 2 },
+            { x: levels, y: stockCosts, name: 'Stockout Cost', trace_type: 'line', color: '#e89547', width: 2 },
+            { x: levels, y: totalCosts, name: 'Total Cost', trace_type: 'line', color: '#4a9f6e', width: 3 }
+        ],
+        reference_lines: [
+            { value: optLevel, axis: 'x', color: '#e74c3c', dash: 'dashed', label: `Optimal: ${optLevel.toFixed(1)}%` }
+        ],
+        markers: [{ x: optLevel, y: minCost, label: `Optimal: ${optLevel.toFixed(1)}%`, color: '#e74c3c' }],
+        x_axis: { label: 'Service Level (%)' }, y_axis: { label: 'Annual Cost ($)' }
+    });
 
     SvendOps.publish('optimalServiceLevel', optLevel, '%', 'Service Level');
     SvendOps.publish('optimalSafetyStock', Math.round(optSS), 'units', 'Service Level');
@@ -421,19 +413,18 @@ function calcMRP() {
     document.getElementById('mrp-grid').innerHTML = gridHtml;
 
     // Chart
-    Plotly.newPlot('mrp-chart', [
-        { x: gross.map((_, i) => `P${i+1}`), y: gross, type: 'bar', name: 'Gross Req', marker: { color: '#e89547', opacity: 0.6 } },
-        { x: gross.map((_, i) => `P${i+1}`), y: projected, type: 'scatter', mode: 'lines+markers', name: 'Projected OH', line: { color: '#4a9f6e', width: 2 } },
-        { x: gross.map((_, i) => `P${i+1}`), y: Array(n).fill(ss), type: 'scatter', mode: 'lines', name: 'Safety Stock', line: { color: '#e74c3c', dash: 'dash', width: 1 } }
-    ], {
-        margin: { t: 20, b: 50, l: 50, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        yaxis: { title: 'Units', gridcolor: 'rgba(255,255,255,0.1)', zeroline: false },
-        legend: { orientation: 'h', y: -0.35, x: 0.5, xanchor: 'center' },
-        hovermode: 'x unified',
-        barmode: 'overlay'
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('mrp-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { x: gross.map((_, i) => `P${i+1}`), y: gross, name: 'Gross Req', trace_type: 'bar', color: '#e89547' },
+            { x: gross.map((_, i) => `P${i+1}`), y: projected, name: 'Projected OH', trace_type: 'line', color: '#4a9f6e', width: 2 },
+            { x: gross.map((_, i) => `P${i+1}`), y: Array(n).fill(ss), name: 'Safety Stock', trace_type: 'line', color: '#e74c3c', width: 1 }
+        ],
+        reference_lines: [
+            { value: ss, axis: 'y', color: '#e74c3c', dash: 'dashed', label: 'Safety Stock' }
+        ],
+        x_axis: { label: '' }, y_axis: { label: 'Units' }
+    });
 
     SvendOps.publish('mrpPlannedOrders', orderCount, 'orders', 'MRP Netting');
 

@@ -271,34 +271,25 @@ function calcPbsCpk() {
         `With 5&times; data (n=${5*n}), CI narrows to &plusmn;${(projCI5x/2).toFixed(3)}. ` +
         `<span style="color:var(--text-dim);">Current CI width: ${ciWidth.toFixed(3)}, n=${n}.</span>`;
 
-    // Plotly histogram
+    // Posterior histogram
     const nBins = 60;
     const lo = sorted[Math.floor(sorted.length * 0.005)];
     const hi = sorted[Math.floor(sorted.length * 0.995)];
     const filtered = sorted.filter(v => v >= lo && v <= hi);
 
-    Plotly.newPlot('pbs-cpk-chart', [{
-        x: filtered, type: 'histogram', nbinsx: nBins,
-        marker: { color: 'rgba(58,127,143,0.5)', line: { color: 'rgba(58,127,143,0.8)', width: 1 } },
-        hovertemplate: 'Cpk: %{x:.3f}<br>Count: %{y}<extra></extra>',
-    }], {
-        shapes: [
-            { type: 'line', x0: 1.0, x1: 1.0, y0: 0, y1: 1, yref: 'paper', line: { color: '#c0392b', width: 2, dash: 'dash' } },
-            { type: 'line', x0: 1.33, x1: 1.33, y0: 0, y1: 1, yref: 'paper', line: { color: '#e8c547', width: 2, dash: 'dash' } },
-            { type: 'line', x0: 1.67, x1: 1.67, y0: 0, y1: 1, yref: 'paper', line: { color: '#4a9f6e', width: 2, dash: 'dash' } },
-            { type: 'line', x0: median, x1: median, y0: 0, y1: 1, yref: 'paper', line: { color: '#3a7f8f', width: 2.5 } },
+    ForgeViz.render(document.getElementById('pbs-cpk-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { type: 'histogram', x: filtered, nbins: nBins, color: 'rgba(58,127,143,0.5)' }
         ],
-        annotations: [
-            { x: 1.0, y: 1, yref: 'paper', text: '1.00', showarrow: false, yanchor: 'bottom', font: { size: 10, color: '#c0392b' } },
-            { x: 1.33, y: 1, yref: 'paper', text: '1.33', showarrow: false, yanchor: 'bottom', font: { size: 10, color: '#e8c547' } },
-            { x: 1.67, y: 1, yref: 'paper', text: '1.67', showarrow: false, yanchor: 'bottom', font: { size: 10, color: '#4a9f6e' } },
-            { x: median, y: 1, yref: 'paper', text: 'Median', showarrow: false, yanchor: 'bottom', font: { size: 10, color: '#3a7f8f' } },
+        reference_lines: [
+            { value: 1.0, axis: 'x', color: '#c0392b', dash: 'dashed', label: '1.00' },
+            { value: 1.33, axis: 'x', color: '#e8c547', dash: 'dashed', label: '1.33' },
+            { value: 1.67, axis: 'x', color: '#4a9f6e', dash: 'dashed', label: '1.67' },
+            { value: median, axis: 'x', color: '#3a7f8f', dash: 'solid', label: 'Median' }
         ],
-        xaxis: { title: 'Cpk', color: '#9aaa9a' },
-        yaxis: { title: 'Count', color: '#9aaa9a' },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' }, margin: { t: 30, r: 20, b: 50, l: 50 },
-    }, { responsive: true, displayModeBar: false });
+        x_axis: { label: 'Cpk' }, y_axis: { label: 'Count' }
+    });
 
     // Posterior predictive histogram — "Where the next part falls"
     document.getElementById('pbs-cpk-pp-chart-wrap').style.display = '';
@@ -307,30 +298,18 @@ function calcPbsCpk() {
     const ppHi = ppSorted[Math.floor(ppSorted.length * 0.995)];
     const ppFiltered = ppSorted.filter(v => v >= ppLo && v <= ppHi);
 
-    Plotly.newPlot('pbs-cpk-pp-chart', [{
-        x: ppFiltered, type: 'histogram', nbinsx: 80,
-        marker: { color: 'rgba(74,159,110,0.4)', line: { color: 'rgba(74,159,110,0.7)', width: 1 } },
-        hovertemplate: 'Value: %{x:.3f}<br>Count: %{y}<extra></extra>',
-    }], {
-        shapes: [
-            { type: 'line', x0: usl, x1: usl, y0: 0, y1: 1, yref: 'paper',
-              line: { color: '#c0392b', width: 2.5 } },
-            { type: 'line', x0: lsl, x1: lsl, y0: 0, y1: 1, yref: 'paper',
-              line: { color: '#c0392b', width: 2.5 } },
-            { type: 'line', x0: target, x1: target, y0: 0, y1: 1, yref: 'paper',
-              line: { color: '#3a7f8f', width: 1.5, dash: 'dash' } },
+    ForgeViz.render(document.getElementById('pbs-cpk-pp-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { type: 'histogram', x: ppFiltered, nbins: 80, color: 'rgba(74,159,110,0.4)' }
         ],
-        annotations: [
-            { x: usl, y: 1, yref: 'paper', text: 'USL', showarrow: false,
-              yanchor: 'bottom', font: { size: 11, color: '#c0392b' } },
-            { x: lsl, y: 1, yref: 'paper', text: 'LSL', showarrow: false,
-              yanchor: 'bottom', font: { size: 11, color: '#c0392b' } },
+        reference_lines: [
+            { value: usl, axis: 'x', color: '#c0392b', dash: 'solid', label: 'USL' },
+            { value: lsl, axis: 'x', color: '#c0392b', dash: 'solid', label: 'LSL' },
+            { value: target, axis: 'x', color: '#3a7f8f', dash: 'dashed', label: 'Target' }
         ],
-        xaxis: { title: 'Predicted Value (Y_new)', color: '#9aaa9a' },
-        yaxis: { title: 'Count', color: '#9aaa9a' },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' }, margin: { t: 30, r: 20, b: 50, l: 50 },
-    }, { responsive: true, displayModeBar: false });
+        x_axis: { label: 'Predicted Value (Y_new)' }, y_axis: { label: 'Count' }
+    });
 
     // Publish to SvendOps data bus
     SvendOps.publish('pbsUSL', usl, '', 'Bayesian Cpk');
@@ -490,7 +469,7 @@ function calcPbsBelief() {
     document.getElementById('pbs-belief-mean-ci').textContent =
         `[${regimeMeanLower[n - 1].toFixed(3)}, ${regimeMeanUpper[n - 1].toFixed(3)}]`;
 
-    // Two-panel Plotly chart
+    // Two-panel chart
     const tArr = data.map((_, i) => i + 1);
 
     // Color shift probability bars by alert level
@@ -498,37 +477,22 @@ function calcPbsBelief() {
         a === 'alarm' ? '#c0392b' : a === 'alert' ? '#e8c547' : a === 'watch' ? '#e8a547' : 'rgba(58,127,143,0.5)'
     );
 
-    Plotly.newPlot('pbs-belief-chart', [
-        // Top: credible band on regime mean
-        { x: tArr, y: regimeMeanUpper, mode: 'lines', line: { width: 0 },
-          showlegend: false, yaxis: 'y1', hoverinfo: 'skip' },
-        { x: tArr, y: regimeMeanLower, mode: 'lines', line: { width: 0 },
-          fill: 'tonexty', fillcolor: 'rgba(232,197,71,0.15)',
-          showlegend: false, yaxis: 'y1', name: '95% CI',
-          hovertemplate: 't=%{x}<br>95% CI lower: %{y:.3f}<extra></extra>' },
-        // Top: observations + regime mean
-        { x: tArr, y: data, mode: 'markers', marker: { size: 5, color: 'rgba(58,127,143,0.7)' },
-          name: 'Observations', yaxis: 'y1', hovertemplate: 't=%{x}<br>Value: %{y:.3f}<extra></extra>' },
-        { x: tArr, y: regimeMeans, mode: 'lines', line: { color: '#e8c547', width: 2 },
-          name: 'Regime Mean', yaxis: 'y1', hovertemplate: 't=%{x}<br>Regime μ: %{y:.3f}<extra></extra>' },
-        // Bottom: shift probability
-        { x: tArr, y: shiftProbs, type: 'bar', marker: { color: spColors },
-          name: 'Shift Prob', yaxis: 'y2', hovertemplate: 't=%{x}<br>P(shift): %{y:.3f}<extra></extra>' },
-    ], {
-        grid: { rows: 2, columns: 1, pattern: 'independent', roworder: 'top to bottom' },
-        yaxis: { title: 'Value', domain: [0.45, 1.0], color: '#9aaa9a' },
-        yaxis2: { title: 'P(shift)', domain: [0.0, 0.38], range: [0, 1.05], color: '#9aaa9a' },
-        xaxis: { visible: false },
-        xaxis2: { title: 'Observation #', color: '#9aaa9a' },
-        shapes: [
-            { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 0.50, y1: 0.50, yref: 'y2', line: { color: '#e8a547', width: 1, dash: 'dot' } },
-            { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 0.80, y1: 0.80, yref: 'y2', line: { color: '#e8c547', width: 1, dash: 'dot' } },
-            { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 0.95, y1: 0.95, yref: 'y2', line: { color: '#c0392b', width: 1, dash: 'dot' } },
+    ForgeViz.render(document.getElementById('pbs-belief-chart'), {
+        title: '', chart_type: 'line',
+        traces: [
+            { x: tArr, y: regimeMeanUpper, name: '95% CI upper', trace_type: 'line', color: 'rgba(232,197,71,0.15)', width: 0 },
+            { x: tArr, y: regimeMeanLower, name: '95% CI lower', trace_type: 'area', fill: 'tonexty', color: 'rgba(232,197,71,0.15)', width: 0 },
+            { x: tArr, y: data, name: 'Observations', trace_type: 'scatter', color: 'rgba(58,127,143,0.7)', marker_size: 5 },
+            { x: tArr, y: regimeMeans, name: 'Regime Mean', trace_type: 'line', color: '#e8c547', width: 2 },
+            { x: tArr, y: shiftProbs, name: 'Shift Prob', trace_type: 'bar', color: spColors }
         ],
-        showlegend: false,
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' }, margin: { t: 20, r: 20, b: 50, l: 60 },
-    }, { responsive: true, displayModeBar: false });
+        reference_lines: [
+            { value: 0.50, axis: 'y', color: '#e8a547', dash: 'dashed', label: '' },
+            { value: 0.80, axis: 'y', color: '#e8c547', dash: 'dashed', label: '' },
+            { value: 0.95, axis: 'y', color: '#c0392b', dash: 'dashed', label: '' }
+        ],
+        x_axis: { label: 'Observation #' }, y_axis: { label: 'Value' }
+    });
 
     // Publish to SvendOps data bus
     SvendOps.publish('pbsCurrentRegimeMean', parseFloat(regimeMeans[n-1].toFixed(3)), '', 'Belief Chart');
@@ -677,31 +641,21 @@ function calcPbsEvidence() {
     msg += ` <br><span style="font-size:11px; color:var(--text-dim);">Reference: μ₀=${mu0.toFixed(3)}, σ=${sigma.toFixed(4)}. Calibration: first ${calN} observations${muInput ? ' (μ₀ user-specified)' : ''}${sigInput ? ' (σ user-specified)' : ''}.</span>`;
     document.getElementById('pbs-evidence-insight').innerHTML = msg;
 
-    // Plotly chart
+    // Evidence chart
     const tArr = data.map((_, i) => i + 1);
 
-    Plotly.newPlot('pbs-evidence-chart', [
-        { x: tArr, y: eValues, mode: 'lines+markers',
-          line: { color: '#3a7f8f', width: 2 },
-          marker: { size: 4, color: levels.map(l => levelColors[l]) },
-          name: 'E-value',
-          hovertemplate: 't=%{x}<br>E-value: %{y:.2f}<extra></extra>' },
-    ], {
-        shapes: [
-            { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 5, y1: 5, line: { color: '#4a9f6e', width: 1, dash: 'dot' } },
-            { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 20, y1: 20, line: { color: '#e8c547', width: 1, dash: 'dot' } },
-            { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 100, y1: 100, line: { color: '#c0392b', width: 1, dash: 'dot' } },
+    ForgeViz.render(document.getElementById('pbs-evidence-chart'), {
+        title: '', chart_type: 'line',
+        traces: [
+            { x: tArr, y: eValues, name: 'E-value', trace_type: 'line', color: '#3a7f8f', width: 2, marker_size: 4 }
         ],
-        annotations: [
-            { x: 1, xref: 'paper', y: 5, text: 'Notable (5)', showarrow: false, xanchor: 'left', font: { size: 10, color: '#4a9f6e' } },
-            { x: 1, xref: 'paper', y: 20, text: 'Strong (20)', showarrow: false, xanchor: 'left', font: { size: 10, color: '#e8c547' } },
-            { x: 1, xref: 'paper', y: 100, text: 'Decisive (100)', showarrow: false, xanchor: 'left', font: { size: 10, color: '#c0392b' } },
+        reference_lines: [
+            { value: 5, axis: 'y', color: '#4a9f6e', dash: 'dashed', label: 'Notable (5)' },
+            { value: 20, axis: 'y', color: '#e8c547', dash: 'dashed', label: 'Strong (20)' },
+            { value: 100, axis: 'y', color: '#c0392b', dash: 'dashed', label: 'Decisive (100)' }
         ],
-        xaxis: { title: 'Observation #', color: '#9aaa9a' },
-        yaxis: { title: 'E-value', color: '#9aaa9a', type: peakE > 50 ? 'log' : 'linear' },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' }, margin: { t: 20, r: 80, b: 50, l: 60 },
-    }, { responsive: true, displayModeBar: false });
+        x_axis: { label: 'Observation #' }, y_axis: { label: 'E-value' }
+    });
 
     // Publish to SvendOps data bus
     SvendOps.publish('pbsEvalue', parseFloat(finalE >= 100 ? finalE.toFixed(0) : finalE.toFixed(2)), '', 'Evidence Strength');
@@ -840,32 +794,24 @@ function calcPbsSigma() {
     msg += ` <br><span style="font-size:11px; color:var(--text-dim);">Escape probability (next ${T_escape} obs): ${(meanEscape*100).toFixed(2)}% via Kramers\u2019 law. Distance to nearest spec: ${Math.min(distToUSL, distToLSL).toFixed(3)}, trend slope: ${trend.toFixed(4)}/obs.</span>`;
     document.getElementById('pbs-sigma-insight').innerHTML = msg;
 
-    // Plotly histogram
+    // Sigma posterior histogram
     const nBins = 60;
     const lo = sorted[Math.floor(sorted.length * 0.005)];
     const hi = sorted[Math.floor(sorted.length * 0.995)];
     const filtered = sorted.filter(v => v >= lo && v <= hi);
 
-    Plotly.newPlot('pbs-sigma-chart', [{
-        x: filtered, type: 'histogram', nbinsx: nBins,
-        marker: { color: 'rgba(58,127,143,0.5)', line: { color: 'rgba(58,127,143,0.8)', width: 1 } },
-        hovertemplate: '\u03A3_B: %{x:.2f}<br>Count: %{y}<extra></extra>',
-    }], {
-        shapes: [
-            { type: 'line', x0: 3, x1: 3, y0: 0, y1: 1, yref: 'paper', line: { color: '#e8c547', width: 2, dash: 'dash' } },
-            { type: 'line', x0: 6, x1: 6, y0: 0, y1: 1, yref: 'paper', line: { color: '#4a9f6e', width: 2, dash: 'dash' } },
-            { type: 'line', x0: median, x1: median, y0: 0, y1: 1, yref: 'paper', line: { color: '#3a7f8f', width: 2.5 } },
+    ForgeViz.render(document.getElementById('pbs-sigma-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { type: 'histogram', x: filtered, nbins: nBins, color: 'rgba(58,127,143,0.5)' }
         ],
-        annotations: [
-            { x: 3, y: 1, yref: 'paper', text: '3\u03C3', showarrow: false, yanchor: 'bottom', font: { size: 10, color: '#e8c547' } },
-            { x: 6, y: 1, yref: 'paper', text: '6\u03C3', showarrow: false, yanchor: 'bottom', font: { size: 10, color: '#4a9f6e' } },
-            { x: median, y: 1, yref: 'paper', text: 'Median', showarrow: false, yanchor: 'bottom', font: { size: 10, color: '#3a7f8f' } },
+        reference_lines: [
+            { value: 3, axis: 'x', color: '#e8c547', dash: 'dashed', label: '3\u03C3' },
+            { value: 6, axis: 'x', color: '#4a9f6e', dash: 'dashed', label: '6\u03C3' },
+            { value: median, axis: 'x', color: '#3a7f8f', dash: 'solid', label: 'Median' }
         ],
-        xaxis: { title: 'Bayesian \u03A3_B', color: '#9aaa9a' },
-        yaxis: { title: 'Count', color: '#9aaa9a' },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' }, margin: { t: 30, r: 20, b: 50, l: 50 },
-    }, { responsive: true, displayModeBar: false });
+        x_axis: { label: 'Bayesian \u03A3_B' }, y_axis: { label: 'Count' }
+    });
 
     // Publish
     SvendOps.publish('pbsSigmaB', parseFloat(median.toFixed(2)), '\u03C3', 'Bayesian Sigma');

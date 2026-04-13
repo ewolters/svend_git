@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frontier Methods Implementation Specification — SVEND</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #131a21;
+    --card-border: #1e3a2a;
+    --green: #4ade80;
+    --green-dim: #2d7a4d;
+    --green-bright: #6ee7a0;
+    --gold: #c9a227;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --teal: #2dd4bf;
+    --blue: #4a90d9;
+    --text: #d1d5db;
+    --text-bright: #f0f0f0;
+    --text-muted: #6b7280;
+    --mono: 'SF Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+    --serif: 'Georgia', 'Times New Roman', serif;
+    --sans: -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--serif);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 1.5rem 1.2rem 5rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Title ── */
+  .title-block {
+    text-align: center;
+    padding: 2.5rem 1rem 2rem;
+    margin-bottom: 2rem;
+  }
+  .title-block .brand {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--green-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .title-block h1 {
+    font-family: var(--sans);
+    font-size: 1.55rem;
+    color: var(--text-bright);
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.02em;
+  }
+  .title-block .subtitle {
+    font-style: italic;
+    color: var(--green);
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+  .title-block .rule {
+    width: 60px;
+    height: 2px;
+    background: var(--green-dim);
+    margin: 0.8rem auto;
+    border: none;
+  }
+  .title-block .author {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-family: var(--sans);
+  }
+
+  /* ── Abstract ── */
+  .abstract {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1.5rem 0 2rem;
+    font-size: 0.92rem;
+    line-height: 1.65;
+  }
+  .abstract .label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--green);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+  }
+
+  /* ── TOC ── */
+  .toc {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+  .toc .label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--green);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+  }
+  .toc a {
+    display: block;
+    color: var(--text);
+    text-decoration: none;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    padding: 0.3rem 0 0.3rem 1rem;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .toc a:hover, .toc a:active {
+    color: var(--green);
+    border-left-color: var(--green);
+  }
+  .toc a .num { color: var(--green-dim); margin-right: 0.5rem; font-family: var(--mono); font-size: 0.8rem; }
+  .toc .divider {
+    border-top: 1px solid var(--card-border);
+    margin: 0.5rem 0;
+  }
+
+  /* ── Sections ── */
+  h2 {
+    font-family: var(--sans);
+    font-size: 1.2rem;
+    color: var(--green);
+    font-weight: 700;
+    margin: 3rem 0 1rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--card-border);
+    letter-spacing: -0.01em;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-size: 1.02rem;
+    color: var(--teal);
+    font-weight: 600;
+    margin: 2rem 0 0.6rem;
+  }
+
+  p { margin-bottom: 0.9rem; }
+  strong, b { color: var(--text-bright); }
+
+  /* ── Math blocks ── */
+  .math {
+    background: #0a0f14;
+    border: 1px solid var(--card-border);
+    border-left: 3px solid var(--green-dim);
+    border-radius: 6px;
+    padding: 0.9rem 1.2rem;
+    margin: 1rem 0;
+    font-family: var(--mono);
+    font-size: 0.92rem;
+    color: var(--green-bright);
+    text-align: center;
+    overflow-x: auto;
+    line-height: 1.8;
+  }
+
+  /* ── Definition / Theorem / Proposition boxes ── */
+  .def-box {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-left: 3px solid var(--blue);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+  .def-box .box-label {
+    font-family: var(--sans);
+    font-weight: 700;
+    color: var(--blue);
+    font-size: 0.85rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .thm-box {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-left: 3px solid var(--gold);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+  .thm-box .box-label {
+    font-family: var(--sans);
+    font-weight: 700;
+    color: var(--gold);
+    font-size: 0.85rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .prop-box {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-left: 3px solid var(--teal);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+  .prop-box .box-label {
+    font-family: var(--sans);
+    font-weight: 700;
+    color: var(--teal);
+    font-size: 0.85rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .warn-box {
+    background: #1a1510;
+    border: 1px solid #3d2b0a;
+    border-left: 3px solid var(--red);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+  .warn-box .box-label {
+    font-family: var(--sans);
+    font-weight: 700;
+    color: var(--red);
+    font-size: 0.85rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .remark {
+    font-style: italic;
+    color: var(--text-muted);
+    padding-left: 1rem;
+    border-left: 2px solid #333;
+    margin: 0.8rem 0 1.2rem;
+    font-size: 0.92rem;
+  }
+
+  /* ── Code blocks ── */
+  .code {
+    background: #0a0f14;
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 0.9rem 1.2rem;
+    margin: 1rem 0;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    color: var(--text);
+    overflow-x: auto;
+    line-height: 1.6;
+    white-space: pre;
+  }
+  .code .kw { color: var(--blue); }
+  .code .fn { color: var(--green); }
+  .code .str { color: var(--gold); }
+  .code .cmt { color: var(--text-muted); }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-family: var(--sans);
+    font-size: 0.85rem;
+  }
+  thead th {
+    background: var(--green-dim);
+    color: var(--bg);
+    font-weight: 700;
+    text-align: left;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  tbody td {
+    padding: 0.55rem 0.8rem;
+    border-bottom: 1px solid #1a2430;
+    vertical-align: top;
+  }
+  tbody tr:nth-child(even) { background: #0f161d; }
+  tbody tr:hover { background: #152030; }
+
+  /* ── References ── */
+  .ref-list {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .ref-list p {
+    margin-bottom: 0.6rem;
+    padding-left: 2rem;
+    text-indent: -2rem;
+  }
+  .ref-list .ref-num {
+    font-family: var(--mono);
+    color: var(--green-dim);
+    font-size: 0.78rem;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--card-border);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Part dividers ── */
+  .part-divider {
+    text-align: center;
+    margin: 3.5rem 0 2rem;
+    padding: 1rem 0;
+    border-top: 2px solid var(--green-dim);
+    border-bottom: 2px solid var(--green-dim);
+  }
+  .part-divider .part-label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--green-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+  .part-divider .part-title {
+    font-family: var(--sans);
+    font-size: 1.15rem;
+    color: var(--text-bright);
+    font-weight: 700;
+  }
+
+  /* ── Mobile tweaks ── */
+  @media (max-width: 480px) {
+    html { font-size: 15px; }
+    body { padding: 1rem 0.8rem 4rem; }
+    .math { font-size: 0.82rem; padding: 0.7rem 0.8rem; }
+    table { font-size: 0.78rem; }
+    thead th, tbody td { padding: 0.4rem 0.5rem; }
+  }
+
+  /* ── Print ── */
+  @media print {
+    body { background: #fff; color: #111; max-width: 100%; }
+    .math { background: #f5f5f0; color: #111; border-color: #ccc; }
+    .def-box, .thm-box, .prop-box { background: #f9f9f9; border-color: #ccc; }
+    h2 { color: #222; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════ TITLE ════════════════ -->
+<div class="title-block">
+  <div class="brand">svend.ai // implementation specification</div>
+  <h1>Frontier Methods for Process Monitoring</h1>
+  <div class="subtitle">E-Detectors, Robust BOCPD, and Conformal Multivariate Monitoring</div>
+  <div class="rule"></div>
+  <div class="author">Eric — Synara Inc. — Working Draft, February 2026</div>
+</div>
+
+<!-- ════════════════ ABSTRACT ════════════════ -->
+<div class="abstract">
+  <div class="label">Abstract</div>
+  This document specifies three frontier statistical methods for implementation in SVEND's quality analytics platform. <strong>Part I: E-Detectors</strong> — nonparametric sequential changepoint detection using e-processes (Shin, Ramdas &amp; Rinaldo, 2022/2024), providing anytime-valid guarantees without distributional assumptions. <strong>Part II: Robust BOCPD</strong> — generalized Bayesian online changepoint detection using β-divergence scoring (Altamirano, Briol &amp; Knoblauch, ICML 2023), making the existing BOCPD engine robust to outliers. <strong>Part III: Conformal Multivariate Monitoring</strong> — extending Burger's (2025) conformal prediction framework to multivariate process monitoring via anomaly detection wrapping. Each part contains: mathematical specification, algorithmic pseudocode, Django data model, chart specification, and anti-patterns. These methods share a common philosophy: <strong>distribution-free guarantees, sequential validity, and uncertainty as first-class output</strong>.
+</div>
+
+<!-- ════════════════ TOC ════════════════ -->
+<div class="toc">
+  <div class="label">Contents</div>
+  <a href="#p1" style="color:var(--green-bright);font-weight:600;"><span class="num">I</span> E-Detectors: Nonparametric Sequential Changepoint Detection</a>
+  <a href="#s1"><span class="num">1</span> Motivation and Relationship to Existing Tools</a>
+  <a href="#s2"><span class="num">2</span> Mathematical Foundation</a>
+  <a href="#s3"><span class="num">3</span> Algorithm: CUSUM-Style E-Detector</a>
+  <a href="#s4"><span class="num">4</span> Chart Specification</a>
+  <a href="#s5"><span class="num">5</span> Django Data Model</a>
+  <div class="divider"></div>
+  <a href="#p2" style="color:var(--green-bright);font-weight:600;"><span class="num">II</span> Robust BOCPD via Generalized Bayesian Inference</a>
+  <a href="#s6"><span class="num">6</span> The Outlier Problem in Standard BOCPD</a>
+  <a href="#s7"><span class="num">7</span> Density Power Divergence Scoring</a>
+  <a href="#s8"><span class="num">8</span> Algorithm: Dm-BOCD</a>
+  <a href="#s9"><span class="num">9</span> Integration with PBS Belief Chart</a>
+  <div class="divider"></div>
+  <a href="#p3" style="color:var(--green-bright);font-weight:600;"><span class="num">III</span> Conformal Multivariate Process Monitoring</a>
+  <a href="#s10"><span class="num">10</span> From Univariate Charts to Multivariate Anomaly Detection</a>
+  <a href="#s11"><span class="num">11</span> Conformal Calibration of Anomaly Scores</a>
+  <a href="#s12"><span class="num">12</span> The Conformal p-Value Chart</a>
+  <a href="#s13"><span class="num">13</span> Django Data Model and API</a>
+  <div class="divider"></div>
+  <a href="#s14"><span class="num">14</span> Anti-Patterns (All Methods)</a>
+  <a href="#refs"><span class="num">&nbsp;</span> References</a>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║           PART I: E-DETECTORS            ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="part-divider" id="p1">
+  <div class="part-label">Part I</div>
+  <div class="part-title">E-Detectors: Nonparametric Sequential Changepoint Detection</div>
+</div>
+
+
+<h2 id="s1">1. Motivation and Relationship to Existing Tools</h2>
+
+<p>SVEND currently has two changepoint-adjacent tools that occupy distinct roles:</p>
+
+<table>
+  <thead><tr><th>Existing Tool</th><th>What It Does</th><th>Limitation</th></tr></thead>
+  <tbody>
+    <tr><td>BOCPD (Belief Chart)</td><td>Bayesian posterior over run lengths. Answers: "has the generative model changed?"</td><td>Parametric (Normal-Gamma conjugate). Sensitive to outliers. No formal false alarm guarantee.</td></tr>
+    <tr><td>E-value / AVI Test</td><td>Sequential evidence accumulation against H₀. Answers: "is the process shifted from reference?"</td><td>Tests a fixed null. Does not detect <em>when</em> a change occurred. Not a changepoint detector.</td></tr>
+  </tbody>
+</table>
+
+<p><strong>E-Detectors fill the gap:</strong> they are changepoint detectors (like BOCPD) that use e-values (like the AVI test), yielding the best of both worlds — detecting <em>when</em> a change happens, with <strong>nonparametric, anytime-valid false alarm control</strong>.</p>
+
+<div class="prop-box">
+  <div class="box-label">Strategic Position</div>
+  E-Detectors are the <strong>distribution-free version of the Belief Chart</strong>. When an operator does not trust the Gaussian assumption, or when data are heavy-tailed, multi-modal, or contaminated, the E-Detector chart provides the same operational answer — "has the process changed?" — with finite-sample guarantees that hold regardless of the true distribution.
+</div>
+
+<p class="remark"><em>Remark.</em> The Belief Chart gives richer output (posterior run length distribution, regime parameters). The E-Detector gives harder guarantees (provable ARL control). They are complementary. The PBS Health gauge should fuse evidence from both.</p>
+
+
+<h2 id="s2">2. Mathematical Foundation</h2>
+
+<h3>2.1 Setup</h3>
+
+<p>Observe a stream X₁, X₂, ... sequentially. Before an unknown changepoint ν, data come from a pre-change distribution P. After ν, data come from some post-change distribution Q ≠ P. Both P and Q may be <strong>composite</strong> (unknown parameters). The goal: raise an alarm as soon as possible after ν, while controlling false alarms when ν = ∞.</p>
+
+<h3>2.2 E-Processes</h3>
+
+<div class="def-box">
+  <div class="box-label">Definition (E-value)</div>
+  A nonneg random variable E is an <strong>e-value</strong> for null hypothesis P if 𝔼<sub>P</sub>[E] ≤ 1. Values E ≫ 1 are evidence against P. By Markov's inequality, P(E ≥ 1/α) ≤ α for any α.
+</div>
+
+<div class="def-box">
+  <div class="box-label">Definition (E-process)</div>
+  A sequence (M<sub>t</sub>)<sub>t≥0</sub> is an <strong>e-process</strong> for P if it is a nonneg supermartingale under P with M₀ ≤ 1. Equivalently: M<sub>τ</sub> is an e-value for every stopping time τ. This is the anytime-valid property.
+</div>
+
+<p>The key construction: given observations X₁, ..., X<sub>t</sub>, define a <strong>one-step e-value</strong> for testing whether X<sub>t</sub> came from P:</p>
+
+<div class="math">
+  e<sub>t</sub> = f<sub>Q</sub>(X<sub>t</sub>) / f<sub>P</sub>(X<sub>t</sub>)
+</div>
+
+<p>When P and Q are simple (known densities), this is the likelihood ratio. The product M<sub>t</sub> = ∏<sub>s=1</sub><sup>t</sup> e<sub>s</sub> is the sequential likelihood ratio — an e-process by construction.</p>
+
+<h3>2.3 Composite Nulls: The GROW E-value</h3>
+
+<p>When P is composite (e.g., "the mean is μ₀ but σ is unknown"), we need e-values valid for <em>all</em> P ∈ 𝒫. The <strong>GROW</strong> (Growth Rate Optimal in the Worst case) construction:</p>
+
+<div class="def-box">
+  <div class="box-label">Definition (GROW E-value for Sub-Gaussian Mean Shift)</div>
+  For testing H₀: μ = μ₀ against H₁: μ ≠ μ₀ with sub-Gaussian data (bounded in [a, b]):
+</div>
+
+<div class="math">
+  e<sub>t</sub>(λ) = exp(λ(X<sub>t</sub> − μ₀) − ψ(λ))
+</div>
+
+<p>where ψ(λ) = λ²(b − a)² / 8 is the sub-Gaussian CGF bound. The parameter λ controls the "bet size" — how much evidence we accumulate per observation. Choose λ adaptively via online learning (details in §3).</p>
+
+<h3>2.4 From E-Processes to E-Detectors</h3>
+
+<div class="def-box">
+  <div class="box-label">Definition (E-Detector)</div>
+  An <strong>e-detector</strong> is a sequence N<sub>t</sub> = Σ<sub>s=1</sub><sup>t</sup> M<sub>s:t</sub> where M<sub>s:t</sub> is an e-process started at time s, evaluated at time t. The alarm is raised at:
+</div>
+
+<div class="math">
+  τ = inf { t ≥ 1 : N<sub>t</sub> ≥ 1/α }
+</div>
+
+<div class="thm-box">
+  <div class="box-label">Theorem (ARL Guarantee — Shin, Ramdas &amp; Rinaldo)</div>
+  For any e-detector with threshold 1/α: 𝔼<sub>∞</sub>[τ] ≥ 1/α. That is, the average run length under no change is at least 1/α. This holds <strong>nonasymptotically</strong>, for <strong>any</strong> data distribution satisfying the null, with <strong>no distributional assumptions</strong>.
+</div>
+
+<p>The sum structure is the key insight. Each M<sub>s:t</sub> is an e-process that "bets" the changepoint occurred at time s. The sum N<sub>t</sub> = Σ M<sub>s:t</sub> aggregates evidence across all possible changepoint locations, analogous to the Shiryaev–Roberts statistic but in e-value language.</p>
+
+<h3>2.5 CUSUM-Style E-Detector</h3>
+
+<p>The sum over all starting times is expensive (O(t) per step). The CUSUM variant uses a running maximum:</p>
+
+<div class="def-box">
+  <div class="box-label">Definition (CUSUM E-Detector)</div>
+  Define the CUSUM e-detector recursively:
+</div>
+
+<div class="math">
+  N<sub>t</sub><sup>CUSUM</sup> = max(1, N<sub>t−1</sub><sup>CUSUM</sup>) · e<sub>t</sub>
+</div>
+
+<p>with N₀ = 1. Alarm when N<sub>t</sub> ≥ 1/α. This is O(1) per step and enjoys the same ARL guarantee. The max(1, ·) resets the process when evidence drops below 1, analogous to the classical CUSUM reset.</p>
+
+<div class="thm-box">
+  <div class="box-label">Theorem (CUSUM E-Detector is an E-Detector)</div>
+  N<sub>t</sub><sup>CUSUM</sup> ≤ Σ<sub>s=1</sub><sup>t</sup> M<sub>s:t</sub> for all t. Therefore, the ARL guarantee 𝔼[τ] ≥ 1/α still holds.
+</div>
+
+
+<h2 id="s3">3. Algorithm: CUSUM-Style E-Detector for SVEND</h2>
+
+<h3>3.1 Concrete Implementation for Process Mean Shift</h3>
+
+<div class="prop-box">
+  <div class="box-label">Algorithm (E-Detector for Bounded Data)</div>
+  <strong>Input:</strong> Stream X₁, X₂, ...; calibration reference μ₀ (from Phase I or nominal); bounds [a, b] (from spec limits or data range); significance α (default 0.05).<br>
+  <strong>Output:</strong> At each t: log-evidence log(N<sub>t</sub>), alarm flag, estimated post-change mean.
+</div>
+
+<div class="code"><span class="cmt"># Initialize</span>
+log_N = 0.0          <span class="cmt"># log of CUSUM e-detector</span>
+lambda_t = 0.0       <span class="cmt"># adaptive bet parameter</span>
+threshold = log(1/α) <span class="cmt"># e.g., log(20) ≈ 3.0 for α = 0.05</span>
+sum_x = 0.0          <span class="cmt"># running sum for adaptive lambda</span>
+count = 0
+range_sq = (b - a)**2 / 8  <span class="cmt"># sub-Gaussian variance proxy</span>
+
+<span class="kw">for each</span> observation X_t:
+    count += 1
+    
+    <span class="cmt"># Step 1: Compute one-step log e-value</span>
+    log_e = lambda_t * (X_t - mu_0) - lambda_t**2 * range_sq
+    
+    <span class="cmt"># Step 2: CUSUM update (reset if below 0 in log space)</span>
+    log_N = max(0, log_N) + log_e
+    
+    <span class="cmt"># Step 3: Check alarm</span>
+    alarm = (log_N >= threshold)
+    
+    <span class="cmt"># Step 4: Adapt lambda via ONS (Online Newton Step)</span>
+    <span class="cmt"># Optimal: lambda* = (X̄ - mu_0) / (2 * range_sq)</span>
+    <span class="cmt"># Use running mean as proxy for post-change mean</span>
+    sum_x += X_t
+    x_bar = sum_x / count
+    lambda_t = <span class="fn">clip</span>((x_bar - mu_0) / (2 * range_sq), -1/(b-a), 1/(b-a))
+    
+    <span class="kw">yield</span> log_N, alarm, x_bar</div>
+
+<h3>3.2 Two-Sided Detection</h3>
+
+<p>Run two one-sided CUSUM e-detectors in parallel: one for upward shifts (λ > 0) and one for downward shifts (λ < 0). Alarm when either triggers. Combined ARL guarantee: 𝔼[τ] ≥ 1/(2α) by Bonferroni, or use α/2 per side for exact 1/α control.</p>
+
+<h3>3.3 Calibration Phase</h3>
+
+<div class="warn-box">
+  <div class="box-label">Critical: Reference Parameter Source</div>
+  μ₀ must come from Phase I calibration data or the nominal/target value. NEVER compute μ₀ from the full dataset. The bounds [a, b] can be set to [LSL, USL] (spec limits) or estimated from calibration data as [X̄ − 4s, X̄ + 4s]. Using spec limits is preferred — it makes the method truly distribution-free.
+</div>
+
+
+<h2 id="s4">4. Chart Specification</h2>
+
+<h3>4.1 E-Detector Chart</h3>
+
+<table>
+  <thead><tr><th>Element</th><th>Specification</th></tr></thead>
+  <tbody>
+    <tr><td>X axis</td><td>Observation index (or timestamp)</td></tr>
+    <tr><td>Y axis</td><td>log(N<sub>t</sub>) — log e-detector statistic</td></tr>
+    <tr><td>Main line</td><td>log(N<sub>t</sub>) as step function, green when below threshold, red when above</td></tr>
+    <tr><td>Threshold</td><td>Horizontal line at log(1/α), dashed red, labeled "1/α = {value}"</td></tr>
+    <tr><td>Zero line</td><td>Horizontal at 0 (CUSUM reset level), dashed gray</td></tr>
+    <tr><td>Alarm markers</td><td>Red diamonds at points where log(N<sub>t</sub>) first crosses threshold</td></tr>
+    <tr><td>Shading</td><td>Light red fill between line and threshold when alarm active</td></tr>
+  </tbody>
+</table>
+
+<h3>4.2 Narrative Output</h3>
+
+<div class="code"><span class="cmt"># Template</span>
+<span class="str">"E-Detector status: {MONITORING|ALARM}. "</span>
+<span class="str">"Log-evidence: {log_N:.1f} (threshold: {threshold:.1f}). "</span>
+<span class="str">"Evidence ratio: {exp(log_N):.0f}:1 against in-control. "</span>
+<span class="str">"Method: Distribution-free CUSUM e-detector. "</span>
+<span class="str">"Guarantee: ARL ≥ {1/alpha:.0f} under any pre-change distribution."</span></div>
+
+<h3>4.3 Relationship to Existing Charts</h3>
+
+<table>
+  <thead><tr><th>Existing Tool</th><th>E-Detector Advantage</th><th>Existing Tool Advantage</th></tr></thead>
+  <tbody>
+    <tr><td>Belief Chart (BOCPD)</td><td>No distributional assumption. Formal ARL control.</td><td>Richer output (run length posterior, regime params).</td></tr>
+    <tr><td>AVI / E-Test</td><td>Detects <em>when</em> change occurred (CUSUM resets). Changepoint detector, not just hypothesis test.</td><td>Simpler interpretation for fixed-null testing.</td></tr>
+    <tr><td>Evidence Accumulation</td><td>Proper changepoint detection with reset mechanism.</td><td>Evidence chart shows cumulative weight of evidence over entire history.</td></tr>
+  </tbody>
+</table>
+
+
+<h2 id="s5">5. Django Data Model</h2>
+
+<div class="code"><span class="kw">class</span> <span class="fn">EDetectorState</span>(models.Model):
+    <span class="str">"""Per-observation state for the E-Detector chart."""</span>
+    study = models.ForeignKey(<span class="str">'Study'</span>, on_delete=models.CASCADE)
+    observation_index = models.IntegerField()
+    
+    <span class="cmt"># Core state</span>
+    log_e_value = models.FloatField()        <span class="cmt"># one-step log e-value</span>
+    log_N_upper = models.FloatField()        <span class="cmt"># CUSUM statistic (upper)</span>
+    log_N_lower = models.FloatField()        <span class="cmt"># CUSUM statistic (lower)</span>
+    log_N_combined = models.FloatField()     <span class="cmt"># max(upper, lower)</span>
+    
+    <span class="cmt"># Adaptive parameters</span>
+    lambda_upper = models.FloatField()       <span class="cmt"># betting param (positive shift)</span>
+    lambda_lower = models.FloatField()       <span class="cmt"># betting param (negative shift)</span>
+    
+    <span class="cmt"># Decision</span>
+    alarm = models.BooleanField(default=False)
+    alarm_direction = models.CharField(      <span class="cmt"># 'upper', 'lower', or null</span>
+        max_length=10, null=True, blank=True)
+    
+    <span class="cmt"># Reference (from calibration)</span>
+    reference_mu = models.FloatField()
+    bound_lower = models.FloatField()        <span class="cmt"># a</span>
+    bound_upper = models.FloatField()        <span class="cmt"># b</span>
+    alpha = models.FloatField(default=0.05)
+    
+    <span class="kw">class</span> <span class="fn">Meta</span>:
+        unique_together = [<span class="str">'study'</span>, <span class="str">'observation_index'</span>]
+        ordering = [<span class="str">'observation_index'</span>]</div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║         PART II: ROBUST BOCPD            ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="part-divider" id="p2">
+  <div class="part-label">Part II</div>
+  <div class="part-title">Robust BOCPD via Generalized Bayesian Inference</div>
+</div>
+
+
+<h2 id="s6">6. The Outlier Problem in Standard BOCPD</h2>
+
+<p>Standard BOCPD (Adams &amp; MacKay, 2007) — which powers the PBS Belief Chart — computes the posterior over run lengths via:</p>
+
+<div class="math">
+  P(r<sub>t</sub> = ℓ | X<sub>1:t</sub>) ∝ π<sub>ℓ</sub>(X<sub>t</sub>) · P(r<sub>t</sub> = ℓ | r<sub>t−1</sub>) · P(r<sub>t−1</sub> | X<sub>1:t−1</sub>)
+</div>
+
+<p>where π<sub>ℓ</sub>(X<sub>t</sub>) is the <strong>predictive likelihood</strong> of X<sub>t</sub> given the data in the current run of length ℓ. The problem:</p>
+
+<div class="warn-box">
+  <div class="box-label">Failure Mode: Outlier-Induced False Changepoints</div>
+  A single outlier X<sub>t</sub> can have π<sub>ℓ</sub>(X<sub>t</sub>) ≈ 0 for all existing runs. This drives the posterior mass toward r<sub>t</sub> = 0 (new run), triggering a <strong>false changepoint</strong>. The problem worsens with long runs: the predictive gets sharper (lower variance), making it more sensitive to outliers. This is not a bug in the implementation — it is a fundamental property of standard Bayesian inference using the log-likelihood.
+</div>
+
+<p>Observed in PBS validation: the bore diameter dataset Phase 3 (overcorrection spike at obs 81–85) triggers a cascade of changepoint detections in standard BOCPD, when the correct interpretation is "transient disturbance, not regime change."</p>
+
+
+<h2 id="s7">7. Density Power Divergence Scoring</h2>
+
+<h3>7.1 The Fix: Replace Log-Likelihood with β-Divergence</h3>
+
+<p>Altamirano et al. (2023) replace the log-likelihood scoring rule with the <strong>density power divergence</strong> (DPD), also known as the β-divergence. Instead of:</p>
+
+<div class="math">
+  <span style="color:var(--red);">Standard:</span>&nbsp; S(x, θ) = log f<sub>θ</sub>(x)
+</div>
+
+<p>use:</p>
+
+<div class="math">
+  <span style="color:var(--green);">Robust:</span>&nbsp; S<sub>β</sub>(x, θ) = −(1/β) f<sub>θ</sub>(x)<sup>β</sup> + (1/(1+β)) ∫ f<sub>θ</sub>(z)<sup>1+β</sup> dz
+</div>
+
+<p>where β ∈ (0, 1] is the <strong>robustness parameter</strong>.</p>
+
+<div class="thm-box">
+  <div class="box-label">Theorem (Robustness Properties of β-Divergence)</div>
+  As β → 0, the DPD recovers the log-likelihood (standard Bayesian). As β → 1, the DPD approaches the L² distance between densities. For β > 0, the influence function of the DPD-minimizer is <strong>bounded</strong>, meaning outliers have bounded effect on parameter estimates. Breakdown point increases with β.
+</div>
+
+<h3>7.2 Conjugate Form for Normal Data</h3>
+
+<p>For the Normal-Gamma conjugate family used in PBS, the DPD scoring has a <strong>closed-form</strong> update. This is the critical result that makes Dm-BOCD practical.</p>
+
+<div class="def-box">
+  <div class="box-label">Definition (DPD Score for Normal Distribution)</div>
+  For X ~ N(μ, σ²), the DPD score at observation x is:
+</div>
+
+<div class="math">
+  S<sub>β</sub>(x; μ, σ²) = −(1/β)(2πσ²)<sup>−β/2</sup> exp(−β(x−μ)²/(2σ²))
+  <br> + (1/(1+β))(2πσ²)<sup>−β/2</sup> (1+β)<sup>−1/2</sup>
+</div>
+
+<div class="prop-box">
+  <div class="box-label">Proposition (Robustness Intuition)</div>
+  The exponential term exp(−β(x−μ)²/(2σ²)) acts as a <strong>soft truncation</strong>. When |x − μ| is large (outlier), this term → 0, meaning the outlier contributes ≈ 0 to the score regardless of how extreme it is. Compare to the standard log-likelihood, where the contribution is −(x−μ)²/(2σ²), which grows without bound.
+</div>
+
+<h3>7.3 Generalized Posterior Update</h3>
+
+<p>Replace the standard Bayesian update with a <strong>generalized Bayesian</strong> update:</p>
+
+<div class="math">
+  π<sub>n</sub><sup>β</sup>(θ) ∝ π<sub>n−1</sub><sup>β</sup>(θ) · exp(η · S<sub>β</sub>(X<sub>n</sub>; θ))
+</div>
+
+<p>where η > 0 is a learning rate. For the Normal-Gamma conjugate, this yields closed-form sufficient statistic updates with <strong>modified counts</strong>:</p>
+
+<div class="math">
+  κ<sub>n</sub> = κ<sub>n−1</sub> + w<sub>n</sub><br>
+  ν<sub>n</sub> = ν<sub>n−1</sub> + w<sub>n</sub><br>
+  μ<sub>n</sub> = (κ<sub>n−1</sub>μ<sub>n−1</sub> + w<sub>n</sub>X<sub>n</sub>) / κ<sub>n</sub>
+</div>
+
+<p>where the weight w<sub>n</sub> replaces the count increment of 1:</p>
+
+<div class="math">
+  w<sub>n</sub> = exp(−β(X<sub>n</sub> − μ<sub>n−1</sub>)² / (2σ²<sub>n−1</sub>))
+</div>
+
+<p class="remark"><em>Remark.</em> When β = 0, w<sub>n</sub> = 1 always (standard Bayes). When β > 0, outliers get downweighted automatically. A 5σ outlier with β = 0.3 receives weight w ≈ exp(−0.3 · 25/2) ≈ 0.024. It is almost ignored.</p>
+
+
+<h2 id="s8">8. Algorithm: Dm-BOCD</h2>
+
+<div class="prop-box">
+  <div class="box-label">Algorithm (Dm-BOCD — Divergence-Minimizing BOCPD)</div>
+  <strong>Input:</strong> Stream X₁, X₂, ...; prior hyperparameters (μ₀, κ₀, α₀, β₀); changepoint prior hazard h; robustness parameter β ∈ [0.1, 0.5].<br>
+  <strong>Output:</strong> At each t: posterior P(r<sub>t</sub> | X<sub>1:t</sub>), MAP run length, regime parameters.
+</div>
+
+<div class="code"><span class="cmt"># Initialize: same structure as standard BOCPD</span>
+<span class="cmt"># For each active run length ℓ, maintain:</span>
+<span class="cmt">#   (kappa_l, mu_l, alpha_l, beta_l) — sufficient stats</span>
+
+<span class="kw">for each</span> observation X_t:
+    <span class="cmt"># Step 1: Compute predictive score for each run length</span>
+    <span class="kw">for each</span> active run length ℓ:
+        mu_pred = mu_l
+        sigma2_pred = beta_l * (kappa_l + 1) / (alpha_l * kappa_l)
+        
+        <span class="cmt"># DPD predictive (Student-t with robust scoring)</span>
+        <span class="cmt"># Compute weight for this observation</span>
+        z = (X_t - mu_pred)**2 / sigma2_pred
+        w = exp(-beta_param * z / 2)
+        
+        <span class="cmt"># DPD predictive log-score (replaces log predictive)</span>
+        log_pred_score[ℓ] = <span class="fn">dpd_predictive_log_score</span>(
+            X_t, mu_pred, sigma2_pred, beta_param)
+    
+    <span class="cmt"># Step 2: Growth probabilities (identical to standard BOCPD)</span>
+    log_growth[ℓ+1] = log_joint[ℓ] + log_pred_score[ℓ] + log(1-h)
+    
+    <span class="cmt"># Step 3: Changepoint probability</span>
+    log_cp = <span class="fn">logsumexp</span>(log_joint[:] + log_pred_score[:]) + log(h)
+    
+    <span class="cmt"># Step 4: Update sufficient statistics with ROBUST weights</span>
+    <span class="kw">for each</span> active run length ℓ:
+        w = exp(-beta_param * (X_t - mu_l)**2 / (2 * sigma2_l))
+        kappa_l_new = kappa_l + w
+        mu_l_new = (kappa_l * mu_l + w * X_t) / kappa_l_new
+        alpha_l_new = alpha_l + w / 2
+        beta_l_new = beta_l + w * kappa_l * (X_t - mu_l)**2 / (2 * kappa_l_new)
+    
+    <span class="cmt"># Step 5: Normalize, truncate (same as standard)</span>
+    <span class="cmt"># Truncate to top K=200 run lengths</span></div>
+
+<h3>8.1 Choosing β</h3>
+
+<table>
+  <thead><tr><th>β Value</th><th>Behavior</th><th>When to Use</th></tr></thead>
+  <tbody>
+    <tr><td>0.0</td><td>Standard BOCPD (no robustness)</td><td>Clean data, validated Normal assumption</td></tr>
+    <tr><td>0.1</td><td>Mild robustness, close to standard</td><td>Default for most manufacturing processes</td></tr>
+    <tr><td>0.3</td><td>Moderate robustness</td><td>Processes with known measurement outliers, gage issues</td></tr>
+    <tr><td>0.5</td><td>Strong robustness</td><td>Heavy-tailed data, contaminated streams</td></tr>
+    <tr><td>> 0.5</td><td>Very conservative, may miss real shifts</td><td>Rarely recommended</td></tr>
+  </tbody>
+</table>
+
+<div class="warn-box">
+  <div class="box-label">Anti-Pattern: Setting β Too High</div>
+  High β makes BOCPD robust to outliers but also <strong>slower to detect real shifts</strong>. The tradeoff is fundamental: robustness = reduced sensitivity. Default β = 0.1 for SVEND. Surface β as a user-adjustable parameter labeled "Outlier Robustness" with a slider.
+</div>
+
+
+<h2 id="s9">9. Integration with PBS Belief Chart</h2>
+
+<h3>9.1 Drop-In Replacement</h3>
+
+<p>Dm-BOCD has the <strong>identical interface</strong> as standard BOCPD. Same inputs, same outputs. The only change is the internal scoring rule and sufficient statistic update. This means:</p>
+
+<table>
+  <thead><tr><th>PBS Component</th><th>Change Required</th></tr></thead>
+  <tbody>
+    <tr><td>Belief Chart</td><td>Add β parameter. Default β = 0.1. Existing output format unchanged.</td></tr>
+    <tr><td>Evidence Accumulation</td><td>None — E-values are computed separately.</td></tr>
+    <tr><td>Process Narrative</td><td>Add: "Robustness: β = {value} (outlier weight at 3σ: {w:.1%})"</td></tr>
+    <tr><td>Health Gauge</td><td>None — consumes P(shifted) which is still computed identically.</td></tr>
+    <tr><td>Adaptive Limits</td><td>Benefits automatically — limits less affected by outliers.</td></tr>
+  </tbody>
+</table>
+
+<h3>9.2 Diagnostic: Robustness Report</h3>
+
+<p>New output: for each observation, report the <strong>weight</strong> w<sub>t</sub> assigned by the DPD. Observations with w < 0.5 are being downweighted as potential outliers. This provides an automatic outlier flagging mechanism as a side-effect of the robust inference.</p>
+
+<div class="code"><span class="cmt"># Add to narrative</span>
+<span class="kw">if</span> w_t < 0.5:
+    narrative += <span class="str">f"⚠ Obs {t} downweighted (w={w_t:.2f}). "</span>
+    narrative += <span class="str">"Treated as potential outlier by robust filter."</span></div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  PART III: CONFORMAL MULTIVARIATE MON.   ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<div class="part-divider" id="p3">
+  <div class="part-label">Part III</div>
+  <div class="part-title">Conformal Multivariate Process Monitoring</div>
+</div>
+
+
+<h2 id="s10">10. From Univariate Charts to Multivariate Anomaly Detection</h2>
+
+<p>SVEND's existing Conformal Control Chart (from Burger §3) monitors a <strong>single</strong> quality characteristic. But real processes have 5–50 correlated variables (temperatures, pressures, flow rates, chemical concentrations). Monitoring each with a separate chart is statistically unsound (multiplicity) and operationally overwhelming.</p>
+
+<p>Burger's §4 proposes the solution: reframe multivariate monitoring as <strong>anomaly detection</strong>, wrap any anomaly detector in conformal calibration, and monitor a single p-value chart.</p>
+
+<div class="prop-box">
+  <div class="box-label">Key Insight</div>
+  Classical multivariate SPC (Hotelling T²) assumes multivariate normality and known covariance. The conformal approach: train <em>any</em> anomaly detection model on in-control data (autoencoder, isolation forest, one-class SVM, etc.), then use conformal calibration to convert its raw scores into a <strong>p-value with guaranteed false alarm rate α</strong>, regardless of whether the model is correct or the data is Normal.
+</div>
+
+
+<h2 id="s11">11. Conformal Calibration of Anomaly Scores</h2>
+
+<h3>11.1 The Calibration Procedure</h3>
+
+<div class="def-box">
+  <div class="box-label">Definition (Nonconformity Score)</div>
+  Let A(·) be any anomaly detection function that maps a multivariate observation <strong>x</strong> ∈ ℝ<sup>d</sup> to a scalar score s ∈ ℝ, where higher scores indicate greater anomalousness. Examples: reconstruction error of an autoencoder, isolation depth, Mahalanobis distance, negative log-likelihood of a density estimator.
+</div>
+
+<div class="def-box">
+  <div class="box-label">Definition (Calibration Set)</div>
+  From Phase I in-control data, compute anomaly scores for each calibration observation: S<sub>cal</sub> = {A(<strong>x</strong><sub>1</sub>), A(<strong>x</strong><sub>2</sub>), ..., A(<strong>x</strong><sub>m</sub>)}. This is the empirical distribution of "normal" anomaly scores.
+</div>
+
+<div class="def-box">
+  <div class="box-label">Definition (Conformal p-Value)</div>
+  For a new observation <strong>x</strong><sub>t</sub> with score s<sub>t</sub> = A(<strong>x</strong><sub>t</sub>), the conformal p-value is:
+</div>
+
+<div class="math">
+  p<sub>t</sub> = (1 + |{i : S<sub>cal,i</sub> ≥ s<sub>t</sub>}|) / (m + 1)
+</div>
+
+<p>This is the rank of s<sub>t</sub> among the calibration scores, normalized. Small p-value = observation is more anomalous than most calibration data.</p>
+
+<div class="thm-box">
+  <div class="box-label">Theorem (Finite-Sample Validity — Vovk et al., 2005)</div>
+  If <strong>x</strong><sub>t</sub> is exchangeable with the calibration data (i.e., the process is in control), then P(p<sub>t</sub> ≤ α) ≤ α for any α. This holds <strong>exactly</strong> in finite samples, for <strong>any</strong> distribution, for <strong>any</strong> anomaly scoring function A(·).
+</div>
+
+<h3>11.2 Choice of Anomaly Detector</h3>
+
+<table>
+  <thead><tr><th>Method</th><th>Strengths</th><th>SVEND Use Case</th><th>Dependencies</th></tr></thead>
+  <tbody>
+    <tr><td>Isolation Forest</td><td>Fast, no density estimation, handles mixed types</td><td><strong>Default</strong> — works out of the box for most processes</td><td>scikit-learn</td></tr>
+    <tr><td>Autoencoder</td><td>Learns nonlinear manifold structure</td><td>High-dimensional sensor streams (d > 20)</td><td>PyTorch</td></tr>
+    <tr><td>Mahalanobis Distance</td><td>Interpretable, fast</td><td>When approximate normality holds</td><td>numpy only</td></tr>
+    <tr><td>One-Class SVM</td><td>Good boundary detection</td><td>When anomalies are in specific subspaces</td><td>scikit-learn</td></tr>
+    <tr><td>Kernel Density Estimate</td><td>Full density model</td><td>Low-dimensional (d ≤ 5), smooth distributions</td><td>scikit-learn</td></tr>
+  </tbody>
+</table>
+
+<div class="prop-box">
+  <div class="box-label">Recommendation</div>
+  Start with <strong>Isolation Forest</strong> as the default anomaly backend. It requires no distributional assumptions, handles mixed variable types, and the conformal wrapper guarantees valid p-values regardless of model quality. Add Mahalanobis as a "classical" fallback. Autoencoder as a premium option for complex processes.
+</div>
+
+
+<h2 id="s12">12. The Conformal p-Value Chart</h2>
+
+<h3>12.1 Algorithm</h3>
+
+<div class="code"><span class="kw">class</span> <span class="fn">ConformalMultivariateMonitor</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, calibration_data, alpha=0.05, method=<span class="str">'isolation_forest'</span>):
+        <span class="cmt"># Step 1: Fit anomaly detector on calibration data</span>
+        self.detector = <span class="fn">fit_anomaly_detector</span>(calibration_data, method)
+        
+        <span class="cmt"># Step 2: Compute calibration scores</span>
+        self.cal_scores = <span class="fn">sorted</span>([
+            self.detector.score(x) <span class="kw">for</span> x <span class="kw">in</span> calibration_data
+        ])
+        self.m = len(self.cal_scores)
+        self.alpha = alpha
+    
+    <span class="kw">def</span> <span class="fn">monitor</span>(self, x_new):
+        <span class="cmt"># Step 3: Score new observation</span>
+        s_new = self.detector.score(x_new)
+        
+        <span class="cmt"># Step 4: Compute conformal p-value via rank</span>
+        <span class="cmt"># Number of calibration scores ≥ s_new</span>
+        rank = <span class="fn">bisect_left</span>(self.cal_scores, s_new)
+        n_geq = self.m - rank
+        p_value = (1 + n_geq) / (self.m + 1)
+        
+        <span class="cmt"># Step 5: Signal</span>
+        anomaly = (p_value <= self.alpha)
+        
+        <span class="kw">return</span> {
+            <span class="str">'p_value'</span>: p_value,
+            <span class="str">'anomaly_score'</span>: s_new,
+            <span class="str">'anomaly'</span>: anomaly,
+            <span class="str">'evidence_strength'</span>: <span class="fn">classify_p</span>(p_value)
+        }
+
+<span class="kw">def</span> <span class="fn">classify_p</span>(p):
+    <span class="kw">if</span> p > 0.10: <span class="kw">return</span> <span class="str">'NORMAL'</span>
+    <span class="kw">if</span> p > 0.05: <span class="kw">return</span> <span class="str">'WARNING'</span>
+    <span class="kw">if</span> p > 0.01: <span class="kw">return</span> <span class="str">'ANOMALY'</span>
+    <span class="kw">return</span> <span class="str">'SEVERE ANOMALY'</span></div>
+
+<h3>12.2 Chart Specification</h3>
+
+<table>
+  <thead><tr><th>Element</th><th>Specification</th></tr></thead>
+  <tbody>
+    <tr><td>X axis</td><td>Observation index (or timestamp)</td></tr>
+    <tr><td>Y axis</td><td>p-value (0 to 1), <strong>inverted</strong> so anomalies appear at top OR use −log₁₀(p) so anomalies spike up</td></tr>
+    <tr><td>Main line</td><td>p<sub>t</sub> at each time step, connected</td></tr>
+    <tr><td>Threshold lines</td><td>α = 0.05 (red dashed), α = 0.01 (red solid)</td></tr>
+    <tr><td>Color coding</td><td>Points above threshold: green. Below 0.05: orange. Below 0.01: red.</td></tr>
+    <tr><td>Annotation</td><td>On anomaly: list top 3 contributing variables (from anomaly detector feature importance or Shapley)</td></tr>
+  </tbody>
+</table>
+
+<h3>12.3 −log₁₀(p) Scale (Recommended)</h3>
+
+<p>Display −log₁₀(p) instead of raw p. This transforms the chart so anomalies spike <strong>upward</strong> (familiar to SPC users) and provides better visual resolution in the critical region:</p>
+
+<table>
+  <thead><tr><th>p-value</th><th>−log₁₀(p)</th><th>Interpretation</th></tr></thead>
+  <tbody>
+    <tr><td>0.50</td><td>0.30</td><td>Normal</td></tr>
+    <tr><td>0.10</td><td>1.00</td><td>Mild concern</td></tr>
+    <tr><td>0.05</td><td>1.30</td><td>Alarm threshold (α = 0.05)</td></tr>
+    <tr><td>0.01</td><td>2.00</td><td>Strong anomaly</td></tr>
+    <tr><td>0.001</td><td>3.00</td><td>Severe anomaly</td></tr>
+  </tbody>
+</table>
+
+<h3>12.4 Narrative Output</h3>
+
+<div class="code"><span class="cmt"># Template</span>
+<span class="str">"Multivariate process health: {NORMAL|WARNING|ANOMALY|SEVERE}. "</span>
+<span class="str">"Conformal p-value: {p:.4f} (-log10: {neg_log_p:.2f}). "</span>
+<span class="str">"Interpretation: this observation is more anomalous than "</span>
+<span class="str">"{(1-p)*100:.1f}% of calibration data. "</span>
+<span class="str">"Anomaly detector: {method}. "</span>
+<span class="str">"Variables: {n_vars} monitored simultaneously. "</span>
+<span class="str">"Guarantee: false alarm rate ≤ {alpha} (distribution-free, finite-sample)."</span></div>
+
+
+<h2 id="s13">13. Django Data Model and API</h2>
+
+<div class="code"><span class="kw">class</span> <span class="fn">ConformalMultivariateConfig</span>(models.Model):
+    <span class="str">"""Configuration for a multivariate conformal monitor."""</span>
+    study = models.ForeignKey(<span class="str">'Study'</span>, on_delete=models.CASCADE)
+    
+    <span class="cmt"># Anomaly detector config</span>
+    method = models.CharField(max_length=30, choices=[
+        (<span class="str">'isolation_forest'</span>, <span class="str">'Isolation Forest'</span>),
+        (<span class="str">'mahalanobis'</span>, <span class="str">'Mahalanobis Distance'</span>),
+        (<span class="str">'autoencoder'</span>, <span class="str">'Autoencoder'</span>),
+        (<span class="str">'ocsvm'</span>, <span class="str">'One-Class SVM'</span>),
+    ], default=<span class="str">'isolation_forest'</span>)
+    
+    alpha = models.FloatField(default=0.05)
+    
+    <span class="cmt"># Calibration state (serialized)</span>
+    calibration_scores_json = models.JSONField()  <span class="cmt"># sorted list</span>
+    n_calibration = models.IntegerField()
+    detector_pickle = models.BinaryField()        <span class="cmt"># fitted model</span>
+    variable_names = models.JSONField()            <span class="cmt"># list of monitored vars</span>
+    
+    <span class="cmt"># Metadata</span>
+    fitted_at = models.DateTimeField(auto_now_add=True)
+
+
+<span class="kw">class</span> <span class="fn">ConformalMultivariateResult</span>(models.Model):
+    <span class="str">"""Per-observation result for multivariate conformal monitor."""</span>
+    config = models.ForeignKey(ConformalMultivariateConfig, on_delete=models.CASCADE)
+    observation_index = models.IntegerField()
+    
+    anomaly_score = models.FloatField()
+    p_value = models.FloatField()
+    neg_log10_p = models.FloatField()
+    is_anomaly = models.BooleanField()
+    
+    <span class="cmt"># Variable contributions (top contributors to anomaly)</span>
+    top_contributors_json = models.JSONField(null=True)  <span class="cmt"># [{var, contrib}, ...]</span>
+    
+    <span class="kw">class</span> <span class="fn">Meta</span>:
+        unique_together = [<span class="str">'config'</span>, <span class="str">'observation_index'</span>]
+        ordering = [<span class="str">'observation_index'</span>]</div>
+
+<h3>13.1 API Endpoint</h3>
+
+<div class="code"><span class="cmt"># URL: /api/conformal-multivariate/</span>
+<span class="cmt"># POST: Configure + calibrate</span>
+{
+    <span class="str">"study_id"</span>: 42,
+    <span class="str">"calibration_phase"</span>: [1, 50],  <span class="cmt">// obs range for calibration</span>
+    <span class="str">"variables"</span>: [<span class="str">"temp_1"</span>, <span class="str">"pressure"</span>, <span class="str">"flow_rate"</span>, <span class="str">"humidity"</span>],
+    <span class="str">"method"</span>: <span class="str">"isolation_forest"</span>,
+    <span class="str">"alpha"</span>: 0.05
+}
+
+<span class="cmt"># GET: /api/conformal-multivariate/{config_id}/results/</span>
+<span class="cmt"># Returns: list of {obs_index, p_value, neg_log10_p, is_anomaly, top_contributors}</span></div>
+
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║          ANTI-PATTERNS (ALL)              ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<h2 id="s14">14. Anti-Patterns (All Methods)</h2>
+
+<div class="warn-box">
+  <div class="box-label">Anti-Pattern 1: Computing Reference from Full Data</div>
+  <strong>Applies to:</strong> E-Detectors, Conformal Multivariate.<br>
+  The reference μ₀ (E-Detector) and calibration scores (Conformal) must come from Phase I / calibration data only. Using the full dataset makes shifts "expected" under the null, destroying detection power. This is the same bug fixed in PBS E-value computation.
+</div>
+
+<div class="warn-box">
+  <div class="box-label">Anti-Pattern 2: Conformal Calibration Set Too Small</div>
+  <strong>Applies to:</strong> Conformal Multivariate.<br>
+  The conformal p-value has resolution 1/(m+1). With m = 20 calibration points, the smallest achievable p-value is 1/21 ≈ 0.048 — barely below α = 0.05. Need m ≥ 100 for useful resolution. m ≥ 200 recommended. Flag if calibration set is too small.
+</div>
+
+<div class="warn-box">
+  <div class="box-label">Anti-Pattern 3: Using β-Divergence Without Understanding Tradeoff</div>
+  <strong>Applies to:</strong> Robust BOCPD.<br>
+  β > 0 is not free: robustness costs detection speed. A real 1σ shift may take 2–3× more observations to detect at β = 0.3 vs β = 0. Surface the tradeoff in the UI. Never silently set β = 0.5.
+</div>
+
+<div class="warn-box">
+  <div class="box-label">Anti-Pattern 4: E-Detector Bounds Too Wide</div>
+  <strong>Applies to:</strong> E-Detectors.<br>
+  The sub-Gaussian bound (b − a)²/8 appears in the exponent. If [a, b] = [LSL, USL] and spec range is much wider than actual process variation, the bet size λ will be tiny, evidence accumulates slowly. Use tighter bounds from calibration data when possible: [X̄ − 4s, X̄ + 4s].
+</div>
+
+<div class="warn-box">
+  <div class="box-label">Anti-Pattern 5: Anomaly Detector Trained on Contaminated Data</div>
+  <strong>Applies to:</strong> Conformal Multivariate.<br>
+  If calibration data contains outliers or out-of-control periods, the anomaly detector learns those as "normal." The conformal guarantee still holds (p-values are valid) but detection power drops because the calibration distribution is polluted. Pre-screen calibration data with univariate PBS or standard control charts.
+</div>
+
+<div class="warn-box">
+  <div class="box-label">Anti-Pattern 6: Displaying Raw p-Values Without Context</div>
+  <strong>Applies to:</strong> Conformal Multivariate.<br>
+  A p-value of 0.03 is not "3% defective" — it means "this observation is more anomalous than 97% of calibration data." Always show the natural-language interpretation. Use −log₁₀(p) scale for the chart. Never expose raw p-values to operators without explanation.
+</div>
+
+<div class="warn-box">
+  <div class="box-label">Anti-Pattern 7: Running E-Detector and BOCPD Independently Without Fusion</div>
+  <strong>Applies to:</strong> All methods in PBS context.<br>
+  When both E-Detector and BOCPD are available, the PBS Health gauge should fuse both signals. Do not show contradictory alarms without reconciliation. Priority: if E-Detector alarms and BOCPD does not, this likely means BOCPD's Normal assumption is wrong. If BOCPD alarms and E-Detector does not, BOCPD may be reacting to an outlier (use Robust BOCPD).
+</div>
+
+
+<!-- ════════════════ REFERENCES ════════════════ -->
+<h2 id="refs">References</h2>
+
+<div class="ref-list">
+  <p><span class="ref-num">[1]</span> Shin, J., Ramdas, A. &amp; Rinaldo, A. E-detectors: a nonparametric framework for sequential change detection. <em>New England J. Statistics in Data Science</em>, 2(2):229–260, 2024. arXiv:2203.03532.</p>
+  <p><span class="ref-num">[2]</span> Altamirano, M., Briol, F.-X. &amp; Knoblauch, J. Robust and Scalable Bayesian Online Changepoint Detection. <em>Proc. ICML</em>, PMLR 202, 2023.</p>
+  <p><span class="ref-num">[3]</span> Burger, C. Distribution-Free Process Monitoring with Conformal Prediction. arXiv:2512.23602, December 2025.</p>
+  <p><span class="ref-num">[4]</span> Adams, R. P. &amp; MacKay, D. J. C. Bayesian Online Changepoint Detection. arXiv:0710.3742, 2007.</p>
+  <p><span class="ref-num">[5]</span> Grünwald, P., de Heide, R. &amp; Koolen, W. Safe testing. <em>J. Royal Statistical Society B</em>, 86(5):1091–1128, 2024.</p>
+  <p><span class="ref-num">[6]</span> Ramdas, A. &amp; Wang, R. Hypothesis Testing with E-values. <em>Foundations and Trends in Statistics</em>, 1(1–2):1–390, 2025.</p>
+  <p><span class="ref-num">[7]</span> Vovk, V., Gammerman, A. &amp; Shafer, G. <em>Algorithmic Learning in a Random World</em>, 2nd ed. Springer, 2022.</p>
+  <p><span class="ref-num">[8]</span> Ramdas, A., Ruf, J., Larsson, M. &amp; Koolen, W. Admissible anytime-valid sequential inference must rely on nonneg martingales. <em>Int. J. Approx. Reasoning</em>, 141:83–109, 2022.</p>
+  <p><span class="ref-num">[9]</span> Shekhar, S. &amp; Ramdas, A. Reducing sequential changepoint detection to sequential estimation. arXiv:2309.09111, 2023.</p>
+  <p><span class="ref-num">[10]</span> van Amsterdam, W. et al. On Continuous Monitoring of Risk Violations under Unknown Shift. arXiv:2506.16416, June 2025.</p>
+  <p><span class="ref-num">[11]</span> Casadei, A. Scaling Causal Mediation for Complex Systems: A Framework for Root Cause Analysis. arXiv:2512.14764, December 2025.</p>
+  <p><span class="ref-num">[12]</span> Liu, F. T., Ting, K. M. &amp; Zhou, Z.-H. Isolation Forest. <em>Proc. ICDM</em>, 413–422, 2008.</p>
+</div>
+
+<!-- ════════════════ FOOTER ════════════════ -->
+<div class="footer">
+  Working Draft — February 2026 — Synara Inc. — CONFIDENTIAL
+</div>
+
+</body>
+</html>

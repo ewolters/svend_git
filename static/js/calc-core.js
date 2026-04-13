@@ -827,44 +827,19 @@ const MonteCarlo = {
 
         const hist = simResult.histogram;
 
-        Plotly.newPlot(containerId, [{
-            type: 'bar',
-            x: hist.labels,
-            y: hist.counts,
-            marker: { color: 'rgba(74, 159, 110, 0.7)' },
-            hovertemplate: '%{x} ' + unit + ': %{y} runs<extra></extra>'
-        }, {
-            type: 'scatter',
-            mode: 'lines',
-            x: [simResult.p5, simResult.p5],
-            y: [0, Math.max(...hist.counts)],
-            line: { color: '#e74c3c', width: 2, dash: 'dash' },
-            name: '5th %ile',
-            hoverinfo: 'name'
-        }, {
-            type: 'scatter',
-            mode: 'lines',
-            x: [simResult.p95, simResult.p95],
-            y: [0, Math.max(...hist.counts)],
-            line: { color: '#e74c3c', width: 2, dash: 'dash' },
-            name: '95th %ile',
-            hoverinfo: 'name'
-        }], {
-            margin: { t: 30, b: 50, l: 50, r: 20 },
-            paper_bgcolor: 'transparent',
-            plot_bgcolor: 'transparent',
-            title: { text: title, font: { size: 13, color: '#a0a0a0' } },
-            xaxis: { title: unit, tickfont: { size: 10, color: '#a0a0a0' }, gridcolor: 'rgba(150,150,150,0.1)' },
-            yaxis: { title: 'Frequency', tickfont: { size: 10, color: '#a0a0a0' }, gridcolor: 'rgba(150,150,150,0.1)' },
-            showlegend: false,
-            annotations: [{
-                x: simResult.mean,
-                y: Math.max(...hist.counts) * 0.9,
-                text: `μ = ${simResult.mean.toFixed(1)}`,
-                showarrow: false,
-                font: { size: 11, color: '#4a9f6e' }
-            }]
-        }, { responsive: true, displayModeBar: false });
+        ForgeViz.render(container, {
+            title: title, chart_type: 'bar',
+            traces: [{ x: hist.labels, y: hist.counts, name: '', trace_type: 'bar',
+                color: 'rgba(74, 159, 110, 0.7)' }],
+            reference_lines: [
+                { value: simResult.p5, axis: 'x', color: '#e74c3c', dash: 'dashed', label: '5th %ile' },
+                { value: simResult.p95, axis: 'x', color: '#e74c3c', dash: 'dashed', label: '95th %ile' }
+            ],
+            markers: [{ x: simResult.mean, y: Math.max(...hist.counts) * 0.9,
+                label: `μ = ${simResult.mean.toFixed(1)}`, color: '#4a9f6e' }],
+            zones: [],
+            x_axis: { label: unit }, y_axis: { label: 'Frequency' }
+        });
     }
 };
 

@@ -118,8 +118,8 @@ function ssReset() {
     document.getElementById('ss-cost-total').textContent = '$0';
     document.getElementById('ss-stockout-log').innerHTML = '<em>No stockouts yet.</em>';
     document.getElementById('ss-insights').innerHTML = '<em>Start simulation to generate insights...</em>';
-    try { Plotly.purge('ss-chart'); } catch(e) {}
-    try { Plotly.purge('ss-cost-chart'); } catch(e) {}
+    try { document.getElementById('ss-chart').innerHTML = ''; } catch(e) {}
+    try { document.getElementById('ss-cost-chart').innerHTML = ''; } catch(e) {}
     ssUpdateDerived();
 }
 
@@ -245,17 +245,21 @@ function ssUpdateChart() {
         { x: maxDay, y: p.ss, text: 'SS', showarrow: false, xanchor: 'right', font: { color: '#f39c12', size: 10 } }
     ];
 
-    Plotly.react('ss-chart', [invTrace, stockoutTrace, arrivalTrace, demandTrace], {
-        margin: { t: 10, b: 40, l: 50, r: 50 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a', size: 10 },
-        xaxis: { title: 'Day', gridcolor: 'rgba(255,255,255,0.07)', range: [1, maxDay] },
-        yaxis: { title: 'Inventory (units)', gridcolor: 'rgba(255,255,255,0.07)', rangemode: 'tozero' },
-        yaxis2: { title: 'Demand', overlaying: 'y', side: 'right', showgrid: false, rangemode: 'tozero' },
-        shapes, annotations,
-        legend: { orientation: 'h', y: -0.22, font: { size: 10 } },
-        showlegend: true
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('ss-chart'), {
+        title: '', chart_type: 'line',
+        traces: [
+            { x: h.day, y: h.inventory, name: 'Inventory', trace_type: 'area', color: '#27ae60', fill: 'tozeroy', width: 2 },
+            { x: soDays, y: soDays.map(() => 0), name: 'Stockout', trace_type: 'scatter', color: '#e74c3c', marker: { size: 9, symbol: 'x' } },
+            { x: arrDays, y: arrY, name: 'Arrival', trace_type: 'scatter', color: '#9b59b6', marker: { size: 8, symbol: 'triangle-up' } },
+            { x: h.day, y: h.demand, name: 'Demand', trace_type: 'line', color: '#3498db', width: 1, dash: 'dot' },
+        ],
+        reference_lines: [
+            { value: p.rop, axis: 'y', color: '#e74c3c', dash: 'dashed', label: 'ROP' },
+            { value: p.ss, axis: 'y', color: '#f39c12', dash: 'dotted', label: 'SS' },
+        ],
+        zones: [], markers: [],
+        x_axis: { label: 'Day' }, y_axis: { label: 'Inventory (units)' }
+    });
 }
 
 function ssUpdateMetrics() {
@@ -279,21 +283,14 @@ function ssUpdateCosts() {
     document.getElementById('ss-cost-stockout').textContent = '$' + Math.round(s.totalStockoutCost).toLocaleString();
     document.getElementById('ss-cost-total').textContent = '$' + Math.round(s.totalHoldCost + s.totalStockoutCost).toLocaleString();
 
-    Plotly.react('ss-cost-chart', [{
-        x: [Math.round(s.totalHoldCost), Math.round(s.totalStockoutCost)],
-        y: ['Holding', 'Stockout'],
-        type: 'bar', orientation: 'h',
-        marker: { color: ['#27ae60', '#e74c3c'] },
-        text: ['$' + Math.round(s.totalHoldCost).toLocaleString(), '$' + Math.round(s.totalStockoutCost).toLocaleString()],
-        textposition: 'auto', textfont: { color: '#fff', size: 11 }
-    }], {
-        margin: { t: 5, b: 20, l: 70, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a', size: 10 },
-        xaxis: { gridcolor: 'rgba(255,255,255,0.07)' },
-        yaxis: { automargin: true },
-        showlegend: false, bargap: 0.3
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('ss-cost-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { x: ['Holding', 'Stockout'], y: [Math.round(s.totalHoldCost), Math.round(s.totalStockoutCost)], name: 'Cost', trace_type: 'bar', color: ['#27ae60', '#e74c3c'] },
+        ],
+        reference_lines: [], zones: [], markers: [],
+        x_axis: { label: '' }, y_axis: { label: '' }
+    });
 }
 
 function ssUpdateStockoutLog() {
@@ -599,79 +596,62 @@ function fmeaSimRun() {
         document.getElementById('fmea-sim-max-rpn').textContent = Math.round(max);
         document.getElementById('fmea-sim-worst-mode').textContent = worstMode.name;
 
-        // System RPN histogram
+        // System RPN histogram (pre-compute bins for bar chart)
         document.getElementById('fmea-sim-chart-area').style.display = '';
-        Plotly.newPlot('fmea-sim-chart', [{
-            x: systemRPNs,
-            type: 'histogram',
-            nbinsx: 50,
-            marker: { color: 'rgba(74,159,110,0.7)', line: { color: '#4a9f6e', width: 1 } },
-            name: 'System RPN'
-        }], {
-            shapes: [{
-                type: 'line', x0: threshold * fmeaSimItems.length, x1: threshold * fmeaSimItems.length,
-                y0: 0, y1: 1, yref: 'paper',
-                line: { color: '#e74c3c', width: 2, dash: 'dash' }
-            }],
-            annotations: [{
-                x: threshold * fmeaSimItems.length, y: 1, yref: 'paper',
-                text: `Threshold × ${fmeaSimItems.length}`,
-                showarrow: false, font: { color: '#e74c3c', size: 10 }, yshift: 10
-            }],
-            margin: { t: 20, b: 50, l: 50, r: 20 },
-            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-            font: { color: '#9aaa9a' },
-            xaxis: { title: 'System RPN (sum of all modes)', gridcolor: 'rgba(255,255,255,0.1)' },
-            yaxis: { title: 'Frequency', gridcolor: 'rgba(255,255,255,0.1)' },
-        }, { responsive: true, displayModeBar: false });
+        const histMin = Math.min(...systemRPNs);
+        const histMax = Math.max(...systemRPNs);
+        const histBinCount = 50;
+        const histBinWidth = (histMax - histMin) / histBinCount || 1;
+        const histBins = Array(histBinCount).fill(0);
+        const histBinLabels = [];
+        for (let bi = 0; bi < histBinCount; bi++) {
+            histBinLabels.push(Math.round(histMin + bi * histBinWidth + histBinWidth / 2));
+        }
+        systemRPNs.forEach(v => {
+            const bi = Math.min(histBinCount - 1, Math.floor((v - histMin) / histBinWidth));
+            histBins[bi]++;
+        });
+        ForgeViz.render(document.getElementById('fmea-sim-chart'), {
+            title: '', chart_type: 'bar',
+            traces: [
+                { x: histBinLabels, y: histBins, name: 'System RPN', trace_type: 'bar', color: 'rgba(74,159,110,0.7)' },
+            ],
+            reference_lines: [
+                { value: threshold * fmeaSimItems.length, axis: 'x', color: '#e74c3c', dash: 'dashed', label: `Threshold × ${fmeaSimItems.length}` },
+            ],
+            zones: [], markers: [],
+            x_axis: { label: 'System RPN (sum of all modes)' }, y_axis: { label: 'Frequency' }
+        });
 
-        // Per-mode box plot
+        // Per-mode RPN bar chart (mean with P95 markers)
         document.getElementById('fmea-sim-mode-chart-area').style.display = '';
-        const modeTraces = modeStats.map((ms, i) => ({
-            y: ms.rpns.filter((_, j) => j % Math.max(1, Math.floor(runs / 500)) === 0), // sample for perf
-            type: 'box',
-            name: ms.name,
-            marker: { color: `hsl(${(i * 137) % 360}, 60%, 50%)` },
-            boxpoints: false,
-        }));
-        Plotly.newPlot('fmea-sim-mode-chart', modeTraces, {
-            margin: { t: 20, b: 80, l: 50, r: 20 },
-            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-            font: { color: '#9aaa9a' },
-            yaxis: { title: 'RPN', gridcolor: 'rgba(255,255,255,0.1)' },
-            xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
-            shapes: [{
-                type: 'line', x0: -0.5, x1: modeStats.length - 0.5,
-                y0: threshold, y1: threshold,
-                line: { color: '#e74c3c', width: 2, dash: 'dash' }
-            }],
-            showlegend: false,
-        }, { responsive: true, displayModeBar: false });
+        ForgeViz.render(document.getElementById('fmea-sim-mode-chart'), {
+            title: '', chart_type: 'bar',
+            traces: [
+                { x: modeStats.map(ms => ms.name), y: modeStats.map(ms => ms.mean), name: 'Mean RPN', trace_type: 'bar', color: modeStats.map((_, i) => `hsl(${(i * 137) % 360}, 60%, 50%)`) },
+                { x: modeStats.map(ms => ms.name), y: modeStats.map(ms => ms.p95), name: 'P95 RPN', trace_type: 'scatter', color: '#e74c3c', marker: { size: 8, symbol: 'diamond' } },
+            ],
+            reference_lines: [
+                { value: threshold, axis: 'y', color: '#e74c3c', dash: 'dashed', label: 'Threshold' },
+            ],
+            zones: [], markers: [],
+            x_axis: { label: '' }, y_axis: { label: 'RPN' }
+        });
 
         // Tornado chart (risk contribution)
         document.getElementById('fmea-sim-tornado-area').style.display = '';
         const sortedModes = [...modeStats].sort((a, b) => b.mean - a.mean);
-        Plotly.newPlot('fmea-sim-tornado', [{
-            y: sortedModes.map(m => m.name),
-            x: sortedModes.map(m => m.mean),
-            type: 'bar',
-            orientation: 'h',
-            marker: { color: sortedModes.map(m => m.pExceed > 20 ? '#e74c3c' : m.pExceed > 5 ? '#f39c12' : '#4a9f6e') },
-            text: sortedModes.map(m => `Avg: ${m.mean.toFixed(0)}, P(>${threshold}): ${m.pExceed.toFixed(0)}%`),
-            textposition: 'outside',
-            textfont: { size: 10 },
-        }], {
-            margin: { t: 20, b: 50, l: 120, r: 100 },
-            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-            font: { color: '#9aaa9a' },
-            xaxis: { title: 'Average RPN', gridcolor: 'rgba(255,255,255,0.1)' },
-            yaxis: { gridcolor: 'rgba(255,255,255,0.1)', autorange: 'reversed' },
-            shapes: [{
-                type: 'line', x0: threshold, x1: threshold,
-                y0: -0.5, y1: sortedModes.length - 0.5,
-                line: { color: '#e74c3c', width: 2, dash: 'dash' }
-            }],
-        }, { responsive: true, displayModeBar: false });
+        ForgeViz.render(document.getElementById('fmea-sim-tornado'), {
+            title: '', chart_type: 'bar',
+            traces: [
+                { x: sortedModes.map(m => m.name), y: sortedModes.map(m => m.mean), name: 'Average RPN', trace_type: 'bar', color: sortedModes.map(m => m.pExceed > 20 ? '#e74c3c' : m.pExceed > 5 ? '#f39c12' : '#4a9f6e') },
+            ],
+            reference_lines: [
+                { value: threshold, axis: 'y', color: '#e74c3c', dash: 'dashed', label: 'Threshold' },
+            ],
+            zones: [], markers: [],
+            x_axis: { label: '' }, y_axis: { label: 'Average RPN' }
+        });
 
         // Insights
         fmeaSimUpdateInsights(runs, threshold, pExceed, mean, max, p5, p95, modeStats, worstMode);
@@ -916,23 +896,19 @@ function smedSimUpdateChart(totalBefore, internalTime, externalTime, internal, e
         })),
     ];
 
-    Plotly.newPlot('smed-sim-chart', traces, {
-        barmode: 'overlay',
-        margin: { t: 20, b: 50, l: 120, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: { title: 'Time (minutes)', gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
-        shapes: [{
-            type: 'line', x0: internalTime, x1: internalTime,
-            y0: -0.5, y1: 2.5,
-            line: { color: '#4a9f6e', width: 2, dash: 'dash' }
-        }],
-        annotations: internalTime < totalBefore ? [{
-            x: internalTime, y: 2.5, text: `${internalTime}m downtime`,
-            showarrow: false, font: { color: '#4a9f6e', size: 11 }, yshift: 10
-        }] : [],
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('smed-sim-chart'), {
+        title: '', chart_type: 'stacked_bar',
+        traces: [
+            { x: ['Before SMED'], y: [totalBefore], name: 'Before (all internal)', trace_type: 'bar', color: '#e74c3c' },
+            { x: ['After (Internal)'], y: [internalTime], name: 'After Internal', trace_type: 'bar', color: '#e74c3c' },
+            { x: ['After (External)'], y: [externalTime], name: 'After External', trace_type: 'bar', color: '#4a9f6e' },
+        ],
+        reference_lines: internalTime < totalBefore ? [
+            { value: internalTime, axis: 'y', color: '#4a9f6e', dash: 'dashed', label: `${internalTime}m downtime` },
+        ] : [],
+        zones: [], markers: [],
+        x_axis: { label: '' }, y_axis: { label: 'Time (minutes)' }
+    });
 }
 
 function smedSimUpdateInsights(totalBefore, internalTime, externalTime, reduction, internal, external) {
@@ -1247,7 +1223,7 @@ function hjSimReset() {
     document.getElementById('hj-batched-visual').innerHTML = '<div style="color:var(--text-dim); font-size:12px; text-align:center;">Press Start</div>';
     document.getElementById('hj-leveled-visual').innerHTML = '<div style="color:var(--text-dim); font-size:12px; text-align:center;">Press Start</div>';
     document.getElementById('hj-sim-insights').innerHTML = '<em>Start simulation to compare batched vs leveled production...</em>';
-    try { Plotly.purge('hj-sim-chart'); } catch(e) {}
+    try { document.getElementById('hj-sim-chart').innerHTML = ''; } catch(e) {}
 }
 
 function hjSimStepLane(lane, dt) {
@@ -1397,17 +1373,15 @@ function hjSimUpdateChart() {
     const h = hjSim.history;
     if (h.time.length < 2) return;
 
-    Plotly.newPlot('hj-sim-chart', [
-        { x: h.time, y: h.bWip, type: 'scatter', mode: 'lines', name: 'Batched WIP', line: { color: '#e74c3c', width: 2 } },
-        { x: h.time, y: h.lWip, type: 'scatter', mode: 'lines', name: 'Leveled WIP', line: { color: '#4a9f6e', width: 2 } },
-    ], {
-        margin: { t: 20, b: 50, l: 50, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: { title: 'Time (s)', gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { title: 'WIP (units)', gridcolor: 'rgba(255,255,255,0.1)' },
-        legend: { orientation: 'h', y: -0.25, x: 0.5, xanchor: 'center' },
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('hj-sim-chart'), {
+        title: '', chart_type: 'line',
+        traces: [
+            { x: h.time, y: h.bWip, name: 'Batched WIP', trace_type: 'line', color: '#e74c3c', width: 2 },
+            { x: h.time, y: h.lWip, name: 'Leveled WIP', trace_type: 'line', color: '#4a9f6e', width: 2 },
+        ],
+        reference_lines: [], zones: [], markers: [],
+        x_axis: { label: 'Time (s)' }, y_axis: { label: 'WIP (units)' }
+    });
 }
 
 function hjSimUpdateInsights() {

@@ -86,22 +86,13 @@ function calcRTY() {
         yields.push(cumulative);
     });
 
-    Plotly.newPlot('rty-chart', [{
-        x: names,
-        y: yields,
-        type: 'bar',
-        marker: {
-            color: yields.map((y, i) => i === yields.length - 1 ? '#4a9f6e' : '#3a7f8f')
-        },
-        text: yields.map(y => `${y.toFixed(1)}%`),
-        textposition: 'outside'
-    }], {
-        margin: { t: 20, b: 60, l: 50, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        yaxis: { title: 'Cumulative Yield (%)', range: [0, 110], gridcolor: 'rgba(255,255,255,0.1)' },
-        xaxis: { gridcolor: 'rgba(255,255,255,0.1)' }
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('rty-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { x: names, y: yields, name: 'Yield', trace_type: 'bar', color: yields.map((y, i) => i === yields.length - 1 ? '#4a9f6e' : '#3a7f8f') }
+        ],
+        x_axis: { label: '' }, y_axis: { label: 'Cumulative Yield (%)' }
+    });
 
     renderNextSteps('rty-next-steps', [
         { title: 'Cycle Time Analysis', desc: 'Find where rework adds hidden cycle time', calcId: 'cycletime' },
@@ -207,31 +198,21 @@ function calcDPMO() {
     SvendOps.publish('dpmo', Math.round(dpmo), 'DPMO', 'DPMO/Sigma');
 
     // Sigma gauge chart
-    Plotly.newPlot('dpmo-chart', [{
-        type: 'indicator', mode: 'gauge+number',
-        value: sigma,
-        number: { suffix: 'σ', font: { size: 28, color: '#e0e0e0' } },
-        gauge: {
-            axis: { range: [0, 6], dtick: 1, tickfont: { color: '#9aaa9a' } },
-            bar: { color: sigma >= 4.5 ? '#27ae60' : sigma >= 3 ? '#f39c12' : '#e74c3c' },
-            bgcolor: 'rgba(255,255,255,0.05)',
-            steps: [
-                { range: [0, 2], color: 'rgba(231,76,60,0.25)' },
-                { range: [2, 3], color: 'rgba(243,156,18,0.2)' },
-                { range: [3, 4.5], color: 'rgba(243,156,18,0.15)' },
-                { range: [4.5, 6], color: 'rgba(39,174,96,0.25)' }
-            ],
-            threshold: { line: { color: '#27ae60', width: 3 }, value: 4.5 }
-        }
-    }], {
-        margin: { t: 30, b: 10, l: 30, r: 30 },
-        paper_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        annotations: [
-            { x: 0.25, y: -0.05, text: 'Typical: 3σ', showarrow: false, font: { size: 10, color: '#f39c12' } },
-            { x: 0.75, y: -0.05, text: 'World Class: 6σ', showarrow: false, font: { size: 10, color: '#27ae60' } }
+    ForgeViz.render(document.getElementById('dpmo-chart'), {
+        title: '', chart_type: 'gauge',
+        traces: [
+            { type: 'gauge', value: sigma, min: 0, max: 6, color: sigma >= 4.5 ? '#27ae60' : sigma >= 3 ? '#f39c12' : '#e74c3c', center_label: sigma.toFixed(2) + 'σ' }
+        ],
+        zones: [
+            { low: 0, high: 2, axis: 'y', color: 'rgba(231,76,60,0.25)', label: '' },
+            { low: 2, high: 3, axis: 'y', color: 'rgba(243,156,18,0.2)', label: '' },
+            { low: 3, high: 4.5, axis: 'y', color: 'rgba(243,156,18,0.15)', label: '' },
+            { low: 4.5, high: 6, axis: 'y', color: 'rgba(39,174,96,0.25)', label: '' }
+        ],
+        reference_lines: [
+            { value: 4.5, axis: 'y', color: '#27ae60', dash: 'solid', label: '' }
         ]
-    }, { responsive: true, displayModeBar: false });
+    });
 
     renderNextSteps('dpmo-next-steps', [
         { title: 'RTY Analysis', desc: 'Calculate rolled throughput yield', calcId: 'rty' },
@@ -309,25 +290,16 @@ function calcFMEA() {
         ${fmeaSteps}
     `;
 
-    Plotly.newPlot('fmea-chart', [{
-        y: rpns.map(f => f.mode),
-        x: rpns.map(f => f.rpn),
-        type: 'bar',
-        orientation: 'h',
-        marker: { color: rpns.map(f => f.rpn > 100 ? '#e74c3c' : f.rpn > 50 ? '#f39c12' : '#4a9f6e') },
-        text: rpns.map(f => `RPN: ${f.rpn}`),
-        textposition: 'outside'
-    }], {
-        shapes: [{
-            type: 'line', x0: 100, x1: 100, y0: -0.5, y1: rpns.length - 0.5,
-            line: { color: '#e74c3c', width: 2, dash: 'dash' }
-        }],
-        margin: { t: 20, b: 40, l: 120, r: 60 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: { title: 'Risk Priority Number (RPN)', gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { gridcolor: 'rgba(255,255,255,0.1)' }
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('fmea-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { x: rpns.map(f => f.rpn), y: rpns.map(f => f.mode), name: 'RPN', trace_type: 'bar', color: rpns.map(f => f.rpn > 100 ? '#e74c3c' : f.rpn > 50 ? '#f39c12' : '#4a9f6e'), orientation: 'h' }
+        ],
+        reference_lines: [
+            { value: 100, axis: 'x', color: '#e74c3c', dash: 'dashed', label: 'Action threshold' }
+        ],
+        x_axis: { label: 'Risk Priority Number (RPN)' }, y_axis: { label: '' }
+    });
 }
 
 // ============================================================================
@@ -402,27 +374,18 @@ function calcCpk() {
         yVals.push(Math.exp(-0.5 * Math.pow((x - mean) / std, 2)) / (std * Math.sqrt(2 * Math.PI)));
     }
 
-    Plotly.newPlot('cpk-chart', [{
-        x: xVals, y: yVals, type: 'scatter', mode: 'lines',
-        fill: 'tozeroy', fillcolor: 'rgba(74, 159, 110, 0.3)',
-        line: { color: '#4a9f6e', width: 2 }
-    }], {
-        shapes: [
-            { type: 'line', x0: lsl, x1: lsl, y0: 0, y1: Math.max(...yVals) * 1.1, line: { color: '#e74c3c', width: 2 } },
-            { type: 'line', x0: usl, x1: usl, y0: 0, y1: Math.max(...yVals) * 1.1, line: { color: '#e74c3c', width: 2 } },
-            { type: 'line', x0: mean, x1: mean, y0: 0, y1: Math.max(...yVals) * 1.1, line: { color: '#3a7f8f', width: 2, dash: 'dash' } }
+    ForgeViz.render(document.getElementById('cpk-chart'), {
+        title: '', chart_type: 'area',
+        traces: [
+            { x: xVals, y: yVals, name: 'Distribution', trace_type: 'area', fill: 'tozeroy', color: '#4a9f6e', width: 2 }
         ],
-        annotations: [
-            { x: lsl, y: Math.max(...yVals) * 1.05, text: 'LSL', showarrow: false, font: { color: '#e74c3c' } },
-            { x: usl, y: Math.max(...yVals) * 1.05, text: 'USL', showarrow: false, font: { color: '#e74c3c' } },
-            { x: mean, y: Math.max(...yVals) * 0.9, text: 'X̄', showarrow: false, font: { color: '#3a7f8f' } }
+        reference_lines: [
+            { value: lsl, axis: 'x', color: '#e74c3c', dash: 'solid', label: 'LSL' },
+            { value: usl, axis: 'x', color: '#e74c3c', dash: 'solid', label: 'USL' },
+            { value: mean, axis: 'x', color: '#3a7f8f', dash: 'dashed', label: 'X\u0304' }
         ],
-        margin: { t: 20, b: 40, l: 50, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { showticklabels: false, gridcolor: 'rgba(255,255,255,0.1)' }
-    }, { responsive: true, displayModeBar: false });
+        x_axis: { label: '' }, y_axis: { label: '' }
+    });
 
     // Publish to shared state
     SvendOps.publish('cpk', parseFloat(cpk.toFixed(2)), '', 'Cpk');
@@ -799,7 +762,19 @@ function _paDrawCurve(powerFn, nOpt, targetPower) {
         ],
     };
 
-    Plotly.react(chartEl, traces, layout, { responsive: true, displayModeBar: false });
+    ForgeViz.render(chartEl, {
+        title: '', chart_type: 'line',
+        traces: [
+            { x: xs, y: ys, name: 'Power', trace_type: 'area', fill: 'tozeroy', color: '#4a9f6e', width: 2.5 },
+            { x: [nOpt], y: [powerFn(nOpt)], name: 'Required n', trace_type: 'scatter', color: '#e8c547', marker_size: 12 }
+        ],
+        reference_lines: [
+            { value: targetPower, axis: 'y', color: 'rgba(232,197,71,0.35)', dash: 'dashed', label: '' },
+            { value: nOpt, axis: 'x', color: 'rgba(232,197,71,0.2)', dash: 'dashed', label: '' }
+        ],
+        markers: [{ x: nOpt, y: powerFn(nOpt), label: `n = ${nOpt}`, color: '#e8c547' }],
+        x_axis: { label: 'Sample Size (n)' }, y_axis: { label: 'Power' }
+    });
 }
 
 function _paBuildTable(powerFn, currentTarget) {

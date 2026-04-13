@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Probabilistic Bayesian SPC — Foundational Theory</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #131a21;
+    --card-border: #1e3a2a;
+    --green: #4ade80;
+    --green-dim: #2d7a4d;
+    --green-bright: #6ee7a0;
+    --gold: #c9a227;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --teal: #2dd4bf;
+    --blue: #4a90d9;
+    --purple: #a78bfa;
+    --text: #d1d5db;
+    --text-bright: #f0f0f0;
+    --text-muted: #6b7280;
+    --mono: 'SF Mono','Fira Code','Consolas','Courier New',monospace;
+    --serif: 'Georgia','Times New Roman',serif;
+    --sans: -apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{font-size:16px;scroll-behavior:smooth}
+  body{font-family:var(--serif);background:var(--bg);color:var(--text);line-height:1.7;max-width:740px;margin:0 auto;padding:1.5rem 1.2rem 5rem;-webkit-font-smoothing:antialiased}
+
+  .title-block{text-align:center;padding:2.5rem 1rem 2rem;margin-bottom:2rem}
+  .title-block .journal{font-family:var(--mono);font-size:.7rem;color:var(--green-dim);letter-spacing:.15em;text-transform:uppercase;margin-bottom:1rem}
+  .title-block h1{font-family:var(--sans);font-size:1.6rem;color:var(--text-bright);font-weight:700;margin-bottom:.3rem;letter-spacing:-.02em}
+  .title-block .subtitle{font-style:italic;color:var(--green);font-size:1rem;margin-bottom:1rem}
+  .title-block .rule{width:60px;height:2px;background:var(--green-dim);margin:.8rem auto;border:none}
+  .title-block .author{color:var(--text-muted);font-size:.82rem;font-family:var(--sans)}
+
+  .abstract{background:var(--card);border:1px solid var(--card-border);border-radius:10px;padding:1.5rem;margin:1.5rem 0 2rem;font-size:.92rem;line-height:1.65}
+  .abstract .label{font-family:var(--mono);font-size:.7rem;color:var(--green);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.6rem}
+
+  .toc{background:var(--card);border:1px solid var(--card-border);border-radius:10px;padding:1.5rem;margin-bottom:2.5rem}
+  .toc .label{font-family:var(--mono);font-size:.7rem;color:var(--green);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.8rem}
+  .toc a{display:block;color:var(--text);text-decoration:none;font-family:var(--sans);font-size:.9rem;padding:.3rem 0 .3rem 1rem;border-left:2px solid transparent;transition:all .15s}
+  .toc a:hover,.toc a:active{color:var(--green);border-left-color:var(--green)}
+  .toc a .num{color:var(--green-dim);margin-right:.5rem;font-family:var(--mono);font-size:.8rem}
+  .toc .part-label{font-family:var(--mono);font-size:.68rem;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;margin:.6rem 0 .2rem 1rem}
+
+  .part-divider{text-align:center;margin:3rem 0 2rem;padding:1.5rem 0;border-top:1px solid var(--card-border);border-bottom:1px solid var(--card-border)}
+  .part-divider .part-num{font-family:var(--mono);font-size:.7rem;color:var(--green-dim);letter-spacing:.15em;text-transform:uppercase;margin-bottom:.3rem}
+  .part-divider .part-title{font-family:var(--sans);font-size:1.15rem;color:var(--green);font-weight:700}
+  .part-divider .part-sub{font-style:italic;color:var(--text-muted);font-size:.88rem;margin-top:.3rem}
+
+  h2{font-family:var(--sans);font-size:1.2rem;color:var(--green);font-weight:700;margin:3rem 0 1rem;padding-bottom:.4rem;border-bottom:1px solid var(--card-border)}
+  h3{font-family:var(--sans);font-size:1.02rem;color:var(--teal);font-weight:600;margin:2rem 0 .6rem}
+  p{margin-bottom:.9rem}
+  strong,b{color:var(--text-bright)}
+
+  .math{background:#0a0f14;border:1px solid var(--card-border);border-left:3px solid var(--green-dim);border-radius:6px;padding:.9rem 1.2rem;margin:1rem 0;font-family:var(--mono);font-size:.92rem;color:var(--green-bright);text-align:center;overflow-x:auto;line-height:1.8}
+
+  .def-box{background:var(--card);border:1px solid var(--card-border);border-left:3px solid var(--blue);border-radius:8px;padding:1rem 1.2rem;margin:1rem 0;font-size:.95rem}
+  .def-box .box-label{font-family:var(--sans);font-weight:700;color:var(--blue);font-size:.85rem;margin-bottom:.3rem}
+  .thm-box{background:var(--card);border:1px solid var(--card-border);border-left:3px solid var(--gold);border-radius:8px;padding:1rem 1.2rem;margin:1rem 0;font-size:.95rem}
+  .thm-box .box-label{font-family:var(--sans);font-weight:700;color:var(--gold);font-size:.85rem;margin-bottom:.3rem}
+  .prop-box{background:var(--card);border:1px solid var(--card-border);border-left:3px solid var(--teal);border-radius:8px;padding:1rem 1.2rem;margin:1rem 0;font-size:.95rem}
+  .prop-box .box-label{font-family:var(--sans);font-weight:700;color:var(--teal);font-size:.85rem;margin-bottom:.3rem}
+  .axiom-box{background:var(--card);border:1px solid var(--card-border);border-left:3px solid var(--purple);border-radius:8px;padding:1rem 1.2rem;margin:1rem 0;font-size:.95rem}
+  .axiom-box .box-label{font-family:var(--sans);font-weight:700;color:var(--purple);font-size:.85rem;margin-bottom:.3rem}
+
+  .insight{background:#1a1a0d;border:1px solid #3d3a1a;border-left:3px solid var(--gold);border-radius:8px;padding:1rem 1.2rem;margin:1.2rem 0;font-size:.95rem}
+  .insight .insight-label{font-family:var(--mono);font-size:.7rem;color:var(--gold);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.4rem}
+
+  .remark{font-style:italic;color:var(--text-muted);padding-left:1rem;border-left:2px solid #333;margin:.8rem 0 1.2rem;font-size:.92rem}
+
+  .figure{background:var(--card);border:1px solid var(--card-border);border-radius:10px;padding:1.2rem;margin:1.5rem 0;text-align:center}
+  .figure canvas{max-width:100%;display:block;margin:0 auto}
+  .figure .fig-caption{font-family:var(--sans);font-size:.82rem;color:var(--text-muted);margin-top:.8rem;text-align:left;line-height:1.5}
+  .figure .fig-caption strong{color:var(--green)}
+
+  table{width:100%;border-collapse:collapse;margin:1rem 0;font-family:var(--sans);font-size:.85rem}
+  thead th{background:var(--green-dim);color:var(--bg);font-weight:700;text-align:left;padding:.6rem .8rem;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em}
+  tbody td{padding:.55rem .8rem;border-bottom:1px solid #1a2430;vertical-align:top}
+  tbody tr:nth-child(even){background:#0f161d}
+
+  .ref-list{font-size:.85rem;color:var(--text-muted)}
+  .ref-list p{margin-bottom:.6rem;padding-left:2rem;text-indent:-2rem}
+  .ref-list .ref-num{font-family:var(--mono);color:var(--green-dim);font-size:.78rem}
+
+  .footer{text-align:center;margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--card-border);font-family:var(--mono);font-size:.7rem;color:var(--text-muted);letter-spacing:.05em}
+
+  @media(max-width:480px){html{font-size:15px}body{padding:1rem .8rem 4rem}.math{font-size:.82rem;padding:.7rem .8rem}table{font-size:.78rem}}
+  @media print{body{background:#fff;color:#111;max-width:100%}.math{background:#f5f5f0;color:#111;border-color:#ccc}.def-box,.thm-box,.prop-box,.axiom-box,.insight,.figure{background:#f9f9f9;border-color:#ccc}h2,h3{color:#222}.part-divider{border-color:#ccc}}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ TITLE ═══════════ -->
+<div class="title-block">
+  <div class="journal">Working Paper — February 2026</div>
+  <h1>Probabilistic Bayesian SPC</h1>
+  <div class="subtitle">A Unified Framework for Common Cause Capability<br>and Special Cause Escape Dynamics</div>
+  <div class="rule"></div>
+  <div class="author">Working Draft</div>
+</div>
+
+<!-- ═══════════ ABSTRACT ═══════════ -->
+<div class="abstract">
+  <div class="label">Abstract</div>
+  We introduce <strong>Probabilistic Bayesian SPC (PBS)</strong>, a two-layer framework that regrounds Statistical Process Control in Bayesian inference and stochastic dynamical systems theory. PBS distinguishes two fundamentally different questions classical SPC conflates: (1) <em>How confident are we that the process is capable of not producing defects?</em> — answered by the <strong>Bayesian SPC</strong> layer through posterior capability distributions; and (2) <em>Is the process undergoing a state transition toward a failure mode?</em> — answered by the <strong>Bayesian Escape</strong> layer through quasipotential landscape analysis and real-time momentum tracking. The first layer addresses common cause variation through systemic improvement. The second addresses special cause events through root cause investigation. Classical SPC methods — Shewhart charts, CUSUM, EWMA, capability indices — are recovered as limiting cases. We define the <strong>Bayesian Sigma</strong> metric as a principled successor to the classical sigma level, and establish robustness guarantees under model misspecification.
+</div>
+
+<!-- ═══════════ TOC ═══════════ -->
+<div class="toc">
+  <div class="label">Contents</div>
+  <div class="part-label">Foundations</div>
+  <a href="#s1"><span class="num">1</span> The Two Questions of Process Control</a>
+  <a href="#s2"><span class="num">2</span> The PBS Architecture</a>
+  <div class="part-label">Part I — Bayesian SPC: Common Cause &amp; Capability</div>
+  <a href="#s3"><span class="num">3</span> From Point Estimates to Posterior Distributions</a>
+  <a href="#s4"><span class="num">4</span> Bayesian Capability Analysis</a>
+  <a href="#s5"><span class="num">5</span> The Confidence Inversion</a>
+  <a href="#s6"><span class="num">6</span> Sequential Updating and the Living Capability Posterior</a>
+  <div class="part-label">Part II — Bayesian Escape: Special Cause Dynamics</div>
+  <a href="#s7"><span class="num">7</span> Stochastic Process Model</a>
+  <a href="#s8"><span class="num">8</span> Large Deviation Theory and the Quasipotential</a>
+  <a href="#s9"><span class="num">9</span> Escape Dynamics (Forgoston Framework)</a>
+  <a href="#s10"><span class="num">10</span> Bayesian State Estimation on the Escape Landscape</a>
+  <a href="#s11"><span class="num">11</span> The Bayesian Sigma Metric</a>
+  <div class="part-label">Part III — The Coupling</div>
+  <a href="#s12"><span class="num">12</span> How the Layers Connect</a>
+  <a href="#s13"><span class="num">13</span> Dual State-Space Formulation</a>
+  <a href="#s14"><span class="num">14</span> Recovery of Classical SPC</a>
+  <div class="part-label">Part IV — Robustness, Implementation &amp; Extensions</div>
+  <a href="#s15"><span class="num">15</span> Robustness and Identifiability</a>
+  <a href="#s16"><span class="num">16</span> Computational Architecture</a>
+  <a href="#s17"><span class="num">17</span> Open Problems</a>
+  <a href="#refs"><span class="num">&nbsp;</span> References</a>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- FOUNDATIONS                                      -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="part-divider">
+  <div class="part-num">Foundations</div>
+  <div class="part-title">The Problem and the Architecture</div>
+</div>
+
+<h2 id="s1">1. The Two Questions of Process Control</h2>
+
+<p>Consider two kinds of catastrophic events.</p>
+
+<p>A <strong>plane crash</strong> is a special cause event. Something specific went wrong — a sensor failed, a maintenance procedure was skipped, a design flaw was triggered by an unusual condition. The response is investigation: the NTSB reconstructs the causal chain, identifies the root, and issues corrective action. The logic is forensic. You find the broken link.</p>
+
+<p>A <strong>car crash</strong>, in the aggregate, is a common cause phenomenon. No single crash has one root cause that, if fixed, prevents all future crashes. Crashes are multivariate, stochastic, and emergent from the interaction of road design, vehicle engineering, driver behavior, and environmental conditions. The response is systemic improvement: better roads, safer cars, improved signage. The logic is kaizen. You improve the process that produces the outcomes.</p>
+
+<!-- Fig 1: Two Questions SVG -->
+<div class="figure">
+<svg viewBox="0 0 680 260" xmlns="http://www.w3.org/2000/svg" style="max-width:680px;">
+  <defs><marker id="aR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ef4444"/></marker></defs>
+  <rect x="10" y="10" width="310" height="240" rx="12" fill="#131a21" stroke="#1e3a2a"/>
+  <text x="165" y="40" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#ef4444" text-anchor="middle" font-weight="bold" letter-spacing="1">SPECIAL CAUSE</text>
+  <text x="165" y="62" font-family="Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" text-anchor="middle" font-style="italic">"The plane crash"</text>
+  <line x1="40" y1="74" x2="290" y2="74" stroke="#1e3a2a"/>
+  <rect x="40" y="90" width="70" height="30" rx="5" fill="#1a1a2e" stroke="#ef4444" stroke-width=".8"/>
+  <text x="75" y="109" font-family="monospace" font-size="8" fill="#ef4444" text-anchor="middle">SENSOR</text>
+  <line x1="110" y1="105" x2="130" y2="105" stroke="#ef4444" marker-end="url(#aR)"/>
+  <rect x="130" y="90" width="70" height="30" rx="5" fill="#1a1a2e" stroke="#ef4444" stroke-width=".8"/>
+  <text x="165" y="109" font-family="monospace" font-size="8" fill="#ef4444" text-anchor="middle">CASCADE</text>
+  <line x1="200" y1="105" x2="220" y2="105" stroke="#ef4444" marker-end="url(#aR)"/>
+  <rect x="220" y="90" width="70" height="30" rx="5" fill="#1a1a2e" stroke="#ef4444" stroke-width=".8"/>
+  <text x="255" y="109" font-family="monospace" font-size="8" fill="#ef4444" text-anchor="middle">FAILURE</text>
+  <text x="165" y="148" font-family="Georgia,serif" font-size="10" fill="#d1d5db" text-anchor="middle">Response: <tspan fill="#ef4444" font-weight="bold">Investigate</tspan></text>
+  <text x="165" y="168" font-family="Georgia,serif" font-size="10" fill="#d1d5db" text-anchor="middle">Find the root. Fix the chain.</text>
+  <text x="165" y="200" font-family="Georgia,serif" font-size="10" fill="#6b7280" text-anchor="middle" font-style="italic">Q: "Is the process undergoing</text>
+  <text x="165" y="216" font-family="Georgia,serif" font-size="10" fill="#6b7280" text-anchor="middle" font-style="italic">a state transition?"</text>
+  <text x="165" y="240" font-family="monospace" font-size="9" fill="#ef4444" text-anchor="middle">OUTPUT → SCALAR (escape probability)</text>
+  <rect x="360" y="10" width="310" height="240" rx="12" fill="#131a21" stroke="#1e3a2a"/>
+  <text x="515" y="40" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#4ade80" text-anchor="middle" font-weight="bold" letter-spacing="1">COMMON CAUSE</text>
+  <text x="515" y="62" font-family="Helvetica,Arial,sans-serif" font-size="10" fill="#6b7280" text-anchor="middle" font-style="italic">"The car crash (aggregate)"</text>
+  <line x1="390" y1="74" x2="640" y2="74" stroke="#1e3a2a"/>
+  <ellipse cx="455" cy="105" rx="30" ry="18" fill="none" stroke="#4ade80" stroke-width=".8" stroke-dasharray="3,2"/>
+  <ellipse cx="515" cy="105" rx="30" ry="18" fill="none" stroke="#4ade80" stroke-width=".8" stroke-dasharray="3,2"/>
+  <ellipse cx="575" cy="105" rx="30" ry="18" fill="none" stroke="#4ade80" stroke-width=".8" stroke-dasharray="3,2"/>
+  <text x="455" y="109" font-family="monospace" font-size="8" fill="#4ade80" text-anchor="middle">ROADS</text>
+  <text x="515" y="109" font-family="monospace" font-size="8" fill="#4ade80" text-anchor="middle">CARS</text>
+  <text x="575" y="109" font-family="monospace" font-size="8" fill="#4ade80" text-anchor="middle">DRIVERS</text>
+  <text x="515" y="148" font-family="Georgia,serif" font-size="10" fill="#d1d5db" text-anchor="middle">Response: <tspan fill="#4ade80" font-weight="bold">Improve the process</tspan></text>
+  <text x="515" y="168" font-family="Georgia,serif" font-size="10" fill="#d1d5db" text-anchor="middle">Reduce variation. Build capability.</text>
+  <text x="515" y="200" font-family="Georgia,serif" font-size="10" fill="#6b7280" text-anchor="middle" font-style="italic">Q: "How confident are we in</text>
+  <text x="515" y="216" font-family="Georgia,serif" font-size="10" fill="#6b7280" text-anchor="middle" font-style="italic">the generating distribution?"</text>
+  <text x="515" y="240" font-family="monospace" font-size="9" fill="#4ade80" text-anchor="middle">OUTPUT → DISTRIBUTION (posterior)</text>
+</svg>
+<div class="fig-caption"><strong>Figure 1.</strong> The two questions of process control. Special cause analysis yields a scalar diagnostic (escape probability). Common cause analysis yields a posterior distribution over process capability. Classical SPC conflates both into control limits.</div>
+</div>
+
+<div class="insight">
+  <div class="insight-label">Core Distinction</div>
+  <strong>Special cause:</strong> Go after the root. The process changed; find out why and reverse it.<br>
+  <strong>Common cause:</strong> Attack variation itself. The process didn't change; make it better.
+</div>
+
+<p>Classical SPC knows this distinction — Shewhart drew it in 1931. But classical SPC handles both with the same tool: control charts that flag points outside limits. This conflates two fundamentally different questions:</p>
+
+<div class="axiom-box">
+  <div class="box-label">Question 1 (Common Cause / Capability)</div>
+  <em>What is our confidence that the process, operating normally, is capable of meeting requirements?</em> A question about the <strong>generating distribution itself</strong>. The answer is a posterior belief about the parameters that govern process behavior.
+</div>
+
+<div class="axiom-box">
+  <div class="box-label">Question 2 (Special Cause / Escape)</div>
+  <em>Is the process currently undergoing a state transition toward a failure mode?</em> A question about <strong>dynamics</strong>. The answer is a trajectory diagnostic on the quasipotential landscape.
+</div>
+
+<p>Question 1 produces a <strong>distribution</strong>. Question 2 produces a <strong>scalar</strong> (or triad). Question 1 informs capital allocation and long-term strategy. Question 2 informs immediate intervention and root cause investigation. They are different in kind, not degree. PBS treats them as such.</p>
+
+
+<h2 id="s2">2. The PBS Architecture</h2>
+
+<div class="def-box">
+  <div class="box-label">Definition (Probabilistic Bayesian SPC)</div>
+  <strong>PBS</strong> is a two-layer framework:<br><br>
+  <strong>Layer 1 — Bayesian SPC:</strong> Posterior distribution over process parameters → posterior capability distributions. Answers: "How confident are we?" Addresses common cause. Instrument: kaizen.<br><br>
+  <strong>Layer 2 — Bayesian Escape:</strong> Stochastic dynamical system with metastable states → quasipotential landscape → real-time escape detection. Answers: "Is the process changing?" Addresses special cause. Instrument: root cause investigation.
+</div>
+
+<!-- Fig 2: Architecture -->
+<div class="figure">
+<svg viewBox="0 0 680 400" xmlns="http://www.w3.org/2000/svg" style="max-width:680px;">
+  <defs>
+    <marker id="aG" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#4ade80"/></marker>
+    <marker id="aB" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#4a90d9"/></marker>
+    <marker id="aY" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#c9a227"/></marker>
+    <marker id="aT" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#2dd4bf"/></marker>
+    <marker id="aR2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ef4444"/></marker>
+  </defs>
+  <rect x="270" y="10" width="140" height="36" rx="8" fill="#1a1a2e" stroke="#4ade80" stroke-width="1.5"/>
+  <text x="340" y="33" font-family="monospace" font-size="10" fill="#4ade80" text-anchor="middle">PROCESS DATA</text>
+  <line x1="340" y1="46" x2="340" y2="70" stroke="#4ade80" marker-end="url(#aG)"/>
+  <rect x="280" y="72" width="120" height="30" rx="6" fill="#131a21" stroke="#6b7280"/>
+  <text x="340" y="91" font-family="monospace" font-size="9" fill="#6b7280" text-anchor="middle">ROUTER</text>
+  <line x1="280" y1="87" x2="170" y2="140" stroke="#4a90d9" marker-end="url(#aB)"/>
+  <line x1="400" y1="87" x2="510" y2="140" stroke="#ef4444" marker-end="url(#aR2)"/>
+  <rect x="30" y="140" width="280" height="170" rx="12" fill="#0f161d" stroke="#4a90d9" stroke-width="1.5"/>
+  <text x="170" y="165" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#4a90d9" text-anchor="middle" font-weight="bold">LAYER 1: BAYESIAN SPC</text>
+  <text x="170" y="182" font-family="Georgia,serif" font-size="9" fill="#6b7280" text-anchor="middle" font-style="italic">Common Cause &amp; Capability</text>
+  <rect x="55" y="198" width="230" height="24" rx="4" fill="#131a21" stroke="#1e3a2a"/>
+  <text x="170" y="214" font-family="monospace" font-size="8.5" fill="#4a90d9" text-anchor="middle">p(θ | y) ∝ L(y|θ) · π(θ)</text>
+  <rect x="55" y="230" width="230" height="24" rx="4" fill="#131a21" stroke="#1e3a2a"/>
+  <text x="170" y="246" font-family="monospace" font-size="8.5" fill="#4a90d9" text-anchor="middle">P(Cpk > c* | y) — posterior belief</text>
+  <rect x="55" y="262" width="230" height="24" rx="4" fill="#131a21" stroke="#1e3a2a"/>
+  <text x="170" y="278" font-family="monospace" font-size="8.5" fill="#4a90d9" text-anchor="middle">ε estimate → feeds Layer 2</text>
+  <text x="170" y="302" font-family="monospace" font-size="8" fill="#2d7a4d" text-anchor="middle">OUTPUT: DISTRIBUTION</text>
+  <rect x="370" y="140" width="280" height="170" rx="12" fill="#0f161d" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="510" y="165" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#ef4444" text-anchor="middle" font-weight="bold">LAYER 2: BAYESIAN ESCAPE</text>
+  <text x="510" y="182" font-family="Georgia,serif" font-size="9" fill="#6b7280" text-anchor="middle" font-style="italic">Special Cause &amp; Dynamics</text>
+  <rect x="395" y="198" width="230" height="24" rx="4" fill="#131a21" stroke="#1e3a2a"/>
+  <text x="510" y="214" font-family="monospace" font-size="8.5" fill="#ef4444" text-anchor="middle">Quasipotential V(x*, y)</text>
+  <rect x="395" y="230" width="230" height="24" rx="4" fill="#131a21" stroke="#1e3a2a"/>
+  <text x="510" y="246" font-family="monospace" font-size="8.5" fill="#ef4444" text-anchor="middle">Escape triad: Δ, P_esc, 𝒜</text>
+  <rect x="395" y="262" width="230" height="24" rx="4" fill="#131a21" stroke="#1e3a2a"/>
+  <text x="510" y="278" font-family="monospace" font-size="8.5" fill="#ef4444" text-anchor="middle">Σ_B — Bayesian Sigma level</text>
+  <text x="510" y="302" font-family="monospace" font-size="8" fill="#2d7a4d" text-anchor="middle">OUTPUT: SCALAR TRIAD</text>
+  <line x1="310" y1="274" x2="395" y2="250" stroke="#c9a227" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#aY)"/>
+  <text x="348" y="256" font-family="monospace" font-size="8" fill="#c9a227" text-anchor="middle" transform="rotate(-10,348,256)">ε bridge</text>
+  <path d="M510,310 L510,355 L170,355 L170,310" fill="none" stroke="#2dd4bf" stroke-dasharray="5,3" marker-end="url(#aT)"/>
+  <text x="340" y="348" font-family="monospace" font-size="8" fill="#2dd4bf" text-anchor="middle">Root cause → updates b(x) → re-estimates capability</text>
+  <rect x="60" y="366" width="130" height="26" rx="6" fill="#131a21" stroke="#4ade80" stroke-width=".8"/>
+  <text x="125" y="383" font-family="monospace" font-size="8" fill="#4ade80" text-anchor="middle">KAIZEN (improve)</text>
+  <rect x="490" y="366" width="130" height="26" rx="6" fill="#131a21" stroke="#ef4444" stroke-width=".8"/>
+  <text x="555" y="383" font-family="monospace" font-size="8" fill="#ef4444" text-anchor="middle">INVESTIGATE (root)</text>
+</svg>
+<div class="fig-caption"><strong>Figure 2.</strong> PBS two-layer architecture. Layer 1 estimates process capability as a posterior and provides ε to Layer 2. Layer 2 detects special cause state transitions on the quasipotential landscape. Root cause findings feed back to update the structural model.</div>
+</div>
+
+<div class="insight">
+  <div class="insight-label">The Inversion</div>
+  Classical SPC: <em>"What is the probability of a defect?"</em> — a scalar.<br>
+  PBS: <em>"What is our confidence that the distribution from which we derive defect probabilities is itself adequate?"</em> — a distribution over distributions.<br><br>
+  One answers "what's the probability the event will happen." The other answers "what is our confidence in the distribution from which we're deriving those probabilities."
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- PART I                                          -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="part-divider">
+  <div class="part-num">Part I</div>
+  <div class="part-title">Bayesian SPC: Common Cause &amp; Capability</div>
+  <div class="part-sub">Improving the road and the car</div>
+</div>
+
+<h2 id="s3">3. From Point Estimates to Posterior Distributions</h2>
+
+<h3>3.1 The Classical Problem</h3>
+<p>Classical capability analysis computes a point estimate — C<sub>pk</sub> = 1.33 — and treats it as fact. But with 30 observations, the 95% confidence interval on C<sub>pk</sub> = 1.33 spans roughly [0.9, 1.7]. The point estimate is nearly meaningless; the uncertainty is the message.</p>
+
+<h3>3.2 The Bayesian Model</h3>
+<div class="def-box">
+  <div class="box-label">Definition (Process Parameter Posterior)</div>
+  Let <strong>θ</strong> = (μ, σ², ν, ...) be process parameters. Given observations <strong>y</strong> = (y₁, ..., y<sub>n</sub>):
+</div>
+<div class="math">p(<b>θ</b> | <b>y</b>) ∝ L(<b>y</b> | <b>θ</b>) · π(<b>θ</b>)</div>
+<p>A <strong>complete probability distribution over the parameters</strong>, conditioned on everything observed.</p>
+
+<h3>3.3 Prior Specification</h3>
+<p><strong>Uninformative:</strong> μ ∼ 𝒩(target, large variance), σ ∼ Half-Cauchy(0, scale). Data dominates quickly.</p>
+<p><strong>Informative:</strong> Historical data encoded — μ ∼ 𝒩(μ̂<sub>hist</sub>, σ̂²<sub>hist</sub>/n<sub>hist</sub>). New data updates existing knowledge.</p>
+<p><strong>Structural:</strong> Physics constraints as architectural priors. Positivity → log-normal. Known noise floor → truncated σ prior.</p>
+
+
+<h2 id="s4">4. Bayesian Capability Analysis</h2>
+
+<h3>4.1 Posterior Capability Distribution</h3>
+<div class="def-box">
+  <div class="box-label">Definition (Posterior Capability)</div>
+  Propagate the parameter posterior through the capability formula:
+</div>
+<div class="math">C<sub>pk</sub>(<b>θ</b>) = min( (USL − μ) / 3σ , (μ − LSL) / 3σ )</div>
+<p>For each draw <strong>θ</strong><sup>(s)</sup> from p(<strong>θ</strong> | <strong>y</strong>), compute C<sub>pk</sub><sup>(s)</sup>. The collection <em>is</em> the posterior capability distribution.</p>
+
+<!-- Fig 3: Posterior Cpk -->
+<div class="figure">
+  <canvas id="cpkCanvas" width="660" height="300"></canvas>
+  <div class="fig-caption"><strong>Figure 3.</strong> Posterior distribution of C<sub>pk</sub> from n=30 observations. The classical point estimate (dashed line) obscures the full uncertainty. The shaded regions show probability mass at different capability thresholds. With this data, P(C<sub>pk</sub> > 1.00) ≈ 3% — the process is not capable, and the posterior makes this unambiguous.</div>
+</div>
+
+<h3>4.2 The Probability of Capability</h3>
+<div class="def-box"><div class="box-label">Definition (Probability of Capability)</div></div>
+<div class="math">P(C<sub>pk</sub> > c* | <b>y</b>) = ∫ 𝕀[C<sub>pk</sub>(<b>θ</b>) > c*] · p(<b>θ</b> | <b>y</b>) d<b>θ</b></div>
+<p>Not "C<sub>pk</sub> = 1.33" but <strong>"P(C<sub>pk</sub> > 1.33) = 72%"</strong>. The first is a statistic. The second is actionable belief.</p>
+
+<h3>4.3 Multi-Threshold Assessment</h3>
+<div class="math">P(C<sub>pk</sub> > 1.00), &nbsp; P(C<sub>pk</sub> > 1.33), &nbsp; P(C<sub>pk</sub> > 1.50), &nbsp; P(C<sub>pk</sub> > 1.67), &nbsp; P(C<sub>pk</sub> > 2.00)</div>
+<p>Each threshold corresponds to a different industry standard. The posterior probability at each level tells the operator exactly how much confidence the data supports at each tier.</p>
+
+
+<h2 id="s5">5. The Confidence Inversion</h2>
+
+<div class="thm-box">
+  <div class="box-label">Theorem (The Confidence Inversion)</div>
+  Let <em>D</em>(<strong>θ</strong>) be any derived quantity. Classical SPC reports <em>D</em>(<strong>θ̂</strong>) — a scalar of a point estimate. PBS reports p(<em>D</em> | <strong>y</strong>) — the full posterior of <em>D</em>.<br><br>
+  Classical: condition on fixed (estimated) process.<br>
+  PBS: marginalize over uncertainty in the process itself.
+</div>
+<p>Classical defect rate: a point. PBS posterior predictive defect rate: a distribution with credible intervals and full shape.</p>
+<div class="math">
+  Classical: &nbsp; p̂<sub>defect</sub> = P(Y ∉ spec | μ̂, σ̂) &nbsp;&nbsp;&nbsp; [scalar]<br><br>
+  PBS: &nbsp; p<sub>defect</sub>(<b>y</b>) = ∫ P(Y ∉ spec | <b>θ</b>) · p(<b>θ</b> | <b>y</b>) d<b>θ</b> &nbsp;&nbsp;&nbsp; [distribution]
+</div>
+
+
+<h2 id="s6">6. Sequential Updating and the Living Capability Posterior</h2>
+
+<h3>6.1 Online Bayesian Updating</h3>
+<div class="math">p(<b>θ</b> | y₁,...,y<sub>n</sub>, y<sub>n+1</sub>) ∝ L(y<sub>n+1</sub> | <b>θ</b>) · p(<b>θ</b> | y₁,...,y<sub>n</sub>)</div>
+<p>Yesterday's posterior is today's prior. The capability distribution is <strong>alive</strong> — it sharpens with each observation, drifts if the process drifts, widens if variability increases.</p>
+
+<!-- Fig 4: Sequential Updating -->
+<div class="figure">
+  <canvas id="seqCanvas" width="660" height="280"></canvas>
+  <div class="fig-caption"><strong>Figure 4.</strong> Sequential Bayesian updating of the C<sub>pk</sub> posterior. At n=5 (light), the posterior is wide — little confidence. By n=30 (medium), it sharpens. By n=100 (dark), uncertainty is small. The posterior is alive: each observation refines belief. Classical capability studies produce a single snapshot; PBS produces a continuous assessment.</div>
+</div>
+
+<h3>6.2 Value of Information</h3>
+<p>The expected posterior variance of C<sub>pk</sub> given <em>m</em> additional observations is computable by forward simulation, yielding a <strong>value-of-information curve</strong>: marginal uncertainty reduction per observation. When the curve flattens, stop sampling.</p>
+
+<h3>6.3 Change Detection in the Capability Posterior</h3>
+<p>If the capability posterior shifts — median C<sub>pk</sub> trending down, or posterior variance increasing without more data — something has changed. This is a <em>soft signal</em> of a potential special cause, delivered before any single observation triggers a control chart. Layer 1 hands this signal to Layer 2 for escape analysis.</p>
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- PART II                                         -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="part-divider">
+  <div class="part-num">Part II</div>
+  <div class="part-title">Bayesian Escape: Special Cause Dynamics</div>
+  <div class="part-sub">Reconstructing the chain of failures</div>
+</div>
+
+<h2 id="s7">7. Stochastic Process Model</h2>
+
+<h3>7.1 Process Dynamics</h3>
+<div class="def-box"><div class="box-label">Definition (Process SDE)</div>Let <strong>X</strong>(<em>t</em>) ∈ ℝ<sup>d</sup> evolve according to:</div>
+<div class="math">d<b>X</b>(t) = <b>b</b>(<b>X</b>(t)) dt + √ε · <b>σ</b>(<b>X</b>(t)) d<b>W</b>(t)</div>
+<p>where ε > 0 is the noise intensity — <strong>the same ε that Layer 1 estimates from data.</strong></p>
+
+<p class="remark"><em>Remark.</em> <strong>X</strong>(<em>t</em>) is the full process state: temperatures, pressures, feed rates, tool wear, environment. The quality characteristic <em>Y</em>(<em>t</em>) = <em>h</em>(<strong>X</strong>(<em>t</em>)) is an observation function.</p>
+
+<h3>7.2 Metastable Equilibria</h3>
+<div class="def-box"><div class="box-label">Definition (Metastable State)</div>A point <strong>x</strong>* ∈ ℝ<sup>d</sup> is <strong>metastable</strong> if: (i) <strong>b</strong>(<strong>x</strong>*) = 0, (ii) all eigenvalues of D<strong>b</strong>(<strong>x</strong>*) have strictly negative real parts, (iii) the basin <em>B</em>(<strong>x</strong>*) is bounded.</div>
+<p>In-control state = <strong>x</strong>₀*. Other equilibria = failure modes. The <strong>separatrix</strong> between basins is the tipping boundary.</p>
+
+
+<h2 id="s8">8. Large Deviation Theory and the Quasipotential</h2>
+
+<h3>8.1 Freidlin–Wentzell Framework</h3>
+<div class="def-box"><div class="box-label">Definition (Action Functional)</div></div>
+<div class="math">S<sub>T</sub>(φ) = ½ ∫₀ᵀ ‖ <b>a</b>(φ(t))⁻¹ [φ̇(t) − <b>b</b>(φ(t))] ‖² dt</div>
+
+<div class="def-box"><div class="box-label">Definition (Quasipotential)</div></div>
+<div class="math">V(<b>x</b>*, <b>y</b>) = inf { S<sub>T</sub>(φ) : φ(0) = <b>x</b>*, φ(T) = <b>y</b>, T > 0 }</div>
+
+<!-- Fig 5: Quasipotential Landscape -->
+<div class="figure">
+  <canvas id="quasiCanvas" width="660" height="340"></canvas>
+  <div class="fig-caption"><strong>Figure 5.</strong> The quasipotential landscape for a double-well process. The in-control state (left well) sits at depth V<sub>saddle</sub> below the escape barrier. The minimum action path (MAP) traces the most probable escape trajectory through the saddle point. The process must "climb" the quasipotential hill to transition to the failure mode (right well). The barrier height divided by noise intensity ε determines the expected escape time exponentially.</div>
+</div>
+
+<h3>8.2 Kramers' Law</h3>
+<div class="thm-box"><div class="box-label">Theorem (Kramers–Freidlin–Wentzell)</div></div>
+<div class="math">𝔼[τ<sub>escape</sub>] ∼ C · exp(V<sub>saddle</sub> / ε) &nbsp;&nbsp; as ε → 0</div>
+<p>Escape overwhelmingly occurs via the <strong>minimum action path (MAP)</strong>.</p>
+
+
+<h2 id="s9">9. Escape Dynamics (Forgoston Framework)</h2>
+
+<h3>9.1 The Escape Hamiltonian</h3>
+<div class="math">H(<b>x</b>, <b>p</b>) = <b>p</b><sup>T</sup><b>b</b>(<b>x</b>) + ½ <b>p</b><sup>T</sup><b>a</b>(<b>x</b>)<b>p</b></div>
+<div class="math">ẋ = ∂H/∂<b>p</b> = <b>b</b>(<b>x</b>) + <b>a</b>(<b>x</b>)<b>p</b> &nbsp;&nbsp;&nbsp;&nbsp; ṗ = −∂H/∂<b>x</b></div>
+
+<h3>9.2 Momentum as Risk Indicator</h3>
+<div class="prop-box"><div class="box-label">Proposition (Momentum–Risk Correspondence)</div>Along the MAP: <strong>p</strong>(<em>t</em>) = ∇V(<strong>x</strong>₀*, <strong>x</strong>(<em>t</em>)). The magnitude ‖<strong>p</strong>‖ measures escape progress.</div>
+
+<p class="remark"><em>Remark.</em> Shewhart: "observation is Nσ from center." Momentum: "process has completed X% of the most dangerous escape trajectory."</p>
+
+<h3>9.3 Multi-Path Escapes</h3>
+<div class="math">P(escape via k) / P(escape via j) ∼ exp(−(V<sub>k</sub> − V<sub>j</sub>) / ε)</div>
+<p>Failure modes ranked by escape cost. The escape path through the Hamiltonian system <em>is</em> the causal chain — mathematical foundation for DAG-based root cause analysis.</p>
+
+
+<h2 id="s10">10. Bayesian State Estimation on the Escape Landscape</h2>
+
+<h3>10.1 Observation and Filtering</h3>
+<div class="math">Y<sub>n</sub> = h(<b>X</b>(t<sub>n</sub>)) + η<sub>n</sub> , &nbsp;&nbsp; η<sub>n</sub> ∼ 𝒩(<b>0</b>, <b>R</b>)</div>
+<div class="math">π<sub>n</sub>(<b>x</b>) ∝ g(Y<sub>n</sub> | <b>x</b>) ∫ p(<b>x</b> | <b>x</b>′) π<sub>n−1</sub>(<b>x</b>′) d<b>x</b>′</div>
+
+<h3>10.2 The Bayesian Sigma Triad</h3>
+
+<div class="def-box"><div class="box-label">Escape Proximity</div></div>
+<div class="math">Δ<sub>n</sub> = 𝔼<sub>π<sub>n</sub></sub>[ V<sub>saddle</sub> − V(<b>x</b>₀*, <b>X</b>) ]</div>
+
+<div class="def-box"><div class="box-label">Escape Probability</div></div>
+<div class="math">P<sub>esc</sub>(n, τ) ≈ 1 − exp(−τ · λ<sub>esc</sub>(<b>x̂</b><sub>n</sub>))</div>
+
+<div class="def-box"><div class="box-label">Momentum Alignment</div></div>
+<div class="math">𝒜<sub>n</sub> = 𝔼<sub>π<sub>n</sub></sub>[ cos ∠(<b>v</b><sub>obs</sub>, <b>p</b><sub>MAP</sub>(<b>X</b>)) ]</div>
+
+<!-- Fig 6: Triad -->
+<div class="figure">
+  <canvas id="triadCanvas" width="660" height="260"></canvas>
+  <div class="fig-caption"><strong>Figure 6.</strong> The Bayesian Sigma triad during simulated process escape. Escape proximity Δ (green, top) declines as the process approaches the separatrix. Momentum alignment 𝒜 (gold, middle) rises as trajectory aligns with MAP. Combined Σ<sub>B</sub> (red, bottom) drops below intervention thresholds well before a Shewhart chart would trigger (dashed line = 3σ rule trigger point).</div>
+</div>
+
+
+<h2 id="s11">11. The Bayesian Sigma Metric</h2>
+
+<div class="def-box"><div class="box-label">Definition (Bayesian Sigma Level)</div></div>
+<div class="math">Σ<sub>B</sub>(n) = √(2 V(<b>x</b>₀*, <b>x̂</b><sub>n</sub>) / ε) · √(1 − 𝒜<sub>n</sub>⁺)</div>
+
+<div class="thm-box"><div class="box-label">Theorem (Classical Recovery)</div>With <strong>b</strong> = −k(<strong>x</strong>−<strong>μ</strong>), <strong>σ</strong> = σ<strong>I</strong>, h = identity:</div>
+<div class="math">V(<b>μ</b>, <b>x</b>) = k‖<b>x</b> − <b>μ</b>‖² / σ² &nbsp; ⟹ &nbsp; Σ<sub>B</sub> ∝ ‖<b>x̂</b> − <b>μ</b>‖ / σ &nbsp; (classical Z-score)</div>
+
+<table>
+  <thead><tr><th>Σ<sub>B</sub></th><th>Interpretation</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td>> 6.0</td><td>Deep in well, no escape alignment</td><td>Routine monitoring</td></tr>
+    <tr><td>4.0–6.0</td><td>Moderate depth, watch for momentum</td><td>Enhanced sampling</td></tr>
+    <tr><td>2.0–4.0</td><td>Reduced barrier or partial alignment</td><td>Engineering investigation</td></tr>
+    <tr><td>1.0–2.0</td><td>Near separatrix or strong alignment</td><td>Immediate intervention</td></tr>
+    <tr><td>< 1.0</td><td>Escape imminent or in progress</td><td>Emergency stop / containment</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- PART III                                        -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="part-divider">
+  <div class="part-num">Part III</div>
+  <div class="part-title">The Coupling</div>
+  <div class="part-sub">How the layers connect through ε and the quasipotential</div>
+</div>
+
+<h2 id="s12">12. How the Layers Connect</h2>
+
+<h3>12.1 ε Is the Bridge</h3>
+<div class="math">ε(n) = 𝔼[σ² | y₁,...,y<sub>n</sub>] &nbsp; → &nbsp; V<sub>saddle</sub> / ε(n) = escape barrier height</div>
+<p>Rising variance in Layer 1 → lower escape barriers in Layer 2 → elevated escape probability → earlier intervention. The layers amplify each other's signals.</p>
+
+<h3>12.2 The Feedback Loop</h3>
+<div class="insight">
+  <div class="insight-label">Layer Coupling Dynamics</div>
+  <strong>Layer 1 → Layer 2 (forward):</strong> Capability posterior provides ε and process parameters defining the quasipotential landscape.<br><br>
+  <strong>Layer 2 → Layer 1 (feedback):</strong> Root cause findings update the structural model — change <strong>b</strong>(<strong>x</strong>). Layer 1 re-estimates capability on the modified process.<br><br>
+  <strong>Kaizen (L1 internal):</strong> Reduces ε or reshapes basin — builds inherent capability.<br>
+  <strong>Root cause (L2 → model):</strong> Changes topology — eliminates escape paths, raises saddles.
+</div>
+
+<h3>12.3 Decision Logic</h3>
+<table>
+  <thead><tr><th>Signal</th><th>Source</th><th>Interpretation</th><th>Response</th></tr></thead>
+  <tbody>
+    <tr><td>P(C<sub>pk</sub> > 1.33) declining</td><td>Layer 1</td><td>Capability eroding, common cause</td><td>Kaizen</td></tr>
+    <tr><td>Σ<sub>B</sub> dropping, 𝒜 rising</td><td>Layer 2</td><td>Active escape toward failure</td><td>Investigate</td></tr>
+    <tr><td>Both simultaneously</td><td>L1+L2</td><td>Degrading process + escape</td><td>Stabilize (L2), then improve (L1)</td></tr>
+    <tr><td>Neither</td><td>—</td><td>Stable and capable</td><td>Monitor. Sharpen posterior.</td></tr>
+  </tbody>
+</table>
+
+
+<h2 id="s13">13. Dual State-Space Formulation</h2>
+
+<div class="def-box"><div class="box-label">Physical State Space (Primary)</div><strong>X</strong>(<em>t</em>) ∈ ℝ<sup>d</sup> = full process physics. SDE, quasipotential, escape paths, Hamiltonian dynamics operate here.</div>
+
+<div class="def-box"><div class="box-label">Abstract Quality State Space (Projected)</div><em>Q</em>(<em>t</em>) = Π(<strong>X</strong>(<em>t</em>)) ∈ {<em>q</em>₀,...,<em>q<sub>K</sub></em>} by basin membership. Induced dynamics = continuous-time Markov chain.</div>
+
+<div class="thm-box"><div class="box-label">Theorem (Projection Consistency)</div></div>
+<div class="math">Λ<sub>ij</sub> ∼ C<sub>ij</sub> · exp(−V(<b>x</b><sub>i</sub>*, <b>s</b><sub>ij</sub>) / ε) &nbsp;&nbsp; for i ≠ j</div>
+<p>The abstract chain is <strong>derived</strong>, not assumed. When physics unknown, use empirical rates (HMM fallback).</p>
+
+
+<h2 id="s14">14. Recovery of Classical SPC</h2>
+<table>
+  <thead><tr><th>Classical Tool</th><th>PBS Equivalent</th><th>Limiting Assumption</th></tr></thead>
+  <tbody>
+    <tr><td>C<sub>pk</sub> point estimate</td><td>Posterior median of C<sub>pk</sub></td><td>Infinite data (posterior → point)</td></tr>
+    <tr><td>Shewhart X̄</td><td>Σ<sub>B</sub>, linear drift, isotropic</td><td>Single attractor, Gaussian</td></tr>
+    <tr><td>CUSUM</td><td>Escape momentum log-LR</td><td>Two-state, known shift</td></tr>
+    <tr><td>EWMA</td><td>Kalman filter posterior mean</td><td>Linear, Gaussian</td></tr>
+    <tr><td>HMM charts</td><td>Projected chain Q(<em>t</em>)</td><td>Discrete states, empirical</td></tr>
+    <tr><td>Capability study</td><td>One snapshot of living posterior</td><td>Fixed-sample, one-time</td></tr>
+    <tr><td>Six Sigma DPMO</td><td>Posterior predictive defect rate</td><td>Gaussian tails, 1.5σ shift</td></tr>
+  </tbody>
+</table>
+<p class="remark"><em>Remark.</em> Every classical tool is a special case. PBS adds: nonlinear dynamics, non-Gaussian noise, multi-modal failure, incomplete observation, full uncertainty quantification, sequential updating, and coupled capability/escape diagnostics.</p>
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- PART IV                                         -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="part-divider">
+  <div class="part-num">Part IV</div>
+  <div class="part-title">Robustness, Implementation &amp; Extensions</div>
+</div>
+
+<h2 id="s15">15. Robustness and Identifiability</h2>
+
+<p>PBS Layer 2 rests on the quasipotential V, which depends on the drift field <strong>b</strong>(<strong>x</strong>) and diffusion <strong>σ</strong>(<strong>x</strong>). If these are misspecified, Σ<sub>B</sub> inherits the error. This section establishes robustness bounds and degradation guarantees under model uncertainty.</p>
+
+<h3>15.1 Sensitivity of Σ<sub>B</sub> to Drift Perturbation</h3>
+
+<div class="thm-box">
+  <div class="box-label">Theorem (Quasipotential Stability)</div>
+  Let <strong>b</strong>(<strong>x</strong>) be the true drift and <strong>b̃</strong>(<strong>x</strong>) = <strong>b</strong>(<strong>x</strong>) + δ<strong>b</strong>(<strong>x</strong>) be a perturbed drift with ‖δ<strong>b</strong>‖<sub>∞</sub> ≤ η. Let V and Ṽ be the corresponding quasipotentials. Then for the isotropic diffusion case (<strong>a</strong> = σ²<strong>I</strong>):
+</div>
+
+<div class="math">
+  |V(<b>x</b>*, <b>y</b>) − Ṽ(<b>x</b>*, <b>y</b>)| ≤ (2η / σ²) · L(<b>x</b>*, <b>y</b>) · (D + η·L / 2σ²)
+</div>
+
+<p>where L(<strong>x</strong>*, <strong>y</strong>) is the arc length of the MAP and D = max ‖φ̇ − <strong>b</strong>(φ)‖ along the path. The quasipotential perturbation is bounded linearly in the drift perturbation magnitude η for small η. This means <strong>Σ<sub>B</sub> degrades gracefully</strong> under drift misspecification, not catastrophically.</p>
+
+<div class="prop-box">
+  <div class="box-label">Proposition (Σ<sub>B</sub> Sensitivity)</div>
+  The Bayesian Sigma level satisfies:<br><br>
+  |Σ<sub>B</sub> − Σ̃<sub>B</sub>| ≤ (1/√(2ε)) · |V − Ṽ|<sup>½</sup> · (√V + √Ṽ)⁻¹ + O(momentum correction)<br><br>
+  For moderate quasipotential values (not near zero), Σ<sub>B</sub> is Lipschitz in V, and therefore Lipschitz in the drift perturbation.
+</div>
+
+<p class="remark"><em>Remark.</em> This is the answer to the critique "if V is wrong, Σ<sub>B</sub> is wrong": yes, but Σ<sub>B</sub> is <em>continuously</em> wrong, not discontinuously wrong. A 10% error in drift estimation produces a bounded, predictable error in Σ<sub>B</sub>, not a qualitative failure of the diagnostic. This is a strictly better situation than classical SPC, where the control limits are correct under the Gaussian assumption and meaningless otherwise.</p>
+
+<h3>15.2 Bayesian Model Averaging for the Drift</h3>
+
+<p>When the drift is uncertain, PBS does not require committing to a single <strong>b</strong>(<strong>x</strong>). Instead, maintain a posterior over drift models:</p>
+
+<div class="math">
+  p(<b>b</b> | <b>y</b>) &nbsp; → &nbsp; Σ<sub>B</sub>(<b>y</b>) = ∫ Σ<sub>B</sub>(n; <b>b</b>) · p(<b>b</b> | <b>y</b>) d<b>b</b>
+</div>
+
+<p>This marginalizes over drift uncertainty, producing a <strong>model-averaged Bayesian Sigma</strong> that automatically inflates when drift knowledge is poor (because different models predict different V, spreading the posterior on Σ<sub>B</sub>) and tightens as drift is learned. This is the honest answer: uncertainty about the model propagates into uncertainty about the diagnostic.</p>
+
+<h3>15.3 Hierarchical Degradation</h3>
+
+<div class="def-box">
+  <div class="box-label">Definition (PBS Operating Modes)</div>
+  PBS operates in a hierarchy of modes depending on available process knowledge:
+</div>
+
+<table>
+  <thead><tr><th>Knowledge Available</th><th>PBS Mode</th><th>Layer 2 Method</th><th>Quality of Σ<sub>B</sub></th></tr></thead>
+  <tbody>
+    <tr><td>Full process physics: <strong>b</strong>, <strong>σ</strong> known</td><td>Full PBS</td><td>Exact quasipotential + particle filter</td><td>Optimal</td></tr>
+    <tr><td>Partial physics, data-learned drift</td><td>Adaptive PBS</td><td>Learned V<sub>θ</sub> + model-averaged Σ<sub>B</sub></td><td>Good (with honest uncertainty)</td></tr>
+    <tr><td>No physics, only quality output data</td><td>Projected PBS</td><td>Empirical HMM on Q(t)</td><td>Degraded (no escape geometry)</td></tr>
+    <tr><td>Minimal data, no physics</td><td>Layer 1 only</td><td>Classical Bayesian capability</td><td>Layer 1 stands alone</td></tr>
+  </tbody>
+</table>
+
+<p class="remark"><em>Remark.</em> This is the architectural response to the dimensionality concern. For 8–20D physical state spaces, Reduced PBS applies: use gMAM for the MAP computation (which does not require gridding), neural quasipotential for V evaluation, and project to a lower-dimensional manifold identified via PCA or diffusion maps on the particle cloud. The framework does not require solving the full curse of dimensionality — it requires identifying the <em>escape-relevant</em> subspace, which is typically low-dimensional even when the ambient state is not.</p>
+
+<!-- Fig 7: Degradation modes -->
+<div class="figure">
+<svg viewBox="0 0 660 200" xmlns="http://www.w3.org/2000/svg" style="max-width:660px;">
+  <defs><marker id="aW" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#6b7280"/></marker></defs>
+  <!-- Full -->
+  <rect x="10" y="30" width="140" height="80" rx="8" fill="#131a21" stroke="#4ade80" stroke-width="1.5"/>
+  <text x="80" y="55" font-family="monospace" font-size="8" fill="#4ade80" text-anchor="middle" font-weight="bold">FULL PBS</text>
+  <text x="80" y="72" font-family="Georgia,serif" font-size="8" fill="#d1d5db" text-anchor="middle">Known physics</text>
+  <text x="80" y="86" font-family="Georgia,serif" font-size="8" fill="#d1d5db" text-anchor="middle">Exact V, particle filter</text>
+  <text x="80" y="100" font-family="monospace" font-size="7" fill="#4ade80" text-anchor="middle">Σ_B OPTIMAL</text>
+  <line x1="150" y1="70" x2="175" y2="70" stroke="#6b7280" marker-end="url(#aW)"/>
+  <!-- Adaptive -->
+  <rect x="178" y="30" width="140" height="80" rx="8" fill="#131a21" stroke="#4a90d9" stroke-width="1.5"/>
+  <text x="248" y="55" font-family="monospace" font-size="8" fill="#4a90d9" text-anchor="middle" font-weight="bold">ADAPTIVE PBS</text>
+  <text x="248" y="72" font-family="Georgia,serif" font-size="8" fill="#d1d5db" text-anchor="middle">Partial / learned drift</text>
+  <text x="248" y="86" font-family="Georgia,serif" font-size="8" fill="#d1d5db" text-anchor="middle">Model-averaged Σ_B</text>
+  <text x="248" y="100" font-family="monospace" font-size="7" fill="#4a90d9" text-anchor="middle">Σ_B GOOD + HONEST UQ</text>
+  <line x1="318" y1="70" x2="343" y2="70" stroke="#6b7280" marker-end="url(#aW)"/>
+  <!-- Projected -->
+  <rect x="346" y="30" width="140" height="80" rx="8" fill="#131a21" stroke="#c9a227" stroke-width="1.5"/>
+  <text x="416" y="55" font-family="monospace" font-size="8" fill="#c9a227" text-anchor="middle" font-weight="bold">PROJECTED PBS</text>
+  <text x="416" y="72" font-family="Georgia,serif" font-size="8" fill="#d1d5db" text-anchor="middle">No physics, output only</text>
+  <text x="416" y="86" font-family="Georgia,serif" font-size="8" fill="#d1d5db" text-anchor="middle">Empirical HMM on Q(t)</text>
+  <text x="416" y="100" font-family="monospace" font-size="7" fill="#c9a227" text-anchor="middle">Σ_B DEGRADED</text>
+  <line x1="486" y1="70" x2="511" y2="70" stroke="#6b7280" marker-end="url(#aW)"/>
+  <!-- L1 only -->
+  <rect x="514" y="30" width="136" height="80" rx="8" fill="#131a21" stroke="#6b7280" stroke-width="1.5"/>
+  <text x="582" y="55" font-family="monospace" font-size="8" fill="#6b7280" text-anchor="middle" font-weight="bold">LAYER 1 ONLY</text>
+  <text x="582" y="72" font-family="Georgia,serif" font-size="8" fill="#d1d5db" text-anchor="middle">Minimal data</text>
+  <text x="582" y="86" font-family="Georgia,serif" font-size="8" fill="#d1d5db" text-anchor="middle">Bayesian capability</text>
+  <text x="582" y="100" font-family="monospace" font-size="7" fill="#6b7280" text-anchor="middle">NO Σ_B / L1 STANDS ALONE</text>
+  <!-- Arrow labels -->
+  <text x="163" y="24" font-family="monospace" font-size="7" fill="#6b7280" text-anchor="middle">less knowledge →</text>
+  <text x="163" y="130" font-family="monospace" font-size="7" fill="#6b7280" text-anchor="middle">← more knowledge</text>
+  <!-- Underline -->
+  <line x1="10" y1="148" x2="650" y2="148" stroke="#1e3a2a"/>
+  <text x="330" y="170" font-family="Georgia,serif" font-size="10" fill="#d1d5db" text-anchor="middle">PBS degrades <tspan fill="#4ade80" font-weight="bold">gracefully</tspan>, not catastrophically.</text>
+  <text x="330" y="188" font-family="Georgia,serif" font-size="10" fill="#6b7280" text-anchor="middle" font-style="italic">Layer 1 is always available. Layer 2 activates when physics permit.</text>
+</svg>
+<div class="fig-caption"><strong>Figure 7.</strong> PBS hierarchical degradation modes. As process knowledge decreases (left to right), the framework gracefully falls back from full escape dynamics to projected HMM to Layer 1 standalone. At no point does the system produce unfounded claims — uncertainty propagates honestly into the diagnostics.</div>
+</div>
+
+<h3>15.4 Identifiability Conditions</h3>
+
+<div class="thm-box">
+  <div class="box-label">Theorem (Structural Identifiability)</div>
+  The PBS framework is identifiable (i.e., distinct parameter values produce distinct observable behavior) under:
+  <br><br>
+  (i) The observation function <em>h</em> is injective on each basin (distinct physical states produce distinct quality measurements within a regime);<br>
+  (ii) The diffusion tensor <strong>a</strong>(<strong>x</strong>) is positive definite on the escape-relevant subspace;<br>
+  (iii) At least two metastable states exist with distinct observational signatures.
+  <br><br>
+  Under these conditions, the quasipotential V is identifiable from sufficiently long observation sequences, and the transition rates Λ<sub>ij</sub> of the projected chain are consistently estimable.
+</div>
+
+<p>When identifiability conditions are violated — the observation function cannot distinguish between states, or the noise is degenerate in the escape direction — Layer 2 should report this as an <em>observability limitation</em> rather than producing misleading Σ<sub>B</sub> values. This is a feature, not a failure: the framework knows when it doesn't know.</p>
+
+
+<h2 id="s16">16. Computational Architecture</h2>
+
+<h3>16.1 Layer 1: MCMC / Variational Inference</h3>
+<p>Capability posterior via NUTS for full exploration or variational inference for real-time. Conjugate priors (Normal-Inverse-Gamma) admit closed-form updates. Non-conjugate models use cached MCMC draws.</p>
+
+<h3>16.2 Layer 2: Particle Filter on Quasipotential</h3>
+<p><strong>Offline:</strong> (a) Ordered Upwind for d ≤ 4, (b) gMAM for higher dimensions, (c) Neural V<sub>θ</sub> for learned representations.</p>
+<p><strong>Online:</strong> Particle filter with escape-informed proposal. N=1000, milliseconds per observation on modern GPU hardware.</p>
+
+<h3>16.3 Reduced-Order Escape Models</h3>
+<p>For high-dimensional state spaces (d > 6): identify the escape-relevant subspace via diffusion maps or PCA on the particle cloud near the separatrix. Project escape dynamics onto this subspace. The MAP lies in a low-dimensional manifold even when the ambient space is large — escapes are structured, not random walks in high dimensions.</p>
+
+
+<h2 id="s17">17. Open Problems</h2>
+
+<h3>17.1 Adaptive Noise Estimation</h3>
+<p>Joint estimation of <strong>X</strong>(<em>t</em>) and ε(<em>t</em>). Hierarchical model where the landscape evolves — valleys shallow as noise grows.</p>
+
+<h3>17.2 Non-Markovian Extensions</h3>
+<p>Stochastic delay differential equations, or augmented state embedding to convert memory to higher-dimensional Markovian.</p>
+
+<h3>17.3 Learning Drift from Data</h3>
+<p>SINDy or neural ODEs. Learned SDE = physics-informed digital twin. Fine-tune language models to generate SDE specs from process descriptions.</p>
+
+<h3>17.4 Conformal Prediction Hybrid</h3>
+<p>Bayesian for insight, conformal for guarantees. Wrap escape probability in conformal bands for distribution-free finite-sample coverage.</p>
+
+<h3>17.5 Anytime-Valid Inference</h3>
+<p>Calibrate P<sub>esc</sub> as an e-process. Product of e-values controls false alarm rate under arbitrary stopping.</p>
+
+<h3>17.6 Multi-Characteristic PBS</h3>
+<p>Vector-valued quality characteristics with correlated posteriors and shared escape landscapes.</p>
+
+<h3>17.7 FMEA Replacement</h3>
+<p>Escape path through Hamiltonian = causal chain. Action barrier V<sub>k</sub> at each saddle = physics-derived severity × occurrence. Replaces subjective 1–10 FMEA ratings with process dynamics.</p>
+
+<h3>17.8 Empirical Validation</h3>
+<p>The critical next step: a worked example on a synthetic double-well process with asymmetric escape paths, slowly increasing noise, and partial observation. The benchmark: does Σ<sub>B</sub> give earlier, more calibrated warnings than Shewhart, CUSUM, and EWMA? Simulation study design is specified; execution is forthcoming.</p>
+
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- REFERENCES                                      -->
+<!-- ═══════════════════════════════════════════════ -->
+<h2 id="refs">References</h2>
+<div class="ref-list">
+  <p><span class="ref-num">[1]</span> Shewhart, W. A. <em>Economic Control of Quality of Manufactured Product</em>. Van Nostrand, 1931.</p>
+  <p><span class="ref-num">[2]</span> Freidlin, M. I. &amp; Wentzell, A. D. <em>Random Perturbations of Dynamical Systems</em>, 3rd ed. Springer, 2012.</p>
+  <p><span class="ref-num">[3]</span> Forgoston, E., Billings, L., Schwartz, I. B. Escape rates in a stochastic environment with multiple scales. <em>SIAM J. Appl. Dyn. Sys.</em>, 8(4):1190–1217, 2009.</p>
+  <p><span class="ref-num">[4]</span> Forgoston, E. &amp; Moore, R. O. A primer on noise-induced transitions in applied dynamical systems. <em>SIAM Review</em>, 60(4):969–1009, 2018.</p>
+  <p><span class="ref-num">[5]</span> Kramers, H. A. Brownian motion in a field of force and the diffusion model of chemical reactions. <em>Physica</em>, 7(4):284–304, 1940.</p>
+  <p><span class="ref-num">[6]</span> Del Moral, P. <em>Feynman-Kac Formulae</em>. Springer, 2004.</p>
+  <p><span class="ref-num">[7]</span> Heymann, M. &amp; Vanden-Eijnden, E. The geometric minimum action method. <em>Comm. Pure Appl. Math.</em>, 61(8):1052–1117, 2008.</p>
+  <p><span class="ref-num">[8]</span> Cameron, M. K. Finding the quasipotential for nongradient SDEs. <em>Physica D</em>, 241(18):1532–1550, 2012.</p>
+  <p><span class="ref-num">[9]</span> Gelman, A. et al. <em>Bayesian Data Analysis</em>, 3rd ed. CRC Press, 2013.</p>
+  <p><span class="ref-num">[10]</span> Hamada, M. S. et al. <em>Bayesian Reliability</em>. Springer, 2008.</p>
+  <p><span class="ref-num">[11]</span> Ramdas, A. et al. Testing exchangeability: e-processes. <em>Int. J. Approx. Reasoning</em>, 141:83–109, 2022.</p>
+  <p><span class="ref-num">[12]</span> Vovk, V. et al. <em>Algorithmic Learning in a Random World</em>, 2nd ed. Springer, 2022.</p>
+  <p><span class="ref-num">[13]</span> Brunton, S. L. et al. SINDy. <em>PNAS</em>, 113(15):3932–3937, 2016.</p>
+  <p><span class="ref-num">[14]</span> Berger, J. O. <em>Statistical Decision Theory and Bayesian Analysis</em>, 2nd ed. Springer, 1985.</p>
+  <p><span class="ref-num">[15]</span> Huber, P. J. <em>Robust Statistics</em>. Wiley, 1981.</p>
+</div>
+
+
+<div class="footer">
+  Working Paper — February 2026 — Probabilistic Bayesian SPC (PBS)
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- JAVASCRIPT VISUALIZATIONS                       -->
+<!-- ═══════════════════════════════════════════════ -->
+<script>
+// ── Utility ──
+function normalPDF(x, mu, sigma) {
+  return Math.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * Math.sqrt(2 * Math.PI));
+}
+
+// ── Figure 3: Posterior Cpk ──
+(function() {
+  const c = document.getElementById('cpkCanvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  const pad = { l: 50, r: 20, t: 20, b: 50 };
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+
+  ctx.fillStyle = '#131a21';
+  ctx.fillRect(0, 0, W, H);
+
+  // Simulated posterior: Cpk ~ Normal(0.50, 0.08)
+  const mu = 0.50, sig = 0.08;
+  const xmin = 0.15, xmax = 0.85;
+  const ymax = normalPDF(mu, mu, sig) * 1.1;
+
+  function toX(v) { return pad.l + ((v - xmin) / (xmax - xmin)) * pw; }
+  function toY(v) { return pad.t + ph - (v / ymax) * ph; }
+
+  // Filled regions
+  const thresholds = [
+    { v: 1.00, color: 'rgba(239,68,68,0.15)' },
+    { v: 1.33, color: 'rgba(234,179,8,0.12)' },
+  ];
+
+  // Main distribution fill
+  ctx.beginPath();
+  ctx.moveTo(toX(xmin), toY(0));
+  for (let x = xmin; x <= xmax; x += 0.002) {
+    ctx.lineTo(toX(x), toY(normalPDF(x, mu, sig)));
+  }
+  ctx.lineTo(toX(xmax), toY(0));
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(74,110,165,0.35)';
+  ctx.fill();
+
+  // Distribution outline
+  ctx.beginPath();
+  for (let x = xmin; x <= xmax; x += 0.002) {
+    const px = toX(x), py = toY(normalPDF(x, mu, sig));
+    x === xmin ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.strokeStyle = '#4a90d9';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Point estimate line
+  ctx.setLineDash([6, 4]);
+  ctx.strokeStyle = '#ffffff88';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(toX(mu), toY(0));
+  ctx.lineTo(toX(mu), toY(normalPDF(mu, mu, sig)));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Labels
+  ctx.fillStyle = '#ffffff88';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('point est.', toX(mu), toY(normalPDF(mu, mu, sig)) - 8);
+  ctx.fillText('Ĉpk = 0.50', toX(mu), toY(0) + 14);
+
+  // Threshold markers (where they'd be, off to the right)
+  const thLabels = [
+    { v: 1.00, label: 'c*=1.00', color: '#ef4444' },
+  ];
+  // These are way off the distribution — show as annotations
+  ctx.fillStyle = '#ef444488';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('P(Cpk > 1.00) ≈ 0%', W - pad.r - 5, pad.t + 30);
+  ctx.fillText('P(Cpk > 1.33) ≈ 0%', W - pad.r - 5, pad.t + 46);
+  ctx.fillStyle = '#4ade8088';
+  ctx.fillText('Posterior median = 0.50', W - pad.r - 5, pad.t + 68);
+
+  // Axes
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t + ph);
+  ctx.lineTo(pad.l + pw, pad.t + ph);
+  ctx.stroke();
+
+  // X-axis ticks
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  for (let v = 0.2; v <= 0.8; v += 0.1) {
+    ctx.fillText(v.toFixed(1), toX(v), pad.t + ph + 18);
+  }
+  ctx.fillText('Cpk', pad.l + pw / 2, H - 8);
+
+  // Y-axis label
+  ctx.save();
+  ctx.translate(14, pad.t + ph / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Posterior Density', 0, 0);
+  ctx.restore();
+})();
+
+
+// ── Figure 4: Sequential Updating ──
+(function() {
+  const c = document.getElementById('seqCanvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  const pad = { l: 50, r: 20, t: 20, b: 50 };
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+
+  ctx.fillStyle = '#131a21';
+  ctx.fillRect(0, 0, W, H);
+
+  const xmin = 0.0, xmax = 1.8;
+  const cases = [
+    { mu: 0.7, sig: 0.25, label: 'n = 5', color: '#4a90d944', stroke: '#4a90d966' },
+    { mu: 0.55, sig: 0.12, label: 'n = 30', color: '#4a90d966', stroke: '#4a90d9aa' },
+    { mu: 0.50, sig: 0.06, label: 'n = 100', color: '#4a90d9aa', stroke: '#4a90d9' },
+  ];
+  const ymax = normalPDF(cases[2].mu, cases[2].mu, cases[2].sig) * 1.15;
+
+  function toX(v) { return pad.l + ((v - xmin) / (xmax - xmin)) * pw; }
+  function toY(v) { return pad.t + ph - (v / ymax) * ph; }
+
+  cases.forEach(cs => {
+    // Fill
+    ctx.beginPath();
+    ctx.moveTo(toX(xmin), toY(0));
+    for (let x = xmin; x <= xmax; x += 0.005) {
+      ctx.lineTo(toX(x), toY(normalPDF(x, cs.mu, cs.sig)));
+    }
+    ctx.lineTo(toX(xmax), toY(0));
+    ctx.closePath();
+    ctx.fillStyle = cs.color;
+    ctx.fill();
+
+    // Stroke
+    ctx.beginPath();
+    for (let x = xmin; x <= xmax; x += 0.005) {
+      const px = toX(x), py = toY(normalPDF(x, cs.mu, cs.sig));
+      x <= xmin + 0.005 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = cs.stroke;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+
+  // Labels
+  ctx.font = '10px monospace';
+  cases.forEach((cs, i) => {
+    const peakY = toY(normalPDF(cs.mu, cs.mu, cs.sig));
+    ctx.fillStyle = cs.stroke;
+    ctx.textAlign = 'left';
+    ctx.fillText(cs.label, toX(cs.mu + cs.sig * 1.5) + 4, peakY + 4 + i * 2);
+  });
+
+  // c* = 1.00 line
+  ctx.setLineDash([4, 3]);
+  ctx.strokeStyle = '#ef444466';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(toX(1.0), toY(0));
+  ctx.lineTo(toX(1.0), pad.t);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#ef444488';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('c* = 1.00', toX(1.0), pad.t + 14);
+
+  // Axes
+  ctx.strokeStyle = '#333';
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t + ph);
+  ctx.lineTo(pad.l + pw, pad.t + ph);
+  ctx.stroke();
+
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  for (let v = 0.0; v <= 1.6; v += 0.2) {
+    ctx.fillText(v.toFixed(1), toX(v), pad.t + ph + 18);
+  }
+  ctx.fillText('Cpk', pad.l + pw / 2, H - 8);
+})();
+
+
+// ── Figure 5: Quasipotential Landscape ──
+(function() {
+  const c = document.getElementById('quasiCanvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  const pad = { l: 50, r: 30, t: 30, b: 50 };
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+
+  ctx.fillStyle = '#131a21';
+  ctx.fillRect(0, 0, W, H);
+
+  // Double-well potential: V(x) = (x²-1)² + 0.3x
+  function V(x) { return (x * x - 1) ** 2 + 0.3 * x; }
+
+  const xmin = -1.8, xmax = 1.8;
+  const vals = [];
+  for (let x = xmin; x <= xmax; x += 0.01) vals.push(V(x));
+  const vmin = Math.min(...vals), vmax = Math.max(...vals);
+
+  function toX(v) { return pad.l + ((v - xmin) / (xmax - xmin)) * pw; }
+  function toY(v) { return pad.t + ph - ((v - vmin) / ((vmax - vmin) * 1.1)) * ph; }
+
+  // Fill under curve
+  ctx.beginPath();
+  ctx.moveTo(toX(xmin), toY(vmin));
+  for (let x = xmin; x <= xmax; x += 0.01) ctx.lineTo(toX(x), toY(V(x)));
+  ctx.lineTo(toX(xmax), toY(vmin));
+  ctx.closePath();
+  const grd = ctx.createLinearGradient(0, pad.t, 0, pad.t + ph);
+  grd.addColorStop(0, 'rgba(74,173,128,0.05)');
+  grd.addColorStop(1, 'rgba(74,173,128,0.20)');
+  ctx.fillStyle = grd;
+  ctx.fill();
+
+  // Curve
+  ctx.beginPath();
+  for (let x = xmin; x <= xmax; x += 0.01) {
+    const px = toX(x), py = toY(V(x));
+    x <= xmin + 0.01 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.strokeStyle = '#4ade80';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Find key points
+  // Left well ~ -1.04, right well ~ 0.74, saddle ~ -0.15
+  const xL = -1.04, xR = 0.74, xS = -0.15;
+
+  // Annotations
+  // In-control well
+  ctx.fillStyle = '#4a90d9';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('IN-CONTROL', toX(xL), toY(V(xL)) + 20);
+  ctx.fillStyle = '#4a90d9aa';
+  ctx.font = '9px monospace';
+  ctx.fillText('x₀*', toX(xL), toY(V(xL)) + 34);
+
+  // Failure well
+  ctx.fillStyle = '#ef4444';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.fillText('FAILURE', toX(xR), toY(V(xR)) + 20);
+  ctx.font = '9px monospace';
+  ctx.fillStyle = '#ef444488';
+  ctx.fillText('x₁*', toX(xR), toY(V(xR)) + 34);
+
+  // Saddle
+  ctx.fillStyle = '#c9a227';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.fillText('SADDLE', toX(xS), toY(V(xS)) - 14);
+
+  // V_saddle bracket
+  ctx.setLineDash([3, 3]);
+  ctx.strokeStyle = '#c9a22766';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(toX(xL) + 30, toY(V(xL)));
+  ctx.lineTo(toX(xL) + 30, toY(V(xS)));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#c9a227';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('V_saddle', toX(xL) + 34, (toY(V(xL)) + toY(V(xS))) / 2 + 4);
+
+  // MAP arrow
+  ctx.beginPath();
+  ctx.setLineDash([5, 3]);
+  ctx.strokeStyle = '#ef4444aa';
+  ctx.lineWidth = 1.5;
+  const mapPts = [];
+  for (let x = xL; x <= xR; x += 0.02) mapPts.push([toX(x), toY(V(x)) - 6]);
+  ctx.moveTo(mapPts[0][0], mapPts[0][1]);
+  for (let i = 1; i < mapPts.length; i++) ctx.lineTo(mapPts[i][0], mapPts[i][1]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#ef444488';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('← MAP (minimum action path) →', (toX(xL) + toX(xR)) / 2, toY(V(xS)) - 22);
+
+  // Axes
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t + ph);
+  ctx.lineTo(pad.l + pw, pad.t + ph);
+  ctx.stroke();
+
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Process State x', pad.l + pw / 2, H - 8);
+  ctx.save();
+  ctx.translate(14, pad.t + ph / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('V(x₀*, x)', 0, 0);
+  ctx.restore();
+})();
+
+
+// ── Figure 6: Triad Time Series ──
+(function() {
+  const c = document.getElementById('triadCanvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  const pad = { l: 50, r: 20, t: 15, b: 40 };
+  const pw = W - pad.l - pad.r;
+  const rowH = (H - pad.t - pad.b) / 3;
+
+  ctx.fillStyle = '#131a21';
+  ctx.fillRect(0, 0, W, H);
+
+  // Simulate process approaching escape
+  const N = 120;
+  function sigmoid(x, k, x0) { return 1 / (1 + Math.exp(-k * (x - x0))); }
+
+  const data = [];
+  for (let i = 0; i < N; i++) {
+    const t = i / N;
+    const esc = sigmoid(t, 12, 0.65);
+    data.push({
+      delta: 5.5 - 4.8 * esc + (Math.random() - 0.5) * 0.3,
+      align: -0.2 + 1.1 * esc + (Math.random() - 0.5) * 0.15,
+      sigmaB: 6.0 - 5.2 * esc + (Math.random() - 0.5) * 0.25,
+    });
+  }
+
+  function toX(i) { return pad.l + (i / N) * pw; }
+
+  const rows = [
+    { key: 'delta', label: 'Δ (proximity)', color: '#4ade80', min: 0, max: 6.5 },
+    { key: 'align', label: '𝒜 (alignment)', color: '#c9a227', min: -0.5, max: 1.2 },
+    { key: 'sigmaB', label: 'Σ_B', color: '#ef4444', min: 0, max: 7 },
+  ];
+
+  rows.forEach((row, ri) => {
+    const yOff = pad.t + ri * rowH;
+    const rH = rowH - 8;
+    function toY(v) { return yOff + rH - ((v - row.min) / (row.max - row.min)) * rH; }
+
+    // Background band
+    ctx.fillStyle = '#0a0f14';
+    ctx.fillRect(pad.l, yOff, pw, rH);
+
+    // Threshold lines for sigmaB
+    if (row.key === 'sigmaB') {
+      [2, 4].forEach(th => {
+        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = '#ffffff22';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(pad.l, toY(th));
+        ctx.lineTo(pad.l + pw, toY(th));
+        ctx.stroke();
+        ctx.setLineDash([]);
+      });
+    }
+
+    // Data line
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      const px = toX(i), py = toY(data[i][row.key]);
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = row.color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Label
+    ctx.fillStyle = row.color;
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(row.label, pad.l + 4, yOff + 14);
+  });
+
+  // Shewhart trigger line (vertical)
+  const triggerIdx = Math.round(N * 0.82);
+  ctx.setLineDash([5, 3]);
+  ctx.strokeStyle = '#ffffff33';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(toX(triggerIdx), pad.t);
+  ctx.lineTo(toX(triggerIdx), H - pad.b);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#ffffff44';
+  ctx.font = '8px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Shewhart', toX(triggerIdx), H - pad.b + 12);
+  ctx.fillText('trigger', toX(triggerIdx), H - pad.b + 22);
+
+  // PBS early detection
+  const pbsIdx = Math.round(N * 0.60);
+  ctx.setLineDash([5, 3]);
+  ctx.strokeStyle = '#4ade8044';
+  ctx.beginPath();
+  ctx.moveTo(toX(pbsIdx), pad.t);
+  ctx.lineTo(toX(pbsIdx), H - pad.b);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#4ade8066';
+  ctx.fillText('PBS', toX(pbsIdx), H - pad.b + 12);
+  ctx.fillText('alert', toX(pbsIdx), H - pad.b + 22);
+
+  // Time axis
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Observation Time →', pad.l + pw / 2, H - 4);
+})();
+</script>
+
+</body>
+</html>

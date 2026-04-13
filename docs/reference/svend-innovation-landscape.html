@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Svend Innovation Landscape — Cutting-Edge Methods for Quality & OpEx</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0a0f1a;
+  --paper: #f4f1ec;
+  --svend-blue: #1a3a5c;
+  --svend-gold: #c8973e;
+  --svend-red: #8b2d2d;
+  --svend-green: #2d5a3d;
+  --svend-teal: #1a5c5c;
+  --muted: #6b7280;
+  --border: #d4cfc7;
+  --card-bg: #faf8f5;
+  --highlight: #fff8e7;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--svend-blue);
+  color: white;
+  padding: 4rem 0 3rem;
+  position: relative;
+  overflow: hidden;
+}
+
+header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  border: 1px solid rgba(200,151,62,0.15);
+}
+
+header::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  left: -10%;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  border: 1px solid rgba(200,151,62,0.1);
+}
+
+.header-badge {
+  display: inline-block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--svend-gold);
+  border: 1px solid rgba(200,151,62,0.4);
+  padding: 4px 12px;
+  border-radius: 2px;
+  margin-bottom: 1.5rem;
+}
+
+header h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 2.8rem;
+  font-weight: 400;
+  line-height: 1.15;
+  margin-bottom: 1rem;
+  max-width: 750px;
+}
+
+header h1 em {
+  color: var(--svend-gold);
+  font-style: italic;
+}
+
+.header-sub {
+  font-size: 1.05rem;
+  font-weight: 300;
+  color: rgba(255,255,255,0.75);
+  max-width: 650px;
+  line-height: 1.6;
+}
+
+/* ── NAVIGATION BAR ── */
+.nav-bar {
+  background: white;
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-bar .container {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.nav-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  margin-right: 0.5rem;
+}
+
+.nav-pill {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  text-decoration: none;
+  color: var(--svend-blue);
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+
+.nav-pill:hover {
+  background: var(--svend-blue);
+  color: white;
+  border-color: var(--svend-blue);
+}
+
+/* ── EXECUTIVE SUMMARY ── */
+.exec-summary {
+  padding: 3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.exec-summary h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.6rem;
+  margin-bottom: 1rem;
+  color: var(--svend-blue);
+}
+
+.exec-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.exec-stat {
+  text-align: center;
+  padding: 1.5rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.exec-stat .number {
+  font-family: 'DM Serif Display', serif;
+  font-size: 2.2rem;
+  color: var(--svend-gold);
+}
+
+.exec-stat .label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 0.25rem;
+}
+
+/* ── SECTIONS ── */
+section {
+  padding: 3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+section:last-child { border-bottom: none; }
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.section-num {
+  font-family: 'DM Serif Display', serif;
+  font-size: 2.5rem;
+  color: rgba(26,58,92,0.12);
+  line-height: 1;
+}
+
+.section-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.5rem;
+  color: var(--svend-blue);
+}
+
+/* ── METHOD CARDS ── */
+.method-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.method-card:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+}
+
+.card-header {
+  display: flex;
+  align-items: stretch;
+}
+
+.card-tier {
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  padding: 1rem 0.6rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+}
+
+.tier-1 { background: var(--svend-gold); color: white; }
+.tier-2 { background: var(--svend-blue); color: white; }
+.tier-3 { background: var(--svend-teal); color: white; }
+.tier-4 { background: var(--muted); color: white; }
+
+.card-main {
+  flex: 1;
+  padding: 1.25rem 1.5rem;
+}
+
+.card-main h3 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.15rem;
+  margin-bottom: 0.15rem;
+}
+
+.card-tagline {
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 0.75rem;
+}
+
+.card-body {
+  padding: 0 1.5rem 1.5rem;
+  padding-left: calc(0.6rem + 1rem + 1.5rem);
+}
+
+.card-body p {
+  margin-bottom: 0.75rem;
+}
+
+/* ── ATTRIBUTES ── */
+.attr-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.attr-box {
+  padding: 0.75rem 1rem;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.attr-benefit {
+  background: #eef7f0;
+  border-left: 3px solid var(--svend-green);
+}
+
+.attr-risk {
+  background: #fdf2f2;
+  border-left: 3px solid var(--svend-red);
+}
+
+.attr-box strong {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.25rem;
+}
+
+.attr-benefit strong { color: var(--svend-green); }
+.attr-risk strong { color: var(--svend-red); }
+
+/* ── IMPLEMENTATION BAR ── */
+.impl-bar {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.impl-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 3px 8px;
+  border-radius: 2px;
+  background: var(--highlight);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+}
+
+.impl-tag.effort-low { background: #eef7f0; color: var(--svend-green); }
+.impl-tag.effort-med { background: #fff8e7; color: #946b1e; }
+.impl-tag.effort-high { background: #fdf2f2; color: var(--svend-red); }
+
+/* ── SVEND FIT METER ── */
+.fit-meter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.fit-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.fit-track {
+  flex: 1;
+  height: 6px;
+  background: #e8e4de;
+  border-radius: 3px;
+  overflow: hidden;
+  max-width: 200px;
+}
+
+.fit-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--svend-gold);
+}
+
+.fit-score {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--svend-gold);
+}
+
+/* ── PRIORITY MATRIX ── */
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 1.5rem;
+}
+
+.matrix-table th {
+  background: var(--svend-blue);
+  color: white;
+  padding: 0.6rem 1rem;
+  text-align: left;
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.matrix-table td {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.matrix-table tr:nth-child(even) { background: rgba(0,0,0,0.015); }
+
+.priority-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+}
+
+.priority-dot.p1 { background: var(--svend-gold); }
+.priority-dot.p2 { background: var(--svend-blue); }
+.priority-dot.p3 { background: var(--svend-teal); }
+.priority-dot.p4 { background: var(--muted); }
+
+/* ── FOOTER ── */
+footer {
+  padding: 2rem 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+
+footer .svend-mark {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1rem;
+  color: var(--svend-blue);
+  margin-bottom: 0.25rem;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  header h1 { font-size: 1.8rem; }
+  .exec-grid { grid-template-columns: 1fr; }
+  .attr-grid { grid-template-columns: 1fr; }
+  .card-tier { writing-mode: horizontal-tb; min-height: auto; padding: 0.4rem 0.8rem; }
+  .card-header { flex-direction: column; }
+}
+
+@media print {
+  .nav-bar { display: none; }
+  body { font-size: 11px; }
+  .method-card { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════ HEADER ════════════════ -->
+<header>
+  <div class="container">
+    <div class="header-badge">Internal Strategy Document — February 2026</div>
+    <h1>Innovation Landscape: <em>Cutting-Edge Methods</em> for Quality, Statistics & Operational Excellence</h1>
+    <p class="header-sub">A comprehensive survey of 22 frontier methods across machine learning, modern statistics, quality engineering, and operational excellence — assessed for Svend platform integration. Prioritize, deselect, and build from here.</p>
+  </div>
+</header>
+
+<!-- ════════════════ NAV ════════════════ -->
+<div class="nav-bar">
+  <div class="container">
+    <span class="nav-label">Jump to</span>
+    <a href="#bayesian" class="nav-pill">Bayesian Methods</a>
+    <a href="#modern-stats" class="nav-pill">Modern Statistics</a>
+    <a href="#ml-local" class="nav-pill">Local ML</a>
+    <a href="#causal" class="nav-pill">Causal Inference</a>
+    <a href="#monitoring" class="nav-pill">Process Monitoring</a>
+    <a href="#opex" class="nav-pill">OpEx Innovation</a>
+    <a href="#matrix" class="nav-pill">Priority Matrix</a>
+  </div>
+</div>
+
+<!-- ════════════════ EXEC SUMMARY ════════════════ -->
+<div class="container">
+<div class="exec-summary">
+  <h2>Executive Summary</h2>
+  <p>This report catalogs 22 methods across six domains that represent the frontier of quality engineering, operational statistics, and applied ML. Each is assessed against five criteria: <strong>Svend fit</strong> (alignment with platform philosophy), <strong>competitive moat</strong> (how hard it is for Minitab/JMP to replicate), <strong>implementation effort</strong>, <strong>market readiness</strong> (whether practitioners understand it), and <strong>compounding value</strong> (whether it gets better with use). Tier 1 methods should be built immediately. Tier 2 methods are high-value, moderate-effort. Tier 3 is flag-planting — own the keyword, publish the content, build later. Tier 4 is monitor-only — interesting but premature or misaligned.</p>
+
+  <div class="exec-grid">
+    <div class="exec-stat">
+      <div class="number">22</div>
+      <div class="label">Methods Surveyed</div>
+    </div>
+    <div class="exec-stat">
+      <div class="number">7</div>
+      <div class="label">Tier 1 — Build Now</div>
+    </div>
+    <div class="exec-stat">
+      <div class="number">0</div>
+      <div class="label">Competitors Doing This</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ SECTION 1: BAYESIAN ════════════════ -->
+<section id="bayesian">
+  <div class="section-header">
+    <span class="section-num">01</span>
+    <span class="section-title">Bayesian Methods — The Foundation</span>
+  </div>
+
+  <!-- Card 1 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-1">Tier 1</div>
+      <div class="card-main">
+        <h3>Bayesian Process Capability (Bayesian Cpk)</h3>
+        <div class="card-tagline">Capability analysis without the 1.5σ assumption</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Replace the made-up 1.5 sigma shift with a posterior distribution of the actual process shift, estimated from data. Every Cpk calculation includes a credible interval. Prior knowledge from similar processes bootstraps new product introductions with limited data. Academic literature validated since 2005 (Pearn & Wu, Maiti 2012). Zero commercial implementation anywhere.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Process-specific shift estimates. Credible intervals around Cpk itself. Prior knowledge from similar processes transfers. Small-sample pharma validation is killer use case.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Practitioners trained on classical Cpk need education. Prior specification requires some domain knowledge. Certification bodies still teach classical methods.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-med">Effort: Medium</span>
+        <span class="impl-tag">Lock-in: ★★★★★</span>
+        <span class="impl-tag">SEO: Wide Open</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:98%"></div></div>
+        <span class="fit-score">98</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-1">Tier 1</div>
+      <div class="card-main">
+        <h3>Bayesian SPC with Prior Knowledge</h3>
+        <div class="card-tagline">Useful control limits from day one, not after 25 subgroups</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>New production line starts with informative priors from similar processes. Control chart has meaningful limits immediately instead of running blind for weeks. Priors update with incoming data via standard Bayesian updating. Each production run makes the model better. Perfectly aligned with Svend's data-appreciates-over-time philosophy.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Eliminates the dangerous "blind production" period at startup. Priors accumulate across product families. Compounding value — switching cost rises with every batch. Particularly valuable for short-run manufacturing and pharma.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Misspecified priors could mislead. Need clear UI showing prior vs. data influence. Regulatory acceptance uncertain for some industries.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-med">Effort: Medium</span>
+        <span class="impl-tag">Lock-in: ★★★★★</span>
+        <span class="impl-tag">SEO: Moderate</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:95%"></div></div>
+        <span class="fit-score">95</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-1">Tier 1</div>
+      <div class="card-main">
+        <h3>Bayesian Experimental Design (Sequential DOE)</h3>
+        <div class="card-tagline">Run 3 experiments, update beliefs, design the optimal 4th</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Bayesian Optimization replaces classical factorial/response surface DOE with adaptive experimentation. Uses Gaussian Process surrogate models to predict outcomes, then selects the most informative next experiment via acquisition functions (Expected Improvement, UCB). Bioprocess research shows BO requires roughly 50% fewer experiments than classical DOE for equivalent optimization (Claes et al. 2024). Merck KGaA (BayBE), Merck & Co (Obsidian), and Novo Nordisk (ProcessOptimizer) have built internal tools — but no commercial quality platform offers this. Fraunhofer IPT published comprehensive benchmarking in Nov 2025.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>50-69% fewer experiments than classical DOE. Every experiment maximally informative. Handles noisy, expensive, multi-objective problems. GP surrogate provides uncertainty at every prediction point. Converges faster on expensive validation runs.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>GP kernel selection requires expertise (Matérn-ARD recommended for manufacturing). Noise degrades performance — requires precise sensors. Practitioners trained on classical DOE need re-education. Multi-objective version (MOBO) adds complexity.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-high">Effort: High</span>
+        <span class="impl-tag">Lock-in: ★★★★☆</span>
+        <span class="impl-tag">SEO: Moderate</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:92%"></div></div>
+        <span class="fit-score">92</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 4 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-2">Tier 2</div>
+      <div class="card-main">
+        <h3>Bayesian Change Point Detection</h3>
+        <div class="card-tagline">"94% probability the mean shifted between observations 43 and 46"</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Instead of binary in-control / out-of-control alarms, provide a posterior probability distribution over when and how much a process shifted. Outputs the most likely new mean, the credible interval for the changepoint location, and the posterior probability of shift. Feeds directly into RCA Challenge — the system triggers investigation with richer starting information than a single alarm point.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Much richer information for root cause investigation. Quantifies magnitude of shift, not just presence. Can detect multiple changepoints. Natural integration with probabilistic SPC.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Computationally heavier than CUSUM/EWMA. Results harder to explain to shop-floor operators. May require simplification layer for UI.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-med">Effort: Medium</span>
+        <span class="impl-tag">Lock-in: ★★★☆☆</span>
+        <span class="impl-tag">SEO: Niche</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:85%"></div></div>
+        <span class="fit-score">85</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 5 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-2">Tier 2</div>
+      <div class="card-main">
+        <h3>Probabilistic Process Monitoring</h3>
+        <div class="card-tagline">"Probability of shift is 73% and rising" — not binary alarms</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Replace the traditional Shewhart alarm (point crosses line = alarm) with a continuous probability that accumulates evidence of process change. Actionable before a classical alarm fires. Can incorporate multiple evidence streams — SPC signals, measurement system health, environmental data. The probability curve itself becomes the operator's dashboard — intuitive, actionable, and fundamentally different from anything in Minitab.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Operators act on accumulating probability, not single-point alarms. Reduces both false alarms and missed shifts. Integrates naturally with risk-based quality systems. Ties into RCA trigger logic.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>New mental model for operators trained on control chart rules. Needs careful calibration of probability thresholds per process. Potential for alarm fatigue if threshold set too low.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-med">Effort: Medium</span>
+        <span class="impl-tag">Lock-in: ★★★★☆</span>
+        <span class="impl-tag">SEO: Low</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:88%"></div></div>
+        <span class="fit-score">88</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SECTION 2: MODERN STATISTICS ════════════════ -->
+<section id="modern-stats">
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <span class="section-title">Modern Statistics — Beyond NHST</span>
+  </div>
+
+  <!-- Card 6 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-1">Tier 1</div>
+      <div class="card-main">
+        <h3>New Statistics (Effect Sizes + Estimation Thinking)</h3>
+        <div class="card-tagline">Cumming's framework, everywhere in the platform</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Effect sizes and confidence intervals as primary outputs, not accessories to p-values. APA changed reporting guidelines. Journals increasingly require effect sizes. University programs shifting curricula. JASP and jamovi have academic implementations, but zero commercial quality/manufacturing tools have adopted this. Svend's entire statistical output layer should default to estimation thinking — effect sizes front and center, CIs always visible, p-values available but secondary.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Aligns with where academia is heading — graduates expect this. Answers "how much?" not just "is it different?" More actionable for practitioners. Differentiates every statistical output from competitors.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Certification exams still teach NHST. Some practitioners will want p-values front-and-center. Need to support both paradigms without confusing either audience.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-low">Effort: Low</span>
+        <span class="impl-tag">Lock-in: ★★★☆☆</span>
+        <span class="impl-tag">SEO: Wide Open</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:96%"></div></div>
+        <span class="fit-score">96</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 7 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-1">Tier 1</div>
+      <div class="card-main">
+        <h3>Anytime-Valid Inference (E-values / SAFE Testing)</h3>
+        <div class="card-tagline">Peek at your data whenever you want — conclusions stay valid</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>The hottest development in statistical theory. E-values and confidence sequences let you analyze data continuously as it arrives without inflating error rates. Classical tests break if you "peek" — anytime-valid methods don't. Spotify and GrowthBook use this for A/B testing. Grünwald et al. published the definitive paper in JRSS-B (Nov 2024). For manufacturing: run your experiment, check daily, stop when you have enough evidence, reallocate resources immediately. Nobody has brought this to quality engineering.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Eliminates the "wait for 25 subgroups" ritual. Experiments conclude faster — saves real money. Mathematically rigorous (not a hack). Combines Bayesian interpretability with frequentist error guarantees. Unites two philosophical camps.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Confidence sequences are wider than fixed-sample CIs at any given point. Theory is new — few practitioners understand it yet. Implementation needs careful tuning of the rho parameter. Regulatory acceptance unknown.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-high">Effort: High</span>
+        <span class="impl-tag">Lock-in: ★★★★☆</span>
+        <span class="impl-tag">SEO: Wide Open</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:90%"></div></div>
+        <span class="fit-score">90</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 8 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-1">Tier 1</div>
+      <div class="card-main">
+        <h3>Conformal Prediction for Process Monitoring</h3>
+        <div class="card-tagline">Distribution-free control charts with guaranteed coverage</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>A December 2025 paper (arxiv 2512.23602) proposes "Conformal-Enhanced Control Charts" — distribution-free, model-agnostic, works on any data shape without normality assumptions. Two novel applications: prediction intervals that adapt width to process uncertainty ("uncertainty spikes" as leading indicators), and a p-value chart that reframes multivariate monitoring as anomaly detection. The paper is two months old. No commercial implementation exists. This is brand new.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>No normality assumption required — works on any data distribution. "Uncertainty spikes" warn before control limits are breached. Model-agnostic — wraps any prediction model. Finite-sample guarantees, not asymptotic. Multivariate monitoring becomes simple p-value chart.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Very new — no practitioner awareness yet. Intervals can be conservative (wider than necessary). Requires calibration data set. Academic framing needs translation to operator language.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-med">Effort: Medium</span>
+        <span class="impl-tag">Lock-in: ★★★☆☆</span>
+        <span class="impl-tag">SEO: Wide Open</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:91%"></div></div>
+        <span class="fit-score">91</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 9 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-3">Tier 3</div>
+      <div class="card-main">
+        <h3>Conformal Prediction Intervals on ML Outputs</h3>
+        <div class="card-tagline">Every ML prediction wrapped in a guaranteed coverage interval</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Every time the ML Hub makes a prediction, wrap it in a conformal interval guaranteed to contain the true value with user-specified probability (e.g. 90%). No distributional assumptions. Works on any model — random forests, gradient boosting, anything. "Model predicts optimal temp 185°C, 90% interval [181, 189]." No quality ML tool provides this.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Uncertainty quantification for free on any model. Distribution-free guarantees. Intervals adapt — wider when model is uncertain, tighter when confident. Simple to explain to practitioners.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Requires a held-out calibration set (reduces training data). Marginal coverage ≠ conditional coverage — intervals may not be well-calibrated for subgroups. Conservative with small calibration sets.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-low">Effort: Low</span>
+        <span class="impl-tag">Lock-in: ★★☆☆☆</span>
+        <span class="impl-tag">SEO: Moderate</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:78%"></div></div>
+        <span class="fit-score">78</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SECTION 3: LOCAL ML ════════════════ -->
+<section id="ml-local">
+  <div class="section-header">
+    <span class="section-num">03</span>
+    <span class="section-title">Local ML — Practical Problem-Solving</span>
+  </div>
+
+  <!-- Card 10 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-2">Tier 2</div>
+      <div class="card-main">
+        <h3>Gaussian Process Regression as Surrogate Model</h3>
+        <div class="card-tagline">The probabilistic "digital twin" of your process</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>GPs serve as the engine underneath Bayesian DOE and Bayesian Optimization, but they're also standalone powerful: fit a GP to your process data and you get a prediction plus uncertainty at every point in the parameter space. Enables "what-if" exploration without running experiments. The GP is the underlying workhorse for most methods in this report — building a robust GP implementation is foundational infrastructure.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Prediction + uncertainty at every point. Natural interpolator — passes through observed data. Foundation for BO, DOE, process optimization. Elegant nonparametric regression without assumptions about functional form.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Scales poorly with large datasets (O(n³) computation). Kernel selection non-trivial. Can overfit with small data and wrong kernel. Not a user-facing feature — infrastructure component.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-high">Effort: High (Infrastructure)</span>
+        <span class="impl-tag">Lock-in: ★★★★★</span>
+        <span class="impl-tag">SEO: N/A</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:90%"></div></div>
+        <span class="fit-score">90</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 11 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-2">Tier 2</div>
+      <div class="card-main">
+        <h3>Gradient Boosted Trees with SHAP Explanations</h3>
+        <div class="card-tagline">Best-in-class tabular prediction + "why did it predict that?"</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>XGBoost/LightGBM remain the best non-neural models for structured/tabular data (which is what manufacturing data is). Combined with SHAP (Shapley Additive Explanations), each prediction comes with a decomposition of which features drove it. For quality prediction: "This batch is predicted defective because nozzle temperature was 3° high and humidity was elevated." Explainability is mandatory for regulated industries.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>State-of-art tabular performance. SHAP provides per-prediction explanations. Fast to train, fast to predict. Handles missing data, mixed types. Practitioners can understand feature importance plots.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>SHAP assumes feature independence — can misattribute when features are correlated (major issue for manufacturing data). SHAP shows correlation, NOT causation. Can mislead practitioners into treating symptoms as root causes. Need Causal SHAP (see Section 4) to address this.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-low">Effort: Low</span>
+        <span class="impl-tag">Lock-in: ★★☆☆☆</span>
+        <span class="impl-tag">SEO: Competitive</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:75%"></div></div>
+        <span class="fit-score">75</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 12 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-2">Tier 2</div>
+      <div class="card-main">
+        <h3>Survival Analysis for Reliability & Predictive Maintenance</h3>
+        <div class="card-tagline">How long until this component fails — with uncertainty</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Goes beyond simple Weibull fits (what Minitab offers) to modern survival models: Random Survival Forests, Cox PH with time-varying covariates, and Bayesian survival models with priors from similar equipment families. Canon Production Printing (2025) used survival models to predict printhead lifespan. Handles censored data naturally (you know some units haven't failed yet). Critical for warranty prediction, preventive maintenance scheduling, and equipment lifecycle management.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Handles censored data (units still running). Bayesian survival allows prior knowledge transfer. Links directly to warranty cost prediction. Enables condition-based maintenance scheduling. Minitab only offers basic parametric survival — modernizing this is differentiating.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Requires time-to-event data which many companies don't collect well. Censoring types must be modeled correctly. Random Survival Forests are less interpretable than parametric models. Separate from core quality analytics — scope creep risk.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-med">Effort: Medium</span>
+        <span class="impl-tag">Lock-in: ★★★☆☆</span>
+        <span class="impl-tag">SEO: Moderate</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:72%"></div></div>
+        <span class="fit-score">72</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 13 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-3">Tier 3</div>
+      <div class="card-main">
+        <h3>Multi-Armed Bandits for Adaptive Quality Decisions</h3>
+        <div class="card-tagline">Explore vs. exploit — optimized in real time</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Thompson Sampling and UCB algorithms for sequential decision-making where you balance exploring alternatives against exploiting the best known option. Applications: adaptive inspection sampling (inspect more from suspect sources, less from proven ones), real-time process parameter tuning, A/B testing of process improvements. The bandit framework is the mathematical formalization of "try things intelligently."</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Optimal exploration/exploitation tradeoff. Adapts sampling intensity to risk. Thompson Sampling is Bayesian — aligns with platform philosophy. Directly applicable to inspection optimization.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Abstract concept — practitioners won't understand "bandit" framing. Needs to be embedded inside familiar workflows, not exposed directly. Reward definition is critical and non-trivial. Switching costs between "arms" add complexity.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-med">Effort: Medium</span>
+        <span class="impl-tag">Lock-in: ★★★☆☆</span>
+        <span class="impl-tag">SEO: None</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:65%"></div></div>
+        <span class="fit-score">65</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SECTION 4: CAUSAL ════════════════ -->
+<section id="causal">
+  <div class="section-header">
+    <span class="section-num">04</span>
+    <span class="section-title">Causal Inference — Beyond Correlation</span>
+  </div>
+
+  <!-- Card 14 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-1">Tier 1</div>
+      <div class="card-main">
+        <h3>Causal Discovery (DAG-Based RCA)</h3>
+        <div class="card-tagline">Distinguish "A causes B" from "A and B share a cause"</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Use the PC algorithm, FCI, or LiNGAM to automatically discover causal structure from observational process data. Output is a Directed Acyclic Graph (DAG) showing which variables cause which. This transforms root cause analysis from opinion-based to evidence-based. A 2024 European patent (EP4310618B1) describes deep learning causal inference for industrial process RCA. Salesforce released CausalAI library supporting both tabular and time-series data. A June 2025 Medium analysis demonstrated that SHAP misattributes root causes by giving importance to symptoms, while causal ML correctly identifies true drivers.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Distinguishes causes from symptoms — the fundamental RCA problem. Automated graph construction from process data. Enables counterfactual reasoning ("what if we changed X?"). Pairs perfectly with RCA Challenge feature. Published patent validates commercial viability.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Causal discovery from observational data has known limitations (hidden confounders). Requires sufficient data and variable coverage. PC algorithm assumes no hidden variables (use FCI if not true). Domain expert validation still needed. Can produce incorrect graphs with insufficient data.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-high">Effort: High</span>
+        <span class="impl-tag">Lock-in: ★★★★★</span>
+        <span class="impl-tag">SEO: Wide Open</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:93%"></div></div>
+        <span class="fit-score">93</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 15 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-2">Tier 2</div>
+      <div class="card-main">
+        <h3>Causal SHAP</h3>
+        <div class="card-tagline">Feature attribution that respects causal structure</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Published August 2025 (arxiv 2509.00846). Integrates PC algorithm causal discovery with SHAP values via the IDA algorithm for causal strength quantification. When features are correlated (which they always are in manufacturing), standard SHAP misattributes — Causal SHAP reduces attribution for features that are merely correlated with the target. This is the bridge between explainable ML and actual causal understanding.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Fixes SHAP's biggest flaw for manufacturing data. Preserves SHAP's theoretical properties while adding causal awareness. Directly applicable to quality prediction models. Better insertion scores on real-world datasets even without known causal graph.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Very new (Aug 2025). Relies on PC algorithm accuracy for causal graph. Computational cost higher than standard SHAP. Doesn't yet handle hidden variables (future work with FCI). Two-month-old paper — not yet battle-tested.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-med">Effort: Medium</span>
+        <span class="impl-tag">Lock-in: ★★★☆☆</span>
+        <span class="impl-tag">SEO: Wide Open</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:82%"></div></div>
+        <span class="fit-score">82</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 16 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-3">Tier 3</div>
+      <div class="card-main">
+        <h3>Counterfactual Simulation ("What-If" Engine)</h3>
+        <div class="card-tagline">"If we had set temperature to 180° instead of 190°, would the defect have occurred?"</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Once you have a causal model (DAG + structural equations), you can answer counterfactual questions. This is Pearl's "rung three" of the causal ladder — the highest level of causal reasoning. A 2025 paper proposes using a pre-trained causal foundation model as a "what-if" engine for prescriptive maintenance, estimating the causal effect of each potential intervention on OEE. Converts RCA from "what happened" to "what should we do."</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Transforms RCA from diagnostic to prescriptive. Enables intervention simulation without physical experiments. Ranks corrective actions by estimated causal effect. Natural language outputs possible ("changing X would reduce defects by Y%").</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Requires well-specified structural causal model. Sensitive to model misspecification. Counterfactual claims are inherently unverifiable for individual cases. Significant implementation complexity. Frontier research, not production-ready.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-high">Effort: Very High</span>
+        <span class="impl-tag">Lock-in: ★★★★★</span>
+        <span class="impl-tag">SEO: Niche</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:70%"></div></div>
+        <span class="fit-score">70</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SECTION 5: PROCESS MONITORING ════════════════ -->
+<section id="monitoring">
+  <div class="section-header">
+    <span class="section-num">05</span>
+    <span class="section-title">Adaptive Monitoring & Drift Detection</span>
+  </div>
+
+  <!-- Card 17 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-2">Tier 2</div>
+      <div class="card-main">
+        <h3>Concept Drift Detection for Model Health</h3>
+        <div class="card-tagline">Your ML model is decaying — the system tells you before it matters</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Manufacturing processes change — new raw materials, tool wear, seasonal effects, operator turnover. Any ML model trained on historical data degrades as the process drifts. Concept drift detection monitors the statistical properties of incoming data and model predictions, alerting when the model's assumptions no longer hold. Methods include ADWIN (adaptive windowing), DDM (drift detection method), and Bayesian uncertainty monitoring. A 2024 Frontiers paper provides the first comprehensive survey of unsupervised drift detection for manufacturing and quality control.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Prevents silent model degradation. Automates model health monitoring. Can trigger retraining automatically. Essential for any deployed ML model. Differentiates Svend's ML Hub as "self-aware" — models know when they're wrong.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>False alarms (detecting drift when none occurred). Needs threshold tuning per model. Real-time monitoring adds infrastructure complexity. Some drift is benign (seasonal) — need to distinguish from harmful drift.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-med">Effort: Medium</span>
+        <span class="impl-tag">Lock-in: ★★★☆☆</span>
+        <span class="impl-tag">SEO: Low</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:80%"></div></div>
+        <span class="fit-score">80</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 18 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-3">Tier 3</div>
+      <div class="card-main">
+        <h3>Online Learning / Incremental Model Updates</h3>
+        <div class="card-tagline">Models learn from every new batch, not just historical training data</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Instead of static models retrained periodically, online learning updates models incrementally with each new observation. Relevant for SPC models, quality prediction, and process optimization where the process itself evolves. River (Python library) provides streaming ML. Combined with drift detection, creates a self-adapting system that stays current automatically.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Models never go stale. Adapts to gradual process changes automatically. Lighter than full retraining. Natural fit for streaming manufacturing data. Combined with Bayesian updating, extremely powerful.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Catastrophic forgetting — model can lose knowledge of rare events. Adversarial data can corrupt the model over time. Needs careful validation to ensure updates improve, not degrade. More complex infrastructure than batch training.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-high">Effort: High</span>
+        <span class="impl-tag">Lock-in: ★★★★☆</span>
+        <span class="impl-tag">SEO: None</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:68%"></div></div>
+        <span class="fit-score">68</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 19 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-4">Tier 4</div>
+      <div class="card-main">
+        <h3>Anomaly Detection via Isolation Forest / LOF</h3>
+        <div class="card-tagline">Find the weird data points — unsupervised, no labels needed</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Isolation Forest and Local Outlier Factor detect anomalous observations in multivariate process data without requiring labeled examples of defects. Useful for incoming material inspection, final product screening, and sensor data monitoring. Well-established methods (scikit-learn native) but the quality engineering framing and integration with SPC workflow is differentating.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>No labeled data required. Detects multivariate anomalies that univariate charts miss. Fast to train and score. Well-understood, battle-tested algorithms.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Well-known methods — no competitive moat. Threshold setting is subjective. High-dimensional data can confuse distance-based methods. Not novel enough to be a differentiator.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-low">Effort: Low</span>
+        <span class="impl-tag">Lock-in: ★☆☆☆☆</span>
+        <span class="impl-tag">SEO: Competitive</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:50%"></div></div>
+        <span class="fit-score">50</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SECTION 6: OPEX ════════════════ -->
+<section id="opex">
+  <div class="section-header">
+    <span class="section-num">06</span>
+    <span class="section-title">OpEx Innovation — Methodology Layer</span>
+  </div>
+
+  <!-- Card 20 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-1">Tier 1</div>
+      <div class="card-main">
+        <h3>Bayesian Sigma (Category Creation)</h3>
+        <div class="card-tagline">The successor methodology to Six Sigma itself</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Not a single method — a methodology umbrella that positions Svend as the platform for next-generation quality. Bayesian Cpk, Bayesian SPC, Sequential DOE, probabilistic monitoring, and prior knowledge accumulation unified under one brand. Every method in Section 1 rolls up here. Eventually: bayesiansigma.com as content hub, methodology page, certification track. Minitab is structurally locked into frequentist methods — entire codebase, docs, training, certification built on NHST. Can't pivot without alienating user base. Svend has no legacy to protect.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Category creation, not feature comparison. Controls the narrative and vocabulary. Training partners teach Bayesian Sigma → students use Svend. Methodology + tool lock-in is the strongest moat possible. Compounds as universities shift curricula.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Bold claim requires substance to back it up. Certification bodies won't adopt overnight. Risk of being dismissed as "marketing." Need credible academic advisors or published papers. Takes years to establish.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-med">Effort: Medium (Content)</span>
+        <span class="impl-tag">Lock-in: ★★★★★</span>
+        <span class="impl-tag">SEO: Category-Defining</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:99%"></div></div>
+        <span class="fit-score">99</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 21 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-2">Tier 2</div>
+      <div class="card-main">
+        <h3>Measurement System Bayesian Updating (MSA 2.0)</h3>
+        <div class="card-tagline">Your measurement system degrades over time — track it probabilistically</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Classical Gage R&R is a one-time study. In reality, measurement systems drift — calibration degrades, sensors age, operators change. Bayesian MSA maintains a running posterior on measurement system health, updating with each calibration check. When the posterior probability of adequate measurement capability drops below threshold, the system alerts. Links measurement health to decision confidence — if your gage is degraded, your Cpk has wider uncertainty.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Continuous MSA instead of periodic studies. Links measurement uncertainty to decision confidence. Priors from similar instruments transfer. Alerts before measurement system fails audit. Unique — nobody has this.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Requires regular calibration data input (operational discipline). MSA is already unpopular with practitioners — adding complexity risks avoidance. Need dead-simple UI. Niche appeal — not a headline feature.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-med">Effort: Medium</span>
+        <span class="impl-tag">Lock-in: ★★★★☆</span>
+        <span class="impl-tag">SEO: Niche</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:83%"></div></div>
+        <span class="fit-score">83</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 22 -->
+  <div class="method-card">
+    <div class="card-header">
+      <div class="card-tier tier-3">Tier 3</div>
+      <div class="card-main">
+        <h3>Decision-Theoretic Quality Economics</h3>
+        <div class="card-tagline">Optimal decisions under uncertainty, not just detection</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Move beyond "is the process in control?" to "what is the expected cost of each possible action?" Using Bayesian posterior probabilities combined with loss functions (cost of false alarm, cost of missed defect, cost of investigation, cost of adjustment), compute the optimal decision at each moment. This is the mathematical formalization of quality economics — Taguchi's loss function meets Bayesian decision theory. The system doesn't just flag problems; it recommends the economically optimal response.</p>
+      <div class="attr-grid">
+        <div class="attr-box attr-benefit"><strong>Benefits</strong>Optimizes decisions, not just detection. Speaks management's language (cost, risk, ROI). Differentiates dramatically from statistical-only tools. Can be the basis for automated process control logic.</div>
+        <div class="attr-box attr-risk"><strong>Risks</strong>Requires cost data that many companies don't have. Loss function specification is non-trivial. Over-optimization can create brittleness. Complex to explain and validate. Academic concept, limited practitioner awareness.</div>
+      </div>
+      <div class="impl-bar">
+        <span class="impl-tag effort-high">Effort: High</span>
+        <span class="impl-tag">Lock-in: ★★★★☆</span>
+        <span class="impl-tag">SEO: Niche</span>
+      </div>
+      <div class="fit-meter">
+        <span class="fit-label">Svend Fit</span>
+        <div class="fit-track"><div class="fit-fill" style="width:75%"></div></div>
+        <span class="fit-score">75</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ PRIORITY MATRIX ════════════════ -->
+<section id="matrix">
+  <div class="section-header">
+    <span class="section-num">07</span>
+    <span class="section-title">Priority Matrix — Build Sequence</span>
+  </div>
+
+  <p style="margin-bottom:0.5rem;">Sorted by composite score: (Svend Fit × 0.3) + (Competitive Moat × 0.25) + (Inverse Effort × 0.15) + (Market Readiness × 0.15) + (Compounding Value × 0.15)</p>
+
+  <table class="matrix-table">
+    <thead>
+      <tr>
+        <th>Tier</th>
+        <th>Method</th>
+        <th>Fit</th>
+        <th>Moat</th>
+        <th>Effort</th>
+        <th>Market</th>
+        <th>Compounds</th>
+        <th>Ship Target</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="priority-dot p1"></span>T1</td>
+        <td><strong>Bayesian Sigma (Brand)</strong></td>
+        <td>99</td>
+        <td>★★★★★</td>
+        <td>Medium</td>
+        <td>Low (new)</td>
+        <td>Extreme</td>
+        <td>Content: Mar '26<br>Calc: May '26</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p1"></span>T1</td>
+        <td><strong>Bayesian Cpk</strong></td>
+        <td>98</td>
+        <td>★★★★★</td>
+        <td>Medium</td>
+        <td>Moderate</td>
+        <td>High</td>
+        <td>May '26 launch</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p1"></span>T1</td>
+        <td><strong>New Statistics</strong></td>
+        <td>96</td>
+        <td>★★★☆☆</td>
+        <td>Low</td>
+        <td>Growing</td>
+        <td>Medium</td>
+        <td>May '26 launch</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p1"></span>T1</td>
+        <td><strong>Bayesian SPC</strong></td>
+        <td>95</td>
+        <td>★★★★★</td>
+        <td>Medium</td>
+        <td>Low</td>
+        <td>Extreme</td>
+        <td>Jun '26</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p1"></span>T1</td>
+        <td><strong>Causal Discovery (DAG RCA)</strong></td>
+        <td>93</td>
+        <td>★★★★★</td>
+        <td>High</td>
+        <td>Low</td>
+        <td>High</td>
+        <td>v2: Aug '26</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p1"></span>T1</td>
+        <td><strong>Sequential DOE (Bayesian)</strong></td>
+        <td>92</td>
+        <td>★★★★☆</td>
+        <td>High</td>
+        <td>Growing</td>
+        <td>High</td>
+        <td>v2: Sep '26</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p1"></span>T1</td>
+        <td><strong>Conformal SPC</strong></td>
+        <td>91</td>
+        <td>★★★☆☆</td>
+        <td>Medium</td>
+        <td>None</td>
+        <td>Medium</td>
+        <td>Jul '26</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p1"></span>T1</td>
+        <td><strong>Anytime-Valid Inference</strong></td>
+        <td>90</td>
+        <td>★★★★☆</td>
+        <td>High</td>
+        <td>None</td>
+        <td>High</td>
+        <td>v2: Oct '26</td>
+      </tr>
+      <tr style="border-top: 2px solid var(--border);">
+        <td><span class="priority-dot p2"></span>T2</td>
+        <td><strong>GP Surrogate Infrastructure</strong></td>
+        <td>90</td>
+        <td>★★★★★</td>
+        <td>High</td>
+        <td>N/A</td>
+        <td>Extreme</td>
+        <td>Prereq for DOE</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p2"></span>T2</td>
+        <td><strong>Bayesian Changepoint</strong></td>
+        <td>85</td>
+        <td>★★★☆☆</td>
+        <td>Medium</td>
+        <td>Low</td>
+        <td>Medium</td>
+        <td>Jul '26</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p2"></span>T2</td>
+        <td><strong>Probabilistic Monitoring</strong></td>
+        <td>88</td>
+        <td>★★★★☆</td>
+        <td>Medium</td>
+        <td>Low</td>
+        <td>High</td>
+        <td>Jul '26</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p2"></span>T2</td>
+        <td><strong>MSA 2.0 (Bayesian)</strong></td>
+        <td>83</td>
+        <td>★★★★☆</td>
+        <td>Medium</td>
+        <td>Low</td>
+        <td>High</td>
+        <td>v2</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p2"></span>T2</td>
+        <td><strong>Causal SHAP</strong></td>
+        <td>82</td>
+        <td>★★★☆☆</td>
+        <td>Medium</td>
+        <td>None</td>
+        <td>Medium</td>
+        <td>v2</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p2"></span>T2</td>
+        <td><strong>Concept Drift Detection</strong></td>
+        <td>80</td>
+        <td>★★★☆☆</td>
+        <td>Medium</td>
+        <td>Low</td>
+        <td>Medium</td>
+        <td>v2</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p2"></span>T2</td>
+        <td><strong>GBT + SHAP</strong></td>
+        <td>75</td>
+        <td>★★☆☆☆</td>
+        <td>Low</td>
+        <td>High</td>
+        <td>Low</td>
+        <td>May '26 launch</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p2"></span>T2</td>
+        <td><strong>Survival / Reliability</strong></td>
+        <td>72</td>
+        <td>★★★☆☆</td>
+        <td>Medium</td>
+        <td>Moderate</td>
+        <td>Medium</td>
+        <td>v2</td>
+      </tr>
+      <tr style="border-top: 2px solid var(--border);">
+        <td><span class="priority-dot p3"></span>T3</td>
+        <td>Conformal ML Intervals</td>
+        <td>78</td>
+        <td>★★☆☆☆</td>
+        <td>Low</td>
+        <td>None</td>
+        <td>Low</td>
+        <td>v2</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p3"></span>T3</td>
+        <td>Decision-Theoretic Econ.</td>
+        <td>75</td>
+        <td>★★★★☆</td>
+        <td>High</td>
+        <td>None</td>
+        <td>High</td>
+        <td>v3</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p3"></span>T3</td>
+        <td>Counterfactual Sim.</td>
+        <td>70</td>
+        <td>★★★★★</td>
+        <td>Very High</td>
+        <td>None</td>
+        <td>Extreme</td>
+        <td>v3</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p3"></span>T3</td>
+        <td>Online Learning</td>
+        <td>68</td>
+        <td>★★★★☆</td>
+        <td>High</td>
+        <td>Low</td>
+        <td>High</td>
+        <td>v3</td>
+      </tr>
+      <tr>
+        <td><span class="priority-dot p3"></span>T3</td>
+        <td>Multi-Armed Bandits</td>
+        <td>65</td>
+        <td>★★★☆☆</td>
+        <td>Medium</td>
+        <td>None</td>
+        <td>Medium</td>
+        <td>v3</td>
+      </tr>
+      <tr style="border-top: 2px solid var(--border);">
+        <td><span class="priority-dot p4"></span>T4</td>
+        <td>Anomaly Detection (IF/LOF)</td>
+        <td>50</td>
+        <td>★☆☆☆☆</td>
+        <td>Low</td>
+        <td>High</td>
+        <td>None</td>
+        <td>If needed</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top: 2.5rem; padding: 1.5rem; background: var(--highlight); border-left: 4px solid var(--svend-gold); border-radius: 0 4px 4px 0;">
+    <h3 style="font-family: 'DM Serif Display', serif; margin-bottom: 0.5rem;">The Three Principles</h3>
+    <p>Every method in this report aligns with Svend's statistical philosophy:</p>
+    <p style="margin-top: 0.75rem;"><strong style="color: var(--svend-gold);">1. Estimation over testing.</strong> Effect sizes and intervals, not p-values. (New Statistics, Bayesian credible intervals, conformal prediction intervals)</p>
+    <p style="margin-top: 0.5rem;"><strong style="color: var(--svend-gold);">2. Evidence accumulates.</strong> Bayesian updating and anytime-valid inference, not fixed-sample rituals. (Bayesian Sigma, Sequential DOE, E-values, prior knowledge transfer)</p>
+    <p style="margin-top: 0.5rem;"><strong style="color: var(--svend-gold);">3. Uncertainty is first-class.</strong> Every output has a calibrated uncertainty measure. (GP prediction intervals, conformal coverage, Bayesian posteriors, probabilistic monitoring)</p>
+    <p style="margin-top: 1rem; font-size: 13px; color: var(--muted);">Competitors cannot adopt this philosophy without abandoning their installed base. Svend has no legacy to protect.</p>
+  </div>
+</section>
+
+</div><!-- /container -->
+
+<footer>
+  <div class="container">
+    <div class="svend-mark">svend.ai</div>
+    <p>Internal Strategy Document — Not for Distribution</p>
+    <p>Compiled February 2026 · 22 methods · 6 domains · 0 competitors</p>
+  </div>
+</footer>
+
+</body>
+</html>

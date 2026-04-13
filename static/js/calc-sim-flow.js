@@ -87,7 +87,7 @@ function resetSimulation() {
     simState.stats = { served: 0, totalWait: 0, maxQueue: 0 };
     simState.history = { time: [], queueLength: [] };
     initSimVisual();
-    Plotly.purge('qs-chart');
+    document.getElementById('qs-chart').innerHTML = '';
 }
 
 function simStep() {
@@ -167,21 +167,16 @@ function updateSimVisuals() {
 
     // Chart (update every 10 ticks)
     if (simState.history.time.length % 10 === 0) {
-        Plotly.react('qs-chart', [{
-            x: simState.history.time.map(t => (t * 60).toFixed(1)),
-            y: simState.history.queueLength,
-            type: 'scatter',
-            mode: 'lines',
-            fill: 'tozeroy',
-            fillcolor: 'rgba(52, 152, 219, 0.2)',
-            line: { color: '#3498db', width: 2 }
-        }], {
-            margin: { t: 10, b: 40, l: 40, r: 10 },
-            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-            font: { color: '#9aaa9a' },
-            xaxis: { title: 'Time (min)', gridcolor: 'rgba(255,255,255,0.1)' },
-            yaxis: { title: 'Queue', gridcolor: 'rgba(255,255,255,0.1)' }
-        }, { responsive: true, displayModeBar: false });
+        ForgeViz.render(document.getElementById('qs-chart'), {
+            title: '', chart_type: 'area',
+            traces: [{
+                x: simState.history.time.map(t => (t * 60).toFixed(1)),
+                y: simState.history.queueLength,
+                name: 'Queue', trace_type: 'area', color: '#3498db', width: 2
+            }],
+            reference_lines: [], zones: [], markers: [],
+            x_axis: { label: 'Time (min)' }, y_axis: { label: 'Queue' }
+        });
 
         // Update burst analysis
         updateBurstAnalysis();
@@ -282,7 +277,7 @@ function resetCompare() {
     document.getElementById('qc-verdict').textContent = 'Run to compare...';
     document.getElementById('qc-verdict').style.background = 'var(--bg-card)';
     initCompareVisuals();
-    Plotly.purge('qc-chart');
+    document.getElementById('qc-chart').innerHTML = '';
 }
 
 function compareStep() {
@@ -387,31 +382,25 @@ function updateCompareVisuals() {
 }
 
 function updateCompareChart() {
-    Plotly.react('qc-chart', [
-        {
-            x: compareState.a.history.time.map(t => (t * 60).toFixed(1)),
-            y: compareState.a.history.queueLength,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'Scenario A (Current)',
-            line: { color: '#e74c3c', width: 2 }
-        },
-        {
-            x: compareState.b.history.time.map(t => (t * 60).toFixed(1)),
-            y: compareState.b.history.queueLength,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'Scenario B (Proposed)',
-            line: { color: '#27ae60', width: 2 }
-        }
-    ], {
-        margin: { t: 20, b: 50, l: 50, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        xaxis: { title: 'Time (min)', gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { title: 'Queue Length', gridcolor: 'rgba(255,255,255,0.1)' },
-        legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' }
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('qc-chart'), {
+        title: '', chart_type: 'line',
+        traces: [
+            {
+                x: compareState.a.history.time.map(t => (t * 60).toFixed(1)),
+                y: compareState.a.history.queueLength,
+                name: 'Scenario A (Current)',
+                trace_type: 'line', color: '#e74c3c', width: 2
+            },
+            {
+                x: compareState.b.history.time.map(t => (t * 60).toFixed(1)),
+                y: compareState.b.history.queueLength,
+                name: 'Scenario B (Proposed)',
+                trace_type: 'line', color: '#27ae60', width: 2
+            }
+        ],
+        reference_lines: [], zones: [], markers: [],
+        x_axis: { label: 'Time (min)' }, y_axis: { label: 'Queue Length' }
+    });
 }
 
 // ============================================================================
@@ -811,7 +800,7 @@ function resetCellSim() {
         document.getElementById(id).innerHTML = '&mdash;';
     });
     document.getElementById('cs-operator-stats').innerHTML = '';
-    Plotly.purge('cs-compare-chart');
+    document.getElementById('cs-compare-chart').innerHTML = '';
     renderCellDiagram();
 }
 
@@ -907,19 +896,15 @@ function updateCellComparisonChart() {
     const distances = keys.map(k => comparison[k]);
     const colors = keys.map(k => k === cellState.layout ? '#4a9f6e' : 'rgba(74,159,110,0.3)');
 
-    Plotly.newPlot('cs-compare-chart', [{
-        x: labels, y: distances, type: 'bar',
-        marker: { color: colors },
-        text: distances.map(d => d.toFixed(1) + 'm'),
-        textposition: 'outside',
-        textfont: { color: '#9aaa9a', size: 12 },
-    }], {
-        margin: { t: 20, b: 50, l: 50, r: 20 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' },
-        yaxis: { title: 'Walk Distance / Cycle (m)', gridcolor: 'rgba(255,255,255,0.06)' },
-        xaxis: { gridcolor: 'rgba(255,255,255,0.06)' },
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('cs-compare-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [{
+            x: labels, y: distances, name: 'Walk Distance',
+            trace_type: 'bar', color: colors
+        }],
+        reference_lines: [], zones: [], markers: [],
+        x_axis: { label: '' }, y_axis: { label: 'Walk Distance / Cycle (m)' }
+    });
 
     updateCellInsights();
 }
@@ -1359,7 +1344,7 @@ function resetKanbanSim() {
     document.getElementById('ks-stockouts').textContent = '0';
     document.getElementById('ks-line').innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Press Start to begin simulation</div>';
     document.getElementById('ks-insights').innerHTML = '<em>Start simulation to generate insights...</em>';
-    Plotly.purge('ks-chart');
+    document.getElementById('ks-chart').innerHTML = '';
 }
 
 function renderKanbanVisual() {
@@ -1439,21 +1424,17 @@ function updateKanbanMetrics() {
 
     // Update chart every 10 data points
     if (kanbanState.history.time.length % 5 === 0 && kanbanState.history.time.length > 0) {
-        Plotly.react('ks-chart', [{
-            x: kanbanState.history.time.map(t => (t / 60).toFixed(1)),
-            y: kanbanState.history.wip,
-            type: 'scatter', mode: 'lines', fill: 'tozeroy',
-            fillcolor: kanbanState.mode === 'pull' ? 'rgba(74,159,110,0.2)' : 'rgba(231,76,60,0.2)',
-            line: { color: kanbanState.mode === 'pull' ? '#4a9f6e' : '#e74c3c', width: 2 },
-            name: 'WIP'
-        }], {
-            margin: { t: 10, b: 40, l: 40, r: 10 },
-            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-            font: { color: '#9aaa9a' },
-            xaxis: { title: 'Time (min)', gridcolor: 'rgba(255,255,255,0.1)' },
-            yaxis: { title: 'WIP (units)', gridcolor: 'rgba(255,255,255,0.1)' },
-            showlegend: false
-        }, { responsive: true, displayModeBar: false });
+        ForgeViz.render(document.getElementById('ks-chart'), {
+            title: '', chart_type: 'area',
+            traces: [{
+                x: kanbanState.history.time.map(t => (t / 60).toFixed(1)),
+                y: kanbanState.history.wip,
+                name: 'WIP', trace_type: 'area',
+                color: kanbanState.mode === 'pull' ? '#4a9f6e' : '#e74c3c', width: 2
+            }],
+            reference_lines: [], zones: [], markers: [],
+            x_axis: { label: 'Time (min)' }, y_axis: { label: 'WIP (units)' }
+        });
     }
 }
 
@@ -1714,7 +1695,7 @@ function resetBeerGame() {
     document.getElementById('bg-avg-inv').textContent = '0';
     document.getElementById('bg-chain').innerHTML = '<div style="color:var(--text-dim);font-size:13px;width:100%;text-align:center;">Press Start to begin simulation</div>';
     document.getElementById('bg-insights').innerHTML = '<em>Start simulation to generate insights...</em>';
-    Plotly.purge('bg-chart');
+    document.getElementById('bg-chart').innerHTML = '';
 }
 
 function updateBeerParams() {}
@@ -1798,39 +1779,32 @@ function updateBeerMetrics() {
 
 function updateBeerChart() {
     if (beerState.history.week.length < 2) return;
-    const traces = [];
     const colors = ['#e74c3c', '#f39c12', '#9b59b6', '#27ae60'];
 
+    const forgeTraces = [];
     for (let i = 0; i < beerTiers.length; i++) {
         if (beerState.tiers[i]) {
-            traces.push({
+            forgeTraces.push({
                 x: beerState.history.week,
                 y: beerState.tiers[i].orderHistory,
-                type: 'scatter', mode: 'lines',
                 name: beerTiers[i],
-                line: { color: colors[i], width: 2 },
+                trace_type: 'line', color: colors[i], width: 2
             });
         }
     }
-
-    // Customer demand baseline
-    traces.push({
+    forgeTraces.push({
         x: beerState.history.week,
         y: beerState.history.demand,
-        type: 'scatter', mode: 'lines',
         name: 'Customer Demand',
-        line: { color: '#3498db', width: 2, dash: 'dot' },
+        trace_type: 'line', color: '#3498db', width: 2, dash: 'dashed'
     });
 
-    Plotly.react('bg-chart', traces, {
-        margin: { t: 10, b: 40, l: 40, r: 10 },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a', size: 10 },
-        xaxis: { title: 'Week', gridcolor: 'rgba(255,255,255,0.1)' },
-        yaxis: { title: 'Units Ordered', gridcolor: 'rgba(255,255,255,0.1)' },
-        legend: { orientation: 'h', y: -0.25, font: { size: 10 } },
-        showlegend: true,
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('bg-chart'), {
+        title: '', chart_type: 'line',
+        traces: forgeTraces,
+        reference_lines: [], zones: [], markers: [],
+        x_axis: { label: 'Week' }, y_axis: { label: 'Units Ordered' }
+    });
 }
 
 function updateBeerInsights() {
@@ -2154,7 +2128,7 @@ function resetTocSim() {
     document.getElementById('toc-leadtime').innerHTML = '0<span class="calc-result-unit">sec</span>';
     document.getElementById('toc-line').innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Press Start to begin simulation</div>';
     document.getElementById('toc-insights').innerHTML = '<em>Start simulation to generate insights...</em>';
-    Plotly.purge('toc-chart');
+    document.getElementById('toc-chart').innerHTML = '';
 }
 
 function renderTocVisual() {
@@ -2259,29 +2233,22 @@ function updateTocMetrics() {
 
     // Chart
     if (tocState.history.time.length % 5 === 0 && tocState.history.time.length > 0) {
-        Plotly.react('toc-chart', [{
-            x: tocState.history.time.map(t => (t / 60).toFixed(1)),
-            y: tocState.history.wip,
-            type: 'scatter', mode: 'lines', fill: 'tozeroy',
-            fillcolor: tocState.mode === 'dbr' ? 'rgba(74,159,110,0.15)' : 'rgba(231,76,60,0.15)',
-            line: { color: tocState.mode === 'dbr' ? '#4a9f6e' : '#e74c3c', width: 2 },
-            name: 'WIP', yaxis: 'y'
-        }, {
-            x: tocState.history.time.map(t => (t / 60).toFixed(1)),
-            y: tocState.history.throughput,
-            type: 'scatter', mode: 'lines',
-            line: { color: '#3498db', width: 2 },
-            name: 'Throughput', yaxis: 'y2'
-        }], {
-            margin: { t: 10, b: 40, l: 45, r: 45 },
-            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-            font: { color: '#9aaa9a', size: 10 },
-            xaxis: { title: 'Time (min)', gridcolor: 'rgba(255,255,255,0.1)' },
-            yaxis: { title: 'WIP', gridcolor: 'rgba(255,255,255,0.1)', side: 'left' },
-            yaxis2: { title: 'Throughput/hr', overlaying: 'y', side: 'right', gridcolor: 'transparent' },
-            legend: { orientation: 'h', y: -0.25, font: { size: 10 } },
-            showlegend: true,
-        }, { responsive: true, displayModeBar: false });
+        ForgeViz.render(document.getElementById('toc-chart'), {
+            title: '', chart_type: 'line',
+            traces: [{
+                x: tocState.history.time.map(t => (t / 60).toFixed(1)),
+                y: tocState.history.wip,
+                name: 'WIP', trace_type: 'area',
+                color: tocState.mode === 'dbr' ? '#4a9f6e' : '#e74c3c', width: 2
+            }, {
+                x: tocState.history.time.map(t => (t / 60).toFixed(1)),
+                y: tocState.history.throughput,
+                name: 'Throughput', trace_type: 'line',
+                color: '#3498db', width: 2
+            }],
+            reference_lines: [], zones: [], markers: [],
+            x_axis: { label: 'Time (min)' }, y_axis: { label: 'WIP / Throughput' }
+        });
     }
 }
 

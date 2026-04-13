@@ -228,39 +228,36 @@ function runDesirability() {
             dVals.push(desirCalcD(y, r));
         }
 
-        const traces = [
-            {x: yVals, y: dVals, type: 'scatter', mode: 'lines', line: {color: '#4a9f6e', width: 2.5}, name: 'd(y)'},
-        ];
+        const profileSpec = {
+            title: `${r.name} (${r.goal}) — d = ${bestIndividual ? bestIndividual[i].toFixed(3) : '?'}`,
+            chart_type: 'line',
+            traces: [
+                { x: yVals, y: dVals, name: 'd(y)', trace_type: 'line', color: '#4a9f6e', width: 2.5 },
+            ],
+            x_axis: { label: r.name }, y_axis: { label: 'd(y)' },
+            reference_lines: [], markers: [], zones: [],
+        };
         if (bestPredictions) {
-            traces.push({x: [bestPredictions[i]], y: [bestIndividual[i]], type: 'scatter', mode: 'markers', marker: {size: 10, color: '#e74c3c', symbol: 'star'}, name: `Optimal: ${bestPredictions[i].toFixed(2)}`});
+            profileSpec.traces.push({ x: [bestPredictions[i]], y: [bestIndividual[i]], name: `Optimal: ${bestPredictions[i].toFixed(2)}`, trace_type: 'scatter', color: '#e74c3c', marker_size: 10 });
         }
-        Plotly.react(div.id, traces, {
-            height: 220, margin: {t: 30, b: 40, l: 50, r: 20},
-            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-            font: {color: '#9aaa9a', size: 10},
-            title: {text: `${r.name} (${r.goal}) — d = ${bestIndividual ? bestIndividual[i].toFixed(3) : '?'}`, font: {size: 13, color: '#c0c0c0'}},
-            xaxis: {title: r.name, range: [yMin, yMax], gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
-            yaxis: {title: 'd(y)', range: [-0.05, 1.05], gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
-            showlegend: false,
-        }, {responsive: true, displayModeBar: false});
+        ForgeViz.render(document.getElementById(div.id), profileSpec);
     });
 
     // Render contour
     if (contourZ && factors.length >= 2) {
-        const contourTraces = [
-            {x: contourX, y: contourY, z: contourZ, type: 'contour', colorscale: [[0,'#1a1a2e'],[0.5,'#f39c12'],[1,'#27ae60']], contours: {coloring: 'heatmap'}, colorbar: {title: 'D', len: 0.8}},
-        ];
+        const contourSpec = {
+            type: 'heatmap',
+            z: contourZ, x: contourX, y: contourY,
+            colorscale: [[0,'#1a1a2e'],[0.5,'#f39c12'],[1,'#27ae60']],
+            title: '', chart_type: 'scatter',
+            traces: [],
+            x_axis: { label: factors[0].name }, y_axis: { label: factors[1].name },
+            reference_lines: [], markers: [], zones: [],
+        };
         if (bestSettings) {
-            contourTraces.push({x: [bestSettings[0]], y: [bestSettings[1]], type: 'scatter', mode: 'markers', marker: {size: 14, color: '#e74c3c', symbol: 'star', line: {color: 'white', width: 2}}, name: 'Optimal'});
+            contourSpec.markers.push({ x: bestSettings[0], y: bestSettings[1], label: 'Optimal', color: '#e74c3c' });
         }
-        Plotly.react('desir-contour', contourTraces, {
-            height: 400, margin: {t: 30, b: 50, l: 60, r: 20},
-            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-            font: {color: '#9aaa9a', size: 10},
-            xaxis: {title: factors[0].name, gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
-            yaxis: {title: factors[1].name, gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
-            showlegend: false,
-        }, {responsive: true, displayModeBar: false});
+        ForgeViz.render(document.getElementById('desir-contour'), contourSpec);
     } else if (factors.length === 1) {
         // 1D: line plot of composite D vs factor
         const xVals = contourX, dLine = [];
@@ -268,17 +265,18 @@ function runDesirability() {
             const {compositeD} = evalPoint([x]);
             dLine.push(compositeD);
         }
-        Plotly.react('desir-contour', [
-            {x: xVals, y: dLine, type: 'scatter', mode: 'lines', line: {color: '#4a9f6e', width: 2.5}},
-            bestSettings ? {x: [bestSettings[0]], y: [bestD], type: 'scatter', mode: 'markers', marker: {size: 12, color: '#e74c3c', symbol: 'star'}, name: 'Optimal'} : null,
-        ].filter(Boolean), {
-            height: 400, margin: {t: 30, b: 50, l: 60, r: 20},
-            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-            font: {color: '#9aaa9a', size: 10},
-            xaxis: {title: factors[0].name, gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
-            yaxis: {title: 'Composite D', range: [-0.05, 1.05], gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
-            showlegend: false,
-        }, {responsive: true, displayModeBar: false});
+        const contour1DSpec = {
+            title: '', chart_type: 'line',
+            traces: [
+                { x: xVals, y: dLine, name: 'Composite D', trace_type: 'line', color: '#4a9f6e', width: 2.5 },
+            ],
+            x_axis: { label: factors[0].name }, y_axis: { label: 'Composite D' },
+            reference_lines: [], markers: [], zones: [],
+        };
+        if (bestSettings) {
+            contour1DSpec.traces.push({ x: [bestSettings[0]], y: [bestD], name: 'Optimal', trace_type: 'scatter', color: '#e74c3c', marker_size: 12 });
+        }
+        ForgeViz.render(document.getElementById('desir-contour'), contour1DSpec);
     }
 
     // Results cards
@@ -440,32 +438,29 @@ function reRenderChart(data, limits, type, highlightIdx) {
         if (v > limits.ucl || v < limits.lcl) ooc.push(i);
     });
 
-    const traces = [
-        {y: data, type: 'scatter', mode: 'lines+markers', marker: {size: 5, color: '#4a9f6e'}, line: {color: '#4a9f6e'}, name: type === 'G' ? 'Count Between Events' : 'Time Between Events'},
-        {y: Array(data.length).fill(limits.cl), type: 'scatter', mode: 'lines', name: 'CL', line: {color: '#00b894', dash: 'dash'}},
-        {y: Array(data.length).fill(limits.ucl), type: 'scatter', mode: 'lines', name: 'UCL', line: {color: '#d63031', dash: 'dash'}},
-        {y: Array(data.length).fill(limits.lcl), type: 'scatter', mode: 'lines', name: 'LCL', line: {color: '#d63031', dash: 'dash'}},
-    ];
+    const xIndices = data.map((_, i) => i);
+    const reChartSpec = {
+        title: '', chart_type: 'line',
+        traces: [
+            { x: xIndices, y: data, name: type === 'G' ? 'Count Between Events' : 'Time Between Events', trace_type: 'line', color: '#4a9f6e', width: 1 },
+        ],
+        reference_lines: [
+            { value: limits.cl, axis: 'y', color: '#00b894', dash: 'dashed', label: 'CL' },
+            { value: limits.ucl, axis: 'y', color: '#d63031', dash: 'dashed', label: 'UCL' },
+            { value: limits.lcl, axis: 'y', color: '#d63031', dash: 'dashed', label: 'LCL' },
+        ],
+        markers: [],
+        zones: [],
+        x_axis: { label: 'Sample #' }, y_axis: { label: type === 'G' ? 'Count' : 'Time' },
+    };
     if (ooc.length > 0) {
-        traces.push({x: ooc, y: ooc.map(i => data[i]), type: 'scatter', mode: 'markers', marker: {size: 10, color: '#e74c3c', symbol: 'diamond'}, name: 'OOC'});
+        reChartSpec.traces.push({ x: ooc, y: ooc.map(i => data[i]), name: 'OOC', trace_type: 'scatter', color: '#e74c3c', marker_size: 10 });
     }
-
     const shiftAt = parseInt(document.getElementById('re-shift-at').value);
-    const shapes = [];
     if (shiftAt > 0 && shiftAt < data.length) {
-        shapes.push({type: 'line', x0: shiftAt, x1: shiftAt, y0: 0, y1: 1, yref: 'paper', line: {color: '#f39c12', width: 2, dash: 'dot'}});
+        reChartSpec.reference_lines.push({ value: shiftAt, axis: 'x', color: '#f39c12', dash: 'dotted', label: 'Shift' });
     }
-
-    Plotly.react('re-chart', traces, {
-        height: 350, showlegend: true,
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: {color: '#9aaa9a', size: 10},
-        xaxis: {title: 'Sample #', gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
-        yaxis: {title: type === 'G' ? 'Count' : 'Time', gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
-        legend: {orientation: 'h', y: -0.2, font: {size: 10, color: '#9aaa9a'}},
-        shapes,
-        annotations: shiftAt > 0 && shiftAt < data.length ? [{x: shiftAt, y: 1, yref: 'paper', text: 'Shift', showarrow: false, font: {color: '#f39c12', size: 11}, yanchor: 'bottom'}] : [],
-    }, {responsive: true, displayModeBar: false});
+    ForgeViz.render(document.getElementById('re-chart'), reChartSpec);
 
     // Update metrics
     const estRate = type === 'G' ? limits.pHat : limits.lambdaHat;
@@ -512,15 +507,27 @@ function reRenderDistribution(data, type) {
     const binWidth = maxVal / nBins;
     const scaleFactor = data.length * binWidth;
 
-    Plotly.react('re-dist-chart', [
-        {x: data, type: 'histogram', nbinsx: nBins, marker: {color: 'rgba(74,159,110,0.4)', line: {color: '#4a9f6e', width: 1}}, name: 'Observed'},
-        {x: fitted_x, y: fitted_y.map(v => v * scaleFactor), type: 'scatter', mode: 'lines', line: {color: '#e74c3c', width: 2}, name: type === 'G' ? 'Geometric Fit' : 'Exponential Fit'},
-    ], {
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: {color: '#9aaa9a', size: 10}, height: 280, showlegend: true,
-        xaxis: {title: type === 'G' ? 'Count Between Events' : 'Time Between Events', gridcolor: 'rgba(255,255,255,0.07)'},
-        yaxis: {title: 'Frequency', gridcolor: 'rgba(255,255,255,0.07)'},
-    }, {responsive: true, displayModeBar: false});
+    // Bin the data for bar chart
+    const binCounts = Array(nBins).fill(0);
+    const binCenters = [];
+    for (let b = 0; b < nBins; b++) {
+        binCenters.push(binWidth * (b + 0.5));
+    }
+    data.forEach(v => {
+        const b = Math.min(Math.floor(v / binWidth), nBins - 1);
+        if (b >= 0) binCounts[b]++;
+    });
+
+    ForgeViz.render(document.getElementById('re-dist-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { x: binCenters, y: binCounts, name: 'Observed', trace_type: 'bar', color: 'rgba(74,159,110,0.4)' },
+            { x: fitted_x, y: fitted_y.map(v => v * scaleFactor), name: type === 'G' ? 'Geometric Fit' : 'Exponential Fit', trace_type: 'line', color: '#e74c3c', width: 2 },
+        ],
+        x_axis: { label: type === 'G' ? 'Count Between Events' : 'Time Between Events' },
+        y_axis: { label: 'Frequency' },
+        reference_lines: [], markers: [], zones: [],
+    });
 }
 
 function reUpdateInsights(data, ooc, type) {
@@ -646,9 +653,9 @@ function reReset() {
     document.getElementById('re-progress').textContent = '';
     ['re-est-rate','re-mean','re-ooc','re-delay'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—'; });
     const chartEl = document.getElementById('re-chart');
-    if (chartEl) Plotly.purge(chartEl);
+    if (chartEl) chartEl.innerHTML = '';
     const distEl = document.getElementById('re-dist-chart');
-    if (distEl) Plotly.purge(distEl);
+    if (distEl) distEl.innerHTML = '';
     document.getElementById('re-insight-section').style.display = 'none';
 }
 
@@ -916,32 +923,33 @@ function probitUpdate() {
         curveHigh.push(probitLink(eta + zAlpha * seEta, model));
     }
 
-    const traces = [
-        // Confidence band
-        {x: [...curveX, ...curveX.slice().reverse()], y: [...curveHigh, ...curveLow.slice().reverse()], type: 'scatter', fill: 'toself', fillcolor: 'rgba(74,159,110,0.15)', line: {color: 'transparent'}, name: `${(confLevel*100).toFixed(0)}% CI`, showlegend: true},
-        // Fitted curve
-        {x: curveX, y: curveY, type: 'scatter', mode: 'lines', line: {color: '#4a9f6e', width: 2.5}, name: model === 'probit' ? 'Probit Fit' : 'Logit Fit'},
-        // Data points
-        {x: valid.map(d => d.dose), y: valid.map(d => d.r / d.n), type: 'scatter', mode: 'markers', marker: {size: valid.map(d => Math.max(6, Math.min(20, Math.sqrt(d.n) * 3))), color: '#e17055', line: {color: 'white', width: 1}}, name: 'Observed', text: valid.map(d => `${d.r}/${d.n} (${(d.r/d.n*100).toFixed(1)}%)`), hoverinfo: 'text+x'},
-    ];
+    const probitSpec = {
+        title: '', chart_type: 'area',
+        traces: [
+            // Confidence band as area
+            { x: [...curveX, ...curveX.slice().reverse()], y: [...curveHigh, ...curveLow.slice().reverse()], name: `${(confLevel*100).toFixed(0)}% CI`, trace_type: 'area', color: 'rgba(74,159,110,0.15)' },
+            // Fitted curve
+            { x: curveX, y: curveY, name: model === 'probit' ? 'Probit Fit' : 'Logit Fit', trace_type: 'line', color: '#4a9f6e', width: 2.5 },
+            // Data points
+            { x: valid.map(d => d.dose), y: valid.map(d => d.r / d.n), name: 'Observed', trace_type: 'scatter', color: '#e17055', marker_size: 8 },
+        ],
+        reference_lines: [],
+        markers: [
+            { x: ed50, y: 0.5, label: `ED50 = ${ed50.toFixed(2)}`, color: '#fdcb6e' },
+        ],
+        zones: [],
+        x_axis: { label: 'Dose' }, y_axis: { label: 'Response Probability' },
+    };
 
-    // ED markers
+    // ED reference lines
     [{ed: ed10, label: 'ED10', pct: 0.1}, {ed: ed50, label: 'ED50', pct: 0.5}, {ed: ed90, label: 'ED90', pct: 0.9}].forEach(({ed, label, pct}) => {
         if (ed > 0 && ed < maxDose * 2) {
-            traces.push({x: [ed, ed], y: [0, pct], type: 'scatter', mode: 'lines', line: {color: '#fdcb6e', width: 1.5, dash: 'dot'}, showlegend: false});
-            traces.push({x: [minDose * 0.8, ed], y: [pct, pct], type: 'scatter', mode: 'lines', line: {color: '#fdcb6e', width: 1.5, dash: 'dot'}, showlegend: false});
+            probitSpec.reference_lines.push({ value: ed, axis: 'x', color: '#fdcb6e', dash: 'dotted', label: label });
+            probitSpec.reference_lines.push({ value: pct, axis: 'y', color: '#fdcb6e', dash: 'dotted', label: '' });
         }
     });
 
-    Plotly.react('probit-chart', traces, {
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: {color: '#9aaa9a', size: 10}, height: 400, showlegend: true,
-        xaxis: {title: 'Dose', type: useLog ? 'log' : 'linear', gridcolor: 'rgba(255,255,255,0.07)'},
-        yaxis: {title: 'Response Probability', range: [-0.05, 1.05], gridcolor: 'rgba(255,255,255,0.07)'},
-        annotations: [
-            {x: useLog ? Math.log10(ed50) : ed50, y: 0.5, text: `ED50 = ${ed50.toFixed(2)}`, showarrow: true, arrowhead: 2, ax: 40, ay: -30, font: {color: '#fdcb6e', size: 12}},
-        ],
-    }, {responsive: true, displayModeBar: false});
+    ForgeViz.render(document.getElementById('probit-chart'), probitSpec);
 
     // Insights
     const insightSection = document.getElementById('probit-insight-section');
@@ -1067,23 +1075,15 @@ function _renderMTBF(mtbf, mttr, totalTime, failures, downtime) {
         availValues.push(mtbf / (mtbf + m) * 100);
     }
 
-    Plotly.newPlot('mtbf-chart', [{
-        x: mttrValues, y: availValues,
-        type: 'scatter', mode: 'lines',
-        line: { color: '#4a9f6e', width: 2 },
-        name: 'Availability',
-    }, {
-        x: [mttr], y: [availability],
-        type: 'scatter', mode: 'markers',
-        marker: { color: '#e74c3c', size: 10 },
-        name: 'Current',
-    }], {
-        xaxis: { title: 'MTTR (hours)', color: '#9aaa9a', gridcolor: 'rgba(255,255,255,0.05)' },
-        yaxis: { title: 'Availability (%)', color: '#9aaa9a', gridcolor: 'rgba(255,255,255,0.05)', range: [Math.min(...availValues) - 1, 100] },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' }, margin: { t: 10, r: 20, b: 50, l: 60 },
-        showlegend: false,
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('mtbf-chart'), {
+        title: '', chart_type: 'line',
+        traces: [
+            { x: mttrValues, y: availValues, name: 'Availability', trace_type: 'line', color: '#4a9f6e', width: 2 },
+            { x: [mttr], y: [availability], name: 'Current', trace_type: 'scatter', color: '#e74c3c', marker_size: 10 },
+        ],
+        x_axis: { label: 'MTTR (hours)' }, y_axis: { label: 'Availability (%)' },
+        reference_lines: [], markers: [], zones: [],
+    });
 
     // Next steps
     renderNextSteps('mtbf-next-steps', [
@@ -1174,22 +1174,17 @@ function calcErlang() {
         chartWait.push(w_);
     }
 
-    Plotly.newPlot('erlang-chart', [{
-        x: chartAgents, y: chartSL,
-        type: 'bar',
-        marker: { color: chartAgents.map(c => c === agents ? '#4a9f6e' : 'rgba(74,159,110,0.3)') },
-        name: 'Service Level',
-        text: chartSL.map(s => s.toFixed(1) + '%'),
-        textposition: 'outside',
-        textfont: { color: '#9aaa9a', size: 11 },
-    }], {
-        xaxis: { title: 'Number of Agents', color: '#9aaa9a', gridcolor: 'rgba(255,255,255,0.05)', dtick: 1 },
-        yaxis: { title: 'Service Level (%)', color: '#9aaa9a', gridcolor: 'rgba(255,255,255,0.05)', range: [0, 105] },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' }, margin: { t: 10, r: 20, b: 50, l: 60 },
-        shapes: [{ type: 'line', x0: chartAgents[0] - 0.5, x1: chartAgents[chartAgents.length - 1] + 0.5, y0: targetSL, y1: targetSL, line: { color: '#e74c3c', width: 1, dash: 'dash' } }],
-        annotations: [{ x: chartAgents[chartAgents.length - 1], y: targetSL, text: `Target ${targetSL}%`, showarrow: false, font: { color: '#e74c3c', size: 10 }, yshift: 10 }],
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('erlang-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { x: chartAgents, y: chartSL, name: 'Service Level', trace_type: 'bar', color: '#4a9f6e' },
+        ],
+        reference_lines: [
+            { value: targetSL, axis: 'y', color: '#e74c3c', dash: 'dashed', label: `Target ${targetSL}%` },
+        ],
+        markers: [], zones: [],
+        x_axis: { label: 'Number of Agents' }, y_axis: { label: 'Service Level (%)' },
+    });
 
     // Next steps
     renderNextSteps('erlang-next-steps', [
@@ -1309,18 +1304,16 @@ function riskUpdate() {
         }
     }
 
-    Plotly.newPlot('risk-heatmap', [{
-        z: bgZ, type: 'heatmap',
-        x: likelihoodLabels, y: severityLabels,
-        colorscale: colorscale, showscale: false,
-        hovertemplate: 'Likelihood: %{x}<br>Severity: %{y}<br>Score: %{z}<extra></extra>',
-    }], {
-        annotations: annotations,
-        xaxis: { title: 'Likelihood', color: '#9aaa9a', side: 'bottom' },
-        yaxis: { title: 'Severity', color: '#9aaa9a' },
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-        font: { color: '#9aaa9a' }, margin: { t: 10, r: 20, b: 60, l: 120 },
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('risk-heatmap'), {
+        type: 'heatmap',
+        z: bgZ, x: likelihoodLabels, y: severityLabels,
+        colorscale: colorscale,
+        title: '', chart_type: 'scatter',
+        traces: [],
+        markers: annotations.map(a => ({ x: a.x, y: a.y, label: a.text, color: 'white' })),
+        reference_lines: [], zones: [],
+        x_axis: { label: 'Likelihood' }, y_axis: { label: 'Severity' },
+    });
 
     // Next steps
     renderNextSteps('risk-next-steps', [

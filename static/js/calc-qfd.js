@@ -398,20 +398,13 @@ function updateQFDPriorities(priorities) {
     document.getElementById('qfd-conflicts').textContent = conflicts;
 
     // Priority bar chart
-    Plotly.newPlot('qfd-priority-chart', [{
-        x: priorities.map(p => p.name),
-        y: priorities.map(p => p.score),
-        type: 'bar',
-        marker: { color: '#4a9f6e' },
-        text: priorities.map(p => p.score),
-        textposition: 'outside'
-    }], {
-        margin: { t: 20, b: 80, l: 40, r: 20 },
-        paper_bgcolor: 'transparent',
-        plot_bgcolor: 'transparent',
-        xaxis: { tickangle: -30, tickfont: { size: 10, color: '#a0a0a0' } },
-        yaxis: { tickfont: { size: 10, color: '#a0a0a0' }, gridcolor: 'rgba(150,150,150,0.1)' }
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('qfd-priority-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [{ x: priorities.map(p => p.name), y: priorities.map(p => p.score),
+            name: '', trace_type: 'bar', color: '#4a9f6e' }],
+        reference_lines: [], zones: [], markers: [],
+        y_axis: { label: '' }, x_axis: { label: '' }
+    });
 }
 
 function loadSampleQFD() {

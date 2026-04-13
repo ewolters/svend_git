@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Svend — SE Asia + India Distribution Plan</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #0a0f0a;
+    --bg-secondary: #0d120d;
+    --bg-tertiary: #121a12;
+    --accent-primary: #4a9f6e;
+    --accent-primary-dim: rgba(74, 159, 110, 0.15);
+    --accent-primary-border: rgba(74, 159, 110, 0.3);
+    --accent-blue: #3a7f8f;
+    --accent-purple: #5a4f7f;
+    --accent-gold: #e8c547;
+    --accent-orange: #e89547;
+    --accent-red: #9f4a4a;
+    --text-primary: #e8efe8;
+    --text-secondary: #9aaa9a;
+    --text-dim: #5a6a5a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.7;
+    font-weight: 300;
+    font-size: 0.95rem;
+  }
+  .page-wrap { max-width: 780px; margin: 0 auto; padding: 2rem 2rem 6rem; }
+
+  /* Header */
+  .header {
+    padding: 3rem 0 2.5rem;
+    border-bottom: 1px solid var(--accent-primary-border);
+    margin-bottom: 3rem;
+  }
+  .logo {
+    font-weight: 300; font-size: 0.9rem; letter-spacing: 0.4em;
+    text-transform: uppercase; color: var(--accent-primary);
+    margin-bottom: 0.5rem; display: inline-flex; align-items: center; gap: 0.6rem;
+  }
+  .logo .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-primary); }
+  .doc-label {
+    font-size: 0.7rem; font-weight: 500; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.5rem;
+  }
+  .doc-title { font-size: 1.8rem; font-weight: 400; line-height: 1.25; margin-bottom: 0.75rem; }
+  .doc-subtitle { font-size: 1rem; font-weight: 300; color: var(--text-secondary); max-width: 620px; }
+  .doc-meta { font-size: 0.8rem; color: var(--text-dim); margin-top: 1.5rem; display: flex; gap: 2rem; flex-wrap: wrap; }
+
+  /* Sections */
+  h2 {
+    font-size: 1.3rem; font-weight: 500; margin: 3rem 0 1rem; line-height: 1.3;
+  }
+  h3 { font-size: 1.05rem; font-weight: 500; color: var(--accent-primary); margin: 2rem 0 0.75rem; }
+  h4 { font-size: 0.95rem; font-weight: 500; color: var(--text-primary); margin: 1.5rem 0 0.5rem; }
+  p { color: var(--text-secondary); margin-bottom: 1rem; font-weight: 300; line-height: 1.8; }
+  p strong { color: var(--text-primary); font-weight: 500; }
+  .section-num {
+    font-size: 0.65rem; font-weight: 500; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--text-dim); display: block; margin-bottom: 0.4rem;
+  }
+  .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--accent-primary-border), transparent); margin: 3rem 0; }
+
+  /* Cards */
+  .card {
+    background: rgba(10, 15, 10, 0.85);
+    border: 1px solid rgba(74, 159, 110, 0.15);
+    border-radius: 4px; padding: 1.25rem; margin: 1.25rem 0;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  .card--green { border-left: 3px solid var(--accent-primary); }
+  .card--gold { border-left: 3px solid var(--accent-gold); }
+  .card--blue { border-left: 3px solid var(--accent-blue); }
+  .card--orange { border-left: 3px solid var(--accent-orange); }
+  .card--red { border-left: 3px solid var(--accent-red); }
+  .card--purple { border-left: 3px solid var(--accent-purple); }
+  .card p:last-child { margin-bottom: 0; }
+  .card-label {
+    font-size: 0.65rem; font-weight: 500; letter-spacing: 0.12em;
+    text-transform: uppercase; margin-bottom: 0.5rem;
+  }
+  .card-label--green { color: var(--accent-primary); }
+  .card-label--gold { color: var(--accent-gold); }
+  .card-label--blue { color: var(--accent-blue); }
+  .card-label--orange { color: var(--accent-orange); }
+  .card-label--red { color: var(--accent-red); }
+  .card-label--purple { color: var(--accent-purple); }
+
+  /* Table */
+  .tbl { width: 100%; margin: 1.25rem 0; border-collapse: collapse; }
+  .tbl th {
+    font-size: 0.7rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-dim); text-align: left; padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid rgba(74, 159, 110, 0.2);
+  }
+  .tbl td {
+    padding: 0.55rem 0.75rem; font-size: 0.88rem; color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.03); font-weight: 300; vertical-align: top;
+  }
+  .tbl td:first-child { color: var(--text-primary); font-weight: 400; white-space: nowrap; }
+  .tbl td strong { color: var(--text-primary); font-weight: 500; }
+
+  /* Phase blocks */
+  .phase {
+    background: var(--bg-secondary); border: 1px solid rgba(74,159,110,0.1);
+    border-radius: 4px; padding: 1.5rem; margin: 1.5rem 0;
+  }
+  .phase-header {
+    display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;
+  }
+  .phase-num {
+    background: var(--accent-primary-dim); border: 1px solid var(--accent-primary-border);
+    border-radius: 3px; padding: 0.2rem 0.6rem; font-size: 0.7rem; font-weight: 500;
+    letter-spacing: 0.1em; color: var(--accent-primary);
+  }
+  .phase-title { font-weight: 500; font-size: 1.05rem; }
+  .phase-time { font-size: 0.8rem; color: var(--text-dim); margin-left: auto; }
+
+  /* Channel items */
+  .ch { margin: 1rem 0; padding-left: 1rem; border-left: 2px solid rgba(74,159,110,0.15); }
+  .ch-name { font-weight: 500; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.2rem; }
+  .ch-detail { font-size: 0.88rem; color: var(--text-secondary); font-weight: 300; line-height: 1.6; }
+  .ch-cost { font-size: 0.8rem; color: var(--accent-gold); margin-top: 0.25rem; }
+  .ch-action { font-size: 0.8rem; color: var(--accent-primary); margin-top: 0.25rem; font-weight: 400; }
+
+  /* Metric grid */
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin: 1.5rem 0; }
+  .metric {
+    text-align: center; padding: 1rem 0.5rem; background: var(--bg-secondary);
+    border: 1px solid rgba(74,159,110,0.1); border-radius: 4px;
+  }
+  .metric-val { font-size: 1.4rem; font-weight: 400; color: var(--accent-primary); margin-bottom: 0.15rem; }
+  .metric-label { font-size: 0.7rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); line-height: 1.3; }
+
+  /* Pull quote */
+  .pq {
+    border-left: 2px solid var(--accent-primary); padding: 1rem 1.25rem; margin: 1.5rem 0;
+    font-style: italic; color: var(--text-secondary); font-size: 0.95rem;
+  }
+  .pq strong { color: var(--text-primary); font-weight: 500; font-style: normal; }
+
+  /* Footer */
+  .footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid rgba(74,159,110,0.15); text-align: center; }
+  .footer p { color: var(--text-dim); font-size: 0.8rem; }
+
+  @media (max-width: 640px) {
+    .page-wrap { padding: 1.5rem 1.25rem 4rem; }
+    .doc-title { font-size: 1.4rem; }
+    .metrics { grid-template-columns: 1fr; }
+    .doc-meta { flex-direction: column; gap: 0.25rem; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <header class="header">
+    <div class="logo"><span class="dot"></span> svend</div>
+    <div class="doc-label">Distribution Plan — Internal</div>
+    <h1 class="doc-title">SE Asia + India: Individual Plan Distribution Strategy</h1>
+    <p class="doc-subtitle">Grassroots adoption through training ecosystems, price disruption, and content-led organic growth. Targeting individual quality professionals, not enterprise procurement.</p>
+    <div class="doc-meta">
+      <span>February 2026 · Updated 23 Feb with outreach contacts</span>
+      <span>Target: India, Philippines, Vietnam, Thailand, Indonesia, Malaysia</span>
+    </div>
+  </header>
+
+  <!-- ========== SECTION 1: STRATEGIC THESIS ========== -->
+  <span class="section-num">01 — Strategic Thesis</span>
+  <h2>Why Individual Plans, Why These Markets, Why Now</h2>
+
+  <p>The US quality management market is dominated by enterprise procurement cycles — Minitab is embedded in IT-approved vendor lists, Six Sigma certification curricula, and corporate budgets. Displacing it requires selling to committees. That fight takes years and millions in sales infrastructure.</p>
+
+  <p>SE Asia and India have <strong>no such inertia</strong>. These markets are building quality infrastructure, not replacing it. The individual practitioner — the Green Belt at a pharmaceutical exporter in Hyderabad, the process engineer at a Samsung supplier in Bac Ninh, the quality lead at an automotive parts shop in Rayong — is making their own tool decisions.</p>
+
+  <div class="card card--green">
+    <div class="card-label card-label--green">Core Thesis</div>
+    <p><strong>Svend doesn't compete for enterprise budgets.</strong> Svend competes for the individual practitioner's loyalty — arriving as their first real quality workbench, at a price point that fits their personal budget, through the training ecosystem that certifies them. When they advance into leadership, Svend goes with them. The enterprise sale happens later, organically, from the inside.</p>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="metric-val">$29</div><div class="metric-label">Svend / month</div></div>
+    <div class="metric"><div class="metric-val">$154</div><div class="metric-label">Minitab / month</div></div>
+    <div class="metric"><div class="metric-val">5.3×</div><div class="metric-label">Price advantage</div></div>
+  </div>
+
+  <p>At $29/month, Svend is within reach of an individual professional in India (avg quality engineer salary ₹4-8L/year), Philippines (₱25-50K/month), or Vietnam (8-15M VND/month). Minitab at $1,851/year is not. That's the entire wedge.</p>
+
+  <div class="divider"></div>
+
+  <!-- ========== SECTION 2: TARGET USERS ========== -->
+  <span class="section-num">02 — Target User Profiles</span>
+  <h2>Who We're Reaching and What They Need</h2>
+
+  <div class="card card--blue">
+    <div class="card-label card-label--blue">Primary — The Certification Student</div>
+    <p><strong>Who:</strong> Green Belt or Black Belt candidate currently in training. Age 24-35. Paying for their own certification (₹15K-80K in India, $200-$1,500 in SEA). Currently using Excel templates, pirated Minitab, or JASP because the school doesn't provide software.</p>
+    <p><strong>Need:</strong> A tool to complete their certification project and that they'll actually continue using afterward. Needs to produce professional charts and reports that impress their instructor and, more importantly, their employer.</p>
+    <p><strong>Trigger:</strong> Enrollment in a Lean Six Sigma training program. This is the exact moment they're looking for a tool.</p>
+  </div>
+
+  <div class="card card--gold">
+    <div class="card-label card-label--gold">Secondary — The Local Supplier Quality Engineer</div>
+    <p><strong>Who:</strong> Quality or process engineer at a Tier 2/3 supplier to a multinational. Their customer (Samsung, Toyota, Bosch, J&J) demands quality data — SPC charts, capability studies, CAPA documentation. Their company won't buy Minitab. They're doing it in Excel.</p>
+    <p><strong>Need:</strong> SPC, capability analysis, and root cause investigation that produces export-grade documentation. Must look professional when shared with the MNC customer quality team.</p>
+    <p><strong>Trigger:</strong> Customer audit. Supplier quality requirement. FDA/ISO certification push.</p>
+  </div>
+
+  <div class="card card--orange">
+    <div class="card-label card-label--orange">Tertiary — The Consulting Trainer</div>
+    <p><strong>Who:</strong> Independent or small-firm LSS consultant/trainer operating across India or SE Asia. Teaches Green Belt / Black Belt programs. Currently teaching Minitab but students can't afford it, or teaching Excel which limits what they can demonstrate.</p>
+    <p><strong>Need:</strong> A software platform to build their training curriculum around. One that their students can actually afford to use after the course ends.</p>
+    <p><strong>Trigger:</strong> Student complaints about Minitab cost. Competitive pressure from trainers using free tools. Desire to differentiate their program.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ========== SECTION 3: CHANNELS ========== -->
+  <span class="section-num">03 — Distribution Channels</span>
+  <h2>How to Actually Reach These People</h2>
+
+  <p>This is the operational core. Six channels, ranked by leverage and effort. The first three can be executed by a solo founder; the latter three scale as revenue grows.</p>
+
+  <!-- Channel 1 -->
+  <h3>Channel 1: LinkedIn Content Engine</h3>
+
+  <p><strong>Why LinkedIn:</strong> It is the de facto professional network across all target markets. Indian professionals are the second-largest user base globally (~130M+). SE Asian professionals in quality, manufacturing, and engineering are highly active. LinkedIn's algorithm currently favors long-form posts and document carousels — organic reach is still achievable without paid spend.</p>
+
+  <div class="ch">
+    <div class="ch-name">Content Format: Carousel Posts (PDF slides)</div>
+    <div class="ch-detail">10-slide visual explainers in Svend's brand aesthetic. Each carousel targets one keyword/topic from the SEO strategy. Examples: "5 Signs Your CAPA Will Get a 483," "Why Human Error Is Never a Root Cause," "SPC to CAPA in One Platform — What It Looks Like." Include Svend screenshots. End slide: "Try it free at svend.ai"</div>
+    <div class="ch-cost">Cost: $0. Time: 2-3 hours per carousel. Frequency: 2×/week.</div>
+    <div class="ch-action">Action: Create a template in Svend brand colors. Batch-produce 8 carousels covering each whitepaper section.</div>
+  </div>
+
+  <div class="ch">
+    <div class="ch-name">Content Format: Short Posts with Screenshots</div>
+    <div class="ch-detail">Quick posts showing a specific Svend feature in action. "Here's what a VSM looks like when the metrics calculate automatically." "Here's what happens when you try to close an RCA at 'human error.'" Real screenshots from the live product. Authentic, not polished.</div>
+    <div class="ch-cost">Cost: $0. Time: 20 minutes each. Frequency: 3-4×/week.</div>
+    <div class="ch-action">Action: Build a screenshot library of 20+ product moments that demonstrate capability.</div>
+  </div>
+
+  <div class="ch">
+    <div class="ch-name">Engagement: Follow and comment in Lean/Six Sigma communities</div>
+    <div class="ch-detail">Search LinkedIn for: "lean six sigma India," "quality management Philippines," "continuous improvement Vietnam." Follow practitioners, trainers, consultants. Comment substantively on their posts — not sales pitches, real expertise. This builds authority before you ever post your own content. The LSS LinkedIn community is tight-knit and reciprocal.</div>
+    <div class="ch-cost">Cost: $0. Time: 15 minutes/day.</div>
+  </div>
+
+  <div class="card card--green">
+    <div class="card-label card-label--green">LinkedIn Targeting Tags</div>
+    <p>Hashtags to monitor and post under: #LeanSixSigma #SixSigma #ContinuousImprovement #QualityManagement #ProcessImprovement #RootCauseAnalysis #CAPA #SPC #ValueStreamMapping #OperationalExcellence #Kaizen #MakeInIndia #LeanManufacturing #QualityEngineering</p>
+    <p>Groups to join: Lean Six Sigma Worldwide, Six Sigma Quality, Lean Manufacturing Group, Quality Management Professionals, ASQ (Indian section)</p>
+  </div>
+
+  <!-- Channel 2 -->
+  <h3>Channel 2: Training Partner Program</h3>
+
+  <p><strong>Why this is the highest-leverage channel:</strong> Every LSS training company needs a software tool to teach with. They currently have three bad options: Minitab (students can't afford it after), SigmaXL (Excel-dependent, limited), or free tools (no quality-specific features). Svend is the fourth option that solves all three problems.</p>
+
+  <div class="card card--gold">
+    <div class="card-label card-label--gold">The Offer to Training Partners</div>
+    <p><strong>"Your students get free Svend access during their certification program. After graduation, they continue at $29/month — a fraction of Minitab. Your program becomes the one that equips students with a real tool they can actually afford to keep using."</strong></p>
+    <p>The training company benefits: differentiation from competitors teaching Minitab or Excel. Zero cost to them. Higher perceived value of their program.</p>
+    <p>Svend benefits: every graduate is a trained user. They bring Svend into their workplace. They demonstrate it to colleagues. Organic expansion.</p>
+  </div>
+
+  <p><strong>Target training companies by market:</strong></p>
+
+  <table class="tbl">
+    <thead><tr><th>Market</th><th>Organization</th><th>Contact Email</th><th>Notes</th></tr></thead>
+    <tbody>
+      <!-- INDIA -->
+      <tr><td rowspan="7" style="vertical-align:top; font-weight:600; color:var(--accent-primary);">India</td>
+          <td><strong>Contiprove Consulting</strong></td><td>hemantpratapsingh2023@gmail.com</td><td>Noida/Pune. CSSC-accredited LSS YB/GB/BB. 40K+ professionals trained. Currently teaches Minitab. Director: Hemant Pratap Singh. Also reachable: +91 96254 09401</td></tr>
+      <tr><td><strong>Faber Infinite Consulting</strong></td><td>Consulting@faberinfinite.com</td><td>Ahmedabad/Pune. Manufacturing-focused OpEx consulting + training. CSSC-accredited through MBB. VSM, Lean, Six Sigma. Active in India + Africa.</td></tr>
+      <tr><td><strong>Qsutra</strong></td><td>minitab@qsutra.com</td><td>Bangalore. <strong>Currently Minitab reseller</strong> for India/Sri Lanka/Bangladesh/Nepal. Potential convert or dual-offer partner. Also offers QMS software. +91 80 40109793</td></tr>
+      <tr><td><strong>Sigma Consultants</strong></td><td>support@sigmacon.in</td><td>Pune. LSS certification, MSA, TQM training. 26+ years experience. Trainer: Dhananjay Apte. +91 98 23 19 09 39</td></tr>
+      <tr><td><strong>Intelligence Quality (IQ6Sigma)</strong></td><td>admin@iq6sigma.com</td><td>Pune/Chennai/Dhaka. LSS MBB/BB/GB, Power BI, Design Thinking. Also: +91 91500 07732 (individual) / +91 91500 33862 (corporate)</td></tr>
+      <tr><td><strong>6Sigma.com (Pune)</strong></td><td>info@6sigma.com</td><td>US-based, runs classroom training in Pune (Viman Nagar + Hinjawadi). GB/BB/MBB. Large global operation.</td></tr>
+      <tr><td><strong>Indian Statistical Institute</strong></td><td><em>— use web form</em></td><td>Kolkata. Academic institution. Approach via faculty contacts in quality/stats departments.</td></tr>
+
+      <!-- PHILIPPINES -->
+      <tr><td rowspan="2" style="vertical-align:top; font-weight:600; color:var(--accent-primary);">Philippines</td>
+          <td><strong>Six Sigma PH</strong></td><td>ask@6sigmaPH.com</td><td>Makati. Rex Tuozo "The Six Sigma Guy." #1 LSS school in PH. 17K+ certified, ₱1.37B total savings. Gamified learning. Patented Six Sigma Circuit™. <strong>High-value target.</strong></td></tr>
+      <tr><td><strong>LSSSP Philippines</strong></td><td><em>— via LinkedIn</em></td><td>International Society of Six Sigma Professionals, PH chapter.</td></tr>
+
+      <!-- VIETNAM -->
+      <tr><td rowspan="2" style="vertical-align:top; font-weight:600; color:var(--accent-primary);">Vietnam</td>
+          <td><strong>SSMI Asia Vietnam</strong></td><td>thanhhai@ssmi-asia.com</td><td>HCMC (Thu Duc). Dr. Nguyen Thanh Hai — President SSMI Asia Vietnam/Cambodia/Laos/Myanmar. MBB, PMP. Former Minitab conference speaker. Also: infoasia@ssmi-asia.com / +84 986 235 189</td></tr>
+      <tr><td><strong>The Lean Six Sigma Company Vietnam</strong></td><td>info@theleansixsigmacompany-thailand.com</td><td>Rotterdam-based global firm. Vietnam served through Thailand/APAC office. ISO18404 certified courses.</td></tr>
+
+      <!-- THAILAND -->
+      <tr><td rowspan="2" style="vertical-align:top; font-weight:600; color:var(--accent-primary);">Thailand</td>
+          <td><strong>The Lean Six Sigma Company Thailand</strong></td><td>info@theleansixsigmacompany-thailand.com</td><td>Bangkok (Lat Krabang). Part of global TLSSC network. +66 9 2552 2512</td></tr>
+      <tr><td><strong>MBizM SDN BHD</strong></td><td><em>— via mbizm.com form</em></td><td>Malaysia-based but trains across SEA incl. Thailand. "Malaysia's #1 LSS Training." Dr. Satnam + Mr. Harbans.</td></tr>
+
+      <!-- MALAYSIA -->
+      <tr><td rowspan="4" style="vertical-align:top; font-weight:600; color:var(--accent-primary);">Malaysia</td>
+          <td><strong>The Lean Six Sigma Company Malaysia</strong></td><td><em>— via theleansixsigmacompany.com.my/contact</em></td><td>Part of global TLSSC. ISO18404/ISO13053 certified. University-partnered.</td></tr>
+      <tr><td><strong>SIRIM Berhad</strong></td><td>web@sirim.my</td><td>National standards body. SIRIM Academy runs quality training. Government-owned. 603-5544 6000. Shah Alam, Selangor.</td></tr>
+      <tr><td><strong>SIRIM Academy</strong></td><td><em>— via sirimacademy.my</em></td><td>Training arm of SIRIM. ISO Lead Auditor courses, quality management. HRDC claimable. 25+ years.</td></tr>
+      <tr><td><strong>Penang Skills Development Centre</strong></td><td>admin@psdc.org.my</td><td>Bayan Lepas FIZ. Industry-led, 250K+ trained. Founded 1989 w/ Intel, HP, Motorola. +604-643 7909</td></tr>
+
+      <!-- INDONESIA -->
+      <tr><td rowspan="2" style="vertical-align:top; font-weight:600; color:var(--accent-primary);">Indonesia</td>
+          <td><strong>The Lean Six Sigma Company Indonesia</strong></td><td><em>— via theleansixsigmacompany.id/contact</em></td><td>Part of global TLSSC. Managing Partner Indonesia on staff.</td></tr>
+      <tr><td><strong>LSSSP Indonesia</strong></td><td><em>— via LinkedIn</em></td><td>International Society of Six Sigma Professionals, Indonesia chapter.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="card card--green">
+    <div class="card-label card-label--green">Outreach-Ready Emails — Quick Copy</div>
+    <p style="font-family:monospace; font-size:0.85rem; line-height:2.2; color:var(--text-primary);">
+      hemantpratapsingh2023@gmail.com<br>
+      Consulting@faberinfinite.com<br>
+      minitab@qsutra.com<br>
+      support@sigmacon.in<br>
+      admin@iq6sigma.com<br>
+      info@6sigma.com<br>
+      ask@6sigmaPH.com<br>
+      thanhhai@ssmi-asia.com<br>
+      infoasia@ssmi-asia.com<br>
+      info@theleansixsigmacompany-thailand.com<br>
+      web@sirim.my<br>
+      admin@psdc.org.my
+    </p>
+    <p><strong>12 verified emails ready for automated outreach.</strong> 5 additional orgs reachable via web contact forms (marked above). Prioritize: Contiprove, Qsutra, Six Sigma PH, SSMI Vietnam — these are highest-leverage based on audience size and current Minitab dependency.</p>
+  </div>
+
+  <div class="ch">
+    <div class="ch-name">Outreach Sequence</div>
+    <div class="ch-detail">
+      <strong>Email 1 (cold intro):</strong> "I built a quality analytics platform that covers SPC, DOE, regression, capability, RCA, VSM — all connected. I'd like to offer your students free access during their program. Would you be open to a 15-minute demo?"<br><br>
+      <strong>Email 2 (if no response, 5 days later):</strong> Forward with "Just bumping this — here's a 2-minute video showing how the RCA Challenge works. No other tool does this." Attach a Loom walkthrough of the RCA Challenge specifically — it's the moat feature that gets attention.<br><br>
+      <strong>Email 3 (final, 7 days later):</strong> "Last note — if timing's not right, totally understand. The offer stands whenever. In the meantime, here's our whitepaper on why operational insights die — your students might find it useful." Link to the pillar page.
+    </div>
+    <div class="ch-cost">Cost: $0 + time. Deliverable needed: 2-minute Loom demo video of RCA Challenge.</div>
+    <div class="ch-action">Action: Record RCA Challenge demo. Draft 3-email sequence. 12 verified emails + 5 web form contacts ready above. Send all 17 in Week 2-3.</div>
+  </div>
+
+  <!-- Channel 3 -->
+  <h3>Channel 3: SEO + Content (Already In Motion)</h3>
+
+  <p>The whitepaper and 9-week content calendar are built. The pillar page at <strong>/insights/why-operational-insights-die</strong> targets the keyword cluster nobody else is writing about. This channel works globally but needs India/SEA-specific content variants.</p>
+
+  <div class="ch">
+    <div class="ch-name">India-Specific Content</div>
+    <div class="ch-detail">Blog post: "Minitab Alternatives for Indian Manufacturing: What Quality Engineers Actually Need in 2026." Targets: "Minitab alternative India," "affordable six sigma software India," "quality tools for Indian SME." This is a high-intent search — people actively looking for cheaper options. Svend answers the query directly.</div>
+    <div class="ch-action">Action: Write and publish. Include pricing comparison table (Minitab vs. JMP vs. SigmaXL vs. JASP vs. Svend).</div>
+  </div>
+
+  <div class="ch">
+    <div class="ch-name">Pharma-Specific Content (India + SEA)</div>
+    <div class="ch-detail">Blog post: "CAPA That Survives an FDA 483: What Indian Pharma Exporters Get Wrong." India exports $25B+ in pharmaceuticals to the US. Every one of those companies faces FDA inspections. CAPA is the #1 citation. The RCA Challenge is purpose-built for this problem. This post converts directly to trials.</div>
+    <div class="ch-action">Action: Write and publish. Cross-post condensed version on LinkedIn targeting pharma quality hashtags.</div>
+  </div>
+
+  <div class="ch">
+    <div class="ch-name">Comparison Pages</div>
+    <div class="ch-detail">Create pages for: "Svend vs Minitab," "Svend vs JMP," "Svend vs SigmaXL," "Svend vs Excel for Six Sigma." Honest comparisons. Admit where Minitab wins (larger training ecosystem, deeper DOE). Show where Svend wins (connected workflow, RCA Challenge, price, web-based). These are high-intent SEO pages that capture people actively evaluating tools.</div>
+    <div class="ch-action">Action: Build comparison page template. Create 4 comparison pages over 4 weeks.</div>
+  </div>
+
+  <!-- Channel 4 -->
+  <h3>Channel 4: YouTube / Video Tutorials</h3>
+
+  <p><strong>Why:</strong> Indian and SE Asian practitioners learn from YouTube more than any other medium. "How to use Minitab for SPC" has hundreds of thousands of views from India. "How to do ANOVA in Minitab" is a standard search. <strong>These are the exact searches Svend can intercept.</strong></p>
+
+  <div class="ch">
+    <div class="ch-name">Tutorial Series: "Quality Analysis with Svend"</div>
+    <div class="ch-detail">
+      Screen recordings showing real analysis workflows. Each video: 5-8 minutes. Record in English (covers India, Philippines, Malaysia, and educated professionals across all markets).<br><br>
+      <strong>Video titles (targeting Minitab search traffic):</strong><br>
+      "How to Create an SPC Control Chart — Svend Tutorial"<br>
+      "Process Capability Analysis (Cpk) — Step by Step in Svend"<br>
+      "ANOVA for Process Improvement — Svend vs Minitab Comparison"<br>
+      "Root Cause Analysis That Goes Beyond Human Error — RCA Challenge Demo"<br>
+      "Value Stream Mapping with Auto-Calculated Metrics — Svend VSM Builder"<br>
+      "DOE Setup and Analysis for Green Belts — Svend Tutorial"<br>
+      "Gage R&R Study — Complete Walkthrough in Svend"
+    </div>
+    <div class="ch-cost">Cost: $0 (screen recording + microphone). Time: 2-3 hours per video including editing.</div>
+    <div class="ch-action">Action: Record 4 core tutorials (SPC, Capability, ANOVA, RCA Challenge) as initial batch. Post weekly.</div>
+  </div>
+
+  <p>Each video description includes: link to svend.ai, "Start Free" CTA, and keywords matching the Minitab tutorials people are searching for. YouTube SEO is straightforward — title matching, description keywords, and consistent posting.</p>
+
+  <!-- Channel 5 -->
+  <h3>Channel 5: Community Seeding</h3>
+
+  <div class="ch">
+    <div class="ch-name">Reddit: r/leansixsigma, r/qualitymanagement, r/sixsigma</div>
+    <div class="ch-detail">Answer questions genuinely. When someone asks "What software should I use for my Green Belt project?" — mention Svend alongside Minitab and JMP with honest positioning. When someone asks about RCA methodology — link to the whitepaper. Reddit hates overt promotion but rewards genuine expertise. Build karma first, mention Svend naturally.</div>
+    <div class="ch-cost">Cost: $0. Time: 15 min/day browsing and responding.</div>
+  </div>
+
+  <div class="ch">
+    <div class="ch-name">Quora: Quality Management, Six Sigma, Lean Manufacturing topics</div>
+    <div class="ch-detail">Quora is disproportionately popular in India. Questions like "Is Minitab worth the cost?" "What is the best alternative to Minitab?" "How do I do SPC without Minitab?" have thousands of views. Write definitive answers. Include Svend as one option among several — not a sales pitch, a genuine recommendation with context.</div>
+    <div class="ch-cost">Cost: $0. Time: 2-3 detailed answers per week.</div>
+    <div class="ch-action">Action: Identify top 20 Quora questions about Minitab alternatives and quality tools. Write answers for 5 per week over 4 weeks.</div>
+  </div>
+
+  <div class="ch">
+    <div class="ch-name">WhatsApp / Telegram Groups</div>
+    <div class="ch-detail">In India and SE Asia, professional communities operate on WhatsApp and Telegram, not Slack or Discord. There are Lean Six Sigma, quality management, and manufacturing groups with hundreds of active members. Finding them requires word of mouth through the training partner relationships (Channel 2). Once you're in, sharing a useful tool organically is natural — these groups exist specifically for sharing resources.</div>
+    <div class="ch-cost">Cost: $0. Requires: Active training partner relationships to discover groups.</div>
+  </div>
+
+  <!-- Channel 6 -->
+  <h3>Channel 6: Paid (Phase 2 — Only After Organic Validation)</h3>
+
+  <p><strong>Do not spend money on ads until Channels 1-5 have proven the product-market fit with real organic conversions.</strong> Paid should amplify what's already working, not compensate for what isn't.</p>
+
+  <div class="ch">
+    <div class="ch-name">Google Ads: India (when ready)</div>
+    <div class="ch-detail">Target: "minitab alternative," "statistical software for six sigma," "SPC software affordable," "quality management tool." India CPCs for these terms are dramatically lower than US/EU — typically $0.30-$1.50 per click vs. $5-$15 in the US. A $300/month budget could drive 200-1,000 targeted clicks.</div>
+    <div class="ch-cost">Budget: $300/month (Phase 2 only). Expected CPC: $0.30-$1.50 in India.</div>
+  </div>
+
+  <div class="ch">
+    <div class="ch-name">LinkedIn Ads: Targeted Sponsored Content</div>
+    <div class="ch-detail">Boost the highest-performing organic carousel posts. Target by: Job title (Quality Engineer, Process Engineer, Lean Consultant, Six Sigma Black Belt), Location (India, Philippines, Vietnam, Thailand), Industry (Manufacturing, Pharmaceutical, Automotive). LinkedIn's targeting in India is precise for professional roles.</div>
+    <div class="ch-cost">Budget: $200-$500/month (Phase 2 only). Test with $50 on a single post first.</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ========== SECTION 4: PHASED ROLLOUT ========== -->
+  <span class="section-num">04 — Phased Rollout</span>
+  <h2>Execution Sequence</h2>
+
+  <div class="phase">
+    <div class="phase-header">
+      <span class="phase-num">Phase 1</span>
+      <span class="phase-title">Foundation</span>
+      <span class="phase-time">Weeks 1-4</span>
+    </div>
+    <p><strong>Goal:</strong> Establish presence. Zero spend. All organic.</p>
+    <table class="tbl">
+      <tbody>
+        <tr><td>Week 1</td><td>Publish whitepaper pillar page on svend.ai. Set up PDF download gate (email capture). Begin LinkedIn posting — 2 carousels, 3 screenshot posts. Join 5 LinkedIn groups.</td></tr>
+        <tr><td>Week 2</td><td>Record RCA Challenge demo video (Loom, 2 min). Send first batch of outreach emails using the 12 verified contacts above (India priority: Contiprove, Faber Infinite, Qsutra, Sigma Consultants, IQ6Sigma). Publish "Minitab Alternatives for Indian Manufacturing" blog post. Write 3 Quora answers.</td></tr>
+        <tr><td>Week 3</td><td>Send SEA outreach batch (Six Sigma PH, SSMI Vietnam, TLSSC Thailand/Malaysia/Indonesia, PSDC). Record first YouTube tutorial (SPC Control Charts). Publish Week 2 content calendar blog post ("Your Root Cause Isn't Human Error"). Continue LinkedIn cadence.</td></tr>
+        <tr><td>Week 4</td><td>Follow up on all outreach. Publish "Svend vs Minitab" comparison page. Record second YouTube tutorial (Process Capability). Assess: any training partner conversations? Any organic sign-ups from India/SEA?</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="phase">
+    <div class="phase-header">
+      <span class="phase-num">Phase 2</span>
+      <span class="phase-title">Traction</span>
+      <span class="phase-time">Weeks 5-12</span>
+    </div>
+    <p><strong>Goal:</strong> First training partnerships active. First organic conversions from India/SEA. Content machine running consistently.</p>
+    <table class="tbl">
+      <tbody>
+        <tr><td>Weeks 5-8</td><td>Continue content calendar (Weeks 4-7 blog posts). YouTube: 1 tutorial/week. Onboard first training partner — set up their student access flow. Publish 2 more comparison pages (vs JMP, vs SigmaXL). Expand LinkedIn to Thailand/Vietnam-focused content.</td></tr>
+        <tr><td>Weeks 9-12</td><td>Complete 9-week content calendar. Publish pharma-specific CAPA article. Build "For Training Partners" page on svend.ai explaining the program. Assess conversion data: which country is converting? Which content performs best? This data determines Phase 3 focus.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="phase">
+    <div class="phase-header">
+      <span class="phase-num">Phase 3</span>
+      <span class="phase-title">Amplification</span>
+      <span class="phase-time">Months 4-6</span>
+    </div>
+    <p><strong>Goal:</strong> Double down on what's working. Introduce paid where organic proved the channel. Begin localization for top-performing non-English market.</p>
+    <table class="tbl">
+      <tbody>
+        <tr><td>Month 4</td><td>If India is converting: Start Google Ads ($300/month) targeting proven keywords. If Philippines: Double LinkedIn/YouTube cadence for that market. If Vietnam/Thailand: Begin exploring localization partner (translation of key pages + tutorials).</td></tr>
+        <tr><td>Month 5</td><td>Guest post submissions to Quality Digest, ISixSigma, IndustryWeek — pitch the "Insight Spine" thesis. If training partners are active, request testimonials/case studies. "Our students saved ₹1.2L/year switching from Minitab."</td></tr>
+        <tr><td>Month 6</td><td>Webinar: "Why Your CI Insights Die — Live Demo from VSM to RCA Challenge to Hoshin." Promote through LinkedIn, training partners, email list. First major conversion event.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ========== SECTION 5: PRICING STRATEGY ========== -->
+  <span class="section-num">05 — Pricing Strategy for These Markets</span>
+  <h2>Regional Pricing Architecture</h2>
+
+  <p>Purchasing Power Parity (PPP) matters. $29/month is affordable for an Indian quality engineer but still a considered purchase. For a Vietnamese factory worker, it's significant. The pricing needs to reflect this without cannibalizing US/EU revenue.</p>
+
+  <div class="card card--gold">
+    <div class="card-label card-label--gold">Recommended Approach: Regional Pricing via Geo-IP</div>
+    <p><strong>Do not create separate "India pricing" pages.</strong> Instead, use geo-IP detection on the pricing page to show localized pricing automatically. Stripe supports this natively. The user sees their local currency and a PPP-adjusted price.</p>
+  </div>
+
+  <table class="tbl">
+    <thead><tr><th>Tier</th><th>US/EU/AU</th><th>India/PH/VN/TH/ID</th><th>Malaysia/SG</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Individual</strong></td><td>$29/mo</td><td>$15/mo (~₹1,250)</td><td>$29/mo</td></tr>
+      <tr><td><strong>Professional</strong></td><td>$99/mo</td><td>$49/mo (~₹4,100)</td><td>$79/mo</td></tr>
+      <tr><td><strong>Team (5 seats)</strong></td><td>$199/mo</td><td>$99/mo (~₹8,300)</td><td>$149/mo</td></tr>
+      <tr><td><strong>Student</strong></td><td>Free (6 mo)</td><td>Free (6 mo)</td><td>Free (6 mo)</td></tr>
+    </tbody>
+  </table>
+
+  <p>The student tier is the training partner channel's engine. Free for 6 months with a valid enrollment code from a partner training company. After graduation, they convert to Individual at the regional price. Even at $15/month, 1,000 converting students = $15K MRR from a market with zero CAC.</p>
+
+  <div class="pq">
+    <strong>Minitab charges $1,851/year everywhere.</strong> They don't do PPP pricing. That's the structural opening. An Indian quality engineer choosing between $1,851/year for Minitab and $180/year for Svend (with more features in the connected workflow) isn't making a difficult decision.
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ========== SECTION 6: PAYMENT INFRASTRUCTURE ========== -->
+  <span class="section-num">06 — Payment & Technical Infrastructure</span>
+  <h2>Making It Actually Work</h2>
+
+  <h3>Payment Processing</h3>
+
+  <table class="tbl">
+    <thead><tr><th>Market</th><th>Stripe Support</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>India</td><td>Yes (since 2023)</td><td>UPI (Unified Payments Interface) is dominant. Stripe supports UPI. Also Razorpay as backup. International cards work but UPI has higher conversion rate for Indian users.</td></tr>
+      <tr><td>Philippines</td><td>Yes</td><td>GCash, Maya (formerly PayMaya) are popular e-wallets. Stripe supports cards. Consider adding GCash via PayMongo as backup for higher conversion.</td></tr>
+      <tr><td>Vietnam</td><td>Limited</td><td>Stripe doesn't fully support Vietnam yet. VNPay, MoMo, and ZaloPay dominate. International cards work for professional users. Phase 2 consideration: integrate a local payment gateway.</td></tr>
+      <tr><td>Thailand</td><td>Yes</td><td>PromptPay (Thai QR payment system) is ubiquitous. Stripe supports Thai cards. Works well for professional users.</td></tr>
+      <tr><td>Indonesia</td><td>Yes (beta)</td><td>GoPay, OVO, Dana are major e-wallets. Stripe supports Indonesian cards. Consider Xendit as a local payment processor for better coverage.</td></tr>
+      <tr><td>Malaysia</td><td>Yes</td><td>Well-served by international cards and Stripe. No special considerations needed.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="card card--orange">
+    <div class="card-label card-label--orange">Phase 1 Recommendation</div>
+    <p><strong>Start with Stripe only.</strong> It covers India, Philippines, Thailand, Malaysia, and Indonesia. Users with international credit/debit cards in Vietnam can also pay. Only invest in local payment gateway integration (VNPay, Razorpay UPI) if conversion data shows significant drop-off at checkout.</p>
+  </div>
+
+  <h3>Technical Considerations</h3>
+
+  <div class="ch">
+    <div class="ch-name">Internet Reliability</div>
+    <div class="ch-detail">Svend is a web app — this is an advantage (no installation, works on any OS including Linux) but also a dependency. Internet in SE Asian industrial zones can be spotty. Consider: progressive web app features that cache the interface, clear "saving..." indicators, and graceful offline handling for data entry. Not a blocker for launch, but important for retention.</div>
+  </div>
+
+  <div class="ch">
+    <div class="ch-name">Localization Roadmap</div>
+    <div class="ch-detail"><strong>Phase 1: English only.</strong> This covers India (professional English is universal in quality roles), Philippines (English-first), Malaysia (English widely used professionally). Professional users in Vietnam, Thailand, and Indonesia typically have working English for technical contexts. <strong>Phase 2 (if traction warrants):</strong> Hindi UI, Vietnamese UI, Thai UI — in that order based on market size and English proficiency gaps. <strong>Never localize documentation before UI</strong> — the UI is what users interact with daily.</div>
+  </div>
+
+  <div class="ch">
+    <div class="ch-name">Support Model</div>
+    <div class="ch-detail"><strong>Async-first, documentation-heavy.</strong> You're a solo founder in SC. India is 10.5 hours ahead. Vietnam is 12 hours ahead. Live support isn't feasible or necessary. Invest instead in: comprehensive help docs, YouTube tutorials (double as marketing AND support), a community forum or Discord where users help each other, and email support with 24-hour response SLA. The training partners also serve as de facto support — their students ask them first.</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ========== SECTION 7: METRICS ========== -->
+  <span class="section-num">07 — Success Metrics</span>
+  <h2>How to Know It's Working</h2>
+
+  <h3>Phase 1 Milestones (Weeks 1-4)</h3>
+  <div class="metrics">
+    <div class="metric"><div class="metric-val">500</div><div class="metric-label">LinkedIn impressions per post (avg)</div></div>
+    <div class="metric"><div class="metric-val">2</div><div class="metric-label">Training partner conversations started</div></div>
+    <div class="metric"><div class="metric-val">50</div><div class="metric-label">Organic site visits from IN/SEA</div></div>
+  </div>
+
+  <h3>Phase 2 Milestones (Weeks 5-12)</h3>
+  <div class="metrics">
+    <div class="metric"><div class="metric-val">1</div><div class="metric-label">Active training partnership</div></div>
+    <div class="metric"><div class="metric-val">25</div><div class="metric-label">Free trial signups from IN/SEA</div></div>
+    <div class="metric"><div class="metric-val">5</div><div class="metric-label">Paid conversions from IN/SEA</div></div>
+  </div>
+
+  <h3>Phase 3 Milestones (Months 4-6)</h3>
+  <div class="metrics">
+    <div class="metric"><div class="metric-val">3+</div><div class="metric-label">Active training partnerships</div></div>
+    <div class="metric"><div class="metric-val">100</div><div class="metric-label">Paid subscribers from IN/SEA</div></div>
+    <div class="metric"><div class="metric-val">$1.5K</div><div class="metric-label">Monthly recurring from IN/SEA</div></div>
+  </div>
+
+  <p>The key leading indicator is <strong>training partner activation</strong>. One training company with 50 students per cohort, running 4 cohorts/year, converting 30% to paid = 60 paid subscribers/year from a single partnership. Five partnerships = 300 subscribers = $4.5K-$5.4K MRR at regional pricing. That's before any organic/SEO/YouTube conversions.</p>
+
+  <div class="divider"></div>
+
+  <!-- ========== SECTION 8: RISKS ========== -->
+  <span class="section-num">08 — Honest Risk Assessment</span>
+  <h2>What Could Go Wrong</h2>
+
+  <div class="card card--red">
+    <div class="card-label card-label--red">Risk: Price = Low Trust Signal</div>
+    <p>In some markets, too-cheap software raises suspicion. "If it's this cheap, is it real?" Mitigate: never compete on price alone. Lead with the Insight Spine narrative, the RCA Challenge, the connected workflow. Price is the door opener. Capability is the closer.</p>
+  </div>
+
+  <div class="card card--red">
+    <div class="card-label card-label--red">Risk: Payment Friction in Vietnam/Indonesia</div>
+    <p>Stripe's coverage in Vietnam is limited. If Vietnam shows strong organic interest but low conversion, payment processing may be the bottleneck — not product-market fit. Mitigation: monitor sign-up-to-payment conversion by country. If Vietnam drops off, integrate VNPay or offer annual pricing via bank transfer.</p>
+  </div>
+
+  <div class="card card--red">
+    <div class="card-label card-label--red">Risk: Support Overwhelm</div>
+    <p>Success creates support load. If 100 Indian users sign up in a month, that's potentially 100 onboarding questions in a timezone where you're asleep. Mitigation: invest in documentation FIRST. Make the first-run experience self-guided. Training partners absorb first-line support for their students.</p>
+  </div>
+
+  <div class="card card--red">
+    <div class="card-label card-label--red">Risk: Copy Competition</div>
+    <p>If Svend proves the "affordable Minitab alternative" positioning works, local competitors may emerge. Mitigation: the Insight Spine is the moat. Cloning SPC is easy. Cloning the connected workflow from VSM through RCA Challenge through hoshin is not. Stay ahead on the spine, not the individual tools.</p>
+  </div>
+
+  <div class="card card--red">
+    <div class="card-label card-label--red">Risk: Founder Bandwidth</div>
+    <p>This plan is designed for a solo founder, but it's still a lot. The most important thing: <strong>do Channels 1 and 2 before anything else.</strong> LinkedIn content + training partner outreach. These have the highest leverage-to-effort ratio. YouTube, community seeding, and paid can come later. Don't try to do everything in Week 1.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ========== SECTION 9: THE PLAY ========== -->
+  <span class="section-num">09 — Summary</span>
+  <h2>The Play in One Page</h2>
+
+  <div class="card card--green">
+    <p><strong>Market:</strong> India + SE Asia (Philippines, Vietnam, Thailand, Indonesia, Malaysia)</p>
+    <p><strong>Target:</strong> Individual LSS practitioners, certification students, supplier quality engineers</p>
+    <p><strong>Positioning:</strong> "Every tool Minitab has. Plus tools Minitab doesn't. Connected from VSM to hoshin. At a fraction of the price."</p>
+    <p><strong>Price:</strong> $15/month individual (IN/SEA PPP), free for training partner students (6 mo)</p>
+    <p><strong>Primary channels:</strong> LinkedIn content engine + training partner program</p>
+    <p><strong>Secondary channels:</strong> SEO/blog, YouTube tutorials, Reddit/Quora, WhatsApp groups</p>
+    <p><strong>Paid:</strong> Phase 2 only, after organic validates the channel</p>
+    <p><strong>Key deliverables (Week 1):</strong> Pillar page live, RCA Challenge demo video, first LinkedIn carousel, first 10 training partner outreach emails</p>
+    <p><strong>6-month target:</strong> 3+ training partnerships, 100 paid subscribers, $1.5K MRR from region</p>
+    <p><strong>The moat:</strong> The Insight Spine. Nobody else has the connected workflow. That's what prevents "cheap Minitab clone" from being the whole story.</p>
+  </div>
+
+  <footer class="footer">
+    <div class="logo"><span class="dot"></span> svend</div>
+    <p>© 2026 Svend · svend.ai</p>
+    <p style="margin-top: 0.5rem;">A reasoning system that shows its work.</p>
+  </footer>
+
+</div>
+</body>
+</html>

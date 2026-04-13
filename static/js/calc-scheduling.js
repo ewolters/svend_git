@@ -666,32 +666,17 @@ function calcCapacityLoad() {
         colors.push((loadByDay[d]?.total || 0) > effectiveHours ? '#e74c3c' : '#4a9f6e');
     }
 
-    Plotly.newPlot('capacity-chart', [
-        {
-            x: days,
-            y: loads,
-            type: 'bar',
-            marker: { color: colors },
-            text: loads.map(l => l.toFixed(1) + 'h'),
-            textposition: 'outside',
-            hovertemplate: '%{x}: %{y:.1f}h<extra></extra>'
-        },
-        {
-            x: days,
-            y: Array(daysToShow).fill(effectiveHours),
-            type: 'scatter',
-            mode: 'lines',
-            name: 'Capacity',
-            line: { color: '#e8c547', dash: 'dash', width: 2 }
-        }
-    ], {
-        margin: { t: 40, b: 60, l: 50, r: 20 },
-        paper_bgcolor: 'transparent',
-        plot_bgcolor: 'transparent',
-        xaxis: { tickfont: { size: 11, color: '#a0a0a0' }, gridcolor: 'rgba(150,150,150,0.1)' },
-        yaxis: { title: 'Hours', titlefont: { size: 12, color: '#a0a0a0' }, tickfont: { size: 11, color: '#a0a0a0' }, gridcolor: 'rgba(150,150,150,0.1)' },
-        showlegend: false
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('capacity-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { x: days, y: loads, name: 'Load', trace_type: 'bar', color: colors },
+            { x: days, y: Array(daysToShow).fill(effectiveHours), name: 'Capacity', trace_type: 'line', color: '#e8c547', width: 2 }
+        ],
+        reference_lines: [
+            { value: effectiveHours, axis: 'y', color: '#e8c547', dash: 'dashed', label: 'Capacity' }
+        ],
+        x_axis: { label: '' }, y_axis: { label: 'Hours' }
+    });
 }
 
 // ============================================================================
@@ -879,14 +864,14 @@ function calcMixedModel() {
         });
     });
 
-    Plotly.newPlot('mixed-chart', traces, {
-        margin: { t: 20, b: 50, l: 50, r: 20 },
-        paper_bgcolor: 'transparent',
-        plot_bgcolor: 'transparent',
-        xaxis: { title: 'Sequence Position', titlefont: { size: 11, color: '#a0a0a0' }, tickfont: { size: 10, color: '#a0a0a0' }, gridcolor: 'rgba(150,150,150,0.1)' },
-        yaxis: { title: 'Cumulative Count', titlefont: { size: 11, color: '#a0a0a0' }, tickfont: { size: 10, color: '#a0a0a0' }, gridcolor: 'rgba(150,150,150,0.1)' },
-        legend: { orientation: 'h', y: -0.2, font: { size: 10, color: '#a0a0a0' } }
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('mixed-chart'), {
+        title: '', chart_type: 'line',
+        traces: traces.map(t => ({
+            x: t.x, y: t.y, name: t.name, trace_type: 'line',
+            color: t.line.color, width: t.line.width || 2
+        })),
+        x_axis: { label: 'Sequence Position' }, y_axis: { label: 'Cumulative Count' }
+    });
 }
 
 function pushMixedToLineSim() {
@@ -1214,36 +1199,16 @@ function runDueDateSim() {
 
     const lastDue = ddsOrders[ddsOrders.length - 1].dueDate;
 
-    Plotly.newPlot('dds-chart', [
-        {
-            x: binLabels,
-            y: bins,
-            type: 'bar',
-            marker: {
-                color: binLabels.map(t => t <= lastDue ? '#4a9f6e' : '#e74c3c')
-            },
-            hovertemplate: '%{x} min: %{y} runs<extra></extra>'
-        }
-    ], {
-        margin: { t: 20, b: 50, l: 50, r: 20 },
-        paper_bgcolor: 'transparent',
-        plot_bgcolor: 'transparent',
-        xaxis: { title: 'Completion Time (min)', titlefont: { size: 11, color: '#a0a0a0' }, tickfont: { size: 10, color: '#a0a0a0' }, gridcolor: 'rgba(150,150,150,0.1)' },
-        yaxis: { title: 'Frequency', titlefont: { size: 11, color: '#a0a0a0' }, tickfont: { size: 10, color: '#a0a0a0' }, gridcolor: 'rgba(150,150,150,0.1)' },
-        shapes: [{
-            type: 'line',
-            x0: lastDue, x1: lastDue,
-            y0: 0, y1: Math.max(...bins),
-            line: { color: '#e8c547', width: 2, dash: 'dash' }
-        }],
-        annotations: [{
-            x: lastDue, y: Math.max(...bins),
-            text: 'Due',
-            showarrow: false,
-            font: { size: 10, color: '#e8c547' },
-            yshift: 10
-        }]
-    }, { responsive: true, displayModeBar: false });
+    ForgeViz.render(document.getElementById('dds-chart'), {
+        title: '', chart_type: 'bar',
+        traces: [
+            { x: binLabels, y: bins, name: 'Completion', trace_type: 'bar', color: binLabels.map(t => t <= lastDue ? '#4a9f6e' : '#e74c3c') }
+        ],
+        reference_lines: [
+            { value: lastDue, axis: 'x', color: '#e8c547', dash: 'dashed', label: 'Due' }
+        ],
+        x_axis: { label: 'Completion Time (min)' }, y_axis: { label: 'Frequency' }
+    });
 }
 
 // Gaussian random using Box-Muller
