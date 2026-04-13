@@ -165,7 +165,7 @@ class ToolEventIsolationTests(SimpleTestCase):
 
     def test_handler_exception_is_logged(self):
         self.bus.on("e")(_boom_handler)
-        with patch("agents_api.tool_events.logger") as mock_logger:
+        with patch("tools.events.logger") as mock_logger:
             self.bus.emit("e", "rec")
             mock_logger.exception.assert_called_once()
             args = mock_logger.exception.call_args[0]

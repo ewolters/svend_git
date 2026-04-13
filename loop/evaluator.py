@@ -26,7 +26,7 @@ def register_policy_handlers():
 
     Called from loop/apps.py ready().
     """
-    from agents_api.tool_events import tool_events
+    from tools.events import tool_events
 
     # PC completed → check retraining threshold
     tool_events.subscribe("pc.completed", _evaluate_pc_threshold)

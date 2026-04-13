@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "forge",
     "files",
     "qms_core",  # QMS Core: permissions, Site (Phase 4). Object 271 extraction target.
+    "tools",  # QMS Tools: router, event bus, base model. Extracted from agents_api (CR-0.9).
     "agents_api.apps.AgentsApiConfig",
     "workbench",
     "notifications",

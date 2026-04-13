@@ -13,6 +13,6 @@ class AgentsApiConfig(AppConfig):
     verbose_name = "Agents API"
 
     def ready(self):
-        """Called when Django starts - register event handlers."""
-        # Register ToolEventBus handlers (ARCH-001 §10.2)
-        import agents_api.tool_event_handlers  # noqa: F401
+        """Called when Django starts."""
+        # ToolEventBus handlers moved to tools/apps.py (CR-0.9)
+        pass

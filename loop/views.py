@@ -810,7 +810,7 @@ def pc_list_create(request):
     pc.save(update_fields=["diagnosis"])
 
     # Emit for PolicyEvaluator (LOOP-001 §4.6.2)
-    from agents_api.tool_events import tool_events
+    from tools.events import tool_events
 
     tool_events.emit("pc.completed", pc, user=request.user)
 
@@ -965,7 +965,7 @@ def fft_detail(request, fft_id):
             return JsonResponse({"error": str(e)}, status=400)
 
         # Emit for PolicyEvaluator (LOOP-001 §4.6.2)
-        from agents_api.tool_events import tool_events
+        from tools.events import tool_events
 
         tool_events.emit("forced_failure.completed", fft, user=request.user)
 

@@ -79,8 +79,8 @@ def _get_tool_router_urls():
     Each ToolRouter pattern already has the slug prefix (e.g. ishikawa/sessions/),
     so we mount them under api/ to get /api/ishikawa/sessions/.
     """
-    from agents_api.tool_registry import register_tools
-    from agents_api.tool_router import ToolRouter
+    from tools.registry import register_tools
+    from tools.router import ToolRouter
 
     register_tools()
     return ToolRouter.get_urlpatterns()
