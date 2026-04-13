@@ -615,7 +615,7 @@ function placeElement(e) {
 
 function setTool(tool) {
     currentTool = tool;
-    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.sv-btn-icon').forEach(b => b.classList.remove('active'));
     document.getElementById(`tool-${tool}`).classList.add('active');
     const cvs = document.getElementById('sim-canvas');
     cvs.className = `sim-canvas${tool === 'pan' ? ' pan-mode' : tool === 'connect' ? ' connect-mode' : ''}`;

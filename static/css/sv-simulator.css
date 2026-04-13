@@ -1,6 +1,27 @@
-    main { padding: 0 !important; }
-    main > .container { max-width: 100% !important; padding: 0 !important; }
+    /* Workspace overrides for simulator */
+    .sv-workspace { --ws-sidebar-width: 280px; }
+    .sv-ws-sidebar { padding: 10px; }
+    .sv-ws-canvas { position: relative; overflow: hidden; }
 
+    /* Alias: JS generates class="sim-btn" dynamically */
+    .sim-btn {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 8px; font-size: 0.65rem; font-weight: 500;
+        background: transparent; border: 1px solid var(--border);
+        color: var(--text-secondary); border-radius: var(--radius-sm);
+        cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    }
+    .sim-btn:hover { border-color: var(--accent-primary); color: var(--text-primary); }
+    .sim-btn.primary { background: var(--accent-primary); color: #fff; border-color: var(--accent-primary); }
+
+    /* Alias: JS generates class="prop-row/prop-label/prop-input/prop-unit" dynamically */
+    .prop-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .prop-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); width: 70px; flex-shrink: 0; }
+    .prop-input { flex: 1; background: var(--bg-tertiary); border: 1px solid var(--border); padding: 4px 6px; font-size: 0.8rem; color: var(--text-primary); border-radius: var(--radius-sm); }
+    .prop-input:focus { border-color: var(--accent-primary); outline: none; }
+    .prop-unit { font-size: 0.65rem; color: var(--text-dim); width: 20px; }
+
+    /* Legacy layout containers — kept for JS canvas references */
     .sim-container {
         display: flex;
         height: calc(100vh - 80px);

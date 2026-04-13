@@ -338,8 +338,8 @@ function toggleMetrics() {
 // =============================================================================
 
 function switchMetricsTab(tab) {
-    document.querySelectorAll('.metrics-tab').forEach(t => t.classList.remove('active'));
-    const tabBtn = document.querySelector(`.metrics-tab[onclick*="'${tab}'"]`);
+    document.querySelectorAll('.sv-tab').forEach(t => t.classList.remove('active'));
+    const tabBtn = document.querySelector(`.sv-tab[onclick*="'${tab}'"]`);
     if (tabBtn) tabBtn.classList.add('active');
     document.getElementById('tab-charts').classList.toggle('hidden', tab !== 'charts');
     const compareEl = document.getElementById('tab-compare');

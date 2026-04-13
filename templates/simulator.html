@@ -1,449 +1,374 @@
-{% extends "base_app.html" %}
-{# MIGRATION: Tier 3 | Status: PENDING — forge decomposition | Target rack: workspace | Use sv-* widgets + shared JS (SvApi, SvModal, SvFormat, SvCanvas, ForgeViz) #}
+{% extends "base_workspace.html" %}
+{# MIGRATION: Tier 3 | Status: IN PROGRESS — sv-* layout done, forge decomposition pending #}
 
 {% block title %}Plant Simulator - SVEND{% endblock %}
 
-{% block extra_head %}
-<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-<script src="/static/js/svend-math.js"></script>
-<script src="/static/js/svend-charts.js"></script>
-<script src="/static/js/svend-spc.js"></script>
-<script src="/static/js/svend-sim-core.js"></script>
+{% block workspace_style %}
 <link rel="stylesheet" href="/static/css/sv-simulator.css">
 {% endblock %}
 
-{% block content %}
-<div class="sim-container">
-    <!-- Sidebar -->
-    <div class="sim-sidebar">
-        <div class="sidebar-header">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h2 style="margin:0;">Plant Simulator</h2>
-                <button class="sim-btn" onclick="openScenarioLauncher()" style="font-size:0.6rem; padding:2px 8px;" title="Guided learning scenarios">Scenarios</button>
-            </div>
-            <input type="text" class="sim-name-input" id="sim-name" placeholder="Untitled Plant" value="Untitled Plant">
-        </div>
+{% block workspace_sidebar %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+    <span class="sv-detail-label" style="margin:0;">Plant Simulator</span>
+    <button class="sv-btn sv-btn-sm" onclick="openScenarioLauncher()" title="Guided learning scenarios">Scenarios</button>
+</div>
+<input type="text" class="sv-input" id="sim-name" placeholder="Untitled Plant" value="Untitled Plant" style="margin-bottom:12px;">
 
-        <!-- Element Palette -->
-        <div class="sidebar-section">
-            <h3>Elements</h3>
-            <div class="element-palette">
-                <div class="palette-item" data-type="source">
-                    <div class="palette-icon" style="color: #4a9f6e;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></svg></div>
-                    <span>Source</span>
-                </div>
-                <div class="palette-item" data-type="machine">
-                    <div class="palette-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-                    <span>Machine</span>
-                </div>
-                <div class="palette-item" data-type="buffer">
-                    <div class="palette-icon" style="color: #f59e0b;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3L22 21H2z"/></svg></div>
-                    <span>Buffer</span>
-                </div>
-                <div class="palette-item" data-type="sink">
-                    <div class="palette-icon" style="color: #e74c3c;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M8 8l8 8M16 8l-8 8"/></svg></div>
-                    <span>Sink</span>
-                </div>
-                <div class="palette-item" data-type="workcenter">
-                    <div class="palette-icon" style="color: var(--accent-primary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 2"><rect x="2" y="6" width="20" height="12" rx="2"/></svg></div>
-                    <span>Work Ctr</span>
-                </div>
-            </div>
+<!-- Element Palette -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Elements</div>
+    <div class="element-palette">
+        <div class="palette-item" data-type="source">
+            <div class="palette-icon" style="color: var(--sv-green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></svg></div>
+            <span>Source</span>
         </div>
-
-        <!-- Properties Panel (context-sensitive) -->
-        <div class="sidebar-section props-panel" id="props-panel">
-            <h3>Properties</h3>
-            <div id="props-content"></div>
+        <div class="palette-item" data-type="machine">
+            <div class="palette-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+            <span>Machine</span>
         </div>
-
-        <!-- Simulation Config -->
-        <div class="sidebar-section">
-            <h3>Simulation</h3>
-            <div class="prop-row">
-                <span class="prop-label">Warmup</span>
-                <input type="number" class="prop-input" id="cfg-warmup" value="300" min="0">
-                <span class="prop-unit">s</span>
-            </div>
-            <div class="prop-row">
-                <span class="prop-label">Run Time</span>
-                <input type="number" class="prop-input" id="cfg-runtime" value="3600" min="60">
-                <span class="prop-unit">s</span>
-            </div>
-            <div class="prop-row">
-                <span class="prop-label">Speed</span>
-                <input type="range" class="prop-input" id="cfg-speed" min="1" max="200" value="20" style="padding:0;">
-                <span class="prop-unit" id="cfg-speed-label">20x</span>
-            </div>
+        <div class="palette-item" data-type="buffer">
+            <div class="palette-icon" style="color: var(--accent-gold);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3L22 21H2z"/></svg></div>
+            <span>Buffer</span>
         </div>
-
-        <!-- Controls -->
-        <div class="sidebar-section">
-            <h3>Controls</h3>
-            <div class="sim-controls">
-                <button class="sim-btn primary" id="btn-play" onclick="toggleSimulation()">&#9654; Play</button>
-                <button class="sim-btn" id="btn-step" onclick="stepSimulation()">Step</button>
-                <button class="sim-btn" id="btn-fast" onclick="fastForward()">&#9193; Fast</button>
-                <button class="sim-btn" id="btn-reset" onclick="resetSimulation()">Reset</button>
-            </div>
+        <div class="palette-item" data-type="sink">
+            <div class="palette-icon" style="color: var(--sv-red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M8 8l8 8M16 8l-8 8"/></svg></div>
+            <span>Sink</span>
         </div>
-
-        <!-- Live Metrics -->
-        <div class="sidebar-section">
-            <h3>Metrics</h3>
-            <div class="live-metrics">
-                <div class="metric-card">
-                    <div class="metric-label">Throughput</div>
-                    <div class="metric-value" id="m-throughput">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Avg WIP</div>
-                    <div class="metric-value" id="m-wip">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Lead Time</div>
-                    <div class="metric-value" id="m-leadtime">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Bottleneck</div>
-                    <div class="metric-value" id="m-bottleneck" style="font-size:0.7rem;">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Yield</div>
-                    <div class="metric-value" id="m-yield">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Scrap / Rework</div>
-                    <div class="metric-value" id="m-scrap" style="font-size:0.7rem;">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Changeovers</div>
-                    <div class="metric-value" id="m-changeovers">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Service Level</div>
-                    <div class="metric-value" id="m-service-level">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Stockouts</div>
-                    <div class="metric-value" id="m-stockouts" style="font-size:0.7rem;">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">On-Time %</div>
-                    <div class="metric-value" id="m-ontime">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Rush / Late</div>
-                    <div class="metric-value" id="m-rush" style="font-size:0.7rem;">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Escaped / Returns</div>
-                    <div class="metric-value" id="m-escaped" style="font-size:0.7rem;">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Total Cost</div>
-                    <div class="metric-value" id="m-total-cost" style="font-size:0.7rem;">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Cost / Unit</div>
-                    <div class="metric-value" id="m-cost-per-unit" style="font-size:0.7rem;">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Maint Queue</div>
-                    <div class="metric-value" id="m-maint-queue" style="font-size:0.7rem;">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Expired WIP</div>
-                    <div class="metric-value" id="m-expired-wip" style="font-size:0.7rem;">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">AGV Queue</div>
-                    <div class="metric-value" id="m-agv-queue" style="font-size:0.7rem;">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">OT Status</div>
-                    <div class="metric-value" id="m-overtime" style="font-size:0.7rem;">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Cust. Sat</div>
-                    <div class="metric-value" id="m-cust-sat" style="font-size:0.7rem;">—</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Net Revenue</div>
-                    <div class="metric-value" id="m-net-revenue" style="font-size:0.7rem;">—</div>
-                </div>
-            </div>
-            <div style="margin-top:6px; font-size:0.65rem; color:var(--text-dim);" id="m-littles">L = λW check: —</div>
+        <div class="palette-item" data-type="workcenter">
+            <div class="palette-icon" style="color: var(--accent-primary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 2"><rect x="2" y="6" width="20" height="12" rx="2"/></svg></div>
+            <span>Work Ctr</span>
         </div>
+    </div>
+</div>
 
-        <!-- Workforce -->
-        <div class="sidebar-section">
-            <h3>Workforce</h3>
-            <div class="operator-list" id="operator-list"></div>
-            <div class="workforce-controls">
-                <button class="sim-btn" onclick="addOperator('operator')" style="flex:1;">+ Operator</button>
-                <button class="sim-btn" onclick="addOperator('maintenance')" style="flex:1;">+ Maint</button>
-            </div>
-            <div class="workforce-controls">
-                <button class="sim-btn" onclick="addOperator('agv_driver')" style="flex:1;">+ AGV</button>
-                <button class="sim-btn" onclick="addOperator('inspector')" style="flex:1;">+ Inspector</button>
-            </div>
-            <div class="workforce-controls">
-                <button class="sim-btn" onclick="removeOperator()" style="flex:1;">- Remove</button>
-                <button class="sim-btn" onclick="showTrainingDialog()" style="flex:1;">Cross-Train</button>
-            </div>
-            <div class="workforce-stat" id="workforce-stat">0 operators</div>
-            <div id="rto-display" style="font-size:0.6rem;color:var(--text-dim);margin-top:4px;line-height:1.5;"></div>
-            <div class="prop-row" style="margin-top:4px;">
-                <span class="prop-label" style="font-size:0.65rem;">Calloff %</span>
-                <input type="number" class="prop-input" id="cfg-calloff" value="5" min="0" max="50" step="1" style="width:50px;">
-                <span class="prop-unit">%</span>
-            </div>
-            <div class="prop-row">
-                <span class="prop-label" style="font-size:0.65rem;">Quit %</span>
-                <input type="number" class="prop-input" id="cfg-quit" value="0.5" min="0" max="10" step="0.1" style="width:50px;">
-                <span class="prop-unit">%/shift</span>
-            </div>
+<!-- Properties Panel (context-sensitive) -->
+<div class="sv-detail-section props-panel" id="props-panel">
+    <div class="sv-detail-label">Properties</div>
+    <div id="props-content"></div>
+</div>
+
+<!-- Simulation Config -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Simulation</div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">Warmup</span>
+        <input type="number" class="sv-input" id="cfg-warmup" value="300" min="0">
+        <span class="sv-field-hint" style="width:20px;">s</span>
+    </div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">Run Time</span>
+        <input type="number" class="sv-input" id="cfg-runtime" value="3600" min="60">
+        <span class="sv-field-hint" style="width:20px;">s</span>
+    </div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">Speed</span>
+        <input type="range" class="sv-input" id="cfg-speed" min="1" max="200" value="20" style="padding:0;">
+        <span class="sv-field-hint" style="width:20px;" id="cfg-speed-label">20x</span>
+    </div>
+</div>
+
+<!-- Controls -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Controls</div>
+    <div style="display:flex; gap:4px; flex-wrap:wrap;">
+        <button class="sv-btn sv-btn-primary sv-btn-sm" id="btn-play" onclick="toggleSimulation()">&#9654; Play</button>
+        <button class="sv-btn sv-btn-sm" id="btn-step" onclick="stepSimulation()">Step</button>
+        <button class="sv-btn sv-btn-sm" id="btn-fast" onclick="fastForward()">&#9193; Fast</button>
+        <button class="sv-btn sv-btn-sm" id="btn-reset" onclick="resetSimulation()">Reset</button>
+    </div>
+</div>
+
+<!-- Live Metrics -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Metrics</div>
+    <div class="sv-kpi-strip cols-auto" style="--kpi-min:80px;">
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-throughput">—</div><div class="sv-kpi-label">Throughput</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-wip">—</div><div class="sv-kpi-label">Avg WIP</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-leadtime">—</div><div class="sv-kpi-label">Lead Time</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-bottleneck" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">Bottleneck</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-yield">—</div><div class="sv-kpi-label">Yield</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-scrap" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">Scrap / Rework</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-changeovers">—</div><div class="sv-kpi-label">Changeovers</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-service-level">—</div><div class="sv-kpi-label">Service Level</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-stockouts" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">Stockouts</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-ontime">—</div><div class="sv-kpi-label">On-Time %</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-rush" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">Rush / Late</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-escaped" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">Escaped / Returns</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-total-cost" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">Total Cost</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-cost-per-unit" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">Cost / Unit</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-maint-queue" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">Maint Queue</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-expired-wip" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">Expired WIP</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-agv-queue" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">AGV Queue</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-overtime" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">OT Status</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-cust-sat" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">Cust. Sat</div></div>
+        <div class="sv-kpi-cell"><div class="sv-kpi-value" id="m-net-revenue" style="font-size:0.7rem;">—</div><div class="sv-kpi-label">Net Revenue</div></div>
+    </div>
+    <div style="margin-top:6px; font-size:0.65rem; color:var(--text-dim);" id="m-littles">L = λW check: —</div>
+</div>
+
+<!-- Workforce -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Workforce</div>
+    <div class="operator-list" id="operator-list"></div>
+    <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:6px;">
+        <button class="sv-btn sv-btn-sm" onclick="addOperator('operator')" style="flex:1;">+ Operator</button>
+        <button class="sv-btn sv-btn-sm" onclick="addOperator('maintenance')" style="flex:1;">+ Maint</button>
+    </div>
+    <div style="display:flex; gap:4px; flex-wrap:wrap;">
+        <button class="sv-btn sv-btn-sm" onclick="addOperator('agv_driver')" style="flex:1;">+ AGV</button>
+        <button class="sv-btn sv-btn-sm" onclick="addOperator('inspector')" style="flex:1;">+ Inspector</button>
+    </div>
+    <div style="display:flex; gap:4px; flex-wrap:wrap;">
+        <button class="sv-btn sv-btn-sm" onclick="removeOperator()" style="flex:1;">- Remove</button>
+        <button class="sv-btn sv-btn-sm" onclick="showTrainingDialog()" style="flex:1;">Cross-Train</button>
+    </div>
+    <div class="workforce-stat" id="workforce-stat" style="font-size:0.65rem; color:var(--text-dim); margin-top:4px;">0 operators</div>
+    <div id="rto-display" style="font-size:0.6rem;color:var(--text-dim);margin-top:4px;line-height:1.5;"></div>
+    <div class="sv-field-row" style="margin-top:4px;">
+        <span class="sv-label" style="width:70px;">Calloff %</span>
+        <input type="number" class="sv-input" id="cfg-calloff" value="5" min="0" max="50" step="1" style="width:50px;">
+        <span class="sv-field-hint" style="width:20px;">%</span>
+    </div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">Quit %</span>
+        <input type="number" class="sv-input" id="cfg-quit" value="0.5" min="0" max="10" step="0.1" style="width:50px;">
+        <span class="sv-field-hint" style="width:20px;">%/shift</span>
+    </div>
+</div>
+
+<!-- Shared Resources -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Shared Resources</div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">Maint Crew</span>
+        <input type="number" class="sv-input" id="cfg-maint-crew" value="0" min="0" step="1" style="width:50px;" title="0 = unlimited (instant repair). >0 = finite shared maintenance team. Machines queue for a tech when all busy.">
+    </div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">AGV Fleet</span>
+        <input type="number" class="sv-input" id="cfg-agv-fleet" value="0" min="0" step="1" style="width:50px;" title="0 = unlimited transport. >0 = finite AGV fleet. Parts queue when all AGVs busy.">
+    </div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">Inspectors</span>
+        <input type="number" class="sv-input" id="cfg-inspector-pool" value="0" min="0" step="1" style="width:50px;" title="0 = inline quality check (instant). >0 = finite inspector pool. Parts queue for inspection after processing.">
+    </div>
+    <div class="sv-field-hint">0 = unlimited. Set >0 for resource contention</div>
+</div>
+
+<!-- Customer Behavior -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Customer Behavior</div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">Revenue/Unit</span>
+        <input type="number" class="sv-input" id="cfg-revenue-per-unit" value="0" min="0" step="10" style="width:50px;" title="Revenue per delivered good unit. 0 = customer model disabled.">
+        <span class="sv-field-hint" style="width:20px;">$</span>
+    </div>
+    <div class="sv-field-hint">0 = off. When enabled, customer satisfaction tracks returns &amp; late orders. Low satisfaction → lost orders.</div>
+</div>
+
+<!-- Engineering Change Orders -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Engineering Changes</div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">ECO Rate</span>
+        <input type="number" class="sv-input" id="cfg-eco-rate" value="0" min="0" step="0.1" style="width:50px;" title="Engineering Change Orders per hour.">
+        <span class="sv-field-hint" style="width:20px;">/hr</span>
+    </div>
+    <div class="sv-field-hint">0 = off. ECOs scrap all queued WIP of a randomly chosen product type. The lean case for small WIP, made visceral.</div>
+</div>
+
+<!-- Management -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Management AI</div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">Reactivity</span>
+        <select class="sv-select" id="cfg-mgmt-reactivity" style="width:80px;">
+            <option value="off">Off</option>
+            <option value="calm">Calm</option>
+            <option value="nervous">Nervous</option>
+            <option value="panicking">Panicking</option>
+        </select>
+    </div>
+    <div class="sv-field-hint">Simulates reactive management. Nervous = overreacts to metrics, creates policy oscillation worse than the original problems.</div>
+</div>
+
+<!-- Overtime -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Overtime Authorization</div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">WIP Trigger</span>
+        <input type="number" class="sv-input" id="cfg-ot-wip-threshold" value="0" min="0" step="5" style="width:50px;" title="WIP level that triggers automatic OT. 0 = disabled.">
+    </div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">Max OT Hrs</span>
+        <input type="number" class="sv-input" id="cfg-ot-max-hours" value="4" min="1" max="8" step="1" style="width:50px;">
+        <span class="sv-field-hint" style="width:20px;">hr</span>
+    </div>
+    <div class="sv-field-hint">0 = no auto-OT. When WIP ≥ trigger, shifts extend. Costs 1.5× labor, burns fatigue, tanks morale, spikes quit rate.</div>
+</div>
+
+<!-- Shared Tooling -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Shared Tooling</div>
+    <div id="tool-list" style="font-size:0.65rem;"></div>
+    <button class="sv-btn sv-btn-sm" onclick="addSharedTool()" style="margin-top:4px;">+ Tool/Fixture</button>
+    <div class="sv-field-hint">Shared jigs/fixtures. Machines queue when all copies are in use.</div>
+</div>
+
+<!-- Utility Systems -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Utility Systems</div>
+    <div id="utility-list" style="font-size:0.65rem;"></div>
+    <button class="sv-btn sv-btn-sm" onclick="addUtilitySystem()" style="margin-top:4px;">+ Utility</button>
+    <div class="sv-field-hint">Shared systems (air, water, power). When they fail, all connected machines go down together.</div>
+</div>
+
+<!-- Cost Accounting -->
+<div class="sv-detail-section">
+    <div class="sv-detail-label">Cost Accounting</div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">Labor $/hr</span>
+        <input type="number" class="sv-input" id="cfg-labor-cost" value="25" min="0" step="1" style="width:50px;">
+        <span class="sv-field-hint" style="width:20px;">$/hr</span>
+    </div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">OT Premium</span>
+        <input type="number" class="sv-input" id="cfg-ot-premium" value="1.5" min="1" max="3" step="0.1" style="width:50px;">
+        <span class="sv-field-hint" style="width:20px;">×</span>
+    </div>
+    <div class="sv-field-row">
+        <span class="sv-label" style="width:70px;">Holding $/u/hr</span>
+        <input type="number" class="sv-input" id="cfg-holding-cost" value="0.50" min="0" step="0.1" style="width:50px;">
+        <span class="sv-field-hint" style="width:20px;">$/u/hr</span>
+    </div>
+</div>
+
+<!-- Save / Load -->
+<div class="sv-detail-section" style="margin-top:auto; padding-top:8px; border-top:1px solid var(--border);">
+    <div style="display:flex; gap:4px;">
+        <button class="sv-btn sv-btn-sm" onclick="saveLayout()" style="flex:1;">Save</button>
+        <button class="sv-btn sv-btn-sm" onclick="loadLayoutList()" style="flex:1;">Load</button>
+        <button class="sv-btn sv-btn-sm" onclick="importFromVSM()" style="flex:1;">Import VSM</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block workspace_toolbar %}
+<button class="sv-btn-icon active" id="tool-select" onclick="setTool('select')">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+</button>
+<button class="sv-btn-icon" id="tool-pan" onclick="setTool('pan')">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3"/></svg>
+</button>
+<button class="sv-btn-icon" id="tool-connect" onclick="setTool('connect')">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="3"/><circle cx="19" cy="12" r="3"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+</button>
+<span class="toolbar-sep"></span>
+<button class="sv-btn-icon" onclick="zoomCanvas(1.2)">+</button>
+<button class="sv-btn-icon" onclick="zoomCanvas(0.8)">−</button>
+<button class="sv-btn-icon" onclick="resetView()">Fit</button>
+<span class="zoom-display" id="zoom-display">100%</span>
+<span class="toolbar-sep"></span>
+<button class="sv-btn-icon" onclick="deleteSelected()" style="color:var(--sv-red);">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>
+</button>
+<span class="save-indicator" id="save-indicator">●  Not saved</span>
+{% endblock %}
+
+{% block workspace_canvas %}
+<div class="sim-canvas-wrap" id="canvas-wrap">
+    <div class="alert-bar" id="alert-bar"></div>
+    <svg class="sim-canvas" id="sim-canvas">
+        <defs>
+            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>
+            </pattern>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="var(--text-dim)"/>
+            </marker>
+        </defs>
+        <rect width="5000" height="5000" fill="url(#grid)"/>
+        <g id="transform-group">
+            <g id="connections-layer"></g>
+            <g id="elements-layer"></g>
+            <g id="animation-layer"></g>
+        </g>
+    </svg>
+    <button class="metrics-toggle" id="metrics-toggle" onclick="toggleMetrics()">&#9650; Charts</button>
+</div>
+
+<!-- Metrics Panel -->
+<div class="metrics-panel" id="metrics-panel">
+    <div class="sv-tabs" style="background:var(--bg-tertiary);">
+        <button class="sv-tab active" onclick="switchMetricsTab('charts')">Charts</button>
+        <button class="sv-tab" onclick="switchMetricsTab('compare')">Compare Runs</button>
+        <button class="sv-tab" onclick="switchMetricsTab('live')" id="tab-live-btn" style="display:none;">Live</button>
+        <button class="sv-tab" onclick="switchMetricsTab('spc')" id="tab-spc-btn" style="display:none;">SPC</button>
+        <button class="sv-tab" onclick="switchMetricsTab('evidence')" id="tab-evidence-btn" style="display:none;">Evidence</button>
+        <button class="sv-tab" onclick="switchMetricsTab('sqdc')" id="tab-sqdc-btn" style="display:none;">SQDC</button>
+        <button class="sv-tab" onclick="switchMetricsTab('aar')" id="tab-aar-btn" style="display:none;">After-Action Review</button>
+        <span style="margin-left:auto; font-size:0.65rem; color:var(--text-dim); padding:6px 12px;" id="run-count">0 saved runs</span>
+    </div>
+    <div class="metrics-content" id="tab-charts">
+        <div class="metrics-chart" id="chart-queues"></div>
+        <div class="metrics-chart" id="chart-utilization"></div>
+        <div class="metrics-chart" id="chart-leadtime"></div>
+    </div>
+    <div class="compare-content" id="tab-compare">
+        <div class="compare-selectors">
+            <label>Run A (baseline)</label>
+            <select class="sv-select" id="compare-a" onchange="renderComparison()"><option value="">— select —</option></select>
+            <label>Run B (changed)</label>
+            <select class="sv-select" id="compare-b" onchange="renderComparison()"><option value="">— select —</option></select>
         </div>
-
-        <!-- Shared Resources -->
-        <div class="sidebar-section">
-            <h3>Shared Resources</h3>
-            <div class="prop-row">
-                <span class="prop-label" style="font-size:0.65rem;">Maint Crew</span>
-                <input type="number" class="prop-input" id="cfg-maint-crew" value="0" min="0" step="1" style="width:50px;" title="0 = unlimited (instant repair). >0 = finite shared maintenance team. Machines queue for a tech when all busy.">
-            </div>
-            <div class="prop-row">
-                <span class="prop-label" style="font-size:0.65rem;">AGV Fleet</span>
-                <input type="number" class="prop-input" id="cfg-agv-fleet" value="0" min="0" step="1" style="width:50px;" title="0 = unlimited transport. >0 = finite AGV fleet. Parts queue when all AGVs busy.">
-            </div>
-            <div class="prop-row">
-                <span class="prop-label" style="font-size:0.65rem;">Inspectors</span>
-                <input type="number" class="prop-input" id="cfg-inspector-pool" value="0" min="0" step="1" style="width:50px;" title="0 = inline quality check (instant). >0 = finite inspector pool. Parts queue for inspection after processing.">
-            </div>
-            <div style="font-size:0.5rem; color:var(--text-dim); line-height:1.3; margin-top:2px;">0 = unlimited &nbsp; Set &gt;0 for resource contention</div>
-        </div>
-
-        <!-- Customer Behavior -->
-        <div class="sidebar-section">
-            <h3>Customer Behavior</h3>
-            <div class="prop-row">
-                <span class="prop-label" style="font-size:0.65rem;">Revenue/Unit</span>
-                <input type="number" class="prop-input" id="cfg-revenue-per-unit" value="0" min="0" step="10" style="width:50px;" title="Revenue per delivered good unit. 0 = customer model disabled.">
-                <span class="prop-unit">$</span>
-            </div>
-            <div style="font-size:0.5rem; color:var(--text-dim); line-height:1.3; margin-top:2px;">0 = off. When enabled, customer satisfaction tracks returns & late orders. Low satisfaction → lost orders. Returns cost 3× revenue (warranty + goodwill).</div>
-        </div>
-
-        <!-- Engineering Change Orders -->
-        <div class="sidebar-section">
-            <h3>Engineering Changes</h3>
-            <div class="prop-row">
-                <span class="prop-label" style="font-size:0.65rem;">ECO Rate</span>
-                <input type="number" class="prop-input" id="cfg-eco-rate" value="0" min="0" step="0.1" style="width:50px;" title="Engineering Change Orders per hour. Each ECO obsoletes all WIP of a random product type. 0 = disabled.">
-                <span class="prop-unit">/hr</span>
-            </div>
-            <div style="font-size:0.5rem; color:var(--text-dim); line-height:1.3; margin-top:2px;">0 = off. ECOs scrap all queued WIP of a randomly chosen product type. Large buffers = more exposure. The lean case for small WIP, made visceral.</div>
-        </div>
-
-        <!-- Management -->
-        <div class="sidebar-section">
-            <h3>Management AI</h3>
-            <div class="prop-row">
-                <span class="prop-label" style="font-size:0.65rem;">Reactivity</span>
-                <select class="prop-input" id="cfg-mgmt-reactivity" style="width:80px;">
-                    <option value="off">Off</option>
-                    <option value="calm">Calm</option>
-                    <option value="nervous">Nervous</option>
-                    <option value="panicking">Panicking</option>
-                </select>
-            </div>
-            <div style="font-size:0.5rem; color:var(--text-dim); line-height:1.3; margin-top:2px;">Simulates reactive management. Nervous = overreacts to metrics, slashes batch sizes, tightens SPC, rushes everything. Creates policy oscillation worse than the original problems.</div>
-        </div>
-
-        <!-- Overtime -->
-        <div class="sidebar-section">
-            <h3>Overtime Authorization</h3>
-            <div class="prop-row">
-                <span class="prop-label" style="font-size:0.65rem;">WIP Trigger</span>
-                <input type="number" class="prop-input" id="cfg-ot-wip-threshold" value="0" min="0" step="5" style="width:50px;" title="WIP level that triggers automatic OT. 0 = disabled.">
-            </div>
-            <div class="prop-row">
-                <span class="prop-label" style="font-size:0.65rem;">Max OT Hrs</span>
-                <input type="number" class="prop-input" id="cfg-ot-max-hours" value="4" min="1" max="8" step="1" style="width:50px;" title="Maximum overtime hours per shift">
-                <span class="prop-unit">hr</span>
-            </div>
-            <div style="font-size:0.5rem; color:var(--text-dim); line-height:1.3; margin-top:2px;">0 = no auto-OT. When WIP ≥ trigger, shifts extend. Costs 1.5× labor, burns fatigue, tanks morale, spikes quit rate.</div>
-        </div>
-
-        <!-- Shared Tooling -->
-        <div class="sidebar-section">
-            <h3>Shared Tooling</h3>
-            <div id="tool-list" style="font-size:0.65rem;"></div>
-            <button class="sim-btn" onclick="addSharedTool()" style="font-size:0.6rem; padding:2px 6px; margin-top:4px;">+ Tool/Fixture</button>
-            <div style="font-size:0.5rem; color:var(--text-dim); line-height:1.3; margin-top:2px;">Shared jigs/fixtures. Machines queue when all copies are in use. Nobody ever approves buying a second one.</div>
-        </div>
-
-        <!-- Utility Systems -->
-        <div class="sidebar-section">
-            <h3>Utility Systems</h3>
-            <div id="utility-list" style="font-size:0.65rem;"></div>
-            <button class="sim-btn" onclick="addUtilitySystem()" style="font-size:0.6rem; padding:2px 6px; margin-top:4px;">+ Utility</button>
-            <div style="font-size:0.5rem; color:var(--text-dim); line-height:1.3; margin-top:2px;">Shared systems (air, water, power). When they fail, all connected machines go down together.</div>
-        </div>
-
-        <!-- Cost Accounting -->
-        <div class="sidebar-section">
-            <h3>Cost Accounting</h3>
-            <div class="prop-row">
-                <span class="prop-label" style="font-size:0.65rem;">Labor $/hr</span>
-                <input type="number" class="prop-input" id="cfg-labor-cost" value="25" min="0" step="1" style="width:50px;">
-                <span class="prop-unit">$/hr</span>
-            </div>
-            <div class="prop-row">
-                <span class="prop-label" style="font-size:0.65rem;">OT Premium</span>
-                <input type="number" class="prop-input" id="cfg-ot-premium" value="1.5" min="1" max="3" step="0.1" style="width:50px;">
-                <span class="prop-unit">×</span>
-            </div>
-            <div class="prop-row">
-                <span class="prop-label" style="font-size:0.65rem;">Holding $/u/hr</span>
-                <input type="number" class="prop-input" id="cfg-holding-cost" value="0.50" min="0" step="0.1" style="width:50px;">
-                <span class="prop-unit">$/u/hr</span>
-            </div>
-        </div>
-
-        <!-- Save / Load -->
-        <div class="sidebar-section" style="margin-top:auto;">
-            <div class="sim-controls">
-                <button class="sim-btn" onclick="saveLayout()">Save</button>
-                <button class="sim-btn" onclick="loadLayoutList()">Load</button>
-                <button class="sim-btn" onclick="importFromVSM()">Import VSM</button>
+        <div class="compare-table" id="compare-table"></div>
+        <div class="compare-charts" id="compare-chart-overlay"></div>
+    </div>
+    <div class="compare-content" id="tab-aar" style="display:none;">
+        <div style="flex:1;overflow-y:auto;padding:4px;">
+            <div id="aar-content">
+                <div style="padding:20px;color:var(--text-dim);font-size:0.8rem;">
+                    Complete a mission to see the after-action review.
+                </div>
             </div>
         </div>
     </div>
-
-    <!-- Main Area -->
-    <div class="sim-main">
-        <!-- Toolbar -->
-        <div class="sim-toolbar">
-            <button class="tool-btn active" id="tool-select" onclick="setTool('select')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
-            </button>
-            <button class="tool-btn" id="tool-pan" onclick="setTool('pan')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3"/></svg>
-            </button>
-            <button class="tool-btn" id="tool-connect" onclick="setTool('connect')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="3"/><circle cx="19" cy="12" r="3"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-            </button>
-            <span class="toolbar-sep"></span>
-            <button class="tool-btn" onclick="zoomCanvas(1.2)">+</button>
-            <button class="tool-btn" onclick="zoomCanvas(0.8)">−</button>
-            <button class="tool-btn" onclick="resetView()">Fit</button>
-            <span class="zoom-display" id="zoom-display">100%</span>
-            <span class="toolbar-sep"></span>
-            <button class="tool-btn" onclick="deleteSelected()" style="color:#e74c3c;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>
-            </button>
-            <span class="save-indicator" id="save-indicator">●  Not saved</span>
-        </div>
-
-        <!-- Canvas -->
-        <div class="sim-canvas-wrap" id="canvas-wrap">
-            <div class="alert-bar" id="alert-bar"></div>
-            <svg class="sim-canvas" id="sim-canvas">
-                <defs>
-                    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>
-                    </pattern>
-                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                        <polygon points="0 0, 10 3.5, 0 7" fill="var(--text-dim)"/>
-                    </marker>
-                </defs>
-                <rect width="5000" height="5000" fill="url(#grid)"/>
-                <g id="transform-group">
-                    <g id="connections-layer"></g>
-                    <g id="elements-layer"></g>
-                    <g id="animation-layer"></g>
-                </g>
-            </svg>
-            <button class="metrics-toggle" id="metrics-toggle" onclick="toggleMetrics()">▲ Charts</button>
-        </div>
-
-        <!-- Metrics Panel -->
-        <div class="metrics-panel" id="metrics-panel">
-            <div class="metrics-tabs">
-                <button class="metrics-tab active" onclick="switchMetricsTab('charts')">Charts</button>
-                <button class="metrics-tab" onclick="switchMetricsTab('compare')">Compare Runs</button>
-                <button class="metrics-tab" onclick="switchMetricsTab('live')" id="tab-live-btn" style="display:none;">Live</button>
-                <button class="metrics-tab" onclick="switchMetricsTab('spc')" id="tab-spc-btn" style="display:none;">SPC</button>
-                <button class="metrics-tab" onclick="switchMetricsTab('evidence')" id="tab-evidence-btn" style="display:none;">Evidence</button>
-                <button class="metrics-tab" onclick="switchMetricsTab('sqdc')" id="tab-sqdc-btn" style="display:none;">SQDC</button>
-                <button class="metrics-tab" onclick="switchMetricsTab('aar')" id="tab-aar-btn" style="display:none;">After-Action Review</button>
-                <span style="margin-left:auto; font-size:0.65rem; color:var(--text-dim); padding:6px 12px;" id="run-count">0 saved runs</span>
-            </div>
-            <div class="metrics-content" id="tab-charts">
-                <div class="metrics-chart" id="chart-queues"></div>
-                <div class="metrics-chart" id="chart-utilization"></div>
-                <div class="metrics-chart" id="chart-leadtime"></div>
-            </div>
-            <div class="compare-content" id="tab-compare">
-                <div class="compare-selectors">
-                    <label>Run A (baseline)</label>
-                    <select id="compare-a" onchange="renderComparison()"><option value="">— select —</option></select>
-                    <label>Run B (changed)</label>
-                    <select id="compare-b" onchange="renderComparison()"><option value="">— select —</option></select>
-                </div>
-                <div class="compare-table" id="compare-table"></div>
-                <div class="compare-charts" id="compare-chart-overlay"></div>
-            </div>
-            <div class="compare-content" id="tab-aar" style="display:none;">
-                <div style="flex:1;overflow-y:auto;padding:4px;">
-                    <div id="aar-content">
-                        <div style="padding:20px;color:var(--text-dim);font-size:0.8rem;">
-                            Complete a mission to see the after-action review.
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="live-metrics-content" id="tab-live" style="display:none;">
-                <div class="live-chart" id="live-chart-throughput"></div>
-                <div class="live-chart" id="live-chart-wip"></div>
-                <div class="live-chart" id="live-chart-yield"></div>
-                <div class="live-chart" id="live-chart-cost"></div>
-            </div>
-            <div class="spc-content" id="tab-spc" style="display:none;">
-                <div class="live-chart" id="spc-chart-throughput"></div>
-                <div class="live-chart" id="spc-chart-yield"></div>
-            </div>
-            <div class="evidence-content" id="tab-evidence" style="display:none;">
-                <div id="evidence-bars"></div>
-            </div>
-            <div class="live-metrics-content" id="tab-sqdc" style="display:none;">
-                <div class="live-chart" id="sqdc-quality"></div>
-                <div class="live-chart" id="sqdc-delivery"></div>
-                <div class="live-chart" id="sqdc-cost"></div>
-            </div>
-        </div>
+    <div class="live-metrics-content" id="tab-live" style="display:none;">
+        <div class="live-chart" id="live-chart-throughput"></div>
+        <div class="live-chart" id="live-chart-wip"></div>
+        <div class="live-chart" id="live-chart-yield"></div>
+        <div class="live-chart" id="live-chart-cost"></div>
     </div>
+    <div class="spc-content" id="tab-spc" style="display:none;">
+        <div class="live-chart" id="spc-chart-throughput"></div>
+        <div class="live-chart" id="spc-chart-yield"></div>
+    </div>
+    <div class="evidence-content" id="tab-evidence" style="display:none;">
+        <div id="evidence-bars"></div>
+    </div>
+    <div class="live-metrics-content" id="tab-sqdc" style="display:none;">
+        <div class="live-chart" id="sqdc-quality"></div>
+        <div class="live-chart" id="sqdc-delivery"></div>
+        <div class="live-chart" id="sqdc-cost"></div>
+    </div>
+</div>
 
-    <!-- Teaching Panel (right side, only visible during active scenario) -->
-    <button class="teaching-restore-btn" id="teaching-restore-btn" onclick="collapseTeachingPanel(false)">&#9664; Scenario</button>
-    <div class="teaching-panel" id="teaching-panel">
-        <div class="teaching-header">
-            <span class="teaching-title" id="teaching-title"></span>
-            <button class="teaching-collapse-btn" onclick="collapseTeachingPanel(true)" title="Hide panel">&#9654;</button>
-            <button class="teaching-collapse" onclick="exitScenario()" title="Exit scenario">&times;</button>
-        </div>
-        <div class="teaching-progress" id="teaching-progress"></div>
-        <div id="teaching-step-content"></div>
-        <div id="teaching-challenges"></div>
-        <div class="teaching-nav">
-            <button class="sim-btn" id="teaching-prev" onclick="scenarioPrevStep()">&#9664; Prev</button>
-            <button class="sim-btn" id="teaching-next" onclick="scenarioNextStep()">Next &#9654;</button>
-        </div>
-        <div class="teaching-footer">
-            <button class="sim-btn" onclick="exitScenario()">Exit Scenario</button>
-        </div>
+<!-- Teaching Panel (right side, only visible during active scenario) -->
+<button class="teaching-restore-btn" id="teaching-restore-btn" onclick="collapseTeachingPanel(false)">&#9664; Scenario</button>
+<div class="teaching-panel" id="teaching-panel">
+    <div class="teaching-header">
+        <span class="teaching-title" id="teaching-title"></span>
+        <button class="teaching-collapse-btn" onclick="collapseTeachingPanel(true)" title="Hide panel">&#9654;</button>
+        <button class="teaching-collapse" onclick="exitScenario()" title="Exit scenario">&times;</button>
+    </div>
+    <div class="teaching-progress" id="teaching-progress"></div>
+    <div id="teaching-step-content"></div>
+    <div id="teaching-challenges"></div>
+    <div class="teaching-nav">
+        <button class="sv-btn sv-btn-sm" id="teaching-prev" onclick="scenarioPrevStep()">&#9664; Prev</button>
+        <button class="sv-btn sv-btn-sm" id="teaching-next" onclick="scenarioNextStep()">Next &#9654;</button>
+    </div>
+    <div class="teaching-footer">
+        <button class="sv-btn sv-btn-sm" onclick="exitScenario()">Exit Scenario</button>
     </div>
 </div>
 
@@ -474,7 +399,7 @@
         </div>
     </div>
     <div style="padding:8px 12px;border-top:1px solid var(--border);">
-        <button class="sim-btn" onclick="exitMission()" style="width:100%;font-size:0.6rem;">Abort Mission</button>
+        <button class="sv-btn sv-btn-danger sv-btn-sm" onclick="exitMission()" style="width:100%;">Abort Mission</button>
     </div>
 </div>
 
@@ -497,12 +422,17 @@
         <div class="briefing-subtitle" id="briefing-subtitle"></div>
         <div class="briefing-text" id="briefing-text"></div>
         <div id="briefing-objectives" style="margin-bottom:16px;"></div>
-        <button class="briefing-start-btn" id="briefing-start" onclick="startMission()">Begin Mission</button>
+        <button class="sv-btn sv-btn-primary" id="briefing-start" onclick="startMission()">Begin Mission</button>
     </div>
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block workspace_scripts %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="/static/js/svend-math.js"></script>
+<script src="/static/js/svend-charts.js"></script>
+<script src="/static/js/svend-spc.js"></script>
+<script src="/static/js/svend-sim-core.js"></script>
 <script src="/static/js/sim-state.js"></script>
 <script src="/static/js/sim-engine.js"></script>
 <script src="/static/js/sim-canvas.js"></script>
