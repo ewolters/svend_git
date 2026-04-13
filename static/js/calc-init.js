@@ -2,7 +2,12 @@
 // Init
 // ============================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
+(function initCalcs() {
+    // Guard: if DOM not ready yet, defer
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCalcs);
+        return;
+    }
     // ========================================
     // Restore auto-saved state FIRST
     // ========================================
@@ -88,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================
     updateScenarioDropdown();
     hookAutoSave();
-});
+})();
 
 // Cell Design Simulator — see calc-sim-flow.js
 
