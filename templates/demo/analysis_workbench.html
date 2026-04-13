@@ -678,6 +678,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                             <button class="aw-pane-tab" onclick="switchResultsTab('detail')">Detail</button>
                             <button class="aw-pane-tab" onclick="switchResultsTab('narrative')">Narrative</button>
                             <button class="aw-pane-tab" onclick="switchResultsTab('education')">Education</button>
+                            <button class="aw-pane-tab" onclick="switchResultsTab('whatif')" id="aw-whatif-tab-btn" style="display:none;">What-If</button>
                         </div>
                     </div>
                     <div class="aw-pane-body" id="results-pane">
@@ -1298,6 +1299,97 @@ function switchChartTab(tab) {
 
 let currentResultsTab = 'summary';
 
+function _renderServerWhatIf(container, whatIf, factors, currentValues) {
+    // Server-recompute what-if: sliders that POST to /api/analysis/run/ on change
+    container.innerHTML = '';
+    container.style.display = 'flex';
+    container.style.gap = '16px';
+
+    const sliderPanel = document.createElement('div');
+    sliderPanel.style.cssText = 'width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;padding:8px;';
+    container.appendChild(sliderPanel);
+
+    const resultArea = document.createElement('div');
+    resultArea.style.cssText = 'flex:1;min-width:0;font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--text-primary);padding:12px;overflow-y:auto;';
+    resultArea.innerHTML = '<div class="aw-pane-empty">Adjust sliders to explore</div>';
+    container.appendChild(resultArea);
+
+    // Title
+    const title = document.createElement('div');
+    title.textContent = 'What-If Explorer';
+    title.style.cssText = 'font-size:13px;font-weight:600;color:var(--accent-primary);padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:4px;font-family:Inter,system-ui;';
+    sliderPanel.appendChild(title);
+
+    const vals = Object.assign({}, currentValues);
+    let debounceTimer = null;
+
+    factors.forEach(function(factor) {
+        const row = document.createElement('div');
+        const label = document.createElement('div');
+        label.style.cssText = 'font-size:10px;color:var(--text-dim);font-family:Inter,system-ui;display:flex;justify-content:space-between;margin-bottom:2px;';
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = factor.name;
+        const valSpan = document.createElement('span');
+        valSpan.style.fontFamily = 'JetBrains Mono, monospace';
+        valSpan.textContent = (vals[factor.name] || 0).toFixed(2);
+        label.appendChild(nameSpan);
+        label.appendChild(valSpan);
+        row.appendChild(label);
+
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = factor.low;
+        slider.max = factor.high;
+        slider.step = factor.step;
+        slider.value = vals[factor.name] || ((factor.low + factor.high) / 2);
+        slider.style.cssText = 'width:100%;accent-color:var(--accent-primary);';
+        slider.addEventListener('input', function() {
+            vals[factor.name] = parseFloat(slider.value);
+            valSpan.textContent = parseFloat(slider.value).toFixed(2);
+            // Debounce server call
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(recompute, 400);
+        });
+        row.appendChild(slider);
+        sliderPanel.appendChild(row);
+    });
+
+    async function recompute() {
+        resultArea.innerHTML = '<div style="color:var(--text-dim);padding:8px;">Computing…</div>';
+        try {
+            const config = Object.assign({}, vals);
+            const resp = await apiFetch(whatIf.endpoint || (ANALYSIS_API + 'run/'), {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: currentAnalysis ? currentAnalysis.type : '',
+                    analysis: currentAnalysis ? currentAnalysis.id : '',
+                    config: config,
+                    data_id: currentDataId,
+                }),
+            });
+            // Show recomputed fields
+            const fields = whatIf.recompute_fields || [];
+            let html = '';
+            fields.forEach(f => {
+                const val = resp[f] ?? (resp.statistics ? resp.statistics[f] : undefined);
+                if (val !== undefined) {
+                    const label = f.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                    const fmt = typeof val === 'number' ? val.toFixed(4) : String(val);
+                    html += `<div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;">
+                        <span>${label}</span><span style="font-weight:600;color:var(--accent-primary);">${fmt}</span></div>`;
+                }
+            });
+            if (!html) {
+                // Fallback: show summary if available
+                html = resp.summary ? `<div style="padding:8px;">${esc(resp.summary)}</div>` : '<div class="aw-pane-empty">No recompute fields returned</div>';
+            }
+            resultArea.innerHTML = html;
+        } catch (e) {
+            resultArea.innerHTML = `<div style="color:var(--error);padding:8px;">${esc(e.message || 'Request failed')}</div>`;
+        }
+    }
+}
+
 function renderResults(result) {
     const pane = document.getElementById('results-pane');
     currentResult = result;
@@ -1446,14 +1538,86 @@ function renderResults(result) {
     }
     html += '</div>'; // end education tab
 
+    // ── WHAT-IF TAB (interactive parameter exploration) ──
+    const whatIf = result.what_if;
+    const whatIfBtn = document.getElementById('aw-whatif-tab-btn');
+    if (whatIf && whatIf.parameters && whatIf.parameters.length > 0) {
+        // Show tab button
+        if (whatIfBtn) whatIfBtn.style.display = '';
+
+        html += `<div id="aw-tab-whatif" style="${currentResultsTab !== 'whatif' ? 'display:none;' : ''}">`;
+        html += '<div id="aw-whatif-container" style="width:100%;min-height:350px;padding:8px;"></div>';
+        html += '</div>';
+    } else {
+        if (whatIfBtn) whatIfBtn.style.display = 'none';
+    }
+
     html += '</div>'; // end results-body
     pane.innerHTML = html;
+
+    // ── Render FV.slider for what-if (after innerHTML is set) ──
+    if (whatIf && whatIf.parameters && whatIf.parameters.length > 0 && typeof ForgeViz !== 'undefined' && ForgeViz.slider) {
+        requestAnimationFrame(() => {
+            const container = document.getElementById('aw-whatif-container');
+            if (!container) return;
+
+            // Bridge standardizer what_if format → FV.slider interactive format
+            const factors = whatIf.parameters.map(p => ({
+                name: p.name,
+                low: p.min,
+                high: p.max,
+                step: p.step || (p.max - p.min) / 50,
+            }));
+
+            const currentValues = {};
+            whatIf.parameters.forEach(p => { currentValues[p.name] = p.value; });
+
+            // Build coefficients from client_model (regression) or empty (server-recompute)
+            const coefficients = {};
+            if (whatIf.client_model) {
+                coefficients['Intercept'] = whatIf.client_model.intercept || 0;
+                const coefs = whatIf.client_model.coefficients || {};
+                Object.keys(coefs).forEach(k => { coefficients[k] = coefs[k]; });
+            }
+
+            const hasClientModel = Object.keys(coefficients).length > 1;
+
+            if (hasClientModel) {
+                // Client-side prediction — FV.slider handles it natively
+                const spec = {
+                    title: 'What-If Explorer',
+                    theme: 'svend_dark',
+                    width: 600,
+                    height: 300,
+                    traces: [],
+                    x_axis: { label: factors[0] ? factors[0].name : 'X' },
+                    y_axis: { label: 'Predicted' },
+                    interactive: {
+                        type: 'slider',
+                        factors: factors,
+                        coefficients: coefficients,
+                        response_name: 'Predicted Y',
+                        current_values: currentValues,
+                    },
+                };
+                try {
+                    ForgeViz.slider(container, spec);
+                } catch (err) {
+                    console.error('FV.slider error:', err);
+                    container.innerHTML = '<div class="aw-pane-empty">What-if explorer failed to load</div>';
+                }
+            } else {
+                // Server-side recompute — build slider UI manually
+                _renderServerWhatIf(container, whatIf, factors, currentValues);
+            }
+        });
+    }
 }
 
 function switchResultsTab(tab) {
     currentResultsTab = tab;
     // Hide all tabs, show selected
-    ['summary', 'detail', 'narrative', 'education'].forEach(t => {
+    ['summary', 'detail', 'narrative', 'education', 'whatif'].forEach(t => {
         const el = document.getElementById('aw-tab-' + t);
         if (el) el.style.display = t === tab ? '' : 'none';
     });
