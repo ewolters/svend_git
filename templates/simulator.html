@@ -3,8 +3,14 @@
 
 {% block title %}Plant Simulator - SVEND{% endblock %}
 
-{% block workspace_style %}
+{% block extra_head %}
+{{ block.super }}
 <link rel="stylesheet" href="/static/css/sv-simulator.css">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="/static/js/svend-math.js"></script>
+<script src="/static/js/svend-charts.js"></script>
+<script src="/static/js/svend-spc.js"></script>
+<script src="/static/js/svend-sim-core.js"></script>
 {% endblock %}
 
 {% block workspace_sidebar %}
@@ -428,18 +434,19 @@
 {% endblock %}
 
 {% block workspace_scripts %}
-<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-<script src="/static/js/svend-math.js"></script>
-<script src="/static/js/svend-charts.js"></script>
-<script src="/static/js/svend-spc.js"></script>
-<script src="/static/js/svend-sim-core.js"></script>
-<script src="/static/js/sim-state.js"></script>
-<script src="/static/js/sim-engine.js"></script>
-<script src="/static/js/sim-canvas.js"></script>
-<script src="/static/js/sim-interact.js"></script>
-<script src="/static/js/sim-controls.js"></script>
-<script src="/static/js/sim-scenarios.js"></script>
-<script src="/static/js/sim-missions.js"></script>
-<script src="/static/js/sim-workforce.js"></script>
-<script src="/static/js/sim-init.js"></script>
+/* Simulator modules — loaded after workspace base script */
+const simScripts = [
+    '/static/js/sim-state.js', '/static/js/sim-engine.js',
+    '/static/js/sim-canvas.js', '/static/js/sim-interact.js',
+    '/static/js/sim-controls.js', '/static/js/sim-scenarios.js',
+    '/static/js/sim-missions.js', '/static/js/sim-workforce.js',
+    '/static/js/sim-init.js'
+];
+(function loadSeq(i) {
+    if (i >= simScripts.length) return;
+    const s = document.createElement('script');
+    s.src = simScripts[i];
+    s.onload = () => loadSeq(i + 1);
+    document.head.appendChild(s);
+})(0);
 {% endblock %}
