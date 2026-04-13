@@ -1138,6 +1138,7 @@ async function runAnalysis() {
 function renderCharts(result) {
     const pane = document.getElementById('charts-pane');
     const plots = result.plots || result.charts || [];
+    const layout = result._layout || {};
 
     if (plots.length === 0) {
         pane.innerHTML = '<div class="aw-pane-empty">No charts for this analysis</div>';
@@ -1151,6 +1152,87 @@ function renderCharts(result) {
         return;
     }
 
+    const analysisName = currentAnalysis ? currentAnalysis.id : 'chart';
+
+    // ── Compose mode: vertical stack with shared crosshair (paired control charts)
+    if (layout.mode === 'compose' && plots.length >= 2) {
+        pane.innerHTML = '<div id="aw-compose" style="width:100%;min-height:' + (plots.length * 280) + 'px;"></div>';
+        requestAnimationFrame(() => {
+            const el = document.getElementById('aw-compose');
+            if (!el) return;
+            try {
+                const specs = plots.map(p => Object.assign({}, p, { height: 260, theme: 'svend_dark' }));
+                const instances = ForgeViz.compose(el, specs);
+
+                // Toolbar on the composed container
+                if (instances.length > 0) {
+                    ForgeViz.addToolbar(el, instances[0], {
+                        filename: analysisName + '_composed',
+                        showThemeToggle: true,
+                    });
+                }
+
+                // Enable threshold drag on charts with reference lines
+                instances.forEach((inst, i) => {
+                    const wrapper = inst.svg ? inst.svg.parentNode : null;
+                    if (wrapper && plots[i].reference_lines && plots[i].reference_lines.length) {
+                        ForgeViz.enableThresholdDrag(wrapper, function(val) {
+                            console.log('Threshold adjusted:', val);
+                        });
+                    }
+                });
+
+                // Enable annotation on all panels
+                instances.forEach(inst => {
+                    const wrapper = inst.svg ? inst.svg.parentNode : null;
+                    if (wrapper) ForgeViz.enableAnnotation(wrapper, function() {});
+                });
+            } catch (err) {
+                console.error('ForgeViz compose error:', err);
+                el.innerHTML = '<div class="aw-pane-empty">Chart layout failed</div>';
+            }
+        });
+        return;
+    }
+
+    // ── Trellis mode: grid layout with synced crosshair (sixpacks, gage R&R)
+    if (layout.mode === 'trellis' && plots.length >= 2) {
+        pane.innerHTML = '<div id="aw-trellis" style="width:100%;min-height:500px;"></div>';
+        requestAnimationFrame(() => {
+            const el = document.getElementById('aw-trellis');
+            if (!el) return;
+            try {
+                const columns = layout.columns || (plots.length <= 3 ? plots.length : 3);
+                const dashSpec = {
+                    title: layout.title || '',
+                    columns: columns,
+                    theme: 'svend_dark',
+                    panels: plots.map(p => ({
+                        spec: Object.assign({}, p, {
+                            height: 220,
+                            theme: 'svend_dark',
+                            show_legend: false,
+                        }),
+                    })),
+                };
+                const { instances } = ForgeViz.trellis(el, dashSpec);
+
+                // Toolbar on the trellis container
+                if (instances.length > 0) {
+                    ForgeViz.addToolbar(el, instances[0], {
+                        filename: analysisName + '_trellis',
+                        showThemeToggle: true,
+                    });
+                }
+            } catch (err) {
+                console.error('ForgeViz trellis error:', err);
+                el.innerHTML = '<div class="aw-pane-empty">Chart layout failed</div>';
+            }
+        });
+        return;
+    }
+
+    // ── Default: individual chart slots (single charts or unspecified layout)
     let html = '<div class="aw-chart-container">';
     plots.forEach((plot, i) => {
         html += `<div class="aw-chart-slot"><div id="aw-chart-${i}" style="width:100%;min-height:320px;"></div></div>`;
@@ -1158,7 +1240,6 @@ function renderCharts(result) {
     html += '</div>';
     pane.innerHTML = html;
 
-    // Defer render to next frame so containers have layout dimensions
     requestAnimationFrame(() => {
         const chartInstances = [];
 
@@ -1171,12 +1252,22 @@ function renderCharts(result) {
                 chartInstances.push({ el, instance });
 
                 ForgeViz.addToolbar(el, instance, {
-                    filename: (currentAnalysis ? currentAnalysis.id : 'chart') + '_' + i,
+                    filename: analysisName + '_' + i,
                     showThemeToggle: true,
                 });
                 ForgeViz.enableTitleEdit(el, function() {});
                 ForgeViz.enableAxisEdit(el, function() {});
                 ForgeViz.enableColorPicker(el, function() {});
+
+                // Threshold drag on charts with reference lines (control limits)
+                if (plot.reference_lines && plot.reference_lines.length) {
+                    ForgeViz.enableThresholdDrag(el, function(val) {
+                        console.log('Threshold adjusted:', val);
+                    });
+                }
+
+                // Annotation mode on all charts
+                ForgeViz.enableAnnotation(el, function() {});
             } catch (err) {
                 console.error('ForgeViz render error for chart ' + i + ':', err);
                 el.innerHTML = '<div class="aw-pane-empty">Chart render failed</div>';

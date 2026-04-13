@@ -241,6 +241,7 @@ def forge_imr(df, config):
 
     chart_specs = from_spc_result_pair(result, title=f"I-MR Chart: {col_name}")
     plots = [_to_chart(s) for s in chart_specs]
+    _layout = {"mode": "compose"}  # vertical stack for paired control charts
 
     status = _control_status(result)
     n_ooc = len(result.out_of_control) if result.out_of_control else 0
@@ -270,6 +271,7 @@ def forge_imr(df, config):
     return _jsonify(
         {
             "plots": plots,
+            "_layout": _layout,
             "statistics": {
                 "n": len(data),
                 "mean": round(mean_val, 4),
@@ -361,6 +363,7 @@ def forge_xbar_r(df, config):
 
     chart_specs = from_spc_result_pair(result, title=f"X-bar/R Chart: {col_name}")
     plots = [_to_chart(s) for s in chart_specs]
+    _layout = {"mode": "compose"}
 
     status = _control_status(result)
     n_ooc = len(result.out_of_control) if result.out_of_control else 0
@@ -386,6 +389,7 @@ def forge_xbar_r(df, config):
     return _jsonify(
         {
             "plots": plots,
+            "_layout": _layout,
             "statistics": {
                 "n_observations": len(data),
                 "n_subgroups": len(subgroups),
@@ -475,6 +479,7 @@ def forge_xbar_s(df, config):
 
     chart_specs = from_spc_result_pair(result, title=f"X-bar/S Chart: {col_name}")
     plots = [_to_chart(s) for s in chart_specs]
+    _layout = {"mode": "compose"}
 
     status = _control_status(result)
     n_ooc = len(result.out_of_control) if result.out_of_control else 0
@@ -500,6 +505,7 @@ def forge_xbar_s(df, config):
     return _jsonify(
         {
             "plots": plots,
+            "_layout": _layout,
             "statistics": {
                 "n_observations": len(data),
                 "n_subgroups": len(subgroups),
@@ -1126,6 +1132,7 @@ def forge_capability(df, config):
         ppk=cap.ppk,
     )
     plots = [_to_chart(s) for s in sixpack_specs]
+    _layout = {"mode": "trellis", "columns": 3, "title": f"Capability Sixpack: {col_name}"}
 
     # Also add standalone histogram
     hist_spec = capability_histogram(
@@ -1188,6 +1195,7 @@ def forge_capability(df, config):
     return _jsonify(
         {
             "plots": plots,
+            "_layout": _layout,
             "statistics": {
                 "n": cap.n_samples,
                 "mean": round(cap.mean, 4),
@@ -1352,6 +1360,7 @@ def forge_gage_rr(df, config):
 
     # Build charts
     plots = []
+    _layout = {"mode": "trellis", "columns": 3, "title": "Gage R&R Analysis"}
 
     # 1. Components chart
     comp_spec = gage_rr_components(result.pct_contribution)
@@ -1416,6 +1425,7 @@ def forge_gage_rr(df, config):
     return _jsonify(
         {
             "plots": plots,
+            "_layout": _layout,
             "statistics": {
                 "n_parts": result.n_parts,
                 "n_operators": result.n_operators,
