@@ -980,115 +980,7 @@ class AuditFindingAutoNCRTest(TestCase):
 
 
 # =============================================================================
-# Audit Checklists
-# =============================================================================
-
-
-@SECURE_OFF
-class AuditChecklistTest(TestCase):
-    """Audit checklist CRUD."""
-
-    def setUp(self):
-        self.user = _make_team_user("checklist@test.com")
-        self.client.force_login(self.user)
-
-    def test_create_checklist(self):
-        resp = _post(
-            self.client,
-            "/api/iso/checklists/",
-            {
-                "name": "Production Audit Checklist",
-                "iso_clause": "8.5",
-                "check_items": [
-                    {
-                        "question": "Are work instructions posted?",
-                        "guidance": "Check each station",
-                    },
-                    {
-                        "question": "Is calibration current?",
-                        "guidance": "Review cal stickers",
-                    },
-                ],
-            },
-        )
-        self.assertEqual(resp.status_code, 201)
-        data = resp.json()
-        self.assertEqual(data["name"], "Production Audit Checklist")
-        self.assertEqual(len(data["check_items"]), 2)
-
-    def test_list_checklists(self):
-        _post(self.client, "/api/iso/checklists/", {"name": "CL-1"})
-        _post(self.client, "/api/iso/checklists/", {"name": "CL-2"})
-        resp = self.client.get("/api/iso/checklists/")
-        self.assertEqual(len(resp.json()), 2)
-
-    def test_update_checklist(self):
-        cl = _post(self.client, "/api/iso/checklists/", {"name": "Original"}).json()
-        resp = _put(
-            self.client,
-            f"/api/iso/checklists/{cl['id']}/",
-            {
-                "name": "Updated Checklist",
-                "check_items": [{"question": "New item"}],
-            },
-        )
-        self.assertEqual(resp.json()["name"], "Updated Checklist")
-        self.assertEqual(len(resp.json()["check_items"]), 1)
-
-    def test_delete_checklist(self):
-        cl = _post(self.client, "/api/iso/checklists/", {"name": "Del"}).json()
-        resp = self.client.delete(f"/api/iso/checklists/{cl['id']}/")
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(self.client.get(f"/api/iso/checklists/{cl['id']}/").status_code, 404)
-
-    def test_checklist_items(self):
-        """Checklist stores and returns check_items."""
-        cl = _post(
-            self.client,
-            "/api/iso/checklists/",
-            {
-                "name": "Items CL",
-                "check_items": [
-                    {"question": "Q1", "guidance": "G1"},
-                    {"question": "Q2", "guidance": "G2"},
-                    {"question": "Q3"},
-                ],
-            },
-        ).json()
-        detail = self.client.get(f"/api/iso/checklists/{cl['id']}/").json()
-        self.assertEqual(len(detail["check_items"]), 3)
-        self.assertEqual(detail["check_items"][0]["question"], "Q1")
-
-    def test_checklist_completion(self):
-        """Updating check_items with result marks completion."""
-        cl = _post(
-            self.client,
-            "/api/iso/checklists/",
-            {
-                "name": "Completion CL",
-                "check_items": [{"question": "Q1"}],
-            },
-        ).json()
-        resp = _put(
-            self.client,
-            f"/api/iso/checklists/{cl['id']}/",
-            {
-                "check_items": [{"question": "Q1", "result": "pass", "notes": "OK"}],
-            },
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json()["check_items"][0]["result"], "pass")
-
-    def test_use_checklist_in_audit(self):
-        """Checklist can be created alongside an audit for the same scope."""
-        cl = _post(self.client, "/api/iso/checklists/", {"name": "Audit CL"}).json()
-        self.assertIsNotNone(cl["id"])
-        audit = _post(
-            self.client,
-            "/api/iso/audits/",
-            {"title": "CL Audit"},
-        ).json()
-        self.assertIsNotNone(audit["id"])
+# AuditChecklistTest removed in CR-0.6a — AuditChecklist model deleted
 
 
 # =============================================================================
@@ -3335,12 +3227,7 @@ class UserIsolationTest(TestCase):
         resp = self.client.get("/api/iso/reviews/")
         self.assertEqual(len(resp.json()), 0)
 
-    def test_checklist_isolation(self):
-        self.client.force_login(self.user_a)
-        _post(self.client, "/api/iso/checklists/", {"name": "A's CL"})
-        self.client.force_login(self.user_b)
-        resp = self.client.get("/api/iso/checklists/")
-        self.assertEqual(len(resp.json()), 0)
+    # test_checklist_isolation removed in CR-0.6a — AuditChecklist routes deleted
 
     def test_dashboard_isolation(self):
         """User B's dashboard doesn't include A's NCRs."""

@@ -142,16 +142,8 @@ def generate_text(job) -> dict:
     try:
         text_type = job.schema_def.get("text_type", "review")
 
-        # Get LLM from Svend's shared instance (Qwen-7B)
+        # Qwen LLM removed — text generation uses templates only
         llm = None
-        try:
-            from agents_api.views import get_shared_llm
-
-            llm = get_shared_llm()
-            if llm:
-                logger.info("Using Svend's Qwen LLM for text generation")
-        except Exception as e:
-            logger.warning(f"Could not load LLM, using templates: {e}")
 
         generator = TextGenerator(
             domain=job.domain or "ecommerce",

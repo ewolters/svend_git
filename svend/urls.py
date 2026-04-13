@@ -406,8 +406,7 @@ urlpatterns = varta_urls + [
     path("api/", include("api.urls")),
     path("api/files/", include("files.urls")),
     path("api/forge/", include("forge.urls")),
-    path("api/agents/", include("agents_api.urls")),
-    path("api/workflows/", include("agents_api.workflow_urls")),
+    # agents_api.urls (agent dispatchers) and workflow_urls removed — CR-0.6a
     path("api/dsw/", include("agents_api.dsw_urls")),
     path("api/analysis/", include("agents_api.analysis_urls")),
     path("api/triage/", include("agents_api.triage_urls")),

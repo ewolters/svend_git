@@ -1002,7 +1002,6 @@ QMS_SIMPLE_MODELS = [
     "SectionProgress",
     "AssessmentAttempt",
     "LearnSession",
-    "Workflow",
     "TriageResult",
     "SavedModel",
     "AgentLog",
@@ -1022,7 +1021,6 @@ QMS_EXTENDED_MODELS = [
     "DocumentStatusChange",
     "SupplierStatusChange",
     "QMSFieldChange",
-    "AuditChecklist",
     "ISODocument",
     "ISOSection",
 ]

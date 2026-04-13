@@ -28,7 +28,6 @@ from .models import (
     AFE,
     FMEA,
     AFEApprovalLevel,
-    AuditChecklist,
     AuditFinding,
     CAPAReport,
     Checklist,
@@ -1280,25 +1279,14 @@ def audit_apply_checklist(request, audit_id):
     if not checklist_id:
         return JsonResponse({"error": "checklist_id required"}, status=400)
 
-    # Try universal Checklist first, fall back to legacy AuditChecklist
-    checklist = None
-    checklist_name = ""
-    checklist_items = []
-    checklist_clause = ""
     try:
         cl = Checklist.objects.get(id=checklist_id, owner=request.user)
-        checklist = cl
-        checklist_name = cl.name
-        checklist_items = cl.items or []
-        checklist_clause = cl.category
     except Checklist.DoesNotExist:
-        try:
-            legacy = AuditChecklist.objects.get(id=checklist_id, owner=request.user)
-            checklist_name = legacy.name
-            checklist_items = legacy.check_items or []
-            checklist_clause = legacy.iso_clause
-        except AuditChecklist.DoesNotExist:
-            return JsonResponse({"error": "Checklist not found"}, status=404)
+        return JsonResponse({"error": "Checklist not found"}, status=404)
+    checklist = cl
+    checklist_name = cl.name
+    checklist_items = cl.items or []
+    checklist_clause = cl.category
 
     results = data.get("results")
     if results is not None:
@@ -1435,48 +1423,7 @@ def audit_clause_coverage(request):
 # =========================================================================
 
 
-@require_team
-@require_http_methods(["GET", "POST"])
-def audit_checklist_list_create(request):
-    """List or create audit checklists."""
-    user = request.user
-
-    if request.method == "GET":
-        checklists = AuditChecklist.objects.filter(owner=user)
-        return JsonResponse([c.to_dict() for c in checklists], safe=False)
-
-    data = json.loads(request.body)
-    checklist = AuditChecklist.objects.create(
-        owner=user,
-        name=data.get("name", ""),
-        iso_clause=data.get("iso_clause", ""),
-        check_items=data.get("check_items", []),
-    )
-    return JsonResponse(checklist.to_dict(), status=201)
-
-
-@require_team
-@require_http_methods(["GET", "PUT", "DELETE"])
-def audit_checklist_detail(request, checklist_id):
-    """Get, update, or delete an audit checklist."""
-    try:
-        checklist = AuditChecklist.objects.get(id=checklist_id, owner=request.user)
-    except AuditChecklist.DoesNotExist:
-        return JsonResponse({"error": "Not found"}, status=404)
-
-    if request.method == "GET":
-        return JsonResponse(checklist.to_dict())
-
-    if request.method == "DELETE":
-        checklist.delete()
-        return JsonResponse({"ok": True})
-
-    data = json.loads(request.body)
-    for field in ["name", "iso_clause", "check_items"]:
-        if field in data:
-            setattr(checklist, field, data[field])
-    checklist.save()
-    return JsonResponse(checklist.to_dict())
+# AuditChecklist CRUD views removed in CR-0.6a — superseded by Checklist
 
 
 # =========================================================================

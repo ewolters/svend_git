@@ -13,33 +13,7 @@ from django.dispatch import receiver
 from core.encryption import EncryptedTextField
 from syn.core.base_models import SynaraImmutableLog
 
-
-class Workflow(models.Model):
-    """User-defined workflow (chain of agents)."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(
-        "core.Tenant",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="%(app_label)s_%(class)s_set",
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="workflows",
-    )
-    name = models.CharField(max_length=255)
-    steps = models.TextField()  # JSON array of step definitions
-    created_at = models.DateTimeField(auto_now_add=True)
-    last_run = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-
-    def __str__(self):
-        return f"{self.name} ({self.user.username})"
+# Workflow model removed in CR-0.6a — dead code, zero non-self FKs
 
 
 class DSWResult(models.Model):
@@ -5796,43 +5770,7 @@ class MeasurementEquipment(models.Model):
             "updated_at": self.updated_at.isoformat(),
         }
 
-
-class AuditChecklist(models.Model):
-    """Reusable audit checklist template."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(
-        "core.Tenant",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="%(app_label)s_%(class)s_set",
-    )
-    owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="audit_checklists",
-    )
-    name = models.CharField(max_length=300)
-    iso_clause = models.CharField(max_length=20, blank=True)
-    check_items = models.JSONField(default=list, help_text='[{"question": "...", "guidance": "..."}]')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "iso_audit_checklists"
-        ordering = ["name"]
-
-    def __str__(self):
-        return self.name
-
-    def to_dict(self):
-        return {
-            "id": str(self.id),
-            "name": self.name,
-            "iso_clause": self.iso_clause,
-            "check_items": self.check_items,
-            "created_at": self.created_at.isoformat(),
-        }
+    # AuditChecklist model removed in CR-0.6a — superseded by Checklist (0 rows in prod)
 
 
 # =============================================================================

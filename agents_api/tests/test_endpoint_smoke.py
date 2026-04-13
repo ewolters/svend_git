@@ -637,14 +637,7 @@ class AgentEndpointsSmokeTest(TestCase):
         res = self.anon.get(f"/api/synara/{DUMMY_UUID}/hypotheses/")
         self.assertIn(res.status_code, [401, 403])
 
-    # Workflows
-    def test_workflows_list_unauth(self):
-        res = self.anon.get("/api/workflows/")
-        self.assertIn(res.status_code, [401, 403])
-
-    def test_workflows_list_auth(self):
-        res = self.auth.get("/api/workflows/")
-        self.assertNotEqual(res.status_code, 500)
+    # Workflow routes removed in CR-0.6a
 
     # Plant simulation
     def test_plantsim_list_unauth(self):

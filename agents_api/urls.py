@@ -1,16 +1,9 @@
-"""Agent API URL configuration."""
+"""Agent API URL configuration.
 
-from django.urls import path
-
-from . import views
+Agent dispatch routes removed in CR-0.6a — dispatchers were dead code.
+This file kept as placeholder for agents_api app_name namespace.
+"""
 
 app_name = "agents_api"
 
-urlpatterns = [
-    path("researcher/", views.researcher_agent, name="researcher"),
-    # path("coder/", views.coder_agent, name="coder"),  # Disabled
-    path("writer/", views.writer_agent, name="writer"),
-    path("editor/", views.editor_agent, name="editor"),
-    path("experimenter/", views.experimenter_agent, name="experimenter"),
-    path("eda/", views.eda_agent, name="eda"),
-]
+urlpatterns = []

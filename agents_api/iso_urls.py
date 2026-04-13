@@ -45,13 +45,7 @@ urlpatterns = [
         iso_views.audit_clause_coverage,
         name="iso_audit_clause_coverage",
     ),
-    # Audit Checklists
-    path("checklists/", iso_views.audit_checklist_list_create, name="iso_checklist_list"),
-    path(
-        "checklists/<uuid:checklist_id>/",
-        iso_views.audit_checklist_detail,
-        name="iso_checklist_detail",
-    ),
+    # AuditChecklist routes removed in CR-0.6a — superseded by Checklist
     # Training Matrix (clause 7.2)
     path("training/", iso_views.training_list_create, name="iso_training_list"),
     path("training/<uuid:req_id>/", iso_views.training_detail, name="iso_training_detail"),
