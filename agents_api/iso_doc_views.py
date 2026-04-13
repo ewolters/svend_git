@@ -322,7 +322,7 @@ def embed_whiteboard(request, doc_id, sec_id):
     except Board.DoesNotExist:
         return JsonResponse({"error": "Whiteboard not found"}, status=404)
 
-    from .whiteboard_views import _generate_svg
+    from whiteboard.views import _generate_svg
 
     svg_content, width, height = _generate_svg(board, theme="light")
     if not svg_content:

@@ -7,8 +7,8 @@ from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase, override_settings
 from django.utils import timezone
 
-from agents_api.models import Board, BoardGuestInvite, BoardParticipant, BoardVote
 from core.models import Hypothesis, Project
+from whiteboard.models import Board, BoardGuestInvite, BoardParticipant, BoardVote
 
 User = get_user_model()
 

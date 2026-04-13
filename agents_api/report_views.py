@@ -639,7 +639,7 @@ def embed_diagram(request, report_id):
     except Board.DoesNotExist:
         return JsonResponse({"error": "Whiteboard not found"}, status=404)
 
-    from .whiteboard_views import _render_connection_svg, _render_element_svg
+    from whiteboard.views import _render_connection_svg, _render_element_svg
 
     elements = board.elements or []
     connections = board.connections or []

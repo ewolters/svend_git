@@ -277,7 +277,7 @@ def allow_guest(view_func):
         if guest_token:
             from django.utils import timezone
 
-            from agents_api.models import BoardGuestInvite
+            from whiteboard.models import BoardGuestInvite
 
             try:
                 invite = BoardGuestInvite.objects.select_related("board").get(

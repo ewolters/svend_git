@@ -885,8 +885,9 @@ def _list_pullable(source_type, nb, user):
 
 def _pull_whiteboard(nb, source_id, role, trial, user):
     """Snapshot a whiteboard into a notebook page."""
+    from whiteboard.views import _generate_svg
+
     from .models import Board
-    from .whiteboard_views import _generate_svg
 
     try:
         board = Board.objects.get(id=source_id)
