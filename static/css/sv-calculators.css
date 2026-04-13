@@ -1,0 +1,1003 @@
+/* ============================================================================
+   OPERATIONS WORKBENCH — sv-workspace overrides + component styles
+   Extends base_workspace.html
+   ============================================================================ */
+
+/* Workspace layout tuning */
+.sv-workspace { --ws-sidebar-width: 240px; }
+.sv-ws-sidebar { padding: 0; background: var(--card-bg, var(--bg-secondary)); }
+.sv-ws-canvas { overflow-y: auto; }
+
+.ops-sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.ops-sidebar-header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+}
+
+.ops-sidebar-header p {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin: 0;
+}
+
+.ops-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.ops-nav-group {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.ops-nav-group-title {
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.ops-nav-item {
+    margin: 0;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    position: relative;
+}
+
+.ops-nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: transparent;
+    transition: background 0.15s;
+}
+
+.ops-nav-item:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Search */
+.ops-search {
+    padding: 12px 12px 0;
+}
+
+.ops-search input {
+    width: 100%;
+    padding: 8px 10px 8px 30px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.ops-search input:focus {
+    border-color: var(--accent);
+}
+
+.ops-search {
+    position: relative;
+}
+
+.ops-search svg {
+    position: absolute;
+    left: 20px;
+    top: 22px;
+    width: 14px;
+    height: 14px;
+    color: var(--text-dim);
+    pointer-events: none;
+}
+
+.ops-nav-group.hidden { display: none; }
+.ops-nav-item.hidden { display: none; }
+
+.ops-nav-item.active {
+    background: rgba(74, 159, 110, 0.1);
+    color: var(--accent);
+}
+
+.ops-nav-item.active::before {
+    background: var(--accent);
+}
+
+.ops-nav-item svg {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    opacity: 0.7;
+}
+
+.ops-nav-item.active svg {
+    opacity: 1;
+}
+
+.ops-nav-item.coming-soon { opacity: 0.45; }
+.ops-nav-item.coming-soon::after {
+    content: 'SOON';
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: var(--accent);
+    color: white;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: auto;
+}
+
+.ops-nav-item span {
+    font-size: 13px;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Main Content — .ops-main kept for inner content wrapper */
+.ops-main {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.ops-header {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-card);
+    position: relative;
+}
+
+.ops-header h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+}
+
+.ops-header p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.ops-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px;
+}
+
+/* Calculator Layout */
+.calc-layout {
+    display: none;
+    max-width: 1000px;
+}
+
+.calc-layout.active {
+    display: block;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(0.95); }
+}
+
+.calc-section {
+    margin-bottom: 32px;
+}
+
+.calc-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+}
+
+/* Input Grid */
+.calc-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.calc-input {
+    display: flex;
+    flex-direction: column;
+}
+
+.calc-input label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.calc-input input, .calc-input select {
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 500;
+}
+.calc-input input[type="range"] {
+    padding: 0; border: none; border-radius: 0;
+    background: transparent; box-shadow: none;
+}
+
+.calc-input input:focus, .calc-input select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(74, 159, 110, 0.1);
+}
+.calc-input input[type="range"]:focus { box-shadow: none; border-color: transparent; }
+
+/* Svend-style range sliders */
+input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    height: 6px; border-radius: 3px;
+    background: var(--border, #444);
+    outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #4a9f6e; border: 2px solid #3a8a5a;
+    cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #4a9f6e; border: 2px solid #3a8a5a;
+    cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; }
+input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--border, #444); }
+input[type="range"]:focus::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(74,159,110,0.25); }
+
+/* Slider row layout (label + track + value) */
+.slider-row { display: flex; align-items: center; gap: 8px; }
+.slider-row input[type="range"] { flex: 1; }
+.slider-val { font-size: 13px; font-weight: 600; min-width: 40px; text-align: right; color: var(--accent, #4a9f6e); }
+
+/* Power Analysis benchmark buttons & table */
+.pa-bench {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 4px; padding: 3px 10px; color: var(--text-secondary);
+    font-size: 11px; cursor: pointer; transition: all 0.15s;
+    font-family: 'JetBrains Mono', monospace;
+}
+.pa-bench:hover { border-color: var(--accent, #4a9f6e); color: var(--accent, #4a9f6e); }
+.pa-bench.active {
+    background: rgba(74,159,110,0.15); border-color: var(--accent, #4a9f6e);
+    color: var(--accent, #4a9f6e);
+}
+.pa-table th {
+    text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--border);
+    color: var(--text-dim); font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+.pa-table td {
+    padding: 6px 12px; border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+}
+.pa-table tr:last-child td { border-bottom: none; }
+.pa-table tr.pa-highlight { background: rgba(74,159,110,0.1); }
+
+select, .calc-input select {
+    color-scheme: dark;
+}
+
+select option {
+    background: #1a1f1a;
+    color: #e8efe8;
+}
+
+.calc-input .input-hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+}
+
+/* Results */
+.calc-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.calc-result-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+}
+
+.calc-result-card.primary {
+    background: linear-gradient(135deg, rgba(74, 159, 110, 0.15), rgba(74, 159, 110, 0.05));
+    border-color: var(--accent);
+}
+
+.calc-result-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.calc-result-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.calc-result-card.primary .calc-result-value {
+    color: var(--accent);
+}
+
+.calc-result-unit {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin-left: 4px;
+}
+
+/* Breakdown Table */
+.calc-breakdown {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.calc-breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+
+.calc-breakdown-row:last-child {
+    border-bottom: none;
+}
+
+.calc-breakdown-row span:first-child {
+    color: var(--text-secondary);
+}
+
+.calc-breakdown-row span:last-child {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* Charts */
+.calc-chart {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    padding-bottom: 32px;
+    margin-top: 24px;
+    overflow: hidden;
+}
+
+.calc-chart > div[id$="-chart"] {
+    width: 100% !important;
+}
+
+.calc-chart-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.calc-btn {
+    padding: 10px 24px;
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: opacity 0.15s, transform 0.1s;
+}
+.calc-btn:hover { opacity: 0.88; }
+.calc-btn:active { transform: scale(0.97); }
+
+/* DSW Pull */
+.calc-dsw-pull {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(74, 159, 110, 0.1);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    color: var(--accent);
+    font-size: 13px;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: all 0.15s;
+}
+
+.calc-dsw-pull:hover {
+    background: rgba(74, 159, 110, 0.2);
+}
+
+.calc-dsw-pull svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Pull Button — Standardized Cross-Calculator Integration */
+.calc-pull-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+    transition: all 0.15s;
+    margin-left: 6px;
+    opacity: 0.5;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.calc-pull-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    opacity: 1;
+}
+.calc-pull-btn.has-link {
+    border-color: var(--accent);
+    color: var(--accent);
+    opacity: 1;
+    animation: pulse-link 2s infinite;
+}
+.calc-pull-btn svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+}
+
+/* Standalone Pull Button (for complex data transfers between calculators) */
+.calc-pull-btn.standalone {
+    padding: 6px 12px;
+    font-size: 12px;
+    margin-left: 0;
+    margin-bottom: 12px;
+    background: var(--bg-secondary);
+    opacity: 0.7;
+}
+.calc-pull-btn.standalone:hover { opacity: 1; }
+
+@keyframes pulse-link {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(74, 159, 110, 0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(74, 159, 110, 0); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* Monte Carlo Toggle */
+.calc-monte-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.calc-monte-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.calc-monte-toggle.active {
+    background: rgba(74, 159, 110, 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.calc-monte-toggle svg {
+    width: 14px;
+    height: 14px;
+}
+
+.calc-monte-results {
+    display: none;
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.calc-monte-results.visible {
+    display: block;
+}
+
+.calc-monte-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.calc-monte-stat {
+    text-align: center;
+    padding: 10px;
+    background: var(--bg-card);
+    border-radius: 6px;
+}
+
+.calc-monte-stat-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.calc-monte-stat-value {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 4px;
+}
+
+/* Next Steps / Cross-link Cards */
+.calc-next-steps { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.calc-next-step {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; background: var(--bg-secondary);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text-secondary); font-size: 12px;
+    cursor: pointer; transition: all 0.15s; flex: 1; min-width: 200px;
+}
+.calc-next-step:hover { border-color: var(--accent); color: var(--accent); background: rgba(74,159,110,0.05); }
+.calc-next-step svg { width: 16px; height: 16px; min-width: 16px; opacity: 0.6; }
+.calc-next-step-title { font-weight: 600; font-size: 12px; }
+.calc-next-step-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+/* Guide Widget — Collapsible Calculator Help */
+#calc-guide { max-width: 1000px; margin-bottom: 24px; display: none; }
+#calc-guide.visible { display: block; }
+.calc-guide-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.calc-guide-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; background: var(--bg-secondary);
+    cursor: pointer; color: var(--text-secondary);
+    font-size: 13px; font-weight: 500;
+    transition: all 0.15s; user-select: none;
+}
+.calc-guide-header:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+.calc-guide-header svg { width: 16px; height: 16px; transition: transform 0.2s; flex-shrink: 0; }
+.calc-guide-card.expanded .calc-guide-header svg { transform: rotate(90deg); }
+.calc-guide-body {
+    display: none; padding: 16px 20px;
+    background: var(--bg-card);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.8; color: var(--text-secondary);
+}
+.calc-guide-card.expanded .calc-guide-body { display: block; }
+.calc-guide-section { margin-bottom: 14px; }
+.calc-guide-section:last-child { margin-bottom: 0; }
+.calc-guide-section-title {
+    font-size: 11px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
+}
+.calc-guide-section p { margin: 0; }
+.calc-guide-prompts { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.calc-guide-prompt {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: rgba(74, 159, 110, 0.08);
+    border: 1px solid rgba(74, 159, 110, 0.2); border-radius: 6px;
+    color: var(--accent); font-size: 12px;
+    cursor: pointer; transition: all 0.15s;
+}
+.calc-guide-prompt:hover { background: rgba(74, 159, 110, 0.15); border-color: var(--accent); }
+.calc-guide-prompt svg { width: 14px; height: 14px; flex-shrink: 0; }
+.calc-guide-flow { display: flex; gap: 24px; flex-wrap: wrap; }
+.calc-guide-flow-col { flex: 1; min-width: 180px; }
+.calc-guide-flow-col ul { margin: 4px 0 0 0; padding-left: 16px; }
+.calc-guide-flow-col li {
+    font-size: 12px; margin-bottom: 2px; cursor: pointer;
+    color: var(--text-secondary); transition: color 0.15s;
+}
+.calc-guide-flow-col li:hover { color: var(--accent); }
+
+/* Derivation / Show Work Section */
+.calc-derivation {
+    margin-top: 20px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.calc-derivation-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 13px;
+    transition: all 0.15s;
+}
+
+.calc-derivation-header:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.calc-derivation-header svg {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s;
+}
+
+.calc-derivation.expanded .calc-derivation-header svg {
+    transform: rotate(90deg);
+}
+
+.calc-derivation-body {
+    display: none;
+    padding: 16px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    background: var(--bg-card);
+}
+
+.calc-derivation.expanded .calc-derivation-body {
+    display: block;
+}
+
+.calc-derivation-body .formula {
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.calc-derivation-body .step {
+    margin-bottom: 12px;
+    padding-left: 16px;
+    border-left: 2px solid var(--border);
+}
+
+.calc-derivation-body .step-num {
+    color: var(--text-dim);
+    font-size: 11px;
+}
+
+/* Yamazumi Specific */
+.yamazumi-stations {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.yamazumi-station {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.yamazumi-station-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.yamazumi-station input {
+    width: 100px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 14px;
+    text-align: right;
+}
+
+.yamazumi-station-remove {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 4px;
+    font-size: 18px;
+}
+
+.yamazumi-station-remove:hover {
+    color: #e74c3c;
+}
+
+.yamazumi-add {
+    padding: 12px;
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    text-align: center;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+}
+
+.yamazumi-add:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* OEE Gauge */
+.oee-display {
+    text-align: center;
+    padding: 40px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 24px;
+}
+
+.oee-value {
+    font-size: 72px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.oee-label {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-top: 8px;
+}
+
+.oee-world-class { color: #27ae60; }
+.oee-good { color: #f39c12; }
+.oee-poor { color: #e74c3c; }
+
+.oee-factors {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.oee-factor {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+}
+
+.oee-factor-value {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.oee-factor-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+/* Bottleneck */
+.bottleneck-stations {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.bottleneck-station {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.bottleneck-station input[type="text"] {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.bottleneck-station input[type="number"] {
+    width: 100px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 14px;
+    text-align: right;
+}
+
+.bottleneck-constraint {
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.15), rgba(231, 76, 60, 0.05));
+    border: 1px solid #e74c3c;
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.bottleneck-constraint-title {
+    font-size: 11px;
+    color: #e74c3c;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.bottleneck-constraint-name {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Custom Stepper Widget */
+.stepper {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    overflow: hidden;
+    height: 44px;
+}
+
+.stepper-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    background: var(--bg-tertiary);
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 20px;
+    font-weight: 400;
+    user-select: none;
+    padding: 0;
+}
+
+.stepper-btn:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.stepper-btn:active {
+    transform: scale(0.95);
+}
+
+.stepper-btn:first-child {
+    border-right: 1px solid var(--border);
+}
+
+.stepper-btn:last-child {
+    border-left: 1px solid var(--border);
+}
+
+.stepper-value {
+    min-width: 60px;
+    padding: 0 12px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border: none;
+    outline: none;
+    -moz-appearance: textfield;
+}
+
+.stepper-value::-webkit-outer-spin-button,
+.stepper-value::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.stepper-value:focus {
+    background: var(--bg-card);
+}
+
+/* Smaller stepper for inline/table use */
+.stepper.stepper-sm {
+    height: 32px;
+}
+
+.stepper.stepper-sm .stepper-btn {
+    width: 28px;
+    font-size: 16px;
+}
+
+.stepper.stepper-sm .stepper-value {
+    min-width: 48px;
+    padding: 0 8px;
+    font-size: 14px;
+}
+
+/* Hide default spinners globally for consistency */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Print */
+@media print {
+    .sv-ws-sidebar { display: none; }
+    .ops-main { margin: 0; }
+    .calc-layout { display: block !important; page-break-inside: avoid; }
+}
