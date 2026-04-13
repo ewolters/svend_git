@@ -47,20 +47,8 @@ INSTALLED_APPS = [
     "loop",  # LOOP-001: Closed-loop operating model (Signal, Commitment, ModeTransition, QMSPolicy)
     "graph",  # GRAPH-001: Unified Knowledge Graph and Process Model
     # ---- Domain apps (extracted from agents_api) ----
-    "analysis",
-    "triage",
-    "doe",
-    "rca",
-    "fmea",
     "whiteboard",
-    "simulators",
-    "a3",
-    "hoshin",
     "vsm",
-    "guide",
-    "learn",
-    "notebooks",
-    "qms",
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"
