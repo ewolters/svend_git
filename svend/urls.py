@@ -425,8 +425,7 @@ urlpatterns = varta_urls + [
     path("api/a3/<uuid:report_id>/diagram/<str:diagram_id>/", _a3_remove_diagram, name="a3-remove-diagram"),
     path("api/fmea/", include("agents_api.fmea_urls")),  # FMEA with Bayesian evidence linking
     path("api/hoshin/", include("agents_api.hoshin_urls")),  # Hoshin Kanri CI (Enterprise)
-    path("api/qms/", include("agents_api.qms_urls")),  # QMS cross-module dashboard (Phase 3)
-    path("api/iso/", include("agents_api.iso_urls")),  # ISO 9001 QMS (Team/Enterprise)
+    path("api/iso/", include("qms_core.urls")),  # Site picker for A3/FMEA (rest of QMS deleted)
     path("api/notifications/", include("notifications.urls")),  # NTF-001
     path("api/loop/", include("loop.urls")),  # LOOP-001: Signals, Commitments, Transitions
     # Loop operating surface — OLR-001 QMS
@@ -447,7 +446,7 @@ urlpatterns = varta_urls + [
     path("api/safety/", include("safety.urls")),  # HIRARC Safety (Enterprise)
     path("api/privacy/", include("accounts.privacy_urls")),  # PRIV-001 (SOC 2 P1.8)
     path("api/capa/", include("capa.urls")),  # CAPA standalone (ISO 10.2, FEAT-004)
-    path("api/iso-docs/", include("agents_api.iso_doc_urls")),  # ISO Document Creator
+    # ISO Document Creator deleted — QMS offline
     path("api/actions/", include("agents_api.action_urls")),  # Shared action item update/delete
     path("api/investigations/", include("investigation.urls")),  # Investigation lifecycle (CANON-002) — deprecated
     path("api/notebooks/", include("notebook.urls")),  # Notebook lifecycle (NB-001)

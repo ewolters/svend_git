@@ -1216,12 +1216,7 @@
                     <div class="nav-dropdown" id="nav-qms-dropdown" style="display:none;">
                         <span class="nav-dropdown-trigger">Quality</span>
                         <div class="nav-dropdown-menu">
-                            <a href="/app/iso/#/dashboard">QMS Dashboard</a>
-                            <a href="/app/iso/#/ncrs">NCR Tracker</a>
                             <a href="/app/report/">CAPA / 8D Reports</a>
-                            <a href="/app/iso/#/audits">Internal Audits</a>
-                            <a href="/app/iso/#/training">Training Matrix</a>
-                            <a href="/app/iso/#/reviews">Management Reviews</a>
                         </div>
                     </div>
                     <div class="nav-dropdown" id="nav-hoshin-dropdown" style="display:none;">
@@ -1231,7 +1226,7 @@
                             <a href="/app/hoshin/#/projects">Projects</a>
                             <a href="/app/hoshin/#/resources">Resources</a>
                             <a href="/app/hoshin/#/x-matrix">X-Matrix</a>
-                            <a href="/app/iso/#/afes">AFEs</a>
+                            <!-- AFEs removed — QMS offline -->
                         </div>
                     </div>
                     <div class="nav-dropdown" id="nav-safety-dropdown" style="display:none;">
@@ -1320,15 +1315,7 @@
 
         // ── Notification System (NTF-001 §8) ─────────────────────────────
         const ENTITY_URLS = {
-            ncr: (id) => '/app/qms/#ncr-' + id,
-            capa: (id) => '/app/qms/#capa-' + id,
-            document: (id) => '/app/qms/#doc-' + id,
-            review: (id) => '/app/qms/#review-' + id,
-            audit: (id) => '/app/qms/#audit-' + id,
-            training: (id) => '/app/qms/#training-' + id,
             fmea: (id) => '/app/fmea/' + id + '/',
-            action: (id) => '/app/qms/#action-' + id,
-            signature: (id) => '/app/qms/#sig-' + id,
         };
         let notifSSE = null;
         let notifPanelOpen = false;
