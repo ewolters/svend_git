@@ -269,9 +269,7 @@ urlpatterns = varta_urls + [
     ),
     path("app/demo/kjerne/", _app_view("demo/kjerne.html"), name="demo_kjerne"),
     path("app/demo/analysis/", _app_view("demo/analysis_workbench.html"), name="demo_analysis"),
-    path("app/iso/", _app_view("qms.html"), name="iso"),  # redirect legacy
-    path("app/iso-docs/", _app_view("iso_doc.html"), name="iso_doc"),
-    path("app/iso-docs/<uuid:doc_id>/", _app_view("iso_doc.html"), name="iso_doc_edit"),
+    # QMS surface removed — iso/, iso-docs/ routes deleted
     # Whitepapers (public, no auth — SEO + PDF download)
     path("whitepapers/", whitepaper_list, name="whitepapers"),
     path("whitepapers/<slug:slug>/", whitepaper_detail, name="whitepaper_detail"),
