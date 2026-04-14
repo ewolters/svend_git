@@ -1,8 +1,7 @@
 """DSW (Decision Science Workbench) API views.
 
-Thin routing layer — all analysis engines live in dsw/ submodules.
-Endpoints here delegate to dsw/dispatch.py, dsw/endpoints_data.py,
-and dsw/endpoints_ml.py.
+Thin routing layer — all analysis engines live in analysis/ submodules.
+Endpoints here delegate to analysis/dispatch.py and analysis/endpoints_data.py.
 """
 
 import json
@@ -45,8 +44,8 @@ def _read_csv_safe(file_or_path):
 @require_http_methods(["POST"])
 @gated
 def run_analysis(request):
-    """Route analysis requests through dsw/dispatch — Phase 1 of monolith split."""
-    from .dsw.dispatch import run_analysis as _dispatch_analysis
+    """Route analysis requests through analysis/dispatch."""
+    from .analysis.dispatch import run_analysis as _dispatch_analysis
 
     return _dispatch_analysis(request)
 
@@ -231,8 +230,8 @@ def hypothesis_timeline(request):
 @require_http_methods(["POST"])
 @require_auth
 def upload_data(request):
-    """Route to dsw/endpoints_data — Phase 5 of monolith split."""
-    from .dsw.endpoints_data import upload_data as _ep_upload_data
+    """Route to analysis/endpoints_data."""
+    from .analysis.endpoints_data import upload_data as _ep_upload_data
 
     return _ep_upload_data(request)
 
@@ -240,8 +239,8 @@ def upload_data(request):
 @require_http_methods(["POST"])
 @gated
 def execute_code(request):
-    """Route to dsw/endpoints_data — Phase 5 of monolith split."""
-    from .dsw.endpoints_data import execute_code as _ep_execute_code
+    """Route to analysis/endpoints_data."""
+    from .analysis.endpoints_data import execute_code as _ep_execute_code
 
     return _ep_execute_code(request)
 
@@ -249,8 +248,8 @@ def execute_code(request):
 @require_http_methods(["POST"])
 @gated
 def generate_code(request):
-    """Route to dsw/endpoints_data — Phase 5 of monolith split."""
-    from .dsw.endpoints_data import generate_code as _ep_generate_code
+    """Route to analysis/endpoints_data."""
+    from .analysis.endpoints_data import generate_code as _ep_generate_code
 
     return _ep_generate_code(request)
 
@@ -258,8 +257,8 @@ def generate_code(request):
 @require_http_methods(["POST"])
 @require_enterprise
 def analyst_assistant(request):
-    """Route to dsw/endpoints_data — Phase 5 of monolith split."""
-    from .dsw.endpoints_data import analyst_assistant as _ep_analyst_assistant
+    """Route to analysis/endpoints_data."""
+    from .analysis.endpoints_data import analyst_assistant as _ep_analyst_assistant
 
     return _ep_analyst_assistant(request)
 
@@ -272,8 +271,8 @@ def analyst_assistant(request):
 @require_http_methods(["POST"])
 @gated
 def transform_data(request):
-    """Route to dsw/endpoints_data — Phase 5 of monolith split."""
-    from .dsw.endpoints_data import transform_data as _ep_transform_data
+    """Route to analysis/endpoints_data."""
+    from .analysis.endpoints_data import transform_data as _ep_transform_data
 
     return _ep_transform_data(request)
 
@@ -281,8 +280,8 @@ def transform_data(request):
 @require_http_methods(["POST"])
 @require_auth
 def download_data(request):
-    """Route to dsw/endpoints_data — Phase 5 of monolith split."""
-    from .dsw.endpoints_data import download_data as _ep_download_data
+    """Route to analysis/endpoints_data."""
+    from .analysis.endpoints_data import download_data as _ep_download_data
 
     return _ep_download_data(request)
 
@@ -290,8 +289,8 @@ def download_data(request):
 @require_http_methods(["POST"])
 @require_auth
 def retrieve_data(request):
-    """Route to dsw/endpoints_data — retrieve saved dataset by data_id."""
-    from .dsw.endpoints_data import retrieve_data as _ep_retrieve_data
+    """Route to analysis/endpoints_data — retrieve saved dataset by data_id."""
+    from .analysis.endpoints_data import retrieve_data as _ep_retrieve_data
 
     return _ep_retrieve_data(request)
 
@@ -299,8 +298,8 @@ def retrieve_data(request):
 @require_http_methods(["POST"])
 @gated
 def triage_data(request):
-    """Route to dsw/endpoints_data — Phase 5 of monolith split."""
-    from .dsw.endpoints_data import triage_data as _ep_triage_data
+    """Route to analysis/endpoints_data."""
+    from .analysis.endpoints_data import triage_data as _ep_triage_data
 
     return _ep_triage_data(request)
 
@@ -308,7 +307,7 @@ def triage_data(request):
 @require_http_methods(["POST"])
 @gated
 def triage_scan(request):
-    """Route to dsw/endpoints_data — Phase 5 of monolith split."""
-    from .dsw.endpoints_data import triage_scan as _ep_triage_scan
+    """Route to analysis/endpoints_data."""
+    from .analysis.endpoints_data import triage_scan as _ep_triage_scan
 
     return _ep_triage_scan(request)

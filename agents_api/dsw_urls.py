@@ -4,7 +4,7 @@ from django.urls import path
 
 from . import autopilot_views as views_auto
 from . import dsw_views as views  # Phase 1: run_analysis wrapper only
-from .dsw.endpoints_ml import (
+from .analysis.endpoints_ml import (
     delete_model,
     download_model,
     dsw_download,
@@ -20,7 +20,7 @@ from .dsw.endpoints_ml import (
 )
 
 urlpatterns = [
-    # Phase 4: ML endpoints now served from dsw/endpoints_ml.py
+    # ML endpoints served from analysis/endpoints_ml.py
     path("from-intent/", dsw_from_intent, name="dsw_from_intent"),
     path("from-data/", dsw_from_data, name="dsw_from_data"),
     path("download/<str:result_id>/<str:file_type>/", dsw_download, name="dsw_download"),

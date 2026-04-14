@@ -436,7 +436,7 @@ def import_to_report(request, report_id):
 
             chart_embeds = []
             if "charts" in include and result_data.get("plots"):
-                from .dsw.chart_render import render_dsw_charts
+                from .analysis.chart_render import render_dsw_charts
 
                 chart_embeds = render_dsw_charts(result_data["plots"])
 

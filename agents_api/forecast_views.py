@@ -9,7 +9,7 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
 
-from .dsw.common import sanitize_for_json
+from .analysis.common import sanitize_for_json
 
 logger = logging.getLogger(__name__)
 

@@ -197,7 +197,7 @@ def train_with_recipe(df, target, config=None):
     Returns:
         (model, metrics, importances, task, X_test, y_test, y_pred, recipe)
     """
-    from .dsw.common import _auto_train, _clean_for_ml
+    from .analysis.common import _auto_train, _clean_for_ml
 
     config = config or {}
 

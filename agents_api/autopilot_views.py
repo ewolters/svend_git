@@ -22,7 +22,7 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
 
-from .dsw.common import (
+from .analysis.common import (
     _bayesian_model_beliefs,
     _build_ml_diagnostics,
     _clean_for_ml,

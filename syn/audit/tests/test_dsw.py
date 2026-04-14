@@ -1071,7 +1071,7 @@ class ChartDefaultsTest(SimpleTestCase):
 
     def test_height_standardized(self):
         """apply_chart_defaults sets standard height."""
-        from agents_api.dsw.chart_defaults import (
+        from agents_api.analysis.chart_defaults import (
             CHART_HEIGHT,
             apply_chart_defaults,
         )
@@ -1082,7 +1082,7 @@ class ChartDefaultsTest(SimpleTestCase):
 
     def test_legend_placement(self):
         """Legend defaults to bottom-left horizontal."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"data": [], "layout": {}}
         apply_chart_defaults(plot)
@@ -1090,8 +1090,8 @@ class ChartDefaultsTest(SimpleTestCase):
 
     def test_colors_from_palette(self):
         """Trace colors come from SVEND_COLORS palette."""
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
         from agents_api.analysis.common import SVEND_COLORS
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
 
         plot = {"data": [{"type": "bar", "x": [1], "y": [1]}], "layout": {}}
         apply_chart_defaults(plot)
@@ -1099,7 +1099,7 @@ class ChartDefaultsTest(SimpleTestCase):
 
     def test_transparent_background(self):
         """Charts have transparent background for theme compatibility."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"data": [], "layout": {}}
         apply_chart_defaults(plot)
@@ -1108,7 +1108,7 @@ class ChartDefaultsTest(SimpleTestCase):
 
     def test_margins_applied(self):
         """Charts have standard margins."""
-        from agents_api.dsw.chart_defaults import (
+        from agents_api.analysis.chart_defaults import (
             CHART_MARGINS,
             apply_chart_defaults,
         )

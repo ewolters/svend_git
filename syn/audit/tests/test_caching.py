@@ -100,7 +100,7 @@ class MemoryCacheTest(SimpleTestCase):
 
     def test_dsw_cache_has_bounds(self):
         """DSW model cache (MODEL_CACHE_MAX_SIZE) is bounded."""
-        self._assert_cache_bounded("agents_api.dsw.common", "MODEL_CACHE_MAX_SIZE", 1, 500)
+        self._assert_cache_bounded("agents_api.analysis.common", "MODEL_CACHE_MAX_SIZE", 1, 500)
 
     def test_spc_cache_has_bounds(self):
         """SPC parsed data cache (_CACHE_MAX_SIZE) is bounded."""

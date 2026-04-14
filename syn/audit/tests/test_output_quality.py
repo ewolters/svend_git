@@ -36,7 +36,7 @@ class ThreePillarsTest(SimpleTestCase):
 
     def test_standardize_called_in_dispatch(self):
         """standardize_output is imported and called in dispatch.py."""
-        import agents_api.dsw.dispatch as dispatch_mod
+        import agents_api.analysis.dispatch as dispatch_mod
 
         source = inspect.getsource(dispatch_mod)
         self.assertIn("standardize_output", source)
@@ -176,7 +176,7 @@ class SchemaTest(SimpleTestCase):
     def test_required_fields_filled(self):
         """Empty result dict gets all required fields after standardize_output."""
         result = {}
-        with patch("agents_api.dsw.standardize.get_entry", return_value=None):
+        with patch("agents_api.analysis.standardize.get_entry", return_value=None):
             out = standardize_output(result, "stats", "ttest")
         for field in REQUIRED_FIELDS:
             self.assertIn(field, out, f"Missing required field: {field}")
@@ -282,7 +282,7 @@ class CoherenceTest(SimpleTestCase):
             "p_value": 0.001,
             "statistics": {"cohens_d": 0.9},
         }
-        with patch("agents_api.dsw.standardize.get_entry", return_value=None):
+        with patch("agents_api.analysis.standardize.get_entry", return_value=None):
             out = standardize_output(result, "stats", "ttest")
         # With p=0.001, evidence_grade should be generated
         if out.get("evidence_grade"):
@@ -291,7 +291,7 @@ class CoherenceTest(SimpleTestCase):
     def test_guide_observation_populated(self):
         """guide_observation auto-populated from summary when missing."""
         result = {"summary": "Mean difference is 2.5 (p=0.03)"}
-        with patch("agents_api.dsw.standardize.get_entry", return_value=None):
+        with patch("agents_api.analysis.standardize.get_entry", return_value=None):
             out = standardize_output(result, "stats", "ttest")
         self.assertTrue(out["guide_observation"])
         self.assertIn("2.5", out["guide_observation"])
@@ -305,7 +305,7 @@ class InputValidationTest(SimpleTestCase):
 
     def test_row_limit_enforced(self):
         """dispatch.py enforces a row limit on inline data."""
-        import agents_api.dsw.dispatch as dispatch_mod
+        import agents_api.analysis.dispatch as dispatch_mod
 
         source = inspect.getsource(dispatch_mod)
         self.assertIn("10000", source)

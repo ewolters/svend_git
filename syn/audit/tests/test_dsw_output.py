@@ -272,7 +272,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_height_standard(self):
         """Single-panel chart gets 300px height."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)
@@ -280,7 +280,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_height_multi_panel(self):
         """Multi-panel chart (with yaxis2) gets 350px height."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {"yaxis2": {"title": "secondary"}}, "data": []}
         apply_chart_defaults(plot)
@@ -288,7 +288,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_margins(self):
         """Chart margins match standard {l:60, r:20, t:40, b:60}."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)
@@ -297,7 +297,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_transparent_backgrounds(self):
         """paper_bgcolor and plot_bgcolor are transparent."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)
@@ -306,7 +306,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_legend_defaults(self):
         """Legend is horizontal, bottom-left, y=-0.25."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)
@@ -317,8 +317,8 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_trace_colors_from_palette(self):
         """Traces get SVEND_COLORS when no explicit color set."""
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
         from agents_api.analysis.common import SVEND_COLORS
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
 
         plot = {
             "layout": {},
@@ -333,7 +333,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_trace_builders_exist(self):
         """All documented trace builders are importable."""
-        from agents_api.dsw import chart_defaults as cd
+        from agents_api.analysis import chart_defaults as cd
 
         for name in (
             "histogram_trace",
@@ -350,7 +350,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_grid_colors(self):
         """Axes have standard gridcolor and zerolinecolor."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)
@@ -359,7 +359,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_font(self):
         """Font is Inter, system-ui, sans-serif at size 12."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)

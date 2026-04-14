@@ -1,6 +1,6 @@
 """Analysis engine — clean backend for the analysis workbench.
 
-Replicated from agents_api.dsw with proper package structure.
+Canonical analysis package (formerly agents_api.dsw) with proper package structure.
 Each sub-package owns its domain; dispatch.py routes requests.
 """
 

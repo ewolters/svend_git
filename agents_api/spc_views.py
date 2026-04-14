@@ -20,8 +20,8 @@ from django.views.decorators.http import require_http_methods
 from accounts.permissions import gated, require_auth
 
 from . import spc
-from .dsw.common import sanitize_for_json
-from .dsw.standardize import standardize_output
+from .analysis.common import sanitize_for_json
+from .analysis.standardize import standardize_output
 
 logger = logging.getLogger(__name__)
 

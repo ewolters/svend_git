@@ -30,7 +30,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import stats as sp_stats
 
-from .dsw.common import _narrative
+from .analysis.common import _narrative
 
 logger = logging.getLogger(__name__)
 

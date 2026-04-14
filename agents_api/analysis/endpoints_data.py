@@ -503,17 +503,6 @@ Available libraries: numpy (np), pandas (pd), scipy, matplotlib (plt), random, m
             logger.exception(f"Anthropic code generation error: {e}")
             return JsonResponse({"error": "Code generation failed. Please try again."}, status=500)
 
-    # Default: Use Qwen Coder
-    code_prompt = f"""{context_prefix}<request>{prompt}</request>
-
-Generate Python code for the request above.
-
-Rules:
-- Only output Python code, no explanations
-- Use numpy, pandas, scipy as needed
-- Include print() statements for results
-- Keep code concise but complete"""
-
     # Local LLM code generation (Qwen/DeepSeek) removed — use Claude via LLMService
     code = """import numpy as np
 import pandas as pd
@@ -998,16 +987,6 @@ def generate_writer_response(message, df, columns, session_history):
     n_rows, n_cols = df.shape
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
-
-    # Build data context for LLM
-    stats_summary = df.describe().to_string() if numeric_cols else "No numeric columns"
-
-    # Session history context
-    history_text = ""
-    if session_history:
-        history_text = "\n".join(
-            [f"- {item.get('name', 'Analysis')}: {item.get('summary', '')[:150]}" for item in session_history[-10:]]
-        )
 
     # Static document
     document = "# Data Analysis Report\n\n"

@@ -385,7 +385,7 @@ class ColorPaletteTest(TestCase):
 
     def test_normalization(self):
         """VIS-001 §4.2: Off-palette colors are normalized to palette equivalents."""
-        from agents_api.dsw.chart_defaults import _normalize_color
+        from agents_api.analysis.chart_defaults import _normalize_color
 
         # Known off-palette → palette mappings
         self.assertEqual(_normalize_color("#d63031"), COLOR_BAD)
@@ -492,7 +492,7 @@ class PostProcessingTest(TestCase):
 
     def test_apply_chart_defaults_sets_bgcolor(self):
         """Verify apply_chart_defaults enforces transparent background."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {
             "data": [{"type": "scatter", "x": [1, 2], "y": [3, 4]}],
@@ -504,7 +504,7 @@ class PostProcessingTest(TestCase):
 
     def test_apply_chart_defaults_sets_legend(self):
         """Verify apply_chart_defaults sets legend when missing."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"data": [{"type": "scatter", "x": [1], "y": [1]}], "layout": {}}
         apply_chart_defaults(plot)
@@ -514,7 +514,7 @@ class PostProcessingTest(TestCase):
 
     def test_apply_chart_defaults_fixes_inside_legend(self):
         """Verify apply_chart_defaults replaces inside-chart legends."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {
             "data": [{"type": "scatter", "x": [1], "y": [1]}],
@@ -527,7 +527,7 @@ class PostProcessingTest(TestCase):
 
     def test_apply_chart_defaults_normalizes_colors(self):
         """Verify apply_chart_defaults normalizes off-palette trace colors."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {
             "data": [
