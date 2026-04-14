@@ -88,8 +88,8 @@ def _get_tool_router_urls():
 
 def _a3_remove_diagram(request, report_id, diagram_id):
     """Thin proxy for A3 remove_diagram — parameterized action can't use ToolRouter."""
+    from a3.views import remove_diagram
     from accounts.permissions import gated_paid
-    from agents_api.a3_views import remove_diagram
 
     return gated_paid(remove_diagram)(request, report_id, diagram_id)
 
@@ -259,12 +259,12 @@ urlpatterns = varta_urls + [
     path("app/demo/rack/unit/<str:unit_name>/", _forgerack_unit_view, name="forgerack_unit"),
     path(
         "api/rack/compute/",
-        __import__("agents_api.rack_views", fromlist=["rack_compute"]).rack_compute,
+        __import__("rack.views", fromlist=["rack_compute"]).rack_compute,
         name="rack_compute",
     ),
     path(
         "api/rack/export-runsheet/",
-        __import__("agents_api.rack_views", fromlist=["rack_export_runsheet"]).rack_export_runsheet,
+        __import__("rack.views", fromlist=["rack_export_runsheet"]).rack_export_runsheet,
         name="rack_export_runsheet",
     ),
     path("app/demo/kjerne/", _app_view("demo/kjerne.html"), name="demo_kjerne"),
@@ -405,24 +405,24 @@ urlpatterns = varta_urls + [
     path("api/files/", include("files.urls")),
     path("api/forge/", include("forge.urls")),
     # agents_api.urls (agent dispatchers) and workflow_urls removed — CR-0.6a
-    path("api/dsw/", include("agents_api.dsw_urls")),
-    path("api/analysis/", include("agents_api.analysis_urls")),
+    path("api/dsw/", include("dsw.urls")),
+    path("api/analysis/", include("dsw.analysis_urls")),
     path("api/triage/", include("triage.urls")),
-    path("api/forecast/", include("agents_api.forecast_urls")),
-    path("api/experimenter/", include("agents_api.experimenter_urls")),
+    path("api/forecast/", include("dsw.forecast_urls")),
+    path("api/experimenter/", include("dsw.experimenter_urls")),
     # /api/spc/ removed — MSA endpoints moved to /api/dsw/measurement-systems/
     path("api/synara/", include("agents_api.synara_urls")),
     path("api/whiteboard/", include("whiteboard.urls")),
     path("api/guide/", include("guide.urls")),  # AI guide (rate-limited)
-    path("api/reports/", include("agents_api.report_urls")),  # CAPA, 8D reports
+    path("api/reports/", include("reports.urls")),  # CAPA, 8D reports
     path("api/plantsim/", include("plantsim.urls")),  # Plant Simulator (DES)
-    path("api/learn/", include("agents_api.learn_urls")),  # Learning module & certification
+    path("api/learn/", include("learn.urls")),  # Learning module & certification
     path("api/vsm/", include("vsm.urls")),
     path("api/", include(_get_tool_router_urls())),  # ToolRouter: Ishikawa, C&E, A3, RCA (ARCH-001 §10.1)
     # A3 remove_diagram — parameterized action, not expressible in ToolRouter
     path("api/a3/<uuid:report_id>/diagram/<str:diagram_id>/", _a3_remove_diagram, name="a3-remove-diagram"),
-    path("api/fmea/", include("agents_api.fmea_urls")),  # FMEA with Bayesian evidence linking
-    path("api/hoshin/", include("agents_api.hoshin_urls")),  # Hoshin Kanri CI (Enterprise)
+    path("api/fmea/", include("fmea.urls")),  # FMEA with Bayesian evidence linking
+    path("api/hoshin/", include("hoshin.urls")),  # Hoshin Kanri CI (Enterprise)
     path("api/iso/", include("qms_core.urls")),  # Site picker for A3/FMEA (rest of QMS deleted)
     path("api/notifications/", include("notifications.urls")),  # NTF-001
     path("api/loop/", include("loop.urls")),  # LOOP-001: Signals, Commitments, Transitions

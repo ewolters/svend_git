@@ -60,6 +60,14 @@ INSTALLED_APPS = [
     "action_token",
     "notebook",
     "investigation",
+    "learn",
+    "rack",
+    "fmea",
+    "rca",
+    "a3",
+    "reports",
+    "dsw",
+    "hoshin",
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"
