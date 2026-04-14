@@ -409,15 +409,15 @@ urlpatterns = varta_urls + [
     # agents_api.urls (agent dispatchers) and workflow_urls removed — CR-0.6a
     path("api/dsw/", include("agents_api.dsw_urls")),
     path("api/analysis/", include("agents_api.analysis_urls")),
-    path("api/triage/", include("agents_api.triage_urls")),
+    path("api/triage/", include("triage.urls")),
     path("api/forecast/", include("agents_api.forecast_urls")),
     path("api/experimenter/", include("agents_api.experimenter_urls")),
     path("api/spc/", include("agents_api.spc_urls")),
     path("api/synara/", include("agents_api.synara_urls")),
     path("api/whiteboard/", include("whiteboard.urls")),
-    path("api/guide/", include("agents_api.guide_urls")),  # AI guide (rate-limited)
+    path("api/guide/", include("guide.urls")),  # AI guide (rate-limited)
     path("api/reports/", include("agents_api.report_urls")),  # CAPA, 8D reports
-    path("api/plantsim/", include("agents_api.plantsim_urls")),  # Plant Simulator (DES)
+    path("api/plantsim/", include("plantsim.urls")),  # Plant Simulator (DES)
     path("api/learn/", include("agents_api.learn_urls")),  # Learning module & certification
     path("api/vsm/", include("vsm.urls")),
     path("api/", include(_get_tool_router_urls())),  # ToolRouter: Ishikawa, C&E, A3, RCA (ARCH-001 §10.1)
@@ -446,18 +446,16 @@ urlpatterns = varta_urls + [
     path("api/graph/", include("graph.urls")),  # GRAPH-001 §11: Graph API
     path("api/safety/", include("safety.urls")),  # HIRARC Safety (Enterprise)
     path("api/privacy/", include("accounts.privacy_urls")),  # PRIV-001 (SOC 2 P1.8)
-    path("api/capa/", include("agents_api.capa_urls")),  # CAPA standalone (ISO 10.2, FEAT-004)
+    path("api/capa/", include("capa.urls")),  # CAPA standalone (ISO 10.2, FEAT-004)
     path("api/iso-docs/", include("agents_api.iso_doc_urls")),  # ISO Document Creator
     path("api/actions/", include("agents_api.action_urls")),  # Shared action item update/delete
-    path(
-        "api/investigations/", include("agents_api.investigation_urls")
-    ),  # Investigation lifecycle (CANON-002) — deprecated
-    path("api/notebooks/", include("agents_api.notebook_urls")),  # Notebook lifecycle (NB-001)
-    path("api/harada/", include("agents_api.harada_urls")),  # Harada Method (questionnaire, goals, routines, diary)
+    path("api/investigations/", include("investigation.urls")),  # Investigation lifecycle (CANON-002) — deprecated
+    path("api/notebooks/", include("notebook.urls")),  # Notebook lifecycle (NB-001)
+    path("api/harada/", include("harada.urls")),  # Harada Method (questionnaire, goals, routines, diary)
     path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),
     path("chat/", include("chat.urls")),
-    path("action/<str:token>/", include("agents_api.token_urls")),  # ActionToken (QMS-002, no auth)
+    path("action/<str:token>/", include("action_token.urls")),  # ActionToken (QMS-002, no auth)
     path("ntf/<str:token>/", include("notifications.token_urls")),  # NotificationToken (NTF-001 §5.2, no auth)
     path("", include("accounts.urls")),  # Billing endpoints
     # Password reset

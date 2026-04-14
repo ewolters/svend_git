@@ -408,7 +408,7 @@ def list_create_notebooks(request):
     if not project_id:
         return JsonResponse({"error": "project_id is required"}, status=400)
 
-    from .permissions import resolve_project
+    from agents_api.permissions import resolve_project
 
     project, err = resolve_project(request.user, project_id)
     if err:
@@ -761,10 +761,9 @@ def pull_tool(request, notebook_id):
 
 def _list_pullable(source_type, nb, user):
     """List tool outputs available to pull into a notebook."""
+    from agents_api.models import FMEA, Board, CEMatrix, DSWResult, IshikawaDiagram, RCASession
+    from agents_api.permissions import qms_queryset
     from core.models import ExperimentDesign
-
-    from .models import FMEA, Board, CEMatrix, DSWResult, IshikawaDiagram, RCASession
-    from .permissions import qms_queryset
 
     if source_type == "whiteboard":
         boards = Board.objects.filter(Q(project=nb.project) | Q(owner=user, project__isnull=True)).order_by(
@@ -885,9 +884,8 @@ def _list_pullable(source_type, nb, user):
 
 def _pull_whiteboard(nb, source_id, role, trial, user):
     """Snapshot a whiteboard into a notebook page."""
+    from agents_api.models import Board
     from whiteboard.views import _generate_svg
-
-    from .models import Board
 
     try:
         board = Board.objects.get(id=source_id)
@@ -949,8 +947,8 @@ def _pull_whiteboard(nb, source_id, role, trial, user):
 
 def _pull_fmea(nb, source_id, role, trial, user):
     """Snapshot an FMEA into a notebook page."""
-    from .models import FMEA
-    from .permissions import qms_queryset
+    from agents_api.models import FMEA
+    from agents_api.permissions import qms_queryset
 
     try:
         fmea = qms_queryset(FMEA, user)[0].get(id=source_id)
@@ -991,8 +989,8 @@ def _pull_fmea(nb, source_id, role, trial, user):
 
 def _pull_rca(nb, source_id, role, trial, user):
     """Snapshot an RCA session into a notebook page."""
-    from .models import RCASession
-    from .permissions import qms_queryset
+    from agents_api.models import RCASession
+    from agents_api.permissions import qms_queryset
 
     try:
         rca = qms_queryset(RCASession, user)[0].get(id=source_id)
@@ -1032,7 +1030,7 @@ def _pull_rca(nb, source_id, role, trial, user):
 
 def _pull_dsw(nb, source_id, role, trial, user):
     """Snapshot a DSW analysis result into a notebook page."""
-    from .models import DSWResult
+    from agents_api.models import DSWResult
 
     try:
         result = DSWResult.objects.get(id=source_id, user=user)
@@ -1085,8 +1083,8 @@ def _pull_dsw(nb, source_id, role, trial, user):
 
 def _pull_ishikawa(nb, source_id, role, trial, user):
     """Snapshot an Ishikawa (fishbone) diagram into a notebook page."""
-    from .models import IshikawaDiagram
-    from .permissions import qms_queryset
+    from agents_api.models import IshikawaDiagram
+    from agents_api.permissions import qms_queryset
 
     try:
         diagram = qms_queryset(IshikawaDiagram, user)[0].get(id=source_id)
@@ -1123,8 +1121,8 @@ def _pull_ishikawa(nb, source_id, role, trial, user):
 
 def _pull_ce_matrix(nb, source_id, role, trial, user):
     """Snapshot a C&E matrix into a notebook page."""
-    from .models import CEMatrix
-    from .permissions import qms_queryset
+    from agents_api.models import CEMatrix
+    from agents_api.permissions import qms_queryset
 
     try:
         matrix = qms_queryset(CEMatrix, user)[0].get(id=source_id)

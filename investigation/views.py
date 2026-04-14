@@ -21,16 +21,15 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
+from agents_api.investigation_bridge import (
+    export_investigation,
+    get_investigation,
+    load_synara,
+)
 from core.models import (
     Investigation,
     InvestigationMembership,
     InvestigationToolLink,
-)
-
-from .investigation_bridge import (
-    export_investigation,
-    get_investigation,
-    load_synara,
 )
 
 logger = logging.getLogger("svend.investigation")
@@ -286,7 +285,7 @@ def export_investigation_view(request, investigation_id):
     if not target_project_id:
         return JsonResponse({"error": "target_project_id is required"}, status=400)
 
-    from .permissions import resolve_project
+    from agents_api.permissions import resolve_project
 
     _proj, err = resolve_project(request.user, target_project_id)
     if err:

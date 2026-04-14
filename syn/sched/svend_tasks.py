@@ -353,7 +353,7 @@ def register_svend_tasks():
 
     # ---- Harada daily reminders ----
 
-    from agents_api.harada_tasks import harada_daily_reminders
+    from harada.tasks import harada_daily_reminders
 
     TaskRegistry.register(
         task_name="api.harada_daily_reminders",

@@ -2,47 +2,49 @@
 
 from django.urls import path
 
-from . import a3_views, notebook_views
+from agents_api import a3_views
+
+from . import views
 
 urlpatterns = [
     # Notebooks
-    path("", notebook_views.list_create_notebooks, name="notebook_list_create"),
-    path("<uuid:notebook_id>/", notebook_views.notebook_detail, name="notebook_detail"),
+    path("", views.list_create_notebooks, name="notebook_list_create"),
+    path("<uuid:notebook_id>/", views.notebook_detail, name="notebook_detail"),
     path(
         "<uuid:notebook_id>/conclude/",
-        notebook_views.conclude_notebook,
+        views.conclude_notebook,
         name="notebook_conclude",
     ),
     # Trials
     path(
         "<uuid:notebook_id>/trials/",
-        notebook_views.list_create_trials,
+        views.list_create_trials,
         name="trial_list_create",
     ),
     path(
         "<uuid:notebook_id>/trials/<uuid:trial_id>/",
-        notebook_views.trial_detail,
+        views.trial_detail,
         name="trial_detail",
     ),
     path(
         "<uuid:notebook_id>/trials/<uuid:trial_id>/complete/",
-        notebook_views.complete_trial,
+        views.complete_trial,
         name="trial_complete",
     ),
     # Pages
     path(
         "<uuid:notebook_id>/pages/",
-        notebook_views.list_create_pages,
+        views.list_create_pages,
         name="page_list_create",
     ),
     # Pull tool outputs into notebook
-    path("<uuid:notebook_id>/pull/", notebook_views.pull_tool, name="notebook_pull_tool"),
+    path("<uuid:notebook_id>/pull/", views.pull_tool, name="notebook_pull_tool"),
     # Front Page (aggregated knowledge base)
-    path("front-page/", notebook_views.front_page, name="front_page"),
+    path("front-page/", views.front_page, name="front_page"),
     # Front Matter (per-notebook)
     path(
         "<uuid:notebook_id>/front-matter/",
-        notebook_views.add_front_matter,
+        views.add_front_matter,
         name="front_matter_add",
     ),
     # Projections — notebook → output formats
@@ -52,10 +54,10 @@ urlpatterns = [
         name="notebook_project_a3",
     ),
     # Yokoten
-    path("yokoten/", notebook_views.list_yokoten, name="yokoten_list"),
+    path("yokoten/", views.list_yokoten, name="yokoten_list"),
     path(
         "yokoten/<uuid:yokoten_id>/adopt/",
-        notebook_views.adopt_yokoten,
+        views.adopt_yokoten,
         name="yokoten_adopt",
     ),
 ]

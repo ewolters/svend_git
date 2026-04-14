@@ -21,18 +21,17 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.models import User
 from accounts.permissions import require_team
-from core.models import Project
-from notifications.helpers import notify
-
-from .evidence_bridge import create_tool_evidence
-from .models import (
+from agents_api.evidence_bridge import create_tool_evidence
+from agents_api.models import (
     CAPAReport,
     CAPAStatusChange,
     NonconformanceRecord,
     QMSFieldChange,
     RCASession,
 )
-from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
+from agents_api.permissions import qms_can_edit, qms_queryset, qms_set_ownership
+from core.models import Project
+from notifications.helpers import notify
 
 logger = logging.getLogger(__name__)
 

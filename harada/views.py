@@ -490,7 +490,7 @@ def goal_detail(request, goal_id):
     if data.get("status") == "achieved" and not goal.achieved_at:
         goal.achieved_at = timezone.now()
         # Prompt for Hansei Kai reflection
-        from agents_api.harada_tasks import notify_hansei_due
+        from harada.tasks import notify_hansei_due
 
         notify_hansei_due(request.user, goal)
 
@@ -667,7 +667,7 @@ def check_routine(request):
     # Streak notification on milestone
     streak = None
     if is_completed:
-        from agents_api.harada_tasks import check_streak_and_notify
+        from harada.tasks import check_streak_and_notify
 
         streak = check_streak_and_notify(request.user, cell)
 

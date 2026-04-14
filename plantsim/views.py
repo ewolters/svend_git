@@ -13,9 +13,10 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
+from agents_api.models import ValueStreamMap
 from core.models import Evidence, Project
 
-from .models import PlantSimulation, ValueStreamMap
+from .models import PlantSimulation
 
 logger = logging.getLogger(__name__)
 

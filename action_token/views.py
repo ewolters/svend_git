@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .models import ActionToken
+from agents_api.models import ActionToken
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ def _load_commitment(tok):
     if not commitment_id:
         return None
     try:
-        from .models import ResourceCommitment
+        from agents_api.models import ResourceCommitment
 
         return ResourceCommitment.objects.select_related("employee", "project__project", "requested_by").get(
             id=commitment_id

@@ -27,8 +27,12 @@ def register_tools():
         return
     _registered = True
 
-    from agents_api import a3_views, ce_views, ishikawa_views, rca_views
-    from agents_api.models import A3Report, CEMatrix, IshikawaDiagram, RCASession
+    from agents_api import a3_views, rca_views
+    from agents_api.models import A3Report, RCASession
+    from ce_matrix import views as ce_views
+    from ce_matrix.models import CEMatrix
+    from ishikawa import views as ishikawa_views
+    from ishikawa.models import IshikawaDiagram
 
     # ------------------------------------------------------------------
     # Ishikawa (Fishbone) Diagrams

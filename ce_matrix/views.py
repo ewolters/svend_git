@@ -19,9 +19,8 @@ logger = logging.getLogger(__name__)
 
 def _ce_connect_investigation(request, investigation_id, matrix):
     """CANON-002 §12 — connect C&E top inputs to investigation graph."""
+    from agents_api.investigation_bridge import HypothesisSpec, connect_tool
     from core.models import MeasurementSystem
-
-    from .investigation_bridge import HypothesisSpec, connect_tool
 
     try:
         tool_output, _ = MeasurementSystem.objects.get_or_create(
@@ -87,7 +86,7 @@ def create_matrix(request):
     # Link to project if provided, otherwise auto-create
     project_id = data.get("project_id")
     if project_id:
-        from .permissions import resolve_project
+        from agents_api.permissions import resolve_project
 
         project, _err = resolve_project(request.user, project_id)
         if project:

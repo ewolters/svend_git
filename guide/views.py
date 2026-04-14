@@ -15,8 +15,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import require_auth, require_enterprise
-
-from .llm_service import llm_service
+from agents_api.llm_service import llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -199,10 +198,9 @@ def summarize_project(request):
     include = body.get("include", {})
 
     # Load project data
+    from agents_api.models import Board
+    from agents_api.permissions import resolve_project
     from core.models import Hypothesis
-
-    from .models import Board
-    from .permissions import resolve_project
 
     project, err = resolve_project(request.user, project_id)
     if err:
@@ -312,7 +310,7 @@ def rate_limit_status(request):
     """Get current rate limit status for the user."""
     from django.utils import timezone
 
-    from .models import LLMUsage, check_rate_limit
+    from agents_api.models import LLMUsage, check_rate_limit
 
     allowed, remaining, limit = check_rate_limit(request.user)
     usage = LLMUsage.get_daily_usage(request.user, timezone.now().date())

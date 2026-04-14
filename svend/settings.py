@@ -50,6 +50,16 @@ INSTALLED_APPS = [
     # ---- Domain apps (extracted from agents_api) ----
     "whiteboard",
     "vsm",
+    "ishikawa",
+    "ce_matrix",
+    "triage",
+    "harada",
+    "guide",
+    "plantsim",
+    "capa",
+    "action_token",
+    "notebook",
+    "investigation",
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"
