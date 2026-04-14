@@ -351,7 +351,7 @@ class QMSQualityTest(SimpleTestCase):
     def test_fmea_rpn_bounds(self):
         """FMEA RPN calculation logic enforces [1, 1000] bounds."""
         try:
-            import agents_api.fmea_views as fmea_mod
+            import fmea.views as fmea_mod
 
             source = inspect.getsource(fmea_mod)
             # Must reference RPN calculation

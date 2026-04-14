@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from agents_api import a3_views
+from a3 import views as a3_views
 
 from . import views
 

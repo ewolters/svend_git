@@ -27,12 +27,14 @@ def register_tools():
         return
     _registered = True
 
-    from agents_api import a3_views, rca_views
-    from agents_api.models import A3Report, RCASession
+    from a3 import views as a3_views
+    from a3.models import A3Report
     from ce_matrix import views as ce_views
     from ce_matrix.models import CEMatrix
     from ishikawa import views as ishikawa_views
     from ishikawa.models import IshikawaDiagram
+    from rca import views as rca_views
+    from rca.models import RCASession
 
     # ------------------------------------------------------------------
     # Ishikawa (Fishbone) Diagrams
@@ -131,8 +133,8 @@ def register_tools():
     # ForgeRack Sessions
     # URL: /api/rack/sessions/, /api/rack/sessions/<uuid>/...
     # ------------------------------------------------------------------
-    from agents_api import rack_views
-    from agents_api.models import RackSession
+    from rack import views as rack_views
+    from rack.models import RackSession
 
     ToolRouter.register(
         slug="rack",

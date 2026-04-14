@@ -40,7 +40,7 @@ class ReadCsvSafeTest(SimpleTestCase):
     """Unit tests for _read_csv_safe encoding fallback logic."""
 
     def _read(self, file_or_path):
-        from agents_api.dsw_views import _read_csv_safe
+        from dsw.views import _read_csv_safe
 
         return _read_csv_safe(file_or_path)
 
@@ -84,11 +84,11 @@ class LoadDatasetTest(TestCase):
         cls.user = _make_user("dsw-load@test.com")
 
     def _load(self, data_id):
-        from agents_api.dsw_views import _load_dataset
+        from dsw.views import _load_dataset
 
         return _load_dataset(self.user, data_id)
 
-    @patch("agents_api.dsw_views._read_csv_safe")
+    @patch("dsw.views._read_csv_safe")
     def test_media_root_found(self, mock_read):
         """Source 1: MEDIA_ROOT/analysis_data/{user.id}/{data_id}.csv exists."""
         expected_df = pd.DataFrame({"a": [1, 2]})
@@ -100,7 +100,7 @@ class LoadDatasetTest(TestCase):
         self.assertIsNotNone(df)
         mock_read.assert_called_once()
 
-    @patch("agents_api.dsw_views._read_csv_safe")
+    @patch("dsw.views._read_csv_safe")
     def test_tmp_fallback(self, mock_read):
         """Source 2: MEDIA_ROOT miss, /tmp/svend_analysis/ found."""
         expected_df = pd.DataFrame({"b": [3, 4]})
@@ -128,7 +128,7 @@ class LoadDatasetTest(TestCase):
         mock_triage = MagicMock()
         mock_triage.cleaned_csv = "c\n5\n"
 
-        with patch("agents_api.models.TriageResult.objects") as mock_qs:
+        with patch("triage.models.TriageResult.objects") as mock_qs:
             mock_qs.get.return_value = mock_triage
             df = self._load("triage_abc123")
 
@@ -138,7 +138,7 @@ class LoadDatasetTest(TestCase):
     def test_all_miss_returns_none(self):
         """All sources miss -> returns None."""
         with patch.object(Path, "exists", return_value=False):
-            with patch("agents_api.models.TriageResult.objects") as mock_qs:
+            with patch("triage.models.TriageResult.objects") as mock_qs:
                 mock_qs.get.side_effect = Exception("not found")
                 df = self._load("data_abc123")
 
@@ -187,12 +187,12 @@ class ExplainSelectionTest(TestCase):
         resp = self._post({"data_id": "data_test", "indices": list(range(101))})
         self.assertEqual(resp.status_code, 400)
 
-    @patch("agents_api.dsw_views._load_dataset", return_value=None)
+    @patch("dsw.views._load_dataset", return_value=None)
     def test_nonexistent_dataset_returns_404(self, _mock_load):
         resp = self._post({"data_id": "data_missing", "indices": [0, 1]})
         self.assertEqual(resp.status_code, 404)
 
-    @patch("agents_api.dsw_views._load_dataset")
+    @patch("dsw.views._load_dataset")
     def test_valid_request_returns_explanation(self, mock_load):
         mock_load.return_value = pd.DataFrame(
             {
@@ -201,7 +201,7 @@ class ExplainSelectionTest(TestCase):
             }
         )
 
-        with patch("agents_api.llm_manager.LLMManager.chat") as mock_chat:
+        with patch("agents_api.llm_manager.LLMManager.chat") as mock_chat:  # llm_manager still in agents_api
             mock_chat.return_value = "Selected points are all from machine A."
             resp = self._post(
                 {
