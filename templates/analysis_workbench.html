@@ -4709,7 +4709,7 @@ function generateConfigForm(type, id) {
         setTimeout(() => {
             const infoEl = document.getElementById('spc-gage-info');
             if (!infoEl) return;
-            fetch('/api/spc/measurement-systems/recent/', {
+            fetch('/api/dsw/measurement-systems/recent/', {
                 headers: { 'X-CSRFToken': getCSRFToken() }
             }).then(r => r.json()).then(d => {
                 const systems = d.measurement_systems || [];
@@ -8826,7 +8826,7 @@ function showSaveMeasurementSystem(result) {
                     ndc: stats.ndc || stats.ndc_mean,
                     study_type: stats.test === 'bayesian_gage_rr' ? 'GRR_BAYESIAN' : 'GRR_CROSSED',
                 };
-                const data = await svendFetch('/api/spc/measurement-systems/save-study/', {
+                const data = await svendFetch('/api/dsw/measurement-systems/save-study/', {
                     method: 'POST',
                     body: JSON.stringify(payload),
                 });

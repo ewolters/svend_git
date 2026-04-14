@@ -410,7 +410,7 @@ urlpatterns = varta_urls + [
     path("api/triage/", include("triage.urls")),
     path("api/forecast/", include("agents_api.forecast_urls")),
     path("api/experimenter/", include("agents_api.experimenter_urls")),
-    path("api/spc/", include("agents_api.spc_urls")),
+    # /api/spc/ removed — MSA endpoints moved to /api/dsw/measurement-systems/
     path("api/synara/", include("agents_api.synara_urls")),
     path("api/whiteboard/", include("whiteboard.urls")),
     path("api/guide/", include("guide.urls")),  # AI guide (rate-limited)

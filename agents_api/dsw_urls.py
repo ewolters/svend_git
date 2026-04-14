@@ -18,6 +18,7 @@ from .analysis.endpoints_ml import (
     run_model,
     save_model_from_cache,
 )
+from .analysis.endpoints_msa import recent_gage_studies, save_gage_study
 
 urlpatterns = [
     # ML endpoints served from analysis/endpoints_ml.py
@@ -74,4 +75,7 @@ urlpatterns = [
     path("retrieve-data/", views.retrieve_data, name="retrieve_data"),
     path("triage/", views.triage_data, name="triage_data"),
     path("triage/scan/", views.triage_scan, name="triage_scan"),
+    # MSA — measurement system persistence (extracted from spc_views.py)
+    path("measurement-systems/save-study/", save_gage_study, name="dsw_save_gage_study"),
+    path("measurement-systems/recent/", recent_gage_studies, name="dsw_recent_gage_studies"),
 ]

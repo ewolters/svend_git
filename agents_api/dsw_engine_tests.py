@@ -414,32 +414,7 @@ class DTypeAnalysisTest(TestCase):
 
 
 @SECURE_OFF
-class SPCEngineTest(TestCase):
-    """Test SPC engine directly (agents_api/spc.py)."""
-
-    def test_control_chart_computation(self):
-        """SPC engine computes control limits from measurement data."""
-        from agents_api.spc import individuals_moving_range_chart
-
-        rng = np.random.RandomState(42)
-        data = rng.normal(100, 5, 50).tolist()
-
-        result = individuals_moving_range_chart(data)
-        self.assertTrue(result.limits.ucl > result.limits.cl)
-        self.assertTrue(result.limits.lcl < result.limits.cl)
-        self.assertIsInstance(result.in_control, bool)
-
-    def test_capability_indices(self):
-        """SPC engine computes Cp and Cpk from data + spec limits."""
-        from agents_api.spc import calculate_capability
-
-        rng = np.random.RandomState(42)
-        data = rng.normal(100, 5, 100).tolist()
-
-        result = calculate_capability(data, usl=115, lsl=85)
-        self.assertGreater(result.cp, 0)
-        self.assertGreater(result.cpk, 0)
-
+# SPCEngineTest removed — agents_api/spc.py deleted, forgespc (95 tests) is canonical
 
 # =========================================================================
 # DSW Endpoint Integration
