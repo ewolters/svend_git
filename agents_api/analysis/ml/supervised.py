@@ -188,7 +188,7 @@ def _run_supervised(df, analysis_id, config, user):
         # Conformal prediction sets
         conformal_state = None
         try:
-            from agents_api.conformal import compute_conformal
+            from forgestat.conformal import compute_conformal
 
             # Need integer-encoded y for conformal classifier
             y_cal_int = y_cal.copy()
@@ -401,7 +401,7 @@ def _run_supervised(df, analysis_id, config, user):
         # Conformal prediction intervals
         conformal_state = None
         try:
-            from agents_api.conformal import compute_conformal
+            from forgestat.conformal import compute_conformal
 
             cf = compute_conformal(model, X_cal, y_cal, task_type="regression")
             conformal_state = cf.get_state()

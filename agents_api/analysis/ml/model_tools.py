@@ -555,7 +555,7 @@ def _run_model_tools(df, analysis_id, config, user):
 
                 conformal_state = None
                 try:
-                    from agents_api.conformal import compute_conformal
+                    from forgestat.conformal import compute_conformal
 
                     cf = compute_conformal(best_clone, Xc_cal, yc_cal, task_type=task_type)
                     conformal_state = cf.get_state()

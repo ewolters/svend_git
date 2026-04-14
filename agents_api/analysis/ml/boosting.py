@@ -169,7 +169,7 @@ def _run_boosting(df, analysis_id, config, user):
         # Conformal prediction
         conformal_state = None
         try:
-            from agents_api.conformal import compute_conformal
+            from forgestat.conformal import compute_conformal
 
             cf = compute_conformal(model, X_cal, y_cal, task_type=task_type)
             conformal_state = cf.get_state()
@@ -328,7 +328,7 @@ def _run_boosting(df, analysis_id, config, user):
         # Conformal prediction
         conformal_state = None
         try:
-            from agents_api.conformal import compute_conformal
+            from forgestat.conformal import compute_conformal
 
             cf = compute_conformal(model, X_cal, y_cal, task_type=task_type)
             conformal_state = cf.get_state()
