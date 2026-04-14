@@ -1,9 +1,10 @@
 """Forge-only analysis views for the new workbench.
 
 This module calls forge handlers DIRECTLY. No legacy dispatch, no shims,
-no fallback. The demo workbench at /app/demo/analysis/ uses these endpoints.
+no fallback. Every analysis creates an Artifact on a Workbench. Every
+upload creates a dataset Artifact. Nothing is stateless.
 
-CR: 9999588b-2da0-47ff-8c47-1967f8ba7f53
+CR: 9999588b, c0d36833
 """
 
 import io
@@ -21,6 +22,114 @@ from django.views.decorators.http import require_http_methods
 from accounts.permissions import gated
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# WORKBENCH INTEGRATION
+# =============================================================================
+
+# Map (analysis_type, analysis_id pattern) → ArtifactType
+_ARTIFACT_TYPE_MAP = {
+    # SPC
+    "spc": "spc_chart",
+    # Specific overrides
+    ("spc", "capability"): "capability_study",
+    ("spc", "nonnormal_capability"): "capability_study",
+    ("spc", "degradation_capability"): "capability_study",
+    ("spc", "gage_rr"): "descriptive_stats",  # MSA
+    # Stats
+    ("stats", "anova"): "anova",
+    ("stats", "anova_twoway"): "anova",
+    ("stats", "repeated_measures"): "anova",
+    ("stats", "regression"): "regression",
+    ("stats", "multiple_regression"): "regression",
+    ("stats", "logistic"): "regression",
+    ("stats", "robust_regression"): "regression",
+    ("stats", "stepwise"): "regression",
+    ("stats", "best_subsets"): "regression",
+    ("stats", "glm"): "regression",
+    ("stats", "poisson_regression"): "regression",
+    ("stats", "nonlinear"): "regression",
+    ("stats", "correlation"): "correlation",
+    ("stats", "partial_correlation"): "correlation",
+    ("stats", "spearman"): "correlation",
+    ("stats", "descriptive"): "descriptive_stats",
+    ("stats", "graphical_summary"): "descriptive_stats",
+    ("stats", "data_profile"): "descriptive_stats",
+    # ML
+    "ml": "ml_model",
+    # Bayesian
+    "bayesian": "hypothesis_test",
+    # Default for stats
+    "stats": "hypothesis_test",
+    # Reliability, forecast, etc.
+    "reliability": "hypothesis_test",
+    "simulation": "hypothesis_test",
+    "causal": "hypothesis_test",
+    "drift": "hypothesis_test",
+    "anytime": "hypothesis_test",
+    "quality_econ": "hypothesis_test",
+    "pbs": "hypothesis_test",
+    "ishap": "hypothesis_test",
+    "bayes_msa": "descriptive_stats",
+    "d_type": "hypothesis_test",
+}
+
+
+def _resolve_artifact_type(analysis_type, analysis_id):
+    """Map analysis type/id to the best-matching ArtifactType value."""
+    # Try specific (type, id) first
+    key = (analysis_type, analysis_id)
+    if key in _ARTIFACT_TYPE_MAP:
+        return _ARTIFACT_TYPE_MAP[key]
+    # Fall back to type-level default
+    if analysis_type in _ARTIFACT_TYPE_MAP:
+        return _ARTIFACT_TYPE_MAP[analysis_type]
+    return "hypothesis_test"
+
+
+def _get_or_create_workbench(request, body):
+    """Get workbench from request, or create an ephemeral one.
+
+    Returns (workbench, created_bool). The workbench_id can come from:
+    - body["workbench_id"] — explicit
+    - GET param ?workbench=<id> — from URL
+    - Auto-create if neither provided
+    """
+    from workbench.models import Workbench
+
+    wb_id = body.get("workbench_id") or request.GET.get("workbench")
+
+    if wb_id:
+        try:
+            wb = Workbench.objects.get(id=wb_id, user=request.user)
+            return wb, False
+        except Workbench.DoesNotExist:
+            pass
+
+    # Auto-create a blank workbench for this session
+    wb = Workbench.objects.create(
+        user=request.user,
+        title="Analysis Session",
+        template="blank",
+    )
+    return wb, True
+
+
+def _create_artifact(workbench, artifact_type, title, content, source="forge", source_artifact_id=None, tags=None):
+    """Create an Artifact on a Workbench and return it."""
+    from workbench.models import Artifact
+
+    artifact = Artifact.objects.create(
+        workbench=workbench,
+        artifact_type=artifact_type,
+        title=title,
+        content=content,
+        source=source,
+        source_artifact_id=source_artifact_id,
+        tags=tags or [],
+    )
+    return artifact
 
 
 # =============================================================================
@@ -133,7 +242,7 @@ def _run_forge(analysis_type, analysis_id, df, config):
 @require_http_methods(["POST"])
 @gated
 def run_analysis(request):
-    """Forge-only analysis endpoint for the new workbench."""
+    """Forge-only analysis endpoint. Creates an Artifact on the Workbench."""
     try:
         body = json.loads(request.body)
     except json.JSONDecodeError:
@@ -177,6 +286,53 @@ def run_analysis(request):
     latency = int((time.time() - start) * 1000)
     logger.info(f"Forge analysis: {analysis_type}/{analysis_id} in {latency}ms")
 
+    # ── Create Artifact on Workbench ──
+    artifact_id = None
+    workbench_id = None
+    try:
+        wb, _created = _get_or_create_workbench(request, body)
+        workbench_id = str(wb.id)
+
+        artifact_type = _resolve_artifact_type(analysis_type, analysis_id)
+        title = f"{analysis_id.replace('_', ' ').title()}"
+        if body.get("data_id"):
+            title += f" — {body['data_id']}"
+
+        # Find source dataset artifact (if data_id matches one on this workbench)
+        source_artifact_id = None
+        data_id = body.get("data_id")
+        if data_id:
+            from workbench.models import Artifact as WBArtifact
+
+            source = (
+                WBArtifact.objects.filter(
+                    workbench=wb,
+                    artifact_type__in=["dataset", "cleaned_dataset"],
+                    content__data_id=data_id,
+                )
+                .order_by("-created_at")
+                .first()
+            )
+            if source:
+                source_artifact_id = source.id
+
+        artifact = _create_artifact(
+            workbench=wb,
+            artifact_type=artifact_type,
+            title=title,
+            content=result,
+            source="forge",
+            source_artifact_id=source_artifact_id,
+            tags=[analysis_type, analysis_id],
+        )
+        artifact_id = str(artifact.id)
+    except Exception:
+        logger.warning("Artifact creation failed, returning result anyway", exc_info=True)
+
+    # Include artifact/workbench IDs in response
+    result["_artifact_id"] = artifact_id
+    result["_workbench_id"] = workbench_id
+
     return JsonResponse(result, safe=False)
 
 
@@ -210,12 +366,64 @@ def upload_data(request):
     except Exception as e:
         return JsonResponse({"error": f"Could not parse CSV: {e}"}, status=400)
 
+    # ── Create dataset Artifact on Workbench ──
+    artifact_id = None
+    workbench_id = None
+    try:
+        # Parse workbench_id from form data or query param
+        wb_id = request.POST.get("workbench_id") or request.GET.get("workbench")
+        wb_body = {"workbench_id": wb_id} if wb_id else {}
+        wb, _created = _get_or_create_workbench(request, wb_body)
+        workbench_id = str(wb.id)
+
+        # Column type info for the dataset record
+        variables = []
+        for col in columns:
+            dtype = str(df[col].dtype)
+            variables.append({"name": col, "dtype": dtype})
+
+        dataset_content = {
+            "data_id": data_id,
+            "file_name": f.name,
+            "rows": rows,
+            "columns": columns,
+            "variables": variables,
+            "preview": preview,
+        }
+
+        artifact = _create_artifact(
+            workbench=wb,
+            artifact_type="dataset",
+            title=f.name or data_id,
+            content=dataset_content,
+            source="upload",
+        )
+        artifact_id = str(artifact.id)
+
+        # Also update workbench.datasets list
+        wb.datasets.append(
+            {
+                "name": f.name or data_id,
+                "data_id": data_id,
+                "artifact_id": artifact_id,
+                "rows": rows,
+                "columns": columns,
+                "variables": variables,
+            }
+        )
+        wb.save(update_fields=["datasets", "updated_at"])
+
+    except Exception:
+        logger.warning("Dataset artifact creation failed", exc_info=True)
+
     return JsonResponse(
         {
             "data_id": data_id,
             "columns": columns,
             "rows": rows,
             "preview": preview,
+            "_artifact_id": artifact_id,
+            "_workbench_id": workbench_id,
         }
     )
 
@@ -280,6 +488,32 @@ def forgepad_run(request):
         elif isinstance(chart, dict):
             charts.append(chart)
 
+    # ── Create Artifact on Workbench (if command produced data) ──
+    artifact_id = None
+    workbench_id = None
+    if result.success and (result.data or charts):
+        try:
+            wb, _created = _get_or_create_workbench(request, body)
+            workbench_id = str(wb.id)
+
+            content = {
+                "command": command,
+                "summary": result.summary,
+                "statistics": result.data,
+                "plots": charts,
+            }
+            artifact = _create_artifact(
+                workbench=wb,
+                artifact_type="hypothesis_test",
+                title=f"ForgePad: {parsed.verb}",
+                content=content,
+                source="forgepad",
+                tags=["forgepad", parsed.verb],
+            )
+            artifact_id = str(artifact.id)
+        except Exception:
+            logger.warning("ForgePad artifact creation failed", exc_info=True)
+
     return JsonResponse(
         {
             "success": result.success,
@@ -287,5 +521,7 @@ def forgepad_run(request):
             "error": result.error,
             "charts": charts,
             "statistics": result.data,
+            "_artifact_id": artifact_id,
+            "_workbench_id": workbench_id,
         }
     )
