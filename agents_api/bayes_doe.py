@@ -15,15 +15,14 @@ from bayes_core.py.  No MCMC, O(p³) — industrial-grade fast.
 from itertools import combinations
 
 import numpy as np
-from scipy.linalg import cho_solve
-from scipy.stats import t as t_dist
-
-from .bayes_core import (
+from forgedoe.core.posteriors import (
     bayesian_linear_posterior,
     contrast_posterior,
     marginal_log_likelihood,
     predictive_posterior,
 )
+from scipy.linalg import cho_solve
+from scipy.stats import t as t_dist
 
 # ---------------------------------------------------------------------------
 # Design Matrix Builder
