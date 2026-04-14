@@ -17,43 +17,30 @@ This is NOT a demo. This is NOT an MVP. This is the richest feature in the appli
 | **KnowledgeGraph** | Causal belief network | `nodes, edges (with Bayesian weights), expansion_signals` |
 | **EpistemicLog** | Reasoning audit trail | `event_type (25 types), event_data, context, led_to_insight, led_to_dead_end` |
 
-### 1.2 Workbench API (`/api/workbench/` — 30+ endpoints, ALL implemented)
+### 1.2 Workbench API (`/api/workbench/` — endpoints used by the workbench)
 
 **Workbench CRUD:**
-- `GET /` — List workbenches (filter by status/template)
-- `POST /create/` — Create (blank/DMAIC/Kaizen/8D/A3)
+- `GET /` — List workbenches
+- `POST /create/` — Create (blank)
 - `GET /<id>/` — Full workbench with all artifacts (JSON serialization)
-- `PATCH /<id>/update/` — Update title, description, status, datasets, layout
+- `PATCH /<id>/update/` — Update title, description, status, datasets
 - `DELETE /<id>/delete/` — Archive or permanent delete
 - `POST /import/` — Import from JSON
 - `POST /<id>/export/` — Export as JSON file
 
 **Artifact CRUD:**
-- `POST /<id>/artifacts/` — Create artifact (30+ types)
+- `POST /<id>/artifacts/` — Create artifact
 - `GET /<id>/artifacts/<aid>/` — Get artifact
-- `PATCH /<id>/artifacts/<aid>/update/` — Update content, tags, probability
+- `PATCH /<id>/artifacts/<aid>/update/` — Update content, tags
 - `DELETE /<id>/artifacts/<aid>/delete/` — Delete + cleanup connections
 
 **Connections:**
 - `POST /<id>/connect/` — Link two artifacts (derivation chain)
 - `DELETE /<id>/disconnect/` — Remove link
 
-**Knowledge Graph:**
-- `GET /<id>/graph/` — Full graph
-- `POST /<id>/graph/nodes/add/` — Add node
-- `POST /<id>/graph/edges/add/` — Add causal edge (with weight)
-- `POST /<id>/graph/evidence/apply/` — Bayesian update
-- `GET /<id>/graph/chain/<from>/<to>/` — Causal chain traversal
-- `GET /<id>/graph/upstream/<node>/` — Upstream cause discovery
-- `GET /<id>/graph/expansions/` — Expansion signals (evidence doesn't fit)
-
-**Epistemic Log:**
-- `GET /<id>/epistemic-log/` — Full reasoning history
-- `POST /<id>/epistemic-log/<log_id>/outcome/` — Mark insight/dead-end
-
-**Guide:**
-- `POST /<id>/guide/observe/` — AI observation
-- `POST /<id>/guide/<idx>/acknowledge/` — Acknowledge observation
+Note: Knowledge Graph, Epistemic Log, and Guide endpoints exist on the
+Workbench model but are consumed by OTHER systems (graph, Loop, etc.),
+not by the workbench UI itself. The workbench is a source.
 
 ### 1.3 Artifact Types (30+)
 
@@ -203,23 +190,25 @@ Both paths produce the same artifact objects in the same workspace.
 - **Load from server** — `GET /api/workbench/<id>/` returns full JSON → hydrate client state.
 - **Auto-save** — optional, debounced writes to server every N minutes.
 
-### 3.3 Layout
+### 3.3 Architecture Principle: SOURCE System
+
+The workbench is a **SOURCE** in the source/switch/sink architecture:
+- **Sources** create signals: Workbench, SPC monitors, triage
+- **Switches** consume and produce: investigation engine, evidence linking
+- **Sinks** consume and organize: A3, reports, dashboards, knowledge graph
+
+The workbench does NOT consume from other systems. No DMAIC templates. No knowledge graph UI. No FMEA import. No guide panel. Those systems pull from workbench artifacts — the workbench doesn't need to know they exist.
+
+### 3.4 Layout
 
 NOT the 4-pane layout. The workbench is a panel-based workspace:
 
-- **Object Browser** (left) — tree/list of all workspace objects: datasets, results, charts, notes, models. Grouped by type. Click to view.
+- **Object Browser** (left) — tree/list of all workspace objects: datasets, results, charts. Grouped by type. Click to view.
 - **Main Viewport** (center) — shows the selected object. Adapts to type:
   - Dataset → spreadsheet view
-  - Result → narrative + statistics + evidence strip + assumptions
+  - Result → narrative + statistics + evidence strip + assumptions + charts
   - Chart → ForgeViz rendered with full toolbar
-  - Note → editable text
-  - Model → metrics dashboard
 - **Console** (bottom) — ForgePad command line + output. Always visible. History, replay.
-- **Inspector** (right, collapsible) — context panel. Shows:
-  - For datasets: column types, summary stats, quality indicators
-  - For results: config that produced it, source dataset, education
-  - For charts: style panel, what-if sliders, annotation mode
-  - For any object: tags, connections, created timestamp
 
 ### 3.4 Multi-Dataset Support
 
@@ -330,15 +319,14 @@ This schema is what other systems pull:
 - [ ] Model artifact type in workspace
 - [ ] Autopilot pipelines
 
-### Phase 5: Connected systems
+### Phase 5: Persistence + Export
 - [ ] Save/load workbench (server persistence)
-- [ ] Import findings from A3/RCA/FMEA as artifacts
-- [ ] Connect artifacts → KnowledgeGraph nodes
-- [ ] Synara ↔ KnowledgeGraph sync
-- [ ] Guide observations in inspector
-- [ ] DOE + Forecast wired to workspace
-- [ ] Notebook trial integration
-- [ ] ForgeDoc export (PDF/DOCX from workspace)
+- [ ] ForgeDoc export (PDF/DOCX from workspace artifacts)
+- [ ] DOE + Forecast wired as analysis types in the workspace
+
+Note: Other systems (Graph, A3, FMEA, Loop, Reports) pull FROM workbench
+artifacts via the standardized schema. That wiring lives in THOSE systems,
+not here. The workbench is a source — it doesn't need to know about its consumers.
 
 ---
 
