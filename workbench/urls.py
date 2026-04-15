@@ -1,120 +1,40 @@
-"""URL routes for Workbench API."""
+"""URL routes for Analysis Workbench API.
+
+Session-based persistence for the analysis workbench.
+Pull contract endpoints for cross-tool integration.
+"""
 
 from django.urls import path
 
-from . import graph_views, views
+from . import views
 
 app_name = "workbench"
 
 urlpatterns = [
-    # ==========================================================================
-    # Workbenches
-    # ==========================================================================
-    path("", views.list_workbenches, name="list"),
-    path("create/", views.create_workbench, name="create"),
-    path("<uuid:workbench_id>/", views.get_workbench, name="detail"),
-    path("<uuid:workbench_id>/update/", views.update_workbench, name="update"),
-    path("<uuid:workbench_id>/delete/", views.delete_workbench, name="delete"),
-    # Import/Export
-    path("import/", views.import_workbench, name="import"),
-    path("<uuid:workbench_id>/export/", views.export_workbench, name="export"),
-    # Artifacts
-    path("<uuid:workbench_id>/artifacts/", views.create_artifact, name="create_artifact"),
+    # Sessions
+    path("sessions/", views.session_list_create, name="session_list_create"),
+    path("sessions/<uuid:session_id>/", views.session_detail, name="session_detail"),
+    # Datasets within a session
+    path("sessions/<uuid:session_id>/datasets/", views.dataset_list_create, name="dataset_list_create"),
+    path("sessions/<uuid:session_id>/datasets/<uuid:dataset_id>/", views.dataset_detail, name="dataset_detail"),
+    # Analyses within a session
+    path("sessions/<uuid:session_id>/analyses/", views.analysis_list_create, name="analysis_list_create"),
+    path("sessions/<uuid:session_id>/analyses/<uuid:analysis_id>/", views.analysis_detail, name="analysis_detail"),
+    # Pull contract — manifest + sub-artifact access
+    path("sessions/<uuid:session_id>/manifest/", views.session_manifest, name="session_manifest"),
     path(
-        "<uuid:workbench_id>/artifacts/<uuid:artifact_id>/",
-        views.get_artifact,
-        name="get_artifact",
+        "sessions/<uuid:session_id>/analyses/<uuid:analysis_id>/<path:key_path>/",
+        views.analysis_sub_artifact,
+        name="analysis_sub_artifact",
     ),
+    # Pull contract — references + delete with friction
+    path("sessions/<uuid:session_id>/references/", views.session_references, name="session_references"),
+    path("sessions/<uuid:session_id>/delete/", views.session_delete_with_friction, name="session_delete"),
+    path("analyses/<uuid:analysis_id>/", views.analysis_pull_detail, name="analysis_pull_detail"),
+    path("analyses/<uuid:analysis_id>/references/", views.analysis_register_reference, name="analysis_register_ref"),
     path(
-        "<uuid:workbench_id>/artifacts/<uuid:artifact_id>/update/",
-        views.update_artifact,
-        name="update_artifact",
-    ),
-    path(
-        "<uuid:workbench_id>/artifacts/<uuid:artifact_id>/delete/",
-        views.delete_artifact,
-        name="delete_artifact",
-    ),
-    # Connections
-    path("<uuid:workbench_id>/connect/", views.connect_artifacts, name="connect"),
-    path("<uuid:workbench_id>/disconnect/", views.disconnect_artifacts, name="disconnect"),
-    # Template-specific
-    path("<uuid:workbench_id>/advance-phase/", views.advance_phase, name="advance_phase"),
-    # Guide
-    path(
-        "<uuid:workbench_id>/guide/observe/",
-        views.add_guide_observation,
-        name="add_observation",
-    ),
-    path(
-        "<uuid:workbench_id>/guide/<int:observation_index>/acknowledge/",
-        views.acknowledge_observation,
-        name="acknowledge_observation",
-    ),
-    # ==========================================================================
-    # Workbench Knowledge Graph
-    # ==========================================================================
-    # Graph CRUD
-    path("<uuid:workbench_id>/graph/", graph_views.get_graph, name="get_graph"),
-    path("<uuid:workbench_id>/graph/clear/", graph_views.clear_graph, name="clear_graph"),
-    # Nodes
-    path("<uuid:workbench_id>/graph/nodes/", graph_views.get_nodes, name="get_nodes"),
-    path("<uuid:workbench_id>/graph/nodes/add/", graph_views.add_node, name="add_node"),
-    path(
-        "<uuid:workbench_id>/graph/nodes/<str:node_id>/delete/",
-        graph_views.remove_node,
-        name="remove_node",
-    ),
-    # Edges (causal vectors)
-    path("<uuid:workbench_id>/graph/edges/", graph_views.get_edges, name="get_edges"),
-    path("<uuid:workbench_id>/graph/edges/add/", graph_views.add_edge, name="add_edge"),
-    path(
-        "<uuid:workbench_id>/graph/edges/<str:edge_id>/weight/",
-        graph_views.update_edge_weight,
-        name="update_edge_weight",
-    ),
-    # Evidence & Bayesian updates
-    path(
-        "<uuid:workbench_id>/graph/evidence/apply/",
-        graph_views.apply_evidence,
-        name="apply_evidence",
-    ),
-    path(
-        "<uuid:workbench_id>/graph/expansion/check/",
-        graph_views.check_expansion,
-        name="check_expansion",
-    ),
-    # Graph traversal
-    path(
-        "<uuid:workbench_id>/graph/chain/<str:from_node>/<str:to_node>/",
-        graph_views.get_causal_chain,
-        name="get_causal_chain",
-    ),
-    path(
-        "<uuid:workbench_id>/graph/upstream/<str:node_id>/",
-        graph_views.get_upstream_causes,
-        name="get_upstream_causes",
-    ),
-    # Expansion signals
-    path(
-        "<uuid:workbench_id>/graph/expansions/",
-        graph_views.get_expansion_signals,
-        name="get_expansion_signals",
-    ),
-    path(
-        "<uuid:workbench_id>/graph/expansions/<str:signal_id>/resolve/",
-        graph_views.resolve_expansion,
-        name="resolve_expansion",
-    ),
-    # Epistemic log
-    path(
-        "<uuid:workbench_id>/epistemic-log/",
-        graph_views.get_epistemic_log,
-        name="get_epistemic_log",
-    ),
-    path(
-        "<uuid:workbench_id>/epistemic-log/<uuid:log_id>/outcome/",
-        graph_views.mark_log_outcome,
-        name="mark_log_outcome",
+        "analyses/<uuid:analysis_id>/<path:key_path>/",
+        views.analysis_pull_sub_artifact,
+        name="analysis_pull_sub_artifact",
     ),
 ]

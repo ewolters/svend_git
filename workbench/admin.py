@@ -1,129 +1,38 @@
-"""Admin configuration for Workbench models."""
+"""Admin configuration for Analysis Workbench models."""
 
 from django.contrib import admin
 
-from .models import Artifact, Workbench
+from .models import AnalysisSession, SessionAnalysis, SessionDataset
 
 
-class ArtifactInline(admin.TabularInline):
-    """Inline display of artifacts in workbench admin."""
-
-    model = Artifact
+class SessionDatasetInline(admin.TabularInline):
+    model = SessionDataset
     extra = 0
-    fields = ["artifact_type", "title", "source", "created_at"]
+    fields = ["name", "source", "row_count", "created_at"]
     readonly_fields = ["created_at"]
-    show_change_link = True
 
 
-@admin.register(Workbench)
-class WorkbenchAdmin(admin.ModelAdmin):
-    """Admin for Workbench model."""
+class SessionAnalysisInline(admin.TabularInline):
+    model = SessionAnalysis
+    extra = 0
+    fields = ["analysis_type", "analysis_id", "dataset", "evidence_grade", "created_at"]
+    readonly_fields = ["created_at"]
 
-    list_display = [
-        "title",
-        "user",
-        "template",
-        "status",
-        "artifact_count",
-        "updated_at",
-    ]
-    list_filter = ["template", "status", "created_at"]
-    search_fields = ["title", "description", "user__username", "user__email"]
+
+@admin.register(AnalysisSession)
+class AnalysisSessionAdmin(admin.ModelAdmin):
+    list_display = ["title", "user", "dataset_count", "analysis_count", "updated_at"]
+    list_filter = ["created_at"]
+    search_fields = ["title", "user__email"]
     readonly_fields = ["id", "created_at", "updated_at"]
-    inlines = [ArtifactInline]
+    inlines = [SessionDatasetInline, SessionAnalysisInline]
 
-    fieldsets = [
-        (
-            None,
-            {"fields": ["id", "user", "title", "description", "template", "status"]},
-        ),
-        (
-            "Template State",
-            {
-                "fields": ["template_state"],
-                "classes": ["collapse"],
-            },
-        ),
-        (
-            "Canvas",
-            {
-                "fields": ["connections", "layout", "datasets"],
-                "classes": ["collapse"],
-            },
-        ),
-        (
-            "AI Guide",
-            {
-                "fields": ["guide_observations"],
-                "classes": ["collapse"],
-            },
-        ),
-        (
-            "Conclusion",
-            {
-                "fields": ["conclusion", "conclusion_confidence"],
-                "classes": ["collapse"],
-            },
-        ),
-        (
-            "Timestamps",
-            {
-                "fields": ["created_at", "updated_at"],
-            },
-        ),
-    ]
+    def dataset_count(self, obj):
+        return obj.datasets.count()
 
-    def artifact_count(self, obj):
-        return obj.artifacts.count()
+    dataset_count.short_description = "Datasets"
 
-    artifact_count.short_description = "Artifacts"
+    def analysis_count(self, obj):
+        return obj.analyses.count()
 
-
-@admin.register(Artifact)
-class ArtifactAdmin(admin.ModelAdmin):
-    """Admin for Artifact model."""
-
-    list_display = ["title_or_id", "artifact_type", "workbench", "source", "created_at"]
-    list_filter = ["artifact_type", "source", "created_at"]
-    search_fields = ["title", "workbench__title", "content"]
-    readonly_fields = ["id", "created_at", "updated_at"]
-
-    fieldsets = [
-        (None, {"fields": ["id", "workbench", "artifact_type", "title", "source"]}),
-        (
-            "Content",
-            {
-                "fields": ["content"],
-            },
-        ),
-        (
-            "Relationships",
-            {
-                "fields": [
-                    "source_artifact_id",
-                    "probability",
-                    "supports_hypotheses",
-                    "weakens_hypotheses",
-                ],
-                "classes": ["collapse"],
-            },
-        ),
-        (
-            "Model",
-            {
-                "fields": ["model_path"],
-                "classes": ["collapse"],
-            },
-        ),
-        (
-            "Metadata",
-            {
-                "fields": ["tags", "created_at", "updated_at"],
-            },
-        ),
-    ]
-
-    def title_or_id(self, obj):
-        return obj.title or str(obj.id)[:8]
-
-    title_or_id.short_description = "Title"
+    analysis_count.short_description = "Analyses"

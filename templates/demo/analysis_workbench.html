@@ -762,14 +762,18 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
    ============================================================================ */
 
 const ANALYSIS_API = '/api/analysis/';
+const WORKBENCH_API = '/api/workbench/';
 
-let currentDataId = null;
+let currentSessionId = null;
+let currentDatasetId = null;   // session dataset UUID
+let currentDataId = null;      // legacy upload data_id (for dispatch)
 let currentDataColumns = [];
 let currentDataRows = 0;
-let currentDataPreview = null; // first N rows for worksheet
+let currentDataPreview = null;
 let currentAnalysis = null;    // { type, id, label, category }
 let currentResult = null;
 let pendingFile = null;
+let analysisHistory = [];      // [{id, type, analysis_id, summary, created_at}]
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
@@ -1123,6 +1127,42 @@ async function runAnalysis() {
         currentResult = result;
         renderCharts(result);
         renderResults(result);
+
+        // Persist analysis to session
+        if (currentSessionId) {
+            try {
+                const saved = await apiFetch(WORKBENCH_API + `sessions/${currentSessionId}/analyses/`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        dataset_id: currentDatasetId,
+                        analysis_type: currentAnalysis.type,
+                        analysis_id: currentAnalysis.id,
+                        columns_used: Object.values(buildConfig()).filter(v => typeof v === 'string' && currentDataColumns.includes(v)),
+                        config: buildConfig(),
+                        statistics: result.statistics || {},
+                        narrative: result.narrative || {},
+                        summary: result.summary || '',
+                        charts: result.plots || result.charts || [],
+                        diagnostics: result.diagnostics || [],
+                        assumptions: result.assumptions || {},
+                        education: result.education || null,
+                        bayesian_shadow: result.bayesian_shadow || null,
+                        evidence_grade: result.evidence_grade || '',
+                        guide_observation: result.guide_observation || '',
+                    }),
+                });
+                analysisHistory.push({
+                    id: saved.id,
+                    analysis_type: currentAnalysis.type,
+                    analysis_id: currentAnalysis.id,
+                    summary: (result.summary || '').slice(0, 100),
+                    created_at: new Date().toISOString(),
+                });
+                renderAnalysisHistory();
+            } catch (e) {
+                console.warn('Failed to persist analysis to session:', e);
+            }
+        }
     } catch (e) {
         document.getElementById('charts-pane').innerHTML = '';
         document.getElementById('results-pane').innerHTML = `<div style="padding:16px;"><div class="aw-narrative" style="border-left-color:var(--error);">${esc(e.message || 'Analysis failed')}</div></div>`;
@@ -1849,6 +1889,35 @@ async function confirmUpload() {
 
         hideUploadModal();
         svToast('Data loaded', 'success');
+
+        // Persist dataset to session
+        if (currentSessionId && currentDataPreview) {
+            try {
+                // Build columnar JSON from preview rows
+                const colData = {};
+                currentDataColumns.forEach(c => { colData[c] = currentDataPreview.map(r => r[c] !== undefined ? r[c] : null); });
+
+                const colMeta = currentDataColumns.map(c => {
+                    const vals = colData[c].filter(v => v !== null && v !== '');
+                    const isNum = vals.length > 0 && vals.every(v => !isNaN(Number(v)));
+                    return { name: c, dtype: isNum ? 'numeric' : 'categorical', missing_pct: 1 - (vals.length / Math.max(currentDataRows, 1)), unique: new Set(vals).size };
+                });
+
+                const ds = await apiFetch(WORKBENCH_API + `sessions/${currentSessionId}/datasets/`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: pendingFile.name,
+                        source: 'upload',
+                        data: colData,
+                        columns_meta: colMeta,
+                        row_count: currentDataRows,
+                    }),
+                });
+                currentDatasetId = ds.id;
+            } catch (e) {
+                console.warn('Failed to persist dataset to session:', e);
+            }
+        }
     } catch (e) {
         svToast(e.message || 'Upload failed', 'error');
     } finally {
@@ -1860,7 +1929,76 @@ async function confirmUpload() {
    Init
    ============================================================================ */
 
-document.addEventListener('DOMContentLoaded', () => { renderSidebar(); });
+document.addEventListener('DOMContentLoaded', () => {
+    renderSidebar();
+    initSession();
+});
+
+async function initSession() {
+    // Resume session from URL hash or localStorage, or create new
+    const savedId = localStorage.getItem('aw_session_id');
+    if (savedId) {
+        try {
+            const s = await apiFetch(WORKBENCH_API + `sessions/${savedId}/`);
+            if (s.id) {
+                currentSessionId = s.id;
+                // Restore datasets if any
+                if (s.datasets && s.datasets.length) {
+                    const last = s.datasets[s.datasets.length - 1];
+                    currentDatasetId = last.id;
+                    currentDataColumns = (last.columns_meta || []).map(c => c.name);
+                    currentDataRows = last.row_count;
+                }
+                // Restore analysis history
+                if (s.analyses && s.analyses.length) {
+                    analysisHistory = s.analyses;
+                    renderAnalysisHistory();
+                }
+                return;
+            }
+        } catch (e) { /* session expired or deleted, create new */ }
+    }
+    // Create new session
+    try {
+        const s = await apiFetch(WORKBENCH_API + 'sessions/', {
+            method: 'POST',
+            body: JSON.stringify({ title: 'Workbench Session' }),
+        });
+        currentSessionId = s.id;
+        localStorage.setItem('aw_session_id', s.id);
+    } catch (e) {
+        console.warn('Failed to create workbench session:', e);
+    }
+}
+
+function renderAnalysisHistory() {
+    // Render analysis history nav in the toolbar area
+    const toolbar = document.getElementById('aw-toolbar');
+    if (!toolbar || !analysisHistory.length) return;
+    let existing = document.getElementById('aw-history-nav');
+    if (!existing) {
+        existing = document.createElement('div');
+        existing.id = 'aw-history-nav';
+        existing.style.cssText = 'display:flex;gap:4px;align-items:center;margin-left:auto;font-size:11px;color:var(--text-dim);';
+        toolbar.appendChild(existing);
+    }
+    existing.innerHTML = analysisHistory.map((a, i) =>
+        `<button class="sv-btn sv-btn-sm" style="font-size:10px;padding:2px 6px;" onclick="loadAnalysis(${i})" title="${esc(a.analysis_type + '/' + a.analysis_id)}">${i + 1}</button>`
+    ).join('');
+}
+
+async function loadAnalysis(index) {
+    if (!currentSessionId || !analysisHistory[index]) return;
+    const a = analysisHistory[index];
+    try {
+        const full = await apiFetch(WORKBENCH_API + `sessions/${currentSessionId}/analyses/${a.id}/`);
+        currentResult = full;
+        renderCharts(full);
+        renderResults(full);
+    } catch (e) {
+        svToast('Failed to load analysis', 'error');
+    }
+}
 
 window.addEventListener('svendUserReady', function(e) {
     if (!e.detail.features || !e.detail.features.full_tools) {

@@ -1,414 +1,440 @@
-"""API views for Workbench."""
+"""Analysis Workbench views — session-based persistence.
+
+CRUD for sessions, datasets, and analyses. Pull contract endpoints
+for cross-tool integration (manifest + sub-artifact access).
+"""
 
 import json
-import re
+import logging
 
-from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
-from .models import Artifact, Workbench
+from accounts.permissions import gated, require_auth
+from qms_core import pull_views
+
+from .models import AnalysisSession, SessionAnalysis, SessionDataset
+
+logger = logging.getLogger(__name__)
 
 
-@login_required
-@require_http_methods(["GET"])
-def list_workbenches(request):
-    """List all workbenches for the current user."""
-    workbenches = Workbench.objects.filter(user=request.user)
-
-    # Filter by status if provided
-    status = request.GET.get("status")
-    if status:
-        workbenches = workbenches.filter(status=status)
-
-    # Filter by template if provided
-    template = request.GET.get("template")
-    if template:
-        workbenches = workbenches.filter(template=template)
-
-    return JsonResponse(
-        {
-            "workbenches": [
-                {
-                    "id": str(w.id),
-                    "title": w.title,
-                    "template": w.template,
-                    "status": w.status,
-                    "artifact_count": w.artifacts.count(),
-                    "updated_at": w.updated_at.isoformat(),
-                    "created_at": w.created_at.isoformat(),
-                }
-                for w in workbenches
-            ]
-        }
-    )
+# =============================================================================
+# Pull contract helpers
+# =============================================================================
 
 
-@login_required
-@require_http_methods(["POST"])
-def create_workbench(request):
-    """Create a new workbench."""
+def _wb_get_session(request, pk):
+    """Get a session filtered by user (+ tenant)."""
     try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
+        return AnalysisSession.objects.get(id=pk, user=request.user)
+    except AnalysisSession.DoesNotExist:
+        return None
 
-    title = data.get("title", "").strip()
-    if not title:
-        return JsonResponse({"error": "Title is required"}, status=400)
 
-    template = data.get("template", Workbench.Template.BLANK)
-    if template not in [t.value for t in Workbench.Template]:
-        return JsonResponse({"error": "Invalid template"}, status=400)
+def _wb_get_analysis(request, artifact_id):
+    """Get an analysis owned by this user."""
+    try:
+        return SessionAnalysis.objects.select_related("session").get(
+            id=artifact_id,
+            session__user=request.user,
+        )
+    except SessionAnalysis.DoesNotExist:
+        return None
 
-    workbench = Workbench.objects.create(
+
+def _wb_analysis_to_dict(request, artifact_id):
+    """Get analysis as dict for pull_artifact_detail."""
+    obj = _wb_get_analysis(request, artifact_id)
+    if obj is None:
+        return None
+    return {
+        "id": str(obj.id),
+        "analysis_type": obj.analysis_type,
+        "analysis_id": obj.analysis_id,
+        "dataset_id": str(obj.dataset_id) if obj.dataset_id else None,
+        "columns_used": obj.columns_used,
+        "config": obj.config,
+        "statistics": obj.statistics,
+        "narrative": obj.narrative,
+        "summary": obj.summary,
+        "charts": obj.charts,
+        "diagnostics": obj.diagnostics,
+        "assumptions": obj.assumptions,
+        "education": obj.education,
+        "bayesian_shadow": obj.bayesian_shadow,
+        "evidence_grade": obj.evidence_grade,
+        "guide_observation": obj.guide_observation,
+        "created_at": obj.created_at.isoformat(),
+    }
+
+
+def _wb_sub_artifact(obj, key_path):
+    """Delegate to model's get_sub_artifact."""
+    return obj.get_sub_artifact(key_path)
+
+
+def _wb_delete_session(obj):
+    """Delete a session."""
+    obj.delete()
+
+
+# =============================================================================
+# Sessions
+# =============================================================================
+
+
+@require_http_methods(["GET", "POST"])
+@require_auth
+def session_list_create(request):
+    """List user's sessions or create a new one."""
+    if request.method == "GET":
+        sessions = AnalysisSession.objects.filter(user=request.user).order_by("-updated_at")[:50]
+        return JsonResponse(
+            {
+                "sessions": [
+                    {
+                        "id": str(s.id),
+                        "title": s.title,
+                        "dataset_count": s.datasets.count(),
+                        "analysis_count": s.analyses.count(),
+                        "updated_at": s.updated_at.isoformat(),
+                        "created_at": s.created_at.isoformat(),
+                    }
+                    for s in sessions
+                ]
+            }
+        )
+
+    data = json.loads(request.body)
+    session = AnalysisSession.objects.create(
         user=request.user,
-        title=title,
-        description=data.get("description", ""),
-        template=template,
-    )
-
-    # Initialize template-specific state
-    if template != Workbench.Template.BLANK:
-        workbench.init_template()
-
-    return JsonResponse(
-        {
-            "success": True,
-            "workbench": {
-                "id": str(workbench.id),
-                "title": workbench.title,
-                "template": workbench.template,
-                "template_state": workbench.template_state,
-            },
-        },
-        status=201,
-    )
-
-
-@login_required
-@require_http_methods(["GET"])
-def get_workbench(request, workbench_id):
-    """Get a workbench with all its artifacts (full JSON for agent context)."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
-    return JsonResponse(workbench.to_json())
-
-
-@login_required
-@require_http_methods(["PATCH"])
-def update_workbench(request, workbench_id):
-    """Update workbench metadata."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
-
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-    # Update allowed fields
-    if "title" in data:
-        workbench.title = data["title"]
-    if "description" in data:
-        workbench.description = data["description"]
-    if "status" in data:
-        workbench.status = data["status"]
-    if "conclusion" in data:
-        workbench.conclusion = data["conclusion"]
-    if "conclusion_confidence" in data:
-        workbench.conclusion_confidence = data["conclusion_confidence"]
-    if "layout" in data:
-        workbench.layout = data["layout"]
-    if "datasets" in data:
-        workbench.datasets = data["datasets"]
-    if "guide_observations" in data:
-        workbench.guide_observations = data["guide_observations"]
-
-    workbench.save()
-
-    return JsonResponse({"success": True})
-
-
-@login_required
-@require_http_methods(["DELETE"])
-def delete_workbench(request, workbench_id):
-    """Delete a workbench (moves to archived status by default)."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
-
-    # Check if permanent delete requested
-    permanent = request.GET.get("permanent", "false").lower() == "true"
-
-    if permanent:
-        workbench.delete()
-    else:
-        workbench.status = Workbench.Status.ARCHIVED
-        workbench.save(update_fields=["status"])
-
-    return JsonResponse({"success": True})
-
-
-@login_required
-@require_http_methods(["POST"])
-def export_workbench(request, workbench_id):
-    """Export workbench as JSON file."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
-
-    response = JsonResponse(workbench.to_json())
-    safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', "_", workbench.title) or "workbench"
-    response["Content-Disposition"] = f'attachment; filename="{safe_title}.json"'
-    return response
-
-
-@login_required
-@require_http_methods(["POST"])
-def import_workbench(request):
-    """Import a workbench from JSON."""
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-    workbench = Workbench.from_json(data, request.user)
-
-    return JsonResponse(
-        {
-            "success": True,
-            "workbench_id": str(workbench.id),
-        },
-        status=201,
-    )
-
-
-# =============================================================================
-# Artifact endpoints
-# =============================================================================
-
-
-@login_required
-@require_http_methods(["POST"])
-def create_artifact(request, workbench_id):
-    """Create an artifact in a workbench."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
-
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-    artifact_type = data.get("type")
-    if not artifact_type:
-        return JsonResponse({"error": "Artifact type is required"}, status=400)
-
-    artifact = workbench.add_artifact(
-        artifact_type=artifact_type,
-        content=data.get("content", {}),
         title=data.get("title", ""),
-        source=data.get("source", "user"),
-        probability=data.get("probability"),
-        tags=data.get("tags", []),
+        description=data.get("description", ""),
+    )
+    return JsonResponse({"id": str(session.id), "title": session.title}, status=201)
+
+
+@require_http_methods(["GET", "PATCH", "DELETE"])
+@require_auth
+def session_detail(request, session_id):
+    """Get, update, or delete a session."""
+    session = get_object_or_404(AnalysisSession, id=session_id, user=request.user)
+
+    if request.method == "GET":
+        return JsonResponse(
+            {
+                "id": str(session.id),
+                "title": session.title,
+                "description": session.description,
+                "datasets": [
+                    {
+                        "id": str(d.id),
+                        "name": d.name,
+                        "source": d.source,
+                        "row_count": d.row_count,
+                        "columns_meta": d.columns_meta,
+                        "created_at": d.created_at.isoformat(),
+                    }
+                    for d in session.datasets.all()
+                ],
+                "analyses": [
+                    {
+                        "id": str(a.id),
+                        "analysis_type": a.analysis_type,
+                        "analysis_id": a.analysis_id,
+                        "dataset_id": str(a.dataset_id) if a.dataset_id else None,
+                        "columns_used": a.columns_used,
+                        "evidence_grade": a.evidence_grade,
+                        "summary": a.summary[:200],
+                        "created_at": a.created_at.isoformat(),
+                    }
+                    for a in session.analyses.all()
+                ],
+                "created_at": session.created_at.isoformat(),
+                "updated_at": session.updated_at.isoformat(),
+            }
+        )
+
+    if request.method == "PATCH":
+        data = json.loads(request.body)
+        if "title" in data:
+            session.title = data["title"]
+        if "description" in data:
+            session.description = data["description"]
+        session.save()
+        return JsonResponse({"id": str(session.id), "title": session.title})
+
+    session.delete()
+    return JsonResponse({"deleted": True})
+
+
+# =============================================================================
+# Datasets
+# =============================================================================
+
+
+@require_http_methods(["GET", "POST"])
+@require_auth
+def dataset_list_create(request, session_id):
+    """List datasets in a session or add a new one."""
+    session = get_object_or_404(AnalysisSession, id=session_id, user=request.user)
+
+    if request.method == "GET":
+        return JsonResponse(
+            {
+                "datasets": [
+                    {
+                        "id": str(d.id),
+                        "name": d.name,
+                        "source": d.source,
+                        "row_count": d.row_count,
+                        "columns_meta": d.columns_meta,
+                    }
+                    for d in session.datasets.all()
+                ]
+            }
+        )
+
+    data = json.loads(request.body)
+    dataset = SessionDataset.objects.create(
+        session=session,
+        name=data.get("name", "Untitled"),
+        source=data.get("source", SessionDataset.Source.UPLOAD),
+        data=data.get("data", {}),
+        columns_meta=data.get("columns_meta", []),
+        row_count=data.get("row_count", 0),
     )
 
-    # Handle layout position if provided
-    if "position" in data:
-        workbench.layout[str(artifact.id)] = data["position"]
-        workbench.save(update_fields=["layout"])
+    parent_ids = data.get("parent_dataset_ids", [])
+    if parent_ids:
+        parents = SessionDataset.objects.filter(id__in=parent_ids, session=session)
+        dataset.parent_datasets.set(parents)
 
+    session.save()
     return JsonResponse(
         {
-            "success": True,
-            "artifact": artifact.to_json(),
+            "id": str(dataset.id),
+            "name": dataset.name,
+            "row_count": dataset.row_count,
         },
         status=201,
     )
 
 
-@login_required
+@require_http_methods(["GET", "DELETE"])
+@require_auth
+def dataset_detail(request, session_id, dataset_id):
+    """Get full dataset (with data) or delete it."""
+    session = get_object_or_404(AnalysisSession, id=session_id, user=request.user)
+    dataset = get_object_or_404(SessionDataset, id=dataset_id, session=session)
+
+    if request.method == "GET":
+        return JsonResponse(
+            {
+                "id": str(dataset.id),
+                "name": dataset.name,
+                "source": dataset.source,
+                "data": dataset.data,
+                "columns_meta": dataset.columns_meta,
+                "row_count": dataset.row_count,
+                "parent_datasets": [str(p.id) for p in dataset.parent_datasets.all()],
+            }
+        )
+
+    dataset.delete()
+    return JsonResponse({"deleted": True})
+
+
+# =============================================================================
+# Analyses
+# =============================================================================
+
+
+@require_http_methods(["GET", "POST"])
+@gated
+def analysis_list_create(request, session_id):
+    """List analyses in a session or record a new result."""
+    session = get_object_or_404(AnalysisSession, id=session_id, user=request.user)
+
+    if request.method == "GET":
+        return JsonResponse(
+            {
+                "analyses": [
+                    {
+                        "id": str(a.id),
+                        "analysis_type": a.analysis_type,
+                        "analysis_id": a.analysis_id,
+                        "dataset_id": str(a.dataset_id) if a.dataset_id else None,
+                        "columns_used": a.columns_used,
+                        "statistics": a.statistics,
+                        "narrative": a.narrative,
+                        "summary": a.summary,
+                        "charts": a.charts,
+                        "diagnostics": a.diagnostics,
+                        "assumptions": a.assumptions,
+                        "education": a.education,
+                        "bayesian_shadow": a.bayesian_shadow,
+                        "evidence_grade": a.evidence_grade,
+                        "guide_observation": a.guide_observation,
+                        "created_at": a.created_at.isoformat(),
+                    }
+                    for a in session.analyses.all()
+                ]
+            }
+        )
+
+    data = json.loads(request.body)
+    dataset_id = data.get("dataset_id")
+    dataset = None
+    if dataset_id:
+        dataset = get_object_or_404(SessionDataset, id=dataset_id, session=session)
+
+    analysis = SessionAnalysis.objects.create(
+        session=session,
+        dataset=dataset,
+        analysis_type=data.get("analysis_type", ""),
+        analysis_id=data.get("analysis_id", ""),
+        columns_used=data.get("columns_used", []),
+        config=data.get("config", {}),
+        statistics=data.get("statistics", {}),
+        narrative=data.get("narrative", {}),
+        summary=data.get("summary", ""),
+        charts=data.get("charts", []),
+        diagnostics=data.get("diagnostics", []),
+        assumptions=data.get("assumptions", {}),
+        education=data.get("education"),
+        bayesian_shadow=data.get("bayesian_shadow"),
+        evidence_grade=data.get("evidence_grade", ""),
+        guide_observation=data.get("guide_observation", ""),
+    )
+
+    session.save()
+    return JsonResponse({"id": str(analysis.id)}, status=201)
+
+
+@require_http_methods(["GET", "DELETE"])
+@require_auth
+def analysis_detail(request, session_id, analysis_id):
+    """Get full analysis result or delete it."""
+    session = get_object_or_404(AnalysisSession, id=session_id, user=request.user)
+    analysis = get_object_or_404(SessionAnalysis, id=analysis_id, session=session)
+
+    if request.method == "GET":
+        return JsonResponse(
+            {
+                "id": str(analysis.id),
+                "analysis_type": analysis.analysis_type,
+                "analysis_id": analysis.analysis_id,
+                "dataset_id": str(analysis.dataset_id) if analysis.dataset_id else None,
+                "columns_used": analysis.columns_used,
+                "config": analysis.config,
+                "statistics": analysis.statistics,
+                "narrative": analysis.narrative,
+                "summary": analysis.summary,
+                "charts": analysis.charts,
+                "diagnostics": analysis.diagnostics,
+                "assumptions": analysis.assumptions,
+                "education": analysis.education,
+                "bayesian_shadow": analysis.bayesian_shadow,
+                "evidence_grade": analysis.evidence_grade,
+                "guide_observation": analysis.guide_observation,
+                "created_at": analysis.created_at.isoformat(),
+            }
+        )
+
+    analysis.delete()
+    return JsonResponse({"deleted": True})
+
+
+# =============================================================================
+# Pull contract — manifest + sub-artifact access
+# =============================================================================
+
+
 @require_http_methods(["GET"])
-def get_artifact(request, workbench_id, artifact_id):
-    """Get a single artifact."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
-    artifact = get_object_or_404(Artifact, id=artifact_id, workbench=workbench)
+@require_auth
+def session_manifest(request, session_id):
+    """Return the pullable manifest for this session.
 
-    return JsonResponse(artifact.to_json())
-
-
-@login_required
-@require_http_methods(["PATCH"])
-def update_artifact(request, workbench_id, artifact_id):
-    """Update an artifact."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
-    artifact = get_object_or_404(Artifact, id=artifact_id, workbench=workbench)
-
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-    # Update allowed fields
-    if "title" in data:
-        artifact.title = data["title"]
-    if "content" in data:
-        artifact.content = data["content"]
-    if "probability" in data:
-        artifact.probability = data["probability"]
-    if "tags" in data:
-        artifact.tags = data["tags"]
-    if "supports" in data:
-        artifact.supports_hypotheses = data["supports"]
-    if "weakens" in data:
-        artifact.weakens_hypotheses = data["weakens"]
-
-    artifact.save()
-
-    # Update layout if position provided
-    if "position" in data:
-        workbench.layout[str(artifact.id)] = data["position"]
-        workbench.save(update_fields=["layout"])
-
-    return JsonResponse({"success": True, "artifact": artifact.to_json()})
+    Other tools browse this to decide what to reference.
+    """
+    session = get_object_or_404(AnalysisSession, id=session_id, user=request.user)
+    return JsonResponse(session.get_manifest())
 
 
-@login_required
-@require_http_methods(["DELETE"])
-def delete_artifact(request, workbench_id, artifact_id):
-    """Delete an artifact."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
-    artifact = get_object_or_404(Artifact, id=artifact_id, workbench=workbench)
+@require_http_methods(["GET"])
+@require_auth
+def analysis_sub_artifact(request, session_id, analysis_id, key_path):
+    """Access a specific sub-artifact by key path.
 
-    # Remove from layout
-    if str(artifact.id) in workbench.layout:
-        del workbench.layout[str(artifact.id)]
-        workbench.save(update_fields=["layout"])
+    Examples:
+        GET /sessions/<id>/analyses/<id>/statistics/p_value/
+        GET /sessions/<id>/analyses/<id>/charts/0/
+        GET /sessions/<id>/analyses/<id>/narrative/verdict/
+    """
+    session = get_object_or_404(AnalysisSession, id=session_id, user=request.user)
+    analysis = get_object_or_404(SessionAnalysis, id=analysis_id, session=session)
 
-    # Remove from connections
-    workbench.connections = [
-        c for c in workbench.connections if c["from"] != str(artifact.id) and c["to"] != str(artifact.id)
-    ]
-    workbench.save(update_fields=["connections"])
+    value = analysis.get_sub_artifact(key_path)
+    if value is None:
+        return JsonResponse({"error": f"Sub-artifact not found: {key_path}"}, status=404)
 
-    artifact.delete()
-
-    return JsonResponse({"success": True})
+    return JsonResponse({"key": key_path, "value": value})
 
 
 # =============================================================================
-# Connection endpoints
+# Pull contract — reference registration + delete with friction
 # =============================================================================
 
 
-@login_required
-@require_http_methods(["POST"])
-def connect_artifacts(request, workbench_id):
-    """Connect two artifacts."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
-
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-    from_id = data.get("from")
-    to_id = data.get("to")
-    label = data.get("label", "")
-
-    if not from_id or not to_id:
-        return JsonResponse({"error": "from and to are required"}, status=400)
-
-    workbench.connect_artifacts(from_id, to_id, label)
-
-    return JsonResponse({"success": True})
-
-
-@login_required
-@require_http_methods(["DELETE"])
-def disconnect_artifacts(request, workbench_id):
-    """Remove a connection between artifacts."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
-
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-    from_id = data.get("from")
-    to_id = data.get("to")
-
-    workbench.connections = [c for c in workbench.connections if not (c["from"] == from_id and c["to"] == to_id)]
-    workbench.save(update_fields=["connections"])
-
-    return JsonResponse({"success": True})
-
-
-# =============================================================================
-# Template-specific endpoints
-# =============================================================================
-
-
-@login_required
-@require_http_methods(["POST"])
-def advance_phase(request, workbench_id):
-    """Advance DMAIC phase."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
-
-    if workbench.template != Workbench.Template.DMAIC:
-        return JsonResponse({"error": "Not a DMAIC workbench"}, status=400)
-
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        data = {}
-
-    notes = data.get("notes", "")
-    workbench.advance_dmaic_phase(notes)
-
-    return JsonResponse(
-        {
-            "success": True,
-            "current_phase": workbench.template_state.get("current_phase"),
-        }
+def session_references(request, session_id):
+    """List references pointing to this session's artifacts."""
+    return pull_views.pull_list_references(
+        request,
+        session_id,
+        source_app="workbench",
+        source_type="AnalysisSession",
     )
 
 
-# =============================================================================
-# Guide endpoints
-# =============================================================================
+def analysis_register_reference(request, analysis_id):
+    """Register a reference to a specific analysis."""
+    return pull_views.pull_register_reference(
+        request,
+        analysis_id,
+        source_app="workbench",
+        source_type="SessionAnalysis",
+    )
 
 
-@login_required
-@require_http_methods(["POST"])
-def add_guide_observation(request, workbench_id):
-    """Add an AI Guide observation (called by agents)."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
-
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-    observation = data.get("observation", "")
-    suggestion = data.get("suggestion", "")
-
-    if not observation:
-        return JsonResponse({"error": "Observation is required"}, status=400)
-
-    workbench.add_guide_observation(observation, suggestion)
-
-    return JsonResponse({"success": True})
+def analysis_pull_detail(request, analysis_id):
+    """Pull contract: full analysis artifact detail."""
+    return pull_views.pull_artifact_detail(
+        request,
+        analysis_id,
+        get_artifact_fn=_wb_analysis_to_dict,
+    )
 
 
-@login_required
-@require_http_methods(["POST"])
-def acknowledge_observation(request, workbench_id, observation_index):
-    """Mark a guide observation as acknowledged."""
-    workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
+def analysis_pull_sub_artifact(request, analysis_id, key_path):
+    """Pull contract: sub-artifact by key path."""
+    return pull_views.pull_sub_artifact(
+        request,
+        analysis_id,
+        key_path,
+        get_artifact_fn=_wb_get_analysis,
+        sub_artifact_fn=_wb_sub_artifact,
+    )
 
-    try:
-        idx = int(observation_index)
-        if 0 <= idx < len(workbench.guide_observations):
-            workbench.guide_observations[idx]["acknowledged"] = True
-            workbench.save(update_fields=["guide_observations"])
-            return JsonResponse({"success": True})
-    except (ValueError, IndexError):
-        pass
 
-    return JsonResponse({"error": "Invalid observation index"}, status=400)
+def session_delete_with_friction(request, session_id):
+    """Delete session with friction — warns if active references exist."""
+    return pull_views.pull_delete_with_friction(
+        request,
+        session_id,
+        source_app="workbench",
+        source_type="AnalysisSession",
+        get_obj_fn=_wb_get_session,
+        delete_fn=_wb_delete_session,
+    )
