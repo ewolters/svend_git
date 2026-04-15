@@ -114,24 +114,24 @@
 <div class="tool-card">
     <h2>Input Data</h2>
     <div class="form-grid">
-        <div class="form-group full">
+        <div class="sv-field full">
             <label>Measurements (paste comma, space, tab, or newline separated values)</label>
             <textarea id="data-input" placeholder="25.01, 24.98, 25.03, 25.00, 24.97, 25.02, 24.99, 25.01, 24.98, 25.00&#10;25.02, 24.99, 25.01, 24.97, 25.03, 25.00, 24.98, 25.02, 25.01, 24.99">25.01, 24.98, 25.03, 25.00, 24.97, 25.02, 24.99, 25.01, 24.98, 25.00, 25.02, 24.99, 25.01, 24.97, 25.03, 25.00, 24.98, 25.02, 25.01, 24.99, 25.00, 25.01, 24.98, 25.02, 24.99, 25.01, 25.00, 24.97, 25.03, 25.00</textarea>
             <div class="data-input-help">Accepts any delimiter. Paste directly from Excel, CSV, or a column of numbers.</div>
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Lower Spec Limit (LSL)</label>
             <input type="number" id="lsl" step="any" value="24.97" placeholder="e.g. 24.97">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Upper Spec Limit (USL)</label>
             <input type="number" id="usl" step="any" value="25.03" placeholder="e.g. 25.03">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Target (optional)</label>
             <input type="number" id="target" step="any" placeholder="e.g. 25.00">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Subgroup Size (for within-group sigma)</label>
             <input type="number" id="subgroup-size" value="5" min="2" max="25" step="1">
         </div>

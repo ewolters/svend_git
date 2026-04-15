@@ -4,22 +4,22 @@
                         <path d="M2 20h20M5 20V10l7-7 7 7v10M9 20v-6h6v6"/>
                     </svg>
                     <p>Generate a design first to enter results.</p>
-                    <button class="btn btn-primary" onclick="goToStep('configure')">Create Design</button>
+                    <button class="sv-btn sv-btn-primary" onclick="goToStep('configure')">Create Design</button>
                 </div>
                 <div id="results-entry" style="display: none;">
                     <h3>Enter Experimental Results</h3>
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="sv-field">
                             <label>Response Variable Name</label>
                             <input type="text" id="response-name" value="Response" placeholder="e.g., Yield, Strength, Time">
                         </div>
                         <div>
-                            <button class="btn btn-secondary btn-sm" onclick="importResults()">Import CSV</button>
+                            <button class="sv-btn sv-btn-secondary btn-sm" onclick="importResults()">Import CSV</button>
                         </div>
                     </div>
                     <div id="results-table-container" class="table-container"></div>
                     <div style="margin-top: 1rem;">
-                        <button class="btn btn-primary" onclick="analyzeResults()">Analyze Results</button>
+                        <button class="sv-btn sv-btn-primary" onclick="analyzeResults()">Analyze Results</button>
                     </div>
                 </div>
             </div>

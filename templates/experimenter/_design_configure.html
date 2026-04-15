@@ -4,7 +4,7 @@
                     <h3>Create Experimental Design</h3>
 
                     <!-- Design Type Selection -->
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Design Type</label>
                         <div class="design-categories">
                             <button class="cat-btn active" onclick="filterDesigns('all')">All</button>
@@ -20,7 +20,7 @@
                     </div>
 
                     <!-- Factors -->
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Factors
                             <span class="factor-template-trigger" onclick="toggleTemplatePanel()">Use template &#x25BE;</span>
                         </label>
@@ -28,11 +28,11 @@
                         <div id="factors-container">
                             <!-- Dynamic factor rows -->
                         </div>
-                        <button class="btn btn-sm btn-secondary" onclick="addFactor()">+ Add Factor</button>
+                        <button class="sv-btn btn-sm sv-btn-secondary" onclick="addFactor()">+ Add Factor</button>
                     </div>
 
                     <!-- Options -->
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Options</label>
                         <div class="options-grid">
                             <div class="form-group-inline">
@@ -102,7 +102,7 @@
                     <div id="factor-validation" class="factor-validation"></div>
 
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <button class="btn btn-primary" onclick="generateDesign()">Generate Design</button>
+                        <button class="sv-btn sv-btn-primary" onclick="generateDesign()">Generate Design</button>
                         <span id="run-estimate" style="font-size:0.85rem;color:var(--text-dim);font-weight:500;"></span>
                     </div>
                 </div>

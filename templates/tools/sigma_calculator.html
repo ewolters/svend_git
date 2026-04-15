@@ -94,7 +94,7 @@
     font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 1rem;
     text-transform: uppercase; letter-spacing: 0.05em;
 }
-.converter-box .form-group { margin-bottom: 0.75rem; }
+.converter-box .sv-field { margin-bottom: 0.75rem; }
 .arrow-divider {
     display: flex; align-items: center; justify-content: center;
     font-size: 1.5rem; color: var(--accent-primary);
@@ -119,7 +119,7 @@
 <div class="tool-card">
     <h2>Convert</h2>
     <div class="form-grid">
-        <div class="form-group">
+        <div class="sv-field">
             <label>Input Type</label>
             <select id="input-type" onchange="updateInputLabel()">
                 <option value="dpmo">DPMO (Defects per Million)</option>
@@ -128,18 +128,18 @@
                 <option value="defect-rate">Defect Rate (%)</option>
             </select>
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label id="input-label">DPMO</label>
             <input type="number" id="input-value" step="any" value="6210" placeholder="e.g. 6210">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Include 1.5&sigma; shift?</label>
             <select id="shift">
                 <option value="1.5" selected>Yes (standard Six Sigma convention)</option>
                 <option value="0">No (theoretical / short-term)</option>
             </select>
         </div>
-        <div class="form-group" style="display:flex;align-items:flex-end;">
+        <div class="sv-field" style="display:flex;align-items:flex-end;">
             <button class="btn-calculate" onclick="calculate()" style="width:100%;">Convert</button>
         </div>
     </div>

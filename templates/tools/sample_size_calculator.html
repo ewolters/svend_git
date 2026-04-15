@@ -98,20 +98,20 @@
     <!-- 1-Sample t -->
     <div class="tab-panel active" id="panel-onesample">
         <div class="form-grid">
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Effect Size (Cohen's d)</label>
                 <input type="number" id="os-effect" step="0.01" value="0.5" min="0.01">
                 <div class="mode-help">0.2 = small, 0.5 = medium, 0.8 = large</div>
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>OR: Mean Difference</label>
                 <input type="number" id="os-diff" step="any" placeholder="e.g. 2.5">
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Standard Deviation (if using mean diff)</label>
                 <input type="number" id="os-std" step="any" placeholder="e.g. 5.0">
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Significance Level (&alpha;)</label>
                 <select id="os-alpha">
                     <option value="0.01">0.01</option>
@@ -119,7 +119,7 @@
                     <option value="0.10">0.10</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Power (1 &minus; &beta;)</label>
                 <select id="os-power">
                     <option value="0.70">0.70</option>
@@ -128,7 +128,7 @@
                     <option value="0.95">0.95</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Sided</label>
                 <select id="os-sided">
                     <option value="2" selected>Two-sided</option>
@@ -141,24 +141,24 @@
     <!-- 2-Sample t -->
     <div class="tab-panel" id="panel-twosample">
         <div class="form-grid">
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Effect Size (Cohen's d)</label>
                 <input type="number" id="ts-effect" step="0.01" value="0.5" min="0.01">
                 <div class="mode-help">0.2 = small, 0.5 = medium, 0.8 = large</div>
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>OR: Mean Difference</label>
                 <input type="number" id="ts-diff" step="any" placeholder="e.g. 3.0">
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Pooled Std Dev (if using mean diff)</label>
                 <input type="number" id="ts-std" step="any" placeholder="e.g. 5.0">
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Allocation Ratio (n2/n1)</label>
                 <input type="number" id="ts-ratio" step="0.1" value="1" min="0.1">
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Significance Level (&alpha;)</label>
                 <select id="ts-alpha">
                     <option value="0.01">0.01</option>
@@ -166,7 +166,7 @@
                     <option value="0.10">0.10</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Power (1 &minus; &beta;)</label>
                 <select id="ts-power">
                     <option value="0.70">0.70</option>
@@ -181,15 +181,15 @@
     <!-- Proportion -->
     <div class="tab-panel" id="panel-proportion">
         <div class="form-grid">
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Baseline Proportion (p1)</label>
                 <input type="number" id="pr-p1" step="0.01" value="0.50" min="0.01" max="0.99">
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Expected Proportion (p2)</label>
                 <input type="number" id="pr-p2" step="0.01" value="0.65" min="0.01" max="0.99">
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Significance Level (&alpha;)</label>
                 <select id="pr-alpha">
                     <option value="0.01">0.01</option>
@@ -197,7 +197,7 @@
                     <option value="0.10">0.10</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Power (1 &minus; &beta;)</label>
                 <select id="pr-power">
                     <option value="0.70">0.70</option>
@@ -212,16 +212,16 @@
     <!-- ANOVA -->
     <div class="tab-panel" id="panel-anova">
         <div class="form-grid">
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Effect Size (Cohen's f)</label>
                 <input type="number" id="an-effect" step="0.01" value="0.25" min="0.01">
                 <div class="mode-help">0.10 = small, 0.25 = medium, 0.40 = large</div>
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Number of Groups</label>
                 <input type="number" id="an-groups" step="1" value="3" min="2" max="20">
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Significance Level (&alpha;)</label>
                 <select id="an-alpha">
                     <option value="0.01">0.01</option>
@@ -229,7 +229,7 @@
                     <option value="0.10">0.10</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Power (1 &minus; &beta;)</label>
                 <select id="an-power">
                     <option value="0.70">0.70</option>

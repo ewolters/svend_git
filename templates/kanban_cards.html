@@ -138,43 +138,43 @@
 <!-- ============ SINGLE CARD TAB ============ -->
 <div class="kanban-panel" id="kb-panel-single">
     <div class="kanban-row-3">
-        <div class="form-group">
+        <div class="sv-field">
             <label>Item Number</label>
             <input type="text" id="s-pn" value="WDG-1234">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Supplier Part # / SKU</label>
             <input type="text" id="s-spn" placeholder="Optional — used for barcode">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Description</label>
             <input type="text" id="s-desc" value="Widget Assembly A - Blue">
         </div>
     </div>
     <div class="kanban-row-3">
-        <div class="form-group">
+        <div class="sv-field">
             <label>Location</label>
             <input type="text" id="s-loc" value="A-01-03">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Supplier</label>
             <input type="text" id="s-supplier" value="Acme Industrial">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Unit</label>
             <input type="text" id="s-unit" value="EA">
         </div>
     </div>
     <div class="kanban-row-3">
-        <div class="form-group">
+        <div class="sv-field">
             <label>Reorder Point</label>
             <input type="number" id="s-rop" value="10" min="0">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Order Quantity</label>
             <input type="number" id="s-qty" value="50" min="1">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Card Size</label>
             <select id="s-size">
                 <option value="index-4x6" selected>Index 4x6</option>
@@ -184,11 +184,11 @@
         </div>
     </div>
     <div class="kanban-row">
-        <div class="form-group">
+        <div class="sv-field">
             <label>Reorder URL or Phone (optional)</label>
             <input type="text" id="s-url" placeholder="https://supplier.com/reorder?sku=...">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Data QR Code</label>
             <select id="s-data-qr">
                 <option value="false" selected>Off (default)</option>
@@ -197,7 +197,7 @@
         </div>
     </div>
     <div class="kanban-row">
-        <div class="form-group">
+        <div class="sv-field">
             <label>Header Color</label>
             <div class="color-pick">
                 <input type="color" id="s-color" value="#1a1a2e">
@@ -212,7 +212,7 @@
                 </select>
             </div>
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Notes (optional)</label>
             <textarea id="s-notes" rows="2" placeholder="Lead time, storage conditions, etc.">Lead time 2 weeks. Order in multiples of 10.</textarea>
         </div>
@@ -231,7 +231,7 @@
 <!-- ============ BATCH ENTRY TAB ============ -->
 <div class="kanban-panel hidden" id="kb-panel-batch">
     <div class="kanban-row">
-        <div class="form-group">
+        <div class="sv-field">
             <label>Card Size</label>
             <select id="b-size">
                 <option value="index-4x6" selected>Index 4x6</option>
@@ -272,12 +272,12 @@
 
 <!-- ============ IMPORT TAB ============ -->
 <div class="kanban-panel hidden" id="kb-panel-import">
-    <div class="form-group">
+    <div class="sv-field">
         <label>Paste JSON or CSV</label>
         <textarea id="import-text" rows="10" placeholder='[{"part_number":"WDG-1234","description":"Widget","location":"A-01","supplier":"Acme","reorder_point":10,"order_qty":50}]'></textarea>
     </div>
     <div class="kanban-row">
-        <div class="form-group">
+        <div class="sv-field">
             <label>Card Size</label>
             <select id="i-size">
                 <option value="index-4x6" selected>Index 4x6</option>

@@ -3,7 +3,7 @@
                 <div class="panel">
                     <h3>Statistical Power Analysis <!-- v2 --></h3>
 
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Test Type</label>
                         <select id="test-type" onchange="updatePowerHelp(); debouncedPowerRefresh()">
                             <option value="ttest_ind">Independent t-test (2 groups)</option>
@@ -14,12 +14,12 @@
                         </select>
                     </div>
 
-                    <div class="form-group" id="groups-container">
+                    <div class="sv-field" id="groups-container">
                         <label>Number of Groups</label>
                         <input type="number" id="num-groups" value="2" min="2" max="10">
                     </div>
 
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Effect Size</label>
                         <div class="effect-size-control">
                             <input type="range" id="effect-size" min="0.1" max="1.5" step="0.05" value="0.5"
@@ -37,7 +37,7 @@
                     </div>
 
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="sv-field">
                             <label>Significance (alpha)</label>
                             <select id="alpha" onchange="debouncedPowerRefresh()">
                                 <option value="0.01">0.01</option>
@@ -45,7 +45,7 @@
                                 <option value="0.10">0.10</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        <div class="sv-field">
                             <label>Power (1-beta)</label>
                             <select id="power-level" onchange="debouncedPowerRefresh()">
                                 <option value="0.70">70%</option>
@@ -56,7 +56,7 @@
                         </div>
                     </div>
 
-                    <button class="btn btn-primary" onclick="runPowerAnalysis()">Calculate Sample Size</button>
+                    <button class="sv-btn sv-btn-primary" onclick="runPowerAnalysis()">Calculate Sample Size</button>
                 </div>
 
                 <div class="panel">

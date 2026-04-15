@@ -143,26 +143,26 @@
 <div class="tool-card">
     <h2>Chart Settings</h2>
     <div class="form-grid">
-        <div class="form-group">
+        <div class="sv-field">
             <label>Chart Type</label>
             <select id="chart-type" onchange="toggleSubgroupSize()" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:0.5rem;color:var(--text-primary);font-family:inherit;font-size:0.9rem;">
                 <option value="imr">I-MR (Individual &amp; Moving Range)</option>
                 <option value="xbar-r">X-bar R (Subgroup Mean &amp; Range)</option>
             </select>
         </div>
-        <div class="form-group" id="subgroup-wrap" style="display:none;">
+        <div class="sv-field" id="subgroup-wrap" style="display:none;">
             <label>Subgroup Size</label>
             <input type="number" id="subgroup-size" value="5" min="2" max="10">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>USL <span style="color:var(--text-dim)">(optional)</span></label>
             <input type="number" id="usl" step="any" placeholder="Upper Spec Limit">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>LSL <span style="color:var(--text-dim)">(optional)</span></label>
             <input type="number" id="lsl" step="any" placeholder="Lower Spec Limit">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Target <span style="color:var(--text-dim)">(optional)</span></label>
             <input type="number" id="target" step="any" placeholder="Target Value">
         </div>
@@ -176,7 +176,7 @@
         <button class="cc-tab" onclick="ccSwitchTab('upload')">Upload CSV/XLSX</button>
     </div>
     <div class="cc-panel" id="cc-panel-paste">
-        <div class="form-group">
+        <div class="sv-field">
             <label>One value per line, or comma / tab / space separated</label>
             <textarea id="paste-data" rows="10">25.02
 24.98

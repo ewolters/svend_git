@@ -31,7 +31,7 @@
                 <!-- Tabular Config -->
                 <div id="tabular-config" class="type-config">
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="sv-field">
                             <label>Domain</label>
                             <select id="tabular-domain">
                                 <option value="ecommerce">E-commerce</option>
@@ -41,13 +41,13 @@
                                 <option value="general">General</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        <div class="sv-field">
                             <label>Records</label>
                             <input type="number" id="tabular-count" value="100" min="1" max="100000">
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Schema Template</label>
                         <select id="schema-template" onchange="loadSchemaTemplate()">
                             <option value="custom">Custom Schema</option>
@@ -58,7 +58,7 @@
                         </select>
                     </div>
 
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Schema Definition (JSON)</label>
                         <textarea id="schema-def" rows="8" placeholder='{
   "product_name": {"type": "string"},
@@ -71,7 +71,7 @@
                 <!-- Text Config -->
                 <div id="text-config" class="type-config" style="display: none;">
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="sv-field">
                             <label>Domain</label>
                             <select id="text-domain">
                                 <option value="ecommerce">E-commerce</option>
@@ -79,13 +79,13 @@
                                 <option value="general">General</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        <div class="sv-field">
                             <label>Records</label>
                             <input type="number" id="text-count" value="50" min="1" max="10000">
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Text Type</label>
                         <select id="text-type">
                             <option value="review">Product Reviews</option>
@@ -103,14 +103,14 @@
 
                 <!-- Common Options -->
                 <div class="form-row">
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Quality Level</label>
                         <select id="quality-level">
                             <option value="standard">Standard</option>
                             <option value="premium">Premium (2x cost, Synara validation)</option>
                         </select>
                     </div>
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Output Format</label>
                         <select id="output-format">
                             <option value="jsonl">JSONL</option>
@@ -120,7 +120,7 @@
                     </div>
                 </div>
 
-                <button class="btn btn-primary btn-generate" onclick="generateData()">
+                <button class="sv-btn sv-btn-primary btn-generate" onclick="generateData()">
                     Generate Data
                 </button>
             </div>
@@ -131,7 +131,7 @@
             <div class="panel-header">
                 <span class="panel-title">Generation Results</span>
                 <div class="panel-actions">
-                    <button class="btn btn-primary" id="download-btn" onclick="downloadData()">
+                    <button class="sv-btn sv-btn-primary" id="download-btn" onclick="downloadData()">
                         Download
                     </button>
                 </div>
@@ -146,7 +146,7 @@
         <div class="panel history-panel">
             <div class="panel-header">
                 <span class="panel-title">Recent Jobs</span>
-                <button class="btn btn-secondary btn-sm" onclick="loadJobs()">Refresh</button>
+                <button class="sv-btn sv-btn-secondary btn-sm" onclick="loadJobs()">Refresh</button>
             </div>
             <div class="panel-content" id="jobs-list">
                 <p class="text-dim">No recent jobs</p>
@@ -256,20 +256,20 @@
     gap: 1rem;
 }
 
-.form-group {
+.sv-field {
     margin-bottom: 1rem;
 }
 
-.form-group label {
+.sv-field label {
     display: block;
     font-size: 0.85rem;
     color: var(--text-dim);
     margin-bottom: 0.5rem;
 }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
+.sv-field input,
+.sv-field select,
+.sv-field textarea {
     width: 100%;
     padding: 0.6rem 0.75rem;
     background: var(--bg-secondary);
@@ -279,15 +279,15 @@
     font-family: inherit;
 }
 
-.form-group textarea {
+.sv-field textarea {
     font-family: monospace;
     font-size: 0.85rem;
     resize: vertical;
 }
 
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
+.sv-field input:focus,
+.sv-field select:focus,
+.sv-field textarea:focus {
     outline: none;
     border-color: var(--accent-primary);
 }

@@ -146,19 +146,19 @@
 <div class="tool-card">
     <h2>Study Setup</h2>
     <div class="form-grid">
-        <div class="form-group">
+        <div class="sv-field">
             <label>Number of Parts</label>
             <input type="number" id="n-parts" value="5" min="2" max="50" onchange="buildTable()">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Number of Operators</label>
             <input type="number" id="n-operators" value="3" min="2" max="10" onchange="buildTable()">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Number of Trials (replicates)</label>
             <input type="number" id="n-trials" value="2" min="2" max="10" onchange="buildTable()">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Tolerance (USL &minus; LSL) <span style="color:var(--text-dim)">(optional)</span></label>
             <input type="number" id="tolerance" step="any" placeholder="e.g. 0.5">
         </div>
@@ -180,7 +180,7 @@
         </div>
     </div>
     <div class="grr-panel hidden" id="grr-panel-paste">
-        <div class="form-group">
+        <div class="sv-field">
             <label>Paste CSV (Part, Operator, Measurement &mdash; one per line)</label>
             <textarea id="paste-text" rows="10" placeholder="1, A, 2.35&#10;1, A, 2.38&#10;1, B, 2.36&#10;1, B, 2.40&#10;2, A, 3.12&#10;..."></textarea>
         </div>
