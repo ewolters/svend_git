@@ -8,7 +8,7 @@
         <h1>Workflows</h1>
         <p style="margin: 0;">Chain agents together. Save as reusable pipelines.</p>
     </div>
-    <button class="btn btn-primary" onclick="showCreateModal()">+ New Workflow</button>
+    <button class="sv-btn sv-btn-primary" onclick="showCreateModal()">+ New Workflow</button>
 </div>
 
 <!-- Workflow List -->
@@ -20,7 +20,7 @@
 </div>
 
 <!-- Create/Edit Modal -->
-<div id="workflow-modal" class="modal" style="display: none;">
+<div id="workflow-modal" class="sv-modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
             <h2 id="modal-title">New Workflow</h2>
@@ -30,22 +30,22 @@
         <form id="workflow-form">
             <input type="hidden" id="workflow-id">
 
-            <div class="form-group">
-                <label for="workflow-name">Workflow Name</label>
-                <input type="text" id="workflow-name" placeholder="My Analysis Pipeline" required>
+            <div class="sv-field">
+                <label class="sv-label" for="workflow-name">Workflow Name</label>
+                <input type="text" id="workflow-name" class="sv-input" placeholder="My Analysis Pipeline" required>
             </div>
 
-            <div class="form-group">
-                <label>Steps</label>
+            <div class="sv-field">
+                <label class="sv-label">Steps</label>
                 <div id="steps-container"></div>
-                <button type="button" class="btn btn-secondary" onclick="addStep()" style="margin-top: 0.5rem;">
+                <button type="button" class="sv-btn" onclick="addStep()" style="margin-top: 0.5rem;">
                     + Add Step
                 </button>
             </div>
 
             <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                <button type="submit" class="btn btn-primary">Save Workflow</button>
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="sv-btn sv-btn-primary">Save Workflow</button>
+                <button type="button" class="sv-btn" onclick="closeModal()">Cancel</button>
             </div>
         </form>
     </div>
@@ -54,7 +54,7 @@
 <!-- Workflow Results View (replaces workflow list when running) -->
 <div id="results-view" style="display: none;">
     <div class="results-header">
-        <button class="btn btn-secondary" onclick="backToWorkflows()">← Back to Workflows</button>
+        <button class="sv-btn" onclick="backToWorkflows()">&larr; Back to Workflows</button>
         <h2 id="results-title">Workflow Results</h2>
     </div>
     <div id="results-container" class="results-workspace"></div>
@@ -82,7 +82,7 @@
     to { transform: rotate(360deg); }
 }
 
-.modal {
+.sv-modal {
     position: fixed;
     top: 0;
     left: 0;
@@ -525,9 +525,9 @@ function renderWorkflows() {
                     <p>${steps.length} steps &middot; Last run: ${lastRun}</p>
                 </div>
                 <div class="workflow-actions">
-                    <button class="btn btn-primary" onclick="runWorkflow('${wf.id}')">Run</button>
-                    <button class="btn btn-secondary" onclick="editWorkflow('${wf.id}')">Edit</button>
-                    <button class="btn btn-secondary" onclick="deleteWorkflow('${wf.id}')">Delete</button>
+                    <button class="sv-btn sv-btn-primary" onclick="runWorkflow('${wf.id}')">Run</button>
+                    <button class="sv-btn" onclick="editWorkflow('${wf.id}')">Edit</button>
+                    <button class="sv-btn" onclick="deleteWorkflow('${wf.id}')">Delete</button>
                 </div>
             </div>
         `;

@@ -816,7 +816,7 @@
                     <div style="display:flex; gap:0.35rem; margin-bottom:0.4rem;">
                         <input type="number" id="takt-direct" placeholder="sec" step="0.1"
                                style="flex:1; background:var(--bg-tertiary); border:1px solid var(--border); padding:0.3rem 0.4rem; font-size:0.8rem; color:var(--text-primary); border-radius:4px; width:60px;">
-                        <button class="btn btn-sm btn-secondary" style="font-size:0.7rem; padding:0.3rem 0.5rem;" onclick="setTaktDirect()">Set</button>
+                        <button class="sv-btn sv-btn-sm sv-btn-secondary" style="font-size:0.7rem; padding:0.3rem 0.5rem;" onclick="setTaktDirect()">Set</button>
                     </div>
                     <p style="font-size:0.65rem; color:var(--text-dim); margin-bottom:0.4rem;">— or calculate —</p>
                     <div style="display:flex; gap:0.35rem; margin-bottom:0.3rem; align-items:end;">
@@ -831,23 +831,23 @@
                                    style="width:100%; background:var(--bg-tertiary); border:1px solid var(--border); padding:0.25rem 0.35rem; font-size:0.75rem; color:var(--text-primary); border-radius:4px;">
                         </div>
                     </div>
-                    <button class="btn btn-sm btn-primary" style="font-size:0.7rem; padding:0.3rem 0.5rem; width:100%;" onclick="calculateTakt()">Calculate Takt</button>
+                    <button class="sv-btn sv-btn-sm sv-btn-primary" style="font-size:0.7rem; padding:0.3rem 0.5rem; width:100%;" onclick="calculateTakt()">Calculate Takt</button>
                 </div>
             </div>
 
             <!-- Actions -->
             <div class="sidebar-section">
                 <h3>Actions</h3>
-                <button class="btn btn-primary" style="width:100%; margin-bottom:0.5rem;" onclick="createFutureState()">
+                <button class="sv-btn sv-btn-primary" style="width:100%; margin-bottom:0.5rem;" onclick="createFutureState()">
                     Create Future State
                 </button>
-                <button class="btn btn-secondary" style="width:100%; margin-bottom:0.5rem;" onclick="compareStates()">
+                <button class="sv-btn sv-btn-secondary" style="width:100%; margin-bottom:0.5rem;" onclick="compareStates()">
                     Compare States
                 </button>
-                <button class="btn btn-secondary" style="width:100%; margin-bottom:0.5rem;" onclick="exportVSM()">
+                <button class="sv-btn sv-btn-secondary" style="width:100%; margin-bottom:0.5rem;" onclick="exportVSM()">
                     Export
                 </button>
-                <button class="btn btn-primary" id="btn-generate-proposals"
+                <button class="sv-btn sv-btn-primary" id="btn-generate-proposals"
                         style="width:100%; display:none; background:#7c3aed; border-color:#7c3aed;"
                         onclick="openProposalModal()">
                     Generate CI Proposals
@@ -936,7 +936,7 @@
         <div class="empty-state" id="empty-state">
             <h3>Create Your Value Stream Map</h3>
             <p>Drag elements from the sidebar to get started</p>
-            <button class="btn btn-primary" onclick="showNewVSMDialog()">New VSM</button>
+            <button class="sv-btn sv-btn-primary" onclick="showNewVSMDialog()">New VSM</button>
         </div>
 
         <!-- Properties panel -->
@@ -1041,7 +1041,7 @@
                     <label style="color:var(--text-dim); font-size:10px;" id="prop-wc-members">Members: none</label>
                 </div>
             </div>
-            <button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="saveProperties()">
+            <button class="sv-btn sv-btn-primary" style="width:100%; margin-top:1rem;" onclick="saveProperties()">
                 Save
             </button>
         </div>
@@ -1083,7 +1083,7 @@
                     <input type="number" id="proposal-cost" value="50" step="0.01" style="width:100%; padding:0.5rem; font-size:0.85rem;">
                 </div>
             </div>
-            <button class="btn btn-primary" style="width:100%; background:#7c3aed; border-color:#7c3aed;" onclick="generateVSMProposals()">
+            <button class="sv-btn sv-btn-primary" style="width:100%; background:#7c3aed; border-color:#7c3aed;" onclick="generateVSMProposals()">
                 Analyze Kaizen Bursts
             </button>
         </div>
@@ -1092,8 +1092,8 @@
         <div id="proposal-results" style="display:none;">
             <div id="proposal-list"></div>
             <div style="display:flex; gap:1rem; margin-top:1.5rem;">
-                <button class="btn btn-secondary" style="flex:1;" onclick="closeProposalModal()">Cancel</button>
-                <button class="btn btn-primary" style="flex:1; background:#7c3aed; border-color:#7c3aed;" onclick="createSelectedProposals()">
+                <button class="sv-btn sv-btn-secondary" style="flex:1;" onclick="closeProposalModal()">Cancel</button>
+                <button class="sv-btn sv-btn-primary" style="flex:1; background:#7c3aed; border-color:#7c3aed;" onclick="createSelectedProposals()">
                     Create Selected Projects
                 </button>
             </div>
@@ -1124,21 +1124,21 @@
 <div id="new-vsm-dialog" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#121a12; padding:2rem; border-radius:8px; width:400px; border:1px solid rgba(74,159,110,0.3); box-shadow:0 10px 40px rgba(0,0,0,0.5);">
         <h3 style="margin-bottom:1rem;">New Value Stream Map</h3>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Name</label>
             <input type="text" id="new-vsm-name" placeholder="Production Line A">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Product Family</label>
             <input type="text" id="new-vsm-product" placeholder="Widget Assembly">
         </div>
-        <div class="form-group">
+        <div class="sv-field">
             <label>Customer Demand</label>
             <input type="text" id="new-vsm-demand" placeholder="460 units/day">
         </div>
         <div style="display:flex; gap:1rem; margin-top:1.5rem;">
-            <button class="btn btn-secondary" style="flex:1;" onclick="hideNewVSMDialog()">Cancel</button>
-            <button class="btn btn-primary" style="flex:1;" onclick="createNewVSM()">Create</button>
+            <button class="sv-btn sv-btn-secondary" style="flex:1;" onclick="hideNewVSMDialog()">Cancel</button>
+            <button class="sv-btn sv-btn-primary" style="flex:1;" onclick="createNewVSM()">Create</button>
         </div>
     </div>
 </div>
@@ -3451,7 +3451,7 @@ function renderProposalCards(proposals) {
                 <span style="font-size:0.7rem; color:var(--text-dim); margin-left:0.25rem;">(90% CI, median $${Math.round(p.median_savings || p.estimated_annual_savings || 0).toLocaleString()})</span>
                 ${p.p_positive > 0 ? `<span style="font-size:0.7rem; color:var(--success); margin-left:0.5rem;">${Math.round(p.p_positive * 100)}% chance of positive ROI</span>` : ''}
             </div>
-            <button class="btn btn-primary" style="margin-top:0.5rem;font-size:0.75rem;padding:0.3rem 0.8rem;background:var(--accent);border-color:var(--accent);"
+            <button class="sv-btn sv-btn-primary" style="margin-top:0.5rem;font-size:0.75rem;padding:0.3rem 0.8rem;background:var(--accent);border-color:var(--accent);"
                 onclick="approveProposal('${p.burst_id||''}', '${(p.suggested_title||'').replace(/'/g,'\\&#39;')}', ${Math.round(p.median_savings || p.estimated_annual_savings || 0)}, '${p.suggested_method||'direct'}', '${p.suggested_type||'material'}')">
                 Approve → Hoshin Project
             </button>
@@ -3659,7 +3659,7 @@ function showVSMList(maps) {
 
         groups[fy].forEach(m => {
             const promoteBtn = m.status === 'future' && m.paired_with_id
-                ? `<button class="btn btn-outline" style="font-size:10px;padding:2px 8px;margin-left:8px;" onclick="event.stopPropagation();promoteVSM('${m.id}')">Promote to Current</button>`
+                ? `<button class="sv-btn sv-btn-outline" style="font-size:10px;padding:2px 8px;margin-left:8px;" onclick="event.stopPropagation();promoteVSM('${m.id}')">Promote to Current</button>`
                 : '';
             const pairedLabel = m.paired_with_id
                 ? '<span style="font-size:10px;color:var(--text-dim);margin-left:6px;">paired</span>'
@@ -3678,7 +3678,7 @@ function showVSMList(maps) {
     });
     html += '</div>';
 
-    emptyState.innerHTML = html + '<button class="btn btn-primary" style="margin:1rem;" onclick="showNewVSMDialog()">+ New VSM</button>';
+    emptyState.innerHTML = html + '<button class="sv-btn sv-btn-primary" style="margin:1rem;" onclick="showNewVSMDialog()">+ New VSM</button>';
 }
 
 async function promoteVSM(vsmId) {

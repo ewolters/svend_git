@@ -288,7 +288,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 }
 
 /* --- Buttons --- */
-.btn-primary {
+.sv-btn-primary {
     padding: 8px 16px;
     background: var(--accent-primary);
     color: #fff;
@@ -299,10 +299,10 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     cursor: pointer;
     font-family: 'Inter', system-ui, sans-serif;
 }
-.btn-primary:hover { opacity: 0.9; }
-.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.sv-btn-primary:hover { opacity: 0.9; }
+.sv-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.btn-secondary {
+.sv-btn-secondary {
     padding: 8px 16px;
     background: transparent;
     color: var(--text-secondary);
@@ -313,9 +313,9 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     cursor: pointer;
     font-family: 'Inter', system-ui, sans-serif;
 }
-.btn-secondary:hover { border-color: var(--accent-primary-border); color: var(--text-primary); }
+.sv-btn-secondary:hover { border-color: var(--accent-primary-border); color: var(--text-primary); }
 
-.btn-danger {
+.sv-btn-danger {
     padding: 8px 16px;
     background: transparent;
     color: var(--error);
@@ -326,9 +326,9 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     cursor: pointer;
     font-family: 'Inter', system-ui, sans-serif;
 }
-.btn-danger:hover { background: var(--error-dim); }
+.sv-btn-danger:hover { background: var(--error-dim); }
 
-.btn-sm { padding: 5px 10px; font-size: 11px; }
+.sv-btn-sm { padding: 5px 10px; font-size: 11px; }
 </style>
 {% endblock %}
 
@@ -338,7 +338,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     <div class="inv-sidebar">
         <div class="inv-sidebar-header">
             <h3>Investigations</h3>
-            <button class="btn-primary btn-sm" onclick="showCreateModal()">+ New</button>
+            <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="showCreateModal()">+ New</button>
         </div>
         <div class="inv-sidebar-list" id="inv-list"></div>
     </div>
@@ -359,8 +359,8 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         <input type="text" id="create-title" placeholder="Investigation title" autofocus>
         <textarea id="create-desc" placeholder="Description (optional)"></textarea>
         <div class="inv-modal-actions">
-            <button class="btn-secondary" onclick="hideCreateModal()">Cancel</button>
-            <button class="btn-primary" onclick="createInvestigation()">Create</button>
+            <button class="sv-btn sv-btn-secondary" onclick="hideCreateModal()">Cancel</button>
+            <button class="sv-btn sv-btn-primary" onclick="createInvestigation()">Create</button>
         </div>
     </div>
 </div>
@@ -376,10 +376,10 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                 <option value="contributor">Contributor</option>
                 <option value="viewer">Viewer</option>
             </select>
-            <button class="btn-primary btn-sm" onclick="addMember()">Add</button>
+            <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="addMember()">Add</button>
         </div>
         <div class="inv-modal-actions">
-            <button class="btn-secondary" onclick="hideMembersModal()">Close</button>
+            <button class="sv-btn sv-btn-secondary" onclick="hideMembersModal()">Close</button>
         </div>
     </div>
 </div>
@@ -395,8 +395,8 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         </div>
         <div id="export-result" style="display:none;margin-bottom:12px;padding:10px;background:rgba(74,159,110,0.1);border-radius:6px;font-size:12px;"></div>
         <div class="inv-modal-actions">
-            <button class="btn-secondary" onclick="hideExportModal()">Cancel</button>
-            <button class="btn-primary" id="export-btn" onclick="doExport()" data-loading-text="Exporting\u2026">Export</button>
+            <button class="sv-btn sv-btn-secondary" onclick="hideExportModal()">Cancel</button>
+            <button class="sv-btn sv-btn-primary" id="export-btn" onclick="doExport()" data-loading-text="Exporting\u2026">Export</button>
         </div>
     </div>
 </div>
@@ -495,12 +495,12 @@ function renderDetail() {
             </div>
             ${inv.description ? `<p style="margin:8px 0 0;font-size:13px;color:var(--text-secondary);">${esc(inv.description)}</p>` : ''}
             <div class="inv-actions">
-                ${canTransition && nextStatus ? `<button class="btn-primary btn-sm" onclick="transitionInv('${nextStatus}')">${nextStatus === 'active' ? 'Activate' : 'Conclude'}</button>` : ''}
-                ${inv.status === 'concluded' ? `<button class="btn-secondary btn-sm" onclick="reopenInv()">Reopen</button>` : ''}
-                ${inv.status === 'concluded' ? `<button class="btn-primary btn-sm" onclick="showExportModal()">Export to Project</button>` : ''}
+                ${canTransition && nextStatus ? `<button class="sv-btn sv-btn-primary sv-btn-sm" onclick="transitionInv('${nextStatus}')">${nextStatus === 'active' ? 'Activate' : 'Conclude'}</button>` : ''}
+                ${inv.status === 'concluded' ? `<button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="reopenInv()">Reopen</button>` : ''}
+                ${inv.status === 'concluded' ? `<button class="sv-btn sv-btn-primary sv-btn-sm" onclick="showExportModal()">Export to Project</button>` : ''}
                 ${inv.status === 'exported' ? `<span style="font-size:12px;color:var(--success);">Exported ${inv.exported_at ? timeAgo(inv.exported_at) : ''}</span>` : ''}
-                ${inv.status === 'open' ? `<button class="btn-danger btn-sm" onclick="deleteInv()">Delete</button>` : ''}
-                <button class="btn-secondary btn-sm" onclick="showMembersModal()">Members</button>
+                ${inv.status === 'open' ? `<button class="sv-btn sv-btn-danger sv-btn-sm" onclick="deleteInv()">Delete</button>` : ''}
+                <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="showMembersModal()">Members</button>
             </div>
         </div>
 
@@ -710,7 +710,7 @@ async function showMembersModal() {
                         <strong style="font-size:13px;">${esc(m.username)}</strong>
                         <span style="font-size:11px;color:var(--text-dim);margin-left:6px;text-transform:capitalize;">${esc(m.role)}</span>
                     </div>
-                    ${m.role !== 'owner' ? `<button class="btn-danger btn-sm" onclick="removeMember('${m.user_id}')" style="padding:2px 8px;">Remove</button>` : ''}
+                    ${m.role !== 'owner' ? `<button class="sv-btn sv-btn-danger sv-btn-sm" onclick="removeMember('${m.user_id}')" style="padding:2px 8px;">Remove</button>` : ''}
                 </div>
             `).join('');
         }
@@ -830,7 +830,7 @@ window.addEventListener('svendUserReady', function(e) {
             <div class="inv-empty">
                 <div style="text-align:center;">
                     <p style="font-size:16px;margin-bottom:8px;">Investigations require a paid plan.</p>
-                    <a href="/app/account/" class="btn-primary" style="text-decoration:none;">Upgrade</a>
+                    <a href="/app/account/" class="sv-btn sv-btn-primary" style="text-decoration:none;">Upgrade</a>
                 </div>
             </div>`;
     }

@@ -19,32 +19,32 @@
     <div class="settings-tab-content active" id="tab-account">
     <div class="settings-grid">
         <!-- Profile Section -->
-        <section class="card settings-section">
+        <section class="sv-card settings-section">
             <h2>Profile</h2>
             <form id="profile-form">
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="display_name">Display Name</label>
                     <input type="text" id="display_name" name="display_name" placeholder="How you want to be called">
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="email">Email</label>
                     <input type="email" id="email" disabled>
                     <span class="help-text">Contact support to change email</span>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="bio">Bio</label>
                     <textarea id="bio" name="bio" rows="3" placeholder="Tell us about yourself"></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary">Save Profile</button>
+                <button type="submit" class="sv-btn sv-btn-primary">Save Profile</button>
             </form>
         </section>
 
         <!-- About You Section -->
-        <section class="card settings-section">
+        <section class="sv-card settings-section">
             <h2>About You</h2>
             <p class="section-desc">Help us personalize your experience</p>
             <form id="about-form">
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="industry">Industry</label>
                     <select id="industry" name="industry">
                         <option value="">Select your industry</option>
@@ -58,7 +58,7 @@
                         <option value="other">Other</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="role">Role</label>
                     <select id="role" name="role">
                         <option value="">Select your role</option>
@@ -72,7 +72,7 @@
                         <option value="other">Other</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="experience_level">Quality / Opex Experience</label>
                     <select id="experience_level" name="experience_level">
                         <option value="">Select your experience level</option>
@@ -81,7 +81,7 @@
                         <option value="advanced">Advanced — experienced practitioner</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="organization_size">Organization Size</label>
                     <select id="organization_size" name="organization_size">
                         <option value="">Select your organization size</option>
@@ -91,33 +91,33 @@
                         <option value="enterprise">Enterprise (5000+)</option>
                     </select>
                 </div>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="submit" class="sv-btn sv-btn-primary">Save</button>
             </form>
         </section>
 
         <!-- Password Section -->
-        <section class="card settings-section">
+        <section class="sv-card settings-section">
             <h2>Change Password</h2>
             <form id="password-form">
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="current_password">Current Password</label>
                     <input type="password" id="current_password" name="current_password" required>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="new_password">New Password</label>
                     <input type="password" id="new_password" name="new_password" required minlength="8">
                     <span class="help-text">Minimum 8 characters</span>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="confirm_password">Confirm New Password</label>
                     <input type="password" id="confirm_password" name="confirm_password" required>
                 </div>
-                <button type="submit" class="btn btn-primary">Update Password</button>
+                <button type="submit" class="sv-btn sv-btn-primary">Update Password</button>
             </form>
         </section>
 
         <!-- Subscription Section -->
-        <section class="card settings-section">
+        <section class="sv-card settings-section">
             <h2>Subscription</h2>
             <div class="subscription-info">
                 <div class="tier-badge" id="tier-badge">Loading...</div>
@@ -127,17 +127,17 @@
                 </div>
             </div>
             <div class="subscription-actions">
-                <a href="/billing/portal/" class="btn btn-secondary" id="manage-billing" style="display:none;">Manage Billing</a>
-                <a href="/billing/checkout/?plan=founder" class="btn btn-primary" id="upgrade-founder-btn" style="display:none;">Upgrade — $19/mo (Founder)</a>
-                <a href="/billing/checkout/" class="btn btn-primary" id="upgrade-btn" style="display:none;">Upgrade to Pro</a>
+                <a href="/billing/portal/" class="sv-btn sv-btn-secondary" id="manage-billing" style="display:none;">Manage Billing</a>
+                <a href="/billing/checkout/?plan=founder" class="sv-btn sv-btn-primary" id="upgrade-founder-btn" style="display:none;">Upgrade — $19/mo (Founder)</a>
+                <a href="/billing/checkout/" class="sv-btn sv-btn-primary" id="upgrade-btn" style="display:none;">Upgrade to Pro</a>
             </div>
         </section>
 
         <!-- Preferences Section -->
-        <section class="card settings-section">
+        <section class="sv-card settings-section">
             <h2>Preferences</h2>
             <form id="preferences-form">
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="theme">Theme</label>
                     <select id="theme" name="current_theme" onchange="previewTheme(this.value)">
                         <option value="">Default (Forest Night)</option>
@@ -148,29 +148,29 @@
                         <option value="contrast">High Contrast</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label class="svend-toggle">
                         <input type="checkbox" id="pref-show-reasoning" name="show_reasoning">
                         <span>Show reasoning traces by default</span>
                     </label>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label class="svend-toggle">
                         <input type="checkbox" id="pref-auto-scroll" name="auto_scroll" checked>
                         <span>Auto-scroll to new messages</span>
                     </label>
                 </div>
-                <button type="submit" class="btn btn-primary">Save Preferences</button>
+                <button type="submit" class="sv-btn sv-btn-primary">Save Preferences</button>
             </form>
         </section>
 
         <!-- Danger Zone -->
-        <section class="card settings-section danger-zone">
+        <section class="sv-card settings-section danger-zone">
             <h2>Danger Zone</h2>
             <p class="warning-text">These actions cannot be undone.</p>
             <div class="danger-actions">
-                <button class="btn btn-danger" id="delete-conversations">Delete All Conversations</button>
-                <button class="btn btn-danger" id="delete-account" disabled>Delete Account</button>
+                <button class="sv-btn sv-btn-danger" id="delete-conversations">Delete All Conversations</button>
+                <button class="sv-btn sv-btn-danger" id="delete-account" disabled>Delete Account</button>
             </div>
         </section>
     </div>
@@ -182,7 +182,7 @@
     <div class="settings-tab-content" id="tab-org">
         <div class="settings-grid">
             <!-- Org Info -->
-            <section class="card settings-section">
+            <section class="sv-card settings-section">
                 <h2>Organization</h2>
                 <div id="org-info-content">
                     <p class="text-dim">Loading...</p>
@@ -190,26 +190,26 @@
             </section>
 
             <!-- Create Organization (shown when user can create but has no org) -->
-            <section class="card settings-section" id="org-create-section" style="display:none;">
+            <section class="sv-card settings-section" id="org-create-section" style="display:none;">
                 <h2>Create Organization</h2>
                 <p class="help-text" style="margin-bottom:1rem;">Set up your team workspace to invite members and share projects.</p>
                 <form id="org-create-form">
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label for="org-name">Organization Name</label>
                         <input type="text" id="org-name" placeholder="Acme Manufacturing" required maxlength="255">
                     </div>
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label for="org-slug">URL Slug</label>
                         <input type="text" id="org-slug" placeholder="acme-manufacturing" required maxlength="100"
                                pattern="[a-z0-9][a-z0-9-]*[a-z0-9]" style="font-family:monospace;">
                         <p class="help-text">Lowercase letters, numbers, and hyphens only.</p>
                     </div>
-                    <button type="submit" class="btn btn-primary">Create Organization</button>
+                    <button type="submit" class="sv-btn sv-btn-primary">Create Organization</button>
                 </form>
             </section>
 
             <!-- Seat Usage -->
-            <section class="card settings-section" id="org-seats-section" style="display:none;">
+            <section class="sv-card settings-section" id="org-seats-section" style="display:none;">
                 <h2>Seats</h2>
                 <div class="seat-bar-container">
                     <div class="seat-bar">
@@ -222,7 +222,7 @@
             </section>
 
             <!-- Members List -->
-            <section class="card settings-section" id="org-members-section" style="display:none;">
+            <section class="sv-card settings-section" id="org-members-section" style="display:none;">
                 <h2>Members</h2>
                 <div id="members-table-container">
                     <table class="members-table">
@@ -240,15 +240,15 @@
             </section>
 
             <!-- Invite Member -->
-            <section class="card settings-section" id="org-invite-section" style="display:none;">
+            <section class="sv-card settings-section" id="org-invite-section" style="display:none;">
                 <h2>Invite Member</h2>
                 <form id="invite-form">
                     <div class="invite-row">
-                        <div class="form-group" style="flex:1;">
+                        <div class="sv-field" style="flex:1;">
                             <label for="invite-email">Email</label>
                             <input type="email" id="invite-email" placeholder="colleague@company.com" required>
                         </div>
-                        <div class="form-group">
+                        <div class="sv-field">
                             <label for="invite-role">Role</label>
                             <select id="invite-role">
                                 <option value="member">Member</option>
@@ -256,14 +256,14 @@
                                 <option value="admin">Admin</option>
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-primary" style="align-self:flex-end;">Send Invite</button>
+                        <button type="submit" class="sv-btn sv-btn-primary" style="align-self:flex-end;">Send Invite</button>
                     </div>
                 </form>
                 <p class="help-text">Sending an invite adds a seat (prorated to your billing cycle). The link is valid for 7 days.</p>
             </section>
 
             <!-- Pending Invitations -->
-            <section class="card settings-section" id="org-invites-section" style="display:none;">
+            <section class="sv-card settings-section" id="org-invites-section" style="display:none;">
                 <h2>Pending Invitations</h2>
                 <div id="invites-list">
                     <p class="text-dim">No pending invitations</p>
@@ -271,7 +271,7 @@
             </section>
 
             <!-- Sites -->
-            <section class="card settings-section" id="org-sites-section" style="display:none;">
+            <section class="sv-card settings-section" id="org-sites-section" style="display:none;">
                 <h2>Sites</h2>
                 <p class="section-desc">Manufacturing facilities in your organization.</p>
                 <div id="sites-list"></div>
@@ -279,43 +279,43 @@
                     <form id="site-form">
                         <input type="hidden" id="site-edit-id">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                            <div class="form-group">
+                            <div class="sv-field">
                                 <label for="site-name">Name</label>
                                 <input type="text" id="site-name" placeholder="Fort Worth Plant" required maxlength="255">
                             </div>
-                            <div class="form-group">
+                            <div class="sv-field">
                                 <label for="site-code">Code</label>
                                 <input type="text" id="site-code" placeholder="PLT-01" maxlength="20">
                             </div>
-                            <div class="form-group">
+                            <div class="sv-field">
                                 <label for="site-business-unit">Business Unit</label>
                                 <input type="text" id="site-business-unit" placeholder="Printing Division" maxlength="255">
                             </div>
-                            <div class="form-group">
+                            <div class="sv-field">
                                 <label for="site-address">Address</label>
                                 <input type="text" id="site-address" placeholder="123 Main St, Fort Worth, TX">
                             </div>
-                            <div class="form-group">
+                            <div class="sv-field">
                                 <label for="site-plant-manager">Plant Manager</label>
                                 <input type="text" id="site-plant-manager" maxlength="255">
                             </div>
-                            <div class="form-group">
+                            <div class="sv-field">
                                 <label for="site-ci-leader">CI Leader</label>
                                 <input type="text" id="site-ci-leader" maxlength="255">
                             </div>
                         </div>
                         <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
-                            <button type="submit" class="btn btn-primary" id="site-submit-btn">Add Site</button>
-                            <button type="button" class="btn" onclick="cancelSiteForm()">Cancel</button>
+                            <button type="submit" class="sv-btn sv-btn-primary" id="site-submit-btn">Add Site</button>
+                            <button type="button" class="sv-btn" onclick="cancelSiteForm()">Cancel</button>
                         </div>
                     </form>
                 </div>
-                <button class="btn" id="add-site-btn" style="margin-top:0.75rem; display:none;" onclick="showSiteForm()">Add Site</button>
+                <button class="sv-btn" id="add-site-btn" style="margin-top:0.75rem; display:none;" onclick="showSiteForm()">Add Site</button>
                 <p class="help-text" id="site-limit-text" style="display:none;"></p>
             </section>
 
             <!-- People (Non-User Employees) -->
-            <section class="card settings-section" id="org-people-section" style="display:none;">
+            <section class="sv-card settings-section" id="org-people-section" style="display:none;">
                 <h2>People</h2>
                 <p class="section-desc">Plant personnel who participate in CI activities. These do not require Svend accounts or seats.</p>
                 <div id="people-list"></div>
@@ -323,34 +323,34 @@
                     <form id="person-form">
                         <input type="hidden" id="person-edit-id">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                            <div class="form-group">
+                            <div class="sv-field">
                                 <label for="person-name">Name</label>
                                 <input type="text" id="person-name" required maxlength="255">
                             </div>
-                            <div class="form-group">
+                            <div class="sv-field">
                                 <label for="person-email">Email</label>
                                 <input type="email" id="person-email" required>
                             </div>
-                            <div class="form-group">
+                            <div class="sv-field">
                                 <label for="person-role">Role / Title</label>
                                 <input type="text" id="person-role" placeholder="Press Operator" maxlength="255">
                             </div>
-                            <div class="form-group">
+                            <div class="sv-field">
                                 <label for="person-department">Department</label>
                                 <input type="text" id="person-department" placeholder="Production" maxlength="255">
                             </div>
-                            <div class="form-group">
+                            <div class="sv-field">
                                 <label for="person-site">Site</label>
                                 <select id="person-site"><option value="">— No site —</option></select>
                             </div>
                         </div>
                         <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
-                            <button type="submit" class="btn btn-primary" id="person-submit-btn">Add Person</button>
-                            <button type="button" class="btn" onclick="cancelPersonForm()">Cancel</button>
+                            <button type="submit" class="sv-btn sv-btn-primary" id="person-submit-btn">Add Person</button>
+                            <button type="button" class="sv-btn" onclick="cancelPersonForm()">Cancel</button>
                         </div>
                     </form>
                 </div>
-                <button class="btn" id="add-person-btn" style="margin-top:0.75rem; display:none;" onclick="showPersonForm()">Add Person</button>
+                <button class="sv-btn" id="add-person-btn" style="margin-top:0.75rem; display:none;" onclick="showPersonForm()">Add Person</button>
             </section>
         </div>
     </div><!-- /tab-org -->
@@ -443,18 +443,18 @@
         gap: 1rem;
     }
 
-    .btn-danger {
+    .sv-btn-danger {
         background: var(--error-dim);
         border: 1px solid var(--error-border);
         color: var(--error);
     }
 
-    .btn-danger:hover:not(:disabled) {
+    .sv-btn-danger:hover:not(:disabled) {
         background: var(--error-dim);
         border-color: var(--error-border);
     }
 
-    .btn-danger:disabled {
+    .sv-btn-danger:disabled {
         opacity: 0.4;
         cursor: not-allowed;
     }
@@ -975,7 +975,7 @@
                               <option value="admin">Admin</option>
                               <option value="owner">Owner</option>
                            </select>
-                           <button class="btn btn-danger btn-sm" onclick="removeMember('${m.id}', '${m.email}')">Remove</button>`
+                           <button class="sv-btn sv-btn-danger btn-sm" onclick="removeMember('${m.id}', '${m.email}')">Remove</button>`
                         }
                     </td>
                 </tr>
@@ -1086,7 +1086,7 @@
                             Invited by ${inv.invited_by || 'unknown'}
                         </div>
                     </div>
-                    <button class="btn btn-danger btn-sm" onclick="cancelInvite('${inv.id}')">Cancel</button>
+                    <button class="sv-btn sv-btn-danger btn-sm" onclick="cancelInvite('${inv.id}')">Cancel</button>
                 </div>
             `).join('');
         } catch (err) {
@@ -1138,8 +1138,8 @@
                         </div>
                         ${canManage ? `
                             <div style="display:flex; gap:0.25rem;">
-                                <button class="btn btn-sm" onclick="editSite('${s.id}')">Edit</button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteSite('${s.id}', '${s.name.replace(/'/g, "\\'")}')">Delete</button>
+                                <button class="sv-btn btn-sm" onclick="editSite('${s.id}')">Edit</button>
+                                <button class="sv-btn sv-btn-danger btn-sm" onclick="deleteSite('${s.id}', '${s.name.replace(/'/g, "\\'")}')">Delete</button>
                             </div>
                         ` : ''}
                     </div>
@@ -1279,8 +1279,8 @@
                                 <td style="font-size:0.85rem;">${p.department || '—'}</td>
                                 <td style="font-size:0.85rem;">${site ? site.name : '—'}</td>
                                 ${canManage ? `<td>
-                                    <button class="btn btn-sm" onclick="editPerson('${p.id}')">Edit</button>
-                                    <button class="btn btn-danger btn-sm" onclick="deletePerson('${p.id}', '${p.name.replace(/'/g, "\\'")}')">Delete</button>
+                                    <button class="sv-btn btn-sm" onclick="editPerson('${p.id}')">Edit</button>
+                                    <button class="sv-btn sv-btn-danger btn-sm" onclick="deletePerson('${p.id}', '${p.name.replace(/'/g, "\\'")}')">Delete</button>
                                 </td>` : ''}
                             </tr>`;
                         }).join('')}</tbody>

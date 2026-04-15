@@ -20,9 +20,9 @@
             <select id="project-selector" onchange="onProjectChange(this.value)">
                 <option value="">No Investigation Linked</option>
             </select>
-            <button class="btn btn-secondary btn-sm" onclick="showSavedDesigns()">My Designs</button>
-            <button class="btn btn-primary btn-sm" id="save-design-btn" onclick="saveCurrentDesign()" data-loading-text="Saving\u2026" style="display:none;">Save Design</button>
-            <button class="btn btn-secondary btn-sm" onclick="toggleContextPanel(); showContextTab('chat');">
+            <button class="sv-btn sv-btn-secondary btn-sm" onclick="showSavedDesigns()">My Designs</button>
+            <button class="sv-btn sv-btn-primary btn-sm" id="save-design-btn" onclick="saveCurrentDesign()" data-loading-text="Saving\u2026" style="display:none;">Save Design</button>
+            <button class="sv-btn sv-btn-secondary btn-sm" onclick="toggleContextPanel(); showContextTab('chat');">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon-svg">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
@@ -90,7 +90,7 @@
 </div>
 
 <!-- Saved Designs Modal -->
-<div class="modal-overlay" id="saved-designs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+<div class="sv-modal-overlay" id="saved-designs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
     <div style="background:var(--card-bg,#1a1a2e);border-radius:10px;padding:24px;max-width:550px;width:90%;max-height:80vh;overflow-y:auto;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <h3 style="margin:0;">My Designs</h3>
@@ -187,8 +187,8 @@ async function showSavedDesigns() {
                         '<span style="font-size:11px;color:var(--text-secondary);">' + escapeHtml(d.design_type.replace(/_/g, ' ')) + ' \u2022 ' + d.num_runs + ' runs \u2022 ' + escapeHtml(d.project_title) + '</span>' +
                     '</div>' +
                     '<div style="display:flex;gap:6px;">' +
-                        '<button class="btn btn-primary btn-sm" onclick="loadSavedDesign(\'' + d.id + '\')">Load</button>' +
-                        '<button class="btn btn-secondary btn-sm" onclick="deleteSavedDesign(\'' + d.id + '\')">Del</button>' +
+                        '<button class="sv-btn sv-btn-primary btn-sm" onclick="loadSavedDesign(\'' + d.id + '\')">Load</button>' +
+                        '<button class="sv-btn sv-btn-secondary btn-sm" onclick="deleteSavedDesign(\'' + d.id + '\')">Del</button>' +
                     '</div>' +
                 '</div>';
             }).join('');

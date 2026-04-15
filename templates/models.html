@@ -286,13 +286,13 @@
 </div>
 
 <!-- Model Details Modal -->
-<div id="model-modal" class="modal" style="display:none;">
-    <div class="modal-content modal-lg">
-        <div class="modal-header">
+<div id="model-modal" class="sv-modal" style="display:none;">
+    <div class="sv-modal-content sv-modal-lg">
+        <div class="sv-modal-header">
             <h2 id="modal-title">Model Details</h2>
             <button class="close-btn" onclick="closeDetailModal()">&times;</button>
         </div>
-        <div class="modal-tabs">
+        <div class="sv-modal-tabs">
             <button class="tab-btn active" onclick="showTab('overview')">Overview</button>
             <button class="tab-btn" onclick="showTab('report')">Report</button>
             <button class="tab-btn" onclick="showTab('metrics')">Metrics</button>
@@ -300,7 +300,7 @@
             <button class="tab-btn" onclick="showTab('lineage')">Lineage</button>
             <button class="tab-btn" onclick="showTab('inference')">Predict</button>
         </div>
-        <div class="modal-body">
+        <div class="sv-modal-body">
             <div id="tab-overview" class="tab-content active"></div>
             <div id="tab-report" class="tab-content" style="display:none;"></div>
             <div id="tab-metrics" class="tab-content" style="display:none;"></div>
@@ -317,23 +317,23 @@
             </div>
             <!-- Profiler is a full-page view, not a modal tab -->
         </div>
-        <div class="modal-footer">
+        <div class="sv-modal-footer">
             <button class="btn-sm btn-accent" onclick="openProfiler()">Profiler</button>
             <button class="btn-sm" onclick="retrainModel()">Retrain</button>
             <button class="btn-sm" onclick="downloadModel()">Download .pkl</button>
-            <button class="btn-sm btn-danger" onclick="deleteModel()">Delete</button>
+            <button class="btn-sm sv-btn-danger" onclick="deleteModel()">Delete</button>
         </div>
     </div>
 </div>
 
 <!-- Retrain Modal -->
-<div id="retrain-modal" class="modal" style="display:none;">
-    <div class="modal-content">
-        <div class="modal-header">
+<div id="retrain-modal" class="sv-modal" style="display:none;">
+    <div class="sv-modal-content">
+        <div class="sv-modal-header">
             <h2>Retrain Model</h2>
             <button class="close-btn" onclick="document.getElementById('retrain-modal').style.display='none'">&times;</button>
         </div>
-        <div class="modal-body">
+        <div class="sv-modal-body">
             <p>Upload new data to retrain with the same recipe:</p>
             <input type="file" id="retrain-file" accept=".csv">
             <p style="margin-top:0.5rem;color:var(--text-dim);font-size:0.85rem;">Leave empty to retrain with original data.</p>
@@ -509,8 +509,8 @@
 
     .plots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem; }
     .plot-container { height: 300px; overflow: hidden; }
-    .modal-body .plots-grid { grid-template-columns: 1fr; }
-    .modal-body .plot-container { height: 340px; }
+    .sv-modal-body .plots-grid { grid-template-columns: 1fr; }
+    .sv-modal-body .plot-container { height: 340px; }
 
     .recipe-toggle { cursor: pointer; font-size: 0.85rem; color: var(--text-dim); }
     .recipe-block { background: var(--bg-primary, var(--bg-card)); padding: 0.75rem; border-radius: 6px; font-family: monospace; font-size: 0.75rem; white-space: pre-wrap; max-height: 200px; overflow-y: auto; margin-top: 0.35rem; }
@@ -555,19 +555,19 @@
     .group-count { font-size: 0.75rem; color: var(--text-dim); background: var(--bg-card); padding: 0.15rem 0.5rem; border-radius: 10px; }
 
     /* ====== MODALS ====== */
-    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-    .modal-content { background: var(--card-bg, var(--bg-card)) !important; border: 1px solid var(--border); border-radius: 8px; width: 90%; max-width: 600px; max-height: 85vh; overflow-y: auto; }
-    .modal-lg { max-width: 960px; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
-    .modal-header h2 { margin: 0; font-size: 1.1rem; }
+    .sv-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .sv-modal-content { background: var(--card-bg, var(--bg-card)) !important; border: 1px solid var(--border); border-radius: 8px; width: 90%; max-width: 600px; max-height: 85vh; overflow-y: auto; }
+    .sv-modal-lg { max-width: 960px; }
+    .sv-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .sv-modal-header h2 { margin: 0; font-size: 1.1rem; }
     .close-btn { background: none; border: none; color: var(--text-dim); font-size: 1.5rem; cursor: pointer; }
-    .modal-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 1rem; }
+    .sv-modal-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 1rem; }
     .tab-btn { background: none; border: none; color: var(--text-dim); padding: 0.6rem 0.75rem; cursor: pointer; font-size: 0.82rem; border-bottom: 2px solid transparent; }
     .tab-btn.active { color: var(--accent-primary); border-bottom-color: var(--accent-primary); }
-    .modal-body { padding: 1.25rem; }
+    .sv-modal-body { padding: 1.25rem; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-    .modal-footer { display: flex; gap: 0.5rem; padding: 0.75rem 1.25rem; border-top: 1px solid var(--border); }
+    .sv-modal-footer { display: flex; gap: 0.5rem; padding: 0.75rem 1.25rem; border-top: 1px solid var(--border); }
 
     .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
     .detail-item label { font-size: 0.72rem; color: var(--text-dim); display: block; }
@@ -580,7 +580,7 @@
     .btn-sm { padding: 0.4rem 0.75rem; border-radius: 4px; font-size: 0.82rem; cursor: pointer; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); }
     .btn-sm:hover { border-color: var(--accent-primary); }
     .btn-accent { background: var(--accent-primary); color: #fff; border-color: var(--accent-primary); }
-    .btn-danger { background: rgba(224,82,82,0.1); border-color: rgba(224,82,82,0.3); color: var(--error, #e05252); }
+    .sv-btn-danger { background: rgba(224,82,82,0.1); border-color: rgba(224,82,82,0.3); color: var(--error, #e05252); }
     .code-block { background: var(--bg-primary, var(--bg-card)); padding: 0.75rem; border-radius: 4px; font-size: 0.78rem; max-height: 200px; overflow-y: auto; }
     .empty-state { text-align: center; padding: 2rem; color: var(--text-dim); font-size: 0.9rem; }
 
@@ -1559,7 +1559,7 @@ function getCookie(name) {
 }
 
 // Modal close on outside click
-document.querySelectorAll('.modal').forEach(modal => {
+document.querySelectorAll('.sv-modal').forEach(modal => {
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
 });
 

@@ -738,7 +738,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 }
 
 /* Modal */
-.modal {
+.sv-modal {
     position: fixed;
     top: 0;
     left: 0;
@@ -750,7 +750,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     justify-content: center;
 }
 
-.modal-backdrop {
+.sv-modal-overlay {
     position: absolute;
     top: 0;
     left: 0;
@@ -759,7 +759,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     background: rgba(0, 0, 0, 0.8);
 }
 
-.modal-content {
+.sv-modal-content {
     position: relative;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
@@ -769,7 +769,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     overflow: hidden;
 }
 
-.modal-header {
+.sv-modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -777,7 +777,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     border-bottom: 1px solid var(--border);
 }
 
-.modal-title {
+.sv-modal-title {
     font-weight: 600;
     font-size: 16px;
 }
@@ -1167,11 +1167,11 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 </div>
 
 <!-- Why Modal -->
-<div class="modal" id="why-modal" style="display: none;">
-    <div class="modal-backdrop" onclick="closeWhyModal()"></div>
-    <div class="modal-content">
-        <div class="modal-header">
-            <span class="modal-title" id="why-modal-title">Why #1</span>
+<div class="sv-modal" id="why-modal" style="display: none;">
+    <div class="sv-modal-overlay" onclick="closeWhyModal()"></div>
+    <div class="sv-modal-content">
+        <div class="sv-modal-header">
+            <span class="sv-modal-title" id="why-modal-title">Why #1</span>
             <button class="modal-close" onclick="closeWhyModal()">&times;</button>
         </div>
         <div class="modal-body">
@@ -1186,11 +1186,11 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 </div>
 
 <!-- Sessions List Modal -->
-<div class="modal" id="sessions-modal" style="display: none;">
-    <div class="modal-backdrop" onclick="closeSessionsModal()"></div>
-    <div class="modal-content" style="max-width: 600px;">
-        <div class="modal-header">
-            <span class="modal-title">Saved RCA Sessions</span>
+<div class="sv-modal" id="sessions-modal" style="display: none;">
+    <div class="sv-modal-overlay" onclick="closeSessionsModal()"></div>
+    <div class="sv-modal-content" style="max-width: 600px;">
+        <div class="sv-modal-header">
+            <span class="sv-modal-title">Saved RCA Sessions</span>
             <button class="modal-close" onclick="closeSessionsModal()">&times;</button>
         </div>
         <div class="modal-body" id="sessions-list" style="max-height: 400px; overflow-y: auto;">
@@ -1203,11 +1203,11 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 </div>
 
 <!-- Link to A3 Modal -->
-<div class="modal" id="link-a3-modal" style="display: none;">
-    <div class="modal-backdrop" onclick="closeLinkA3Modal()"></div>
-    <div class="modal-content">
-        <div class="modal-header">
-            <span class="modal-title">Link to A3 Report</span>
+<div class="sv-modal" id="link-a3-modal" style="display: none;">
+    <div class="sv-modal-overlay" onclick="closeLinkA3Modal()"></div>
+    <div class="sv-modal-content">
+        <div class="sv-modal-header">
+            <span class="sv-modal-title">Link to A3 Report</span>
             <button class="modal-close" onclick="closeLinkA3Modal()">&times;</button>
         </div>
         <div class="modal-body">

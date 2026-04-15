@@ -59,7 +59,7 @@
         <main class="learn-main">
             <!-- Welcome View (default) -->
             <div id="welcome-view" class="view active">
-                <div class="card welcome-card">
+                <div class="sv-card welcome-card">
                     <h2>Learn by Doing</h2>
                     <p>Each section has a guided exercise with real sample data. Run analyses, see results, build intuition.</p>
                     <ul class="welcome-list">
@@ -68,7 +68,7 @@
                         <li><strong>10 modules</strong> — From Bayesian thinking to advanced methods and DOE</li>
                         <li><strong>Build skills</strong> — Progress through foundations, inference, causal reasoning, and mastery</li>
                     </ul>
-                    <button class="btn btn-primary" onclick="startCourse()">Start Learning</button>
+                    <button class="sv-btn sv-btn-primary" onclick="startCourse()">Start Learning</button>
                 </div>
             </div>
 
@@ -86,7 +86,7 @@
             <!-- Section Content View -->
             <div id="section-view" class="view">
                 <div class="section-header">
-                    <button class="btn btn-secondary btn-sm" onclick="backToModule()">
+                    <button class="sv-btn btn-secondary btn-sm" onclick="backToModule()">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M19 12H5M12 19l-7-7 7-7"/>
                         </svg>
@@ -98,7 +98,7 @@
                     <!-- Populated by JS -->
                 </div>
                 <div class="section-footer">
-                    <button class="btn btn-primary" id="complete-section-btn" onclick="completeSection()">
+                    <button class="sv-btn sv-btn-primary" id="complete-section-btn" onclick="completeSection()">
                         Mark as Complete
                     </button>
                 </div>
@@ -115,7 +115,7 @@
                     <!-- Populated by JS -->
                 </div>
                 <div class="assessment-footer">
-                    <button class="btn btn-primary" id="submit-assessment-btn" onclick="submitAssessment()">
+                    <button class="sv-btn sv-btn-primary" id="submit-assessment-btn" onclick="submitAssessment()">
                         Submit Assessment
                     </button>
                 </div>
@@ -1478,13 +1478,13 @@ async function selectSection(moduleId, sectionId) {
                     if (rc.exercise && rc.exercise.dsw_type) {
                         html += `
                             <div style="margin: 1.5rem 0; display:flex; gap:0.75rem; flex-wrap:wrap;">
-                                <button class="btn btn-primary" onclick="runInDSW('${rc.exercise.dsw_type}')">
+                                <button class="sv-btn sv-btn-primary" onclick="runInDSW('${rc.exercise.dsw_type}')">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:0.25rem;">
                                         <polygon points="5 3 19 12 5 21 5 3"/>
                                     </svg>
                                     Run in DSW
                                 </button>
-                                <a href="/app/workbench/" class="btn btn-secondary" style="text-decoration:none;">
+                                <a href="/app/workbench/" class="sv-btn btn-secondary" style="text-decoration:none;">
                                     Open Workbench
                                 </a>
                             </div>
@@ -1753,7 +1753,7 @@ async function runInDSW(dswType) {
                 <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; padding:1.25rem;">
                     <p style="color:var(--text-secondary);">DSW returned an error.</p>
                     <p style="color:var(--text-secondary); font-size:0.85rem;">${safeStr(err.error, 'Try running this in the Workbench with your own data.')}</p>
-                    <a href="/app/workbench/" class="btn btn-secondary" style="text-decoration:none; margin-top:0.5rem; display:inline-block;">Open Workbench</a>
+                    <a href="/app/workbench/" class="sv-btn btn-secondary" style="text-decoration:none; margin-top:0.5rem; display:inline-block;">Open Workbench</a>
                 </div>
             `;
         }
@@ -2765,7 +2765,7 @@ function renderRandomizationDemo(config) {
                 See how randomization balances groups on both observed and unobserved variables.
             </p>
 
-            <button class="btn btn-primary" onclick="runRandomization()" style="margin-bottom: 1rem;">
+            <button class="sv-btn sv-btn-primary" onclick="runRandomization()" style="margin-bottom: 1rem;">
                 Randomize 100 Participants
             </button>
 
@@ -2867,7 +2867,7 @@ function renderMultipleComparisonDemo(config) {
                 <span class="widget-value" id="mc-tests-val">20</span>
             </div>
 
-            <button class="btn btn-primary" onclick="runMultipleTests()" style="margin-bottom: 1rem;">
+            <button class="sv-btn sv-btn-primary" onclick="runMultipleTests()" style="margin-bottom: 1rem;">
                 Run Tests (all nulls are true)
             </button>
 
@@ -3168,7 +3168,7 @@ function renderDSWDemo(config) {
                     <option value="distribution">Distribution Analysis</option>
                 </select>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="runDSWDemo()" id="dsw-run-btn">Run Analysis</button>
+            <button class="sv-btn sv-btn-primary btn-sm" onclick="runDSWDemo()" id="dsw-run-btn">Run Analysis</button>
             <div class="widget-result" id="dsw-result" style="display:none; margin-top:1rem;">
                 <div class="result-label">Analysis Output</div>
                 <pre id="dsw-output" style="white-space:pre-wrap; font-size:0.85rem; max-height:300px; overflow-y:auto;"></pre>
@@ -3231,7 +3231,7 @@ function renderSPCDemo(config) {
                 <label style="min-width:auto;">Spec Tolerance (±):</label>
                 <input type="number" id="spc-tol" value="0.05" step="0.01" style="width:100px;">
             </div>
-            <button class="btn btn-primary btn-sm" onclick="runSPCDemo()" id="spc-run-btn">Generate Chart</button>
+            <button class="sv-btn sv-btn-primary btn-sm" onclick="runSPCDemo()" id="spc-run-btn">Generate Chart</button>
             <div class="widget-result" id="spc-result" style="display:none; margin-top:1rem;">
                 <pre id="spc-output" style="white-space:pre-wrap; font-size:0.85rem;"></pre>
             </div>
@@ -3284,7 +3284,7 @@ function renderPValueSimulator(config) {
                 <input type="range" id="pval-n" min="10" max="200" step="10" value="30" oninput="updatePValueSim()">
                 <span class="widget-value" id="pval-n-val">30</span>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="runPValueSim()">Run 20 Experiments</button>
+            <button class="sv-btn sv-btn-primary btn-sm" onclick="runPValueSim()">Run 20 Experiments</button>
             <div class="widget-result" id="pval-result" style="display:none; margin-top:1rem;">
                 <pre id="pval-output" style="white-space:pre-wrap; font-size:0.85rem;"></pre>
             </div>
@@ -3548,7 +3548,7 @@ function renderDistributionExplorer(config) {
                 <input type="range" id="dist-n" min="20" max="500" step="20" value="100" oninput="updateDistExplorer()">
                 <span class="widget-value" id="dist-n-val">100</span>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="updateDistExplorer()">Generate Sample</button>
+            <button class="sv-btn sv-btn-primary btn-sm" onclick="updateDistExplorer()">Generate Sample</button>
             <div class="widget-result" id="dist-result" style="margin-top:1rem;">
                 <pre id="dist-output" style="white-space:pre-wrap; font-size:0.85rem;"></pre>
             </div>
@@ -3743,8 +3743,8 @@ function renderDecisionFramework(config) {
                     <div style="padding:1rem; background:var(--bg-secondary); border:1px solid var(--border); border-radius:4px; margin-bottom:0.5rem;">
                         <div style="color:var(--text-primary); margin-bottom:0.5rem;">${item.q}</div>
                         <div style="display:flex; gap:1rem;">
-                            <button class="btn btn-secondary btn-sm" onclick="this.parentElement.nextElementSibling.textContent='${item.y}'; this.parentElement.nextElementSibling.style.display='block'; this.style.background='var(--accent-primary-dim)';">Yes</button>
-                            <button class="btn btn-secondary btn-sm" onclick="this.parentElement.nextElementSibling.textContent='${item.n}'; this.parentElement.nextElementSibling.style.display='block'; this.style.background='var(--error-dim, #3a2020)';">No</button>
+                            <button class="sv-btn btn-secondary btn-sm" onclick="this.parentElement.nextElementSibling.textContent='${item.y}'; this.parentElement.nextElementSibling.style.display='block'; this.style.background='var(--accent-primary-dim)';">Yes</button>
+                            <button class="sv-btn btn-secondary btn-sm" onclick="this.parentElement.nextElementSibling.textContent='${item.n}'; this.parentElement.nextElementSibling.style.display='block'; this.style.background='var(--error-dim, #3a2020)';">No</button>
                         </div>
                         <div style="display:none; margin-top:0.75rem; padding:0.75rem; background:var(--bg-tertiary); border-radius:4px; color:var(--text-secondary); font-size:0.9rem;"></div>
                     </div>
@@ -4328,9 +4328,9 @@ function renderToolWorkflow(sectionData) {
         <h3>Interactive Lab</h3>
         <div class="tw-session-controls">
             ${session ? `
-                <button class="btn btn-sm btn-secondary" onclick="resetLearnSession('${session.id}')">Reset</button>
+                <button class="sv-btn btn-sm btn-secondary" onclick="resetLearnSession('${session.id}')">Reset</button>
             ` : `
-                <button class="btn btn-sm btn-primary" onclick="startLearnSession()">Start Session</button>
+                <button class="sv-btn btn-sm sv-btn-primary" onclick="startLearnSession()">Start Session</button>
             `}
         </div>
     </div>`;
@@ -5020,7 +5020,7 @@ function showResults(data) {
             ${data.correct} of ${data.total} questions correct
         </p>
 
-        <button class="btn btn-secondary" onclick="showView('welcome')">
+        <button class="sv-btn btn-secondary" onclick="showView('welcome')">
             Return to Course
         </button>
 

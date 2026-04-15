@@ -10,7 +10,7 @@
             <h1>Investigations</h1>
             <p class="subtitle">Track hypotheses. Gather evidence. Find answers.</p>
         </div>
-        <button class="btn btn-primary" onclick="showCreateModal()">+ New Investigation</button>
+        <button class="sv-btn sv-btn-primary" onclick="showCreateModal()">+ New Investigation</button>
     </div>
 
     <!-- Getting Started Guide -->
@@ -58,7 +58,7 @@
                     </div>
                 </div>
             </div>
-            <button class="btn btn-sm btn-secondary guide-dismiss" onclick="dismissGuide()">Got it, don't show again</button>
+            <button class="sv-btn sv-btn-sm sv-btn-secondary guide-dismiss" onclick="dismissGuide()">Got it, don't show again</button>
         </div>
     </div>
 
@@ -83,12 +83,12 @@
     <div id="empty-state" class="empty-state" style="display: none;">
         <h3>No investigations yet</h3>
         <p>Start by creating a hypothesis you want to investigate.</p>
-        <button class="btn btn-primary" onclick="showCreateModal()">Create Your First Investigation</button>
+        <button class="sv-btn sv-btn-primary" onclick="showCreateModal()">Create Your First Investigation</button>
     </div>
 </div>
 
 <!-- Create Project Modal (Charter Form) -->
-<div id="create-modal" class="modal" style="display: none;">
+<div id="create-modal" class="sv-modal" style="display: none;">
     <div class="modal-content modal-lg">
         <div class="modal-header">
             <h2>New Investigation Charter</h2>
@@ -99,11 +99,11 @@
             <!-- Basic Info -->
             <div class="charter-section">
                 <div class="form-row">
-                    <div class="form-group flex-2">
+                    <div class="sv-field flex-2">
                         <label for="project-title">Investigation Title *</label>
                         <input type="text" id="project-title" placeholder="e.g., Q4 Defect Rate Reduction" required>
                     </div>
-                    <div class="form-group flex-1">
+                    <div class="sv-field flex-1">
                         <label for="project-domain">Domain</label>
                         <select id="project-domain">
                             <option value="">Select...</option>
@@ -125,30 +125,30 @@
                     <span class="toggle-icon">▼</span> Problem Definition
                 </h3>
                 <div class="section-content">
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>What is happening? <small>(defect, issue, symptom)</small></label>
                         <div id="problem-whats-list" class="multi-input-list"></div>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('problem-whats')">+ Add What</button>
+                        <button type="button" class="sv-btn sv-btn-sm sv-btn-secondary" onclick="addListItem('problem-whats')">+ Add What</button>
                     </div>
 
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Where is it occurring? <small>(location, process step, product line)</small></label>
                         <div id="problem-wheres-list" class="multi-input-list"></div>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('problem-wheres')">+ Add Where</button>
+                        <button type="button" class="sv-btn sv-btn-sm sv-btn-secondary" onclick="addListItem('problem-wheres')">+ Add Where</button>
                     </div>
 
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>When does it happen? <small>(time patterns, shifts, seasons)</small></label>
                         <div id="problem-whens-list" class="multi-input-list"></div>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('problem-whens')">+ Add When</button>
+                        <button type="button" class="sv-btn sv-btn-sm sv-btn-secondary" onclick="addListItem('problem-whens')">+ Add When</button>
                     </div>
 
                     <div class="form-row">
-                        <div class="form-group flex-2">
+                        <div class="sv-field flex-2">
                             <label for="problem-magnitude">How much / How often?</label>
                             <input type="text" id="problem-magnitude" placeholder="e.g., 15% defect rate, 3x per week">
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="problem-trend">Trend</label>
                             <select id="problem-trend">
                                 <option value="unknown">Unknown</option>
@@ -157,13 +157,13 @@
                                 <option value="decreasing">Improving</option>
                             </select>
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="problem-since">Since when?</label>
                             <input type="text" id="problem-since" placeholder="e.g., Jan 2026">
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label for="problem-statement">Problem Statement <small>(auto-generated or custom)</small></label>
                         <textarea id="problem-statement" rows="2" placeholder="Will be generated from fields above, or write your own..."></textarea>
                     </div>
@@ -177,31 +177,31 @@
                 </h3>
                 <div class="section-content" style="display: none;">
                     <div class="form-row">
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="impact-financial">Financial Impact</label>
                             <input type="text" id="impact-financial" placeholder="e.g., $50K/month scrap cost">
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="impact-customer">Customer Impact</label>
                             <input type="text" id="impact-customer" placeholder="e.g., 12 complaints this quarter">
                         </div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="impact-quality">Quality Impact</label>
                             <input type="text" id="impact-quality" placeholder="e.g., 15% yield loss">
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="impact-delivery">Delivery Impact</label>
                             <input type="text" id="impact-delivery" placeholder="e.g., 5 late shipments">
                         </div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="impact-safety">Safety Impact</label>
                             <input type="text" id="impact-safety" placeholder="e.g., 2 near-misses">
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="impact-regulatory">Regulatory Impact</label>
                             <input type="text" id="impact-regulatory" placeholder="e.g., audit finding">
                         </div>
@@ -216,30 +216,30 @@
                 </h3>
                 <div class="section-content" style="display: none;">
                     <div class="form-row">
-                        <div class="form-group flex-2">
+                        <div class="sv-field flex-2">
                             <label for="goal-metric">Metric to Improve</label>
                             <input type="text" id="goal-metric" placeholder="e.g., First Pass Yield">
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="goal-unit">Unit</label>
                             <input type="text" id="goal-unit" placeholder="e.g., %">
                         </div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="goal-baseline">Current Baseline</label>
                             <input type="text" id="goal-baseline" placeholder="e.g., 87%">
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="goal-target">Target</label>
                             <input type="text" id="goal-target" placeholder="e.g., 95%">
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="goal-deadline">Deadline</label>
                             <input type="date" id="goal-deadline">
                         </div>
                     </div>
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label for="goal-statement">Goal Statement <small>(auto-generated or custom)</small></label>
                         <textarea id="goal-statement" rows="2" placeholder="Will be generated from fields above..."></textarea>
                     </div>
@@ -253,26 +253,26 @@
                 </h3>
                 <div class="section-content" style="display: none;">
                     <div class="form-row">
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label>In Scope</label>
                             <div id="scope-in-list" class="multi-input-list"></div>
-                            <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('scope-in')">+ Add</button>
+                            <button type="button" class="sv-btn sv-btn-sm sv-btn-secondary" onclick="addListItem('scope-in')">+ Add</button>
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label>Out of Scope</label>
                             <div id="scope-out-list" class="multi-input-list"></div>
-                            <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('scope-out')">+ Add</button>
+                            <button type="button" class="sv-btn sv-btn-sm sv-btn-secondary" onclick="addListItem('scope-out')">+ Add</button>
                         </div>
                     </div>
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Constraints</label>
                         <div id="constraints-list" class="multi-input-list"></div>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('constraints')">+ Add</button>
+                        <button type="button" class="sv-btn sv-btn-sm sv-btn-secondary" onclick="addListItem('constraints')">+ Add</button>
                     </div>
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Assumptions</label>
                         <div id="assumptions-list" class="multi-input-list"></div>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('assumptions')">+ Add</button>
+                        <button type="button" class="sv-btn sv-btn-sm sv-btn-secondary" onclick="addListItem('assumptions')">+ Add</button>
                     </div>
                 </div>
             </div>
@@ -284,29 +284,29 @@
                 </h3>
                 <div class="section-content" style="display: none;">
                     <div class="form-row">
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="champion-name">Champion (Sponsor)</label>
                             <input type="text" id="champion-name" placeholder="Name">
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="champion-title">Title</label>
                             <input type="text" id="champion-title" placeholder="Title">
                         </div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="leader-name">Investigation Lead</label>
                             <input type="text" id="leader-name" placeholder="Name">
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="leader-title">Title</label>
                             <input type="text" id="leader-title" placeholder="Title">
                         </div>
                     </div>
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label>Team Members</label>
                         <div id="team-members-list" class="multi-input-list"></div>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="addTeamMember()">+ Add Member</button>
+                        <button type="button" class="sv-btn sv-btn-sm sv-btn-secondary" onclick="addTeamMember()">+ Add Member</button>
                     </div>
                 </div>
             </div>
@@ -317,11 +317,11 @@
                     <span class="toggle-icon">▶</span> Timeline
                 </h3>
                 <div class="section-content" style="display: none;">
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label for="target-completion">Target Completion Date</label>
                         <input type="date" id="target-completion">
                     </div>
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label class="svend-toggle">
                             <input type="checkbox" id="can-experiment" checked>
                             <span>Can run controlled experiments</span>
@@ -331,8 +331,8 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create Investigation</button>
+                <button type="button" class="sv-btn sv-btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="sv-btn sv-btn-primary">Create Investigation</button>
             </div>
         </form>
     </div>
@@ -341,12 +341,12 @@
 <!-- Project Detail View -->
 <div id="detail-view" class="detail-view" style="display: none;">
     <div class="detail-header">
-        <button class="btn btn-secondary btn-sm" onclick="backToList()">&larr; Back to Investigations</button>
+        <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="backToList()">&larr; Back to Investigations</button>
         <div class="detail-actions">
-            <button class="btn btn-secondary btn-sm" onclick="editProject()">Edit</button>
-            <button class="btn btn-secondary btn-sm" onclick="archiveProject()">Archive</button>
+            <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="editProject()">Edit</button>
+            <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="archiveProject()">Archive</button>
             <div class="dropdown" id="actions-dropdown" style="display:none;">
-                <button class="btn btn-primary btn-sm" onclick="toggleActionsDropdown(event)">Actions &#x25BE;</button>
+                <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="toggleActionsDropdown(event)">Actions &#x25BE;</button>
                 <div class="dropdown-menu" id="actions-menu" style="display:none;">
                     <button onclick="studyAction('raise_capa')">Raise CAPA</button>
                     <button onclick="studyAction('schedule_audit')">Schedule Verification Audit</button>
@@ -376,7 +376,7 @@
         <div class="section">
             <div class="section-header">
                 <h2>Hypotheses</h2>
-                <button class="btn btn-primary btn-sm" onclick="showAddHypothesisModal()">+ Add Hypothesis</button>
+                <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="showAddHypothesisModal()">+ Add Hypothesis</button>
             </div>
             <div id="hypotheses-list" class="hypotheses-list">
                 <p class="empty-text">No hypotheses yet. Add one to start testing.</p>
@@ -397,7 +397,7 @@
             <div class="section-header">
                 <h2>Datasets</h2>
                 <div class="header-actions">
-                    <button class="btn btn-secondary btn-sm" onclick="showUploadDatasetModal()">+ Upload</button>
+                    <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="showUploadDatasetModal()">+ Upload</button>
                 </div>
             </div>
             <div id="datasets-list" class="datasets-list">
@@ -409,7 +409,7 @@
         <div class="section">
             <div class="section-header">
                 <h2>Experiment Designs</h2>
-                <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/experimenter/'">+ New Design</button>
+                <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="window.location.href='/app/experimenter/'">+ New Design</button>
             </div>
             <div id="designs-list" class="designs-list">
                 <p class="empty-text">No experiment designs yet. Create one in the DOE Workbench.</p>
@@ -420,7 +420,7 @@
         <div class="section">
             <div class="section-header">
                 <h2>Analyses</h2>
-                <button class="btn btn-primary btn-sm" onclick="window.location.href='/app/analysis/?project=' + currentProject.id">+ New Analysis</button>
+                <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="window.location.href='/app/analysis/?project=' + currentProject.id">+ New Analysis</button>
             </div>
             <div id="dsw-list" class="tool-list">
                 <p class="empty-text">No analyses yet. Run analyses in the Analysis Workbench to build evidence.</p>
@@ -431,7 +431,7 @@
         <div class="section">
             <div class="section-header">
                 <h2>Whiteboards</h2>
-                <button class="btn btn-primary btn-sm" onclick="window.location.href='/app/whiteboard/?project=' + currentProject.id">+ New Whiteboard</button>
+                <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="window.location.href='/app/whiteboard/?project=' + currentProject.id">+ New Whiteboard</button>
             </div>
             <div id="whiteboards-list" class="tool-list">
                 <p class="empty-text">No whiteboards yet. Create one to visualize relationships.</p>
@@ -442,7 +442,7 @@
         <div class="section">
             <div class="section-header">
                 <h2>A3 Reports</h2>
-                <button class="btn btn-primary btn-sm" onclick="window.location.href='/app/a3/?project=' + currentProject.id">+ New A3</button>
+                <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="window.location.href='/app/a3/?project=' + currentProject.id">+ New A3</button>
             </div>
             <div id="a3-list" class="tool-list">
                 <p class="empty-text">No A3 reports yet. Create one to structure problem-solving.</p>
@@ -453,7 +453,7 @@
         <div class="section">
             <div class="section-header">
                 <h2>Value Stream Maps</h2>
-                <button class="btn btn-primary btn-sm" onclick="window.location.href='/app/vsm/?project=' + currentProject.id">+ New VSM</button>
+                <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="window.location.href='/app/vsm/?project=' + currentProject.id">+ New VSM</button>
             </div>
             <div id="vsm-list" class="tool-list">
                 <p class="empty-text">No value stream maps yet. Create one to analyze process flow.</p>
@@ -514,7 +514,7 @@
         <div class="section">
             <div class="section-header">
                 <h2>Knowledge Graph</h2>
-                <button class="btn btn-secondary btn-sm" onclick="openKnowledgeGraph()">Open Graph</button>
+                <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="openKnowledgeGraph()">Open Graph</button>
             </div>
             <div id="graph-summary" class="graph-summary">
                 <p class="empty-text">No knowledge graph yet. Connect hypotheses to build causal relationships.</p>
@@ -531,7 +531,7 @@
             </div>
             <div style="display:flex;gap:8px;margin-top:12px;">
                 <input type="text" id="comment-input" placeholder="Add a comment..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">
-                <button class="btn btn-primary btn-sm" onclick="addComment()">Post</button>
+                <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="addComment()">Post</button>
             </div>
         </div>
 
@@ -559,9 +559,9 @@
 <!-- Hypothesis Detail View -->
 <div id="hypothesis-view" class="detail-view" style="display: none;">
     <div class="detail-header">
-        <button class="btn btn-secondary btn-sm" onclick="backToProject()">&larr; Back to Investigation</button>
+        <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="backToProject()">&larr; Back to Investigation</button>
         <div class="detail-actions">
-            <button class="btn btn-primary btn-sm" onclick="editHypothesis()">Edit</button>
+            <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="editHypothesis()">Edit</button>
         </div>
     </div>
 
@@ -584,7 +584,7 @@
         <div class="section">
             <div class="section-header">
                 <h2>Evidence</h2>
-                <button class="btn btn-primary btn-sm" onclick="showAddEvidenceModal()">+ Add Evidence</button>
+                <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="showAddEvidenceModal()">+ Add Evidence</button>
             </div>
             <div id="evidence-list" class="evidence-list">
                 <p class="empty-text">No evidence yet. Run analyses to gather evidence.</p>
@@ -595,7 +595,7 @@
         <div class="section">
             <div class="section-header">
                 <h2>Conversations</h2>
-                <button class="btn btn-primary btn-sm" onclick="startNewConversation()">+ New Conversation</button>
+                <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="startNewConversation()">+ New Conversation</button>
             </div>
             <div id="conversations-list" class="conversations-list">
                 <p class="empty-text">No conversations yet. Start one to explore this hypothesis.</p>
@@ -605,7 +605,7 @@
 </div>
 
 <!-- Add Workbench Modal -->
-<div id="workbench-modal" class="modal" style="display: none;">
+<div id="workbench-modal" class="sv-modal" style="display: none;">
     <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2>Add Workbench</h2>
@@ -613,12 +613,12 @@
         </div>
 
         <form id="workbench-form" onsubmit="addWorkbench(event)">
-            <div class="form-group">
+            <div class="sv-field">
                 <label for="wb-title">Title</label>
                 <input type="text" id="wb-title" placeholder="e.g., January Batch Analysis" required>
             </div>
 
-            <div class="form-group">
+            <div class="sv-field">
                 <label for="wb-template">Template</label>
                 <select id="wb-template">
                     <option value="blank">Blank</option>
@@ -629,21 +629,21 @@
                 </select>
             </div>
 
-            <div class="form-group">
+            <div class="sv-field">
                 <label for="wb-description">Description (optional)</label>
                 <textarea id="wb-description" rows="2" placeholder="What will this workbench investigate?"></textarea>
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeWorkbenchModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create Workbench</button>
+                <button type="button" class="sv-btn sv-btn-secondary" onclick="closeWorkbenchModal()">Cancel</button>
+                <button type="submit" class="sv-btn sv-btn-primary">Create Workbench</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Add Hypothesis Modal (Structured If/Then/Because) -->
-<div id="hypothesis-modal" class="modal" style="display: none;">
+<div id="hypothesis-modal" class="sv-modal" style="display: none;">
     <div class="modal-content modal-lg">
         <div class="modal-header">
             <h2>Add Hypothesis</h2>
@@ -653,17 +653,17 @@
         <form id="hypothesis-form" onsubmit="saveHypothesisEdit(event)">
             <!-- Structured Format -->
             <div class="hypothesis-builder">
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="hyp-if"><span class="clause-label">IF</span> (condition/change)</label>
                     <textarea id="hyp-if" rows="2" placeholder="e.g., ambient temperature exceeds 85°F during molding"></textarea>
                 </div>
 
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="hyp-then"><span class="clause-label">THEN</span> (expected outcome)</label>
                     <textarea id="hyp-then" rows="2" placeholder="e.g., defect rate will increase above 5%"></textarea>
                 </div>
 
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="hyp-because"><span class="clause-label">BECAUSE</span> (mechanism)</label>
                     <textarea id="hyp-because" rows="2" placeholder="e.g., thermal expansion causes dimensional variation"></textarea>
                 </div>
@@ -676,17 +676,17 @@
                 </h3>
                 <div class="section-content" style="display: none;">
                     <div class="form-row">
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="hyp-indep-var">Independent Variable (X)</label>
                             <input type="text" id="hyp-indep-var" placeholder="e.g., Ambient Temperature">
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="hyp-dep-var">Dependent Variable (Y)</label>
                             <input type="text" id="hyp-dep-var" placeholder="e.g., Defect Rate">
                         </div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="hyp-direction">Expected Direction</label>
                             <select id="hyp-direction">
                                 <option value="change">Change</option>
@@ -695,11 +695,11 @@
                                 <option value="no_change">No Change</option>
                             </select>
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="hyp-magnitude">Expected Magnitude</label>
                             <input type="text" id="hyp-magnitude" placeholder="e.g., >10%, ~5 units">
                         </div>
-                        <div class="form-group flex-1">
+                        <div class="sv-field flex-1">
                             <label for="hyp-dep-unit">Unit of Y</label>
                             <input type="text" id="hyp-dep-unit" placeholder="e.g., %, ppm">
                         </div>
@@ -713,15 +713,15 @@
                     <span class="toggle-icon">▶</span> Testing Plan
                 </h3>
                 <div class="section-content" style="display: none;">
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label for="hyp-rationale">Rationale <small>(why do you think this might be true?)</small></label>
                         <textarea id="hyp-rationale" rows="2" placeholder="Prior observations, domain knowledge..."></textarea>
                     </div>
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label for="hyp-test-method">Test Method <small>(how will you test this?)</small></label>
                         <textarea id="hyp-test-method" rows="2" placeholder="e.g., 2-factor DOE with temperature levels at 70°F and 90°F"></textarea>
                     </div>
-                    <div class="form-group">
+                    <div class="sv-field">
                         <label for="hyp-success">Success Criteria <small>(what would confirm or refute?)</small></label>
                         <textarea id="hyp-success" rows="2" placeholder="e.g., Confirmed if defect rate > 8% at high temp, refuted if < 3%"></textarea>
                     </div>
@@ -729,7 +729,7 @@
             </div>
 
             <!-- Prior Probability -->
-            <div class="form-group">
+            <div class="sv-field">
                 <label for="hyp-prior">Prior Probability</label>
                 <div class="slider-row">
                     <input type="range" id="hyp-prior" min="0" max="1" step="0.05" value="0.5">
@@ -739,7 +739,7 @@
             </div>
 
             <!-- Generated Statement Preview -->
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Generated Statement</label>
                 <div id="hyp-statement-preview" class="statement-preview">
                     <em>Fill in the If/Then/Because fields above...</em>
@@ -748,15 +748,15 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeHypothesisModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Add Hypothesis</button>
+                <button type="button" class="sv-btn sv-btn-secondary" onclick="closeHypothesisModal()">Cancel</button>
+                <button type="submit" class="sv-btn sv-btn-primary">Add Hypothesis</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Add Evidence Modal -->
-<div id="evidence-modal" class="modal" style="display: none;">
+<div id="evidence-modal" class="sv-modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
             <h2>Add Evidence</h2>
@@ -764,13 +764,13 @@
         </div>
 
         <form id="evidence-form" onsubmit="addEvidence(event)">
-            <div class="form-group">
+            <div class="sv-field">
                 <label for="ev-summary">Summary</label>
                 <textarea id="ev-summary" rows="3" required
                     placeholder="What did you observe or discover?"></textarea>
             </div>
 
-            <div class="form-group">
+            <div class="sv-field">
                 <label>Source Type</label>
                 <select id="ev-type">
                     <option value="observation">Observation</option>
@@ -782,7 +782,7 @@
                 </select>
             </div>
 
-            <div class="form-group">
+            <div class="sv-field">
                 <label>How much does this evidence support or oppose the hypothesis?</label>
                 <div class="radio-group">
                     <label class="radio-label">
@@ -800,7 +800,7 @@
                 </div>
             </div>
 
-            <div class="form-group">
+            <div class="sv-field">
                 <label for="ev-strength">Evidence Strength</label>
                 <div class="slider-row">
                     <input type="range" id="ev-strength" min="0" max="1" step="0.1" value="0.5">
@@ -812,7 +812,7 @@
                 </small>
             </div>
 
-            <div class="form-group">
+            <div class="sv-field">
                 <label class="svend-toggle">
                     <input type="checkbox" id="ev-auto-update" checked>
                     <span>Automatically update hypothesis probability (Bayesian update)</span>
@@ -820,15 +820,15 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeEvidenceModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Add Evidence</button>
+                <button type="button" class="sv-btn sv-btn-secondary" onclick="closeEvidenceModal()">Cancel</button>
+                <button type="submit" class="sv-btn sv-btn-primary">Add Evidence</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Upload Dataset Modal -->
-<div id="dataset-modal" class="modal" style="display: none;">
+<div id="dataset-modal" class="sv-modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
             <h2>Upload Dataset</h2>
@@ -836,17 +836,17 @@
         </div>
 
         <form id="dataset-form" onsubmit="uploadDataset(event)">
-            <div class="form-group">
+            <div class="sv-field">
                 <label for="ds-name">Dataset Name</label>
                 <input type="text" id="ds-name" placeholder="e.g., Q4 Production Data" required>
             </div>
 
-            <div class="form-group">
+            <div class="sv-field">
                 <label for="ds-description">Description (optional)</label>
                 <textarea id="ds-description" rows="2" placeholder="What does this data contain?"></textarea>
             </div>
 
-            <div class="form-group">
+            <div class="sv-field">
                 <label for="ds-type">Data Type</label>
                 <select id="ds-type">
                     <option value="csv">CSV</option>
@@ -855,27 +855,27 @@
                 </select>
             </div>
 
-            <div class="form-group">
+            <div class="sv-field">
                 <label for="ds-file">File</label>
                 <input type="file" id="ds-file" accept=".csv,.xlsx,.xls,.json" required>
                 <small class="form-hint">Supported formats: CSV, Excel (.xlsx, .xls), JSON</small>
             </div>
 
-            <div class="form-group">
+            <div class="sv-field">
                 <label for="ds-source">Source (optional)</label>
                 <input type="text" id="ds-source" placeholder="e.g., ERP System, Manual Entry">
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeDatasetModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary" id="upload-btn">Upload Dataset</button>
+                <button type="button" class="sv-btn sv-btn-secondary" onclick="closeDatasetModal()">Cancel</button>
+                <button type="submit" class="sv-btn sv-btn-primary" id="upload-btn">Upload Dataset</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Dataset Detail Modal -->
-<div id="dataset-detail-modal" class="modal" style="display: none;">
+<div id="dataset-detail-modal" class="sv-modal" style="display: none;">
     <div class="modal-content modal-lg">
         <div class="modal-header">
             <h2 id="dataset-detail-title">Dataset</h2>
@@ -1318,7 +1318,7 @@
 .conclusion-status.modified { background: var(--accent-primary-dim); color: var(--accent-primary); }
 
 /* Modals */
-.modal {
+.sv-modal {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.8);
@@ -1417,7 +1417,7 @@
     font-size: 0.9rem;
 }
 
-.btn-sm {
+.sv-btn-sm {
     padding: 0.35rem 0.75rem;
     font-size: 0.85rem;
 }
@@ -1881,7 +1881,7 @@
     margin-bottom: 0.75rem;
 }
 
-.form-row .form-group {
+.form-row .sv-field {
     margin-bottom: 0;
 }
 
@@ -2268,7 +2268,7 @@ function updateHypothesisPreview() {
 
 // Close modals when clicking backdrop
 document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('modal')) {
+    if (e.target.classList.contains('sv-modal')) {
         e.target.style.display = 'none';
     }
 });
@@ -2538,8 +2538,8 @@ async function renderProjectDetail() {
                 </div>
             </div>
             <div style="display: flex; gap: 0.5rem;">
-                <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/analysis/?project=${p.id}'">Open in Workbench</button>
-                <button class="btn btn-secondary btn-sm" onclick="advancePhase()">Advance Phase</button>
+                <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="window.location.href='/app/analysis/?project=${p.id}'">Open in Workbench</button>
+                <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="advancePhase()">Advance Phase</button>
             </div>
         </div>
     `;
@@ -3149,7 +3149,7 @@ function renderHypothesisDetail() {
     const convList = document.getElementById('conversations-list');
     convList.innerHTML = `
         <div style="display: flex; gap: 0.5rem;">
-            <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/analysis/?project=${currentProject.id}'">Analyze in Workbench</button>
+            <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="window.location.href='/app/analysis/?project=${currentProject.id}'">Analyze in Workbench</button>
         </div>
     `;
 }
@@ -3540,8 +3540,8 @@ async function loadDatasets() {
                 </div>
             </div>
             <div class="dataset-actions" onclick="event.stopPropagation()">
-                <button class="btn btn-primary btn-sm" onclick="openDatasetInDSW('${ds.id}')">Open in DSW</button>
-                <button class="btn btn-secondary btn-sm" onclick="deleteDataset('${ds.id}')">Delete</button>
+                <button class="sv-btn sv-btn-primary sv-btn-sm" onclick="openDatasetInDSW('${ds.id}')">Open in DSW</button>
+                <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="deleteDataset('${ds.id}')">Delete</button>
             </div>
         </div>
     `).join('');
@@ -3637,8 +3637,8 @@ async function viewDataset(id) {
                     ${rowCount > 20 ? `<p style="margin-top: 0.5rem; color: var(--text-dim); font-size: 0.85rem;">Showing first 20 of ${rowCount} rows</p>` : ''}
                 </div>
                 <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-                    <button class="btn btn-primary" onclick="openDatasetInDSW('${id}'); closeDatasetDetailModal();">Open in DSW</button>
-                    <button class="btn btn-secondary" onclick="closeDatasetDetailModal()">Close</button>
+                    <button class="sv-btn sv-btn-primary" onclick="openDatasetInDSW('${id}'); closeDatasetDetailModal();">Open in DSW</button>
+                    <button class="sv-btn sv-btn-secondary" onclick="closeDatasetDetailModal()">Close</button>
                 </div>
             `;
         } else {
@@ -3712,8 +3712,8 @@ async function loadExperimentDesigns() {
                     </div>
                 </div>
                 <div class="design-actions" onclick="event.stopPropagation()">
-                    ${d.status === 'completed' ? `<button class="btn btn-primary btn-sm" onclick="reviewDesignExecution('${d.id}')">Review Execution</button>` : ''}
-                    <button class="btn btn-secondary btn-sm" onclick="openDesignInExperimenter('${d.id}')">View Design</button>
+                    ${d.status === 'completed' ? `<button class="sv-btn sv-btn-primary sv-btn-sm" onclick="reviewDesignExecution('${d.id}')">Review Execution</button>` : ''}
+                    <button class="sv-btn sv-btn-secondary sv-btn-sm" onclick="openDesignInExperimenter('${d.id}')">View Design</button>
                 </div>
             </div>
         `;
@@ -3792,7 +3792,7 @@ async function reviewDesignExecution(designId) {
 function showExecutionReviewModal(review) {
     // Create a modal to show the execution review
     const modal = document.createElement('div');
-    modal.className = 'modal';
+    modal.className = 'sv-modal';
     modal.style.display = 'flex';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
@@ -3803,7 +3803,7 @@ function showExecutionReviewModal(review) {
         <div class="modal-content modal-lg">
             <div class="modal-header">
                 <h2>Design Execution Review</h2>
-                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                <button class="modal-close" onclick="this.closest('.sv-modal').remove()">&times;</button>
             </div>
             <div style="padding: 1.25rem;">
                 <div style="text-align: center; margin-bottom: 1.5rem;">
@@ -3847,7 +3847,7 @@ function showExecutionReviewModal(review) {
                 ` : ''}
 
                 <div style="margin-top: 1.5rem; text-align: right;">
-                    <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                    <button class="sv-btn sv-btn-secondary" onclick="this.closest('.sv-modal').remove()">Close</button>
                 </div>
             </div>
         </div>
@@ -4207,7 +4207,7 @@ async function studyAction(actionType) {
 
 function showTrainingGapModal() {
     const modal = document.createElement('div');
-    modal.className = 'modal';
+    modal.className = 'sv-modal';
     modal.style.display = 'flex';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
@@ -4215,20 +4215,20 @@ function showTrainingGapModal() {
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Flag Training Gap</h2>
-                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                <button class="modal-close" onclick="this.closest('.sv-modal').remove()">&times;</button>
             </div>
             <div style="padding: 1.25rem;">
-                <div class="form-group">
+                <div class="sv-field">
                     <label>Training Requirement Name *</label>
                     <input type="text" id="training-gap-name" class="form-input" placeholder="e.g., SPC Chart Interpretation">
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label>Description</label>
                     <textarea id="training-gap-desc" class="form-input" rows="3" placeholder="What competency gap was identified?"></textarea>
                 </div>
                 <div style="text-align: right; margin-top: 1rem;">
-                    <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-                    <button class="btn btn-primary" onclick="submitTrainingGap(this.closest('.modal'))">Create</button>
+                    <button class="sv-btn sv-btn-secondary" onclick="this.closest('.sv-modal').remove()">Cancel</button>
+                    <button class="sv-btn sv-btn-primary" onclick="submitTrainingGap(this.closest('.sv-modal'))">Create</button>
                 </div>
             </div>
         </div>
@@ -4274,7 +4274,7 @@ function showFMEAFlagModal() {
     }
 
     const modal = document.createElement('div');
-    modal.className = 'modal';
+    modal.className = 'sv-modal';
     modal.style.display = 'flex';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
@@ -4282,22 +4282,22 @@ function showFMEAFlagModal() {
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Flag FMEA for Review</h2>
-                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                <button class="modal-close" onclick="this.closest('.sv-modal').remove()">&times;</button>
             </div>
             <div style="padding: 1.25rem;">
-                <div class="form-group">
+                <div class="sv-field">
                     <label>Select FMEA</label>
                     <select id="fmea-flag-select" class="form-input">
                         ${fmeas.map(f => `<option value="${f.id}">${f.title}</option>`).join('')}
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label>Notes</label>
                     <textarea id="fmea-flag-notes" class="form-input" rows="3" placeholder="What needs updating?"></textarea>
                 </div>
                 <div style="text-align: right; margin-top: 1rem;">
-                    <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-                    <button class="btn btn-primary" onclick="submitFMEAFlag(this.closest('.modal'))">Flag for Review</button>
+                    <button class="sv-btn sv-btn-secondary" onclick="this.closest('.sv-modal').remove()">Cancel</button>
+                    <button class="sv-btn sv-btn-primary" onclick="submitFMEAFlag(this.closest('.sv-modal'))">Flag for Review</button>
                 </div>
             </div>
         </div>

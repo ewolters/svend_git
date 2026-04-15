@@ -227,7 +227,7 @@
 }
 
 /* Import modal */
-.modal-overlay {
+.sv-modal-overlay {
     position: fixed;
     inset: 0;
     z-index: 1000;
@@ -236,17 +236,17 @@
     justify-content: center;
 }
 
-.modal-overlay.active {
+.sv-modal-overlay.active {
     display: flex;
 }
 
-.modal-overlay-backdrop {
+.sv-modal-overlay-backdrop {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.75);
 }
 
-.modal {
+.sv-modal {
     position: relative;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
@@ -258,16 +258,16 @@
     overflow-y: auto;
 }
 
-.modal h3 {
+.sv-modal h3 {
     margin: 0 0 16px 0;
 }
 
-.modal .import-list {
+.sv-modal .import-list {
     max-height: 300px;
     overflow-y: auto;
 }
 
-.modal .import-item {
+.sv-modal .import-item {
     padding: 10px;
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -276,16 +276,16 @@
     transition: all 0.15s;
 }
 
-.modal .import-item:hover {
+.sv-modal .import-item:hover {
     border-color: var(--accent);
     background: rgba(74, 159, 110, 0.05);
 }
 
-.modal .import-item .title {
+.sv-modal .import-item .title {
     font-weight: 500;
 }
 
-.modal .import-item .meta {
+.sv-modal .import-item .meta {
     font-size: 0.8rem;
     color: var(--text-dim);
 }
@@ -419,9 +419,9 @@
     </div>
 
     <!-- Create modal -->
-    <div class="modal-overlay" id="create-modal">
-        <div class="modal-overlay-backdrop" onclick="hideCreateModal()"></div>
-        <div class="modal">
+    <div class="sv-modal-overlay" id="create-modal">
+        <div class="sv-modal-overlay-backdrop" onclick="hideCreateModal()"></div>
+        <div class="sv-modal">
             <h3>New Report</h3>
             <div style="margin-bottom:1rem;">
                 <label style="display:block; margin-bottom:4px; font-size:0.85rem; color:var(--text-dim);">Report Type</label>
@@ -447,9 +447,9 @@
     </div>
 
     <!-- Import modal -->
-    <div class="modal-overlay" id="import-modal">
-        <div class="modal-overlay-backdrop" onclick="hideImportModal()"></div>
-        <div class="modal">
+    <div class="sv-modal-overlay" id="import-modal">
+        <div class="sv-modal-overlay-backdrop" onclick="hideImportModal()"></div>
+        <div class="sv-modal">
             <h3>Import Content</h3>
             <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:12px;">
                 Importing to: <strong id="import-section-label"></strong>
@@ -993,7 +993,7 @@ async function createReport() {
 }
 
 // Close modals on backdrop click
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
+document.querySelectorAll('.sv-modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', function(e) {
         if (e.target === this) {
             this.classList.remove('active');

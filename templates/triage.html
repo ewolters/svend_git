@@ -23,7 +23,7 @@
             </div>
             <div id="file-info" style="display: none;">
                 <span id="file-name"></span>
-                <button class="btn btn-secondary btn-sm" onclick="clearFile()">Clear</button>
+                <button class="sv-btn sv-btn-sm" onclick="clearFile()">Clear</button>
             </div>
         </div>
     </div>
@@ -32,7 +32,7 @@
     <div class="panel issues-panel" id="issues-panel" style="display: none;">
         <div class="panel-header">
             <span class="panel-title">Data Issues</span>
-            <button class="btn btn-primary" onclick="runCleaning()">Clean Data</button>
+            <button class="sv-btn sv-btn-primary" onclick="runCleaning()">Clean Data</button>
         </div>
         <div class="panel-content" id="issues-content"></div>
     </div>
@@ -63,8 +63,8 @@
                 </label>
             </div>
             <div class="config-row">
-                <label>Case style:</label>
-                <select id="case-style">
+                <label class="sv-label">Case style:</label>
+                <select id="case-style" class="sv-select">
                     <option value="title">Title Case</option>
                     <option value="lower">lowercase</option>
                     <option value="upper">UPPERCASE</option>
@@ -78,7 +78,7 @@
         <div class="panel-header">
             <span class="panel-title">Cleaning Results</span>
             <div class="panel-actions">
-                <button class="btn btn-primary" id="download-btn" onclick="downloadCleanedData()">Download CSV</button>
+                <button class="sv-btn sv-btn-primary" id="download-btn" onclick="downloadCleanedData()">Download CSV</button>
             </div>
         </div>
         <div class="panel-content">
@@ -410,7 +410,7 @@
     color: var(--text-secondary);
 }
 
-.btn-sm {
+.sv-btn-sm {
     padding: 0.3rem 0.6rem;
     font-size: 0.8rem;
 }
@@ -516,7 +516,7 @@ function renderIssues(issues, recommendations) {
     if (missingCols.length > 0) {
         html += `
             <div class="issue-card">
-                <h4>⚠️ Missing Data <span class="issue-badge warning">${missingCols.length} columns</span></h4>
+                <h4>⚠️ Missing Data <span class="sv-badge issue-badge warning">${missingCols.length} columns</span></h4>
                 <p>${missingCols.slice(0, 5).map(col =>
                     `${col}: ${issues.missing[col].count} (${issues.missing[col].percent.toFixed(1)}%)`
                 ).join(', ')}${missingCols.length > 5 ? '...' : ''}</p>
@@ -530,7 +530,7 @@ function renderIssues(issues, recommendations) {
         const totalOutliers = outlierCols.reduce((sum, col) => sum + issues.outliers[col].count, 0);
         html += `
             <div class="issue-card">
-                <h4>🔍 Potential Outliers <span class="issue-badge warning">${totalOutliers} values</span></h4>
+                <h4>🔍 Potential Outliers <span class="sv-badge issue-badge warning">${totalOutliers} values</span></h4>
                 <p>Found in: ${outlierCols.join(', ')}</p>
             </div>
         `;
@@ -540,7 +540,7 @@ function renderIssues(issues, recommendations) {
     if (issues.type_issues.length > 0) {
         html += `
             <div class="issue-card">
-                <h4>🔄 Type Suggestions <span class="issue-badge info">${issues.type_issues.length}</span></h4>
+                <h4>🔄 Type Suggestions <span class="sv-badge issue-badge info">${issues.type_issues.length}</span></h4>
                 <p>${issues.type_issues.slice(0, 3).map(t =>
                     `${t.column}: ${t.current} → ${t.suggested}`
                 ).join(', ')}</p>

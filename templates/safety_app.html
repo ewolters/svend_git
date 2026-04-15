@@ -67,7 +67,7 @@
 .card-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 .card-meta { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-primary); }
 .card-badges { display: flex; align-items: center; gap: 6px; }
-.badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.sv-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
 .badge-classification { background: var(--bg-tertiary); color: var(--text-secondary); }
 .badge-processed { background: rgba(74,159,110,0.15); color: var(--accent-primary); }
 .badge-unprocessed { background: rgba(208,96,96,0.15); color: var(--error); }
@@ -128,15 +128,15 @@
 .close-loop-info span { display: block; margin-bottom: 4px; }
 
 /* Modal */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+.sv-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
     z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto; }
-.modal-overlay.open { display: flex; }
-.modal { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 900px;
+.sv-modal-overlay.open { display: flex; }
+.sv-modal { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 900px;
     padding: 32px; position: relative; margin-bottom: 40px; }
 .modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--text-secondary);
     font-size: 20px; cursor: pointer; line-height: 1; }
 .modal-close:hover { color: var(--text-primary); }
-.modal h2 { margin: 0 0 24px; font-size: 18px; font-weight: 600; color: var(--text-primary); }
+.sv-modal h2 { margin: 0 0 24px; font-size: 18px; font-weight: 600; color: var(--text-primary); }
 
 /* Card form sections */
 .card-section { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
@@ -146,13 +146,13 @@
 
 /* Form fields */
 .form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-.form-group { flex: 1; min-width: 140px; }
-.form-group label { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
-.form-group select, .form-group input, .form-group textarea {
+.sv-field { flex: 1; min-width: 140px; }
+.sv-field label { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+.sv-field select, .sv-field input, .sv-field textarea {
     width: 100%; background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary);
     padding: 8px 10px; border-radius: 6px; font-size: 13px; font-family: inherit; }
-.form-group textarea { resize: vertical; min-height: 60px; }
-.form-group select:focus, .form-group input:focus, .form-group textarea:focus {
+.sv-field textarea { resize: vertical; min-height: 60px; }
+.sv-field select:focus, .sv-field input:focus, .sv-field textarea:focus {
     outline: none; border-color: var(--accent-primary); }
 
 /* Safety observation form rows */
@@ -375,19 +375,19 @@
     </div>
 
     <!-- ZONE MODAL -->
-    <div class="modal-overlay" id="zoneModal">
-        <div class="modal" style="max-width:720px">
+    <div class="sv-modal-overlay" id="zoneModal">
+        <div class="sv-modal" style="max-width:720px">
             <button class="modal-close" onclick="closeZoneModal()">&times;</button>
             <h2 id="zoneModalTitle">New Frontier Zone</h2>
 
             <div class="card-section">
                 <div class="card-section-title">Identity</div>
                 <div class="form-row">
-                    <div class="form-group"><label>Site</label><select id="zmSite"></select></div>
-                    <div class="form-group"><label>Name</label><input type="text" id="zmName" placeholder="e.g. Press mezzanine, Loading dock transition"></div>
+                    <div class="sv-field"><label>Site</label><select id="zmSite"></select></div>
+                    <div class="sv-field"><label>Name</label><input type="text" id="zmName" placeholder="e.g. Press mezzanine, Loading dock transition"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Zone Type</label>
+                    <div class="sv-field"><label>Zone Type</label>
                         <select id="zmType">
                             <option value="transition">Transition Zone</option>
                             <option value="hidden_infra">Hidden Infrastructure</option>
@@ -396,16 +396,16 @@
                             <option value="general" selected>General</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Parent Zone</label><select id="zmParent"><option value="">None (top-level)</option></select></div>
+                    <div class="sv-field"><label>Parent Zone</label><select id="zmParent"><option value="">None (top-level)</option></select></div>
                 </div>
-                <div class="form-group"><label>Description</label><textarea id="zmDesc" placeholder="What makes this a frontier? What should auditors watch for?"></textarea></div>
-                <div class="form-group"><label>Location Detail</label><input type="text" id="zmLocation" placeholder="e.g. Bldg 3, 2nd floor, east wing"></div>
+                <div class="sv-field"><label>Description</label><textarea id="zmDesc" placeholder="What makes this a frontier? What should auditors watch for?"></textarea></div>
+                <div class="sv-field"><label>Location Detail</label><input type="text" id="zmLocation" placeholder="e.g. Bldg 3, 2nd floor, east wing"></div>
             </div>
 
             <div class="card-section">
                 <div class="card-section-title">Risk Profile</div>
                 <div class="form-row">
-                    <div class="form-group"><label>Risk Level</label>
+                    <div class="sv-field"><label>Risk Level</label>
                         <select id="zmRisk">
                             <option value="low">Low</option>
                             <option value="medium" selected>Medium</option>
@@ -413,7 +413,7 @@
                             <option value="critical">Critical</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Audit Frequency</label>
+                    <div class="sv-field"><label>Audit Frequency</label>
                         <select id="zmFreq">
                             <option value="weekly" selected>Weekly</option>
                             <option value="biweekly">Biweekly</option>
@@ -421,22 +421,22 @@
                             <option value="quarterly">Quarterly</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>FMEA Severity Override</label>
+                    <div class="sv-field"><label>FMEA Severity Override</label>
                         <input type="number" id="zmFmeaSev" min="1" max="10" placeholder="Default: 5">
                     </div>
                 </div>
-                <div class="form-group"><label>Hazard Types</label>
+                <div class="sv-field"><label>Hazard Types</label>
                     <div class="hazard-grid" id="zmHazards"></div>
                 </div>
             </div>
 
             <div class="card-section">
                 <div class="card-section-title">Hierarchy of Controls (current state)</div>
-                <div class="form-group"><label>Elimination</label><input type="text" id="zmCtrlElim" placeholder="Hazards eliminated?"></div>
-                <div class="form-group"><label>Substitution</label><input type="text" id="zmCtrlSub" placeholder="Less hazardous alternatives?"></div>
-                <div class="form-group"><label>Engineering</label><input type="text" id="zmCtrlEng" placeholder="Guards, ventilation, barriers?"></div>
-                <div class="form-group"><label>Administrative</label><input type="text" id="zmCtrlAdmin" placeholder="SOPs, signage, training?"></div>
-                <div class="form-group"><label>PPE</label><input type="text" id="zmCtrlPPE" placeholder="Required PPE?"></div>
+                <div class="sv-field"><label>Elimination</label><input type="text" id="zmCtrlElim" placeholder="Hazards eliminated?"></div>
+                <div class="sv-field"><label>Substitution</label><input type="text" id="zmCtrlSub" placeholder="Less hazardous alternatives?"></div>
+                <div class="sv-field"><label>Engineering</label><input type="text" id="zmCtrlEng" placeholder="Guards, ventilation, barriers?"></div>
+                <div class="sv-field"><label>Administrative</label><input type="text" id="zmCtrlAdmin" placeholder="SOPs, signage, training?"></div>
+                <div class="sv-field"><label>PPE</label><input type="text" id="zmCtrlPPE" placeholder="Required PPE?"></div>
             </div>
 
             <div class="card-section">
@@ -455,9 +455,9 @@
 
             <div class="card-section">
                 <div class="card-section-title">Reference</div>
-                <div class="form-group"><label>Photo Reference (URL)</label><input type="url" id="zmPhoto" placeholder="https://..."></div>
+                <div class="sv-field"><label>Photo Reference (URL)</label><input type="url" id="zmPhoto" placeholder="https://..."></div>
                 <div id="zmPhotoPreview" style="margin-top:8px"></div>
-                <div class="form-group" style="margin-top:12px"><label>Tags (comma-separated)</label><input type="text" id="zmTags" placeholder="e.g. new_process, contractor, night_shift"></div>
+                <div class="sv-field" style="margin-top:12px"><label>Tags (comma-separated)</label><input type="text" id="zmTags" placeholder="e.g. new_process, contractor, night_shift"></div>
             </div>
 
             <input type="hidden" id="zmEditId" value="">
@@ -519,8 +519,8 @@
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- NEW CARD MODAL                                                 -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    <div class="modal-overlay" id="newCardModal">
-        <div class="modal">
+    <div class="sv-modal-overlay" id="newCardModal">
+        <div class="sv-modal">
             <button class="modal-close" onclick="closeNewCardModal()">&times;</button>
             <h2>Frontier Card</h2>
 
@@ -528,14 +528,14 @@
             <div class="card-section">
                 <div class="card-section-title">Card Header</div>
                 <div class="form-row">
-                    <div class="form-group"><label>Site</label><select id="ncSite" onchange="loadZonesForSite('ncSite','ncZone');loadAuditorsForSite('ncSite','ncAuditor')"></select></div>
-                    <div class="form-group"><label>Zone</label><select id="ncZone"></select></div>
-                    <div class="form-group"><label>Auditor</label><select id="ncAuditor"></select></div>
+                    <div class="sv-field"><label>Site</label><select id="ncSite" onchange="loadZonesForSite('ncSite','ncZone');loadAuditorsForSite('ncSite','ncAuditor')"></select></div>
+                    <div class="sv-field"><label>Zone</label><select id="ncZone"></select></div>
+                    <div class="sv-field"><label>Auditor</label><select id="ncAuditor"></select></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Audit Date</label><input type="date" id="ncDate"></div>
-                    <div class="form-group"><label>Shift</label><input type="text" id="ncShift" placeholder="e.g. 1st, 2nd, 3rd"></div>
-                    <div class="form-group"><label>Classification</label>
+                    <div class="sv-field"><label>Audit Date</label><input type="date" id="ncDate"></div>
+                    <div class="sv-field"><label>Shift</label><input type="text" id="ncShift" placeholder="e.g. 1st, 2nd, 3rd"></div>
+                    <div class="sv-field"><label>Classification</label>
                         <select id="ncClassification">
                             <option value="routine">Routine Frontier</option>
                             <option value="deep_dive">Deep Dive</option>
@@ -546,7 +546,7 @@
                     </div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group" style="flex:3"><label>Why this zone?</label><input type="text" id="ncZoneReason" placeholder="What made you suspicious?"></div>
+                    <div class="sv-field" style="flex:3"><label>Why this zone?</label><input type="text" id="ncZoneReason" placeholder="What made you suspicious?"></div>
                 </div>
             </div>
 
@@ -582,27 +582,27 @@
             <div class="card-section">
                 <div class="card-section-title">Operator Interaction</div>
                 <div class="form-row">
-                    <div class="form-group"><label>Operator Name</label><input type="text" id="ncOpName"></div>
-                    <div class="form-group"><label>Role</label><input type="text" id="ncOpRole"></div>
-                    <div class="form-group"><label>Tenure</label><input type="text" id="ncOpTenure" placeholder="e.g. 3 years"></div>
+                    <div class="sv-field"><label>Operator Name</label><input type="text" id="ncOpName"></div>
+                    <div class="sv-field"><label>Role</label><input type="text" id="ncOpRole"></div>
+                    <div class="sv-field"><label>Tenure</label><input type="text" id="ncOpTenure" placeholder="e.g. 3 years"></div>
                 </div>
-                <div class="form-group" style="margin-bottom:12px">
+                <div class="sv-field" style="margin-bottom:12px">
                     <label>1. What's the most hazardous thing about working here?</label>
                     <textarea id="ncOpConcern"></textarea>
                 </div>
-                <div class="form-group" style="margin-bottom:12px">
+                <div class="sv-field" style="margin-bottom:12px">
                     <label>2. What part of your body is most tired at end of shift?</label>
                     <textarea id="ncOpErgonomic"></textarea>
                 </div>
-                <div class="form-group" style="margin-bottom:12px">
+                <div class="sv-field" style="margin-bottom:12px">
                     <label>3. If you could change one thing here, what would it be?</label>
                     <textarea id="ncOpImprovement"></textarea>
                 </div>
-                <div class="form-group" style="margin-bottom:12px">
+                <div class="sv-field" style="margin-bottom:12px">
                     <label>4. Has anyone had a close call here recently?</label>
                     <textarea id="ncOpNearMiss"></textarea>
                 </div>
-                <div class="form-group" style="margin-bottom:12px">
+                <div class="sv-field" style="margin-bottom:12px">
                     <label>Comfort Level</label>
                     <div class="comfort-dots" id="ncComfortDots">
                         <div class="comfort-dot" data-val="1" onclick="setComfort(1)"></div>
@@ -613,13 +613,13 @@
                         <span style="font-size:11px;color:var(--text-dim);margin-left:8px" id="comfortLabel">Not set</span>
                     </div>
                 </div>
-                <div class="form-group" style="margin-bottom:12px">
+                <div class="sv-field" style="margin-bottom:12px">
                     <label>Behavior Notes</label>
                     <textarea id="ncOpBehavior" placeholder="Auditor observation of operator behavior during task"></textarea>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>5S Issue (operator's #1)</label><input type="text" id="ncOp5sIssue"></div>
-                    <div class="form-group"><label>Quick Win</label><input type="text" id="ncOpQuickWin"></div>
+                    <div class="sv-field"><label>5S Issue (operator's #1)</label><input type="text" id="ncOp5sIssue"></div>
+                    <div class="sv-field"><label>Quick Win</label><input type="text" id="ncOpQuickWin"></div>
                 </div>
             </div>
 
@@ -634,7 +634,7 @@
             <div class="card-section">
                 <div class="card-section-title">Close the Loop</div>
                 <div class="form-row">
-                    <div class="form-group"><label>Method</label>
+                    <div class="sv-field"><label>Method</label>
                         <select id="ncCloseMethod">
                             <option value="immediate">Yes, on the spot</option>
                             <option value="within_24h">Within 24 hours</option>
@@ -642,9 +642,9 @@
                             <option value="not_done">Not done</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Follow-up Date</label><input type="date" id="ncCloseFollowup"></div>
+                    <div class="sv-field"><label>Follow-up Date</label><input type="date" id="ncCloseFollowup"></div>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label>Notes</label>
                     <textarea id="ncCloseNotes" placeholder="Operator response to feedback"></textarea>
                 </div>
@@ -655,13 +655,13 @@
     </div>
 
     <!-- SCHEDULE MODAL -->
-    <div class="modal-overlay" id="newScheduleModal">
-        <div class="modal" style="max-width:600px">
+    <div class="sv-modal-overlay" id="newScheduleModal">
+        <div class="sv-modal" style="max-width:600px">
             <button class="modal-close" onclick="closeNewScheduleModal()">&times;</button>
             <h2>New Audit Schedule</h2>
             <div class="form-row">
-                <div class="form-group"><label>Site</label><select id="nsSite"></select></div>
-                <div class="form-group"><label>Week Starting (Monday)</label><input type="date" id="nsWeek"></div>
+                <div class="sv-field"><label>Site</label><select id="nsSite"></select></div>
+                <div class="sv-field"><label>Week Starting (Monday)</label><input type="date" id="nsWeek"></div>
             </div>
             <div id="nsAssignments" style="margin:16px 0"></div>
             <button class="add-btn" onclick="addAssignmentRow()">+ Add Assignment</button>
@@ -670,11 +670,11 @@
     </div>
 
     <!-- FMEA PROCESS MODAL -->
-    <div class="modal-overlay" id="fmeaProcessModal">
-        <div class="modal" style="max-width:500px">
+    <div class="sv-modal-overlay" id="fmeaProcessModal">
+        <div class="sv-modal" style="max-width:500px">
             <button class="modal-close" onclick="closeFmeaModal()">&times;</button>
             <h2>Process Card to FMEA</h2>
-            <div class="form-group" style="margin-bottom:16px">
+            <div class="sv-field" style="margin-bottom:16px">
                 <label>Select FMEA</label>
                 <select id="fmeaSelect"></select>
             </div>
@@ -1154,7 +1154,7 @@ function renderCardList() {
         const arCount = obs.filter(o => o.rating === 'AR').length;
         const uCount = obs.filter(o => o.rating === 'U').length;
         const satPct = c.satisfactory_pct != null ? c.satisfactory_pct + '%' : '—';
-        const sevBadge = c.highest_severity ? '<span class="badge badge-sev-'+esc(c.highest_severity)+'">'+esc(c.highest_severity)+'</span>' : '';
+        const sevBadge = c.highest_severity ? '<span class="sv-badge badge-sev-'+esc(c.highest_severity)+'">'+esc(c.highest_severity)+'</span>' : '';
         const clf = (c.classification || 'routine').replace(/_/g, ' ');
 
         return '<div class="frontier-card" id="card-'+i+'" onclick="toggleCard('+i+')">' +
@@ -1165,11 +1165,11 @@ function renderCardList() {
                     '<span style="color:var(--text-dim)">'+esc(c.zone_name)+'</span>' +
                 '</div>' +
                 '<div class="card-badges">' +
-                    '<span class="badge badge-classification">'+esc(clf)+'</span>' +
+                    '<span class="sv-badge badge-classification">'+esc(clf)+'</span>' +
                     '<span class="rating-summary">'+sCount+'S / '+arCount+'AR / '+uCount+'U</span>' +
                     '<span class="sat-pct">'+satPct+'</span>' +
                     sevBadge +
-                    '<span class="badge '+(c.is_processed?'badge-processed':'badge-unprocessed')+'">'+(c.is_processed?'Processed':'Unprocessed')+'</span>' +
+                    '<span class="sv-badge '+(c.is_processed?'badge-processed':'badge-unprocessed')+'">'+(c.is_processed?'Processed':'Unprocessed')+'</span>' +
                 '</div>' +
             '</div>' +
             '<div class="card-detail" id="detail-'+i+'">' + renderCardDetail(c) + '</div>' +
@@ -1205,7 +1205,7 @@ function renderCardDetail(c) {
                 html += '<tr class="cat-header"><td colspan="5">'+ esc(catLabel ? catLabel.label : o.category) +'</td></tr>';
             }
             html += '<tr><td></td><td>'+esc(o.item)+'</td><td class="rating-'+esc(o.rating)+'">'+esc(o.rating)+'</td>' +
-                '<td>'+(o.severity ? '<span class="badge badge-sev-'+esc(o.severity)+'">'+esc(o.severity)+'</span>' : '—')+'</td>' +
+                '<td>'+(o.severity ? '<span class="sv-badge badge-sev-'+esc(o.severity)+'">'+esc(o.severity)+'</span>' : '—')+'</td>' +
                 '<td style="color:var(--text-secondary)">'+esc(o.notes || '')+'</td></tr>';
         });
         html += '</tbody></table></div>';
@@ -1325,9 +1325,9 @@ function addAssignmentRow() {
     const idx = container.children.length;
     const row = document.createElement('div');
     row.className = 'form-row';
-    row.innerHTML = '<div class="form-group"><label>Auditor</label><select id="nsAud'+idx+'"></select></div>' +
-        '<div class="form-group"><label>Zone</label><select id="nsZone'+idx+'"></select></div>' +
-        '<div class="form-group"><label>Date</label><input type="date" id="nsDate'+idx+'"></div>' +
+    row.innerHTML = '<div class="sv-field"><label>Auditor</label><select id="nsAud'+idx+'"></select></div>' +
+        '<div class="sv-field"><label>Zone</label><select id="nsZone'+idx+'"></select></div>' +
+        '<div class="sv-field"><label>Date</label><input type="date" id="nsDate'+idx+'"></div>' +
         '<button class="pos-obs-row remove-btn" onclick="this.parentElement.remove()" style="align-self:end;margin-bottom:12px">&times;</button>';
     container.appendChild(row);
     // Populate from site
@@ -1498,7 +1498,7 @@ function buildObsForm() {
                     '<input type="radio" class="rating-radio" name="'+rid+'" id="'+rid+'_U" value="U" data-idx="'+itemIdx+'">' +
                     '<label class="rating-label" data-val="U" for="'+rid+'_U">U</label>' +
                 '</div></td>' +
-                '<td><select class="sev-select form-group" id="sev_'+itemIdx+'" disabled style="opacity:0.3">' +
+                '<td><select class="sev-select sv-field" id="sev_'+itemIdx+'" disabled style="opacity:0.3">' +
                     '<option value="">—</option><option value="C">C</option><option value="H">H</option><option value="M">M</option><option value="L">L</option>' +
                 '</select></td>' +
                 '<td><input class="notes-input" id="notes_'+itemIdx+'" placeholder="Notes"></td></tr>';
