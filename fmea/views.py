@@ -234,8 +234,14 @@ def update_fmea(request, fmea_id):
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_fmea(request, fmea_id):
-    """Delete an FMEA and all its rows."""
+    """Delete an FMEA and all its rows (with pull contract friction)."""
+    from qms_core.pull_views import check_delete_friction
+
     fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
+    force = request.GET.get("force", "").lower() == "true"
+    ok, err_resp, _tombstoned = check_delete_friction("fmea", "FMEA", fmea_id, force=force)
+    if not ok:
+        return err_resp
     fmea.delete()
     return JsonResponse({"success": True})
 

@@ -77,10 +77,6 @@ def _sub_artifact(row, key_path):
     return obj
 
 
-def _delete_fmea(obj):
-    obj.delete()
-
-
 # View functions
 
 
@@ -121,15 +117,4 @@ def list_references(request, container_id):
         container_id,
         source_app=SOURCE_APP,
         source_type=CONTAINER_TYPE,
-    )
-
-
-def delete_with_friction(request, container_id):
-    return pull_views.pull_delete_with_friction(
-        request,
-        container_id,
-        source_app=SOURCE_APP,
-        source_type=CONTAINER_TYPE,
-        get_obj_fn=_get_container,
-        delete_fn=_delete_fmea,
     )

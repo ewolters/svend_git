@@ -148,10 +148,16 @@ def update_diagram(request, diagram_id):
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_diagram(request, diagram_id):
-    """Delete an Ishikawa diagram."""
+    """Delete an Ishikawa diagram (with pull contract friction)."""
+    from qms_core.pull_views import check_delete_friction
+
     try:
         diagram = IshikawaDiagram.objects.get(id=diagram_id, owner=request.user)
-        diagram.delete()
-        return JsonResponse({"success": True})
     except IshikawaDiagram.DoesNotExist:
         return JsonResponse({"error": "Diagram not found"}, status=404)
+    force = request.GET.get("force", "").lower() == "true"
+    ok, err_resp, _tombstoned = check_delete_friction("ishikawa", "IshikawaDiagram", diagram_id, force=force)
+    if not ok:
+        return err_resp
+    diagram.delete()
+    return JsonResponse({"success": True})

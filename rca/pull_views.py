@@ -64,10 +64,6 @@ def _sub_artifact(obj, key_path):
     return data
 
 
-def _delete_rca(obj):
-    obj.delete()
-
-
 # View functions
 
 
@@ -108,15 +104,4 @@ def list_references(request, container_id):
         container_id,
         source_app=SOURCE_APP,
         source_type=CONTAINER_TYPE,
-    )
-
-
-def delete_with_friction(request, container_id):
-    return pull_views.pull_delete_with_friction(
-        request,
-        container_id,
-        source_app=SOURCE_APP,
-        source_type=CONTAINER_TYPE,
-        get_obj_fn=_get_container,
-        delete_fn=_delete_rca,
     )

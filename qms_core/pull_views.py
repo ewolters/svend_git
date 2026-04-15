@@ -177,36 +177,29 @@ def pull_list_references(request, container_id, *, source_app, source_type):
 
 
 # =============================================================================
-# Delete with friction
+# Delete with friction — utility + view
 # =============================================================================
 
 
-@require_http_methods(["DELETE"])
-@require_auth
-def pull_delete_with_friction(request, container_id, *, source_app, source_type, get_obj_fn, delete_fn):
-    """Delete a container, but warn if it has active references.
+def check_delete_friction(source_app, source_type, source_id, force=False):
+    """Check for active references and optionally tombstone them.
 
-    If there are active references (source_deleted_at is null), return 409
-    with the list of consumers. Include ?force=true to delete anyway and
-    mark all references with source_deleted_at (tombstone).
+    Call this from any delete view before actually deleting the object.
 
-    Args:
-        get_obj_fn: (request, container_id) -> obj or None
-        delete_fn: (obj) -> None — actually delete the object
+    Returns:
+        (ok_to_delete, error_response_or_none, tombstoned_count)
+
+    If ok_to_delete is False, return the error_response (409 with consumer list).
+    If ok_to_delete is True, proceed with deletion — references are already tombstoned.
     """
-    obj = get_obj_fn(request, container_id)
-    if obj is None:
-        return JsonResponse({"error": "Not found"}, status=404)
-
     active_refs = ArtifactReference.objects.filter(
         source_app=source_app,
         source_type=source_type,
-        source_id=container_id,
+        source_id=source_id,
         source_deleted_at__isnull=True,
     )
 
     ref_count = active_refs.count()
-    force = request.GET.get("force", "").lower() == "true"
 
     if ref_count > 0 and not force:
         consumers = [
@@ -218,14 +211,18 @@ def pull_delete_with_friction(request, container_id, *, source_app, source_type,
             }
             for r in active_refs[:20]
         ]
-        return JsonResponse(
-            {
-                "error": "Cannot delete — active references exist",
-                "reference_count": ref_count,
-                "consumers": consumers,
-                "hint": "Add ?force=true to delete anyway (consumers will see tombstone)",
-            },
-            status=409,
+        return (
+            False,
+            JsonResponse(
+                {
+                    "error": "Cannot delete — active references exist",
+                    "reference_count": ref_count,
+                    "consumers": consumers,
+                    "hint": "Add ?force=true to delete anyway (consumers will see tombstone)",
+                },
+                status=409,
+            ),
+            0,
         )
 
     # Tombstone all references
@@ -237,8 +234,7 @@ def pull_delete_with_friction(request, container_id, *, source_app, source_type,
             ref_count,
             source_app,
             source_type,
-            container_id,
+            source_id,
         )
 
-    delete_fn(obj)
-    return JsonResponse({"deleted": True, "tombstoned_references": ref_count})
+    return True, None, ref_count

@@ -292,7 +292,9 @@ def update_a3_report(request, report_id):
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_a3_report(request, report_id):
-    """Delete an A3 report."""
+    """Delete an A3 report (with pull contract friction)."""
+    from qms_core.pull_views import check_delete_friction
+
     qs, tenant, _is_admin = qms_queryset(A3Report, request.user)
     try:
         report = qs.get(id=report_id)
@@ -300,8 +302,11 @@ def delete_a3_report(request, report_id):
         return JsonResponse({"error": "Not found"}, status=404)
     if not qms_can_edit(request.user, report, tenant):
         return JsonResponse({"error": "Permission denied"}, status=403)
+    force = request.GET.get("force", "").lower() == "true"
+    ok, err_resp, _tombstoned = check_delete_friction("a3", "A3Report", report_id, force=force)
+    if not ok:
+        return err_resp
     report.delete()
-
     return JsonResponse({"success": True})
 
 

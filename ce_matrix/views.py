@@ -145,10 +145,16 @@ def update_matrix(request, matrix_id):
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_matrix(request, matrix_id):
-    """Delete a C&E matrix."""
+    """Delete a C&E matrix (with pull contract friction)."""
+    from qms_core.pull_views import check_delete_friction
+
     try:
         matrix = CEMatrix.objects.get(id=matrix_id, owner=request.user)
-        matrix.delete()
-        return JsonResponse({"success": True})
     except CEMatrix.DoesNotExist:
         return JsonResponse({"error": "Matrix not found"}, status=404)
+    force = request.GET.get("force", "").lower() == "true"
+    ok, err_resp, _tombstoned = check_delete_friction("ce_matrix", "CEMatrix", matrix_id, force=force)
+    if not ok:
+        return err_resp
+    matrix.delete()
+    return JsonResponse({"success": True})

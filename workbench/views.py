@@ -24,14 +24,6 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-def _wb_get_session(request, pk):
-    """Get a session filtered by user (+ tenant)."""
-    try:
-        return AnalysisSession.objects.get(id=pk, user=request.user)
-    except AnalysisSession.DoesNotExist:
-        return None
-
-
 def _wb_get_analysis(request, artifact_id):
     """Get an analysis owned by this user."""
     try:
@@ -72,11 +64,6 @@ def _wb_analysis_to_dict(request, artifact_id):
 def _wb_sub_artifact(obj, key_path):
     """Delegate to model's get_sub_artifact."""
     return obj.get_sub_artifact(key_path)
-
-
-def _wb_delete_session(obj):
-    """Delete a session."""
-    obj.delete()
 
 
 # =============================================================================
@@ -165,8 +152,15 @@ def session_detail(request, session_id):
         session.save()
         return JsonResponse({"id": str(session.id), "title": session.title})
 
+    # Delete with friction — check for active references
+    from qms_core.pull_views import check_delete_friction
+
+    force = request.GET.get("force", "").lower() == "true"
+    ok, err_resp, tombstoned = check_delete_friction("workbench", "AnalysisSession", session_id, force=force)
+    if not ok:
+        return err_resp
     session.delete()
-    return JsonResponse({"deleted": True})
+    return JsonResponse({"deleted": True, "tombstoned_references": tombstoned})
 
 
 # =============================================================================
@@ -343,8 +337,15 @@ def analysis_detail(request, session_id, analysis_id):
             }
         )
 
+    # Delete with friction — check for active references
+    from qms_core.pull_views import check_delete_friction
+
+    force = request.GET.get("force", "").lower() == "true"
+    ok, err_resp, tombstoned = check_delete_friction("workbench", "SessionAnalysis", analysis_id, force=force)
+    if not ok:
+        return err_resp
     analysis.delete()
-    return JsonResponse({"deleted": True})
+    return JsonResponse({"deleted": True, "tombstoned_references": tombstoned})
 
 
 # =============================================================================
@@ -425,16 +426,4 @@ def analysis_pull_sub_artifact(request, analysis_id, key_path):
         key_path,
         get_artifact_fn=_wb_get_analysis,
         sub_artifact_fn=_wb_sub_artifact,
-    )
-
-
-def session_delete_with_friction(request, session_id):
-    """Delete session with friction — warns if active references exist."""
-    return pull_views.pull_delete_with_friction(
-        request,
-        session_id,
-        source_app="workbench",
-        source_type="AnalysisSession",
-        get_obj_fn=_wb_get_session,
-        delete_fn=_wb_delete_session,
     )

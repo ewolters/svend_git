@@ -22,14 +22,13 @@ urlpatterns = [
     path("sessions/<uuid:session_id>/analyses/<uuid:analysis_id>/", views.analysis_detail, name="analysis_detail"),
     # Pull contract — manifest + sub-artifact access
     path("sessions/<uuid:session_id>/manifest/", views.session_manifest, name="session_manifest"),
+    path("sessions/<uuid:session_id>/references/", views.session_references, name="session_references"),
     path(
         "sessions/<uuid:session_id>/analyses/<uuid:analysis_id>/<path:key_path>/",
         views.analysis_sub_artifact,
         name="analysis_sub_artifact",
     ),
-    # Pull contract — references + delete with friction
-    path("sessions/<uuid:session_id>/references/", views.session_references, name="session_references"),
-    path("sessions/<uuid:session_id>/delete/", views.session_delete_with_friction, name="session_delete"),
+    # Pull contract — direct analysis access + reference registration
     path("analyses/<uuid:analysis_id>/", views.analysis_pull_detail, name="analysis_pull_detail"),
     path("analyses/<uuid:analysis_id>/references/", views.analysis_register_reference, name="analysis_register_ref"),
     path(

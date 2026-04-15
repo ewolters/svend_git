@@ -829,7 +829,9 @@ def update_session(request, session_id):
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_session(request, session_id):
-    """Delete an RCA session."""
+    """Delete an RCA session (with pull contract friction)."""
+    from qms_core.pull_views import check_delete_friction
+
     qs, tenant, _is_admin = qms_queryset(RCASession, request.user)
     try:
         session = qs.get(id=session_id)
@@ -837,6 +839,10 @@ def delete_session(request, session_id):
         return JsonResponse({"error": "Session not found"}, status=404)
     if not qms_can_edit(request.user, session, tenant):
         return JsonResponse({"error": "Permission denied"}, status=403)
+    force = request.GET.get("force", "").lower() == "true"
+    ok, err_resp, _tombstoned = check_delete_friction("rca", "RCASession", session_id, force=force)
+    if not ok:
+        return err_resp
     session.delete()
     return JsonResponse({"success": True})
 
