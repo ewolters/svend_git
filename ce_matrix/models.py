@@ -62,7 +62,7 @@ class CEMatrix(models.Model):
 
     class Meta:
         db_table = "ce_matrices"
-        managed = False
+
         ordering = ["-updated_at"]
         verbose_name = "C&E Matrix"
         verbose_name_plural = "C&E Matrices"

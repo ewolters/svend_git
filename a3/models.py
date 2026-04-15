@@ -82,7 +82,7 @@ class A3Report(models.Model):
 
     class Meta:
         db_table = "a3_reports"
-        managed = False
+
         ordering = ["-updated_at"]
         verbose_name = "A3 Report"
         verbose_name_plural = "A3 Reports"

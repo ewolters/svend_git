@@ -60,7 +60,7 @@ class PlantSimulation(models.Model):
 
     class Meta:
         db_table = "plant_simulation"
-        managed = False
+
         ordering = ["-updated_at"]
 
     def __str__(self):

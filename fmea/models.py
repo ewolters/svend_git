@@ -75,7 +75,7 @@ class FMEA(models.Model):
 
     class Meta:
         db_table = "fmeas"
-        managed = False
+
         ordering = ["-updated_at"]
         verbose_name = "FMEA"
         verbose_name_plural = "FMEAs"
@@ -170,7 +170,7 @@ class FMEARow(models.Model):
 
     class Meta:
         db_table = "fmea_rows"
-        managed = False
+
         ordering = ["sort_order"]
 
     def __str__(self):

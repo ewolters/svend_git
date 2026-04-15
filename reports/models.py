@@ -51,7 +51,7 @@ class Report(models.Model):
 
     class Meta:
         db_table = "reports"
-        managed = False
+
         ordering = ["-updated_at"]
         verbose_name = "Report"
         verbose_name_plural = "Reports"

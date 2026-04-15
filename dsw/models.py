@@ -34,7 +34,7 @@ class DSWResult(models.Model):
 
     class Meta:
         db_table = "agents_api_dswresult"
-        managed = False
+
         ordering = ["-created_at"]
 
     def get_summary(self):
@@ -104,7 +104,7 @@ class SavedModel(models.Model):
 
     class Meta:
         db_table = "agents_api_savedmodel"
-        managed = False
+
         ordering = ["-created_at"]
 
     def __str__(self):

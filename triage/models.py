@@ -33,7 +33,7 @@ class TriageResult(models.Model):
 
     class Meta:
         db_table = "agents_api_triageresult"
-        managed = False
+
         ordering = ["-created_at"]
 
 
@@ -64,5 +64,5 @@ class AgentLog(models.Model):
 
     class Meta:
         db_table = "agents_api_agentlog"
-        managed = False
+
         ordering = ["-created_at"]

@@ -1201,7 +1201,7 @@ class ForcedFailureTest(SynaraEntity):
         default=TestMode.HYPOTHESIS_DRIVEN,
     )
     fmea_row = models.ForeignKey(
-        "agents_api.FMEARow",
+        "fmea.FMEARow",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -1444,7 +1444,7 @@ class FMISRow(SynaraEntity):
 
     # ── Migration bridge ──
     legacy_fmea_row = models.ForeignKey(
-        "agents_api.FMEARow",
+        "fmea.FMEARow",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,

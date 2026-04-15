@@ -68,7 +68,7 @@ class Notebook(models.Model):
     baseline_value = models.FloatField(null=True, blank=True)
     baseline_unit = models.CharField(max_length=50, blank=True, default="")
     baseline_analysis = models.ForeignKey(
-        "agents_api.DSWResult",
+        "dsw.DSWResult",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -79,7 +79,7 @@ class Notebook(models.Model):
     # Current state — updated after each is_adopted trial
     current_value = models.FloatField(null=True, blank=True)
     current_analysis = models.ForeignKey(
-        "agents_api.DSWResult",
+        "dsw.DSWResult",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -214,7 +214,7 @@ class Trial(models.Model):
     # Before state
     before_value = models.FloatField(null=True, blank=True)
     before_analysis = models.ForeignKey(
-        "agents_api.DSWResult",
+        "dsw.DSWResult",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -225,7 +225,7 @@ class Trial(models.Model):
     # After state
     after_value = models.FloatField(null=True, blank=True)
     after_analysis = models.ForeignKey(
-        "agents_api.DSWResult",
+        "dsw.DSWResult",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,

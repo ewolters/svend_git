@@ -68,7 +68,7 @@ class IshikawaDiagram(models.Model):
 
     class Meta:
         db_table = "ishikawa_diagrams"
-        managed = False
+
         ordering = ["-updated_at"]
         verbose_name = "Ishikawa Diagram"
         verbose_name_plural = "Ishikawa Diagrams"

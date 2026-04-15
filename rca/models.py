@@ -70,7 +70,7 @@ class RCASession(models.Model):
     )
 
     a3_report = models.ForeignKey(
-        "agents_api.A3Report",
+        "a3.A3Report",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -96,7 +96,7 @@ class RCASession(models.Model):
 
     class Meta:
         db_table = "rca_sessions"
-        managed = False
+
         ordering = ["-updated_at"]
         verbose_name = "RCA Session"
         verbose_name_plural = "RCA Sessions"

@@ -64,7 +64,7 @@ class RackSession(models.Model):
 
     class Meta:
         db_table = "rack_sessions"
-        managed = False
+
         ordering = ["-updated_at"]
 
     def __str__(self):

@@ -26,7 +26,7 @@ class SectionProgress(models.Model):
 
     class Meta:
         db_table = "learn_section_progress"
-        managed = False
+
         ordering = ["-updated_at"]
 
     def __str__(self):
@@ -52,7 +52,7 @@ class AssessmentAttempt(models.Model):
 
     class Meta:
         db_table = "learn_assessment_attempt"
-        managed = False
+
         ordering = ["-started_at"]
 
     def __str__(self):
@@ -86,7 +86,7 @@ class LearnSession(models.Model):
 
     class Meta:
         db_table = "learn_session"
-        managed = False
+
         ordering = ["-started_at"]
 
     def __str__(self):

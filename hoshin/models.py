@@ -151,7 +151,7 @@ class HoshinProject(models.Model):
 
     class Meta:
         db_table = "hoshin_projects"
-        managed = False
+
         ordering = ["-updated_at"]
 
     def __str__(self):
@@ -230,7 +230,7 @@ class ProjectTemplate(models.Model):
 
     class Meta:
         db_table = "project_templates"
-        managed = False
+
         ordering = ["name"]
 
     def __str__(self):
@@ -286,7 +286,7 @@ class ActionItem(models.Model):
 
     class Meta:
         db_table = "action_items"
-        managed = False
+
         ordering = ["sort_order", "start_date"]
 
     def save(self, *args, **kwargs):
@@ -413,7 +413,6 @@ class ResourceCommitment(models.Model):
 
     class Meta:
         db_table = "hoshin_resource_commitments"
-        managed = False
 
     def __str__(self):
         return f"{self.employee.name} → {self.project.project.title} ({self.role})"
@@ -468,7 +467,6 @@ class ActionToken(models.Model):
 
     class Meta:
         db_table = "hoshin_action_tokens"
-        managed = False
 
     def save(self, *args, **kwargs):
         if not self.token:
@@ -535,7 +533,7 @@ class StrategicObjective(models.Model):
 
     class Meta:
         db_table = "hoshin_strategic_objectives"
-        managed = False
+
         ordering = ["sort_order", "start_year"]
 
     def __str__(self):
@@ -598,7 +596,7 @@ class AnnualObjective(models.Model):
 
     class Meta:
         db_table = "hoshin_annual_objectives"
-        managed = False
+
         ordering = ["sort_order", "title"]
 
     def __str__(self):
@@ -665,7 +663,7 @@ class HoshinKPI(models.Model):
 
     class Meta:
         db_table = "hoshin_kpis"
-        managed = False
+
         ordering = ["sort_order", "name"]
 
     @property
@@ -786,7 +784,6 @@ class XMatrixCorrelation(models.Model):
 
     class Meta:
         db_table = "hoshin_xmatrix_correlations"
-        managed = False
 
     def __str__(self):
         return f"{self.pair_type}: {self.row_id} <-> {self.col_id} ({self.strength})"
