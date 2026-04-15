@@ -1121,6 +1121,8 @@ async function runAnalysis() {
                 analysis: currentAnalysis.id,
                 data_id: currentDataId,
                 config: buildConfig(),
+                session_id: currentSessionId,
+                dataset_id: currentDatasetId,
             }),
         });
 
@@ -1128,40 +1130,16 @@ async function runAnalysis() {
         renderCharts(result);
         renderResults(result);
 
-        // Persist analysis to session
-        if (currentSessionId) {
-            try {
-                const saved = await apiFetch(WORKBENCH_API + `sessions/${currentSessionId}/analyses/`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        dataset_id: currentDatasetId,
-                        analysis_type: currentAnalysis.type,
-                        analysis_id: currentAnalysis.id,
-                        columns_used: Object.values(buildConfig()).filter(v => typeof v === 'string' && currentDataColumns.includes(v)),
-                        config: buildConfig(),
-                        statistics: result.statistics || {},
-                        narrative: result.narrative || {},
-                        summary: result.summary || '',
-                        charts: result.plots || result.charts || [],
-                        diagnostics: result.diagnostics || [],
-                        assumptions: result.assumptions || {},
-                        education: result.education || null,
-                        bayesian_shadow: result.bayesian_shadow || null,
-                        evidence_grade: result.evidence_grade || '',
-                        guide_observation: result.guide_observation || '',
-                    }),
-                });
-                analysisHistory.push({
-                    id: saved.id,
-                    analysis_type: currentAnalysis.type,
-                    analysis_id: currentAnalysis.id,
-                    summary: (result.summary || '').slice(0, 100),
-                    created_at: new Date().toISOString(),
-                });
-                renderAnalysisHistory();
-            } catch (e) {
-                console.warn('Failed to persist analysis to session:', e);
-            }
+        // Track in local history (backend persists via session_id in request)
+        if (result._analysis_record_id) {
+            analysisHistory.push({
+                id: result._analysis_record_id,
+                analysis_type: currentAnalysis.type,
+                analysis_id: currentAnalysis.id,
+                summary: (result.summary || '').slice(0, 100),
+                created_at: new Date().toISOString(),
+            });
+            renderAnalysisHistory();
         }
     } catch (e) {
         document.getElementById('charts-pane').innerHTML = '';
@@ -1855,6 +1833,7 @@ async function confirmUpload() {
     try {
         const fd = new FormData();
         fd.append('file', pendingFile);
+        if (currentSessionId) fd.append('session_id', currentSessionId);
 
         const resp = await fetch(ANALYSIS_API + 'upload-data/', {
             method: 'POST',
@@ -1890,33 +1869,9 @@ async function confirmUpload() {
         hideUploadModal();
         svToast('Data loaded', 'success');
 
-        // Persist dataset to session
-        if (currentSessionId && currentDataPreview) {
-            try {
-                // Build columnar JSON from preview rows
-                const colData = {};
-                currentDataColumns.forEach(c => { colData[c] = currentDataPreview.map(r => r[c] !== undefined ? r[c] : null); });
-
-                const colMeta = currentDataColumns.map(c => {
-                    const vals = colData[c].filter(v => v !== null && v !== '');
-                    const isNum = vals.length > 0 && vals.every(v => !isNaN(Number(v)));
-                    return { name: c, dtype: isNum ? 'numeric' : 'categorical', missing_pct: 1 - (vals.length / Math.max(currentDataRows, 1)), unique: new Set(vals).size };
-                });
-
-                const ds = await apiFetch(WORKBENCH_API + `sessions/${currentSessionId}/datasets/`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        name: pendingFile.name,
-                        source: 'upload',
-                        data: colData,
-                        columns_meta: colMeta,
-                        row_count: currentDataRows,
-                    }),
-                });
-                currentDatasetId = ds.id;
-            } catch (e) {
-                console.warn('Failed to persist dataset to session:', e);
-            }
+        // Backend persists dataset via session_id in form data
+        if (data._dataset_record_id) {
+            currentDatasetId = data._dataset_record_id;
         }
     } catch (e) {
         svToast(e.message || 'Upload failed', 'error');
