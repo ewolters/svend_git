@@ -78,7 +78,7 @@
         }
 
         /* Card */
-        .card {
+        .sv-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 12px;
@@ -102,10 +102,10 @@
         }
 
         /* Form controls */
-        .form-group {
+        .sv-field {
             margin-bottom: 1.25rem;
         }
-        .form-group label {
+        .sv-field label {
             display: block;
             font-size: 0.8rem;
             color: var(--text-secondary);
@@ -201,7 +201,7 @@
             margin-top: auto;
             padding-top: 1.5rem;
         }
-        .btn {
+        .sv-btn {
             flex: 1;
             padding: 0.75rem;
             border: none;
@@ -212,18 +212,18 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .btn-primary {
+        .sv-btn-primary {
             background: var(--accent);
             color: var(--bg-primary);
         }
-        .btn-primary:hover { background: var(--accent-hover); }
-        .btn-secondary {
+        .sv-btn-primary:hover { background: var(--accent-hover); }
+        .sv-btn-secondary {
             background: transparent;
             color: var(--text-secondary);
             border: 1px solid var(--border);
         }
-        .btn-secondary:hover { border-color: var(--text-dim); color: var(--text-primary); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .sv-btn-secondary:hover { border-color: var(--text-dim); color: var(--text-primary); }
+        .sv-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .skip-link {
             display: block;
@@ -290,7 +290,7 @@
             <div class="progress-dot" id="prog-3"></div>
         </div>
 
-        <div class="card">
+        <div class="sv-card">
             <div id="error" class="error-msg"></div>
 
             <!-- Step 0: About You -->
@@ -298,25 +298,25 @@
                 <div class="step-title">About you</div>
                 <div class="step-subtitle">Helps us tailor your experience</div>
 
-                <div class="form-group">
+                <div class="sv-field">
                     <label>Industry</label>
                     <select id="industry">
                         <option value="">Select your industry...</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label>Role</label>
                     <select id="role">
                         <option value="">Select your role...</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label>Experience with statistics</label>
                     <select id="experience_level">
                         <option value="">Select your level...</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label>Organization size</label>
                     <select id="organization_size">
                         <option value="">Select size...</option>
@@ -324,7 +324,7 @@
                 </div>
 
                 <div class="btn-row">
-                    <button class="btn btn-primary" onclick="nextStep()">Continue</button>
+                    <button class="sv-btn sv-btn-primary" onclick="nextStep()">Continue</button>
                 </div>
             </div>
 
@@ -333,19 +333,19 @@
                 <div class="step-title">What brings you here?</div>
                 <div class="step-subtitle">Select your primary goal</div>
 
-                <div class="form-group">
+                <div class="sv-field">
                     <label>Primary goal</label>
                     <div class="chip-grid" id="goals-grid"></div>
                 </div>
 
-                <div class="form-group">
+                <div class="sv-field">
                     <label>Tools you currently use</label>
                     <div class="chip-grid" id="tools-grid"></div>
                 </div>
 
                 <div class="btn-row">
-                    <button class="btn btn-secondary" onclick="prevStep()">Back</button>
-                    <button class="btn btn-primary" onclick="nextStep()">Continue</button>
+                    <button class="sv-btn sv-btn-secondary" onclick="prevStep()">Back</button>
+                    <button class="sv-btn sv-btn-primary" onclick="nextStep()">Continue</button>
                 </div>
             </div>
 
@@ -354,7 +354,7 @@
                 <div class="step-title">Quick self-assessment</div>
                 <div class="step-subtitle">No wrong answers here</div>
 
-                <div class="form-group">
+                <div class="sv-field">
                     <label>How confident do you feel running statistical analyses?</label>
                     <div class="slider-row">
                         <span class="slider-label">Not at all</span>
@@ -365,7 +365,7 @@
                     </div>
                 </div>
 
-                <div class="form-group">
+                <div class="sv-field">
                     <label>How quickly do you need results?</label>
                     <div class="slider-row">
                         <span class="slider-label">Just exploring</span>
@@ -376,14 +376,14 @@
                     </div>
                 </div>
 
-                <div class="form-group">
+                <div class="sv-field">
                     <label>Biggest challenge with statistics at work (optional)</label>
                     <textarea id="biggest_challenge" placeholder="e.g., Choosing the right test, interpreting results, presenting findings..."></textarea>
                 </div>
 
                 <div class="btn-row">
-                    <button class="btn btn-secondary" onclick="prevStep()">Back</button>
-                    <button class="btn btn-primary" onclick="submitSurvey()">Finish Setup</button>
+                    <button class="sv-btn sv-btn-secondary" onclick="prevStep()">Back</button>
+                    <button class="sv-btn sv-btn-primary" onclick="submitSurvey()">Finish Setup</button>
                 </div>
             </div>
 
@@ -394,7 +394,7 @@
                     <h2>You're all set!</h2>
                     <div class="path-badge" id="path-badge"></div>
                     <p id="completion-msg">We've personalized your experience and queued up some helpful emails. Check your inbox.</p>
-                    <button class="btn btn-primary" onclick="window.location.href='/app/'" style="max-width:240px;margin:0 auto;">
+                    <button class="sv-btn sv-btn-primary" onclick="window.location.href='/app/'" style="max-width:240px;margin:0 auto;">
                         Go to Dashboard
                     </button>
                 </div>
@@ -543,7 +543,7 @@
     }
 
     async function submitSurvey() {
-        const btn = document.querySelector('#step-2 .btn-primary');
+        const btn = document.querySelector('#step-2 .sv-btn-primary');
         btn.disabled = true;
         btn.textContent = 'Saving...';
 

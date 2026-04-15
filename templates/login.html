@@ -60,7 +60,7 @@
             stroke: var(--text-primary);
             stroke-width: 20;
         }
-        .card {
+        .sv-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 12px;
@@ -76,7 +76,7 @@
             font-size: 0.9rem;
             margin-bottom: 2rem;
         }
-        .form-group {
+        .sv-field {
             margin-bottom: 1.5rem;
         }
         label {
@@ -100,7 +100,7 @@
             outline: none;
             border-color: var(--accent);
         }
-        .btn {
+        .sv-btn {
             width: 100%;
             padding: 0.875rem;
             background: var(--accent);
@@ -113,10 +113,10 @@
             cursor: pointer;
             transition: background 0.2s;
         }
-        .btn:hover {
+        .sv-btn:hover {
             background: var(--accent-hover);
         }
-        .btn:disabled {
+        .sv-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
@@ -154,22 +154,22 @@
             </span>
             SVEND
         </a>
-        <div class="card">
+        <div class="sv-card">
             <h1>Welcome back</h1>
             <p class="subtitle">Sign in to your account</p>
 
             <div id="error" class="error"></div>
 
             <form id="loginForm">
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="username">Username or Email</label>
                     <input type="text" id="username" name="username" required autocomplete="username">
                 </div>
-                <div class="form-group">
+                <div class="sv-field">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required autocomplete="current-password">
                 </div>
-                <button type="submit" class="btn" id="submitBtn">Sign In</button>
+                <button type="submit" class="sv-btn" id="submitBtn">Sign In</button>
             </form>
 
             <div class="footer">
