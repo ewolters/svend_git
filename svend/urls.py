@@ -451,6 +451,12 @@ urlpatterns = varta_urls + [
     path("api/harada/", include("harada.urls")),  # Harada Method (questionnaire, goals, routines, diary)
     path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),
+    # Pull contract endpoints — Object 271 §2.3
+    path("api/pull/fmea/", include("fmea.pull_urls")),
+    path("api/pull/rca/", include("rca.pull_urls")),
+    path("api/pull/a3/", include("a3.pull_urls")),
+    path("api/pull/ishikawa/", include("ishikawa.pull_urls")),
+    path("api/pull/ce-matrix/", include("ce_matrix.pull_urls")),
     path("chat/", include("chat.urls")),
     path("action/<str:token>/", include("action_token.urls")),  # ActionToken (QMS-002, no auth)
     path("ntf/<str:token>/", include("notifications.token_urls")),  # NotificationToken (NTF-001 §5.2, no auth)

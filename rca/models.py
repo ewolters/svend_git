@@ -151,3 +151,32 @@ class RCASession(models.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
+
+    def to_manifest(self):
+        """Pull contract manifest — lists causal chain steps and key findings."""
+        keys = ["event"]
+        artifacts = []
+        for i, step in enumerate(self.chain or []):
+            artifacts.append(
+                {
+                    "id": str(self.id),
+                    "type": "chain_step",
+                    "label": step.get("why", f"Step {i}") if isinstance(step, dict) else str(step),
+                    "key": f"chain/{i}",
+                }
+            )
+        if self.root_cause:
+            keys.append("root_cause")
+        if self.countermeasure:
+            keys.append("countermeasure")
+        if self.evaluation:
+            keys.append("evaluation")
+        return {
+            "container_id": str(self.id),
+            "container_type": "RCASession",
+            "title": self.title or self.event[:80],
+            "status": self.status,
+            "available_keys": keys,
+            "artifacts": artifacts,
+            "updated_at": self.updated_at.isoformat(),
+        }

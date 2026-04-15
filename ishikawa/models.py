@@ -87,3 +87,28 @@ class IshikawaDiagram(models.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
+
+    def to_manifest(self):
+        """Pull contract manifest — lists effect and branches as sub-artifacts."""
+        artifacts = []
+        for i, branch in enumerate(self.branches or []):
+            category = branch.get("category", f"Branch {i}") if isinstance(branch, dict) else str(branch)
+            causes = branch.get("causes", []) if isinstance(branch, dict) else []
+            artifacts.append(
+                {
+                    "id": str(self.id),
+                    "type": "branch",
+                    "key": f"branches/{i}",
+                    "label": category,
+                    "cause_count": len(causes),
+                }
+            )
+        return {
+            "container_id": str(self.id),
+            "container_type": "IshikawaDiagram",
+            "title": self.title or self.effect[:80],
+            "status": self.status,
+            "available_keys": ["effect", "branches"],
+            "artifacts": artifacts,
+            "updated_at": self.updated_at.isoformat(),
+        }

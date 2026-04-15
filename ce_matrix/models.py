@@ -100,3 +100,23 @@ class CEMatrix(models.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
+
+    def to_manifest(self):
+        """Pull contract manifest — lists inputs, outputs, and computed totals."""
+        return {
+            "container_id": str(self.id),
+            "container_type": "CEMatrix",
+            "title": self.title or "Untitled",
+            "status": self.status,
+            "available_keys": ["inputs", "outputs", "scores", "totals"],
+            "artifacts": [
+                {
+                    "id": str(self.id),
+                    "type": "input",
+                    "key": f"inputs/{i}",
+                    "label": inp.get("name", f"Input {i}") if isinstance(inp, dict) else str(inp),
+                }
+                for i, inp in enumerate(self.inputs or [])
+            ],
+            "updated_at": self.updated_at.isoformat(),
+        }

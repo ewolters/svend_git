@@ -111,3 +111,28 @@ class A3Report(models.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
+
+    def to_manifest(self):
+        """Pull contract manifest — lists PDCA sections as sub-artifacts."""
+        sections = [
+            "background",
+            "current_condition",
+            "goal",
+            "root_cause",
+            "countermeasures",
+            "implementation_plan",
+            "follow_up",
+        ]
+        available = [s for s in sections if getattr(self, s, "")]
+        return {
+            "container_id": str(self.id),
+            "container_type": "A3Report",
+            "title": self.title,
+            "status": self.status,
+            "available_keys": available,
+            "artifacts": [
+                {"id": str(self.id), "type": "section", "key": s, "label": s.replace("_", " ").title()}
+                for s in available
+            ],
+            "updated_at": self.updated_at.isoformat(),
+        }

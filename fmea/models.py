@@ -100,6 +100,38 @@ class FMEA(models.Model):
             "updated_at": self.updated_at.isoformat(),
         }
 
+    def to_manifest(self):
+        """Pull contract manifest — lists all rows as sub-artifacts."""
+        rows = list(self.rows.order_by("sort_order"))
+        return {
+            "container_id": str(self.id),
+            "container_type": "FMEA",
+            "title": self.title,
+            "status": self.status,
+            "fmea_type": self.fmea_type,
+            "scoring_method": self.scoring_method,
+            "artifacts": [
+                {
+                    "id": str(r.id),
+                    "type": "FMEARow",
+                    "label": r.failure_mode,
+                    "available_keys": [
+                        "severity",
+                        "occurrence",
+                        "detection",
+                        "rpn",
+                        "cause",
+                        "effect",
+                        "process_step",
+                        "recommended_action",
+                        "action_status",
+                    ],
+                }
+                for r in rows
+            ],
+            "updated_at": self.updated_at.isoformat(),
+        }
+
 
 class FMEARow(models.Model):
     """A single failure mode row in an FMEA study."""
