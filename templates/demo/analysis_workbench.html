@@ -135,18 +135,57 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     flex-shrink: 0;
 }
 
-.aw-toolbar-title {
+.aw-session-controls {
+    display: flex;
+    gap: 2px;
+}
+.aw-session-title {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
     font-family: 'Inter', system-ui, sans-serif;
-    min-width: 0;
+    min-width: 60px;
+    max-width: 240px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    padding: 2px 6px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    outline: none;
 }
+.aw-session-title:hover { border-color: var(--border); }
+.aw-session-title:focus { border-color: var(--accent-primary-border); }
 
 .aw-toolbar-spacer { flex: 1; }
+
+/* Analysis tabs — persistent analysis history below toolbar */
+.aw-analysis-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    overflow-x: auto;
+    flex-shrink: 0;
+}
+.aw-analysis-tab {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--text-dim);
+    border: none;
+    background: none;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: color 0.1s, border-color 0.1s;
+}
+.aw-analysis-tab:hover { color: var(--text-primary); }
+.aw-analysis-tab.active {
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
+}
 
 .aw-data-indicator {
     font-size: 11px;
@@ -618,13 +657,21 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     <!-- Main area: toolbar + 4-pane workspace -->
     <div class="aw-main">
         <!-- Toolbar -->
-        <div class="aw-toolbar">
-            <div class="aw-toolbar-title" id="aw-toolbar-title">Analysis Workbench</div>
+        <div class="aw-toolbar" id="aw-toolbar">
+            <!-- Session controls -->
+            <div class="aw-session-controls">
+                <button class="sv-btn sv-btn-sm" onclick="newSession()" title="New session">New</button>
+                <button class="sv-btn sv-btn-sm" onclick="openSessionDialog()" title="Open saved session">Open</button>
+                <button class="sv-btn sv-btn-sm" onclick="saveSession()" title="Save session">Save</button>
+            </div>
+            <div class="aw-session-title" id="aw-session-title" contenteditable="true" spellcheck="false" title="Click to rename session">Untitled Session</div>
             <div class="aw-toolbar-spacer"></div>
             <div class="aw-data-indicator" id="aw-data-indicator">No data loaded</div>
-            <button class="btn-secondary btn-sm" onclick="showUploadModal()">Upload Data</button>
-            <button class="btn-primary btn-sm" id="aw-run-btn" onclick="runAnalysis()" disabled>Run</button>
+            <button class="sv-btn sv-btn-sm" onclick="showUploadModal()">Upload Data</button>
+            <button class="sv-btn sv-btn-primary sv-btn-sm" id="aw-run-btn" onclick="runAnalysis()" disabled>Run</button>
         </div>
+        <!-- Analysis tabs — persistent, clickable to revisit -->
+        <div class="aw-analysis-tabs" id="aw-analysis-tabs" style="display:none;"></div>
 
         <!-- 4-pane workspace -->
         <div class="aw-panes">
@@ -1130,7 +1177,7 @@ async function runAnalysis() {
         renderCharts(result);
         renderResults(result);
 
-        // Track in local history (backend persists via session_id in request)
+        // Add to analysis tabs (backend persisted via session_id in request)
         if (result._analysis_record_id) {
             analysisHistory.push({
                 id: result._analysis_record_id,
@@ -1139,7 +1186,8 @@ async function runAnalysis() {
                 summary: (result.summary || '').slice(0, 100),
                 created_at: new Date().toISOString(),
             });
-            renderAnalysisHistory();
+            activeAnalysisIndex = analysisHistory.length - 1;
+            renderAnalysisTabs();
         }
     } catch (e) {
         document.getElementById('charts-pane').innerHTML = '';
@@ -1889,61 +1937,159 @@ document.addEventListener('DOMContentLoaded', () => {
     initSession();
 });
 
+let activeAnalysisIndex = -1;
+
 async function initSession() {
-    // Resume session from URL hash or localStorage, or create new
     const savedId = localStorage.getItem('aw_session_id');
     if (savedId) {
         try {
             const s = await apiFetch(WORKBENCH_API + `sessions/${savedId}/`);
             if (s.id) {
-                currentSessionId = s.id;
-                // Restore datasets if any
-                if (s.datasets && s.datasets.length) {
-                    const last = s.datasets[s.datasets.length - 1];
-                    currentDatasetId = last.id;
-                    currentDataColumns = (last.columns_meta || []).map(c => c.name);
-                    currentDataRows = last.row_count;
-                }
-                // Restore analysis history
-                if (s.analyses && s.analyses.length) {
-                    analysisHistory = s.analyses;
-                    renderAnalysisHistory();
-                }
+                _loadSessionState(s);
                 return;
             }
-        } catch (e) { /* session expired or deleted, create new */ }
+        } catch (e) { /* session gone, create new */ }
     }
-    // Create new session
+    await _createSession();
+}
+
+async function _createSession() {
     try {
         const s = await apiFetch(WORKBENCH_API + 'sessions/', {
             method: 'POST',
-            body: JSON.stringify({ title: 'Workbench Session' }),
+            body: JSON.stringify({ title: '' }),
         });
         currentSessionId = s.id;
         localStorage.setItem('aw_session_id', s.id);
+        _updateSessionTitle('');
+        analysisHistory = [];
+        activeAnalysisIndex = -1;
+        renderAnalysisTabs();
     } catch (e) {
-        console.warn('Failed to create workbench session:', e);
+        console.warn('Failed to create session:', e);
     }
 }
 
-function renderAnalysisHistory() {
-    // Render analysis history nav in the toolbar area
-    const toolbar = document.getElementById('aw-toolbar');
-    if (!toolbar || !analysisHistory.length) return;
-    let existing = document.getElementById('aw-history-nav');
-    if (!existing) {
-        existing = document.createElement('div');
-        existing.id = 'aw-history-nav';
-        existing.style.cssText = 'display:flex;gap:4px;align-items:center;margin-left:auto;font-size:11px;color:var(--text-dim);';
-        toolbar.appendChild(existing);
+function _loadSessionState(s) {
+    currentSessionId = s.id;
+    localStorage.setItem('aw_session_id', s.id);
+    _updateSessionTitle(s.title);
+
+    // Restore last dataset
+    if (s.datasets && s.datasets.length) {
+        const last = s.datasets[s.datasets.length - 1];
+        currentDatasetId = last.id;
+        currentDataColumns = (last.columns_meta || []).map(c => c.name);
+        currentDataRows = last.row_count;
+        const ind = document.getElementById('aw-data-indicator');
+        if (ind) { ind.textContent = `${last.name || 'Dataset'} — ${last.row_count} rows`; ind.classList.add('loaded'); }
     }
-    existing.innerHTML = analysisHistory.map((a, i) =>
-        `<button class="sv-btn sv-btn-sm" style="font-size:10px;padding:2px 6px;" onclick="loadAnalysis(${i})" title="${esc(a.analysis_type + '/' + a.analysis_id)}">${i + 1}</button>`
-    ).join('');
+
+    // Restore analysis history
+    if (s.analyses && s.analyses.length) {
+        analysisHistory = s.analyses;
+        activeAnalysisIndex = analysisHistory.length - 1;
+        renderAnalysisTabs();
+        // Load last analysis result
+        loadAnalysis(activeAnalysisIndex);
+    }
+}
+
+function _updateSessionTitle(title) {
+    const el = document.getElementById('aw-session-title');
+    if (el) el.textContent = title || 'Untitled Session';
+}
+
+// ── Session file operations ──
+
+async function newSession() {
+    if (analysisHistory.length > 0) {
+        if (!confirm('Start a new session? Current session is auto-saved.')) return;
+    }
+    currentDataId = null;
+    currentDatasetId = null;
+    currentDataColumns = [];
+    currentDataRows = 0;
+    currentDataPreview = null;
+    currentAnalysis = null;
+    currentResult = null;
+    document.getElementById('aw-data-indicator').textContent = 'No data loaded';
+    document.getElementById('aw-data-indicator').classList.remove('loaded');
+    document.getElementById('data-pane').innerHTML = '<div class="aw-pane-empty">Upload a dataset to begin</div>';
+    document.getElementById('charts-pane').innerHTML = '<div class="aw-pane-empty">Select an analysis from the sidebar</div>';
+    document.getElementById('results-pane').innerHTML = '<div class="aw-pane-empty">Results will appear here</div>';
+    await _createSession();
+}
+
+async function saveSession() {
+    if (!currentSessionId) return;
+    const title = (document.getElementById('aw-session-title').textContent || '').trim();
+    try {
+        await apiFetch(WORKBENCH_API + `sessions/${currentSessionId}/`, {
+            method: 'PATCH',
+            body: JSON.stringify({ title: title || 'Untitled Session' }),
+        });
+        svToast('Session saved', 'success');
+    } catch (e) {
+        svToast('Save failed', 'error');
+    }
+}
+
+async function openSessionDialog() {
+    try {
+        const data = await apiFetch(WORKBENCH_API + 'sessions/');
+        const sessions = data.sessions || [];
+        if (!sessions.length) { svToast('No saved sessions', 'info'); return; }
+
+        // Build a simple picker modal
+        let html = '<div class="aw-modal-overlay active" id="session-picker-modal" onclick="if(event.target===this)this.remove()">';
+        html += '<div class="aw-modal" style="max-width:480px;">';
+        html += '<h3 style="margin:0 0 12px;font-size:14px;">Open Session</h3>';
+        sessions.forEach(s => {
+            const date = new Date(s.updated_at).toLocaleDateString();
+            html += `<div class="sv-list-item" style="cursor:pointer;padding:8px 10px;border-bottom:1px solid var(--border);" onclick="openSession('${s.id}')">`;
+            html += `<div style="font-size:12px;font-weight:500;color:var(--text-primary);">${esc(s.title || 'Untitled Session')}</div>`;
+            html += `<div style="font-size:10px;color:var(--text-dim);">${s.analysis_count} analyses &middot; ${s.dataset_count} datasets &middot; ${date}</div>`;
+            html += '</div>';
+        });
+        html += '<div style="margin-top:10px;text-align:right;"><button class="sv-btn sv-btn-sm" onclick="this.closest(\'.aw-modal-overlay\').remove()">Cancel</button></div>';
+        html += '</div></div>';
+        document.body.insertAdjacentHTML('beforeend', html);
+    } catch (e) {
+        svToast('Failed to load sessions', 'error');
+    }
+}
+
+async function openSession(sessionId) {
+    const modal = document.getElementById('session-picker-modal');
+    if (modal) modal.remove();
+    try {
+        const s = await apiFetch(WORKBENCH_API + `sessions/${sessionId}/`);
+        _loadSessionState(s);
+        svToast('Session loaded', 'success');
+    } catch (e) {
+        svToast('Failed to load session', 'error');
+    }
+}
+
+// ── Analysis tabs ──
+
+function renderAnalysisTabs() {
+    const container = document.getElementById('aw-analysis-tabs');
+    if (!container) return;
+    if (!analysisHistory.length) { container.style.display = 'none'; return; }
+    container.style.display = 'flex';
+    container.innerHTML = analysisHistory.map((a, i) => {
+        const label = (a.analysis_id || a.analysis_type || 'Analysis').replace(/_/g, ' ');
+        const active = i === activeAnalysisIndex ? ' active' : '';
+        return `<button class="aw-analysis-tab${active}" onclick="loadAnalysis(${i})" title="${esc(a.analysis_type + '/' + a.analysis_id)}">${esc(label)}</button>`;
+    }).join('');
 }
 
 async function loadAnalysis(index) {
     if (!currentSessionId || !analysisHistory[index]) return;
+    activeAnalysisIndex = index;
+    renderAnalysisTabs();
     const a = analysisHistory[index];
     try {
         const full = await apiFetch(WORKBENCH_API + `sessions/${currentSessionId}/analyses/${a.id}/`);
@@ -1954,6 +2100,15 @@ async function loadAnalysis(index) {
         svToast('Failed to load analysis', 'error');
     }
 }
+
+// Save title on blur
+document.addEventListener('DOMContentLoaded', () => {
+    const titleEl = document.getElementById('aw-session-title');
+    if (titleEl) {
+        titleEl.addEventListener('blur', () => { saveSession(); });
+        titleEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); } });
+    }
+});
 
 window.addEventListener('svendUserReady', function(e) {
     if (!e.detail.features || !e.detail.features.full_tools) {
