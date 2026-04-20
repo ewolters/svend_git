@@ -318,8 +318,14 @@ def update_report(request, report_id):
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_report(request, report_id):
-    """Delete a report."""
+    """Delete a report (with pull contract friction)."""
+    from qms_core.pull_views import check_delete_friction
+
     report = get_object_or_404(Report, id=report_id, owner=request.user)
+    force = request.GET.get("force", "").lower() == "true"
+    ok, err_resp, _tombstoned = check_delete_friction("reports", "Report", report_id, force=force)
+    if not ok:
+        return err_resp
     report.delete()
     return JsonResponse({"success": True})
 

@@ -598,6 +598,40 @@ class FrontierCard(models.Model):
             "created_at": self.created_at.isoformat(),
         }
 
+    def to_manifest(self):
+        obs = self.safety_observations or []
+        return {
+            "container_id": str(self.id),
+            "container_type": "FrontierCard",
+            "title": f"{self.zone.name} — {self.audit_date}",
+            "classification": self.classification,
+            "artifacts": [
+                {
+                    "id": str(self.id),
+                    "type": "FrontierCard",
+                    "label": f"{self.zone.name} ({self.audit_date})",
+                    "available_keys": [
+                        "safety_observations",
+                        "five_s_tallies",
+                        "five_s_scores",
+                        "positive_observations",
+                        "operator_concern",
+                        "operator_ergonomic",
+                        "operator_improvement",
+                        "close_loop_method",
+                        "fmea_rows_created",
+                    ],
+                    "summary": {
+                        "observation_count": len(obs),
+                        "at_risk_count": self.at_risk_count,
+                        "satisfactory_pct": self.satisfactory_pct,
+                        "highest_severity": self.highest_severity,
+                    },
+                }
+            ],
+            "updated_at": self.updated_at.isoformat() if self.updated_at else self.created_at.isoformat(),
+        }
+
 
 # =============================================================================
 # SAFETY OBSERVATION CATEGORIES — Exact card items

@@ -295,8 +295,14 @@ def update_vsm(request, vsm_id):
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_vsm(request, vsm_id):
-    """Delete a VSM."""
+    """Delete a VSM (with pull contract friction)."""
+    from qms_core.pull_views import check_delete_friction
+
     vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+    force = request.GET.get("force", "").lower() == "true"
+    ok, err_resp, _tombstoned = check_delete_friction("vsm", "ValueStreamMap", vsm_id, force=force)
+    if not ok:
+        return err_resp
     vsm.delete()
     return JsonResponse({"success": True})
 

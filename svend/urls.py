@@ -457,6 +457,11 @@ urlpatterns = varta_urls + [
     path("api/pull/a3/", include("a3.pull_urls")),
     path("api/pull/ishikawa/", include("ishikawa.pull_urls")),
     path("api/pull/ce-matrix/", include("ce_matrix.pull_urls")),
+    path("api/pull/vsm/", include("vsm.pull_urls")),
+    path("api/pull/hoshin/", include("hoshin.pull_urls")),
+    path("api/pull/plantsim/", include("plantsim.pull_urls")),
+    path("api/pull/safety/", include("safety.pull_urls")),
+    path("api/pull/reports/", include("reports.pull_urls")),
     path("chat/", include("chat.urls")),
     path("action/<str:token>/", include("action_token.urls")),  # ActionToken (QMS-002, no auth)
     path("ntf/<str:token>/", include("notifications.token_urls")),  # NotificationToken (NTF-001 §5.2, no auth)

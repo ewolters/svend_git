@@ -87,3 +87,33 @@ class PlantSimulation(models.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
+
+    def to_manifest(self):
+        return {
+            "container_id": str(self.id),
+            "container_type": "PlantSimulation",
+            "title": self.name,
+            "artifacts": [
+                {
+                    "id": str(self.id),
+                    "type": "PlantSimulation",
+                    "label": self.name,
+                    "available_keys": [
+                        "stations",
+                        "connections",
+                        "sources",
+                        "sinks",
+                        "work_centers",
+                        "simulation_config",
+                        "simulation_results",
+                        "metric_snapshots",
+                    ],
+                    "summary": {
+                        "station_count": len(self.stations or []),
+                        "connection_count": len(self.connections or []),
+                        "result_count": len(self.simulation_results or []),
+                    },
+                }
+            ],
+            "updated_at": self.updated_at.isoformat(),
+        }

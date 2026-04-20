@@ -79,3 +79,26 @@ class Report(models.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
+
+    def to_manifest(self):
+        section_keys = list((self.sections or {}).keys())
+        return {
+            "container_id": str(self.id),
+            "container_type": "Report",
+            "title": self.title,
+            "status": self.status,
+            "report_type": self.report_type,
+            "artifacts": [
+                {
+                    "id": str(self.id),
+                    "type": "Report",
+                    "label": self.title,
+                    "available_keys": ["sections/" + k for k in section_keys] + ["embedded_diagrams", "imported_from"],
+                    "summary": {
+                        "type_name": self.get_type_name(),
+                        "section_count": len(section_keys),
+                    },
+                }
+            ],
+            "updated_at": self.updated_at.isoformat(),
+        }

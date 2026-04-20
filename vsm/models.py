@@ -190,3 +190,38 @@ class ValueStreamMap(models.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
+
+    def to_manifest(self):
+        steps = self.process_steps or []
+        bursts = self.kaizen_bursts or []
+        return {
+            "container_id": str(self.id),
+            "container_type": "ValueStreamMap",
+            "title": self.name,
+            "status": self.status,
+            "artifacts": [
+                {
+                    "id": str(self.id),
+                    "type": "ValueStreamMap",
+                    "label": self.name,
+                    "available_keys": [
+                        "process_steps",
+                        "inventory",
+                        "information_flow",
+                        "material_flow",
+                        "kaizen_bursts",
+                        "work_centers",
+                        "total_lead_time",
+                        "total_process_time",
+                        "pce",
+                        "metric_snapshots",
+                    ],
+                    "summary": {
+                        "step_count": len(steps),
+                        "burst_count": len(bursts),
+                        "pce": self.pce,
+                    },
+                }
+            ],
+            "updated_at": self.updated_at.isoformat(),
+        }

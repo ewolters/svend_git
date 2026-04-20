@@ -203,6 +203,50 @@ class HoshinProject(models.Model):
             "updated_at": self.updated_at.isoformat(),
         }
 
+    def to_manifest(self):
+        actions = ActionItem.objects.filter(project=self.project).order_by("sort_order")
+        commitments = self.hoshin_commitments.select_related("employee").all()
+        return {
+            "container_id": str(self.id),
+            "container_type": "HoshinProject",
+            "title": self.project.title,
+            "status": self.hoshin_status,
+            "fiscal_year": self.fiscal_year,
+            "artifacts": [
+                {
+                    "id": str(self.id),
+                    "type": "HoshinProject",
+                    "label": self.project.title,
+                    "available_keys": [
+                        "kaizen_charter",
+                        "monthly_actuals",
+                        "baseline_data",
+                        "ytd_savings",
+                        "savings_pct",
+                    ],
+                },
+            ]
+            + [
+                {
+                    "id": str(a.id),
+                    "type": "ActionItem",
+                    "label": a.title,
+                    "available_keys": ["title", "description", "status", "progress", "owner_name"],
+                }
+                for a in actions
+            ]
+            + [
+                {
+                    "id": str(c.id),
+                    "type": "ResourceCommitment",
+                    "label": f"{c.employee.name} ({c.role})",
+                    "available_keys": ["role", "hours_per_day", "status", "start_date", "end_date"],
+                }
+                for c in commitments
+            ],
+            "updated_at": self.updated_at.isoformat(),
+        }
+
 
 class ProjectTemplate(models.Model):
     """Reusable template for Hoshin/kaizen projects."""

@@ -517,7 +517,9 @@ def _sync_charter_commitments(hoshin, requested_by):
 @require_feature("hoshin_kanri")
 @require_http_methods(["DELETE"])
 def delete_hoshin_project(request, hoshin_id):
-    """Delete a hoshin project (also deletes core.Project)."""
+    """Delete a hoshin project (with pull contract friction, also deletes core.Project)."""
+    from qms_core.pull_views import check_delete_friction
+
     tenant, err = _require_tenant(request.user)
     if err:
         return err
@@ -529,6 +531,12 @@ def delete_hoshin_project(request, hoshin_id):
     )
     if not _check_site_write(request.user, hoshin.site, tenant):
         return JsonResponse({"error": "Not found"}, status=404)
+
+    force = request.GET.get("force", "").lower() == "true"
+    ok, err_resp, _tombstoned = check_delete_friction("hoshin", "HoshinProject", hoshin_id, force=force)
+    if not ok:
+        return err_resp
+
     core_project = hoshin.project
     hoshin.delete()
     core_project.delete()
