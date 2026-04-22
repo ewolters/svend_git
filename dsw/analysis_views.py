@@ -91,6 +91,17 @@ def _resolve_data(request, body):
                 except Exception:
                     pass
 
+    # Session dataset (UUID from session restore)
+    if data_id:
+        try:
+            from workbench.models import SessionDataset
+
+            sd = SessionDataset.objects.get(id=data_id, session__user=request.user)
+            if sd.data:
+                return pd.DataFrame(sd.data), None
+        except Exception:
+            pass
+
     # Triage cleaned dataset
     if data_id:
         try:
