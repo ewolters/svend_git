@@ -67,7 +67,10 @@ def run_bayes_spc_capability(df, config):
         return result
     target = config.get("target")
     if target not in (None, "", "null"):
-        target = float(target)
+        try:
+            target = float(target)
+        except (TypeError, ValueError):
+            target = None
     elif usl is not None and lsl is not None:
         target = (usl + lsl) / 2.0
     elif usl is not None:

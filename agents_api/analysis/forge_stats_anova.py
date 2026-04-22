@@ -1161,7 +1161,7 @@ FORGE_ANOVA_HANDLERS = {
 
 def forge_nested_anova(df, config):
     """Nested (hierarchical) ANOVA — factor B is nested within factor A."""
-    from forgeviz.charts.generic import box
+    from forgeviz.charts.distribution import box_plot
     from scipy.stats import f as f_dist
 
     response = config.get("response") or config.get("var")
@@ -1227,12 +1227,10 @@ def forge_nested_anova(df, config):
                 box_labels.append(f"{ai}:{bi}")
                 box_data.append(vals.tolist())
 
-    spec = box(
-        groups=box_labels,
-        data=box_data,
+    box_groups = dict(zip(box_labels, box_data))
+    spec = box_plot(
+        box_groups,
         title=f"Nested ANOVA: {response} by {factor}/{nested_factor}",
-        x_label=f"{factor} : {nested_factor}",
-        y_label=response,
     )
     chart = _to_chart(spec)
 
