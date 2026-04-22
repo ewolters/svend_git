@@ -10,6 +10,7 @@ from accounts.permissions import require_auth
 from qms_core.permissions import get_tenant, qms_queryset, resolve_site
 
 from .models import Artifact, ArtifactSection, ToolTemplate
+from .workflow_models import SignalTypeRegistry, WorkflowTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -271,3 +272,112 @@ def _default_data(primitive_type):
         "action_list": {"items": []},
     }
     return defaults.get(primitive_type, {})
+
+
+# =============================================================================
+# Workflow views
+# =============================================================================
+
+
+@require_http_methods(["GET"])
+@require_auth
+def workflow_list(request):
+    """List available workflow templates (system + tenant-specific)."""
+    tenant = get_tenant(request.user)
+    if tenant:
+        qs = WorkflowTemplate.objects.filter(tenant__isnull=True) | WorkflowTemplate.objects.filter(tenant=tenant)
+    else:
+        qs = WorkflowTemplate.objects.filter(tenant__isnull=True)
+
+    workflows = []
+    for wf in qs.filter(is_active=True).prefetch_related("phases"):
+        workflows.append(
+            {
+                "id": str(wf.id),
+                "name": wf.name,
+                "is_system": wf.is_system,
+                "phase_count": wf.phases.count(),
+                "phases": [{"key": p.key, "label": p.label, "color": p.color} for p in wf.phases.all()],
+            }
+        )
+    return JsonResponse({"workflows": workflows})
+
+
+@require_http_methods(["GET"])
+@require_auth
+def workflow_detail(request, workflow_id):
+    """Full workflow detail with phases, transitions, and available templates per phase."""
+    tenant = get_tenant(request.user)
+    try:
+        wf = WorkflowTemplate.objects.prefetch_related(
+            "phases__available_templates", "transitions__from_phase", "transitions__to_phase"
+        ).get(id=workflow_id)
+    except WorkflowTemplate.DoesNotExist:
+        return JsonResponse({"error": "Workflow not found"}, status=404)
+
+    if wf.tenant and (not tenant or wf.tenant_id != tenant.id):
+        return JsonResponse({"error": "Workflow not found"}, status=404)
+
+    phases = []
+    for p in wf.phases.all():
+        phases.append(
+            {
+                "id": str(p.id),
+                "key": p.key,
+                "label": p.label,
+                "sort_order": p.sort_order,
+                "color": p.color,
+                "available_templates": [
+                    {"id": str(t.id), "name": t.name, "slug": t.slug} for t in p.available_templates.all()
+                ],
+            }
+        )
+
+    transitions = [
+        {
+            "id": str(tr.id),
+            "from_phase": tr.from_phase.key,
+            "to_phase": tr.to_phase.key,
+            "label": tr.label,
+            "gate_conditions": tr.gate_conditions,
+        }
+        for tr in wf.transitions.all()
+    ]
+
+    return JsonResponse(
+        {
+            "workflow": {
+                "id": str(wf.id),
+                "name": wf.name,
+                "is_system": wf.is_system,
+                "is_active": wf.is_active,
+                "phases": phases,
+                "transitions": transitions,
+            }
+        }
+    )
+
+
+@require_http_methods(["GET"])
+@require_auth
+def signal_type_list(request):
+    """List available signal types (system + tenant-specific)."""
+    tenant = get_tenant(request.user)
+    if tenant:
+        qs = SignalTypeRegistry.objects.filter(tenant__isnull=True) | SignalTypeRegistry.objects.filter(tenant=tenant)
+    else:
+        qs = SignalTypeRegistry.objects.filter(tenant__isnull=True)
+
+    types = [
+        {
+            "id": str(st.id),
+            "key": st.key,
+            "label": st.label,
+            "default_severity": st.default_severity,
+            "is_system": st.is_system,
+            "icon": st.icon,
+            "auto_phase_id": str(st.auto_phase_id) if st.auto_phase_id else None,
+        }
+        for st in qs
+    ]
+    return JsonResponse({"signal_types": types})

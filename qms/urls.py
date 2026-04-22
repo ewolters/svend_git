@@ -16,6 +16,10 @@ urlpatterns = [
     path("artifacts/<uuid:artifact_id>/", views.artifact_detail, name="artifact-detail"),
     path("artifacts/<uuid:artifact_id>/update/", views.artifact_update, name="artifact-update"),
     path("artifacts/<uuid:artifact_id>/delete/", views.artifact_delete, name="artifact-delete"),
+    # Workflows
+    path("workflows/", views.workflow_list, name="workflow-list"),
+    path("workflows/<uuid:workflow_id>/", views.workflow_detail, name="workflow-detail"),
+    path("signal-types/", views.signal_type_list, name="signal-type-list"),
     # Pull contract
     path("pull/containers/", pull_views.container_list, name="pull-container-list"),
     path("pull/containers/<uuid:pk>/", pull_views.container_detail, name="pull-container-detail"),
