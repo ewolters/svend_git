@@ -362,6 +362,13 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 
 /* --- Results pane (statistics + narrative + assumptions) --- */
 .aw-results-body { padding: 12px; }
+.aw-action-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 0 2px;
+    margin-top: 12px;
+    border-top: 1px solid var(--border);
+}
 
 .aw-section {
     margin-bottom: 20px;
@@ -637,6 +644,31 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
+
+/* --- Dataset tabs --- */
+.aw-dataset-tabs { display:flex; gap:0; padding:0 10px; border-bottom:1px solid var(--border); background:var(--bg-secondary); overflow-x:auto; flex-shrink:0; }
+.aw-dataset-tab { padding:5px 10px; font-size:10px; font-family:'Inter',system-ui,sans-serif; color:var(--text-dim); border:none; background:none; cursor:pointer; white-space:nowrap; border-bottom:2px solid transparent; transition:color 0.1s,border-color 0.1s; max-width:140px; overflow:hidden; text-overflow:ellipsis; }
+.aw-dataset-tab:hover { color:var(--text-primary); }
+.aw-dataset-tab.active { color:var(--accent-primary); border-bottom-color:var(--accent-primary); }
+.aw-dataset-tab.aw-dataset-tab-add { color:var(--text-dim); font-size:13px; padding:5px 8px; font-weight:600; }
+.aw-dataset-tab.aw-dataset-tab-add:hover { color:var(--accent-primary); }
+/* --- Data pipeline buttons --- */
+.aw-data-pipeline { display:flex; gap:4px; margin-left:auto; }
+.aw-data-pipeline .sv-btn { font-size:10px; padding:2px 7px; }
+/* --- Triage panel --- */
+.aw-triage-panel { padding:10px; border-bottom:1px solid var(--border); background:var(--bg-secondary); font-size:11px; font-family:'Inter',system-ui,sans-serif; }
+.aw-triage-panel .aw-triage-title { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-dim); font-family:var(--font-label); margin-bottom:6px; }
+.aw-triage-issue { padding:4px 0; border-bottom:1px solid var(--border); color:var(--text-secondary); display:flex; gap:6px; align-items:center; }
+.aw-triage-issue .severity { font-size:9px; font-weight:600; text-transform:uppercase; padding:1px 5px; border-radius:2px; font-family:var(--font-label); }
+.aw-triage-issue .severity.high { background:rgba(208,96,96,0.15); color:var(--error); }
+.aw-triage-issue .severity.medium { background:var(--sv-amber-bg); color:var(--sv-amber); }
+.aw-triage-issue .severity.low { background:rgba(255,255,255,0.05); color:var(--text-dim); }
+/* --- Transform dropdown --- */
+.aw-transform-dropdown { position:relative; display:inline-block; }
+.aw-transform-menu { display:none; position:absolute; top:100%; right:0; z-index:50; min-width:150px; background:var(--bg-secondary); border:1px solid var(--border-heavy); border-radius:var(--radius-sm); box-shadow:0 6px 20px rgba(0,0,0,0.3); padding:4px 0; margin-top:2px; }
+.aw-transform-menu.open { display:block; }
+.aw-transform-menu-item { display:block; width:100%; text-align:left; padding:6px 12px; font-size:11px; font-family:'Inter',system-ui,sans-serif; color:var(--text-secondary); background:none; border:none; cursor:pointer; }
+.aw-transform-menu-item:hover { background:var(--bg-hover); color:var(--text-primary); }
 </style>
 {% endblock %}
 
@@ -684,10 +716,26 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
                             Data
                         </span>
+                        <div class="aw-data-pipeline">
+                            <button class="sv-btn sv-btn-sm" id="aw-triage-btn" onclick="triageScan()" style="display:none;" title="Scan data for issues">Clean Data</button>
+                            <div class="aw-transform-dropdown">
+                                <button class="sv-btn sv-btn-sm" id="aw-transform-btn" onclick="toggleTransformMenu()" style="display:none;" title="Transform data">Transform</button>
+                                <div class="aw-transform-menu" id="aw-transform-menu">
+                                    <button class="aw-transform-menu-item" onclick="applyTransform('log')">Log</button>
+                                    <button class="aw-transform-menu-item" onclick="applyTransform('sqrt')">Square Root</button>
+                                    <button class="aw-transform-menu-item" onclick="applyTransform('standardize')">Standardize</button>
+                                    <button class="aw-transform-menu-item" onclick="applyTransform('filter')">Filter</button>
+                                </div>
+                            </div>
+                        </div>
                         <div class="aw-pane-tabs">
                             <button class="aw-pane-tab active">Worksheet</button>
                         </div>
                     </div>
+                    <!-- Dataset tabs -->
+                    <div class="aw-dataset-tabs" id="aw-dataset-tabs" style="display:none;"></div>
+                    <!-- Triage results panel (hidden until scan) -->
+                    <div class="aw-triage-panel" id="aw-triage-results" style="display:none;"></div>
                     <div class="aw-pane-body" id="data-pane">
                         <div class="aw-pane-empty">Load a dataset to view</div>
                     </div>
@@ -744,6 +792,8 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                             <button class="aw-pane-tab active" onclick="switchInputTab('config')">Config</button>
                             <button class="aw-pane-tab" onclick="switchInputTab('command')">Command</button>
                             <button class="aw-pane-tab" onclick="switchInputTab('history')">History</button>
+                            <button class="aw-pane-tab" onclick="switchInputTab('guide')">Guide</button>
+                            <button class="aw-pane-tab" onclick="switchInputTab('analyst')">Analyst</button>
                         </div>
                     </div>
                     <div class="aw-pane-body" id="input-pane">
@@ -774,6 +824,29 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                         <!-- History tab -->
                         <div id="aw-input-history" style="display:none;">
                             <div id="cmd-history" style="padding:8px;font-size:11px;color:var(--text-dim);">No commands yet</div>
+                        </div>
+                        <!-- Guide tab -->
+                        <div id="aw-input-guide" style="display:none;">
+                            <div style="display:flex;flex-direction:column;height:100%;">
+                                <div id="guide-content" style="flex:1;overflow-y:auto;padding:12px;font-size:12px;line-height:1.6;color:var(--text-primary);">
+                                    <div style="color:var(--text-dim);">Run an analysis to see guide observations.</div>
+                                </div>
+                                <div style="border-top:1px solid var(--border);padding:8px;text-align:right;">
+                                    <button class="btn-secondary btn-sm" id="guide-suggest-btn" onclick="getGuideSuggestion()" style="padding:5px 14px;font-size:11px;">Get Suggestion</button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Analyst tab -->
+                        <div id="aw-input-analyst" style="display:none;">
+                            <div style="display:flex;flex-direction:column;height:100%;">
+                                <div id="analyst-messages" style="flex:1;overflow-y:auto;padding:8px;"></div>
+                                <div style="border-top:1px solid var(--border);padding:6px;display:flex;gap:6px;">
+                                    <input type="text" id="analyst-input" placeholder="Ask the analyst..."
+                                        style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);font-size:12px;"
+                                        onkeydown="if(event.key==='Enter')sendAnalystMessage()">
+                                    <button class="btn-primary btn-sm" onclick="sendAnalystMessage()" style="padding:5px 12px;">Send</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -821,6 +894,8 @@ let currentAnalysis = null;    // { type, id, label, category }
 let currentResult = null;
 let pendingFile = null;
 let analysisHistory = [];      // [{id, type, analysis_id, summary, created_at}]
+let sessionDatasets = [];      // [{id, data_id, name, row_count, columns_meta}]
+let activeDatasetIndex = -1;   // index into sessionDatasets
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
@@ -1462,6 +1537,7 @@ async function runAnalysis() {
         });
 
         currentResult = result;
+        updateGuideObservation(result);
         renderCharts(result);
         renderResults(result);
 
@@ -1906,6 +1982,13 @@ function renderResults(result) {
         if (whatIfBtn) whatIfBtn.style.display = 'none';
     }
 
+    // ── ACTION BAR (visible when results exist) ──
+    html += `<div class="aw-action-bar">
+        <button class="sv-btn sv-btn-sm" onclick="actionDownloadXlsx()">Download XLSX</button>
+        <button class="sv-btn sv-btn-sm" onclick="actionApplyEvidence()">Apply as Evidence</button>
+        <button class="sv-btn sv-btn-sm" onclick="actionStartRCA()">Start RCA</button>
+    </div>`;
+
     html += '</div>'; // end results-body
     pane.innerHTML = html;
 
@@ -1968,6 +2051,93 @@ function renderResults(result) {
     }
 }
 
+// ── Action bar handlers ──
+
+async function actionDownloadXlsx() {
+    if (!currentResult || !currentAnalysis) return;
+    try {
+        const resp = await fetch('/api/analysis/export/xlsx/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': svCsrf() },
+            body: JSON.stringify({
+                analysis_type: currentAnalysis.type,
+                analysis_id: currentAnalysis.id,
+                statistics: currentResult.statistics || {},
+                plots: currentResult.plots || currentResult.charts || [],
+            }),
+        });
+        if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.message || err.error || 'Export failed'); }
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (currentAnalysis.id || 'analysis') + '.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        if (typeof SvToast !== 'undefined') SvToast.error(e.message);
+        else alert(e.message);
+    }
+}
+
+async function actionApplyEvidence() {
+    if (!currentResult || !currentAnalysis) return;
+    const stats = currentResult.statistics || {};
+    try {
+        const resp = await fetch('/api/core/evidence/from-analysis/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': svCsrf() },
+            body: JSON.stringify({
+                analysis_type: currentAnalysis.type,
+                analysis_id: currentAnalysis.id,
+                summary: currentResult.summary || '',
+                statistics: stats,
+                p_value: currentResult.p_value ?? stats.p_value ?? stats.p ?? null,
+                effect_size: currentResult.effect_size ?? stats.effect_size ?? stats.cohens_d ?? stats.r_squared ?? null,
+                source: 'workbench',
+            }),
+        });
+        if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.message || err.error || 'Failed to apply evidence'); }
+        if (typeof SvToast !== 'undefined') SvToast.success('Evidence applied successfully');
+        else alert('Evidence applied successfully');
+    } catch (e) {
+        if (typeof SvToast !== 'undefined') SvToast.error(e.message);
+        else alert(e.message);
+    }
+}
+
+async function actionStartRCA() {
+    if (!currentResult || !currentAnalysis) return;
+    try {
+        const resp = await fetch('/api/rca/sessions/create/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': svCsrf() },
+            body: JSON.stringify({
+                title: 'RCA from ' + (currentAnalysis.id || 'analysis'),
+                source_analysis: {
+                    type: currentAnalysis.type,
+                    id: currentAnalysis.id,
+                    summary: currentResult.summary || '',
+                },
+            }),
+        });
+        if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.message || err.error || 'Failed to create RCA session'); }
+        const data = await resp.json();
+        const rcaId = data.id || data.session_id;
+        if (rcaId) {
+            window.location.href = '/app/rca/' + rcaId + '/';
+        } else {
+            if (typeof SvToast !== 'undefined') SvToast.success('RCA session created');
+            else alert('RCA session created');
+        }
+    } catch (e) {
+        if (typeof SvToast !== 'undefined') SvToast.error(e.message);
+        else alert(e.message);
+    }
+}
+
 function switchResultsTab(tab) {
     currentResultsTab = tab;
     // Hide all tabs, show selected
@@ -1996,7 +2166,7 @@ let commandHistory = [];
 
 function switchInputTab(tab) {
     currentInputTab = tab;
-    ['config', 'command', 'history'].forEach(function(t) {
+    ['config', 'command', 'history', 'guide', 'analyst'].forEach(function(t) {
         const el = document.getElementById('aw-input-' + t);
         if (el) el.style.display = t === tab ? '' : 'none';
     });
@@ -2011,6 +2181,8 @@ function switchInputTab(tab) {
     }
     if (tab === 'command') {
         setTimeout(function() { document.getElementById('cmd-input').focus(); }, 50);
+    } else if (tab === 'analyst') {
+        setTimeout(function() { document.getElementById('analyst-input').focus(); }, 50);
     }
 }
 
@@ -2089,6 +2261,360 @@ function replayCommand(index) {
     if (commandHistory[index]) {
         document.getElementById('cmd-input').value = commandHistory[index];
         switchInputTab('command');
+    }
+}
+
+/* ============================================================================
+   Guide Pane — AI observations + suggestions
+   ============================================================================ */
+
+let guideCooldown = false;
+
+function updateGuideObservation(result) {
+    const el = document.getElementById('guide-content');
+    if (!el) return;
+    if (result && result.guide_observation) {
+        el.innerHTML = '<div style="margin-bottom:8px;font-weight:600;font-size:11px;text-transform:uppercase;color:var(--text-dim);letter-spacing:0.05em;">Observation</div>' +
+            '<div style="padding:8px 10px;background:var(--bg-secondary);border-radius:var(--radius-sm);border-left:3px solid var(--accent-primary);font-size:12px;line-height:1.6;">' + esc(result.guide_observation) + '</div>';
+    } else {
+        el.innerHTML = '<div style="color:var(--text-dim);">No guide observations for this result.</div>';
+    }
+}
+
+async function getGuideSuggestion() {
+    if (guideCooldown || !currentResult || !currentAnalysis) return;
+
+    const btn = document.getElementById('guide-suggest-btn');
+    btn.disabled = true;
+    guideCooldown = true;
+
+    const el = document.getElementById('guide-content');
+    el.innerHTML += '<div style="margin-top:12px;color:var(--text-dim);font-size:11px;">Thinking...</div>';
+
+    try {
+        const resp = await apiFetch('/api/guide/', {
+            method: 'POST',
+            body: JSON.stringify({
+                context: 'analysis',
+                analysis_type: currentAnalysis.type,
+                analysis_id: currentAnalysis.id,
+                statistics: currentResult.statistics || {},
+                summary: currentResult.summary || '',
+            }),
+        });
+        const suggestion = resp.suggestion || resp.guidance || resp.message || JSON.stringify(resp);
+        el.innerHTML += '<div style="margin-top:12px;"><div style="font-weight:600;font-size:11px;text-transform:uppercase;color:var(--text-dim);letter-spacing:0.05em;margin-bottom:4px;">Suggestion</div>' +
+            '<div style="padding:8px 10px;background:var(--bg-secondary);border-radius:var(--radius-sm);border-left:3px solid var(--accent-secondary, var(--accent-primary));font-size:12px;line-height:1.6;">' + esc(suggestion) + '</div></div>';
+    } catch (e) {
+        el.innerHTML += '<div style="margin-top:8px;color:var(--error, #e55);">' + esc(e.message || 'Request failed') + '</div>';
+    }
+
+    setTimeout(function() {
+        guideCooldown = false;
+        btn.disabled = false;
+    }, 10000);
+}
+
+/* ============================================================================
+   Analyst Pane — Chat interface
+   ============================================================================ */
+
+let analystMessages = [];
+
+function addAnalystMessage(role, text) {
+    analystMessages.push({ role: role, text: text });
+    renderAnalystMessages();
+}
+
+function renderAnalystMessages() {
+    const el = document.getElementById('analyst-messages');
+    if (!el) return;
+    if (!analystMessages.length) {
+        el.innerHTML = '<div style="padding:12px;color:var(--text-dim);font-size:12px;">Ask a question about your data or analysis.</div>';
+        return;
+    }
+    el.innerHTML = analystMessages.map(function(m) {
+        if (m.role === 'user') {
+            return '<div style="text-align:right;margin:4px 0;"><span style="display:inline-block;max-width:85%;padding:6px 10px;border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-dim);font-size:12px;line-height:1.5;">' + esc(m.text) + '</span></div>';
+        } else {
+            return '<div style="text-align:left;margin:4px 0;"><span style="display:inline-block;max-width:85%;padding:6px 10px;border-radius:var(--radius-sm);border-left:3px solid var(--accent-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:12px;line-height:1.5;">' + esc(m.text) + '</span></div>';
+        }
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+}
+
+async function sendAnalystMessage() {
+    const input = document.getElementById('analyst-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+
+    addAnalystMessage('user', msg);
+
+    try {
+        const resp = await apiFetch('/api/dsw/analyst/', {
+            method: 'POST',
+            body: JSON.stringify({
+                message: msg,
+                data_id: currentDataId,
+                analysis_context: {
+                    type: currentAnalysis ? currentAnalysis.type : null,
+                    id: currentAnalysis ? currentAnalysis.id : null,
+                    summary: currentResult ? (currentResult.summary || '') : '',
+                },
+            }),
+        });
+        const reply = resp.response || resp.message || resp.reply || JSON.stringify(resp);
+        addAnalystMessage('assistant', reply);
+    } catch (e) {
+        addAnalystMessage('assistant', 'Error: ' + (e.message || 'Request failed'));
+    }
+}
+
+/* ============================================================================
+   Dataset Tabs — multi-dataset support
+   ============================================================================ */
+
+function renderDatasetTabs() {
+    const container = document.getElementById('aw-dataset-tabs');
+    if (!container) return;
+    if (!sessionDatasets.length) { container.style.display = 'none'; return; }
+    container.style.display = 'flex';
+    let html = '';
+    sessionDatasets.forEach((ds, i) => {
+        const active = i === activeDatasetIndex ? ' active' : '';
+        const label = ds.name || 'Dataset ' + (i + 1);
+        html += '<button class="aw-dataset-tab' + active + '" onclick="switchDataset(' + i + ')" title="' + esc(label) + ' (' + (ds.row_count || 0) + ' rows)">' + esc(label) + '</button>';
+    });
+    html += '<button class="aw-dataset-tab aw-dataset-tab-add" onclick="showUploadModal()" title="Add dataset">+</button>';
+    container.innerHTML = html;
+}
+
+async function switchDataset(index) {
+    if (index < 0 || index >= sessionDatasets.length) return;
+    activeDatasetIndex = index;
+    const ds = sessionDatasets[index];
+
+    currentDatasetId = ds.id;
+    currentDataId = ds.data_id || ds.id;
+    currentDataColumns = (ds.columns_meta || []).map(function(c) { return typeof c === 'object' ? c.name : c; });
+    currentDataRows = ds.row_count || 0;
+
+    // Update indicator
+    const ind = document.getElementById('aw-data-indicator');
+    if (ind) {
+        ind.textContent = (ds.name || 'Dataset') + ' \u2014 ' + currentDataRows + ' \u00d7 ' + currentDataColumns.length;
+        ind.classList.add('loaded');
+    }
+
+    // Reload worksheet — use cached preview if available, otherwise fetch
+    if (ds.preview && ds.preview.length) {
+        renderWorksheet(currentDataColumns, ds.preview);
+    } else {
+        // Fetch preview from session datasets endpoint
+        try {
+            const resp = await apiFetch(WORKBENCH_API + 'sessions/' + currentSessionId + '/datasets/' + ds.id + '/');
+            if (resp.preview && resp.preview.length) {
+                ds.preview = resp.preview;
+                renderWorksheet(currentDataColumns, resp.preview);
+            } else {
+                document.getElementById('data-pane').innerHTML = '<div class="aw-pane-empty">' + currentDataRows + ' rows \u00d7 ' + currentDataColumns.length + ' columns</div>';
+            }
+        } catch (e) {
+            document.getElementById('data-pane').innerHTML = '<div class="aw-pane-empty">' + currentDataRows + ' rows \u00d7 ' + currentDataColumns.length + ' columns</div>';
+        }
+    }
+
+    // Refresh config pane with new columns
+    if (currentAnalysis) {
+        document.getElementById('aw-run-btn').disabled = false;
+        renderConfigPane();
+    }
+
+    // Hide triage results when switching datasets
+    var triageEl = document.getElementById('aw-triage-results');
+    if (triageEl) triageEl.style.display = 'none';
+
+    showDataPipelineButtons(true);
+    renderDatasetTabs();
+}
+
+function showDataPipelineButtons(show) {
+    var triageBtn = document.getElementById('aw-triage-btn');
+    var transformBtn = document.getElementById('aw-transform-btn');
+    if (triageBtn) triageBtn.style.display = show ? '' : 'none';
+    if (transformBtn) transformBtn.style.display = show ? '' : 'none';
+}
+
+/* ============================================================================
+   Triage — data quality scan + clean
+   ============================================================================ */
+
+async function triageScan() {
+    if (!currentDataId) { svToast('No data loaded', 'info'); return; }
+    var btn = document.getElementById('aw-triage-btn');
+    btn.disabled = true; btn.textContent = 'Scanning\u2026';
+    var panel = document.getElementById('aw-triage-results');
+
+    try {
+        var result = await apiFetch('/api/dsw/triage/scan/', {
+            method: 'POST',
+            body: JSON.stringify({ data_id: currentDataId }),
+        });
+
+        var issues = result.issues || result.findings || [];
+        if (!issues.length) {
+            panel.style.display = 'block';
+            panel.innerHTML = '<div class="aw-triage-title">Data Quality</div><div style="color:var(--accent-primary);padding:4px 0;">No issues found. Data looks clean.</div>';
+            return;
+        }
+
+        var html = '<div class="aw-triage-title">Data Quality Issues (' + issues.length + ')</div>';
+        issues.forEach(function(issue) {
+            var sev = (issue.severity || 'low').toLowerCase();
+            html += '<div class="aw-triage-issue">';
+            html += '<span class="severity ' + sev + '">' + esc(sev) + '</span>';
+            html += '<span>' + esc(issue.description || issue.message || issue.type || 'Issue') + '</span>';
+            html += '</div>';
+        });
+        html += '<div style="margin-top:8px;"><button class="sv-btn sv-btn-primary sv-btn-sm" onclick="triageClean()">Clean</button></div>';
+
+        panel.style.display = 'block';
+        panel.innerHTML = html;
+    } catch (e) {
+        svToast(e.message || 'Triage scan failed', 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Clean Data';
+    }
+}
+
+async function triageClean() {
+    if (!currentDataId) return;
+    var panel = document.getElementById('aw-triage-results');
+    panel.innerHTML = '<div class="aw-triage-title">Cleaning\u2026</div>';
+
+    try {
+        var result = await apiFetch('/api/dsw/triage/', {
+            method: 'POST',
+            body: JSON.stringify({ data_id: currentDataId }),
+        });
+
+        // Cleaned data creates a new dataset tab
+        var cleanedId = result.data_id || result.id;
+        var cleanedColumns = (result.columns || []).map(function(c) { return typeof c === 'object' ? c.name : c; });
+        var cleanedRows = result.rows || result.row_count || 0;
+        var cleanedPreview = result.preview || [];
+
+        var dsName = (sessionDatasets[activeDatasetIndex] ? sessionDatasets[activeDatasetIndex].name : 'Dataset') + ' (cleaned)';
+        var dsEntry = {
+            id: result._dataset_record_id || cleanedId,
+            data_id: cleanedId,
+            name: dsName,
+            row_count: cleanedRows,
+            columns_meta: cleanedColumns.map(function(c) { return { name: c }; }),
+            preview: cleanedPreview,
+        };
+        sessionDatasets.push(dsEntry);
+        activeDatasetIndex = sessionDatasets.length - 1;
+        currentDataId = cleanedId;
+        currentDatasetId = dsEntry.id;
+        currentDataColumns = cleanedColumns;
+        currentDataRows = cleanedRows;
+
+        if (cleanedPreview.length) {
+            renderWorksheet(cleanedColumns, cleanedPreview);
+        }
+
+        renderDatasetTabs();
+        panel.style.display = 'none';
+
+        var ind = document.getElementById('aw-data-indicator');
+        if (ind) {
+            ind.textContent = dsName + ' \u2014 ' + cleanedRows + ' \u00d7 ' + cleanedColumns.length;
+        }
+
+        if (currentAnalysis) renderConfigPane();
+        svToast('Data cleaned', 'success');
+    } catch (e) {
+        panel.innerHTML = '<div class="aw-triage-title">Clean failed</div><div style="color:var(--error);">' + esc(e.message || 'Error') + '</div>';
+    }
+}
+
+/* ============================================================================
+   Transform — data transformations
+   ============================================================================ */
+
+function toggleTransformMenu() {
+    var menu = document.getElementById('aw-transform-menu');
+    if (menu) menu.classList.toggle('open');
+}
+
+// Close transform menu when clicking outside
+document.addEventListener('click', function(e) {
+    var menu = document.getElementById('aw-transform-menu');
+    if (menu && menu.classList.contains('open')) {
+        var dropdown = e.target.closest('.aw-transform-dropdown');
+        if (!dropdown) menu.classList.remove('open');
+    }
+});
+
+async function applyTransform(transformType) {
+    var menu = document.getElementById('aw-transform-menu');
+    if (menu) menu.classList.remove('open');
+
+    if (!currentDataId) { svToast('No data loaded', 'info'); return; }
+
+    var transformBtn = document.getElementById('aw-transform-btn');
+    if (transformBtn) { transformBtn.disabled = true; transformBtn.textContent = 'Transforming\u2026'; }
+
+    try {
+        var result = await apiFetch('/api/dsw/transform/', {
+            method: 'POST',
+            body: JSON.stringify({
+                data_id: currentDataId,
+                transform: transformType,
+            }),
+        });
+
+        var newId = result.data_id || result.id;
+        var newColumns = (result.columns || []).map(function(c) { return typeof c === 'object' ? c.name : c; });
+        var newRows = result.rows || result.row_count || 0;
+        var newPreview = result.preview || [];
+
+        var sourceName = sessionDatasets[activeDatasetIndex] ? sessionDatasets[activeDatasetIndex].name : 'Dataset';
+        var dsName = sourceName + ' (' + transformType + ')';
+        var dsEntry = {
+            id: result._dataset_record_id || newId,
+            data_id: newId,
+            name: dsName,
+            row_count: newRows,
+            columns_meta: newColumns.map(function(c) { return { name: c }; }),
+            preview: newPreview,
+        };
+        sessionDatasets.push(dsEntry);
+        activeDatasetIndex = sessionDatasets.length - 1;
+        currentDataId = newId;
+        currentDatasetId = dsEntry.id;
+        currentDataColumns = newColumns;
+        currentDataRows = newRows;
+
+        if (newPreview.length) {
+            renderWorksheet(newColumns, newPreview);
+        }
+
+        renderDatasetTabs();
+
+        var ind = document.getElementById('aw-data-indicator');
+        if (ind) {
+            ind.textContent = dsName + ' \u2014 ' + newRows + ' \u00d7 ' + newColumns.length;
+        }
+
+        if (currentAnalysis) renderConfigPane();
+        svToast('Transform applied: ' + transformType, 'success');
+    } catch (e) {
+        svToast(e.message || 'Transform failed', 'error');
+    } finally {
+        if (transformBtn) { transformBtn.disabled = false; transformBtn.textContent = 'Transform'; }
     }
 }
 
@@ -2209,6 +2735,23 @@ async function confirmUpload() {
         if (data._dataset_record_id) {
             currentDatasetId = data._dataset_record_id;
         }
+
+        // Add to dataset tabs
+        const dsEntry = {
+            id: currentDatasetId || currentDataId,
+            data_id: currentDataId,
+            name: pendingFile.name,
+            row_count: currentDataRows,
+            columns_meta: currentDataColumns.map(c => ({ name: c })),
+            preview: currentDataPreview,
+        };
+        sessionDatasets.push(dsEntry);
+        activeDatasetIndex = sessionDatasets.length - 1;
+        renderDatasetTabs();
+        showDataPipelineButtons(true);
+        // Hide triage results from previous dataset
+        const triageEl = document.getElementById('aw-triage-results');
+        if (triageEl) triageEl.style.display = 'none';
     } catch (e) {
         svToast(e.message || 'Upload failed', 'error');
     } finally {
@@ -2263,14 +2806,31 @@ function _loadSessionState(s) {
     localStorage.setItem('aw_session_id', s.id);
     _updateSessionTitle(s.title);
 
-    // Restore last dataset
+    // Restore all datasets into tabs
+    sessionDatasets = [];
+    activeDatasetIndex = -1;
     if (s.datasets && s.datasets.length) {
-        const last = s.datasets[s.datasets.length - 1];
+        s.datasets.forEach(function(ds) {
+            sessionDatasets.push({
+                id: ds.id,
+                data_id: ds.data_id || ds.id,
+                name: ds.name || 'Dataset',
+                row_count: ds.row_count || 0,
+                columns_meta: ds.columns_meta || [],
+                preview: ds.preview || null,
+            });
+        });
+        // Activate last dataset
+        activeDatasetIndex = sessionDatasets.length - 1;
+        const last = sessionDatasets[activeDatasetIndex];
         currentDatasetId = last.id;
-        currentDataColumns = (last.columns_meta || []).map(c => c.name);
+        currentDataId = last.data_id;
+        currentDataColumns = (last.columns_meta || []).map(c => typeof c === 'object' ? c.name : c);
         currentDataRows = last.row_count;
         const ind = document.getElementById('aw-data-indicator');
-        if (ind) { ind.textContent = `${last.name || 'Dataset'} — ${last.row_count} rows`; ind.classList.add('loaded'); }
+        if (ind) { ind.textContent = `${last.name || 'Dataset'} \u2014 ${last.row_count} rows`; ind.classList.add('loaded'); }
+        renderDatasetTabs();
+        showDataPipelineButtons(true);
     }
 
     // Restore analysis history
@@ -2301,11 +2861,17 @@ async function newSession() {
     currentDataPreview = null;
     currentAnalysis = null;
     currentResult = null;
+    sessionDatasets = [];
+    activeDatasetIndex = -1;
     document.getElementById('aw-data-indicator').textContent = 'No data loaded';
     document.getElementById('aw-data-indicator').classList.remove('loaded');
     document.getElementById('data-pane').innerHTML = '<div class="aw-pane-empty">Upload a dataset to begin</div>';
     document.getElementById('charts-pane').innerHTML = '<div class="aw-pane-empty">Select an analysis from the sidebar</div>';
     document.getElementById('results-pane').innerHTML = '<div class="aw-pane-empty">Results will appear here</div>';
+    renderDatasetTabs();
+    showDataPipelineButtons(false);
+    var triageEl = document.getElementById('aw-triage-results');
+    if (triageEl) triageEl.style.display = 'none';
     await _createSession();
 }
 
@@ -2382,6 +2948,7 @@ async function loadAnalysis(index) {
     try {
         const full = await apiFetch(WORKBENCH_API + `sessions/${currentSessionId}/analyses/${a.id}/`);
         currentResult = full;
+        updateGuideObservation(full);
         renderCharts(full);
         renderResults(full);
     } catch (e) {
