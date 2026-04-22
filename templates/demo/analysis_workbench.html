@@ -2698,9 +2698,10 @@ async function confirmUpload() {
         fd.append('file', pendingFile);
         if (currentSessionId) fd.append('session_id', currentSessionId);
 
+        const csrfToken = svCsrf() || (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || '';
         const resp = await fetch(ANALYSIS_API + 'upload-data/', {
             method: 'POST',
-            headers: { 'X-CSRFToken': svCsrf() },
+            headers: { 'X-CSRFToken': csrfToken },
             credentials: 'same-origin',
             body: fd,
         });
