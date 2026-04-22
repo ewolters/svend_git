@@ -46,8 +46,36 @@ def _wrap_legacy(analysis_id, df, config):
 
 def _bayes_result(r, test_name):
     """Format a forgestat BayesianTestResult into the dispatch schema."""
+    # Prior vs posterior density chart
+    plots = []
+    try:
+        import numpy as np
+        from forgeviz.charts.generic import multi_line
+        from scipy.stats import norm
+
+        mu_post = r.posterior_mean
+        sd_post = r.posterior_std
+        # Prior: vague normal centered at 0
+        mu_prior = 0
+        sd_prior = max(sd_post * 5, 1)
+
+        x_min = min(mu_prior - 3 * sd_prior, mu_post - 4 * sd_post)
+        x_max = max(mu_prior + 3 * sd_prior, mu_post + 4 * sd_post)
+        x = np.linspace(x_min, x_max, 200).tolist()
+        prior_y = norm.pdf(x, mu_prior, sd_prior).tolist()
+        post_y = norm.pdf(x, mu_post, sd_post).tolist()
+
+        spec = multi_line(
+            x=x,
+            series={"Prior": prior_y, "Posterior": post_y},
+            title=f"Bayesian {test_name}: Prior vs Posterior",
+        )
+        plots = [spec.to_dict()]
+    except Exception:
+        pass  # Chart is optional — don't block result
+
     return {
-        "plots": [],
+        "plots": plots,
         "statistics": {
             "bf10": round(r.bf10, 4),
             "bf01": round(r.bf01, 4),
