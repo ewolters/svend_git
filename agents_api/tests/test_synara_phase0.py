@@ -8,13 +8,16 @@ Covers:
 """
 
 from django.test import SimpleTestCase
-
-from agents_api.synara.belief import BeliefEngine
-from agents_api.synara.kernel import (
-    CausalGraph,
+from forgesia import (
+    BeliefEngine,
     CausalLink,
-    Evidence,
     HypothesisRegion,
+)
+from forgesia import (
+    EpistemicEvidence as Evidence,
+)
+from forgesia import (
+    HypothesisGraph as CausalGraph,
 )
 
 

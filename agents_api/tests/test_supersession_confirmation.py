@@ -11,6 +11,7 @@ Tests use real Synara engine and DB models.
 """
 
 from django.test import TestCase
+from forgesia import Synara
 
 from agents_api.investigation_bridge import (
     CONFIRMED_THRESHOLD,
@@ -18,7 +19,6 @@ from agents_api.investigation_bridge import (
     _apply_confirmation_thresholds,
     _detect_and_apply_supersession,
 )
-from agents_api.synara.synara import Synara
 from core.models import Evidence, Investigation, Project
 
 

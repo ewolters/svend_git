@@ -25,7 +25,7 @@ User = get_user_model()
 # Base paths (for structural and frontend tests only)
 WEB_ROOT = Path(os.path.dirname(__file__)).parent.parent.parent
 DSW_DIR = WEB_ROOT / "agents_api" / "dsw"
-SYNARA_DIR = WEB_ROOT / "agents_api" / "synara"
+SYNARA_DIR = Path(os.path.expanduser("~")) / "forgesia" / "src" / "forgesia"
 AGENTS_API = WEB_ROOT / "agents_api"
 
 SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
@@ -695,7 +695,7 @@ class DSWModuleStructureTest(SimpleTestCase):
         self.assertTrue((DSW_DIR / "__init__.py").exists())
 
     def test_synara_package_exists(self):
-        """agents_api/synara/ package exists."""
+        """forgesia package exists (replaced agents_api/synara/)."""
         self.assertTrue(SYNARA_DIR.exists())
 
     def test_dispatch_module_exists(self):

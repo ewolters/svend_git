@@ -11,12 +11,16 @@ Round-trip: Django models → CausalGraph → Synara operations → Django model
 import logging
 from uuid import UUID
 
-from agents_api.synara.belief import BeliefEngine
-from agents_api.synara.kernel import (
-    CausalGraph,
+from forgesia import (
+    BeliefEngine,
     CausalLink,
-    Evidence,
     HypothesisRegion,
+)
+from forgesia import (
+    EpistemicEvidence as Evidence,
+)
+from forgesia import (
+    HypothesisGraph as CausalGraph,
 )
 
 from .models import EdgeEvidence, ProcessEdge, ProcessGraph

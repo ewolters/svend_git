@@ -16,9 +16,9 @@ import logging
 from dataclasses import dataclass, field
 
 from django.contrib.contenttypes.models import ContentType
+from forgesia import Synara
 
 from agents_api.evidence_weights import TOOL_FUNCTIONS, compute_evidence_weight
-from agents_api.synara.synara import Synara
 from core.models.investigation import Investigation, InvestigationToolLink
 
 logger = logging.getLogger("svend.investigation")

@@ -163,7 +163,7 @@ class KernelHypothesisRegionTest(unittest.TestCase):
     """Test HypothesisRegion data structure."""
 
     def test_matches_context_full_match(self):
-        from .synara.kernel import HypothesisRegion
+        from forgesia import HypothesisRegion
 
         h = HypothesisRegion(
             id="h1",
@@ -174,7 +174,7 @@ class KernelHypothesisRegionTest(unittest.TestCase):
         self.assertAlmostEqual(score, 1.0)
 
     def test_matches_context_partial(self):
-        from .synara.kernel import HypothesisRegion
+        from forgesia import HypothesisRegion
 
         h = HypothesisRegion(
             id="h1",
@@ -185,14 +185,14 @@ class KernelHypothesisRegionTest(unittest.TestCase):
         self.assertAlmostEqual(score, 0.5)
 
     def test_matches_context_no_conditions(self):
-        from .synara.kernel import HypothesisRegion
+        from forgesia import HypothesisRegion
 
         h = HypothesisRegion(id="h1", description="General")
         score = h.matches_context({"shift": "night"})
         self.assertAlmostEqual(score, 0.5)  # neutral
 
     def test_to_dict_from_dict_roundtrip(self):
-        from .synara.kernel import HypothesisRegion
+        from forgesia import HypothesisRegion
 
         h = HypothesisRegion(
             id="h1",
@@ -218,7 +218,7 @@ class KernelEvidenceTest(unittest.TestCase):
     """Test Evidence data structure."""
 
     def test_to_dict_from_dict_roundtrip(self):
-        from .synara.kernel import Evidence
+        from forgesia import EpistemicEvidence as Evidence
 
         e = Evidence(
             id="e1",
@@ -242,7 +242,8 @@ class KernelCausalGraphTest(unittest.TestCase):
 
     def _build_chain(self):
         """Build a simple A -> B -> C chain."""
-        from .synara.kernel import CausalGraph, CausalLink, HypothesisRegion
+        from forgesia import CausalLink, HypothesisRegion
+        from forgesia import HypothesisGraph as CausalGraph
 
         graph = CausalGraph()
         for hid in ["A", "B", "C"]:
@@ -280,7 +281,8 @@ class KernelCausalGraphTest(unittest.TestCase):
         self.assertEqual(paths[0], ["A", "B", "C"])
 
     def test_add_link_updates_references(self):
-        from .synara.kernel import CausalGraph, CausalLink, HypothesisRegion
+        from forgesia import CausalLink, HypothesisRegion
+        from forgesia import HypothesisGraph as CausalGraph
 
         graph = CausalGraph()
         graph.add_hypothesis(HypothesisRegion(id="X", description="X"))
@@ -291,7 +293,8 @@ class KernelCausalGraphTest(unittest.TestCase):
 
     def test_diamond_graph(self):
         """A -> B, A -> C, B -> D, C -> D."""
-        from .synara.kernel import CausalGraph, CausalLink, HypothesisRegion
+        from forgesia import CausalLink, HypothesisRegion
+        from forgesia import HypothesisGraph as CausalGraph
 
         graph = CausalGraph()
         for hid in ["A", "B", "C", "D"]:
@@ -319,8 +322,8 @@ class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
     """Test BeliefEngine.compute_likelihood()."""
 
     def test_explicit_support(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import Evidence, HypothesisRegion
+        from forgesia import BeliefEngine, HypothesisRegion
+        from forgesia import EpistemicEvidence as Evidence
 
         engine = BeliefEngine()
         h = HypothesisRegion(id="h1", description="Test")
@@ -330,8 +333,8 @@ class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
         self.assertAlmostEqual(likelihood, 0.8)
 
     def test_explicit_weaken(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import Evidence, HypothesisRegion
+        from forgesia import BeliefEngine, HypothesisRegion
+        from forgesia import EpistemicEvidence as Evidence
 
         engine = BeliefEngine()
         h = HypothesisRegion(id="h1", description="Test")
@@ -340,8 +343,8 @@ class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
         self.assertAlmostEqual(likelihood, 0.2)
 
     def test_neutral_evidence(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import Evidence, HypothesisRegion
+        from forgesia import BeliefEngine, HypothesisRegion
+        from forgesia import EpistemicEvidence as Evidence
 
         engine = BeliefEngine()
         h = HypothesisRegion(id="h1", description="Test")
@@ -351,8 +354,8 @@ class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
         self.assertLess(likelihood, 0.7)
 
     def test_low_strength_pulls_toward_neutral(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import Evidence, HypothesisRegion
+        from forgesia import BeliefEngine, HypothesisRegion
+        from forgesia import EpistemicEvidence as Evidence
 
         engine = BeliefEngine()
         h = HypothesisRegion(id="h1", description="Test")
@@ -361,8 +364,8 @@ class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
         self.assertAlmostEqual(likelihood, 0.5)
 
     def test_behavior_alignment_positive(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import Evidence, HypothesisRegion
+        from forgesia import BeliefEngine, HypothesisRegion
+        from forgesia import EpistemicEvidence as Evidence
 
         engine = BeliefEngine()
         h = HypothesisRegion(
@@ -375,8 +378,8 @@ class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
         self.assertGreater(likelihood, 0.5)
 
     def test_behavior_alignment_conflicting(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import Evidence, HypothesisRegion
+        from forgesia import BeliefEngine, HypothesisRegion
+        from forgesia import EpistemicEvidence as Evidence
 
         engine = BeliefEngine()
         h = HypothesisRegion(
@@ -393,8 +396,9 @@ class BeliefEngineUpdatePosteriorsTest(unittest.TestCase):
     """Test BeliefEngine.update_posteriors()."""
 
     def test_supporting_evidence_increases_posterior(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import CausalGraph, Evidence, HypothesisRegion
+        from forgesia import BeliefEngine, HypothesisRegion
+        from forgesia import EpistemicEvidence as Evidence
+        from forgesia import HypothesisGraph as CausalGraph
 
         engine = BeliefEngine()
         graph = CausalGraph()
@@ -409,8 +413,9 @@ class BeliefEngineUpdatePosteriorsTest(unittest.TestCase):
         self.assertLess(posteriors["h2"], 0.5)
 
     def test_posteriors_sum_to_approximately_one(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import CausalGraph, Evidence, HypothesisRegion
+        from forgesia import BeliefEngine, HypothesisRegion
+        from forgesia import EpistemicEvidence as Evidence
+        from forgesia import HypothesisGraph as CausalGraph
 
         engine = BeliefEngine()
         graph = CausalGraph()
@@ -426,8 +431,10 @@ class BeliefEngineUpdatePosteriorsTest(unittest.TestCase):
         self.assertAlmostEqual(total, 1.0, places=1)
 
     def test_posteriors_clamped(self):
-        from .synara.belief import MAX_PROBABILITY, MIN_PROBABILITY, BeliefEngine
-        from .synara.kernel import CausalGraph, Evidence, HypothesisRegion
+        from forgesia import BeliefEngine, HypothesisRegion
+        from forgesia import EpistemicEvidence as Evidence
+        from forgesia import HypothesisGraph as CausalGraph
+        from forgesia.inference.engine import MAX_PROBABILITY, MIN_PROBABILITY
 
         engine = BeliefEngine()
         graph = CausalGraph()
@@ -443,8 +450,9 @@ class BeliefEngineUpdatePosteriorsTest(unittest.TestCase):
             self.assertLessEqual(p, MAX_PROBABILITY)
 
     def test_evidence_tracking(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import CausalGraph, Evidence, HypothesisRegion
+        from forgesia import BeliefEngine, HypothesisRegion
+        from forgesia import EpistemicEvidence as Evidence
+        from forgesia import HypothesisGraph as CausalGraph
 
         engine = BeliefEngine()
         graph = CausalGraph()
@@ -463,8 +471,8 @@ class BeliefEnginePropagationTest(unittest.TestCase):
     """Test BeliefEngine.propagate_belief()."""
 
     def test_propagation_through_chain(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import CausalGraph, CausalLink, HypothesisRegion
+        from forgesia import BeliefEngine, CausalLink, HypothesisRegion
+        from forgesia import HypothesisGraph as CausalGraph
 
         engine = BeliefEngine()
         graph = CausalGraph()
@@ -478,8 +486,8 @@ class BeliefEnginePropagationTest(unittest.TestCase):
             self.assertNotAlmostEqual(changes["B"], 0.3)
 
     def test_no_propagation_without_downstream(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import CausalGraph, HypothesisRegion
+        from forgesia import BeliefEngine, HypothesisRegion
+        from forgesia import HypothesisGraph as CausalGraph
 
         engine = BeliefEngine()
         graph = CausalGraph()
@@ -489,8 +497,8 @@ class BeliefEnginePropagationTest(unittest.TestCase):
         self.assertEqual(changes, {})
 
     def test_nonexistent_hypothesis(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import CausalGraph
+        from forgesia import BeliefEngine
+        from forgesia import HypothesisGraph as CausalGraph
 
         engine = BeliefEngine()
         graph = CausalGraph()
@@ -503,8 +511,8 @@ class BeliefEngineExpansionTest(unittest.TestCase):
     """Test BeliefEngine.check_expansion()."""
 
     def test_expansion_signal_when_all_below_threshold(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import Evidence
+        from forgesia import BeliefEngine
+        from forgesia import EpistemicEvidence as Evidence
 
         engine = BeliefEngine(expansion_threshold=0.1)
         e = Evidence(id="e1", event="anomaly", context={"location": "lab"})
@@ -518,8 +526,8 @@ class BeliefEngineExpansionTest(unittest.TestCase):
         self.assertGreater(len(signal.possible_causes), 0)
 
     def test_no_expansion_when_above_threshold(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import Evidence
+        from forgesia import BeliefEngine
+        from forgesia import EpistemicEvidence as Evidence
 
         engine = BeliefEngine(expansion_threshold=0.1)
         e = Evidence(id="e1", event="normal observation")
@@ -529,8 +537,8 @@ class BeliefEngineExpansionTest(unittest.TestCase):
         self.assertIsNone(signal)
 
     def test_no_expansion_for_empty_likelihoods(self):
-        from .synara.belief import BeliefEngine
-        from .synara.kernel import Evidence
+        from forgesia import BeliefEngine
+        from forgesia import EpistemicEvidence as Evidence
 
         engine = BeliefEngine()
         e = Evidence(id="e1", event="test")
@@ -543,7 +551,7 @@ class DSLParserBasicTest(unittest.TestCase):
     """Test DSLParser basic parsing."""
 
     def test_simple_comparison(self):
-        from .synara.dsl import Comparison, ComparisonOp, DSLParser
+        from forgesia import Comparison, ComparisonOp, DSLParser
 
         parser = DSLParser()
         result = parser.parse("[temperature] > 30")
@@ -554,7 +562,7 @@ class DSLParserBasicTest(unittest.TestCase):
         self.assertEqual(result.ast.op, ComparisonOp.GT)
 
     def test_string_comparison(self):
-        from .synara.dsl import Comparison, ComparisonOp, DSLParser
+        from forgesia import Comparison, ComparisonOp, DSLParser
 
         parser = DSLParser()
         result = parser.parse('[shift] = "night"')
@@ -564,7 +572,7 @@ class DSLParserBasicTest(unittest.TestCase):
         self.assertEqual(result.ast.op, ComparisonOp.EQ)
 
     def test_implication(self):
-        from .synara.dsl import DSLParser, Implication
+        from forgesia import DSLParser, Implication
 
         parser = DSLParser()
         result = parser.parse("if [num_holidays] > 3 then [monthly_sales] < 100000")
@@ -574,7 +582,7 @@ class DSLParserBasicTest(unittest.TestCase):
         self.assertIn("monthly_sales", result.variables)
 
     def test_quantified_always(self):
-        from .synara.dsl import DSLParser, Quantified, Quantifier
+        from forgesia import DSLParser, Quantified, Quantifier
 
         parser = DSLParser()
         result = parser.parse("ALWAYS [temperature] > 20")
@@ -584,7 +592,7 @@ class DSLParserBasicTest(unittest.TestCase):
         self.assertIn(Quantifier.ALWAYS, result.quantifiers)
 
     def test_quantified_never(self):
-        from .synara.dsl import DSLParser, Quantified, Quantifier
+        from forgesia import DSLParser, Quantified, Quantifier
 
         parser = DSLParser()
         result = parser.parse("NEVER [defect_rate] > 0.05")
@@ -593,7 +601,7 @@ class DSLParserBasicTest(unittest.TestCase):
         self.assertEqual(result.ast.quantifier, Quantifier.NEVER)
 
     def test_logical_and(self):
-        from .synara.dsl import DSLParser, LogicalExpr, LogicalOp
+        from forgesia import DSLParser, LogicalExpr, LogicalOp
 
         parser = DSLParser()
         result = parser.parse("[x] > 10 AND [y] < 20")
@@ -603,7 +611,7 @@ class DSLParserBasicTest(unittest.TestCase):
         self.assertEqual(len(result.ast.operands), 2)
 
     def test_logical_or(self):
-        from .synara.dsl import DSLParser, LogicalExpr, LogicalOp
+        from forgesia import DSLParser, LogicalExpr, LogicalOp
 
         parser = DSLParser()
         result = parser.parse("[status] = 1 OR [override] = 1")
@@ -612,7 +620,7 @@ class DSLParserBasicTest(unittest.TestCase):
         self.assertEqual(result.ast.op, LogicalOp.OR)
 
     def test_domain_condition_when(self):
-        from .synara.dsl import DSLParser, Quantified
+        from forgesia import DSLParser, Quantified
 
         parser = DSLParser()
         result = parser.parse('NEVER [defect_rate] > 0.05 WHEN [shift] = "night"')
@@ -621,7 +629,7 @@ class DSLParserBasicTest(unittest.TestCase):
         self.assertIsNotNone(result.ast.domain)
 
     def test_empty_input(self):
-        from .synara.dsl import DSLParser
+        from forgesia import DSLParser
 
         parser = DSLParser()
         result = parser.parse("")
@@ -629,14 +637,14 @@ class DSLParserBasicTest(unittest.TestCase):
         self.assertGreater(len(result.parse_errors), 0)
 
     def test_tautology_detection(self):
-        from .synara.dsl import DSLParser
+        from forgesia import DSLParser
 
         parser = DSLParser()
         result = parser.parse("[x] = [x]")
         self.assertFalse(result.is_falsifiable)
 
     def test_variable_extraction(self):
-        from .synara.dsl import DSLParser
+        from forgesia import DSLParser
 
         parser = DSLParser()
         result = parser.parse("[a] > 1 AND [b] < 2 AND [c] = 3")
@@ -647,7 +655,7 @@ class DSLParserToDictTest(unittest.TestCase):
     """Test Hypothesis.to_dict() serialization."""
 
     def test_comparison_to_dict(self):
-        from .synara.dsl import DSLParser
+        from forgesia import DSLParser
 
         parser = DSLParser()
         result = parser.parse("[x] > 10")
@@ -658,7 +666,7 @@ class DSLParserToDictTest(unittest.TestCase):
         self.assertEqual(d["structure"]["op"], ">")
 
     def test_implication_to_dict(self):
-        from .synara.dsl import DSLParser
+        from forgesia import DSLParser
 
         parser = DSLParser()
         result = parser.parse("if [a] > 1 then [b] < 2")
@@ -668,7 +676,7 @@ class DSLParserToDictTest(unittest.TestCase):
         self.assertEqual(d["structure"]["consequent"]["type"], "comparison")
 
     def test_quantified_to_dict(self):
-        from .synara.dsl import DSLParser
+        from forgesia import DSLParser
 
         parser = DSLParser()
         result = parser.parse("ALWAYS [x] > 5")
@@ -681,7 +689,7 @@ class DSLFormatTest(unittest.TestCase):
     """Test hypothesis formatting."""
 
     def test_format_natural(self):
-        from .synara.dsl import DSLParser, format_hypothesis
+        from forgesia import DSLParser, format_hypothesis
 
         parser = DSLParser()
         result = parser.parse("[temperature] > 30")
@@ -690,7 +698,7 @@ class DSLFormatTest(unittest.TestCase):
         self.assertIn("greater than", text)
 
     def test_format_formal(self):
-        from .synara.dsl import DSLParser, format_hypothesis
+        from forgesia import DSLParser, format_hypothesis
 
         parser = DSLParser()
         result = parser.parse("[x] > 10 AND [y] < 20")
@@ -699,7 +707,7 @@ class DSLFormatTest(unittest.TestCase):
         self.assertIn("y", text)
 
     def test_format_code(self):
-        from .synara.dsl import DSLParser, format_hypothesis
+        from forgesia import DSLParser, format_hypothesis
 
         parser = DSLParser()
         result = parser.parse("[x] > 10")
@@ -717,7 +725,7 @@ class FallacyDetectionTest(unittest.TestCase):
     """Test logic engine fallacy detection patterns."""
 
     def setUp(self):
-        from .synara.logic_engine import LogicEngine
+        from forgesia import LogicEngine
 
         self.engine = LogicEngine()
 
@@ -753,15 +761,16 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_false_dichotomy_xor_two_options(self):
         """XOR with exactly 2 options => false dichotomy."""
-        from .synara.dsl import (
+        from forgesia import (
             Comparison,
             ComparisonOp,
+            FallacyType,
             Literal,
             LogicalExpr,
             LogicalOp,
+            LogicEngine,
             Variable,
         )
-        from .synara.logic_engine import FallacyType, LogicEngine
 
         # Build an XOR AST manually (DSL parser may not support XOR syntax)
         xor_expr = LogicalExpr(
@@ -778,17 +787,18 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_false_dichotomy_overlapping_never(self):
         """Two NEVER constraints on same variable => false dichotomy."""
-        from .synara.dsl import (
+        from forgesia import (
             Comparison,
             ComparisonOp,
+            FallacyType,
             Literal,
             LogicalExpr,
             LogicalOp,
+            LogicEngine,
             Quantified,
             Quantifier,
             Variable,
         )
-        from .synara.logic_engine import FallacyType, LogicEngine
 
         # NEVER [x] > 10 AND NEVER [x] < 5
         ast = LogicalExpr(
@@ -813,15 +823,16 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_overgeneralization_nested_quantifiers(self):
         """Nested quantifiers => overgeneralization."""
-        from .synara.dsl import (
+        from forgesia import (
             Comparison,
             ComparisonOp,
+            FallacyType,
             Literal,
+            LogicEngine,
             Quantified,
             Quantifier,
             Variable,
         )
-        from .synara.logic_engine import FallacyType, LogicEngine
 
         ast = Quantified(
             quantifier=Quantifier.ALWAYS,
@@ -839,16 +850,17 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_affirming_consequent_shared_vars(self):
         """Two implications with shared consequent/antecedent vars => warning."""
-        from .synara.dsl import (
+        from forgesia import (
             Comparison,
             ComparisonOp,
+            FallacyType,
             Implication,
             Literal,
             LogicalExpr,
             LogicalOp,
+            LogicEngine,
             Variable,
         )
-        from .synara.logic_engine import FallacyType, LogicEngine
 
         # if [rain] > 0 then [wet] = 1  AND  if [wet] = 1 then [slippery] = 1
         # 'wet' is consequent in first, antecedent in second
@@ -874,16 +886,17 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_denying_antecedent(self):
         """Implication + negation of antecedent => denying antecedent."""
-        from .synara.dsl import (
+        from forgesia import (
             Comparison,
             ComparisonOp,
+            FallacyType,
             Implication,
             Literal,
             LogicalExpr,
             LogicalOp,
+            LogicEngine,
             Variable,
         )
-        from .synara.logic_engine import FallacyType, LogicEngine
 
         # if [rain] > 0 then [wet] = 1  AND  NOT [rain] > 0
         ast = LogicalExpr(
@@ -908,7 +921,7 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_collect_nodes(self):
         """_collect_nodes finds all nodes of a given type."""
-        from .synara.dsl import (
+        from forgesia import (
             Comparison,
             ComparisonOp,
             Literal,
@@ -929,7 +942,7 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_get_variables(self):
         """_get_variables extracts variable names from AST."""
-        from .synara.dsl import Comparison, ComparisonOp, Literal, Variable
+        from forgesia import Comparison, ComparisonOp, Literal, Variable
 
         ast = Comparison(Variable("temperature"), ComparisonOp.GT, Literal(30))
         vars = self.engine._get_variables(ast)
@@ -939,7 +952,7 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_validate_hypothesis_clean(self):
         """validate_hypothesis returns valid=True for clean hypothesis."""
-        from .synara.logic_engine import validate_hypothesis
+        from forgesia import validate_hypothesis
 
         result = validate_hypothesis("[x] > 10")
         self.assertTrue(result["valid"])
@@ -948,7 +961,7 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_validate_hypothesis_with_fallacy(self):
         """validate_hypothesis detects fallacies in universal claims."""
-        from .synara.logic_engine import validate_hypothesis
+        from forgesia import validate_hypothesis
 
         result = validate_hypothesis("ALWAYS [x] > 10")
         # Should be valid (fallacies are warnings, not errors) but have fallacies

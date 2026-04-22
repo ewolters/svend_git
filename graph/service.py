@@ -278,7 +278,7 @@ class GraphService:
 
         # Synara propagation — propagate belief changes through the graph
         try:
-            from agents_api.synara.kernel import Evidence as SynaraEvidence
+            from forgesia import EpistemicEvidence as SynaraEvidence
 
             from .synara_adapter import SynaraAdapter
 

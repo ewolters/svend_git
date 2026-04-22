@@ -18,16 +18,36 @@ from uuid import uuid4
 
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from forgesia import (
+    DSLParser,
+    HypothesisRegion,
+    Synara,
+    SynaraLLMInterface,
+    format_hypothesis,
+    parse_and_evaluate,
+    validate_hypothesis,
+)
 
 from accounts.permissions import gated_paid
 
-from .synara import (
-    HypothesisRegion,
-    Synara,
-)
-from .synara.dsl import DSLParser, format_hypothesis
-from .synara.llm_interface import SynaraLLMInterface
-from .synara.logic_engine import parse_and_evaluate, validate_hypothesis
+
+def _make_llm_fn(user):
+    """Create an LLM callable bound to a specific user for forgesia."""
+
+    def _call(prompt, system, max_tokens):
+        from agents_api.llm_service import llm_service
+
+        result = llm_service.chat(
+            user,
+            prompt,
+            system=system,
+            context="analysis",
+            max_tokens=max_tokens,
+        )
+        return result.content if result.success else None
+
+    return _call
+
 
 logger = logging.getLogger(__name__)
 
@@ -611,9 +631,9 @@ def llm_validate(request, workbench_id: str):
     """
 
     synara = get_synara(workbench_id, user=request.user)
-    interface = SynaraLLMInterface(synara)
+    interface = SynaraLLMInterface(synara, llm_fn=_make_llm_fn(request.user))
 
-    analysis = interface.validate_graph_llm(user=request.user)
+    analysis = interface.validate_graph_llm()
     if analysis is None:
         return JsonResponse(
             {
@@ -664,9 +684,8 @@ def llm_generate_hypotheses(request, workbench_id: str, signal_id: str):
     if not signal:
         return JsonResponse({"error": "Signal not found"}, status=404)
 
-    interface = SynaraLLMInterface(synara)
+    interface = SynaraLLMInterface(synara, llm_fn=_make_llm_fn(request.user))
     hypotheses = interface.generate_hypotheses_llm(
-        user=request.user,
         expansion_signal=signal,
     )
 
@@ -729,9 +748,8 @@ def llm_interpret_evidence(request, workbench_id: str):
     if not update_result:
         return JsonResponse({"error": "No update result for this evidence"}, status=400)
 
-    interface = SynaraLLMInterface(synara)
+    interface = SynaraLLMInterface(synara, llm_fn=_make_llm_fn(request.user))
     interpretation = interface.interpret_evidence_llm(
-        user=request.user,
         evidence=evidence,
         update_result=update_result,
     )
@@ -774,10 +792,9 @@ def llm_document(request, workbench_id: str):
     format_type = body.get("format", "summary")
 
     synara = get_synara(workbench_id, user=request.user)
-    interface = SynaraLLMInterface(synara)
+    interface = SynaraLLMInterface(synara, llm_fn=_make_llm_fn(request.user))
 
     document = interface.document_findings_llm(
-        user=request.user,
         format_type=format_type,
     )
 

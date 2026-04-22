@@ -7,8 +7,8 @@ subgraph loading, contradiction detection threshold.
 
 from django.test import TestCase
 from django.utils import timezone
+from forgesia import EpistemicEvidence as Evidence
 
-from agents_api.synara.kernel import Evidence
 from core.models.tenant import Tenant
 
 from .models import EdgeEvidence, ProcessEdge, ProcessGraph, ProcessNode
