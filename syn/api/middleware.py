@@ -377,15 +377,21 @@ class IdempotencyMiddleware:
             )
 
         # Compute payload hash for conflict detection
-        try:
-            body = request.body
-            payload_hash = hashlib.sha256(body).hexdigest()
-        except Exception as e:
-            logger.warning(
-                f"[API-002] Failed to compute payload hash: {type(e).__name__}: {e}",
-                extra={"request_id": getattr(request, "syn_request_id", None)},
-            )
+        # NEVER read request.body on multipart (file upload) — it consumes the
+        # WSGI input stream and breaks request.FILES for downstream views.
+        content_type = request.META.get("CONTENT_TYPE", "")
+        if "multipart" in content_type:
             payload_hash = ""
+        else:
+            try:
+                body = request.body
+                payload_hash = hashlib.sha256(body).hexdigest()
+            except Exception as e:
+                logger.warning(
+                    f"[API-002] Failed to compute payload hash: {type(e).__name__}: {e}",
+                    extra={"request_id": getattr(request, "syn_request_id", None)},
+                )
+                payload_hash = ""
 
         # Check for existing idempotency key
         cached_response = self._get_cached_response(
@@ -547,6 +553,10 @@ class ErrorEnvelopeMiddleware:
 
         # Only process error status codes
         if response.status_code < 400:
+            return response
+
+        # Skip streaming responses (SSE, file downloads) — they have no .content
+        if getattr(response, "streaming", False):
             return response
 
         # Skip if already has proper error envelope

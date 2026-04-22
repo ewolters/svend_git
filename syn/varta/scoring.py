@@ -129,9 +129,13 @@ def score_request(request) -> tuple[int, list[str]]:
         reasons.append("scanner_path")
 
     # ── Query/body injection ─────────────────────────────────────
-    check_str = (
-        f"{full_url} {request.body.decode('utf-8', errors='ignore')[:2000]}" if request.method == "POST" else full_url
-    )
+    # NEVER read request.body on multipart (file upload) — it consumes the
+    # stream and breaks request.FILES for downstream views.
+    content_type = request.META.get("CONTENT_TYPE", "")
+    if request.method == "POST" and "multipart" not in content_type:
+        check_str = f"{full_url} {request.body.decode('utf-8', errors='ignore')[:2000]}"
+    else:
+        check_str = full_url
 
     if SQL_INJECTION.search(check_str):
         score += 7
