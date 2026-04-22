@@ -131,9 +131,11 @@ _FORGE_DISPATCH = {
 
 # Legacy handlers with swapped args (df, analysis_id, config) — thin wrappers
 _LEGACY_DISPATCH = {
-    "viz": "agents_api.analysis.viz.run_visualization",
     "siop": "agents_api.analysis.siop.run_siop",
 }
+
+# Forge-native viz (ChartSpec output, not Plotly) — uses forge handler signature
+_FORGE_DISPATCH["viz"] = "agents_api.analysis.forge_viz.run_forge_viz"
 
 
 def _run_forge(analysis_type, analysis_id, df, config):

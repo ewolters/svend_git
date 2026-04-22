@@ -116,7 +116,7 @@ def run_forge_drift(analysis_id, df, config):
 # Anytime-valid
 # =============================================================================
 
-_ANYTIME_IDS = ["anytime_valid"]
+_ANYTIME_IDS = ["anytime_valid", "anytime_onesample", "anytime_ab"]
 
 
 def run_forge_anytime(analysis_id, df, config):
@@ -133,7 +133,14 @@ def run_forge_anytime(analysis_id, df, config):
 # Quality Economics
 # =============================================================================
 
-_QUALITY_ECON_IDS = ["taguchi_loss", "process_decision", "acceptance_decision", "cost_of_quality", "quality_econ"]
+_QUALITY_ECON_IDS = [
+    "taguchi_loss",
+    "process_decision",
+    "acceptance_decision",
+    "cost_of_quality",
+    "quality_econ",
+    "lot_sentencing",
+]
 
 
 def run_forge_quality_econ(analysis_id, df, config):
@@ -150,7 +157,20 @@ def run_forge_quality_econ(analysis_id, df, config):
 # PBS (Process Belief System)
 # =============================================================================
 
-_PBS_IDS = ["pbs", "process_belief", "belief_chart"]
+_PBS_IDS = [
+    "pbs",
+    "process_belief",
+    "belief_chart",
+    "pbs_belief",
+    "pbs_cpk",
+    "pbs_cpk_traj",
+    "pbs_edetector",
+    "pbs_evidence",
+    "pbs_full",
+    "pbs_health",
+    "pbs_adaptive",
+    "pbs_predictive",
+]
 
 
 def run_forge_pbs(analysis_id, df, config):
@@ -167,7 +187,7 @@ def run_forge_pbs(analysis_id, df, config):
 # Interventional SHAP
 # =============================================================================
 
-_ISHAP_IDS = ["interventional_shap"]
+_ISHAP_IDS = ["interventional_shap", "ishap"]
 
 
 def run_forge_ishap(analysis_id, df, config):
@@ -201,7 +221,19 @@ def run_forge_bayes_msa(analysis_id, df, config):
 # Reliability (standalone — not survival in advanced.py)
 # =============================================================================
 
-_RELIABILITY_IDS = ["reliability_weibull"]
+_RELIABILITY_IDS = [
+    "reliability_weibull",
+    "weibull",
+    "kaplan_meier",
+    "lognormal",
+    "exponential",
+    "accelerated_life",
+    "competing_risks",
+    "repairable_systems",
+    "distribution_id",
+    "warranty",
+    "reliability_test_plan",
+]
 
 
 def run_forge_reliability(analysis_id, df, config):
