@@ -1,0 +1,185 @@
+[
+  {
+    "model": "qms.tooltemplate",
+    "pk": "00000000-0000-0000-0001-000000000001",
+    "fields": {
+      "tenant": null,
+      "name": "A3 Report",
+      "slug": "a3-report",
+      "description": "Toyota-style A3 problem-solving report with 7 PDCA sections.",
+      "icon": "document-text",
+      "is_system": true,
+      "version": 1,
+      "schema": {
+        "sections": [
+          {"key": "background", "type": "text", "label": "Background", "required": true, "config": {}},
+          {"key": "current_condition", "type": "text", "label": "Current Condition", "required": true, "config": {}},
+          {"key": "goal", "type": "text", "label": "Goal / Target", "required": true, "config": {}},
+          {"key": "root_cause", "type": "text", "label": "Root Cause Analysis", "required": true, "config": {}},
+          {"key": "countermeasures", "type": "text", "label": "Countermeasures", "required": true, "config": {}},
+          {"key": "implementation_plan", "type": "text", "label": "Implementation Plan", "required": true, "config": {}},
+          {"key": "follow_up", "type": "text", "label": "Follow Up", "required": false, "config": {}}
+        ]
+      },
+      "status_flow": ["draft", "in_progress", "review", "complete", "archived"]
+    }
+  },
+  {
+    "model": "qms.tooltemplate",
+    "pk": "00000000-0000-0000-0001-000000000002",
+    "fields": {
+      "tenant": null,
+      "name": "Ishikawa Diagram",
+      "slug": "ishikawa",
+      "description": "Fishbone / cause-and-effect diagram with 6M categories.",
+      "icon": "share",
+      "is_system": true,
+      "version": 1,
+      "schema": {
+        "sections": [
+          {"key": "effect", "type": "text", "label": "Effect (Fish Head)", "required": true, "config": {}},
+          {"key": "branches", "type": "tree", "label": "Cause Branches", "required": true, "config": {
+            "default_branches": ["Man", "Machine", "Method", "Material", "Measurement", "Environment"]
+          }}
+        ]
+      },
+      "status_flow": ["draft", "analyzing", "complete"]
+    }
+  },
+  {
+    "model": "qms.tooltemplate",
+    "pk": "00000000-0000-0000-0001-000000000003",
+    "fields": {
+      "tenant": null,
+      "name": "C&E Matrix",
+      "slug": "ce-matrix",
+      "description": "Cause & Effect Matrix — inputs vs outputs with 0/1/3/9 scoring and weighted totals.",
+      "icon": "grid",
+      "is_system": true,
+      "version": 1,
+      "schema": {
+        "sections": [
+          {"key": "matrix", "type": "grid", "label": "C&E Matrix", "required": true, "config": {
+            "columns": [
+              {"key": "input", "type": "text", "label": "Process Input (X)"},
+              {"key": "output_scores", "type": "text", "label": "Output Scores (JSON)"},
+              {"key": "weighted_total", "type": "computed", "label": "Total", "formula": "weighted_total"}
+            ],
+            "row_actions": true,
+            "notes": "Output weights and individual scores stored in output_scores as JSON. weighted_total is pre-computed by frontend."
+          }}
+        ]
+      },
+      "status_flow": ["draft", "scoring", "complete"]
+    }
+  },
+  {
+    "model": "qms.tooltemplate",
+    "pk": "00000000-0000-0000-0001-000000000004",
+    "fields": {
+      "tenant": null,
+      "name": "Root Cause Analysis",
+      "slug": "rca",
+      "description": "Structured root cause analysis with causal chain, findings, and countermeasures.",
+      "icon": "search",
+      "is_system": true,
+      "version": 1,
+      "schema": {
+        "sections": [
+          {"key": "event", "type": "text", "label": "Event Description", "required": true, "config": {}},
+          {"key": "causal_chain", "type": "tree", "label": "Causal Chain", "required": true, "config": {}},
+          {"key": "root_cause", "type": "text", "label": "Root Cause", "required": true, "config": {}},
+          {"key": "countermeasure", "type": "text", "label": "Countermeasure", "required": true, "config": {}},
+          {"key": "evaluation", "type": "text", "label": "Evaluation", "required": false, "config": {}}
+        ]
+      },
+      "status_flow": ["draft", "investigating", "root_cause_identified", "verified", "closed"]
+    }
+  },
+  {
+    "model": "qms.tooltemplate",
+    "pk": "00000000-0000-0000-0001-000000000005",
+    "fields": {
+      "tenant": null,
+      "name": "Process FMEA",
+      "slug": "fmea",
+      "description": "Failure Mode & Effects Analysis with S/O/D scoring and RPN computation.",
+      "icon": "shield-exclamation",
+      "is_system": true,
+      "version": 1,
+      "schema": {
+        "sections": [
+          {"key": "failure_modes", "type": "grid", "label": "Failure Mode Analysis", "required": true, "config": {
+            "columns": [
+              {"key": "process_step", "type": "text", "label": "Process Step"},
+              {"key": "failure_mode", "type": "text", "label": "Failure Mode"},
+              {"key": "effect", "type": "text", "label": "Effect"},
+              {"key": "severity", "type": "score", "label": "S", "min": 1, "max": 10},
+              {"key": "cause", "type": "text", "label": "Cause"},
+              {"key": "occurrence", "type": "score", "label": "O", "min": 1, "max": 10},
+              {"key": "current_controls", "type": "text", "label": "Current Controls"},
+              {"key": "detection", "type": "score", "label": "D", "min": 1, "max": 10},
+              {"key": "rpn", "type": "computed", "label": "RPN", "formula": "severity * occurrence * detection"}
+            ],
+            "row_actions": true
+          }},
+          {"key": "controls", "type": "text", "label": "Control Plan Notes", "required": false, "config": {}},
+          {"key": "actions", "type": "action_list", "label": "Recommended Actions", "required": false, "config": {
+            "parent_grid": "failure_modes"
+          }}
+        ]
+      },
+      "status_flow": ["draft", "active", "review", "complete"]
+    }
+  },
+  {
+    "model": "qms.tooltemplate",
+    "pk": "00000000-0000-0000-0001-000000000006",
+    "fields": {
+      "tenant": null,
+      "name": "Process Confirmation",
+      "slug": "process-confirmation",
+      "description": "Observation checklist with key points, pass/fail, and auto-computed diagnosis.",
+      "icon": "clipboard-check",
+      "is_system": true,
+      "version": 1,
+      "schema": {
+        "sections": [
+          {"key": "observations", "type": "checklist", "label": "Observation Items", "required": true, "config": {
+            "fields": ["followed", "outcome_pass", "severity", "notes"]
+          }},
+          {"key": "operator_interview", "type": "text", "label": "Operator Interview Notes", "required": false, "config": {}}
+        ]
+      },
+      "status_flow": ["draft", "observing", "complete"]
+    }
+  },
+  {
+    "model": "qms.tooltemplate",
+    "pk": "00000000-0000-0000-0001-000000000007",
+    "fields": {
+      "tenant": null,
+      "name": "Fault Finding Test",
+      "slug": "fft",
+      "description": "Binary safety gate — inject faults, measure detection rate.",
+      "icon": "beaker",
+      "is_system": true,
+      "version": 1,
+      "schema": {
+        "sections": [
+          {"key": "test_plan", "type": "text", "label": "Test Plan", "required": true, "config": {}},
+          {"key": "results", "type": "grid", "label": "Test Results", "required": true, "config": {
+            "columns": [
+              {"key": "injection_count", "type": "score", "label": "Injections", "min": 0, "max": 9999},
+              {"key": "detection_count", "type": "score", "label": "Detections", "min": 0, "max": 9999},
+              {"key": "detection_rate", "type": "computed", "label": "Rate", "formula": "detection_count"}
+            ],
+            "notes": "detection_rate computed as detection_count/injection_count by frontend (division not supported in v1 formulas)"
+          }},
+          {"key": "control", "type": "text", "label": "Control Actions", "required": false, "config": {}}
+        ]
+      },
+      "status_flow": ["draft", "testing", "pass", "fail"]
+    }
+  }
+]

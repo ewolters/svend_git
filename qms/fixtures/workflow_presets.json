@@ -1,0 +1,357 @@
+[
+  {
+    "model": "qms.workflowtemplate",
+    "pk": "00000000-0000-0000-0002-000000000001",
+    "fields": {
+      "tenant": null,
+      "name": "ISO 9001 Standard",
+      "is_system": true,
+      "is_active": true
+    }
+  },
+  {
+    "model": "qms.workflowphase",
+    "pk": "00000000-0000-0000-0003-000000000001",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000001",
+      "key": "detect",
+      "label": "Detect",
+      "sort_order": 0,
+      "color": "#ef4444"
+    }
+  },
+  {
+    "model": "qms.workflowphase",
+    "pk": "00000000-0000-0000-0003-000000000002",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000001",
+      "key": "investigate",
+      "label": "Investigate",
+      "sort_order": 1,
+      "color": "#f59e0b"
+    }
+  },
+  {
+    "model": "qms.workflowphase",
+    "pk": "00000000-0000-0000-0003-000000000003",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000001",
+      "key": "standardize",
+      "label": "Standardize",
+      "sort_order": 2,
+      "color": "#3b82f6"
+    }
+  },
+  {
+    "model": "qms.workflowphase",
+    "pk": "00000000-0000-0000-0003-000000000004",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000001",
+      "key": "verify",
+      "label": "Verify",
+      "sort_order": 3,
+      "color": "#22c55e"
+    }
+  },
+  {
+    "model": "qms.workflowtransition",
+    "pk": "00000000-0000-0000-0004-000000000001",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000001",
+      "from_phase": "00000000-0000-0000-0003-000000000001",
+      "to_phase": "00000000-0000-0000-0003-000000000002",
+      "label": "Proceed to Investigation",
+      "gate_conditions": {}
+    }
+  },
+  {
+    "model": "qms.workflowtransition",
+    "pk": "00000000-0000-0000-0004-000000000002",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000001",
+      "from_phase": "00000000-0000-0000-0003-000000000002",
+      "to_phase": "00000000-0000-0000-0003-000000000003",
+      "label": "Proceed to Standardization",
+      "gate_conditions": {"requires_sections": ["root_cause"]}
+    }
+  },
+  {
+    "model": "qms.workflowtransition",
+    "pk": "00000000-0000-0000-0004-000000000003",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000001",
+      "from_phase": "00000000-0000-0000-0003-000000000003",
+      "to_phase": "00000000-0000-0000-0003-000000000004",
+      "label": "Proceed to Verification",
+      "gate_conditions": {}
+    }
+  },
+  {
+    "model": "qms.workflowtransition",
+    "pk": "00000000-0000-0000-0004-000000000004",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000001",
+      "from_phase": "00000000-0000-0000-0003-000000000004",
+      "to_phase": "00000000-0000-0000-0003-000000000001",
+      "label": "Reopen Detection",
+      "gate_conditions": {}
+    }
+  },
+
+  {
+    "model": "qms.workflowtemplate",
+    "pk": "00000000-0000-0000-0002-000000000002",
+    "fields": {
+      "tenant": null,
+      "name": "IATF 16949",
+      "is_system": true,
+      "is_active": true
+    }
+  },
+  {
+    "model": "qms.workflowphase",
+    "pk": "00000000-0000-0000-0003-000000000011",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000002",
+      "key": "detect",
+      "label": "Detect",
+      "sort_order": 0,
+      "color": "#ef4444"
+    }
+  },
+  {
+    "model": "qms.workflowphase",
+    "pk": "00000000-0000-0000-0003-000000000012",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000002",
+      "key": "contain",
+      "label": "Contain",
+      "sort_order": 1,
+      "color": "#f97316"
+    }
+  },
+  {
+    "model": "qms.workflowphase",
+    "pk": "00000000-0000-0000-0003-000000000013",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000002",
+      "key": "investigate",
+      "label": "Investigate",
+      "sort_order": 2,
+      "color": "#f59e0b"
+    }
+  },
+  {
+    "model": "qms.workflowphase",
+    "pk": "00000000-0000-0000-0003-000000000014",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000002",
+      "key": "standardize",
+      "label": "Standardize",
+      "sort_order": 3,
+      "color": "#3b82f6"
+    }
+  },
+  {
+    "model": "qms.workflowphase",
+    "pk": "00000000-0000-0000-0003-000000000015",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000002",
+      "key": "verify",
+      "label": "Verify",
+      "sort_order": 4,
+      "color": "#22c55e"
+    }
+  },
+  {
+    "model": "qms.workflowtransition",
+    "pk": "00000000-0000-0000-0004-000000000011",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000002",
+      "from_phase": "00000000-0000-0000-0003-000000000011",
+      "to_phase": "00000000-0000-0000-0003-000000000012",
+      "label": "Initiate Containment",
+      "gate_conditions": {}
+    }
+  },
+  {
+    "model": "qms.workflowtransition",
+    "pk": "00000000-0000-0000-0004-000000000012",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000002",
+      "from_phase": "00000000-0000-0000-0003-000000000012",
+      "to_phase": "00000000-0000-0000-0003-000000000013",
+      "label": "Proceed to Investigation",
+      "gate_conditions": {}
+    }
+  },
+  {
+    "model": "qms.workflowtransition",
+    "pk": "00000000-0000-0000-0004-000000000013",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000002",
+      "from_phase": "00000000-0000-0000-0003-000000000013",
+      "to_phase": "00000000-0000-0000-0003-000000000014",
+      "label": "Proceed to Standardization",
+      "gate_conditions": {"requires_sections": ["root_cause"]}
+    }
+  },
+  {
+    "model": "qms.workflowtransition",
+    "pk": "00000000-0000-0000-0004-000000000014",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000002",
+      "from_phase": "00000000-0000-0000-0003-000000000014",
+      "to_phase": "00000000-0000-0000-0003-000000000015",
+      "label": "Proceed to Verification",
+      "gate_conditions": {}
+    }
+  },
+
+  {
+    "model": "qms.workflowtemplate",
+    "pk": "00000000-0000-0000-0002-000000000003",
+    "fields": {
+      "tenant": null,
+      "name": "Lightweight",
+      "is_system": true,
+      "is_active": true
+    }
+  },
+  {
+    "model": "qms.workflowphase",
+    "pk": "00000000-0000-0000-0003-000000000021",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000003",
+      "key": "detect",
+      "label": "Detect",
+      "sort_order": 0,
+      "color": "#ef4444"
+    }
+  },
+  {
+    "model": "qms.workflowphase",
+    "pk": "00000000-0000-0000-0003-000000000022",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000003",
+      "key": "correct",
+      "label": "Correct",
+      "sort_order": 1,
+      "color": "#22c55e"
+    }
+  },
+  {
+    "model": "qms.workflowtransition",
+    "pk": "00000000-0000-0000-0004-000000000021",
+    "fields": {
+      "workflow": "00000000-0000-0000-0002-000000000003",
+      "from_phase": "00000000-0000-0000-0003-000000000021",
+      "to_phase": "00000000-0000-0000-0003-000000000022",
+      "label": "Apply Correction",
+      "gate_conditions": {}
+    }
+  },
+
+  {
+    "model": "qms.workflowtemplate",
+    "pk": "00000000-0000-0000-0002-000000000004",
+    "fields": {
+      "tenant": null,
+      "name": "Custom",
+      "is_system": true,
+      "is_active": true
+    }
+  },
+
+  {
+    "model": "qms.signaltyperegistry",
+    "pk": "00000000-0000-0000-0005-000000000001",
+    "fields": {
+      "tenant": null,
+      "key": "spc_violation",
+      "label": "SPC Violation",
+      "default_severity": "critical",
+      "is_system": true,
+      "icon": "chart-bar",
+      "auto_phase": null
+    }
+  },
+  {
+    "model": "qms.signaltyperegistry",
+    "pk": "00000000-0000-0000-0005-000000000002",
+    "fields": {
+      "tenant": null,
+      "key": "audit_finding",
+      "label": "Audit Finding",
+      "default_severity": "warning",
+      "is_system": true,
+      "icon": "clipboard-check",
+      "auto_phase": null
+    }
+  },
+  {
+    "model": "qms.signaltyperegistry",
+    "pk": "00000000-0000-0000-0005-000000000003",
+    "fields": {
+      "tenant": null,
+      "key": "customer_complaint",
+      "label": "Customer Complaint",
+      "default_severity": "critical",
+      "is_system": true,
+      "icon": "exclamation-circle",
+      "auto_phase": null
+    }
+  },
+  {
+    "model": "qms.signaltyperegistry",
+    "pk": "00000000-0000-0000-0005-000000000004",
+    "fields": {
+      "tenant": null,
+      "key": "near_miss",
+      "label": "Near Miss / Safety Event",
+      "default_severity": "warning",
+      "is_system": true,
+      "icon": "shield-exclamation",
+      "auto_phase": null
+    }
+  },
+  {
+    "model": "qms.signaltyperegistry",
+    "pk": "00000000-0000-0000-0005-000000000005",
+    "fields": {
+      "tenant": null,
+      "key": "process_deviation",
+      "label": "Process Deviation",
+      "default_severity": "warning",
+      "is_system": true,
+      "icon": "trending-down",
+      "auto_phase": null
+    }
+  },
+  {
+    "model": "qms.signaltyperegistry",
+    "pk": "00000000-0000-0000-0005-000000000006",
+    "fields": {
+      "tenant": null,
+      "key": "improvement_idea",
+      "label": "Improvement Idea",
+      "default_severity": "info",
+      "is_system": true,
+      "icon": "light-bulb",
+      "auto_phase": null
+    }
+  },
+  {
+    "model": "qms.signaltyperegistry",
+    "pk": "00000000-0000-0000-0005-000000000007",
+    "fields": {
+      "tenant": null,
+      "key": "supplier_nonconformance",
+      "label": "Supplier Nonconformance",
+      "default_severity": "critical",
+      "is_system": true,
+      "icon": "truck",
+      "auto_phase": null
+    }
+  }
+]

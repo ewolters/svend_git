@@ -451,6 +451,7 @@ urlpatterns = varta_urls + [
     path("api/harada/", include("harada.urls")),  # Harada Method (questionnaire, goals, routines, diary)
     path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),
+    path("api/qms/", include("qms.urls")),  # Composable QMS: templates, artifacts, workflow
     # Pull contract endpoints — Object 271 §2.3
     path("api/pull/fmea/", include("fmea.pull_urls")),
     path("api/pull/rca/", include("rca.pull_urls")),

@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "reports",
     "dsw",
     "hoshin",
+    "qms",  # Composable QMS: primitives, templates, configurable workflow
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"
