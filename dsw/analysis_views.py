@@ -264,24 +264,37 @@ def upload_data(request):
 
     f = request.FILES["file"]
     data_id = f"data_{uuid.uuid4().hex[:8]}"
+    fname = (f.name or "").lower()
 
     # Save to user's analysis_data directory
     data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
     data_dir.mkdir(parents=True, exist_ok=True)
     dest = data_dir / f"{data_id}.csv"
 
-    with open(dest, "wb") as out:
-        for chunk in f.chunks():
-            out.write(chunk)
-
-    # Read back to get column info
+    # Read file based on type
     try:
-        df = _read_csv_safe(dest)
+        if fname.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(io.BytesIO(f.read()))
+            # Save as CSV for later retrieval
+            df.to_csv(dest, index=False)
+        elif fname.endswith(".tsv"):
+            raw = f.read()
+            try:
+                df = pd.read_csv(io.BytesIO(raw), sep="\t", encoding="utf-8")
+            except UnicodeDecodeError:
+                df = pd.read_csv(io.BytesIO(raw), sep="\t", encoding="latin-1")
+            df.to_csv(dest, index=False)
+        else:
+            with open(dest, "wb") as out:
+                for chunk in f.chunks():
+                    out.write(chunk)
+            df = _read_csv_safe(dest)
+
         columns = list(df.columns)
         rows = len(df)
         preview = df.head(10).to_dict(orient="records")
     except Exception as e:
-        return JsonResponse({"error": f"Could not parse CSV: {e}"}, status=400)
+        return JsonResponse({"error": f"Could not parse file: {e}"}, status=400)
 
     # ── Persist dataset to session (if session_id provided) ──
     dataset_record_id = None

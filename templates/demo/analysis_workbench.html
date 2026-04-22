@@ -2700,6 +2700,7 @@ async function confirmUpload() {
         const resp = await fetch(ANALYSIS_API + 'upload-data/', {
             method: 'POST',
             headers: { 'X-CSRFToken': svCsrf() },
+            credentials: 'same-origin',
             body: fd,
         });
         if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || 'Upload failed'); }
