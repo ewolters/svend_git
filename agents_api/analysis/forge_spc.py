@@ -775,7 +775,7 @@ def forge_u_chart(df, config):
     from forgeviz.charts.control import from_spc_result
 
     defects, def_col = _int_col(df, config, "defects_column", "column")
-    units, units_col = _float_col(df, config, "units_column")
+    units, units_col = _float_col(df, config, "units_column", "sample_size_column")
 
     min_len = min(len(defects), len(units))
     defects = defects[:min_len]
@@ -1734,7 +1734,7 @@ def _laney_chart(df, config, chart_type):
         expected_std = [math.sqrt(p_bar * (1 - p_bar) / s) if s > 0 else 0 for s in sample_sizes]
     else:
         defects, def_col = _int_col(df, config, "defects_column", "column")
-        units, u_col = _float_col(df, config, "units_column")
+        units, u_col = _float_col(df, config, "units_column", "sample_size_column")
         proportions = [d / u if u > 0 else 0 for d, u in zip(defects, units)]
         u_bar = sum(defects) / sum(units)
         expected_std = [math.sqrt(u_bar / u) if u > 0 else 0 for u in units]

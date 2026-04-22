@@ -231,8 +231,12 @@ def run_bayes_ab(df, config, ci_level, z):
     n2 = len(df[df[group_col] == g2])
 
     # Posterior Beta distributions
-    a1, b1 = a_prior + s1, b_prior + n1 - s1
-    a2, b2 = a_prior + s2, b_prior + n2 - s2
+    a1, b1 = a_prior + s1, b_prior + max(0, n1 - s1)
+    a2, b2 = a_prior + s2, b_prior + max(0, n2 - s2)
+
+    # Ensure valid Beta parameters
+    a1, b1 = max(a1, 0.01), max(b1, 0.01)
+    a2, b2 = max(a2, 0.01), max(b2, 0.01)
 
     # Monte Carlo estimation of P(p1 > p2)
     samples1 = np.random.beta(a1, b1, 10000)
