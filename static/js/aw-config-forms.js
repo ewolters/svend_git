@@ -1,16 +1,11 @@
 /**
- * Generate the full config form HTML for any analysis type.
- * Ported from the canonical analysis_workbench.html (4,745 lines).
- *
- * @param {string} type - analysis type (stats, spc, bayesian, viz, etc.)
- * @param {string} id - analysis ID (ttest, imr, capability, etc.)
- * @param {Array} columns - [{name, dtype}] column metadata from active dataset
- * @returns {string} HTML for the config form
+ * Analysis config forms — ported from canonical analysis_workbench.html.
+ * Each analysis type gets a complete, detailed config form.
  */
 function generateConfigForm(type, id, columns) {
     columns = columns || [];
     const colOptions = columns.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
-    const numCols = columns.filter(c => c.dtype === 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('') || colOptions;
+    const numCols = columns.filter(c => c.dtype === 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
 
     if (type === 'stats') {
         if (id === 'descriptive') {
@@ -82,7 +77,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (id === 'anova') {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
                 <div class="aw-form-group">
                     <label>Response (measurement):</label>
@@ -103,7 +98,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (['tukey_hsd', 'games_howell', 'dunn', 'scheffe_test', 'bonferroni_test'].includes(id)) {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
                 <div class="aw-form-group">
                     <label>Response (measurement):</label>
@@ -124,7 +119,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (id === 'dunnett') {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
                 <div class="aw-form-group">
                     <label>Response (measurement):</label>
@@ -150,7 +145,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (id === 'hsu_mcb') {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
                 <div class="aw-form-group">
                     <label>Response (measurement):</label>
@@ -178,7 +173,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (['hotelling_t2', 'manova'].includes(id)) {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             const numericCols = columns.filter(c => c.dtype === 'numeric');
             const checkboxes = numericCols.map(c => `
                 <label class="aw-checkbox-item">
@@ -212,7 +207,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (id === 'anova2') {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
                 <div class="aw-form-group">
                     <label>Response (measurement):</label>
@@ -237,7 +232,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (id === 'nested_anova') {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
                 <div class="aw-form-group">
                     <label>Response (measurement):</label>
@@ -448,7 +443,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (id === 'main_effects') {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => c.name);
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => c.name);
             const factorCheckboxes = catCols.map(c => `
                 <label class="aw-checkbox-item">
                     <input type="checkbox" name="factors" value="${c}">
@@ -473,7 +468,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (id === 'interaction') {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             const catOptions = catCols || colOptions;
 
             return `
@@ -567,7 +562,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (id === 'multi_vari') {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => c.name);
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => c.name);
             const factorCheckboxes = catCols.map(c => `
                 <label class="aw-checkbox-item">
                     <input type="checkbox" name="factors" value="${c}">
@@ -1408,7 +1403,7 @@ function generateConfigForm(type, id, columns) {
     }
 
     if (type === 'ml') {
-        const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
         const numericCols = columns.filter(c => c.dtype === 'numeric');
         const featureCheckboxes = columns.map(c => `
             <label class="aw-checkbox-item">
@@ -1696,7 +1691,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (id === 'kaplan_meier') {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
                 <div class="aw-form-group">
                     <label>Time variable (time to event):</label>
@@ -1724,7 +1719,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (id === 'cox_ph') {
-            const predChecks = columns.filter(c => c.dtype === 'numeric' || c.dtype === 'text').map(c => `
+            const predChecks = columns.filter(c => c.dtype === 'numeric' || c.dtype !== 'numeric').map(c => `
                 <label class="aw-checkbox-item"><input type="checkbox" name="covariates" value="${c.name}"><span>${c.name}</span></label>
             `).join('');
             return `
@@ -1763,7 +1758,7 @@ function generateConfigForm(type, id, columns) {
             const predChecks = columns.filter(c => c.dtype === 'numeric').map(c => `
                 <label class="aw-checkbox-item"><input type="checkbox" name="predictors" value="${c.name}"><span>${c.name}</span></label>
             `).join('');
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
                 <div class="aw-form-group">
                     <label>Group variable (target):</label>
@@ -2365,7 +2360,7 @@ function generateConfigForm(type, id, columns) {
 
     // Bayesian Inference section - feeds Synara
     if (type === 'bayesian') {
-        const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
         const numericCols = columns.filter(c => c.dtype === 'numeric');
         const numericFeatureCheckboxes = numericCols.map(c => `
             <label class="aw-checkbox-item">
@@ -2883,7 +2878,7 @@ function generateConfigForm(type, id, columns) {
             `;
         }
         if (id === 'pareto') {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
                 <div class="aw-form-group">
                     <label>Category column:</label>
@@ -3025,7 +3020,7 @@ function generateConfigForm(type, id, columns) {
 
     // --- ANOVA extensions ---
     if (id === 'split_plot_anova') {
-        const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
         return `
             <div class="aw-form-group">
                 <label>Response:</label>
@@ -3046,7 +3041,7 @@ function generateConfigForm(type, id, columns) {
         `;
     }
     if (id === 'repeated_measures_anova') {
-        const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
         return `
             <div class="aw-form-group">
                 <label>Response:</label>
@@ -3067,7 +3062,7 @@ function generateConfigForm(type, id, columns) {
         `;
     }
     if (id === 'anom') {
-        const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
         return `
             <div class="aw-form-group">
                 <label>Response:</label>
@@ -3088,7 +3083,7 @@ function generateConfigForm(type, id, columns) {
         `;
     }
     if (id === 'glm') {
-        const catCols = columns.filter(c => c.dtype === 'text');
+        const catCols = columns.filter(c => c.dtype !== 'numeric');
         const catCheckboxes = catCols.map(c => `
             <label class="aw-checkbox-item"><input type="checkbox" name="fixed_factors" value="${c.name}"><span>${c.name}</span></label>
         `).join('') || '<span style="color:#7a8f7a;">No categorical columns</span>';
@@ -3289,7 +3284,7 @@ function generateConfigForm(type, id, columns) {
 
     // --- MSA extension ---
     if (id === 'gage_rr_expanded') {
-        const catCols = columns.filter(c => c.dtype === 'text');
+        const catCols = columns.filter(c => c.dtype !== 'numeric');
         const factorCheckboxes = catCols.map(c => `
             <label class="aw-checkbox-item"><input type="checkbox" name="factors" value="${c.name}"><span>${c.name}</span></label>
         `).join('') || '<span style="color:#7a8f7a;">No categorical columns</span>';
@@ -3591,7 +3586,7 @@ function generateConfigForm(type, id, columns) {
         `;
     }
     if (id === 'correspondence_analysis') {
-        const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        const catCols = columns.filter(c => c.dtype !== 'numeric').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
         return `
             <div class="aw-form-group">
                 <label>Row variable:</label>
@@ -4367,430 +4362,49 @@ function generateConfigForm(type, id, columns) {
     return '<p style="color:#9aaa9a;font-size:11px;">Configure analysis options.</p>';
 }
 
-async function executeAnalysis() {
-    const noDataTypes = ['simulation', 'bayesian', 'siop', 'doe'];
-    if (!currentAnalysis || (!currentData && !noDataTypes.includes(currentAnalysis.type))) {
-        alert('Please load data first');
-        return;
-    }
-
-    // Save form values before closing dialog (for "remember last config")
-    try {
-        const savedVals = {};
-        document.querySelectorAll('#config-dialog-body input[id], #config-dialog-body select').forEach(el => {
-            if (el.id) savedVals[el.id] = el.type === 'checkbox' ? el.checked : el.value;
-        });
-        localStorage.setItem('awLastConfig_' + currentAnalysis.id, JSON.stringify(savedVals));
-    } catch (e) { /* ignore quota errors */ }
-
-    closeDialog('config-dialog');
-
-    const config = {};
-
-    // Collect from inputs and selects with IDs
-    document.querySelectorAll('#config-dialog-body input[id], #config-dialog-body select').forEach(el => {
-        const key = el.id.replace('cfg-', '');
-        if (el.multiple) {
-            config[key] = Array.from(el.selectedOptions).map(o => o.value);
-        } else if (el.type === 'checkbox' && el.id) {
-            config[key] = el.checked;
-        } else if (el.type !== 'checkbox') {
-            config[key] = el.value;
-        }
-    });
-
-    // Collect checkboxes by name (for predictors, features, etc.)
-    const checkboxGroups = {};
-    document.querySelectorAll('#config-dialog-body input[type="checkbox"]:checked').forEach(cb => {
-        const name = cb.name;
-        if (!checkboxGroups[name]) checkboxGroups[name] = [];
-        checkboxGroups[name].push(cb.value);
-    });
-    Object.assign(config, checkboxGroups);
-
-    // Collect plan rows for multiple_plan_comparison
-    if (currentAnalysis.id === 'multiple_plan_comparison') {
-        const plans = [];
-        document.querySelectorAll('#plan-rows .aw-form-row').forEach(row => {
-            const name = row.querySelector('.plan-name')?.value || 'Plan';
-            const n = parseInt(row.querySelector('.plan-n')?.value) || 50;
-            const c = parseInt(row.querySelector('.plan-c')?.value) || 2;
-            plans.push({ name, n, sample_size: n, c, accept_number: c, type: 'single' });
-        });
-        config.plans = plans;
-    }
-
-    const menu = analysisMenus[currentAnalysis.type];
-    const item = menu?.items.find(i => i.id === currentAnalysis.id);
-
-    // Add separator before new analysis
-    appendSession('separator');
-    appendSession('cmd', item?.name || currentAnalysis.id);
-
-    // Handle checkbox for new_tab
-    const newTabCheckbox = document.getElementById('cfg-new_tab');
-    config.new_tab = newTabCheckbox ? newTabCheckbox.checked : false;
-
-    try {
-        // Data tools use a different endpoint
-        if (currentAnalysis.type === 'tools') {
-            await executeDataTool(currentAnalysis.id, config, item?.name);
-            return;
-        }
-
-        // === Type remapping ===
-        // Menu types (robust, doe, prepare) bundle analyses from multiple backend types.
-        // Remap to the correct backend analysis_type before POSTing.
-        const _TYPE_REMAP = {
-            // robust menu → backend types
-            'd_chart': 'd_type', 'd_cpk': 'd_type', 'd_nonnorm': 'd_type',
-            'd_equiv': 'd_type', 'd_sig': 'd_type', 'd_multi': 'd_type',
-            'pbs_full': 'pbs', 'pbs_belief': 'pbs', 'pbs_evidence': 'pbs',
-            'pbs_edetector': 'pbs', 'pbs_adaptive': 'pbs', 'pbs_predictive': 'pbs',
-            'pbs_cpk': 'pbs', 'pbs_cpk_traj': 'pbs', 'pbs_health': 'pbs',
-            'conformal_control': 'spc', 'conformal_monitor': 'spc',
-            'drift': 'drift',
-            'anytime_ab': 'anytime', 'anytime_onesample': 'anytime',
-            'causal_pc': 'causal', 'causal_lingam': 'causal',
-            'ishap': 'ishap',
-            'taguchi': 'quality_econ', 'process_decision': 'quality_econ',
-            'lot_sentencing': 'quality_econ', 'cost_of_quality': 'quality_econ',
-            // bayesian menu → reroute items that live in other backend types
-            'bayes_spc_capability': 'viz', 'bayes_spc_changepoint': 'viz',
-            'bayes_spc_control': 'viz', 'bayes_spc_acceptance': 'viz',
-            'bayes_msa': 'bayes_msa',
-            // prepare menu → stats backend (with ID normalization)
-            'auto_profile': 'stats', 'graphical_summary': 'stats', 'run_chart': 'stats',
-            'missing': 'stats', 'duplicates': 'stats', 'outliers': 'stats',
-            'encode': 'stats', 'scale': 'stats', 'bin': 'stats',
-            'meta_analysis': 'stats', 'effect_size': 'stats',
-        };
-        // Normalize analysis IDs that differ between menu and backend
-        const _ID_REMAP = {
-            'missing': 'missing_data_analysis',
-            'duplicates': 'duplicate_analysis',
-            'outliers': 'outlier_analysis',
-            'effect_size': 'effect_size_calculator',
-            'taguchi': 'taguchi_loss',
-            'drift': 'drift_report',
-            // bayesian menu IDs → backend registry IDs
-            'bayes_cpk_predict': 'bayes_capability_prediction',
-            'bayes_reliability_demo': 'bayes_demo',
-            'bayes_system_reliability': 'bayes_system',
-            'bayes_competing_risks': 'bayes_comprisk',
-        };
-
-        let backendType = currentAnalysis.type;
-        let backendId = currentAnalysis.id;
-
-        // Apply remaps for menu types that don't match backend types
-        if (['robust', 'prepare', 'bayesian'].includes(backendType)) {
-            backendType = _TYPE_REMAP[backendId] || backendType;
-        }
-        if (_ID_REMAP[backendId]) {
-            backendId = _ID_REMAP[backendId];
-        }
-
-        // DOE: design creation uses /api/experimenter/design/, analysis uses /api/experimenter/analyze/
-        const _DOE_DESIGNS = ['full_factorial', 'fractional_factorial', 'plackett_burman',
-            'ccd', 'taguchi_design', 'latin_square', 'd_optimal'];
-        if (currentAnalysis.type === 'doe') {
-            if (_DOE_DESIGNS.includes(currentAnalysis.id)) {
-                await executeDOEDesign(currentAnalysis.id, config, item?.name);
-                return;
-            } else if (currentAnalysis.id === 'power') {
-                await executeDOEPower(config, item?.name);
-                return;
-            } else if (['main_effects', 'interaction', 'doe_contour', 'doe_optimize'].includes(currentAnalysis.id)) {
-                await executeDOEAnalysis(currentAnalysis.id, config, item?.name);
-                return;
-            }
-        }
-
-        // Triage uses its own endpoint
-        if (backendId === 'triage') {
-            window.location.href = '/app/triage/';
-            return;
-        }
-
-        const response = await fetch('/api/analysis/run/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken()
-            },
-            body: JSON.stringify({
-                type: backendType,
-                analysis: backendId,
-                config: config,
-                data_id: currentData?.id,
-                notebook_id: currentNotebook || undefined,
-                trial_id: currentTrial || undefined,
-                save_result: !!currentNotebook,
-            })
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(safeStr(result.error, 'Analysis failed'));
-        }
-
-        // Store for Excel export
-        lastAnalysisResult = {
-            analysis_type: backendType,
-            analysis_id: backendId,
-            config: config,
-            summary: result.summary || '',
-            statistics: result.statistics || {},
-            plots: result.plots || [],
-        };
-
-        if (result.summary) {
-            const session = document.getElementById('session-output');
-            const wrapper = document.createElement('div');
-            wrapper.style.position = 'relative';
-
-            const div = document.createElement('div');
-            div.className = 'result';
-
-            // Check if summary has color tags
-            if (result.summary.includes('<<COLOR:')) {
-                const formatted = formatColoredOutput(result.summary);
-                div.style.fontFamily = "'JetBrains Mono', 'Consolas', monospace";
-                div.style.whiteSpace = 'pre';
-                div.style.lineHeight = '1.4';
-                div.innerHTML = formatted;
-            } else if (result.summary.includes('<') || result.summary.includes('&')) {
-                // Summary contains HTML markup (e.g., <strong>, &mdash;)
-                div.innerHTML = result.summary;
-            } else {
-                div.textContent = result.summary;
-            }
-
-            // Copy button
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'aw-copy-btn';
-            copyBtn.textContent = 'Copy';
-            copyBtn.title = 'Copy to clipboard';
-            copyBtn.onclick = () => {
-                const plain = result.summary.replace(/<<COLOR:\w+>>/g, '').replace(/<<\/COLOR>>/g, '');
-                navigator.clipboard.writeText(plain).then(() => {
-                    copyBtn.textContent = 'Copied';
-                    setTimeout(() => copyBtn.textContent = 'Copy', 1500);
-                });
-            };
-
-            // Excel export button
-            const xlsBtn = document.createElement('button');
-            xlsBtn.className = 'aw-copy-btn';
-            xlsBtn.style.right = '52px';
-            xlsBtn.textContent = 'Excel';
-            xlsBtn.title = 'Download as .xlsx';
-            xlsBtn.onclick = () => {
-                if (!lastAnalysisResult) return;
-                xlsBtn.textContent = '...';
-                fetch('/api/analysis/export/xlsx/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-                    body: JSON.stringify(lastAnalysisResult),
-                }).then(r => {
-                    if (!r.ok) throw new Error('Export failed');
-                    return r.blob();
-                }).then(blob => {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `svend_${lastAnalysisResult.analysis_id || 'analysis'}.xlsx`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    xlsBtn.textContent = 'Excel';
-                }).catch(() => { xlsBtn.textContent = 'Failed'; setTimeout(() => { xlsBtn.textContent = 'Excel'; }, 1500); });
-            };
-
-            wrapper.appendChild(xlsBtn);
-            wrapper.appendChild(copyBtn);
-            wrapper.appendChild(div);
-            session.appendChild(wrapper);
-            session.scrollTop = session.scrollHeight;
-        }
-
-        if (result.plots && result.plots.length > 0) {
-            displayGraphs(result.plots);
-        }
-
-        // Show save model button if model can be saved
-        if (result.can_save && result.model_key) {
-            showSaveModelButton(result.model_key, item?.name || currentAnalysis.id);
-        }
-
-        // Show Synara integration for Bayesian weights (only if project selected)
-        if (result.synara_weights && currentProject) {
-            const sw = result.synara_weights;
-            showSynaraIntegration(sw.coefficients, sw.coefficients.map(c => c.feature), sw.target);
-        }
-
-        // Show statistics evidence UI (only if project selected)
-        if (currentProject) {
-            const stats = extractStatistics(result, currentAnalysis.id);
-            // Also add explicit statistics from result
-            if (result.statistics) {
-                for (const [name, value] of Object.entries(result.statistics)) {
-                    if (typeof value === 'number' && !stats.find(s => s.name === name)) {
-                        stats.push({ name, value, variable: '' });
-                    } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                        // Flatten nested dicts (e.g. group_means, group_stds)
-                        for (const [subKey, subVal] of Object.entries(value)) {
-                            if (typeof subVal === 'number') {
-                                const flatName = `${name}.${subKey}`;
-                                if (!stats.find(s => s.name === flatName)) {
-                                    stats.push({ name: flatName, value: subVal, variable: '' });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if (stats.length > 0) {
-                showStatisticsEvidence(stats);
-            }
-        }
-
-        // DSW enrichment blocks (INIT-009 / E9-004)
-        renderDSWBlocks(result);
-
-        addToHistory(currentAnalysis, item?.name, result.summary || '', result.plots || []);
-
-        // Next steps suggestions
-        showNextSteps(currentAnalysis.id, currentAnalysis.type);
-
-        // Bayesian comparison for Gage R&R
-        if (currentAnalysis.id === 'gage_rr' && config.compare_bayesian) {
-            await runBayesianGRRComparison(config, result);
-        }
-
-        // Save to Measurement System button for GRR results
-        if (['gage_rr', 'bayes_msa'].includes(currentAnalysis.id) && result.statistics) {
-            showSaveMeasurementSystem(result);
-        }
-
-    } catch (err) {
-        appendSession('error', `Error: ${safeStr(err, 'Unknown error')}`);
-    }
-}
-
-// ── Bayesian GRR Comparison ──────────────────────────────────────────────
-
-async function runBayesianGRRComparison(config, anovaResult) {
-    appendSession('separator');
-    appendSession('cmd', 'Bayesian Gage R&R (Comparison)');
-
-    try {
-        const bayesConfig = {
-            measurement: config.measurement,
-            part: config.part,
-            operator: config.operator,
-        };
-
-        const response = await svendFetch('/api/analysis/run/', {
-            method: 'POST',
-            body: JSON.stringify({
-                type: 'bayes_msa',
-                analysis: 'bayes_msa',
-                config: bayesConfig,
-                data_id: currentData?.id,
-            }),
-        });
-
-        if (response.summary) {
-            const session = document.getElementById('session-output');
-            const div = document.createElement('div');
-            div.className = 'result';
-            if (response.summary.includes('<') || response.summary.includes('&')) {
-                div.innerHTML = response.summary;
-            } else {
-                div.textContent = response.summary;
-            }
-            session.appendChild(div);
-            session.scrollTop = session.scrollHeight;
-        }
-
-        if (response.plots && response.plots.length > 0) {
-            displayGraphs(response.plots);
-        }
-
-        // Comparison summary
-        if (anovaResult.statistics && response.statistics) {
-            const anova_grr = anovaResult.statistics.grr_percent || anovaResult.statistics.pct_grr;
-            const bayes_grr = response.statistics.pct_grr_mean;
-            const p_lt_10 = response.statistics.p_grr_lt_10;
-            const p_lt_30 = response.statistics.p_grr_lt_30;
-
-            if (anova_grr != null && bayes_grr != null) {
-                let html = `<div style="background:rgba(74,159,110,0.08);border:1px solid rgba(74,159,110,0.2);border-radius:6px;padding:12px;margin-top:8px;font-size:12px;">`;
-                html += `<strong style="color:var(--aw-accent);">Method Comparison</strong><br>`;
-                html += `ANOVA %GRR: <strong>${Number(anova_grr).toFixed(1)}%</strong> (point estimate)<br>`;
-                html += `Bayesian %GRR: <strong>${Number(bayes_grr).toFixed(1)}%</strong>`;
-                if (response.statistics.pct_grr_ci) {
-                    const ci = response.statistics.pct_grr_ci;
-                    html += ` [${Number(ci[0]).toFixed(1)}%, ${Number(ci[1]).toFixed(1)}%]`;
-                }
-                html += `<br>`;
-                if (p_lt_10 != null) html += `P(%GRR &lt; 10%): <strong>${(p_lt_10 * 100).toFixed(0)}%</strong> &mdash; `;
-                if (p_lt_30 != null) html += `P(%GRR &lt; 30%): <strong>${(p_lt_30 * 100).toFixed(0)}%</strong>`;
-                html += `</div>`;
-
-                const session = document.getElementById('session-output');
-                const wrap = document.createElement('div');
-                wrap.innerHTML = html;
-                session.appendChild(wrap);
-            }
-        }
-    } catch (err) {
-        appendSession('error', `Bayesian comparison failed: ${safeStr(err, 'Unknown error')}`);
-    }
-}
-
-// ── Save to Measurement System ──────────────────────────────────────────
-
-
-// ── Config value collection (from original executeAnalysis) ──
+/**
+ * Collect all config values from cfg-* form fields.
+ * Generic — reads whatever generateConfigForm created.
+ */
 function collectConfigValues() {
-    const config = {};
-    document.querySelectorAll('#config-pane input[id], #config-pane select').forEach(el => {
-        const key = el.id.replace('cfg-', '');
+    var config = {};
+    document.querySelectorAll('#config-pane input[id], #config-pane select').forEach(function(el) {
+        var key = el.id.replace('cfg-', '');
         if (el.multiple) {
-            config[key] = Array.from(el.selectedOptions).map(o => o.value);
+            config[key] = Array.from(el.selectedOptions).map(function(o) { return o.value; });
         } else if (el.type === 'checkbox' && el.id) {
             config[key] = el.checked;
-        } else if (el.type !== 'checkbox') {
+        } else if (el.type !== 'checkbox' && el.value !== '') {
             config[key] = el.value;
         }
     });
-    // Collect checkboxes by name (predictors, features, etc.)
-    document.querySelectorAll('#config-pane input[type="checkbox"]:checked').forEach(cb => {
-        const name = cb.name;
-        if (!name) return;
-        if (!config[name]) config[name] = [];
-        config[name].push(cb.value);
+    // Collect named checkbox groups (predictors, features, vars)
+    var groups = {};
+    document.querySelectorAll('#config-pane input[type="checkbox"]:checked').forEach(function(cb) {
+        if (!cb.name) return;
+        if (!groups[cb.name]) groups[cb.name] = [];
+        groups[cb.name].push(cb.value);
     });
+    Object.assign(config, groups);
     // Plan rows for multiple_plan_comparison
-    const planRows = document.querySelectorAll('#plan-rows .aw-form-row');
+    var planRows = document.querySelectorAll('#plan-rows .aw-form-row');
     if (planRows.length) {
         config.plans = [];
-        planRows.forEach(row => {
-            const name = row.querySelector('.plan-name')?.value || 'Plan';
-            const n = parseInt(row.querySelector('.plan-n')?.value) || 50;
-            const c = parseInt(row.querySelector('.plan-c')?.value) || 2;
-            config.plans.push({ name, n, sample_size: n, c, accept_number: c, type: 'single' });
+        planRows.forEach(function(row) {
+            var name = (row.querySelector('.plan-name') || {}).value || 'Plan';
+            var n = parseInt((row.querySelector('.plan-n') || {}).value) || 50;
+            var c = parseInt((row.querySelector('.plan-c') || {}).value) || 2;
+            config.plans.push({ name: name, n: n, sample_size: n, c: c, accept_number: c, type: 'single' });
         });
     }
     return config;
 }
 
-// ── Smart column auto-select ──
+/**
+ * Smart column auto-select by name pattern.
+ */
 function autoSelectColumns(columns) {
-    const hints = {
+    var hints = {
         'cfg-response': /response|y|output|result|measure|value|yield|strength|weight/i,
         'cfg-var': /response|y|value|measure|result|data|output|yield/i,
         'cfg-var1': /x|before|method.?1|sample.?1|reference/i,
@@ -4810,10 +4424,11 @@ function autoSelectColumns(columns) {
         'cfg-units': /units|area|length|sample/i,
         'cfg-time_column': /time|date|period|sequence|order/i,
     };
-    document.querySelectorAll('#config-pane select[id]').forEach(sel => {
-        const pattern = hints[sel.id];
+    var colNames = (columns || []).map(function(c) { return typeof c === 'string' ? c : c.name; });
+    document.querySelectorAll('#config-pane select[id]').forEach(function(sel) {
+        var pattern = hints[sel.id];
         if (!pattern) return;
-        const match = Array.from(sel.options).find(o => pattern.test(o.value));
+        var match = Array.from(sel.options).find(function(o) { return pattern.test(o.value); });
         if (match) sel.value = match.value;
     });
 }
