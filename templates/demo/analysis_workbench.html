@@ -875,6 +875,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/aw-config-forms.js"></script>
 <script>
 /* ============================================================================
    ANALYSIS WORKBENCH — Object 271
@@ -1254,259 +1255,29 @@ function selectAnalysis(el) {
 function renderConfigPane() {
     if (!currentAnalysis) return;
     const pane = document.getElementById('config-pane');
-    const cols = currentDataColumns;
-    const colOpts = cols.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
-    const multiCheck = cols.map(c => `<label><input type="checkbox" value="${esc(c)}">${esc(c)}</label>`).join('');
 
-    let html = '<div class="aw-config-body">';
+    // Build column metadata for generateConfigForm
+    const activeDs = sessionDatasets[activeDatasetIndex] || {};
+    const colMeta = (activeDs.columns_meta || currentDataColumns.map(c => ({name: c, dtype: 'numeric'})));
 
-    // Build fields based on analysis type
-    const id = currentAnalysis.id;
+    // Use the full config form from aw-config-forms.js (ported from canonical workbench)
+    const html = generateConfigForm(currentAnalysis.type, currentAnalysis.id, colMeta);
+    pane.innerHTML = '<div class="aw-config-body">' + html + '</div>';
 
-    const col2Opts = cols.length > 1 ? cols.map((c,i) => `<option value="${esc(c)}" ${i===1?'selected':''}>${esc(c)}</option>`).join('') : colOpts;
-    const col3Opts = cols.length > 2 ? cols.map((c,i) => `<option value="${esc(c)}" ${i===2?'selected':''}>${esc(c)}</option>`).join('') : colOpts;
-    const t = currentAnalysis.type;
-
-    // ── Single column + test value ──
-    if (['ttest','normality','descriptive','outlier_analysis','bootstrap_ci','box_cox','distribution_fit',
-         'graphical_summary','data_profile','auto_profile','grubbs_test','johnson_transform',
-         'tolerance_interval','effect_size_calculator','run_chart','sign_test','runs_test',
-         'poisson_1sample','d_sig','d_cpk','d_nonnorm','d_chart','d_equiv','d_multi'].includes(id)) {
-        html += field('Column', `<select id="cfg-column">${colOpts}</select>`);
-        if (id === 'ttest') html += field('Test Value (μ₀)', '<input type="number" id="cfg-mu" value="0" step="any">');
-        if (id === 'poisson_1sample') html += field('Exposure', '<input type="number" id="cfg-exposure" value="1" step="any">');
-        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01" min="0.001" max="0.5">');
-
-    // ── Two columns (paired) ──
-    } else if (['ttest2','paired_t','mann_whitney','wilcoxon','bland_altman','poisson_2sample'].includes(id)) {
-        html += field('Column 1', `<select id="cfg-col1">${colOpts}</select>`);
-        html += field('Column 2', `<select id="cfg-col2">${col2Opts}</select>`);
-        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01">');
-
-    // ── Response + factor (ANOVA family) ──
-    } else if (['anova','anova2','kruskal','friedman','mood_median','nested_anova',
-                'repeated_measures_anova','split_plot_anova','anom','variance_components',
-                'interaction','main_effects'].includes(id)) {
-        html += field('Response', `<select id="cfg-response">${colOpts}</select>`);
-        html += field('Factor', `<select id="cfg-factor">${col2Opts}</select>`);
-        if (['anova2','interaction','main_effects','split_plot_anova'].includes(id))
-            html += field('Factor 2', `<select id="cfg-factor2">${col3Opts}</select>`);
-        if (['friedman','repeated_measures_anova'].includes(id))
-            html += field('Subject/Block', `<select id="cfg-subject">${col3Opts}</select>`);
-        if (['nested_anova'].includes(id))
-            html += field('Nested Factor', `<select id="cfg-nested">${col3Opts}</select>`);
-        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01">');
-
-    // ── Regression family ──
-    } else if (['regression','logistic','robust_regression','stepwise','best_subsets','glm',
-                'poisson_regression','nonlinear_regression','ordinal_logistic','nominal_logistic',
-                'orthogonal_regression','cox_ph'].includes(id)) {
-        html += field('Response (Y)', `<select id="cfg-response">${colOpts}</select>`);
-        html += field('Predictors (X)', `<div class="aw-field-checkboxes" id="cfg-predictors">${multiCheck}</div>`);
-        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01">');
-
-    // ── Correlation / two-variable ──
-    } else if (['correlation','spearman','chi2','fisher_exact','f_test'].includes(id)) {
-        html += field('Variable 1', `<select id="cfg-col1">${colOpts}</select>`);
-        html += field('Variable 2', `<select id="cfg-col2">${col2Opts}</select>`);
-        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01">');
-
-    // ── Post-hoc (response + group) ──
-    } else if (['tukey_hsd','dunnett','games_howell','dunn','scheffe_test','bonferroni_test','hsu_mcb'].includes(id)) {
-        html += field('Response', `<select id="cfg-response">${colOpts}</select>`);
-        html += field('Group', `<select id="cfg-factor">${col2Opts}</select>`);
-        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01">');
-
-    // ── SPC control charts ──
-    } else if (['imr','xbar_r','xbar_s','cusum','ewma','moving_average','zone_chart'].includes(id)) {
-        html += field('Data Column', `<select id="cfg-column">${colOpts}</select>`);
-        if (['xbar_r','xbar_s'].includes(id)) html += field('Subgroup Size', '<input type="number" id="cfg-subgroup" value="5" min="2" max="25">');
-        if (['cusum'].includes(id)) html += field('Target', '<input type="number" id="cfg-target" step="any">');
-
-    // ── SPC attribute charts ──
-    } else if (['p_chart','np_chart','laney_p'].includes(id)) {
-        html += field('Defectives Column', `<select id="cfg-defectives">${colOpts}</select>`);
-        html += field('Sample Size Column', `<select id="cfg-samplesize">${col2Opts}</select>`);
-    } else if (['c_chart','u_chart','laney_u'].includes(id)) {
-        html += field('Defects Column', `<select id="cfg-defects">${colOpts}</select>`);
-        if (['u_chart','laney_u'].includes(id)) html += field('Sample Size Column', `<select id="cfg-samplesize">${col2Opts}</select>`);
-
-    // ── SPC multivariate ──
-    } else if (['mewma','generalized_variance','hotelling_t2','manova'].includes(id)) {
-        html += field('Columns', `<div class="aw-field-checkboxes" id="cfg-predictors">${multiCheck}</div>`);
-
-    // ── Capability ──
-    } else if (['capability','nonnormal_capability','capability_sixpack','attribute_capability',
-                'between_within','degradation_capability','nonnormal_capability_np'].includes(id)) {
-        html += field('Data Column', `<select id="cfg-column">${colOpts}</select>`);
-        html += field('LSL', '<input type="number" id="cfg-lsl" step="any">');
-        html += field('USL', '<input type="number" id="cfg-usl" step="any">');
-        html += field('Target', '<input type="number" id="cfg-target" step="any">');
-        if (['capability','capability_sixpack'].includes(id)) html += field('Subgroup Size', '<input type="number" id="cfg-subgroup" value="5" min="2">');
-
-    // ── MSA / Gage R&R ──
-    } else if (['gage_rr','gage_rr_nested','gage_rr_expanded','attribute_agreement','attribute_gage',
-                'gage_type1','gage_linearity_bias'].includes(id)) {
-        html += field('Measurement', `<select id="cfg-measurement">${colOpts}</select>`);
-        html += field('Part', `<select id="cfg-part">${col2Opts}</select>`);
-        html += field('Operator', `<select id="cfg-operator">${col3Opts}</select>`);
-
-    // ── MSA agreement ──
-    } else if (['icc','krippendorff_alpha','multi_vari'].includes(id)) {
-        html += field('Columns', `<div class="aw-field-checkboxes" id="cfg-predictors">${multiCheck}</div>`);
-
-    // ── Proportions ──
-    } else if (['prop_1sample','prop_2sample'].includes(id)) {
-        html += field('Successes', '<input type="number" id="cfg-successes" value="40">');
-        html += field('Trials (n)', '<input type="number" id="cfg-trials" value="50">');
-        html += field('H₀ Proportion', '<input type="number" id="cfg-p0" value="0.5" step="0.01">');
-        if (id === 'prop_2sample') {
-            html += field('Successes 2', '<input type="number" id="cfg-successes2" value="35">');
-            html += field('Trials 2 (n₂)', '<input type="number" id="cfg-trials2" value="50">');
-        }
-
-    // ── Power & sample size ──
-    } else if (['power_z','power_equivalence','power_1prop','power_2prop',
-                'power_1variance','power_2variance','power_doe','sample_size_ci','sample_size_tolerance'].includes(id)) {
-        html += field('Effect Size', '<input type="number" id="cfg-effect" value="0.5" step="0.1">');
-        html += field('Power', '<input type="number" id="cfg-power" value="0.8" step="0.05">');
-        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01">');
-        if (id === 'sample_size_ci') html += field('Std Dev', '<input type="number" id="cfg-std" value="1" step="any">');
-
-    // ── Time series ──
-    } else if (['decomposition','arima','sarima','acf_pacf','ccf','granger','changepoint'].includes(id)) {
-        html += field('Data Column', `<select id="cfg-column">${colOpts}</select>`);
-        if (id === 'ccf') html += field('Column 2', `<select id="cfg-col2">${col2Opts}</select>`);
-
-    // ── Reliability ──
-    } else if (t === 'reliability') {
-        html += field('Time/Value Column', `<select id="cfg-column">${colOpts}</select>`);
-        html += field('Event Column', `<select id="cfg-event">${col2Opts}</select>`);
-        if (['accelerated_life'].includes(id)) html += field('Stress Column', `<select id="cfg-stress">${col3Opts}</select>`);
-
-    // ── Bayesian ──
-    } else if (t === 'bayesian') {
-        html += field('Column', `<select id="cfg-column">${colOpts}</select>`);
-        if (['bayes_ttest','bayes_equivalence'].includes(id)) html += field('Test Value', '<input type="number" id="cfg-mu" value="0" step="any">');
-        if (['bayes_anova','bayes_ab'].includes(id)) html += field('Group', `<select id="cfg-factor">${col2Opts}</select>`);
-        if (['bayes_regression','bayes_logistic'].includes(id)) html += field('Predictors', `<div class="aw-field-checkboxes" id="cfg-predictors">${multiCheck}</div>`);
-        if (['bayes_proportion'].includes(id)) {
-            html += field('Successes', '<input type="number" id="cfg-successes" value="40">');
-            html += field('Trials', '<input type="number" id="cfg-trials" value="50">');
-        }
-        if (['bayes_capability_prediction','bayes_changepoint','bayes_ewma'].includes(id)) {
-            html += field('USL', '<input type="number" id="cfg-usl" step="any">');
-            html += field('LSL', '<input type="number" id="cfg-lsl" step="any">');
-        }
-
-    // ── PBS ──
-    } else if (t === 'pbs') {
-        html += field('Column', `<select id="cfg-column">${colOpts}</select>`);
-        html += field('Target', '<input type="number" id="cfg-target" step="any">');
-        html += field('USL', '<input type="number" id="cfg-usl" step="any">');
-        html += field('LSL', '<input type="number" id="cfg-lsl" step="any">');
-
-    // ── Acceptance sampling ──
-    } else if (['acceptance_sampling','variable_acceptance_sampling','multiple_plan_comparison'].includes(id)) {
-        html += field('Lot Size', '<input type="number" id="cfg-lotsize" value="1000">');
-        html += field('AQL', '<input type="number" id="cfg-aql" value="0.01" step="0.001">');
-        html += field('LTPD', '<input type="number" id="cfg-ltpd" value="0.05" step="0.01">');
-
-    // ── SIOP ──
-    } else if (t === 'siop') {
-        html += field('Column', `<select id="cfg-column">${colOpts}</select>`);
-
-    // ── Visualization ──
-    } else if (t === 'viz') {
-        if (['scatter','bubble','contour','surface_3d','contour_overlay'].includes(id)) {
-            html += field('X Column', `<select id="cfg-col1">${colOpts}</select>`);
-            html += field('Y Column', `<select id="cfg-col2">${col2Opts}</select>`);
-            if (['contour','surface_3d','contour_overlay'].includes(id)) html += field('Z Column', `<select id="cfg-col3">${col3Opts}</select>`);
-            if (id === 'bubble') html += field('Size Column', `<select id="cfg-size">${col3Opts}</select>`);
-        } else if (['matrix','parallel_coordinates'].includes(id)) {
-            html += field('Columns', `<div class="aw-field-checkboxes" id="cfg-predictors">${multiCheck}</div>`);
-            html += field('Group (optional)', `<select id="cfg-factor"><option value="">None</option>${colOpts}</select>`);
-        } else if (['mosaic'].includes(id)) {
-            html += field('Variable 1', `<select id="cfg-col1">${colOpts}</select>`);
-            html += field('Variable 2', `<select id="cfg-col2">${col2Opts}</select>`);
-        } else {
-            html += field('Column', `<select id="cfg-column">${colOpts}</select>`);
-            html += field('Group (optional)', `<select id="cfg-factor"><option value="">None</option>${colOpts}</select>`);
-        }
-
-    // ── Meta-analysis ──
-    } else if (['meta_analysis'].includes(id)) {
-        html += field('Effect Column', `<select id="cfg-col1">${colOpts}</select>`);
-        html += field('SE Column', `<select id="cfg-col2">${col2Opts}</select>`);
-
-    // ── Causal ──
-    } else if (t === 'causal') {
-        html += field('Columns', `<div class="aw-field-checkboxes" id="cfg-predictors">${multiCheck}</div>`);
-
-    // ── Default fallback ──
-    } else {
-        html += field('Column', `<select id="cfg-column">${colOpts}</select>`);
-        html += field('Group (optional)', `<select id="cfg-factor"><option value="">None</option>${colOpts}</select>`);
-        html += field('Alpha', '<input type="number" id="cfg-alpha" value="0.05" step="0.01">');
-    }
+    // Smart auto-select columns based on name patterns
+    autoSelectColumns(colMeta);
 
     if (!currentDataId) {
-        html += '<div style="margin-top:12px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11px;color:var(--text-dim);text-align:center;">Load data first</div>';
+        pane.innerHTML += '<div style="margin-top:12px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11px;color:var(--text-dim);text-align:center;">Load data first</div>';
     }
-
-    html += '</div>';
-    pane.innerHTML = html;
-}
-
-function field(label, input) {
-    return `<div class="aw-field"><label>${label}</label>${input}</div>`;
 }
 
 /* ============================================================================
-   Build Config from Pane Inputs
+   Build Config from Pane Inputs (reads all cfg- fields generically)
    ============================================================================ */
 
 function buildConfig() {
-    const cfg = {};
-    const el = id => document.getElementById(id);
-    const v = id => { const e = el(id); return e && e.value !== '' ? e.value : null; };
-    const n = id => { const e = el(id); return e && e.value !== '' ? parseFloat(e.value) : null; };
-
-    // Read every possible config field — only include non-null values
-    const fields = {
-        column: v('cfg-column'), var1: v('cfg-col1'), var2: v('cfg-col2'),
-        x: v('cfg-col1'), y: v('cfg-col2'), z: v('cfg-col3'),
-        response: v('cfg-response'), factor: v('cfg-factor'), factor2: v('cfg-factor2'),
-        group: v('cfg-factor'), subject: v('cfg-subject'), nested_factor: v('cfg-nested'),
-        within_factor: v('cfg-factor'), // repeated measures uses factor as within
-        measurement: v('cfg-measurement'), part: v('cfg-part'), operator: v('cfg-operator'),
-        event: v('cfg-event'), stress: v('cfg-col3'), size: v('cfg-size'),
-        defectives_column: v('cfg-defectives'), defects_column: v('cfg-defects'),
-        sample_size_column: v('cfg-samplesize'),
-        alpha: n('cfg-alpha'), test_value: n('cfg-mu'),
-        lsl: n('cfg-lsl'), usl: n('cfg-usl'), target: n('cfg-target'),
-        subgroup_size: n('cfg-subgroup') !== null ? parseInt(v('cfg-subgroup')) : null,
-        successes: n('cfg-successes') !== null ? parseInt(v('cfg-successes')) : null,
-        trials: n('cfg-trials') !== null ? parseInt(v('cfg-trials')) : null,
-        n: n('cfg-trials') !== null ? parseInt(v('cfg-trials')) : null,
-        p0: n('cfg-p0'),
-        successes2: n('cfg-successes2') !== null ? parseInt(v('cfg-successes2')) : null,
-        n2: n('cfg-trials2') !== null ? parseInt(v('cfg-trials2')) : null,
-        effect_size: n('cfg-effect'), power: n('cfg-power'), std: n('cfg-std'),
-        exposure: n('cfg-exposure'),
-        lot_size: n('cfg-lotsize') !== null ? parseInt(v('cfg-lotsize')) : null,
-        aql: n('cfg-aql'), ltpd: n('cfg-ltpd'),
-    };
-    for (const [k, val] of Object.entries(fields)) { if (val !== null) cfg[k] = val; }
-
-    // Multi-select columns
-    const chk = el('cfg-predictors');
-    if (chk) {
-        const cols = [...chk.querySelectorAll('input:checked')].map(cb => cb.value);
-        if (cols.length) { cfg.predictors = cols; cfg.columns = cols; }
-    }
-
-    return cfg;
+    return collectConfigValues();
 }
 
 /* ============================================================================
@@ -2698,11 +2469,9 @@ async function confirmUpload() {
         fd.append('file', pendingFile);
         if (currentSessionId) fd.append('session_id', currentSessionId);
 
-        const csrfToken = svCsrf() || (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || '';
-        const resp = await fetch(ANALYSIS_API + 'upload-data/', {
+        const resp = await fetch('/api/dsw/upload-data/', {
             method: 'POST',
-            headers: { 'X-CSRFToken': csrfToken },
-            credentials: 'same-origin',
+            headers: { 'X-CSRFToken': getCSRFToken() },
             body: fd,
         });
         if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || 'Upload failed'); }
