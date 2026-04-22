@@ -875,7 +875,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/aw-config-forms.js"></script>
+{% load static %}<script src="{% static 'js/aw-config-forms.js' %}"></script>
 <script>
 /* ============================================================================
    ANALYSIS WORKBENCH — Object 271
@@ -1886,13 +1886,10 @@ async function actionStartRCA() {
         const resp = await fetch('/api/rca/sessions/create/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': svCsrf() },
+            credentials: 'include',
             body: JSON.stringify({
                 title: 'RCA from ' + (currentAnalysis.id || 'analysis'),
-                source_analysis: {
-                    type: currentAnalysis.type,
-                    id: currentAnalysis.id,
-                    summary: currentResult.summary || '',
-                },
+                event: (currentResult.summary || currentResult.guide_observation || 'Analysis finding from ' + (currentAnalysis.id || 'workbench')).slice(0, 500),
             }),
         });
         if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.message || err.error || 'Failed to create RCA session'); }
@@ -2472,6 +2469,7 @@ async function confirmUpload() {
         const resp = await fetch('/api/dsw/upload-data/', {
             method: 'POST',
             headers: { 'X-CSRFToken': getCSRFToken() },
+            credentials: 'include',
             body: fd,
         });
         if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || 'Upload failed'); }
