@@ -200,6 +200,7 @@ SESSION_COOKIE_AGE = 28800  # 8 hours (SOC 2 CC6.1/CC6.6)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = False
+CSRF_TRUSTED_ORIGINS = ["https://svend.ai", "https://*.svend.ai"]
 X_FRAME_OPTIONS = "DENY"  # Explicit — XFrameOptionsMiddleware active (SOC 2 CC6.1)
 
 # HTTPS hardening (production only — Caddy handles TLS)
@@ -213,6 +214,10 @@ if not DEBUG:
 
 # Field-level encryption key (loaded from ~/.svend_encryption_key)
 FIELD_ENCRYPTION_KEY = config.field_encryption_key
+
+# Upload size limits (Django default is 2.5MB — workbench needs up to 50MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 
 # REST Framework
 REST_FRAMEWORK = {
