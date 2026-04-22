@@ -212,8 +212,8 @@ def run_bayes_ab(df, config, ci_level, z):
     result = {"plots": [], "summary": "", "guide_observation": ""}
 
     # Bayesian A/B test for proportions
-    group_col = config.get("group")
-    success_col = config.get("success")
+    group_col = config.get("group") or config.get("var1") or config.get("var2")
+    success_col = config.get("success") or config.get("column") or config.get("measurement")
     prior_type = config.get("prior", "uniform")
 
     prior_map = {"uniform": (1, 1), "jeffreys": (0.5, 0.5), "informed": (5, 5)}
@@ -612,6 +612,22 @@ def run_bayes_proportion(df, config, ci_level, z):
         data = df[success_col].dropna()
         successes = int(data.sum())
         n = len(data)
+
+    # Guard: insufficient data
+    if n == 0 or (successes == 0 and n == 0):
+        result["summary"] = (
+            "<<COLOR:title>>BAYESIAN PROPORTION ESTIMATION<</COLOR>>\n\n"
+            "<<COLOR:warning>>Insufficient data: no observations to estimate proportion.<</COLOR>>"
+        )
+        result["statistics"] = {"proportion": None, "ci_low": None, "ci_high": None, "n": n, "successes": successes}
+        result["guide_observation"] = "Bayesian proportion: insufficient data (n=0)."
+        result["narrative"] = _narrative(
+            "Bayesian Proportion — insufficient data",
+            "No observations available to estimate a proportion. Provide successes and trials, or a data column with values.",
+            next_steps="Supply data with at least one observation.",
+            chart_guidance="No chart available.",
+        )
+        return result
 
     # Posterior
     a_post = a_prior + successes

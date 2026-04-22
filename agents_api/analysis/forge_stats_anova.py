@@ -32,7 +32,7 @@ def forge_anova2(df, config):
     from forgestat.parametric.anova import two_way
     from forgeviz.charts.generic import multi_line
 
-    response = config.get("response") or config.get("var")
+    response = config.get("response") or config.get("column") or config.get("var")
     factor_a = config.get("factor_a")
     factor_b = config.get("factor_b")
     alpha = _alpha(config)
@@ -197,7 +197,7 @@ def forge_f_test(df, config):
     from forgeviz.charts.generic import bar
 
     var = config.get("var") or config.get("column")
-    group_var = config.get("group_var") or config.get("factor")
+    group_var = config.get("group_var") or config.get("group") or config.get("factor")
     alpha = _alpha(config)
 
     if not var or not group_var:
@@ -307,9 +307,9 @@ def forge_repeated_measures_anova(df, config):
     from forgestat.parametric.repeated_measures import repeated_measures_anova
     from forgeviz.charts.generic import multi_line
 
-    response = config.get("response") or config.get("var")
+    response = config.get("response") or config.get("column") or config.get("var")
     subject_col = config.get("subject") or config.get("subject_id")
-    within_factor = config.get("within_factor") or config.get("condition")
+    within_factor = config.get("within_factor") or config.get("within") or config.get("condition")
     alpha = _alpha(config)
 
     if not all([response, subject_col, within_factor]):
@@ -603,9 +603,9 @@ def forge_split_plot_anova(df, config):
     from forgestat.parametric.split_plot import split_plot_anova
     from forgeviz.charts.generic import multi_line
 
-    response = config.get("response") or config.get("var")
-    wp_factors = config.get("whole_plot_factors", [])
-    sp_factors = config.get("sub_plot_factors", [])
+    response = config.get("response") or config.get("column") or config.get("var")
+    wp_factors = config.get("whole_plot_factors") or config.get("whole_plot_factor", [])
+    sp_factors = config.get("sub_plot_factors") or config.get("subplot_factor", [])
     block_col = config.get("block") or config.get("whole_plot_id")
     alpha = _alpha(config)
 
@@ -749,8 +749,8 @@ def forge_dunnett(df, config):
     from forgestat.posthoc.comparisons import dunnett
     from forgeviz.charts.generic import bar
 
-    response = config.get("response") or config.get("var")
-    factor = config.get("factor") or config.get("group_var")
+    response = config.get("response") or config.get("column") or config.get("var")
+    factor = config.get("factor") or config.get("group") or config.get("group_var")
     control = config.get("control")
     alpha = _alpha(config)
 
@@ -849,8 +849,8 @@ def forge_hsu_mcb(df, config):
     """Hsu's MCB — which groups could be the best."""
     from scipy import stats as sp_stats
 
-    response = config.get("response") or config.get("var")
-    factor = config.get("factor") or config.get("group_var")
+    response = config.get("response") or config.get("column") or config.get("var")
+    factor = config.get("factor") or config.get("group") or config.get("group_var")
     alpha = _alpha(config)
     direction = config.get("direction", "max")
 
@@ -960,7 +960,7 @@ def forge_main_effects(df, config):
     """Main effects plot for DOE analysis."""
     from forgeviz.charts.generic import multi_line
 
-    response = config.get("response") or config.get("var")
+    response = config.get("response") or config.get("column") or config.get("var")
     factors = config.get("factors", [])
 
     if not response or not factors:
@@ -1049,7 +1049,7 @@ def forge_interaction(df, config):
     """Interaction plot for two factors."""
     from forgeviz.charts.generic import multi_line
 
-    response = config.get("response") or config.get("var")
+    response = config.get("response") or config.get("column") or config.get("var")
     factor1 = config.get("factor1")
     factor2 = config.get("factor2")
 
@@ -1157,3 +1157,159 @@ FORGE_ANOVA_HANDLERS = {
     "main_effects": forge_main_effects,
     "interaction": forge_interaction,
 }
+
+
+def forge_nested_anova(df, config):
+    """Nested (hierarchical) ANOVA — factor B is nested within factor A."""
+    from forgeviz.charts.generic import box
+    from scipy.stats import f as f_dist
+
+    response = config.get("response") or config.get("var")
+    factor = config.get("factor") or config.get("factor_a")
+    nested_factor = config.get("nested_factor") or config.get("factor_b")
+    alpha = _alpha(config)
+
+    if not all([response, factor, nested_factor]):
+        raise ValueError("Nested ANOVA requires response, factor, and nested_factor")
+
+    y = pd.to_numeric(df[response], errors="coerce")
+    a = df[factor].astype(str)
+    b = df[nested_factor].astype(str)
+    mask = y.notna()
+    y, a, b = y[mask].values, a[mask].values, b[mask].values
+    grand_mean = float(np.mean(y))
+    n_total = len(y)
+
+    # Between-group (factor A)
+    a_levels = sorted(set(a))
+    a_means = {lev: float(np.mean(y[a == lev])) for lev in a_levels}
+    a_counts = {lev: int(np.sum(a == lev)) for lev in a_levels}
+
+    ss_between = sum(a_counts[lev] * (a_means[lev] - grand_mean) ** 2 for lev in a_levels)
+    df_between = len(a_levels) - 1
+
+    # Within-group / nested (factor B within A)
+    ab_groups = sorted(set(zip(a, b)))
+    ab_means = {}
+    ab_counts = {}
+    for ai, bi in ab_groups:
+        mask_ab = (a == ai) & (b == bi)
+        ab_means[(ai, bi)] = float(np.mean(y[mask_ab]))
+        ab_counts[(ai, bi)] = int(np.sum(mask_ab))
+
+    ss_within = sum(ab_counts[(ai, bi)] * (ab_means[(ai, bi)] - a_means[ai]) ** 2 for ai, bi in ab_groups)
+    df_within = len(ab_groups) - len(a_levels)
+
+    # Error (residual)
+    ss_error = sum(np.sum((y[(a == ai) & (b == bi)] - ab_means[(ai, bi)]) ** 2) for ai, bi in ab_groups)
+    df_error = n_total - len(ab_groups)
+
+    # Mean squares and F statistics
+    ms_between = ss_between / df_between if df_between > 0 else 0
+    ms_within = ss_within / df_within if df_within > 0 else 0
+    ms_error = ss_error / df_error if df_error > 0 else 0
+
+    # F_between tests factor A against nested factor B(A)
+    F_between = ms_between / ms_within if ms_within > 0 else float("inf")
+    p_between = float(1 - f_dist.cdf(F_between, df_between, df_within)) if df_within > 0 else 1.0
+
+    # F_within tests nested factor B(A) against error
+    F_within = ms_within / ms_error if ms_error > 0 else float("inf")
+    p_within = float(1 - f_dist.cdf(F_within, df_within, df_error)) if df_error > 0 else 1.0
+
+    # Box plot by nested groups
+    box_labels = []
+    box_data = []
+    for ai in a_levels:
+        for ai2, bi in ab_groups:
+            if ai2 == ai:
+                vals = y[(a == ai) & (b == bi)]
+                box_labels.append(f"{ai}:{bi}")
+                box_data.append(vals.tolist())
+
+    spec = box(
+        groups=box_labels,
+        data=box_data,
+        title=f"Nested ANOVA: {response} by {factor}/{nested_factor}",
+        x_label=f"{factor} : {nested_factor}",
+        y_label=response,
+    )
+    chart = _to_chart(spec)
+
+    sig_a = "significant" if p_between < alpha else "not significant"
+    sig_b = "significant" if p_within < alpha else "not significant"
+
+    sections = [
+        (
+            "Design",
+            [
+                ("Response", response),
+                ("Factor", f"{factor} ({len(a_levels)} levels)"),
+                ("Nested factor", f"{nested_factor} ({len(ab_groups)} groups)"),
+                ("N", str(n_total)),
+            ],
+        ),
+        (
+            "ANOVA Table",
+            [
+                (factor, f"F = {F_between:.3f}, p = {_pval_str(p_between)}"),
+                (f"{nested_factor}({factor})", f"F = {F_within:.3f}, p = {_pval_str(p_within)}"),
+                ("Error", f"df = {df_error}, MS = {ms_error:.4f}"),
+            ],
+        ),
+    ]
+
+    if p_between < alpha:
+        verdict = f"{factor} effect is significant (F = {F_between:.3f}, p = {_pval_str(p_between)})"
+    elif p_within < alpha:
+        verdict = (
+            f"Nested {nested_factor}({factor}) effect is significant (F = {F_within:.3f}, p = {_pval_str(p_within)})"
+        )
+    else:
+        verdict = "No significant effects detected"
+
+    body = (
+        f"Between-group ({factor}): F({df_between},{df_within}) = {F_between:.3f}, "
+        f"p = {_pval_str(p_between)} — {sig_a}. "
+        f"Within-group ({nested_factor} nested in {factor}): F({df_within},{df_error}) = {F_within:.3f}, "
+        f"p = {_pval_str(p_within)} — {sig_b}."
+    )
+
+    return {
+        "plots": [chart],
+        "statistics": {
+            "F_between": round(F_between, 4),
+            "F_within": round(F_within, 4),
+            "p_between": p_between,
+            "p_within": p_within,
+            "df_between": df_between,
+            "df_within": df_within,
+            "df_error": df_error,
+            "ss_between": round(ss_between, 4),
+            "ss_within": round(ss_within, 4),
+            "ss_error": round(float(ss_error), 4),
+            "ms_between": round(ms_between, 4),
+            "ms_within": round(ms_within, 4),
+            "ms_error": round(ms_error, 4),
+        },
+        "assumptions": {},
+        "summary": _rich_summary("NESTED ANOVA", sections),
+        "narrative": {
+            "verdict": verdict,
+            "body": body,
+            "next_steps": (
+                "Examine the box plot to identify which nested groups drive the variation."
+                if p_within < alpha
+                else "Consider whether the nesting structure is appropriate for this design."
+            ),
+            "chart_guidance": "Box plot shows distribution within each nested group. Compare spread within vs between groups.",
+        },
+        "guide_observation": (
+            f"Nested ANOVA: {factor} F={F_between:.3f} p={_pval_str(p_between)}; "
+            f"{nested_factor}({factor}) F={F_within:.3f} p={_pval_str(p_within)}."
+        ),
+        "diagnostics": [],
+    }
+
+
+FORGE_ANOVA_HANDLERS["nested_anova"] = forge_nested_anova

@@ -119,9 +119,9 @@ def forge_cox_ph(df, config):
     """Cox proportional hazards regression via forgestat."""
     from forgestat.reliability.cox import cox_ph
 
-    time_col = config.get("time_col") or config.get("column") or config.get("var1")
-    event_col = config.get("event_col") or config.get("var2") or config.get("event")
-    covariate_cols = config.get("covariates", [])
+    time_col = config.get("time_col") or config.get("time") or config.get("column") or config.get("var1")
+    event_col = config.get("event_col") or config.get("event") or config.get("var2")
+    covariate_cols = config.get("covariates") or config.get("covariate_cols", [])
 
     if not time_col or time_col not in df.columns:
         raise ValueError(f"Time column '{time_col}' not found")

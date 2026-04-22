@@ -834,6 +834,83 @@ def forge_chi2(df, config):
     }
 
 
+def forge_fisher_exact(df, config):
+    """Fisher's exact test for 2x2 contingency tables."""
+    from forgeviz.charts.generic import bar
+    from scipy.stats import fisher_exact
+
+    col1 = config.get("column1") or config.get("var1")
+    col2 = config.get("column2") or config.get("var2")
+
+    if not col1 or not col2:
+        cats = df.select_dtypes(include=["object", "category"]).columns.tolist()
+        if len(cats) < 2:
+            raise ValueError("Fisher's exact test requires two categorical columns")
+        col1, col2 = cats[0], cats[1]
+
+    ct = pd.crosstab(df[col1], df[col2])
+    if ct.shape != (2, 2):
+        raise ValueError(
+            f"Fisher's exact test requires a 2x2 table, got {ct.shape[0]}x{ct.shape[1]}. "
+            f"Filter data to exactly 2 levels per factor."
+        )
+
+    table = ct.values
+    alpha = _alpha(config)
+    alternative = config.get("alternative", "two-sided")
+    odds_ratio, p_value = fisher_exact(table, alternative=alternative)
+
+    row_labels = [str(x) for x in ct.index.tolist()]
+    col_labels = [str(x) for x in ct.columns.tolist()]
+
+    # Bar chart of contingency table
+    x_labels = []
+    y_values = []
+    for r in row_labels:
+        for c in col_labels:
+            x_labels.append(f"{r} / {c}")
+            y_values.append(int(ct.loc[r, c]) if hasattr(ct.loc[r, c], "__int__") else int(ct.loc[r, c]))
+
+    spec = bar(
+        x=x_labels,
+        y=y_values,
+        title=f"{col1} vs {col2} (Contingency)",
+        x_label="Category combination",
+        y_label="Count",
+    )
+    chart = _to_chart(spec)
+
+    sig = "significant" if p_value < alpha else "not significant"
+
+    return {
+        "plots": [chart],
+        "statistics": {
+            "odds_ratio": round(odds_ratio, 4),
+            "p_value": p_value,
+            "alternative": alternative,
+        },
+        "assumptions": {},
+        "summary": (
+            f"Fisher's exact test: OR = {odds_ratio:.3f}, p = {_pval_str(p_value)}. Association is {sig} at α={alpha}."
+        ),
+        "narrative": {
+            "verdict": f"{col1} and {col2} are {'associated' if p_value < alpha else 'independent'}",
+            "body": (
+                f"Fisher's exact test between {col1} and {col2}. "
+                f"Odds ratio = {odds_ratio:.3f}, p = {_pval_str(p_value)}."
+            ),
+            "next_steps": (
+                "Examine the odds ratio to quantify the strength of association."
+                if p_value < alpha
+                else "No significant association detected."
+            ),
+            "chart_guidance": "Bar chart shows observed frequencies for each cell of the 2x2 table.",
+        },
+        "guide_observation": (f"Fisher's exact: OR={odds_ratio:.3f}, p={_pval_str(p_value)}. {sig.capitalize()}."),
+        "diagnostics": [],
+    }
+
+
 # =============================================================================
 # Correlation
 # =============================================================================
@@ -1119,7 +1196,7 @@ def _forge_k_group_test(df, config, func_name, test_label):
 
     func = getattr(rank_tests, func_name)
     response = config.get("response") or config.get("column")
-    factor = config.get("factor")
+    factor = config.get("factor") or config.get("group")
 
     if not response or not factor:
         raise ValueError(f"{test_label} requires 'response' and 'factor'")
@@ -1914,6 +1991,7 @@ FORGE_HANDLERS = {
     "paired_t": forge_paired_t,
     "anova": forge_anova,
     "chi2": forge_chi2,
+    "fisher_exact": forge_fisher_exact,
     "correlation": forge_correlation,
     "descriptive": forge_descriptive,
     "normality": forge_normality,

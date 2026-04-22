@@ -72,7 +72,7 @@ def run_forge_simulation(analysis_id, df, config):
     if analysis_id not in _SIMULATION_IDS:
         return None
     try:
-        return _wrap_legacy("agents_api.analysis.simulation", "run_simulation", df, analysis_id, config)
+        return _wrap_legacy("agents_api.analysis.simulation", "run_simulation", df, analysis_id, config, user=None)
     except Exception:
         logger.exception(f"Forge simulation failed for {analysis_id}")
         return None

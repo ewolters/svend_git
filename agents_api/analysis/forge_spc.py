@@ -45,12 +45,12 @@ def _col(df, config, key, fallback_key=None):
     return series.values, name
 
 
-def _int_col(df, config, key):
+def _int_col(df, config, key, fallback_key=None):
     """Extract a clean integer array from df using config key.
 
     For attribute data (defective counts, sample sizes).
     """
-    name = config.get(key)
+    name = config.get(key) or (config.get(fallback_key) if fallback_key else None)
     if not name:
         raise ValueError(f"Config key '{key}' is required")
     if name not in df.columns:
@@ -61,9 +61,9 @@ def _int_col(df, config, key):
     return series.astype(int).values.tolist(), name
 
 
-def _float_col(df, config, key):
+def _float_col(df, config, key, fallback_key=None):
     """Extract a clean float array from df using config key."""
-    name = config.get(key)
+    name = config.get(key) or (config.get(fallback_key) if fallback_key else None)
     if not name:
         raise ValueError(f"Config key '{key}' is required")
     if name not in df.columns:
@@ -588,7 +588,7 @@ def forge_p_chart(df, config):
     from forgespc.charts import p_chart
     from forgeviz.charts.control import from_spc_result
 
-    defectives, def_col = _int_col(df, config, "defectives_column")
+    defectives, def_col = _int_col(df, config, "defectives_column", "column")
     sample_sizes, sz_col = _int_col(df, config, "sample_size_column")
 
     # Ensure equal length after cleaning
@@ -774,7 +774,7 @@ def forge_u_chart(df, config):
     from forgespc.charts import u_chart
     from forgeviz.charts.control import from_spc_result
 
-    defects, def_col = _int_col(df, config, "defects_column")
+    defects, def_col = _int_col(df, config, "defects_column", "column")
     units, units_col = _float_col(df, config, "units_column")
 
     min_len = min(len(defects), len(units))
@@ -1727,13 +1727,13 @@ def _laney_chart(df, config, chart_type):
     """Laney p' or u' chart with overdispersion correction."""
 
     if chart_type == "p":
-        defectives, def_col = _int_col(df, config, "defectives_column")
+        defectives, def_col = _int_col(df, config, "defectives_column", "column")
         sample_sizes, sz_col = _int_col(df, config, "sample_size_column")
         proportions = [d / s if s > 0 else 0 for d, s in zip(defectives, sample_sizes)]
         p_bar = sum(defectives) / sum(sample_sizes)
         expected_std = [math.sqrt(p_bar * (1 - p_bar) / s) if s > 0 else 0 for s in sample_sizes]
     else:
-        defects, def_col = _int_col(df, config, "defects_column")
+        defects, def_col = _int_col(df, config, "defects_column", "column")
         units, u_col = _float_col(df, config, "units_column")
         proportions = [d / u if u > 0 else 0 for d, u in zip(defects, units)]
         u_bar = sum(defects) / sum(units)
@@ -2221,7 +2221,6 @@ def forge_mewma(df, config):
     clean = df[cols].dropna()
     data = clean.values
     n, p = data.shape
-    mean = data.mean(axis=0)
     cov = np.cov(data.T)
 
     # MEWMA statistic

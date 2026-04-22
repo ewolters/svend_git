@@ -696,6 +696,7 @@ FORGE_MSA_HANDLERS = {
     "gage_type1": forge_gage_type1,
     "gage_rr_nested": forge_gage_rr_nested,
     "gage_rr_expanded": forge_gage_rr_expanded,
+    "gage_rr": forge_gage_rr_expanded,  # alias — registry key delegates to expanded handler
     "attribute_gage": forge_attribute_gage,
     # Nonparametric remaining
     "multi_vari": forge_multi_vari,

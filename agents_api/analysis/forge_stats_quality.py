@@ -523,7 +523,7 @@ def forge_capability_sixpack(df, config):
     from forgeviz.charts.distribution import histogram
     from scipy.stats import norm as norm_dist
 
-    var = config.get("var") or config.get("var1")
+    var = config.get("var") or config.get("column") or config.get("var1")
     lsl_raw = config.get("lsl")
     usl_raw = config.get("usl")
     target_raw = config.get("target")
