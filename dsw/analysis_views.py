@@ -102,7 +102,7 @@ def _resolve_data(request, body):
             pass
 
     # Analyses that don't require data
-    if analysis_type in ("simulation", "bayesian"):
+    if analysis_type in ("simulation", "bayesian", "siop"):
         return pd.DataFrame(), None
 
     return None, JsonResponse({"error": "No data loaded. Please load a dataset first."}, status=400)
@@ -129,19 +129,34 @@ _FORGE_DISPATCH = {
     "reliability": "agents_api.analysis.forge_misc.run_forge_reliability",
 }
 
+# Legacy handlers with swapped args (df, analysis_id, config) — thin wrappers
+_LEGACY_DISPATCH = {
+    "viz": "agents_api.analysis.viz.run_visualization",
+    "siop": "agents_api.analysis.siop.run_siop",
+}
+
 
 def _run_forge(analysis_type, analysis_id, df, config):
     """Call the forge handler for this analysis type. Returns result dict or None."""
     import importlib
 
+    # Forge handlers: (analysis_id, df, config)
     dotted = _FORGE_DISPATCH.get(analysis_type)
-    if not dotted:
-        return None
+    if dotted:
+        module_path, func_name = dotted.rsplit(".", 1)
+        mod = importlib.import_module(module_path)
+        func = getattr(mod, func_name)
+        return func(analysis_id, df, config)
 
-    module_path, func_name = dotted.rsplit(".", 1)
-    mod = importlib.import_module(module_path)
-    func = getattr(mod, func_name)
-    return func(analysis_id, df, config)
+    # Legacy handlers: (df, analysis_id, config) — swapped arg order
+    dotted = _LEGACY_DISPATCH.get(analysis_type)
+    if dotted:
+        module_path, func_name = dotted.rsplit(".", 1)
+        mod = importlib.import_module(module_path)
+        func = getattr(mod, func_name)
+        return func(df, analysis_id, config)
+
+    return None
 
 
 # =============================================================================
