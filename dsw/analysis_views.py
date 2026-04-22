@@ -17,6 +17,7 @@ from pathlib import Path
 import pandas as pd
 from django.conf import settings
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated
@@ -177,6 +178,7 @@ def _run_forge(analysis_type, analysis_id, df, config):
 # =============================================================================
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def run_analysis(request):
@@ -264,6 +266,7 @@ def run_analysis(request):
     return JsonResponse(result, safe=False)
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def upload_data(request):
@@ -359,6 +362,7 @@ def upload_data(request):
 _forgepad_sessions: dict = {}
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def forgepad_run(request):
