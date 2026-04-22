@@ -787,7 +787,7 @@ class SymbolCoverageTest(SimpleTestCase):
         a = Assertion(
             text="Test assertion",
             check_id="test-file-level",
-            impls=["agents_api/dsw_views.py"],  # no colon = file-level
+            impls=["dsw/views.py"],  # no colon = file-level
             tests=["some.test.method"],
         )
 

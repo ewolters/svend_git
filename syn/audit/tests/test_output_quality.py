@@ -333,9 +333,9 @@ class SPCQualityTest(SimpleTestCase):
     """QUAL-001 §8.2: SPC control limits ordering."""
 
     def test_control_limits_ordered(self):
-        """SPC module exists and has control chart logic."""
+        """SPC analysis module exists and has control chart logic."""
         try:
-            import agents_api.spc as spc_mod
+            import agents_api.analysis.spc as spc_mod
 
             source = inspect.getsource(spc_mod)
             # Must reference UCL, CL, LCL

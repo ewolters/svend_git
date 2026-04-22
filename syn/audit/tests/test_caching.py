@@ -98,13 +98,9 @@ class MemoryCacheTest(SimpleTestCase):
         self.assertGreaterEqual(value, min_val, f"{module_path}.{attr_name}={value} < {min_val}")
         self.assertLessEqual(value, max_val, f"{module_path}.{attr_name}={value} > {max_val}")
 
-    def test_dsw_cache_has_bounds(self):
-        """DSW model cache (MODEL_CACHE_MAX_SIZE) is bounded."""
+    def test_dsw_analysis_cache_has_bounds(self):
+        """Analysis common cache (MODEL_CACHE_MAX_SIZE) is bounded."""
         self._assert_cache_bounded("agents_api.analysis.common", "MODEL_CACHE_MAX_SIZE", 1, 500)
-
-    def test_spc_cache_has_bounds(self):
-        """SPC parsed data cache (_CACHE_MAX_SIZE) is bounded."""
-        self._assert_cache_bounded("agents_api.spc_views", "_CACHE_MAX_SIZE", 1, 1000)
 
     def test_synara_cache_has_bounds(self):
         """Synara session cache (_SYNARA_CACHE_MAX) is bounded."""
@@ -118,8 +114,7 @@ class MemoryCacheTest(SimpleTestCase):
     def test_inventory_complete(self):
         """The memory bounds inventory covers all known caches."""
         expected = {
-            "agents_api/dsw/common.py",
-            "agents_api/spc_views.py",
+            "agents_api/analysis/common.py",
             "agents_api/synara_views.py",
         }
         self.assertEqual(set(_CACHE_MEMORY_BOUNDS.keys()), expected)

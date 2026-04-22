@@ -3818,28 +3818,21 @@ _ARCH_FILE_SIZE_WARN = 2000
 _ARCH_FILE_SIZE_FAIL = 3000
 # Known large files tracked in .kjerne/DEBT.md — exempt from hard fail
 _ARCH_KNOWN_LARGE_FILES = {
-    "agents_api/dsw_views.py",
     "agents_api/models.py",
     "agents_api/learn_content.py",
-    "agents_api/pbs_engine.py",
-    "agents_api/dsw/stats.py",
-    "agents_api/iso_tests.py",
-    "agents_api/dsw/common.py",
-    "api/internal_views.py",
-    "syn/audit/compliance.py",
-    "agents_api/dsw/ml.py",
-    "agents_api/dsw/spc.py",
-    "agents_api/dsw/bayesian.py",
-    "agents_api/dsw/stats_exploratory.py",
-    "agents_api/dsw/stats_advanced.py",
+    "agents_api/hoshin_deep_tests.py",
+    "agents_api/learn_content/_datasets.py",
     "agents_api/analysis/common.py",
     "agents_api/analysis/pbs/__init__.py",
+    "agents_api/analysis/stats/__init__.py",
     "agents_api/analysis/stats/advanced.py",
-    "agents_api/iso_views.py",
-    "agents_api/hoshin_deep_tests.py",
-    "agents_api/dsw/stats_regression.py",
-    "agents_api/learn_content/_datasets.py",
     "agents_api/analysis/stats/regression.py",
+    "agents_api/analysis/spc/__init__.py",
+    "agents_api/analysis/bayesian/__init__.py",
+    "agents_api/analysis/ml/__init__.py",
+    "agents_api/analysis/exploratory/__init__.py",
+    "dsw/views.py",
+    "dsw/analysis_views.py",
     "api/internal_views.py",
     "syn/audit/compliance.py",
 }
@@ -4476,8 +4469,7 @@ _CACHE_WHITENOISE_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesSto
 
 # In-memory caches that must have max-size constants
 _CACHE_MEMORY_BOUNDS = {
-    "agents_api/dsw/common.py": "MODEL_CACHE_MAX_SIZE",
-    "agents_api/spc_views.py": "_CACHE_MAX_SIZE",
+    "agents_api/analysis/common.py": "MODEL_CACHE_MAX_SIZE",
     "agents_api/synara_views.py": "_SYNARA_CACHE_MAX",
 }
 
@@ -4907,26 +4899,23 @@ def check_policy_review():
 # Maps relative path suffix → DEBT.md priority for exemption.
 _COMPLEXITY_EXEMPTIONS = {
     # Files >3000 lines — tracked in .kjerne/DEBT.md and CAL-001 §8.1
-    "agents_api/dsw/stats_advanced.py": "P3",
-    "agents_api/dsw/stats_exploratory.py": "P3",
-    "agents_api/dsw/spc.py": "P3",
-    "agents_api/dsw/bayesian.py": "P3",
-    "agents_api/dsw/ml.py": "P3",
-    "agents_api/dsw/common.py": "P3",
     "agents_api/learn_content.py": "P3",
     "agents_api/models.py": "P3",
-    "agents_api/pbs_engine.py": "P3",
+    "agents_api/hoshin_deep_tests.py": "P3",
+    "agents_api/learn_content/_datasets.py": "P3",
     "agents_api/analysis/common.py": "P3",
     "agents_api/analysis/pbs/__init__.py": "P3",
+    "agents_api/analysis/stats/__init__.py": "P3",
     "agents_api/analysis/stats/advanced.py": "P3",
+    "agents_api/analysis/stats/regression.py": "P3",
+    "agents_api/analysis/spc/__init__.py": "P3",
+    "agents_api/analysis/bayesian/__init__.py": "P3",
+    "agents_api/analysis/ml/__init__.py": "P3",
+    "agents_api/analysis/exploratory/__init__.py": "P3",
+    "dsw/views.py": "P3",
+    "dsw/analysis_views.py": "P3",
     "api/internal_views.py": "P3",
     "syn/audit/compliance.py": "P3",
-    "agents_api/iso_views.py": "P3",
-    "agents_api/iso_tests.py": "P3",
-    "agents_api/hoshin_deep_tests.py": "P3",
-    "agents_api/dsw/stats_regression.py": "P3",
-    "agents_api/learn_content/_datasets.py": "P3",
-    "agents_api/analysis/stats/regression.py": "P3",
 }
 
 

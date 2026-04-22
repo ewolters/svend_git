@@ -24,7 +24,7 @@ User = get_user_model()
 
 # Base paths (for structural and frontend tests only)
 WEB_ROOT = Path(os.path.dirname(__file__)).parent.parent.parent
-DSW_DIR = WEB_ROOT / "agents_api" / "dsw"
+DSW_DIR = WEB_ROOT / "agents_api" / "analysis"  # dsw/ extracted; analysis/ is canonical
 SYNARA_DIR = Path(os.path.expanduser("~")) / "forgesia" / "src" / "forgesia"
 AGENTS_API = WEB_ROOT / "agents_api"
 
@@ -689,8 +689,8 @@ class IDORPreventionHTTPTest(TestCase):
 class DSWModuleStructureTest(SimpleTestCase):
     """DSW-001 §1.3: Module structure verification."""
 
-    def test_dsw_package_exists(self):
-        """agents_api/dsw/ package exists."""
+    def test_analysis_package_exists(self):
+        """agents_api/analysis/ package exists (canonical compute engine)."""
         self.assertTrue(DSW_DIR.exists())
         self.assertTrue((DSW_DIR / "__init__.py").exists())
 
@@ -710,39 +710,42 @@ class DSWModuleStructureTest(SimpleTestCase):
         """synara_views.py provides belief engine endpoints."""
         self.assertTrue((AGENTS_API / "synara_views.py").exists())
 
-    def test_dsw_views_exists(self):
-        """dsw_views.py provides monolith endpoints."""
-        self.assertTrue((AGENTS_API / "dsw_views.py").exists())
+    def test_dsw_app_exists(self):
+        """dsw/ extracted app exists with views."""
+        self.assertTrue((WEB_ROOT / "dsw" / "views.py").exists())
 
     def test_spc_engine_exists(self):
-        """SPC engine files exist."""
-        self.assertTrue((AGENTS_API / "spc.py").exists())
-        self.assertTrue((AGENTS_API / "spc_views.py").exists())
+        """SPC analysis modules exist in analysis/spc/."""
+        self.assertTrue((DSW_DIR / "spc").is_dir())
 
     def test_experimenter_exists(self):
-        """DOE experimenter views exist."""
-        self.assertTrue((AGENTS_API / "experimenter_views.py").exists())
+        """DOE experimenter views exist in dsw/ app."""
+        self.assertTrue((WEB_ROOT / "dsw" / "experimenter_views.py").exists())
 
     def test_permissions_module_exists(self):
         """accounts/permissions.py provides decorators."""
         self.assertTrue((WEB_ROOT / "accounts" / "permissions.py").exists())
 
     def test_all_submodules_exist(self):
-        """All DSW sub-module files exist on disk."""
+        """All DSW analysis sub-modules exist on disk (files or packages)."""
         expected = [
-            "stats.py",
-            "ml.py",
-            "spc.py",
-            "bayesian.py",
-            "reliability.py",
-            "simulation.py",
-            "viz.py",
-            "d_type.py",
+            "stats",
+            "ml",
+            "spc",
+            "bayesian",
+            "reliability",
+            "simulation",
+            "viz",
+            "d_type",
             "dispatch.py",
             "common.py",
         ]
         for f in expected:
-            self.assertTrue((DSW_DIR / f).exists(), f"DSW sub-module missing: {f}")
+            path = DSW_DIR / f
+            self.assertTrue(
+                path.exists() or (DSW_DIR / (f + ".py")).exists(),
+                f"DSW sub-module missing: {f}",
+            )
 
 
 # =============================================================================
