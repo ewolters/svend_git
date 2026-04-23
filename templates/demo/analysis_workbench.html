@@ -2476,9 +2476,12 @@ async function confirmUpload() {
 
         const data = await resp.json();
         currentDataId = data.id || data.data_id;
-        currentDataColumns = (data.columns || []).map(c => typeof c === 'object' ? c.name : c);
+        const rawCols = data.columns || [];
+        currentDataColumns = rawCols.map(c => typeof c === 'object' ? c.name : c);
         currentDataRows = data.rows || 0;
         currentDataPreview = data.preview || [];
+        // Preserve full column metadata (name + dtype) for config forms
+        var _uploadColMeta = rawCols.map(c => typeof c === 'object' ? c : {name: c, dtype: 'numeric'});
 
         // Update toolbar indicator
         const ind = document.getElementById('aw-data-indicator');
@@ -2512,7 +2515,7 @@ async function confirmUpload() {
             data_id: currentDataId,
             name: pendingFile.name,
             row_count: currentDataRows,
-            columns_meta: currentDataColumns.map(c => ({ name: c })),
+            columns_meta: _uploadColMeta || currentDataColumns.map(c => ({ name: c, dtype: 'numeric' })),
             preview: currentDataPreview,
         };
         sessionDatasets.push(dsEntry);

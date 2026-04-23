@@ -310,6 +310,13 @@ def upload_data(request):
     except Exception as e:
         return JsonResponse({"error": f"Could not parse file: {e}"}, status=400)
 
+    # Build column metadata with dtype
+    col_meta = []
+    for col in columns:
+        dtype = str(df[col].dtype)
+        is_num = dtype.startswith(("int", "float"))
+        col_meta.append({"name": col, "dtype": "numeric" if is_num else "categorical"})
+
     # ── Persist dataset to session (if session_id provided) ──
     dataset_record_id = None
     session_id = request.POST.get("session_id") or request.GET.get("session")
@@ -318,17 +325,6 @@ def upload_data(request):
             from workbench.models import AnalysisSession, SessionDataset
 
             session = AnalysisSession.objects.get(id=session_id, user=request.user)
-
-            col_meta = []
-            for col in columns:
-                dtype = str(df[col].dtype)
-                is_num = dtype.startswith(("int", "float"))
-                col_meta.append(
-                    {
-                        "name": col,
-                        "dtype": "numeric" if is_num else "categorical",
-                    }
-                )
 
             ds = SessionDataset.objects.create(
                 session=session,
@@ -346,7 +342,7 @@ def upload_data(request):
     return JsonResponse(
         {
             "data_id": data_id,
-            "columns": columns,
+            "columns": col_meta,
             "rows": rows,
             "preview": preview,
             "_dataset_record_id": dataset_record_id,
