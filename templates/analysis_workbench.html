@@ -8572,7 +8572,7 @@ async function executeAnalysis() {
             return;
         }
 
-        const response = await fetch('/api/analysis/run/', {
+        const response = await fetch('/api/dsw/analysis/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -8752,7 +8752,7 @@ async function runBayesianGRRComparison(config, anovaResult) {
             operator: config.operator,
         };
 
-        const response = await svendFetch('/api/analysis/run/', {
+        const response = await svendFetch('/api/dsw/analysis/', {
             method: 'POST',
             body: JSON.stringify({
                 type: 'bayes_msa',
