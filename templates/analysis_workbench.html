@@ -2358,6 +2358,7 @@ async function runSavedModel(modelId) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({ data_id: currentData.id })
@@ -2672,6 +2673,7 @@ async function applySynaraWeights(target) {
             credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({
@@ -2856,6 +2858,7 @@ async function applyStatisticsEvidence() {
             credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({
@@ -2987,6 +2990,7 @@ async function handleFileUpload(event) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({ data_id: uploadResult.id })
@@ -3194,6 +3198,7 @@ async function cleanAndLoad() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({
@@ -3338,6 +3343,7 @@ async function downloadCurrentData() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({ data_id: currentData.id })
@@ -3427,6 +3433,7 @@ async function openTriageScan() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({ data_id: currentData.id })
@@ -8569,6 +8576,7 @@ async function executeAnalysis() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({
@@ -9160,6 +9168,7 @@ async function saveModel(modelKey) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({
@@ -9572,6 +9581,7 @@ async function executeDataTool(toolId, config, toolName) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({
@@ -10854,6 +10864,7 @@ async function askAssistant() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({
