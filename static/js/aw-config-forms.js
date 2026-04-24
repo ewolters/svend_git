@@ -2775,8 +2775,67 @@ function generateConfigForm(type, id, columns) {
                 ${synaraNote}
             `;
         }
+        if (id === 'bayes_changepoint') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-measurement">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Prior hazard rate:</label>
+                    <input type="number" id="cfg-hazard_lambda" value="100" step="any" min="1">
+                    <small style="color:#7a8f7a;">Higher = less sensitive to change. Auto-calibrated if left at 100.</small>
+                </div>
+                <div class="aw-form-group">
+                    <label>Min segment length:</label>
+                    <input type="number" id="cfg-min_segment" value="10" min="3" max="100">
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Bayesian Changepoint:</strong> BOCPD (Adams & MacKay 2007). Detects shifts in mean/variance with posterior run-length distribution.
+                </div>
+                ${synaraNote}
+            `;
+        }
+        if (id === 'bayes_capability_prediction') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-measurement">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>LSL:</label>
+                        <input type="number" id="cfg-lsl" step="any" placeholder="Lower spec">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>USL:</label>
+                        <input type="number" id="cfg-usl" step="any" placeholder="Upper spec">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Target (optional):</label>
+                    <input type="number" id="cfg-target" step="any">
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Bayesian Capability:</strong> Posterior distribution for Cpk/Ppk with credible intervals. Better than point estimates for small samples.
+                </div>
+                ${synaraNote}
+            `;
+        }
+        if (id === 'bayes_demo') {
+            return `
+                <div class="aw-form-group">
+                    <label>Variable (optional):</label>
+                    <select id="cfg-var"><option value="">Use built-in demo data</option>${numCols}</select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Demo:</strong> Runs a guided Bayesian inference example showing prior → data → posterior updating.
+                </div>
+                ${synaraNote}
+            `;
+        }
         // Bayesian reliability forms — measurement or time-to-event
-        if (id.startsWith('bayes_reliability') || id === 'bayes_rul' || id === 'bayes_alt' || id === 'bayes_repairable' || id === 'bayes_warranty' || id === 'bayes_competing_risks' || id === 'bayes_spares' || id === 'bayes_system_reliability') {
+        if (id.startsWith('bayes_reliability') || id === 'bayes_rul' || id === 'bayes_alt' || id === 'bayes_repairable' || id === 'bayes_warranty' || id === 'bayes_competing_risks' || id === 'bayes_comprisk' || id === 'bayes_spares' || id === 'bayes_system_reliability' || id === 'bayes_system') {
             return `
                 <div class="aw-form-group">
                     <label>Time / measurement column:</label>
@@ -2899,6 +2958,146 @@ function generateConfigForm(type, id, columns) {
                 </div>
             `;
         }
+        if (id === 'bubble') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>X variable:</label>
+                        <select id="cfg-x">${numCols}</select>
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Y variable:</label>
+                        <select id="cfg-y">${numCols}</select>
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Size variable:</label>
+                    <select id="cfg-size">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Color by:</label>
+                    <select id="cfg-color"><option value="">None</option>${colOptions}</select>
+                </div>
+            `;
+        }
+        if (id === 'contour' || id === 'contour_overlay' || id === 'surface_3d') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>X variable:</label>
+                        <select id="cfg-x">${numCols}</select>
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Y variable:</label>
+                        <select id="cfg-y">${numCols}</select>
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Z (response):</label>
+                    <select id="cfg-z">${numCols}</select>
+                </div>
+            `;
+        }
+        if (id === 'dotplot' || id === 'individual_value_plot') {
+            return `
+                <div class="aw-form-group">
+                    <label>Variable:</label>
+                    <select id="cfg-var">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Group by:</label>
+                    <select id="cfg-by"><option value="">None</option>${colOptions}</select>
+                </div>
+            `;
+        }
+        if (id === 'interval_plot') {
+            return `
+                <div class="aw-form-group">
+                    <label>Response:</label>
+                    <select id="cfg-var">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Factor:</label>
+                    <select id="cfg-factor">${colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Confidence:</label>
+                    <select id="cfg-conf">
+                        <option value="95">95%</option>
+                        <option value="99">99%</option>
+                        <option value="90">90%</option>
+                    </select>
+                </div>
+            `;
+        }
+        if (id === 'mosaic') {
+            return `
+                <div class="aw-form-group">
+                    <label>Row variable:</label>
+                    <select id="cfg-row_var">${colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Column variable:</label>
+                    <select id="cfg-col_var">${colOptions}</select>
+                </div>
+            `;
+        }
+        if (id === 'parallel_coordinates') {
+            const numericCols = columns.filter(c => c.dtype === 'numeric');
+            const dimCheckboxes = numericCols.map(c => `
+                <label class="aw-checkbox-item">
+                    <input type="checkbox" name="dimensions" value="${c.name}" checked>
+                    <span>${c.name}</span>
+                </label>
+            `).join('');
+            return `
+                <div class="aw-form-group">
+                    <label>Dimensions:</label>
+                    <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">
+                        ${dimCheckboxes || '<span style="color:#7a8f7a;">No numeric columns</span>'}
+                    </div>
+                    <small style="color:#7a8f7a;">Select 2+ columns</small>
+                </div>
+                <div class="aw-form-group">
+                    <label>Color by:</label>
+                    <select id="cfg-color"><option value="">None</option>${colOptions}</select>
+                </div>
+            `;
+        }
+        // Bayesian SPC visualization
+        if (id === 'bayes_spc_control' || id === 'bayes_spc_capability' || id === 'bayes_spc_changepoint' || id === 'bayes_spc_acceptance') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-measurement">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>LSL:</label>
+                        <input type="number" id="cfg-lsl" step="any">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>USL:</label>
+                        <input type="number" id="cfg-usl" step="any">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Target (optional):</label>
+                    <input type="number" id="cfg-target" step="any">
+                </div>
+            `;
+        }
+        // Fallback for other viz types
+        return `
+            <div class="aw-form-group">
+                <label>Variable:</label>
+                <select id="cfg-var">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Group by (optional):</label>
+                <select id="cfg-by"><option value="">None</option>${colOptions}</select>
+            </div>
+        `;
     }
 
     // Data Tools
@@ -4355,6 +4554,480 @@ function generateConfigForm(type, id, columns) {
             <div class="aw-form-group">
                 <label>Variable (optional):</label>
                 <select id="cfg-var"><option value="">All columns</option>${numCols}</select>
+            </div>
+        `;
+    }
+
+    // Process Belief System (PBS) — Bayesian streaming SPC
+    if (type === 'pbs') {
+        const specFields = `
+            <div class="aw-form-row">
+                <div class="aw-form-group">
+                    <label>LSL:</label>
+                    <input type="number" id="cfg-LSL" step="any" placeholder="Lower spec">
+                </div>
+                <div class="aw-form-group">
+                    <label>USL:</label>
+                    <input type="number" id="cfg-USL" step="any" placeholder="Upper spec">
+                </div>
+            </div>
+            <div class="aw-form-group">
+                <label>Target (optional):</label>
+                <input type="number" id="cfg-target" step="any" placeholder="Defaults to midpoint of specs">
+            </div>`;
+        const advancedFields = `
+            <details style="margin-top:8px;">
+                <summary style="cursor:pointer;font-size:11px;color:#9aaa9a;">Advanced parameters</summary>
+                <div style="padding:8px 0 0 12px;">
+                    <div class="aw-form-group">
+                        <label>Hazard λ (BOCPD sensitivity):</label>
+                        <input type="number" id="cfg-hazard_lambda" step="any" min="1" placeholder="Auto (n/4, clamped 20–200)">
+                        <small style="color:#7a8f7a;">Higher = less sensitive to shifts. Leave blank for auto.</small>
+                    </div>
+                    <div class="aw-form-group">
+                        <label>β robustness:</label>
+                        <input type="number" id="cfg-beta_robustness" value="0" step="0.01" min="0" max="1">
+                        <small style="color:#7a8f7a;">0 = standard, >0 = robust to outliers</small>
+                    </div>
+                </div>
+            </details>`;
+
+        return `
+            <div class="aw-form-group">
+                <label>Measurement column:</label>
+                <select id="cfg-column">${numCols}</select>
+            </div>
+            ${specFields}
+            ${advancedFields}
+            <div style="background:rgba(74,159,110,0.15);padding:10px;border-radius:4px;font-size:10px;color:var(--aw-text-muted, #9aaa9a);margin-top:8px;border-left:3px solid var(--aw-accent, #4a9f6e);">
+                <strong style="color:var(--aw-accent, #4a9f6e);">PBS:</strong>
+                ${id === 'pbs_full' ? 'Full dashboard — belief chart, e-detector, Cpk trajectory, predictive intervals, evidence weight, and adaptive limits.' :
+                  id === 'pbs_belief' ? 'Shift probability chart. Normal-Gamma posterior updating — shows P(process shifted) at each observation.' :
+                  id === 'pbs_edetector' ? 'Distribution-free sequential changepoint detection. No parametric assumptions.' :
+                  id === 'pbs_cpk' ? 'Bayesian Cpk with credible intervals from posterior. Better than point Cpk for small samples.' :
+                  id === 'pbs_cpk_traj' ? 'Cpk trajectory — watch capability evolve as data accumulates. Posterior tightens over time.' :
+                  id === 'pbs_health' ? 'Multi-stream health monitor — combines belief, capability, and changepoint signals.' :
+                  id === 'pbs_evidence' ? 'Evidence accumulation chart — cumulative log Bayes factor for process stability.' :
+                  id === 'pbs_adaptive' ? 'Adaptive control limits that update from posterior. Tighter as evidence accumulates.' :
+                  id === 'pbs_predictive' ? 'Predictive intervals from posterior predictive distribution. Forward-looking, not just retrospective.' :
+                  'Bayesian streaming SPC with Normal-Gamma conjugate updating.'}
+            </div>
+        `;
+    }
+
+    // D-Type Analysis — divergence-based metrics
+    if (type === 'd_type') {
+        return `
+            <div class="aw-form-group">
+                <label>Measurement column:</label>
+                <select id="cfg-column">${numCols}</select>
+            </div>
+            ${id === 'd_multi' ? `
+            <div class="aw-form-group">
+                <label>Additional columns:</label>
+                <select id="cfg-columns" multiple style="height:100px;">${numCols}</select>
+                <small style="color:#7a8f7a;">Select 2+ columns for multivariate analysis</small>
+            </div>` : ''}
+            ${id === 'd_cpk' || id === 'd_equiv' ? `
+            <div class="aw-form-row">
+                <div class="aw-form-group">
+                    <label>LSL:</label>
+                    <input type="number" id="cfg-lsl" step="any">
+                </div>
+                <div class="aw-form-group">
+                    <label>USL:</label>
+                    <input type="number" id="cfg-usl" step="any">
+                </div>
+            </div>` : ''}
+            ${id === 'd_sig' || id === 'd_equiv' ? `
+            <div class="aw-form-group">
+                <label>Group column (optional):</label>
+                <select id="cfg-group"><option value="">None</option>${colOptions}</select>
+            </div>` : ''}
+            <div class="aw-form-group">
+                <label>Confidence level:</label>
+                <select id="cfg-conf">
+                    <option value="95">95%</option>
+                    <option value="99">99%</option>
+                    <option value="90">90%</option>
+                </select>
+            </div>
+            <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted, #9aaa9a);">
+                <strong style="color:var(--aw-accent, #4a9f6e);">D-Type:</strong> Divergence-based analysis using KL/JS divergence instead of classical test statistics.
+            </div>
+        `;
+    }
+
+    // Quality Economics
+    if (type === 'quality_econ') {
+        if (id === 'taguchi_loss') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-column">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Loss type:</label>
+                    <select id="cfg-loss_type">
+                        <option value="nib">Nominal-is-Best</option>
+                        <option value="stb">Smaller-the-Better</option>
+                        <option value="ltb">Larger-the-Better</option>
+                    </select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Target:</label>
+                        <input type="number" id="cfg-target" value="0" step="any">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Δ₀ (tolerance):</label>
+                        <input type="number" id="cfg-delta0" value="1" step="any" min="0.001">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Cost at limit ($):</label>
+                    <input type="number" id="cfg-cost_at_limit" value="100" step="any" min="0">
+                </div>
+                <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted, #9aaa9a);">
+                    <strong style="color:#e89547;">Taguchi:</strong> L(y) = k(y−T)². Quality loss is continuous, not binary pass/fail.
+                </div>
+            `;
+        }
+        if (id === 'cost_of_quality') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Prevention cost ($):</label>
+                        <input type="number" id="cfg-prevention" value="0" step="any" min="0">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Appraisal cost ($):</label>
+                        <input type="number" id="cfg-appraisal" value="0" step="any" min="0">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Internal failure ($):</label>
+                        <input type="number" id="cfg-internal_failure" value="0" step="any" min="0">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>External failure ($):</label>
+                        <input type="number" id="cfg-external_failure" value="0" step="any" min="0">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Revenue ($):</label>
+                    <input type="number" id="cfg-revenue" value="1" step="any" min="0.01">
+                </div>
+                <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted, #9aaa9a);">
+                    <strong style="color:#e89547;">COQ:</strong> PAF model — Prevention, Appraisal, Failure. Total quality cost as % of revenue.
+                </div>
+            `;
+        }
+        if (id === 'lot_sentencing') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-column">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>LSL:</label>
+                        <input type="number" id="cfg-lsl" step="any">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>USL:</label>
+                        <input type="number" id="cfg-usl" step="any">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Lot size:</label>
+                        <input type="number" id="cfg-lot_size" value="1000" min="1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Sample size:</label>
+                        <input type="number" id="cfg-sample_size" value="50" min="1">
+                    </div>
+                </div>
+            `;
+        }
+        if (id === 'process_decision') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-column">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>P(out of control):</label>
+                        <input type="number" id="cfg-p_ooc" value="0.5" step="0.01" min="0" max="1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Investigation cost ($):</label>
+                        <input type="number" id="cfg-c_inv" value="80" step="any" min="0">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Cost of miss ($):</label>
+                        <input type="number" id="cfg-c_miss" value="500" step="any" min="0">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Cost of false alarm ($):</label>
+                        <input type="number" id="cfg-c_fa" value="100" step="any" min="0">
+                    </div>
+                </div>
+            `;
+        }
+        // Generic fallback for other quality_econ analyses
+        return `
+            <div class="aw-form-group">
+                <label>Measurement column:</label>
+                <select id="cfg-column">${numCols}</select>
+            </div>
+        `;
+    }
+
+    // Simulation — tolerance stackup, variance propagation
+    if (type === 'simulation') {
+        if (id === 'tolerance_stackup') {
+            return `
+                <div class="aw-form-group">
+                    <label>Dimension columns:</label>
+                    <select id="cfg-vars" multiple style="height:120px;">${numCols}</select>
+                    <small style="color:#7a8f7a;">Select columns representing component dimensions</small>
+                </div>
+                <div class="aw-form-group">
+                    <label>Assembly spec (optional):</label>
+                    <input type="number" id="cfg-spec_limit" step="any" placeholder="Target assembly dimension">
+                </div>
+                <div class="aw-form-group">
+                    <label>Monte Carlo iterations:</label>
+                    <input type="number" id="cfg-n_iterations" value="10000" min="1000" max="100000" step="1000">
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted, #9aaa9a);">
+                    <strong style="color:var(--aw-accent, #4a9f6e);">Stackup:</strong> RSS + Monte Carlo tolerance analysis. Shows P(assembly out of spec) from component variation.
+                </div>
+            `;
+        }
+        if (id === 'variance_propagation') {
+            return `
+                <div class="aw-form-group">
+                    <label>Input variables:</label>
+                    <select id="cfg-vars" multiple style="height:120px;">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Transfer function:</label>
+                    <input type="text" id="cfg-transfer_function" placeholder="e.g., X1 + X2 - X3">
+                    <small style="color:#7a8f7a;">Use column names and operators (+, -, *, /, **)</small>
+                </div>
+                <div class="aw-form-group">
+                    <label>Monte Carlo iterations:</label>
+                    <input type="number" id="cfg-n_iterations" value="10000" min="1000" max="100000" step="1000">
+                </div>
+            `;
+        }
+        return `
+            <div class="aw-form-group">
+                <label>Variables:</label>
+                <select id="cfg-vars" multiple style="height:120px;">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Iterations:</label>
+                <input type="number" id="cfg-n_iterations" value="10000" min="1000" max="100000">
+            </div>
+        `;
+    }
+
+    // Causal Discovery — PC algorithm, LiNGAM
+    if (type === 'causal') {
+        const numericCols = columns.filter(c => c.dtype === 'numeric');
+        const varCheckboxes = numericCols.map(c => `
+            <label class="aw-checkbox-item">
+                <input type="checkbox" name="variables" value="${c.name}" checked>
+                <span>${c.name}</span>
+            </label>
+        `).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Variables:</label>
+                <div class="aw-checkbox-list" style="max-height:160px;overflow-y:auto;">
+                    ${varCheckboxes || '<span style="color:#7a8f7a;">No numeric columns</span>'}
+                </div>
+            </div>
+            <div class="aw-form-group">
+                <label>Significance level (α):</label>
+                <input type="number" id="cfg-alpha" value="0.05" step="0.01" min="0.001" max="0.2">
+            </div>
+            ${id === 'causal_pc' ? `
+            <div class="aw-form-group">
+                <label>Max conditioning set:</label>
+                <input type="number" id="cfg-max_cond_size" value="" placeholder="Auto">
+                <small style="color:#7a8f7a;">Limit search depth (blank = unlimited)</small>
+            </div>
+            <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted, #9aaa9a);">
+                <strong style="color:var(--aw-accent, #4a9f6e);">PC Algorithm:</strong> Constraint-based causal discovery. Outputs a DAG skeleton with conditional independence tests.
+            </div>` : `
+            <div class="aw-form-group">
+                <label>Bootstrap iterations:</label>
+                <input type="number" id="cfg-n_bootstraps" value="50" min="10" max="500">
+            </div>
+            <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted, #9aaa9a);">
+                <strong style="color:var(--aw-accent, #4a9f6e);">LiNGAM:</strong> Exploits non-Gaussianity for causal direction. Gives causal ordering + effect sizes.
+            </div>`}
+        `;
+    }
+
+    // Anytime-Valid Inference
+    if (type === 'anytime') {
+        if (id === 'anytime_onesample') {
+            return `
+                <div class="aw-form-group">
+                    <label>Value column:</label>
+                    <select id="cfg-value_col">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Null mean (μ₀):</label>
+                        <input type="number" id="cfg-mu0" value="0" step="any">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Alpha:</label>
+                        <input type="number" id="cfg-alpha" value="0.05" step="0.01" min="0.001" max="0.2">
+                    </div>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted, #9aaa9a);">
+                    <strong style="color:var(--aw-accent, #4a9f6e);">Anytime-Valid:</strong> E-value based sequential test. Valid at any stopping time — no peeking penalty.
+                </div>
+            `;
+        }
+        if (id === 'anytime_ab') {
+            return `
+                <div class="aw-form-group">
+                    <label>Value column:</label>
+                    <select id="cfg-value_col">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Group column:</label>
+                    <select id="cfg-group_col">${colOptions}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Group A label:</label>
+                        <input type="text" id="cfg-group_a" placeholder="e.g., control">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Group B label:</label>
+                        <input type="text" id="cfg-group_b" placeholder="e.g., treatment">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Alpha:</label>
+                    <input type="number" id="cfg-alpha" value="0.05" step="0.01" min="0.001" max="0.2">
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted, #9aaa9a);">
+                    <strong style="color:var(--aw-accent, #4a9f6e);">Anytime A/B:</strong> Sequential two-sample test. Monitor continuously without inflating type I error.
+                </div>
+            `;
+        }
+        return `
+            <div class="aw-form-group">
+                <label>Value column:</label>
+                <select id="cfg-value_col">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Alpha:</label>
+                <input type="number" id="cfg-alpha" value="0.05" step="0.01" min="0.001" max="0.2">
+            </div>
+        `;
+    }
+
+    // Drift Detection
+    if (type === 'drift') {
+        const numericCols = columns.filter(c => c.dtype === 'numeric');
+        const featureCheckboxes = numericCols.map(c => `
+            <label class="aw-checkbox-item">
+                <input type="checkbox" name="features" value="${c.name}" checked>
+                <span>${c.name}</span>
+            </label>
+        `).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Feature columns:</label>
+                <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">
+                    ${featureCheckboxes || '<span style="color:#7a8f7a;">No numeric columns</span>'}
+                </div>
+            </div>
+            <div class="aw-form-group">
+                <label>Target column (optional):</label>
+                <select id="cfg-target"><option value="">None</option>${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Baseline split (% from start):</label>
+                <input type="number" id="cfg-split_pct" value="50" min="10" max="90" step="5">
+                <small style="color:#7a8f7a;">First N% = baseline, remainder = test window</small>
+            </div>
+            <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted, #9aaa9a);">
+                <strong style="color:#e89547;">Drift Report:</strong> Detects distribution shift between baseline and test windows. KS test, PSI, and feature-level breakdown.
+            </div>
+        `;
+    }
+
+    // Interventional SHAP
+    if (type === 'ishap') {
+        const numericCols = columns.filter(c => c.dtype === 'numeric');
+        const featureCheckboxes = numericCols.map(c => `
+            <label class="aw-checkbox-item">
+                <input type="checkbox" name="features" value="${c.name}" checked>
+                <span>${c.name}</span>
+            </label>
+        `).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Target column:</label>
+                <select id="cfg-target">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Feature columns:</label>
+                <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">
+                    ${featureCheckboxes || '<span style="color:#7a8f7a;">No numeric columns</span>'}
+                </div>
+            </div>
+            <div class="aw-form-group">
+                <label>SCM method:</label>
+                <select id="cfg-scm_method">
+                    <option value="lingam">LiNGAM</option>
+                    <option value="pc">PC Algorithm</option>
+                </select>
+            </div>
+            <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted, #9aaa9a);">
+                <strong style="color:var(--aw-accent, #4a9f6e);">iSHAP:</strong> Interventional SHAP — causal feature importance. Unlike standard SHAP, respects causal structure.
+            </div>
+        `;
+    }
+
+    // Bayesian MSA (standalone type — also available via bayesian block)
+    if (type === 'bayes_msa') {
+        return `
+            <div class="aw-form-group">
+                <label>Measurement column:</label>
+                <select id="cfg-measurement">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Part column:</label>
+                <select id="cfg-part">${colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Operator column:</label>
+                <select id="cfg-operator">${colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Tolerance (optional):</label>
+                <input type="number" id="cfg-tolerance" step="any" placeholder="Total tolerance range">
+            </div>
+            <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted, #9aaa9a);">
+                <strong style="color:var(--aw-accent, #4a9f6e);">Bayesian MSA:</strong> Posterior distributions for repeatability, reproducibility, and %GRR. Credible intervals instead of point estimates.
             </div>
         `;
     }
