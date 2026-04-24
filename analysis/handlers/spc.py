@@ -35,7 +35,22 @@ def run(df, analysis_id, config):
     if analysis_id in ("entropy_spc",):
         return _entropy(df, config)
 
-    entry = _CHART_FUNCS.get(analysis_id)
+    # Charts not yet in forgespc — run I-MR as baseline with a note
+    _FALLBACK_TO_IMR = {
+        "laney_p",
+        "laney_u",
+        "mewma",
+        "moving_average",
+        "zone_chart",
+        "generalized_variance",
+        "degradation_capability",
+    }
+    if analysis_id in _FALLBACK_TO_IMR:
+        entry = ("forgespc.charts", "individuals_moving_range_chart")
+        # Will note in summary that specific chart type is pending forgespc update
+    else:
+        entry = _CHART_FUNCS.get(analysis_id)
+
     if not entry:
         return {
             "summary": f"SPC analysis '{analysis_id}' not yet in forge-native dispatch.",
@@ -61,7 +76,10 @@ def run(df, analysis_id, config):
         logger.exception("forgespc call failed: %s", analysis_id)
         return {"summary": f"SPC error: {e}", "charts": [], "statistics": {}}
 
-    return _convert_spc(result, analysis_id)
+    out = _convert_spc(result, analysis_id)
+    if analysis_id in _FALLBACK_TO_IMR:
+        out["summary"] = f"[{analysis_id} pending forgespc] " + out.get("summary", "")
+    return out
 
 
 def _build_kwargs(df, analysis_id, config, col):

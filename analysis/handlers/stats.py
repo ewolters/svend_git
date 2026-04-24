@@ -18,33 +18,133 @@ logger = logging.getLogger(__name__)
 
 
 def _get_dispatch():
-    """Build dispatch map lazily to avoid forward reference issues."""
+    """Build dispatch map: analysis_id → (module, function, parser).
+
+    Parsers reuse a small set of patterns — most analyses need
+    the same data extraction (one column, two columns, response+factor, etc.).
+    """
     return {
-        # Hypothesis testing
+        # ── Hypothesis Testing ───────────────────────────────────────
         "ttest": ("forgestat.parametric.ttest", "one_sample", _parse_one_sample),
         "ttest2": ("forgestat.parametric.ttest", "two_sample", _parse_two_sample),
         "paired_t": ("forgestat.parametric.ttest", "paired", _parse_paired),
         "anova": ("forgestat.parametric.anova", "one_way_from_dict", _parse_anova),
+        "anova2": ("forgestat.parametric.anova", "two_way", _parse_two_way_anova),
+        "repeated_measures_anova": (
+            "forgestat.parametric.repeated_measures",
+            "repeated_measures_anova",
+            _parse_rm_anova,
+        ),
+        "nested_anova": ("forgestat.parametric.mixed", "nested_anova", _parse_nested),
+        "split_plot_anova": ("forgestat.parametric.split_plot", "split_plot_anova", _parse_two_way_anova),
         "chi2": ("forgestat.parametric.chi_square", "chi_square_independence", _parse_chi2),
+        "fisher_exact": ("forgestat.parametric.chi_square", "fisher_exact", _parse_chi2),
         "correlation": ("forgestat.parametric.correlation", "correlation", _parse_correlation),
         "equivalence": ("forgestat.parametric.equivalence", "tost", _parse_equivalence),
         "prop_1sample": ("forgestat.parametric.proportion", "one_proportion", _parse_one_prop),
         "prop_2sample": ("forgestat.parametric.proportion", "two_proportions", _parse_two_prop),
-        "variance_test": ("forgestat.parametric.variance", "variance_test", _parse_variance_test),
-        # Nonparametric
+        "variance_test": ("forgestat.parametric.variance", "variance_test", _parse_two_sample),
+        "f_test": ("forgestat.parametric.variance", "f_test", _parse_two_sample),
+        "poisson_1sample": ("forgestat.parametric.proportion", "one_proportion", _parse_one_sample),
+        "poisson_2sample": ("forgestat.parametric.proportion", "two_proportions", _parse_two_sample),
+        "manova": ("forgestat.exploratory.multivariate", "one_way_manova", _parse_manova),
+        "hotelling_t2": ("forgestat.exploratory.multivariate", "hotelling_t2_one_sample", _parse_multivar),
+        "sign_test": ("forgestat.nonparametric.rank_tests", "sign_test", _parse_one_sample),
+        "runs_test": ("forgestat.nonparametric.rank_tests", "runs_test", _parse_one_sample),
+        # ── Nonparametric ────────────────────────────────────────────
         "mann_whitney": ("forgestat.nonparametric.rank_tests", "mann_whitney", _parse_two_sample),
         "kruskal": ("forgestat.nonparametric.rank_tests", "kruskal_wallis", _parse_anova),
         "wilcoxon": ("forgestat.nonparametric.rank_tests", "wilcoxon_signed_rank", _parse_one_sample),
         "friedman": ("forgestat.nonparametric.rank_tests", "friedman", _parse_anova),
         "spearman": ("forgestat.parametric.correlation", "correlation", _parse_spearman),
-        # Descriptive
+        "mood_median": ("forgestat.nonparametric.rank_tests", "mood_median", _parse_anova),
+        # ── Post-Hoc ────────────────────────────────────────────────
+        "tukey_hsd": ("forgestat.posthoc.comparisons", "tukey_hsd", _parse_anova),
+        "dunnett": ("forgestat.posthoc.comparisons", "dunnett", _parse_anova),
+        "games_howell": ("forgestat.posthoc.comparisons", "games_howell", _parse_anova),
+        "dunn": ("forgestat.posthoc.comparisons", "dunn", _parse_anova),
+        "scheffe_test": ("forgestat.posthoc.comparisons", "scheffe", _parse_anova),
+        "bonferroni_test": ("forgestat.posthoc.comparisons", "bonferroni", _parse_anova),
+        "hsu_mcb": ("forgestat.posthoc.comparisons", "tukey_hsd", _parse_anova),  # closest available
+        # ── Descriptive / Exploratory ───────────────────────────────
         "descriptive": ("forgestat.exploratory.univariate", "describe", _parse_describe),
+        "graphical_summary": ("forgestat.exploratory.univariate", "describe", _parse_describe),
+        "auto_profile": ("forgestat.exploratory.univariate", "describe", _parse_describe),
+        "data_profile": ("forgestat.exploratory.univariate", "describe", _parse_describe),
         "normality": ("forgestat.core.assumptions", "check_normality", _parse_normality),
-        # Regression
-        "regression": ("forgestat.regression.linear", "linear_regression", _parse_regression),
-        "logistic": ("forgestat.regression.logistic", "logistic_regression", _parse_logistic),
-        # Power
+        "outlier_analysis": ("forgestat.core.assumptions", "check_outliers", _parse_normality),
+        "grubbs_test": ("forgestat.core.assumptions", "check_outliers", _parse_normality),
+        "distribution_fit": ("forgestat.core.distributions", "fit_best", _parse_normality),
+        "bootstrap_ci": ("forgestat.exploratory.univariate", "bootstrap_ci", _parse_normality),
+        "box_cox": ("forgestat.core.distributions", "box_cox", _parse_normality),
+        "johnson_transform": ("forgestat.core.distributions", "johnson_transform", _parse_normality),
+        "tolerance_interval": ("forgestat.exploratory.univariate", "tolerance_interval", _parse_normality),
+        "effect_size_calculator": ("forgestat.core.effect_size", "cohens_d_one_sample", _parse_normality),
+        "missing_data_analysis": ("forgestat.exploratory.univariate", "describe", _parse_describe),
+        "duplicate_analysis": ("forgestat.exploratory.univariate", "describe", _parse_describe),
+        "multi_vari": ("forgestat.exploratory.multi_vari", "multi_vari", _parse_nested),
+        "copula": ("forgestat.exploratory.multivariate", "pca", _parse_multivar),
+        "mixture_model": ("forgestat.core.distributions", "fit_best", _parse_normality),
+        "variance_components": ("forgestat.quality.variance_components", "one_way_random", _parse_anova),
+        "anom": ("forgestat.quality.anom", "anom", _parse_anova),
+        "run_chart": ("forgestat.exploratory.univariate", "describe", _parse_normality),
+        "interaction": ("forgestat.parametric.anova", "two_way", _parse_two_way_anova),
+        "main_effects": ("forgestat.parametric.anova", "one_way_from_dict", _parse_anova),
+        # ── Regression ──────────────────────────────────────────────
+        "regression": ("forgestat.regression.linear", "ols", _parse_regression),
+        "logistic": ("forgestat.regression.logistic", "logistic_regression", _parse_regression),
+        "nonlinear_regression": ("forgestat.regression.nonlinear", "curve_fit", _parse_regression),
+        "robust_regression": ("forgestat.regression.robust", "robust_regression", _parse_regression),
+        "stepwise": ("forgestat.regression.stepwise", "stepwise", _parse_regression),
+        "best_subsets": ("forgestat.regression.best_subsets", "best_subsets", _parse_regression),
+        "glm": ("forgestat.regression.glm", "glm", _parse_regression),
+        "poisson_regression": ("forgestat.regression.logistic", "poisson_regression", _parse_regression),
+        "ordinal_logistic": ("forgestat.regression.glm", "ordinal_logistic", _parse_regression),
+        "nominal_logistic": ("forgestat.regression.logistic", "logistic_regression", _parse_regression),
+        "orthogonal_regression": ("forgestat.regression.glm", "orthogonal_regression", _parse_regression),
+        "cox_ph": ("forgestat.reliability.cox", "cox_ph", _parse_regression),
+        # ── Power & Sample Size ─────────────────────────────────────
         "power_z": ("forgestat.power.sample_size", "power_z_test", _parse_power),
+        "power_equivalence": ("forgestat.power.sample_size", "power_equivalence", _parse_power),
+        "power_1prop": ("forgestat.power.sample_size", "power_proportion", _parse_power),
+        "power_2prop": ("forgestat.power.sample_size", "power_proportion", _parse_power),
+        "power_1variance": ("forgestat.power.sample_size", "power_chi_square", _parse_power),
+        "power_2variance": ("forgestat.power.sample_size", "power_chi_square", _parse_power),
+        "power_doe": ("forgestat.power.sample_size", "power_anova", _parse_power),
+        "sample_size_ci": ("forgestat.power.sample_size", "sample_size_for_ci", _parse_power),
+        "sample_size_tolerance": ("forgestat.power.sample_size", "sample_size_tolerance", _parse_power),
+        # ── Time Series ─────────────────────────────────────────────
+        "arima": ("forgestat.timeseries.forecasting", "arima", _parse_timeseries),
+        "sarima": ("forgestat.timeseries.forecasting", "sarima", _parse_timeseries),
+        "decomposition": ("forgestat.timeseries.decomposition", "classical_decompose", _parse_timeseries),
+        "acf_pacf": ("forgestat.timeseries.correlation", "acf_pacf", _parse_timeseries),
+        "ccf": ("forgestat.timeseries.correlation", "cross_correlation", _parse_ccf),
+        "granger": ("forgestat.timeseries.causality", "granger_causality", _parse_ccf),
+        "changepoint": ("forgestat.timeseries.changepoint", "pelt", _parse_timeseries),
+        # ── MSA ─────────────────────────────────────────────────────
+        "gage_rr": ("forgestat.msa.gage_rr", "crossed_gage_rr", _parse_msa),
+        "gage_rr_nested": ("forgestat.msa.gage_rr", "crossed_gage_rr", _parse_msa),
+        "gage_rr_expanded": ("forgestat.msa.gage_rr", "crossed_gage_rr", _parse_msa),
+        "attribute_agreement": ("forgestat.msa.agreement", "bland_altman", _parse_msa),
+        "attribute_gage": ("forgestat.msa.agreement", "bland_altman", _parse_msa),
+        "gage_type1": ("forgestat.msa.agreement", "linearity_bias", _parse_msa_linearity),
+        "gage_linearity_bias": ("forgestat.msa.agreement", "linearity_bias", _parse_msa_linearity),
+        "icc": ("forgestat.msa.agreement", "icc", _parse_msa),
+        "bland_altman": ("forgestat.msa.agreement", "bland_altman", _parse_paired),
+        "krippendorff_alpha": ("forgestat.msa.kappa", "krippendorff_alpha", _parse_msa),
+        # ── Reliability ─────────────────────────────────────────────
+        "kaplan_meier": ("forgestat.reliability.survival", "kaplan_meier", _parse_survival),
+        "weibull": ("forgestat.reliability.distributions", "weibull_fit", _parse_normality),
+        "sprt": ("forgestat.sequential", "GaussianMeanEProcess", _parse_normality),
+        # ── Quality ─────────────────────────────────────────────────
+        "capability_sixpack": ("forgestat.quality.capability", "nonnormal_capability", _parse_normality),
+        "nonnormal_capability_np": ("forgestat.quality.capability", "nonnormal_capability", _parse_normality),
+        "attribute_capability": ("forgestat.quality.capability", "attribute_capability", _parse_normality),
+        "acceptance_sampling": ("forgestat.quality.acceptance", "attribute_plan", _parse_acceptance),
+        "variable_acceptance_sampling": ("forgestat.quality.acceptance", "variable_plan", _parse_acceptance),
+        "multiple_plan_comparison": ("forgestat.quality.acceptance", "attribute_plan", _parse_acceptance),
+        # ── Meta-Analysis ───────────────────────────────────────────
+        "meta_analysis": ("forgestat.exploratory.meta", "meta_analysis", _parse_meta),
     }
 
 
@@ -325,6 +425,121 @@ def _parse_two_prop(df, config):
 
 def _parse_variance_test(df, config):
     return _parse_two_sample(df, config)
+
+
+def _parse_two_way_anova(df, config):
+    response = config.get("response") or config.get("var")
+    factor1 = config.get("factor") or config.get("factor1") or config.get("x")
+    factor2 = config.get("factor2") or config.get("y")
+    return (df,), {"response": response, "factor1": factor1, "factor2": factor2}
+
+
+def _parse_rm_anova(df, config):
+    response = config.get("response") or config.get("var")
+    subject = config.get("subject") or config.get("part")
+    within = config.get("factor") or config.get("within")
+    return (df,), {"response": response, "subject": subject, "within": within}
+
+
+def _parse_nested(df, config):
+    response = config.get("response") or config.get("var")
+    factors = []
+    for k in ("factor", "factor1", "factor2", "group"):
+        v = config.get(k)
+        if v and v in df.columns:
+            factors.append(v)
+    return (df, response, factors), {}
+
+
+def _parse_manova(df, config):
+    responses = config.get("vars") or config.get("responses") or []
+    if isinstance(responses, str):
+        responses = [responses]
+    factor = config.get("factor") or config.get("group")
+    data = df[responses + [factor]].dropna()
+    return (data,), {"responses": responses, "factor": factor}
+
+
+def _parse_multivar(df, config):
+    cols = config.get("vars") or df.select_dtypes(include="number").columns.tolist()
+    if isinstance(cols, str):
+        cols = [cols]
+    data = df[cols].apply(pd.to_numeric, errors="coerce").dropna().values
+    return (data,), {}
+
+
+def _parse_timeseries(df, config):
+    col = config.get("var") or config.get("column")
+    data = pd.to_numeric(df[col], errors="coerce").dropna().values
+    kwargs = {}
+    for k in ("p", "d", "q", "P", "D", "Q", "m", "period", "forecast", "lags", "model"):
+        v = config.get(k)
+        if v is not None:
+            kwargs[k] = int(v) if k in ("p", "d", "q", "P", "D", "Q", "m", "period", "forecast", "lags") else v
+    return (data,), kwargs
+
+
+def _parse_ccf(df, config):
+    col1 = config.get("var1") or config.get("x")
+    col2 = config.get("var2") or config.get("y")
+    x = pd.to_numeric(df[col1], errors="coerce").dropna().values
+    y = pd.to_numeric(df[col2], errors="coerce").dropna().values
+    n = min(len(x), len(y))
+    lags = int(config.get("lags", 20))
+    return (x[:n], y[:n]), {"max_lags": lags}
+
+
+def _parse_msa(df, config):
+    meas = config.get("measurement") or config.get("var")
+    part = config.get("part")
+    operator = config.get("operator")
+    return (df,), {"measurement": meas, "part": part, "operator": operator}
+
+
+def _parse_msa_linearity(df, config):
+    reference = config.get("reference") or config.get("var1")
+    measured = config.get("measurement") or config.get("var2") or config.get("var")
+    x = (
+        pd.to_numeric(df[reference], errors="coerce").dropna().values
+        if reference and reference in df.columns
+        else np.array([])
+    )
+    y = (
+        pd.to_numeric(df[measured], errors="coerce").dropna().values
+        if measured and measured in df.columns
+        else np.array([])
+    )
+    n = min(len(x), len(y))
+    return (x[:n], y[:n]), {}
+
+
+def _parse_survival(df, config):
+    col = config.get("time") or config.get("var")
+    data = pd.to_numeric(df[col], errors="coerce").dropna().values
+    event_col = config.get("event") or config.get("censor")
+    events = (
+        pd.to_numeric(df[event_col], errors="coerce").values
+        if event_col and event_col in df.columns
+        else np.ones(len(data))
+    )
+    n = min(len(data), len(events))
+    return (data[:n], events[:n]), {}
+
+
+def _parse_acceptance(df, config):
+    lot_size = int(config.get("lot_size", 1000))
+    aql = float(config.get("aql", 0.01))
+    ltpd = float(config.get("ltpd", 0.05))
+    return (), {"lot_size": lot_size, "aql": aql, "ltpd": ltpd}
+
+
+def _parse_meta(df, config):
+    effects_col = config.get("effects_col") or config.get("var1")
+    se_col = config.get("se_col") or config.get("var2")
+    effects = pd.to_numeric(df[effects_col], errors="coerce").dropna().values
+    ses = pd.to_numeric(df[se_col], errors="coerce").dropna().values
+    n = min(len(effects), len(ses))
+    return (effects[:n], ses[:n]), {}
 
 
 def _parse_describe(df, config):
