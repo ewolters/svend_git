@@ -18,6 +18,20 @@ logger = logging.getLogger(__name__)
 # Each module must expose: run(df, analysis_id, config) → dict
 _HANDLER_REGISTRY = {
     "pbs": "analysis.handlers.pbs",
+    "stats": "analysis.handlers.stats",
+    "spc": "analysis.handlers.spc",
+    "bayesian": "analysis.handlers.bayesian",
+    "viz": "analysis.handlers.viz",
+    "causal": "analysis.handlers.causal",
+    "reliability": ("analysis.handlers.misc", "run_reliability"),
+    "quality_econ": ("analysis.handlers.misc", "run_quality_econ"),
+    "simulation": ("analysis.handlers.misc", "run_simulation"),
+    "drift": ("analysis.handlers.misc", "run_drift"),
+    "anytime": ("analysis.handlers.misc", "run_anytime"),
+    "ishap": ("analysis.handlers.misc", "run_ishap"),
+    "bayes_msa": ("analysis.handlers.misc", "run_bayes_msa"),
+    "d_type": ("analysis.handlers.misc", "run_d_type"),
+    "siop": ("analysis.handlers.misc", "run_siop"),
 }
 
 
@@ -36,13 +50,19 @@ def dispatch(analysis_type, analysis_id, df, config):
     Raises:
         None — returns None for unregistered types so caller can fall back.
     """
-    module_path = _HANDLER_REGISTRY.get(analysis_type)
-    if not module_path:
+    entry = _HANDLER_REGISTRY.get(analysis_type)
+    if not entry:
         return None  # not yet migrated — caller falls back to old dispatch
 
     try:
-        mod = importlib.import_module(module_path)
-        raw = mod.run(df, analysis_id, config)
+        if isinstance(entry, tuple):
+            module_path, func_name = entry
+            mod = importlib.import_module(module_path)
+            handler = getattr(mod, func_name)
+        else:
+            mod = importlib.import_module(entry)
+            handler = mod.run
+        raw = handler(df, analysis_id, config)
         return chain.assemble(raw, analysis_type, analysis_id)
     except Exception:
         logger.exception("Handler failed: %s/%s", analysis_type, analysis_id)
