@@ -202,7 +202,59 @@ def run_analysis(request):
     if err:
         return err
 
-    # Dispatch to forge
+    # Try new forge-native router first (ForgeViz output, no Plotly)
+    try:
+        from analysis.router import dispatch as forge_dispatch
+        from analysis.router import is_registered
+
+        if is_registered(analysis_type):
+            result = forge_dispatch(analysis_type, analysis_id, df, config)
+            if result is not None:
+                latency = int((time.time() - start) * 1000)
+                logger.info(f"Forge-native: {analysis_type}/{analysis_id} in {latency}ms")
+
+                # Persist to session
+                analysis_record_id = None
+                session = _get_session(request, body)
+                if session:
+                    try:
+                        from workbench.models import SessionAnalysis, SessionDataset
+
+                        dataset_id = body.get("dataset_id")
+                        dataset = (
+                            SessionDataset.objects.filter(id=dataset_id, session=session).first()
+                            if dataset_id
+                            else None
+                        )
+                        record = SessionAnalysis.objects.create(
+                            session=session,
+                            dataset=dataset,
+                            analysis_type=analysis_type,
+                            analysis_id=analysis_id,
+                            columns_used=list(config.values()) if isinstance(config, dict) else [],
+                            config=config,
+                            statistics=result.get("statistics", {}),
+                            narrative=result.get("narrative", {}),
+                            summary=result.get("summary", ""),
+                            charts=result.get("plots", []),
+                            diagnostics=result.get("diagnostics", []),
+                            assumptions=result.get("assumptions", {}),
+                            education=result.get("education"),
+                            bayesian_shadow=result.get("bayesian_shadow"),
+                            evidence_grade=result.get("evidence_grade", ""),
+                            guide_observation=result.get("guide_observation", ""),
+                        )
+                        analysis_record_id = str(record.id)
+                        session.save()
+                    except Exception:
+                        logger.warning("Session persistence failed", exc_info=True)
+
+                result["_analysis_record_id"] = analysis_record_id
+                return JsonResponse(result, safe=False)
+    except ImportError:
+        pass  # analysis app not installed yet
+
+    # Fallback: legacy dispatch (Plotly output)
     try:
         result = _run_forge(analysis_type, analysis_id, df, config)
     except Exception as e:
@@ -215,7 +267,7 @@ def run_analysis(request):
             status=400,
         )
 
-    # Standardize output
+    # Standardize output (legacy path)
     try:
         from agents_api.analysis.standardize import standardize_output
 
