@@ -29,7 +29,7 @@ def assemble(raw, analysis_type, analysis_id):
         "summary": raw.get("summary", ""),
         "plots": _serialize_charts(raw.get("charts", [])),
         "statistics": raw.get("statistics", {}),
-        "narrative": _build_narrative(raw),
+        "narrative": _build_narrative(raw, analysis_type, analysis_id),
         "education": _build_education(raw, analysis_type, analysis_id),
         "diagnostics": raw.get("diagnostics", []),
         "assumptions": raw.get("assumptions", {}),
@@ -61,11 +61,32 @@ def _serialize_charts(charts):
     return out
 
 
-def _build_narrative(raw):
-    """Build narrative dict from raw handler output."""
+def _build_narrative(raw, analysis_type=None, analysis_id=None):
+    """Build narrative dict — prefer forgenarr, fall back to handler or generic."""
+    # If handler already provided a narrative dict, use it
     narr = raw.get("narrative")
-    if isinstance(narr, dict):
+    if isinstance(narr, dict) and narr.get("verdict"):
         return narr
+
+    # Try forgenarr
+    try:
+        from forgenarr import narrate
+
+        result = narrate(
+            analysis_type=analysis_type or "",
+            analysis_id=analysis_id or "",
+            statistics=raw.get("statistics", {}),
+            config=raw.get("_config", {}),
+            summary=raw.get("summary", ""),
+        )
+        if result.get("verdict"):
+            return result
+    except ImportError:
+        pass  # forgenarr not installed
+    except Exception:
+        logger.debug("forgenarr failed, falling back", exc_info=True)
+
+    # Fall back to handler-provided string or summary
     if isinstance(narr, str):
         return {
             "verdict": narr.split(".")[0] + "." if "." in narr else narr,
@@ -73,7 +94,6 @@ def _build_narrative(raw):
             "next_steps": "",
             "chart_guidance": "",
         }
-    # Auto-generate from summary
     summary = raw.get("summary", "")
     if summary:
         clean = re.sub(r"<<COLOR:\w+>>|<<COLOR>>", "", summary)
