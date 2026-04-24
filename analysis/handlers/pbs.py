@@ -388,15 +388,13 @@ def _predictive(y, USL, LSL):
 
 
 def _evidence(y, prior, mu_0, sigma_cal):
-    # Evidence accumulation via sequential e-values from the e-detector
-    # Use e-detector in one-sided mode as evidence accumulator
-    bounds = (mu_0 - 4 * max(sigma_cal, 1e-6), mu_0 + 4 * max(sigma_cal, 1e-6))
-    ed = EDetector(mu_0=mu_0, bounds=bounds, alpha=0.05)
-    points = ed.process_batch(y)
+    from forgepbs.charts.belief import EvidenceAccumulation
+
+    ea = EvidenceAccumulation(mu_0=mu_0, sigma_ref=sigma_cal)
+    points = ea.process_batch(y)
 
     ts = list(range(len(y)))
-    # Cumulative max of upper and lower e-values as "evidence"
-    log_es = [max(p.log_e_upper, p.log_e_lower) for p in points]
+    log_es = [p.log_e_accumulated for p in points]
 
     spec = ChartSpec(
         title="Evidence Accumulation",
@@ -408,19 +406,19 @@ def _evidence(y, prior, mu_0, sigma_cal):
     spec.add_reference_line(math.log(20), color="#4a9f6e", dash="dashed", label="Strong (20:1)")
     spec.add_reference_line(math.log(3), color="#d4a24a", dash="dotted", label="Moderate (3:1)")
 
-    peak_e = max(log_es) if log_es else 0
-    last_e = math.exp(peak_e) if peak_e > 0 else 1
-    level = "strong" if last_e >= 20 else "moderate" if last_e >= 3 else "weak"
+    last_pt = points[-1] if points else None
+    level = last_pt.evidence_level if last_pt else "none"
+    peak_e = last_pt.e_value if last_pt else 1
 
     return {
         "charts": [spec],
         "statistics": {
-            "peak_e_value": round(last_e, 3),
-            "peak_log_e": round(peak_e, 3),
+            "peak_e_value": round(peak_e, 3),
+            "peak_log_e": round(log_es[-1], 3) if log_es else 0,
             "evidence_level": level,
         },
-        "summary": f"Evidence: peak E = {last_e:.1f} ({level}). "
-        f"{'Process shifted from baseline.' if last_e >= 20 else 'No strong evidence of shift.'}",
+        "summary": f"Evidence: E = {peak_e:.1f} ({level}). "
+        f"{'Process shifted from baseline.' if peak_e >= 20 else 'No strong evidence of shift.'}",
     }
 
 
