@@ -8490,6 +8490,69 @@ async function executeAnalysis() {
     const newTabCheckbox = document.getElementById('cfg-new_tab');
     config.new_tab = newTabCheckbox ? newTabCheckbox.checked : false;
 
+    // ── Client-side validation ──────────────────────────────────────
+    const vErrors = [];
+
+    // USL > LSL check
+    if (config.lsl !== undefined && config.usl !== undefined && config.lsl !== '' && config.usl !== '') {
+        const lsl = parseFloat(config.lsl || config.LSL);
+        const usl = parseFloat(config.usl || config.USL);
+        if (!isNaN(lsl) && !isNaN(usl) && lsl >= usl) {
+            vErrors.push('USL must be greater than LSL');
+        }
+    }
+    if (config.LSL !== undefined && config.USL !== undefined && config.LSL !== '' && config.USL !== '') {
+        const lsl = parseFloat(config.LSL);
+        const usl = parseFloat(config.USL);
+        if (!isNaN(lsl) && !isNaN(usl) && lsl >= usl) {
+            vErrors.push('USL must be greater than LSL');
+        }
+    }
+
+    // Required measurement/response column for chart-based analyses
+    const needsMeasurement = ['imr', 'xbar_r', 'xbar_s', 'cusum', 'ewma', 'p_chart', 'np_chart',
+        'c_chart', 'u_chart', 'laney_p', 'laney_u', 'moving_average', 'zone_chart',
+        'capability', 'capability_sixpack', 'pbs_full', 'pbs_belief', 'pbs_evidence',
+        'pbs_adaptive', 'pbs_cpk', 'pbs_cpk_traj', 'pbs_health', 'degradation_capability',
+        'mewma', 'generalized_variance'];
+    if (needsMeasurement.includes(currentAnalysis.id)) {
+        const m = config.measurement || config.column || config.var;
+        if (!m || m === '') vErrors.push('Select a measurement/variable column');
+    }
+
+    // Required response for stats analyses that need it
+    const needsResponse = ['ttest', 'ttest2', 'paired_t', 'anova', 'anova2', 'mann_whitney',
+        'kruskal', 'wilcoxon', 'friedman'];
+    if (needsResponse.includes(currentAnalysis.id)) {
+        const r = config.response || config.var || config.var1;
+        if (!r || r === '') vErrors.push('Select a response variable');
+    }
+
+    // Numeric range checks
+    if (config.alpha !== undefined && config.alpha !== '') {
+        const a = parseFloat(config.alpha);
+        if (isNaN(a) || a <= 0 || a >= 1) vErrors.push('Alpha must be between 0 and 1');
+    }
+    if (config.confidence !== undefined && config.confidence !== '') {
+        const c = parseFloat(config.confidence);
+        if (isNaN(c) || c <= 0 || c >= 100) vErrors.push('Confidence must be between 0 and 100');
+    }
+
+    // Checkbox group: at least one variable selected
+    const needsVars = ['descriptive', 'graphical_summary', 'auto_profile', 'data_profile',
+        'correlation', 'matrix', 'parallel_coordinates'];
+    if (needsVars.includes(currentAnalysis.id)) {
+        const v = config.vars;
+        if (!v || (Array.isArray(v) && v.length === 0)) vErrors.push('Select at least one variable');
+    }
+
+    if (vErrors.length > 0) {
+        appendSession('separator');
+        appendSession('error', 'Validation: ' + vErrors.join('; '));
+        return;
+    }
+    // ── End validation ──────────────────────────────────────────────
+
     try {
         // Data tools use a different endpoint
         if (currentAnalysis.type === 'tools') {
@@ -8605,6 +8668,10 @@ async function executeAnalysis() {
             statistics: result.statistics || {},
             plots: result.plots || [],
         };
+
+        // Store context for PROVA OOC investigation
+        window._currentDSWResultId = result.result_id || '';
+        window._currentMeasurement = config.measurement || config.column || '';
 
         if (result.summary) {
             const session = document.getElementById('session-output');
@@ -10329,26 +10396,30 @@ async function investigateOOC(btn) {
     btn.disabled = true;
     btn.textContent = 'Creating\u2026';
     try {
-        const resp = await fetch('/api/rca/sessions/create/', {
+        // Route through PROVA: creates hypothesis + spawns RCA
+        const resp = await fetch('/api/prova/investigate/', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
             body: JSON.stringify({
-                event: `Out-of-control point at observation #${obs} (value: ${val}). Rules violated: ${rulesText}`,
-                title: `Investigate OOC #${obs}`,
+                observation_index: parseInt(obs),
+                value: parseFloat(val),
+                rules_violated: rulesText,
+                dsw_result_id: window._currentDSWResultId || '',
+                measurement: window._currentMeasurement || '',
             })
         });
         const data = await resp.json();
-        if (data.session && data.session.id) {
-            window.open(`/app/rca/?session=${data.session.id}`, '_blank');
-            btn.textContent = '\u2713 RCA opened';
+        if (data.rca_session_id) {
+            window.open(data.rca_url, '_blank');
+            btn.textContent = '\u2713 Investigating';
         } else {
-            appendSession('error', data.error || 'Could not create RCA session');
+            appendSession('error', data.error || 'Could not create investigation');
             btn.disabled = false;
             btn.textContent = 'Investigate';
         }
     } catch (e) {
-        appendSession('error', 'Could not create RCA session');
+        appendSession('error', 'Could not create investigation');
         btn.disabled = false;
         btn.textContent = 'Investigate';
     }
