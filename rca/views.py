@@ -13,9 +13,9 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_enterprise
 from agents_api.evidence_bridge import create_tool_evidence
-from agents_api.llm_service import llm_service
 from agents_api.models import ActionItem, CAPAReport
-from agents_api.permissions import qms_can_edit, qms_queryset, qms_set_ownership
+from llm.service import llm_service
+from qms_core.permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
 from .models import RCASession
 
@@ -658,7 +658,7 @@ def create_session(request):
     if not event:
         return JsonResponse({"error": "Event description required"}, status=400)
 
-    from agents_api.permissions import resolve_site
+    from qms_core.permissions import resolve_site
 
     site, err = resolve_site(request.user, data.get("site_id"))
     if err:
@@ -683,7 +683,7 @@ def create_session(request):
     # Link to project if provided, otherwise auto-create one
     project_id = data.get("project_id")
     if project_id:
-        from agents_api.permissions import resolve_project
+        from qms_core.permissions import resolve_project
 
         project, _err = resolve_project(request.user, project_id)
         if project:
@@ -702,7 +702,7 @@ def create_session(request):
         except A3Report.DoesNotExist:
             pass
 
-    from agents_api.tool_events import tool_events
+    from tools.events import tool_events
 
     tool_events.emit("rca.created", session, user=request.user)
 
@@ -787,10 +787,29 @@ def update_session(request, session_id):
 
     session.save()
 
-    # CANON-002 §12 — investigation bridge
+    # CANON-002 §12 — investigation bridge (legacy, kept for backward compat)
     investigation_id = data.get("investigation_id")
     if investigation_id and data.get("root_cause"):
         _rca_connect_investigation(request, investigation_id, session, data)
+
+    # PROVA integration — RCA root cause → working graph hypothesis
+    if "root_cause" in data and data["root_cause"]:
+        try:
+            from qms_core.permissions import get_tenant
+
+            prova_tenant = get_tenant(request.user)
+            if prova_tenant:
+                from prova.integrations import on_rca_root_cause
+
+                on_rca_root_cause(
+                    user=request.user,
+                    tenant=prova_tenant,
+                    rca_session=session,
+                    root_cause=data["root_cause"],
+                    chain=data.get("chain", []),
+                )
+        except Exception as e:
+            logger.debug("PROVA RCA integration skipped: %s", e)
 
     # FEAT-006: RCA → CAPA backflow — when root_cause is set, update linked CAPA
     if "root_cause" in data and data["root_cause"]:
@@ -819,7 +838,7 @@ def update_session(request, session_id):
                         source_type="analysis",
                     )
 
-    from agents_api.tool_events import tool_events
+    from tools.events import tool_events
 
     tool_events.emit("rca.updated", session, user=request.user, data=data)
 

@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from agents_api.learn_content import SHARED_DATASET, get_section_content
-from agents_api.llm_service import llm_service
+from llm.service import llm_service
 
 logger = logging.getLogger(__name__)
 

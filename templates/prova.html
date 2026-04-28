@@ -1,0 +1,453 @@
+{% extends "base_workspace.html" %}
+{% block title %}PROVA{% endblock %}
+
+{% block workspace_style %}
+.prova-section { display: none; padding: 16px; height: 100%; overflow-y: auto; }
+.prova-section.active { display: block; }
+
+.prova-table { width: 100%; border-collapse: collapse; }
+.prova-table th {
+    text-align: left; font-size: 10px; font-weight: 600;
+    color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 8px 10px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--bg-primary); z-index: 1;
+}
+.prova-table td {
+    padding: 8px 10px; border-bottom: 1px solid var(--border);
+    font-size: 12px; color: var(--text-primary); vertical-align: middle;
+}
+.prova-table tr:hover td { background: var(--bg-hover); cursor: pointer; }
+.prova-table tr.broken td { background: color-mix(in srgb, var(--sv-red) 8%, transparent); }
+.prova-table tr.dark td { opacity: 0.45; }
+.prova-table tr.conflict td { background: color-mix(in srgb, var(--sv-red) 12%, transparent); }
+
+.prova-conf-bar {
+    display: inline-block; height: 6px; border-radius: 3px;
+    background: var(--sv-green); min-width: 4px; max-width: 80px;
+    vertical-align: middle;
+}
+.prova-conf-bar.low { background: var(--sv-amber); }
+.prova-conf-bar.broken { background: var(--sv-red); }
+
+.prova-stat-card {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 12px 16px; background: var(--bg-secondary); border-radius: var(--radius-md);
+    border: 1px solid var(--border); min-width: 100px;
+}
+.prova-stat-value { font-size: 22px; font-weight: 600; font-family: var(--font-mono); color: var(--text-primary); }
+.prova-stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); }
+
+.prova-tier { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; }
+.prova-tier.green { background: var(--sv-green); }
+.prova-tier.blue { background: var(--sv-blue); }
+.prova-tier.purple { background: var(--sv-purple); }
+
+.prova-curation { display: inline-block; width: 6px; height: 6px; border-radius: 50%; vertical-align: middle; }
+.prova-curation.active { background: var(--sv-green); }
+.prova-curation.curated { background: var(--sv-amber); }
+.prova-curation.noise { background: var(--sv-dim); }
+{% endblock %}
+
+{% block workspace_sidebar %}
+<div style="margin-bottom:16px;">
+    <div style="font-size:11px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">PROVA</div>
+    <div style="font-size:9px;color:var(--text-dim);margin-bottom:12px;">Knowledge Graph</div>
+</div>
+
+<div class="sv-list-item selected" onclick="provaNav('operating')" id="nav-operating">
+    <div class="sv-dot sv-dot-green"></div>
+    <div style="flex:1;font-size:12px;">Operating Graph</div>
+    <span id="nav-operating-count" class="sv-badge" style="font-size:8px;">0</span>
+</div>
+<div class="sv-list-item" onclick="provaNav('working')" id="nav-working">
+    <div class="sv-dot sv-dot-blue"></div>
+    <div style="flex:1;font-size:12px;">Working Graph</div>
+    <span id="nav-working-count" class="sv-badge" style="font-size:8px;">0</span>
+</div>
+<div class="sv-list-item" onclick="provaNav('trials')" id="nav-trials">
+    <div class="sv-dot sv-dot-purple"></div>
+    <div style="flex:1;font-size:12px;">Trials</div>
+    <span id="nav-trials-count" class="sv-badge" style="font-size:8px;">0</span>
+</div>
+
+<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:12px;">
+    <div class="sv-list-item" onclick="provaNav('conflicts')" id="nav-conflicts">
+        <div class="sv-dot sv-dot-red"></div>
+        <div style="flex:1;font-size:12px;">Conflicts</div>
+        <span id="nav-conflicts-count" class="sv-badge sv-badge-red" style="font-size:8px;">0</span>
+    </div>
+    <div class="sv-list-item" onclick="provaNav('signals')" id="nav-signals">
+        <div class="sv-dot sv-dot-amber"></div>
+        <div style="flex:1;font-size:12px;">Signals</div>
+        <span id="nav-signals-count" class="sv-badge sv-badge-amber" style="font-size:8px;">0</span>
+    </div>
+</div>
+
+<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:12px;">
+    <div class="sv-list-item" onclick="provaNav('versions')" id="nav-versions">
+        <div style="flex:1;font-size:12px;color:var(--text-dim);">Version History</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block workspace_toolbar %}
+<div style="font-size:13px;font-weight:600;color:var(--text-primary);" id="prova-toolbar-title">Operating Graph</div>
+<div style="flex:1;"></div>
+<div style="display:flex;gap:8px;" id="prova-stats"></div>
+{% endblock %}
+
+{% block workspace_canvas %}
+<!-- Operating Graph (edges list) -->
+<div class="prova-section active" id="section-operating">
+    <table class="prova-table" id="operating-table">
+        <thead>
+            <tr>
+                <th style="width:24px;"></th>
+                <th>Source</th>
+                <th></th>
+                <th>Target</th>
+                <th>Type</th>
+                <th>Confidence</th>
+                <th>Weight</th>
+                <th>Premise</th>
+                <th>Evidence</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="operating-body"></tbody>
+    </table>
+    <div class="sv-empty" id="operating-empty" style="display:none;padding:60px;text-align:center;">
+        <div style="font-size:13px;color:var(--text-dim);">No relationships in the operating graph yet.</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Run analyses and promote trials to build knowledge.</div>
+    </div>
+</div>
+
+<!-- Working Graph (hypotheses list) -->
+<div class="prova-section" id="section-working">
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <button class="sv-filter-btn active" onclick="provaFilterHyp('all', this)">All</button>
+        <button class="sv-filter-btn" onclick="provaFilterHyp('active', this)">Active</button>
+        <button class="sv-filter-btn" onclick="provaFilterHyp('curated', this)">Curated</button>
+        <button class="sv-filter-btn" onclick="provaFilterHyp('noise', this)">Noise</button>
+    </div>
+    <table class="prova-table" id="working-table">
+        <thead>
+            <tr>
+                <th style="width:16px;"></th>
+                <th>Hypothesis</th>
+                <th>Outcome</th>
+                <th>Status</th>
+                <th>Prior</th>
+                <th>Posterior</th>
+                <th>Edits</th>
+                <th>Trials</th>
+                <th>Commitment</th>
+            </tr>
+        </thead>
+        <tbody id="working-body"></tbody>
+    </table>
+    <div class="sv-empty" id="working-empty" style="display:none;padding:60px;text-align:center;">
+        <div style="font-size:13px;color:var(--text-dim);">No hypotheses in the working graph.</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Investigate an SPC signal or add a hypothesis from the floor.</div>
+    </div>
+</div>
+
+<!-- Trials -->
+<div class="prova-section" id="section-trials">
+    <table class="prova-table" id="trials-table">
+        <thead>
+            <tr>
+                <th style="width:16px;"></th>
+                <th>Hypothesis</th>
+                <th>Tier</th>
+                <th>Status</th>
+                <th>Valid</th>
+                <th>Graph Delta</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody id="trials-body"></tbody>
+    </table>
+</div>
+
+<!-- Conflicts -->
+<div class="prova-section" id="section-conflicts">
+    <table class="prova-table" id="conflicts-table">
+        <thead>
+            <tr>
+                <th>Edge</th>
+                <th>Magnitude</th>
+                <th>Eval Cost</th>
+                <th>Status</th>
+                <th>Proposed Resolution</th>
+                <th>Since</th>
+            </tr>
+        </thead>
+        <tbody id="conflicts-body"></tbody>
+    </table>
+</div>
+
+<!-- Signals -->
+<div class="prova-section" id="section-signals">
+    <table class="prova-table" id="signals-table">
+        <thead>
+            <tr>
+                <th>Edge</th>
+                <th>Signal</th>
+                <th>Magnitude</th>
+                <th>Status</th>
+                <th>Since</th>
+            </tr>
+        </thead>
+        <tbody id="signals-body"></tbody>
+    </table>
+</div>
+
+<!-- Versions -->
+<div class="prova-section" id="section-versions">
+    <table class="prova-table" id="versions-table">
+        <thead>
+            <tr>
+                <th>Version</th>
+                <th>Promoted By</th>
+                <th>Date</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody id="versions-body"></tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block workspace_statusbar %}
+<span id="prova-status-version">v0</span>
+<span>|</span>
+<span id="prova-status-score">Score: --</span>
+<span>|</span>
+<span id="prova-status-eval">Last evaluated: --</span>
+{% endblock %}
+
+{% block workspace_scripts %}
+const state = {
+    section: 'operating',
+    graph: null,
+    hypotheses: [],
+    hypFilter: 'all',
+};
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function timeAgo(iso) {
+    if (!iso) return '--';
+    const d = new Date(iso), now = new Date(), diff = (now - d) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+    return Math.floor(diff/86400) + 'd ago';
+}
+
+// ── Navigation ──
+function provaNav(section) {
+    state.section = section;
+    document.querySelectorAll('.prova-section').forEach(el => el.classList.remove('active'));
+    document.getElementById('section-' + section)?.classList.add('active');
+    document.querySelectorAll('.sv-ws-sidebar .sv-list-item').forEach(el => el.classList.remove('selected'));
+    document.getElementById('nav-' + section)?.classList.add('selected');
+
+    const titles = { operating: 'Operating Graph', working: 'Working Graph', trials: 'Trials', conflicts: 'Conflicts', signals: 'Signals', versions: 'Version History' };
+    document.getElementById('prova-toolbar-title').textContent = titles[section] || section;
+}
+
+// ── Data loading ──
+async function provaLoad() {
+    try {
+        const [graphResp, workingResp, conflictsResp, signalsResp] = await Promise.all([
+            fetch('/api/prova/graph/', { credentials: 'include' }),
+            fetch('/api/prova/working/', { credentials: 'include' }),
+            fetch('/api/prova/conflicts/?status=all', { credentials: 'include' }),
+            fetch('/api/prova/signals/?status=all', { credentials: 'include' }),
+        ]);
+
+        state.graph = await graphResp.json();
+        const working = await workingResp.json();
+        const conflicts = await conflictsResp.json();
+        const signals = await signalsResp.json();
+
+        renderOperating(state.graph);
+        renderWorking(working.working_graphs || []);
+        renderConflicts(conflicts.conflicts || []);
+        renderSignals(signals.signals || []);
+        renderStats(state.graph, conflicts.conflicts || [], signals.signals || []);
+
+        // Update sidebar counts
+        document.getElementById('nav-operating-count').textContent = (state.graph.edges || []).length;
+        document.getElementById('nav-working-count').textContent = working.working_graphs?.reduce((s, w) => s + (w.hypothesis_count || 0), 0) || 0;
+        document.getElementById('nav-conflicts-count').textContent = (conflicts.conflicts || []).filter(c => c.status === 'open').length;
+        document.getElementById('nav-signals-count').textContent = (signals.signals || []).filter(s => s.status === 'active').length;
+
+        // Status bar
+        document.getElementById('prova-status-version').textContent = 'v' + (state.graph.version || 0);
+        document.getElementById('prova-status-score').textContent = 'Score: ' + (state.graph.predictive_score || 0).toFixed(3);
+        document.getElementById('prova-status-eval').textContent = 'Last evaluated: ' + (state.graph.last_evaluated ? timeAgo(state.graph.last_evaluated) : 'never');
+    } catch (e) {
+        console.error('PROVA load error:', e);
+    }
+}
+
+// ── Render operating graph (edges list) ──
+function renderOperating(graph) {
+    const body = document.getElementById('operating-body');
+    const empty = document.getElementById('operating-empty');
+    const edges = graph.edges || [];
+    const nodeMap = {};
+    (graph.nodes || []).forEach(n => nodeMap[n.id] = n);
+
+    if (!edges.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+
+    body.innerHTML = edges.map(e => {
+        const src = nodeMap[e.source_id] || {};
+        const tgt = nodeMap[e.target_id] || {};
+        const conf = e.confidence || 0;
+        const confClass = e.status === 'broken' ? 'broken' : (conf < 0.3 ? 'low' : '');
+        const rowClass = e.status === 'broken' ? 'broken' : (e.status === 'dark' ? 'dark' : '');
+        const statusBadge = e.status === 'active' ? '' :
+            `<span class="sv-badge sv-badge-${e.status === 'broken' ? 'red' : 'amber'}" style="font-size:8px;">${esc(e.status)}</span>`;
+        const arrow = e.edge_type === 'inhibits' ? '--|' : e.edge_type === 'amplifies' ? '=>' : '->';
+
+        return `<tr class="${rowClass}" onclick="provaSelectEdge('${e.id}')">
+            <td><div class="sv-dot sv-dot-${e.status === 'broken' ? 'red' : e.status === 'dark' ? 'dim' : 'green'}"></div></td>
+            <td style="font-weight:500;">${esc(src.label)}</td>
+            <td style="color:var(--text-dim);font-family:var(--font-mono);font-size:10px;">${arrow}</td>
+            <td style="font-weight:500;">${esc(tgt.label)}</td>
+            <td style="font-size:10px;color:var(--text-dim);">${esc(e.edge_type)}</td>
+            <td><span class="prova-conf-bar ${confClass}" style="width:${Math.round(conf * 80)}px;"></span> <span style="font-family:var(--font-mono);font-size:10px;">${(conf * 100).toFixed(0)}%</span></td>
+            <td style="font-family:var(--font-mono);font-size:11px;">${(e.weight || 0).toFixed(2)}</td>
+            <td style="font-family:var(--font-mono);font-size:11px;">${((e.truth_frequency || 0) * 100).toFixed(0)}%</td>
+            <td style="font-size:10px;color:var(--text-dim);">--</td>
+            <td>${statusBadge}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ── Render working graph (hypotheses) ──
+async function renderWorking(workingGraphs) {
+    const body = document.getElementById('working-body');
+    const empty = document.getElementById('working-empty');
+
+    // Load hypotheses from first working graph
+    let allHyps = [];
+    for (const wg of workingGraphs) {
+        try {
+            const resp = await fetch(`/api/prova/working/${wg.id}/hypotheses/`, { credentials: 'include' });
+            const data = await resp.json();
+            allHyps = allHyps.concat(data.hypotheses || []);
+        } catch (e) {}
+    }
+    state.hypotheses = allHyps;
+    renderHypotheses();
+}
+
+function renderHypotheses() {
+    const body = document.getElementById('working-body');
+    const empty = document.getElementById('working-empty');
+    let hyps = state.hypotheses;
+    if (state.hypFilter !== 'all') hyps = hyps.filter(h => h.curation_tier === state.hypFilter);
+
+    document.getElementById('nav-working-count').textContent = state.hypotheses.length;
+
+    if (!hyps.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+
+    body.innerHTML = hyps.map(h => {
+        const statusColors = { proposed: 'blue', testing: 'purple', confirmed: 'green', rejected: 'red', merged: 'dim' };
+        return `<tr onclick="provaSelectHyp('${h.id}')">
+            <td><span class="prova-curation ${h.curation_tier}"></span></td>
+            <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(h.description)}</td>
+            <td style="font-size:11px;">${esc(h.outcome_label || '--')}</td>
+            <td><span class="sv-badge sv-badge-${statusColors[h.status] || 'dim'}" style="font-size:8px;">${esc(h.status)}</span></td>
+            <td style="font-family:var(--font-mono);font-size:11px;">${(h.prior || 0).toFixed(2)}</td>
+            <td style="font-family:var(--font-mono);font-size:11px;font-weight:600;">${(h.posterior || 0).toFixed(2)}</td>
+            <td style="font-family:var(--font-mono);font-size:11px;">${h.edit_count || 0}</td>
+            <td style="font-family:var(--font-mono);font-size:11px;">${h.trial_count || 0}</td>
+            <td style="font-size:10px;color:var(--text-dim);">${h.trial_commitment_date || '--'}</td>
+        </tr>`;
+    }).join('');
+}
+
+function provaFilterHyp(tier, btn) {
+    state.hypFilter = tier;
+    document.querySelectorAll('#section-working .sv-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderHypotheses();
+}
+
+// ── Render conflicts ──
+function renderConflicts(conflicts) {
+    const body = document.getElementById('conflicts-body');
+    body.innerHTML = conflicts.map(c => {
+        const statusColors = { open: 'red', investigating: 'amber', resolved: 'green', accepted: 'dim' };
+        const topRes = (c.proposed_resolutions || [])[0];
+        return `<tr class="conflict">
+            <td style="font-weight:500;">${esc(c.edge_label)}</td>
+            <td style="font-family:var(--font-mono);font-size:11px;">${(c.magnitude || 0).toFixed(2)}</td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--sv-red);">${(c.evaluation_cost || 0).toFixed(3)}</td>
+            <td><span class="sv-badge sv-badge-${statusColors[c.status]}" style="font-size:8px;">${esc(c.status)}</span></td>
+            <td style="font-size:10px;">${topRes ? esc(topRes.description || '').substring(0, 60) + '...' : '--'}</td>
+            <td style="font-size:10px;color:var(--text-dim);">${timeAgo(c.created_at)}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ── Render signals ──
+function renderSignals(signals) {
+    const body = document.getElementById('signals-body');
+    body.innerHTML = signals.map(s => {
+        const typeLabel = s.signal_type === 'premise_dark' ? 'Premise Dark' : 'Denying Consequent';
+        const typeColor = s.signal_type === 'premise_dark' ? 'amber' : 'red';
+        const statusColors = { active: 'red', acknowledged: 'amber', resolved: 'green' };
+        return `<tr>
+            <td style="font-weight:500;">${esc(s.edge_label)}</td>
+            <td><span class="sv-badge sv-badge-${typeColor}" style="font-size:8px;">${typeLabel}</span></td>
+            <td style="font-family:var(--font-mono);font-size:11px;">${(s.magnitude || 0).toFixed(2)}</td>
+            <td><span class="sv-badge sv-badge-${statusColors[s.status]}" style="font-size:8px;">${esc(s.status)}</span></td>
+            <td style="font-size:10px;color:var(--text-dim);">${timeAgo(s.created_at)}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ── Render stats bar ──
+function renderStats(graph, conflicts, signals) {
+    const statsEl = document.getElementById('prova-stats');
+    const openConflicts = conflicts.filter(c => c.status === 'open').length;
+    const activeSignals = signals.filter(s => s.status === 'active').length;
+    statsEl.innerHTML = `
+        <div class="prova-stat-card">
+            <div class="prova-stat-value">${(graph.edges || []).length}</div>
+            <div class="prova-stat-label">Edges</div>
+        </div>
+        <div class="prova-stat-card">
+            <div class="prova-stat-value">${(graph.nodes || []).length}</div>
+            <div class="prova-stat-label">Nodes</div>
+        </div>
+        <div class="prova-stat-card">
+            <div class="prova-stat-value" style="color:${openConflicts ? 'var(--sv-red)' : 'var(--text-primary)'}">${openConflicts}</div>
+            <div class="prova-stat-label">Conflicts</div>
+        </div>
+        <div class="prova-stat-card">
+            <div class="prova-stat-value" style="color:${activeSignals ? 'var(--sv-amber)' : 'var(--text-primary)'}">${activeSignals}</div>
+            <div class="prova-stat-label">Signals</div>
+        </div>
+        <div class="prova-stat-card">
+            <div class="prova-stat-value">${(graph.predictive_score || 0).toFixed(2)}</div>
+            <div class="prova-stat-label">Score</div>
+        </div>
+    `;
+}
+
+// ── Placeholder click handlers ──
+function provaSelectEdge(id) { console.log('Edge selected:', id); }
+function provaSelectHyp(id) { console.log('Hypothesis selected:', id); }
+
+// ── Init ──
+provaLoad();
+{% endblock %}

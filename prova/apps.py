@@ -1,0 +1,7 @@
+from django.apps import AppConfig
+
+
+class ProvaConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "prova"
+    verbose_name = "PROVA — Problem-Solving Engine"

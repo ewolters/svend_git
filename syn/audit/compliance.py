@@ -2548,7 +2548,7 @@ def check_tenant_isolation_lint():
             "details": {
                 "message": f"{len(violations)} unscoped lookup(s) found — use resolve_site() or resolve_project()",
                 "violations": violations,
-                "fix": "Import resolve_site/resolve_project from agents_api.permissions",
+                "fix": "Import resolve_site/resolve_project from qms_core.permissions",
             },
             "soc2_controls": ["CC6.3"],
         }

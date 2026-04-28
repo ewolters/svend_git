@@ -93,7 +93,7 @@ def call_enterprise_model(query: str, model: str, conversation) -> EnterpriseMod
         return EnterpriseModelResult(response=result.response, inference_time_ms=int(result.inference_time_ms))
 
     # Call via centralized LLMService
-    from agents_api.llm_service import llm_service
+    from llm.service import llm_service
 
     model_id = ENTERPRISE_MODELS.get(model, "claude-sonnet-4-20250514")
     if model_id == "qwen":

@@ -14,8 +14,8 @@ from django.views.decorators.http import require_http_methods
 from accounts.permissions import gated_paid
 from agents_api.evidence_bridge import create_tool_evidence
 from agents_api.models import ActionItem, CAPAReport, RCASession, Risk
-from agents_api.permissions import qms_can_edit, qms_queryset, qms_set_ownership
 from core.models import Evidence, EvidenceLink, Hypothesis
+from qms_core.permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
 from .models import FMEA, FMEARow
 
@@ -102,7 +102,7 @@ def create_fmea(request):
     if scoring_method not in ("rpn", "ap"):
         return JsonResponse({"error": "scoring_method must be rpn or ap"}, status=400)
 
-    from agents_api.permissions import resolve_project, resolve_site
+    from qms_core.permissions import resolve_project, resolve_site
 
     project, err = resolve_project(request.user, data.get("project_id"))
     if err:
@@ -122,7 +122,7 @@ def create_fmea(request):
     qms_set_ownership(fmea, request.user, site)
     fmea.save()
 
-    from agents_api.tool_events import tool_events
+    from tools.events import tool_events
 
     tool_events.emit("fmea.created", fmea, user=request.user)
 
@@ -212,7 +212,7 @@ def update_fmea(request, fmea_id):
             fmea.scoring_method = data["scoring_method"]
     if "project_id" in data:
         if data["project_id"]:
-            from agents_api.permissions import resolve_project
+            from qms_core.permissions import resolve_project
 
             proj, err = resolve_project(request.user, data["project_id"])
             if err:
@@ -320,7 +320,7 @@ def add_row(request, fmea_id):
         hypothesis_link=hypothesis,
     )
 
-    from agents_api.tool_events import tool_events
+    from tools.events import tool_events
 
     tool_events.emit("fmea.row_created", row, user=request.user, fmea_id=str(fmea.id))
 
@@ -391,7 +391,7 @@ def update_row(request, fmea_id, row_id):
 
     row.save()  # auto-computes rpn and revised_rpn
 
-    from agents_api.tool_events import tool_events
+    from tools.events import tool_events
 
     tool_events.emit("fmea.row_updated", row, user=request.user, fmea_id=str(fmea.id))
 
@@ -1024,7 +1024,7 @@ def suggest_failure_modes(request, fmea_id):
     fmea_type = data.get("fmea_type", fmea.fmea_type)
     context = data.get("context", "").strip()
 
-    from agents_api.llm_service import llm_service
+    from llm.service import llm_service
 
     system_prompt = """You are an experienced FMEA practitioner following AIAG 4th Edition methodology. Given a process step description, suggest 3-5 common failure modes with their effects and potential causes. For each, provide severity/occurrence/detection hints on the AIAG 1-10 scale.
 

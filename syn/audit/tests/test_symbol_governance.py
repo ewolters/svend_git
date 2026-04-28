@@ -1118,7 +1118,7 @@ class QMSUtilitySymbolsTest(SimpleTestCase):
         """check_rate_limit is callable and accepts user/endpoint parameters."""
         import inspect
 
-        from agents_api.models import check_rate_limit
+        from llm.models import check_rate_limit
 
         self.assertTrue(callable(check_rate_limit))
         sig = inspect.signature(check_rate_limit)
@@ -1128,7 +1128,7 @@ class QMSUtilitySymbolsTest(SimpleTestCase):
         """check_rate_limit accepts user + endpoint args."""
         import inspect
 
-        from agents_api.models import check_rate_limit
+        from llm.models import check_rate_limit
 
         sig = inspect.signature(check_rate_limit)
         self.assertGreaterEqual(len(sig.parameters), 1)

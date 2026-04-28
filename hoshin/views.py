@@ -20,7 +20,9 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import require_feature
 from agents_api.models import Checklist, ChecklistExecution, ValueStreamMap
-from agents_api.permissions import (
+from core.models.project import Project
+from core.models.tenant import Membership
+from qms_core.permissions import (
     check_site_read,
     check_site_write,
     get_accessible_sites,
@@ -28,8 +30,6 @@ from agents_api.permissions import (
     is_site_admin,
     require_tenant,
 )
-from core.models.project import Project
-from core.models.tenant import Membership
 
 from .hoshin_calculations import (
     CALCULATION_METHODS,
@@ -302,7 +302,7 @@ def create_hoshin_project(request):
             source_burst_id=data.get("source_burst_id", ""),
         )
 
-    from agents_api.tool_events import tool_events
+    from tools.events import tool_events
 
     tool_events.emit("hoshin.created", hoshin, user=request.user)
 
@@ -410,7 +410,7 @@ def update_hoshin_project(request, hoshin_id):
     if core_changed:
         hoshin.project.save()
 
-    from agents_api.tool_events import tool_events
+    from tools.events import tool_events
 
     tool_events.emit("hoshin.updated", hoshin, user=request.user, data=data)
 
@@ -1970,7 +1970,7 @@ def template_list_create(request):
         default_actions=data.get("default_actions", []),
     )
     if data.get("site_id"):
-        from agents_api.permissions import resolve_site
+        from qms_core.permissions import resolve_site
 
         _site, _err = resolve_site(request.user, data["site_id"])
         if _site:
@@ -2044,7 +2044,7 @@ def create_from_template(request):
     # Create HoshinProject with template defaults
     site = None
     if data.get("site_id"):
-        from agents_api.permissions import resolve_site
+        from qms_core.permissions import resolve_site
 
         site, _err = resolve_site(request.user, data["site_id"])
     elif tpl.site:

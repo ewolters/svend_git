@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "forge",
     "files",
     "qms_core",  # QMS Core: permissions, Site (Phase 4). Object 271 extraction target.
+    "llm",  # LLM service: Anthropic client, rate limiting, usage tracking, tier selection.
     "tools",  # QMS Tools: router, event bus, base model. Extracted from agents_api (CR-0.9).
     "agents_api.apps.AgentsApiConfig",
     "workbench",
@@ -69,6 +70,7 @@ INSTALLED_APPS = [
     "dsw",
     "hoshin",
     "qms",  # Composable QMS: primitives, templates, configurable workflow
+    "prova",  # PROVA: Problem-solving engine (operating/working graphs, trials, conflicts)
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"

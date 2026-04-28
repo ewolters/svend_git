@@ -935,7 +935,7 @@ For rule_tweak recommendations: {"rule_name": "...", "change": "..."}"""
 {json.dumps(prompt_data, indent=2, default=str)}"""
 
     try:
-        from agents_api.llm_service import llm_service
+        from llm.service import llm_service
 
         llm_result = llm_service.chat(
             None,

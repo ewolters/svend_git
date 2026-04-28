@@ -1837,7 +1837,7 @@ User Question: {user_message}"""
     messages.append({"role": "user", "content": full_user_message})
 
     try:
-        from agents_api.llm_service import llm_service
+        from llm.service import llm_service
 
         # Extract system prompt from messages, pass rest as conversation
         system = DOE_SYSTEM_PROMPT
@@ -2032,7 +2032,7 @@ What specific question do you have about your experiment?"""
 @gated_paid
 def available_models(request):
     """Get available LLM models for DOE guidance."""
-    from agents_api.llm_manager import LLMManager  # Status check — not an LLM call
+    from llm.manager import LLMManager  # Status check — not an LLM call
 
     status = LLMManager.status()
 
@@ -2106,7 +2106,7 @@ def saved_designs(request):
     if not project_id:
         return JsonResponse({"error": "project_id required"}, status=400)
 
-    from agents_api.permissions import resolve_project
+    from qms_core.permissions import resolve_project
 
     project, err = resolve_project(request.user, project_id)
     if err:

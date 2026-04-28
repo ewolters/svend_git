@@ -13,10 +13,10 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
 from agents_api.models import ActionItem, Board, DSWResult, RCASession
-from agents_api.permissions import qms_can_edit, qms_queryset, qms_set_ownership
-from agents_api.tool_events import tool_events
 from core.models import Hypothesis
 from core.models.notebook import Notebook, Trial
+from qms_core.permissions import qms_can_edit, qms_queryset, qms_set_ownership
+from tools.events import tool_events
 
 from .models import A3Report
 
@@ -86,7 +86,7 @@ def create_a3_report(request):
         except Notebook.DoesNotExist:
             return JsonResponse({"error": "Notebook not found"}, status=404)
     elif project_id:
-        from agents_api.permissions import resolve_project
+        from qms_core.permissions import resolve_project
 
         project, err = resolve_project(request.user, project_id)
         if err:
@@ -119,7 +119,7 @@ def create_a3_report(request):
         except RCASession.DoesNotExist:
             pass
 
-    from agents_api.permissions import resolve_site
+    from qms_core.permissions import resolve_site
 
     site, err = resolve_site(request.user, data.get("site_id"))
     if err:
@@ -566,7 +566,7 @@ def auto_populate_a3(request, report_id):
     context = "\n".join(context_parts)
 
     # Use LLM to generate content
-    from agents_api.llm_service import llm_service
+    from llm.service import llm_service
 
     section_prompts = {
         "background": "Write a brief Background section explaining why this problem matters. Include business impact.",
@@ -699,7 +699,7 @@ def critique_a3(request, report_id):
 
 Critique these A3 sections. Return as JSON with ratings and feedback per section."""
 
-    from agents_api.llm_service import llm_service
+    from llm.service import llm_service
 
     llm_result = llm_service.chat(
         request.user,
@@ -1335,7 +1335,7 @@ def project_notebook_to_a3(request, notebook_id):
     title = body.get("title", f"A3: {nb.title}")
 
     # Create the A3
-    from agents_api.permissions import resolve_site
+    from qms_core.permissions import resolve_site
 
     site, _err = resolve_site(request.user, body.get("site_id"))
     # Silent fallback — site is optional here

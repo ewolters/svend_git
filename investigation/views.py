@@ -285,7 +285,7 @@ def export_investigation_view(request, investigation_id):
     if not target_project_id:
         return JsonResponse({"error": "target_project_id is required"}, status=400)
 
-    from agents_api.permissions import resolve_project
+    from qms_core.permissions import resolve_project
 
     _proj, err = resolve_project(request.user, target_project_id)
     if err:

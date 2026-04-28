@@ -627,7 +627,7 @@ def api_hypothesis_health(request):
 @permission_classes([IsInternalUser])
 def api_anthropic(request):
     """LLM token consumption, model distribution, rate limit config."""
-    from agents_api.models import LLM_RATE_LIMITS, LLMUsage, RateLimitOverride
+    from llm.models import LLM_RATE_LIMITS, LLMUsage, RateLimitOverride
 
     days = _get_days(request)
     since = timezone.now().date() - timedelta(days=days)
@@ -712,7 +712,7 @@ def api_anthropic(request):
 @permission_classes([IsAdminUser])
 def api_rate_limit_override(request):
     """Set a runtime rate limit override for a tier."""
-    from agents_api.models import RateLimitOverride
+    from llm.models import RateLimitOverride
 
     tier = (request.data.get("tier") or "").upper()
     llm_limit = request.data.get("llm_limit")
@@ -1066,7 +1066,7 @@ def api_insights(request):
     )
     snapshot = _build_data_snapshot()
 
-    from agents_api.llm_service import llm_service
+    from llm.service import llm_service
 
     result = llm_service.chat(
         request.user,
@@ -1762,7 +1762,7 @@ def api_blog_generate(request):
         "- Write for quality engineers, analysts, and operations professionals\n"
     )
 
-    from agents_api.llm_service import llm_service
+    from llm.service import llm_service
 
     blog_system = (
         "You are a content writer for Svend, a decision science SaaS platform. "
@@ -2880,7 +2880,7 @@ def api_crm_generate_email(request):
         "Use \\n for newlines in the body text."
     )
 
-    from agents_api.llm_service import llm_service
+    from llm.service import llm_service
 
     result = llm_service.chat(
         request.user,

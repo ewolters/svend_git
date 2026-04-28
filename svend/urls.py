@@ -428,6 +428,7 @@ urlpatterns = varta_urls + [
     path("api/loop/", include("loop.urls")),  # LOOP-001: Signals, Commitments, Transitions
     # Loop operating surface — OLR-001 QMS
     path("app/loop/", _app_view("loop.html"), name="loop_dashboard"),
+    path("app/prova/", _app_view("prova.html"), name="prova_dashboard"),
     # Auditor portal (external-facing, token-auth — this one works)
     # (All Loop Shell routes removed — QMS being rebuilt as single surface)
     path(
@@ -452,6 +453,7 @@ urlpatterns = varta_urls + [
     path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),
     path("api/qms/", include("qms.urls")),  # Composable QMS: templates, artifacts, workflow
+    path("api/prova/", include("prova.urls")),  # PROVA: problem-solving engine
     # Pull contract endpoints — Object 271 §2.3
     path("api/pull/fmea/", include("fmea.pull_urls")),
     path("api/pull/rca/", include("rca.pull_urls")),

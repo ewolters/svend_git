@@ -145,7 +145,7 @@ def explain_selection(request):
         "Be specific and cite column names and values. 2-3 sentences max."
     )
 
-    from agents_api.llm_service import llm_service
+    from llm.service import llm_service
 
     result = llm_service.chat(
         request.user,

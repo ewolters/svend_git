@@ -513,6 +513,43 @@ def run_analysis(request):
             if bridge_result:
                 result["investigation_bridge"] = bridge_result
 
+        # PROVA integration — feed analysis results into knowledge graph
+        try:
+            from qms_core.permissions import get_tenant
+
+            prova_tenant = get_tenant(request.user)
+            if prova_tenant:
+                from prova.integrations import on_analysis_result
+
+                dsw_result_obj = None
+                if save_result or project_id:
+                    from dsw.models import DSWResult
+
+                    dsw_result_obj = (
+                        DSWResult.objects.filter(
+                            user=request.user,
+                        )
+                        .order_by("-created_at")
+                        .first()
+                    )
+
+                prova_result = on_analysis_result(
+                    user=request.user,
+                    tenant=prova_tenant,
+                    dsw_result=dsw_result_obj,
+                    result_data=result,
+                    analysis_type=analysis_type,
+                    analysis_id=analysis_id,
+                )
+                if prova_result:
+                    result["prova"] = {
+                        "evidence_weight": prova_result.evidence_weight,
+                        "edges_updated": prova_result.edges_updated,
+                        "conflicts_detected": prova_result.conflicts_detected,
+                    }
+        except Exception as e:
+            logger.debug("PROVA integration skipped: %s", e)
+
         # Notebook integration (NB-001 §3.1)
         if notebook_id:
             _create_notebook_page(

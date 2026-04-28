@@ -24,8 +24,8 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import require_feature
 from agents_api.models import ValueStreamMap
-from agents_api.permissions import get_accessible_sites as _get_accessible_sites
-from agents_api.permissions import require_tenant as _require_tenant
+from qms_core.permissions import get_accessible_sites as _get_accessible_sites
+from qms_core.permissions import require_tenant as _require_tenant
 
 from .models import (
     AnnualObjective,

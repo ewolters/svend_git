@@ -135,7 +135,7 @@ class CrossTenantSiteTest(TestCase):
         Tests the resolve_site() helper directly since the HTTP endpoint
         has auth gates that complicate end-to-end testing.
         """
-        from agents_api.permissions import resolve_site
+        from qms_core.permissions import resolve_site
 
         site, err = resolve_site(self.user_a, str(self.site_b.id))
         self.assertIsNotNone(err, "resolve_site should reject cross-tenant site")
@@ -143,7 +143,7 @@ class CrossTenantSiteTest(TestCase):
 
     def test_user_can_link_own_tenants_site(self):
         """User A CAN link their own tenant's site."""
-        from agents_api.permissions import resolve_site
+        from qms_core.permissions import resolve_site
 
         site, err = resolve_site(self.user_a, str(self.site_a.id))
         self.assertIsNone(err)
@@ -152,7 +152,7 @@ class CrossTenantSiteTest(TestCase):
 
     def test_resolve_site_returns_none_for_wrong_tenant(self):
         """resolve_site helper rejects cross-tenant site IDs."""
-        from agents_api.permissions import resolve_site
+        from qms_core.permissions import resolve_site
 
         site, err = resolve_site(self.user_a, str(self.site_b.id))
         # Should return error (site not found in their tenant)
@@ -161,7 +161,7 @@ class CrossTenantSiteTest(TestCase):
 
     def test_resolve_site_works_for_own_tenant(self):
         """resolve_site helper accepts own tenant's site ID."""
-        from agents_api.permissions import resolve_site
+        from qms_core.permissions import resolve_site
 
         site, err = resolve_site(self.user_a, str(self.site_a.id))
         self.assertIsNone(err)
@@ -169,7 +169,7 @@ class CrossTenantSiteTest(TestCase):
 
     def test_resolve_site_returns_none_for_individual_user(self):
         """Individual users (no tenant) get None for any site ID."""
-        from agents_api.permissions import resolve_site
+        from qms_core.permissions import resolve_site
 
         individual = _verified_user("solo@test.com", tier=Tier.PRO)
         site, err = resolve_site(individual, str(self.site_a.id))
@@ -204,7 +204,7 @@ class ResolveProjectTest(TestCase):
 
     def test_tenant_member_can_resolve_tenant_project(self):
         """Bob (tenant member) can resolve the shared tenant project."""
-        from agents_api.permissions import resolve_project
+        from qms_core.permissions import resolve_project
 
         project, err = resolve_project(self.bob, str(self.tenant_project.id))
         self.assertIsNone(err)
@@ -213,21 +213,21 @@ class ResolveProjectTest(TestCase):
 
     def test_outsider_cannot_resolve_tenant_project(self):
         """Outsider cannot resolve tenant project."""
-        from agents_api.permissions import resolve_project
+        from qms_core.permissions import resolve_project
 
         project, err = resolve_project(self.outsider, str(self.tenant_project.id))
         self.assertIsNotNone(err)
 
     def test_outsider_cannot_resolve_alice_personal(self):
         """Outsider cannot resolve Alice's personal project."""
-        from agents_api.permissions import resolve_project
+        from qms_core.permissions import resolve_project
 
         project, err = resolve_project(self.outsider, str(self.alice_personal.id))
         self.assertIsNotNone(err)
 
     def test_alice_can_resolve_own_personal(self):
         """Alice can resolve her own personal project."""
-        from agents_api.permissions import resolve_project
+        from qms_core.permissions import resolve_project
 
         project, err = resolve_project(self.alice, str(self.alice_personal.id))
         self.assertIsNone(err)
@@ -259,7 +259,7 @@ class ViewerWriteTest(TestCase):
 
     def test_viewer_cannot_create_fmea(self):
         """VIEWER cannot create FMEA at a site they have no write access to."""
-        from agents_api.permissions import check_site_write
+        from qms_core.permissions import check_site_write
 
         can_write = check_site_write(self.viewer, self.site, self.tenant)
         self.assertFalse(can_write)
@@ -268,7 +268,7 @@ class ViewerWriteTest(TestCase):
         """VIEWER cannot edit a QMS record they don't own."""
         # Create a record as admin, verify viewer can't edit
         from agents_api.models import FMEA
-        from agents_api.permissions import qms_can_edit
+        from qms_core.permissions import qms_can_edit
 
         fmea = FMEA.objects.create(title="Admin FMEA", site=self.site, created_by=self.admin)
         can_edit = qms_can_edit(self.viewer, fmea, self.tenant)
@@ -277,7 +277,7 @@ class ViewerWriteTest(TestCase):
     def test_admin_can_edit_any_record(self):
         """Admin CAN edit any record in their tenant."""
         from agents_api.models import FMEA
-        from agents_api.permissions import qms_can_edit
+        from qms_core.permissions import qms_can_edit
 
         fmea = FMEA.objects.create(title="Viewer FMEA", site=self.site, created_by=self.viewer)
         can_edit = qms_can_edit(self.admin, fmea, self.tenant)

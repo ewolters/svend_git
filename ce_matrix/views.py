@@ -86,7 +86,7 @@ def create_matrix(request):
     # Link to project if provided, otherwise auto-create
     project_id = data.get("project_id")
     if project_id:
-        from agents_api.permissions import resolve_project
+        from qms_core.permissions import resolve_project
 
         project, _err = resolve_project(request.user, project_id)
         if project:

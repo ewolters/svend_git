@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
-from agents_api.llm_manager import (
+from llm.manager import (
     CLAUDE_MODELS,
     TIER_MODEL_MAP,
     LLMManager,
@@ -128,7 +128,7 @@ class LLMRateLimitTest(SimpleTestCase):
         mock_user.id = 1
         mock_user.subscription_tier = "FREE"
 
-        with patch("agents_api.llm_manager.LLMManager.get_anthropic", return_value=None):
+        with patch("llm.manager.LLMManager.get_anthropic", return_value=None):
             LLMManager.chat(mock_user, [{"role": "user", "content": "test"}])
             # When API not available, returns None — which is valid error handling
             # Rate limit structure is only in success/rate-limited responses

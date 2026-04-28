@@ -117,7 +117,7 @@ def create_report(request):
             status=400,
         )
 
-    from agents_api.permissions import resolve_project
+    from qms_core.permissions import resolve_project
 
     project, err = resolve_project(request.user, project_id)
     if err:
@@ -556,7 +556,7 @@ def auto_populate_report(request, report_id):
 
     context = "\n".join(context_parts)
 
-    from agents_api.llm_service import llm_service
+    from llm.service import llm_service
 
     results = {}
     sections = report.sections or {}

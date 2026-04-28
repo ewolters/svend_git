@@ -1,0 +1,262 @@
+"""Centralized LLM management for Svend.
+
+All LLM instantiation goes through this manager. This provides:
+- Single source of truth for model loading
+- Thread-safe singleton pattern
+- Configurable model selection via environment
+- Tier-based Claude model selection
+
+Standard:     LLM-001 §3 (LLM Integration)
+Compliance:   BILL-001 §4 (Tier-Based Model Selection)
+
+Usage:
+    from llm.manager import LLMManager
+
+    # Get Claude model based on user tier
+    response = LLMManager.chat(user, messages)
+
+    # Get specific Claude model
+    client = LLMManager.get_anthropic()
+    response = client.messages.create(model="claude-3-5-haiku-20241022", ...)
+
+Model Selection by Tier:
+    - Free/Founder (legacy): claude-3-5-haiku-20241022
+    - Professional/Team: claude-sonnet-4-20250514
+    - Enterprise: claude-opus-4-20250514
+
+Note: Custom Qwen/DeepSeek models temporarily disabled while testing Synara.
+"""
+
+import logging
+import os
+import threading
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+# Model mapping by tier
+CLAUDE_MODELS = {
+    "haiku": "claude-3-5-haiku-20241022",
+    "sonnet": "claude-sonnet-4-20250514",
+    "opus": "claude-opus-4-20250514",
+}
+
+TIER_MODEL_MAP = {
+    "FREE": "haiku",
+    "FOUNDER": "haiku",
+    "PRO": "sonnet",
+    "TEAM": "sonnet",
+    "ENTERPRISE": "opus",
+}
+
+
+class LLMManager:
+    """Singleton manager for Claude API access.
+
+    Thread-safe lazy loading. Configure via environment:
+    - ANTHROPIC_API_KEY: Required for all LLM access
+    - SVEND_DEFAULT_MODEL: Override default model (haiku/sonnet/opus)
+
+    Custom Qwen/DeepSeek models are temporarily disabled.
+    """
+
+    _instance = None
+    _lock = threading.Lock()
+
+    # Anthropic client
+    _anthropic_client = None
+    _anthropic_loaded = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+        return cls._instance
+
+    @classmethod
+    def get_anthropic(cls) -> Any | None:
+        """Get Anthropic client.
+
+        Returns None if ANTHROPIC_API_KEY not set.
+        """
+        with cls._lock:
+            if cls._anthropic_loaded:
+                return cls._anthropic_client
+
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not api_key:
+                logger.warning("ANTHROPIC_API_KEY not set - LLM features unavailable")
+                cls._anthropic_loaded = True
+                return None
+
+            try:
+                import anthropic
+
+                cls._anthropic_client = anthropic.Anthropic(api_key=api_key)
+                cls._anthropic_loaded = True
+                logger.info("Anthropic client initialized")
+                return cls._anthropic_client
+
+            except ImportError:
+                logger.error("anthropic package not installed - run: pip install anthropic")
+                cls._anthropic_loaded = True
+                return None
+            except Exception as e:
+                logger.error(f"Failed to initialize Anthropic client: {e}")
+                cls._anthropic_loaded = True
+                return None
+
+    @classmethod
+    def get_model_for_tier(cls, tier: str) -> str:
+        """Get the Claude model ID for a given user tier."""
+        model_key = TIER_MODEL_MAP.get(tier.upper(), "haiku")
+        return CLAUDE_MODELS[model_key]
+
+    @classmethod
+    def get_model_for_user(cls, user) -> str:
+        """Get the Claude model ID for a user based on their subscription."""
+        try:
+            tier = user.subscription_tier if hasattr(user, "subscription_tier") else "FREE"
+            return cls.get_model_for_tier(tier)
+        except Exception:
+            return CLAUDE_MODELS["haiku"]
+
+    @classmethod
+    def chat(
+        cls,
+        user,
+        messages: list[dict],
+        system: str = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
+        skip_rate_limit: bool = False,
+        **kwargs,
+    ) -> dict | None:
+        """Send a chat request using the appropriate Claude model for the user's tier.
+
+        Args:
+            user: Django user object (used to determine tier)
+            messages: List of message dicts with 'role' and 'content'
+            system: Optional system prompt
+            max_tokens: Maximum tokens in response
+            temperature: Sampling temperature
+            skip_rate_limit: Skip rate limit check (for internal/system use only)
+            **kwargs: Additional arguments passed to Anthropic API
+
+        Returns:
+            dict with 'content' (str), 'model' (str), 'usage' (dict), 'rate_limit' (dict)
+            or dict with 'error' and 'rate_limited' if rate limited
+            or None if request fails
+        """
+        # Check rate limit
+        if not skip_rate_limit:
+            try:
+                from .models import LLMUsage, check_rate_limit
+
+                allowed, remaining, limit = check_rate_limit(user)
+                if not allowed:
+                    logger.warning(f"Rate limit exceeded for user {user.id}: {limit} requests/day")
+                    return {
+                        "error": f"Daily limit of {limit} requests reached. Resets at midnight.",
+                        "rate_limited": True,
+                        "rate_limit": {"remaining": 0, "limit": limit},
+                    }
+            except Exception as e:
+                logger.error(f"Rate limit check failed: {e}")
+                return {
+                    "error": "Service temporarily unavailable. Please try again.",
+                    "rate_limited": True,
+                }
+
+        client = cls.get_anthropic()
+        if not client:
+            return None
+
+        model = kwargs.pop("model", None) or cls.get_model_for_user(user)
+
+        try:
+            create_kwargs = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "messages": messages,
+                "temperature": temperature,
+                **kwargs,
+            }
+            if system:
+                create_kwargs["system"] = system
+
+            response = client.messages.create(**create_kwargs, timeout=120.0)
+
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
+
+            # Record usage
+            try:
+                from .models import LLMUsage, check_rate_limit
+
+                # Map full model name to short name
+                model_short = "haiku" if "haiku" in model else "sonnet" if "sonnet" in model else "opus"
+                LLMUsage.record_usage(user, model_short, input_tokens, output_tokens)
+                _, remaining, limit = check_rate_limit(user)
+            except Exception as e:
+                logger.error(f"Failed to record LLM usage: {e}")
+                remaining, limit = 0, 0
+
+            return {
+                "content": response.content[0].text if response.content else "",
+                "model": model,
+                "usage": {
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                },
+                "rate_limit": {
+                    "remaining": remaining,
+                    "limit": limit,
+                },
+                "stop_reason": response.stop_reason,
+            }
+
+        except Exception as e:
+            logger.error(f"Claude API request failed: {e}")
+            return None
+
+    @classmethod
+    def anthropic_available(cls) -> bool:
+        """Check if Anthropic API is available."""
+        return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+    @classmethod
+    def reset(cls):
+        """Reset cached client (for testing)."""
+        with cls._lock:
+            cls._anthropic_client = None
+            cls._anthropic_loaded = False
+
+    @classmethod
+    def unload(cls):
+        """Release LLM resources and free memory.
+
+        Call during graceful shutdown or when LLM features are no longer needed.
+        """
+        with cls._lock:
+            if cls._anthropic_client is not None:
+                cls._anthropic_client = None
+                cls._anthropic_loaded = False
+                logger.info("LLM resources released")
+            cls._instance = None
+
+    @classmethod
+    def status(cls) -> dict:
+        """Get status of LLM configuration."""
+        return {
+            "anthropic": {
+                "loaded": cls._anthropic_loaded,
+                "available": cls._anthropic_client is not None,
+                "api_key_set": cls.anthropic_available(),
+            },
+            "models": CLAUDE_MODELS,
+            "tier_mapping": TIER_MODEL_MAP,
+            "custom_llm": "disabled",  # Qwen/DeepSeek temporarily disabled
+        }

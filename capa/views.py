@@ -29,9 +29,9 @@ from agents_api.models import (
     QMSFieldChange,
     RCASession,
 )
-from agents_api.permissions import qms_can_edit, qms_queryset, qms_set_ownership
 from core.models import Project
 from notifications.helpers import notify
+from qms_core.permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
 logger = logging.getLogger(__name__)
 
