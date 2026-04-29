@@ -131,8 +131,11 @@ class ValueStreamMap(models.Model):
             if rate_sum > 0:
                 total_ct += 1.0 / rate_sum
 
+        # Auto-compute WIP days for inventory triangles between steps
+        self._compute_inventory_wip()
+
         for inv in self.inventory:
-            days = inv.get("days_of_supply", 0) or 0
+            days = inv.get("days_of_supply", 0) or inv.get("computed_days", 0) or 0
             total_wait += days
 
         self.total_process_time = total_ct
@@ -167,6 +170,102 @@ class ValueStreamMap(models.Model):
             if len(snapshots) > 100:
                 snapshots = snapshots[-100:]
             self.metric_snapshots = snapshots
+
+    def _compute_inventory_wip(self):
+        """Auto-compute days of supply for inventory triangles.
+
+        For each inventory triangle, find the upstream and downstream steps
+        by x-position. If the downstream step has a batch process or larger
+        lot size, compute the expected WIP buildup.
+
+        Only sets `computed_days` — never overwrites user-entered `days_of_supply`.
+        No circular logic: reads step parameters only, never other inventory values.
+        """
+        import re
+
+        steps = sorted(self.process_steps or [], key=lambda s: s.get("x", 0))
+        if not steps:
+            return
+
+        # Parse VSM-level demand as fallback
+        demand_per_day = 0
+        demand_str = self.customer_demand or ""
+        nums = re.findall(r"[\d.]+", demand_str)
+        if nums:
+            demand_per_day = float(nums[0])
+            low = demand_str.lower()
+            if "/month" in low or "month" in low:
+                demand_per_day /= 22
+            elif "/week" in low or "week" in low:
+                demand_per_day /= 5
+            elif "/year" in low or "annual" in low:
+                demand_per_day /= 260
+
+        for inv in self.inventory or []:
+            # Skip if user has manually set days_of_supply
+            if inv.get("days_of_supply"):
+                continue
+
+            inv_x = inv.get("x", 0)
+
+            # Find upstream step (closest step to the left)
+            upstream = None
+            for s in reversed(steps):
+                if s.get("x", 0) < inv_x:
+                    upstream = s
+                    break
+
+            # Find downstream step (closest step to the right)
+            downstream = None
+            for s in steps:
+                if s.get("x", 0) > inv_x:
+                    downstream = s
+                    break
+
+            if not downstream:
+                continue
+
+            # Get demand at the downstream step
+            step_demand = downstream.get("demand_rate")
+            step_demand_unit = (downstream.get("demand_unit") or "").lower()
+            if step_demand:
+                d = float(step_demand)
+                if "month" in step_demand_unit:
+                    d /= 22
+                elif "week" in step_demand_unit:
+                    d /= 5
+                elif "year" in step_demand_unit or "annual" in step_demand_unit:
+                    d /= 260
+            else:
+                d = demand_per_day
+
+            if d <= 0:
+                continue
+
+            # Compute WIP buildup from lot size mismatch
+            ds_batch = downstream.get("batch_size") or 0
+            ds_batch_process = downstream.get("batch_process", False)
+            us_batch = (upstream.get("batch_size") or 1) if upstream else 1
+
+            if ds_batch_process and ds_batch > 0:
+                # Batch process downstream: WIP = average inventory = batch/2
+                avg_wip = ds_batch / 2
+                computed_days = round(avg_wip / d, 1)
+                inv["computed_days"] = computed_days
+                inv["computed_reason"] = (
+                    f"Batch process downstream ({downstream.get('name', '?')}): "
+                    f"avg WIP = {ds_batch}/2 = {avg_wip:.0f} units = {computed_days} days"
+                )
+            elif ds_batch > us_batch and ds_batch > 1:
+                # Discretionary batch mismatch
+                avg_wip = ds_batch / 2
+                computed_days = round(avg_wip / d, 1)
+                inv["computed_days"] = computed_days
+                inv["computed_reason"] = (
+                    f"Lot size mismatch: upstream lot={us_batch}, "
+                    f"downstream lot={ds_batch}. "
+                    f"Avg WIP = {avg_wip:.0f} units = {computed_days} days"
+                )
 
     def to_dict(self):
         return {

@@ -696,7 +696,11 @@ function renderInventory(inv, layer) {
     text.setAttribute('fill', 'var(--bg-primary)');
     text.setAttribute('font-size', '10');
     text.setAttribute('font-weight', '600');
-    text.textContent = inv.days_of_supply ? `${inv.days_of_supply}d` : inv.quantity || 'I';
+    const displayDays = inv.days_of_supply || inv.computed_days;
+    text.textContent = displayDays ? `${displayDays}d` : inv.quantity || 'I';
+    if (!inv.days_of_supply && inv.computed_days) {
+        text.setAttribute('font-style', 'italic');  // italic = auto-computed
+    }
     g.appendChild(text);
 
     // Type label below
@@ -1177,7 +1181,7 @@ function renderLeadTimeLadder(layer) {
 
     // Draw wait time segments for each inventory item (aligned to inventory position)
     sortedInventory.forEach(inv => {
-        const waitDays = inv.days_of_supply || 0;
+        const waitDays = inv.days_of_supply || inv.computed_days || 0;
         if (waitDays > 0) {
             totalWait += waitDays;
             const invCenterX = inv.x + 30; // Center of inventory triangle
@@ -1890,7 +1894,7 @@ function updateMetrics() {
     });
 
     (currentVSM.inventory || []).forEach(inv => {
-        totalWait += inv.days_of_supply || 0;
+        totalWait += inv.days_of_supply || inv.computed_days || 0;
     });
 
     const leadTime = totalWait + (totalCT / 86400);
