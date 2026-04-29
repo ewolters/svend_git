@@ -1085,7 +1085,7 @@ class VSMTest(TestCase):
         self.assertEqual(resp.status_code, 200)
 
     def test_waste_analysis(self):
-        """Create VSM with low-uptime step and verify TIMWOODS waste detection."""
+        """Create VSM with low-uptime step and verify DOWNTIME waste detection."""
         resp = self.client.post(
             "/api/vsm/create/",
             {"name": "Waste Test VSM"},
@@ -1108,10 +1108,10 @@ class VSMTest(TestCase):
         resp = self.client.get(f"/api/vsm/{vsm_id}/waste-analysis/")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
-        self.assertIn("waste_categories", data)
+        self.assertIn("waste", data)
         self.assertIn("total_waste_items", data)
         # Low uptime should trigger defects category
-        self.assertGreater(len(data["waste_categories"]["defects"]), 0)
+        self.assertGreater(len(data["waste"]["defects"]), 0)
 
     def test_auth_enforcement(self):
         anon = APIClient()

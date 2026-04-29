@@ -501,14 +501,16 @@ def compare_vsm(request, vsm_id):
 
 
 # =============================================================================
-# WASTE ANALYSIS (TIMWOODS)
+# WASTE ANALYSIS (DOWNTIME)
+# Defects, Overproduction, Waiting, NVA Processing, Transport,
+# Inventory, Motion, Employee Intellect/Passion
 # =============================================================================
 
 
 @gated_paid
 @require_http_methods(["GET"])
 def waste_analysis(request, vsm_id):
-    """Classify TIMWOODS waste categories from VSM process metrics."""
+    """Classify DOWNTIME waste categories from VSM process metrics."""
     vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
 
     steps = vsm.process_steps or []
@@ -518,40 +520,87 @@ def waste_analysis(request, vsm_id):
     takt_time = vsm.takt_time or 0
 
     waste = {
+        "defects": [],
+        "overproduction": [],
+        "waiting": [],
+        "nva_processing": [],
         "transport": [],
         "inventory": [],
         "motion": [],
-        "waiting": [],
-        "overproduction": [],
-        "overprocessing": [],
-        "defects": [],
-        "skills": [],
+        "employee_intellect": [],
     }
 
-    for inv in inventory:
-        dos = inv.get("days_of_supply", 0)
-        if dos > 5:
-            severity = "high" if dos > 15 else ("medium" if dos > 10 else "low")
-            waste["inventory"].append(
+    # Build step lookup for adjacency analysis
+    step_ids = [s.get("id") for s in steps]
+    step_by_id = {s.get("id"): s for s in steps}
+
+    # --- DEFECTS ---
+    # Low uptime = quality/reliability issues producing defects and rework
+    for step in steps:
+        uptime = step.get("uptime", 100) or 100
+        name = step.get("name", "Unknown")
+
+        if uptime < 85:
+            waste["defects"].append(
                 {
-                    "location": inv.get("name", inv.get("id", "unknown")),
-                    "detail": f"{dos} days supply",
-                    "severity": severity,
+                    "step": name,
+                    "detail": f"uptime {uptime}% — equipment/process reliability issue",
+                    "severity": "high" if uptime < 70 else "medium",
+                    "suggested_kaizen": "TPM (Total Productive Maintenance)",
                 }
             )
 
+        # Quality field if present
+        quality = step.get("quality", step.get("yield", step.get("fpy")))
+        if quality is not None and quality < 95:
+            waste["defects"].append(
+                {
+                    "step": name,
+                    "detail": f"first pass yield {quality}%",
+                    "severity": "high" if quality < 85 else "medium",
+                    "suggested_kaizen": "Root cause analysis + error proofing (poka-yoke)",
+                }
+            )
+
+    # --- OVERPRODUCTION ---
+    # Large batch sizes, push systems, producing ahead of demand
+    for step in steps:
+        batch_size = step.get("batch_size", 1) or 1
+        name = step.get("name", "Unknown")
+
+        if batch_size > 50:
+            waste["overproduction"].append(
+                {
+                    "step": name,
+                    "detail": f"batch size {batch_size} — producing in large lots ahead of demand",
+                    "severity": "medium" if batch_size < 200 else "high",
+                    "suggested_kaizen": "Reduce lot size via SMED, implement pull system",
+                }
+            )
+
+    push_count = sum(1 for mf in material_flow if mf.get("type") == "push")
+    if push_count > 2:
+        waste["overproduction"].append(
+            {
+                "step": "Material flow",
+                "detail": f"{push_count} push connections — schedule-driven, not demand-driven",
+                "severity": "medium" if push_count < 5 else "high",
+                "suggested_kaizen": "Convert to pull/kanban between operations",
+            }
+        )
+
+    # --- WAITING ---
+    # Long changeovers, cycle time exceeding takt, idle time between steps
     for step in steps:
         ct = step.get("cycle_time", 0) or 0
         changeover = step.get("changeover_time", 0) or 0
-        uptime = step.get("uptime", 100) or 100
-        batch_size = step.get("batch_size", 1) or 1
         name = step.get("name", "Unknown")
 
         if ct > 0 and changeover > 10 * ct:
             waste["waiting"].append(
                 {
                     "step": name,
-                    "detail": f"changeover {changeover}s vs cycle time {ct}s (ratio {changeover / ct:.0f}x)",
+                    "detail": f"changeover {changeover}s vs cycle time {ct}s ({changeover / ct:.0f}x ratio) — line waits during setup",
                     "severity": "high",
                     "suggested_kaizen": "SMED changeover reduction",
                 }
@@ -561,57 +610,177 @@ def waste_analysis(request, vsm_id):
             waste["waiting"].append(
                 {
                     "step": name,
-                    "detail": f"cycle time {ct}s exceeds 2x takt ({takt_time}s)",
+                    "detail": f"cycle time {ct}s exceeds 2x takt ({takt_time}s) — downstream starved",
                     "severity": "high",
+                    "suggested_kaizen": "Balance work content, add parallel capacity, or kaizen cycle time",
                 }
             )
 
-        if uptime < 85:
-            waste["defects"].append(
+    # Inventory between steps = waiting (WIP sitting = product waiting)
+    for inv in inventory:
+        dos = inv.get("days_of_supply", 0)
+        if dos > 5:
+            location = inv.get("name", inv.get("before_step", "unknown"))
+            waste["waiting"].append(
                 {
-                    "step": name,
-                    "detail": f"uptime {uptime}%",
-                    "severity": "high" if uptime < 70 else "medium",
-                    "suggested_kaizen": "TPM (Total Productive Maintenance)",
+                    "step": str(location),
+                    "detail": f"{dos} days of supply sitting — product waiting in queue",
+                    "severity": "high" if dos > 15 else ("medium" if dos > 10 else "low"),
                 }
             )
 
-        if batch_size > 50:
-            waste["overproduction"].append(
-                {
-                    "step": name,
-                    "detail": f"batch size {batch_size}",
-                    "severity": "medium" if batch_size < 200 else "high",
-                }
-            )
-
-    push_count = sum(1 for mf in material_flow if mf.get("type") == "push")
-    if push_count > 2:
-        waste["overproduction"].append(
+    # --- NVA PROCESSING ---
+    # Low PCE = most of lead time is non-value-adding processing/handling
+    pce = vsm.pce or 0
+    if pce > 0 and pce < 5:
+        waste["nva_processing"].append(
             {
-                "step": "Material flow",
-                "detail": f"{push_count} push connections (consider pull/kanban)",
-                "severity": "medium",
+                "step": "Overall value stream",
+                "detail": f"PCE {pce:.1f}% — {100 - pce:.1f}% of lead time is non-value-adding",
+                "severity": "high",
+                "suggested_kaizen": "Map value-add vs NVA at each step, eliminate NVA handling and inspection",
             }
         )
 
+    # Steps with very long cycle times relative to neighbors may include NVA work
+    if len(steps) >= 3:
+        cycle_times = [(s.get("name", "?"), s.get("cycle_time", 0) or 0) for s in steps]
+        valid_cts = [ct for _, ct in cycle_times if ct > 0]
+        if valid_cts:
+            avg_ct = sum(valid_cts) / len(valid_cts)
+            for name, ct in cycle_times:
+                if ct > 3 * avg_ct and ct > 0:
+                    waste["nva_processing"].append(
+                        {
+                            "step": name,
+                            "detail": f"cycle time {ct}s is {ct / avg_ct:.1f}x the average ({avg_ct:.0f}s) — likely contains NVA work content",
+                            "severity": "medium",
+                            "suggested_kaizen": "Time study: separate value-add from NVA elements",
+                        }
+                    )
+
+    # --- TRANSPORT ---
+    # Material movements between non-adjacent steps, long flow paths
+    connections = {(mf.get("from_id"), mf.get("to_id")) for mf in material_flow}
+    for from_id, to_id in connections:
+        if from_id in step_ids and to_id in step_ids:
+            from_idx = step_ids.index(from_id)
+            to_idx = step_ids.index(to_id)
+            gap = abs(to_idx - from_idx)
+            if gap > 1:
+                from_name = step_by_id.get(from_id, {}).get("name", "?")
+                to_name = step_by_id.get(to_id, {}).get("name", "?")
+                waste["transport"].append(
+                    {
+                        "step": f"{from_name} → {to_name}",
+                        "detail": f"material skips {gap - 1} steps — non-adjacent flow, likely physical transport",
+                        "severity": "medium" if gap < 4 else "high",
+                        "suggested_kaizen": "Relocate operations closer, create cells, reduce material handling",
+                    }
+                )
+
+    # Multiple inventory points = multiple transport legs
+    if len(inventory) > 3:
+        waste["transport"].append(
+            {
+                "step": "Value stream",
+                "detail": f"{len(inventory)} WIP locations — each requires material movement",
+                "severity": "medium" if len(inventory) < 6 else "high",
+                "suggested_kaizen": "Reduce WIP locations by creating flow between operations",
+            }
+        )
+
+    # --- INVENTORY ---
+    # WIP, raw material buffers, finished goods sitting
+    for inv in inventory:
+        dos = inv.get("days_of_supply", 0)
+        qty = inv.get("quantity", 0)
+        if dos > 5 or qty > 500:
+            location = inv.get("name", inv.get("before_step", "unknown"))
+            severity = "high" if dos > 15 else ("medium" if dos > 10 else "low")
+            detail_parts = []
+            if dos:
+                detail_parts.append(f"{dos} days supply")
+            if qty:
+                detail_parts.append(f"{qty} units")
+            waste["inventory"].append(
+                {
+                    "step": str(location),
+                    "detail": " / ".join(detail_parts) + " — ties up cash, hides problems",
+                    "severity": severity,
+                    "suggested_kaizen": "Reduce lot sizes, implement FIFO lanes, establish kanban pull",
+                }
+            )
+
+    # Total lead time vs process time ratio
+    lead_time = vsm.total_lead_time or 0
+    process_time = vsm.total_process_time or 0
+    if lead_time > 0 and process_time > 0 and lead_time > 10 * process_time:
+        ratio = lead_time / process_time
+        waste["inventory"].append(
+            {
+                "step": "Overall value stream",
+                "detail": f"lead time is {ratio:.0f}x process time — {ratio - 1:.0f}x is inventory wait",
+                "severity": "high",
+                "suggested_kaizen": "Attack largest WIP buffers first, create flow between operations",
+            }
+        )
+
+    # --- MOTION ---
+    # Manual information flows, operator walking between stations
     manual_count = sum(1 for inf in info_flow if inf.get("type") == "manual")
     if manual_count > 0:
         waste["motion"].append(
             {
                 "step": "Information flow",
-                "detail": f"{manual_count} manual information flows",
+                "detail": f"{manual_count} manual information flows — people walking paper, checking schedules",
                 "severity": "low" if manual_count < 3 else "medium",
+                "suggested_kaizen": "Digitize scheduling signals, implement visual management",
             }
         )
 
-    pce = vsm.pce or 0
-    if pce > 0 and pce < 5:
-        waste["overprocessing"].append(
+    # Steps with multiple operators may have motion waste
+    for step in steps:
+        operators = step.get("operators", 1) or 1
+        name = step.get("name", "Unknown")
+        if operators > 3:
+            waste["motion"].append(
+                {
+                    "step": name,
+                    "detail": f"{operators} operators at one station — likely walking, reaching, searching",
+                    "severity": "low" if operators < 5 else "medium",
+                    "suggested_kaizen": "Yamazumi balance, 5S workplace organization, cell redesign",
+                }
+            )
+
+    # --- EMPLOYEE INTELLECT/PASSION ---
+    # Underutilized capability: manual repetitive work, no problem-solving structure
+    for step in steps:
+        operators = step.get("operators", 1) or 1
+        ct = step.get("cycle_time", 0) or 0
+        changeover = step.get("changeover_time", 0) or 0
+        name = step.get("name", "Unknown")
+
+        # Operators stuck watching machines = wasted intellect
+        if operators >= 1 and ct > 120 and changeover == 0:
+            waste["employee_intellect"].append(
+                {
+                    "step": name,
+                    "detail": f"{operators} operator(s) with {ct}s cycle, no changeover — likely machine-watching",
+                    "severity": "low" if operators == 1 else "medium",
+                    "suggested_kaizen": "Multi-machine operation, autonomous maintenance (jidoka), cross-training",
+                }
+            )
+
+    # No kaizen bursts = people not being asked for ideas
+    kaizen_bursts = vsm.kaizen_bursts or []
+    if not kaizen_bursts and len(steps) > 3:
+        waste["employee_intellect"].append(
             {
-                "step": "Overall",
-                "detail": f"PCE {pce:.1f}% — less than 5% of lead time is value-adding",
-                "severity": "high",
+                "step": "Value stream",
+                "detail": "no kaizen bursts on future state — team ideas not captured",
+                "severity": "medium",
+                "suggested_kaizen": "Facilitate kaizen workshop to capture operator improvement ideas",
             }
         )
 
@@ -624,15 +793,31 @@ def waste_analysis(request, vsm_id):
                     {
                         "category": category,
                         "step": item.get("step", ""),
+                        "detail": item.get("detail", ""),
                         "suggested_kaizen": item.get("suggested_kaizen", ""),
+                        "severity": item["severity"],
                     }
                 )
 
+    # Sort: high first, then medium
+    top_opportunities.sort(key=lambda x: 0 if x["severity"] == "high" else 1)
+
     return JsonResponse(
         {
-            "waste_categories": waste,
+            "framework": "DOWNTIME",
+            "categories": {
+                "D": "Defects",
+                "O": "Overproduction",
+                "W": "Waiting",
+                "N": "NVA Processing",
+                "T": "Transport",
+                "I": "Inventory",
+                "M": "Motion",
+                "E": "Employee Intellect/Passion",
+            },
+            "waste": waste,
             "total_waste_items": total,
-            "top_opportunities": top_opportunities[:10],
+            "top_opportunities": top_opportunities[:15],
         }
     )
 
