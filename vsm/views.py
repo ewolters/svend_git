@@ -1362,103 +1362,161 @@ def _lot_recommendation(step, vsm):
 
         return result
 
-    if r == "schedule_paced":
-        # Lot = 1 for flow processes (batch_process handled by early return above)
-        result["recommendation"] = {
-            "lot_size": 1,
-            "reasoning": "Schedule-paced regime — demand is low enough to build one-piece flow or in contract quantities.",
-            "takt_vs_ct": _build_takt_vs_ct(takt, ct, None, time_unit, time_div),
-            "pitch": {
-                "value": round(takt / 60, 1) if takt else None,
-                "unit": "min",
-                "meaning": "Material withdrawal interval = takt (one piece at a time)",
-            },
-            "epei": "N/A — single-piece flow, no batching",
-        }
-        if batch and batch > 1:
-            result["recommendation"]["batch_warning"] = (
-                f"Current batch size is {batch}. In a schedule-paced environment, "
-                f"this adds {batch - 1} units of WIP without value. "
-                f"Target lot size: 1."
-            )
+    # Cost-based lot sizing — regime is context, not a formula gate.
+    # Always run the same cost math so there's no discontinuity at boundaries.
+    if user_holding_cost:
+        holding_cost = float(user_holding_cost)
+    elif user_unit_cost:
+        holding_cost = float(user_unit_cost) * 0.25 / 260
+    else:
+        holding_cost = 0.01
+        if ct > 3600:
+            holding_cost = 10.0
+        elif ct > 60:
+            holding_cost = 0.10
 
-    elif r == "mix_constrained":
-        # EPEI-first: target EPEI, derive lot size
-        # Default: runners daily, repeaters every 3 days
-        target_epei_days = 1.0 if demand_per_day > 10 else 3.0
-        lot = max(1, round(demand_per_day * target_epei_days))
-        co_per_day = demand_per_day / lot if lot > 0 else 0
-        daily_co_min = co_per_day * (co / 60)
-        co_pct = (daily_co_min / (available_sec / 60)) * 100
+    if user_setup_cost:
+        setup_cost = float(user_setup_cost)
+    else:
+        setup_cost = (co / 3600) * 50
 
-        # Feasibility check
-        prod_min = (demand_per_day * ct) / 60
-        total_min = prod_min + daily_co_min
-        feasible = total_min <= available_sec / 60
+    costs_estimated = not (user_holding_cost or user_unit_cost or user_setup_cost)
 
-        result["recommendation"] = {
-            "lot_size": lot,
-            "reasoning": f"Mix-constrained regime — {mix_count} parts cycling. EPEI target: {target_epei_days} days.",
-            "epei_days": target_epei_days,
-            "changeovers_per_day": round(co_per_day, 1),
-            "changeover_pct": round(co_pct, 1),
-            "feasible": feasible,
-        }
-        if not feasible:
-            # Compute SMED target for feasibility
-            available_for_co = (available_sec / 60) - prod_min
-            if available_for_co > 0 and co_per_day > 0:
-                max_co_min = available_for_co / co_per_day
-                result["recommendation"]["smed_target"] = {
-                    "current_co_min": round(co / 60, 1),
-                    "required_co_min": round(max_co_min, 1),
-                    "reduction_pct": round((1 - max_co_min / (co / 60)) * 100, 0) if co > 0 else 0,
-                }
-            # Fallback EPEI
-            fallback_epei = 5.0
-            fallback_lot = max(1, round(demand_per_day * fallback_epei))
-            fb_co_per_day = demand_per_day / fallback_lot
-            fb_co_min = fb_co_per_day * (co / 60)
-            fb_feasible = (prod_min + fb_co_min) <= available_sec / 60
-            result["recommendation"]["fallback"] = {
-                "epei_days": fallback_epei,
-                "lot_size": fallback_lot,
-                "feasible": fb_feasible,
+    # EPQ: cost-optimal lot size
+    if demand_per_day > 0 and holding_cost > 0 and setup_cost > 0:
+        epq_lot = max(1, round(math.sqrt((2 * demand_per_day * setup_cost) / holding_cost)))
+    else:
+        epq_lot = 1
+
+    # Scenario analysis: test lot=1 through EPQ and beyond
+    test_sizes = sorted(
+        set(
+            [
+                1,
+                max(1, round(demand_per_day)) if demand_per_day > 0 else 1,
+                max(1, round(demand_per_day * 5)) if demand_per_day > 0 else 1,
+                epq_lot,
+            ]
+        )
+    )
+    # Add current batch if set
+    if batch and batch > 1:
+        test_sizes = sorted(set(test_sizes + [batch]))
+
+    scenarios = []
+    for lot in test_sizes:
+        if lot < 1:
+            continue
+        co_per_day = demand_per_day / lot if lot > 0 and demand_per_day > 0 else 0
+        avg_wip = lot / 2
+        daily_hold = avg_wip * holding_cost
+        daily_setup = co_per_day * setup_cost
+        daily_total = daily_hold + daily_setup
+        co_pct = (co_per_day * co / available_sec) * 100 if available_sec > 0 else 0
+        days_supply = lot / demand_per_day if demand_per_day > 0 else 0
+
+        scenarios.append(
+            {
+                "lot_size": lot,
+                "is_current": lot == batch,
+                "is_epq": lot == epq_lot,
+                "days_of_supply": round(days_supply, 1),
+                "avg_wip": round(avg_wip),
+                "daily_cost": round(daily_total, 2),
+                "daily_holding": round(daily_hold, 2),
+                "daily_setup": round(daily_setup, 2),
+                "changeover_pct": round(co_pct, 1),
+            }
+        )
+
+    # Customer demand ceiling: lot should not exceed what demand actually requires.
+    # Cost-optimal (EPQ) is a reference, but the recommendation respects demand.
+    # Max lot = demand quantity that makes operational sense for the regime.
+    cost_optimal = min(scenarios, key=lambda s: s["daily_cost"]) if scenarios else {"lot_size": 1}
+    cost_lot = cost_optimal["lot_size"]
+
+    # Demand ceiling: cap at reasonable supply horizon
+    if demand_per_day > 0:
+        # Low demand (<5/day): cap at ~1 week supply
+        # Medium demand (5-50/day): cap at ~3 days supply
+        # High demand (>50/day): cap at ~1 day supply
+        if demand_per_day < 5:
+            max_supply_days = 5
+        elif demand_per_day < 50:
+            max_supply_days = 3
+        else:
+            max_supply_days = 1
+        demand_ceiling = max(1, round(demand_per_day * max_supply_days))
+    else:
+        demand_ceiling = cost_lot  # no demand info, trust the cost math
+
+    # Recommendation: cost-optimal but capped by demand
+    best_lot = min(cost_lot, demand_ceiling)
+    # Find the scenario closest to the capped lot
+    best = min(scenarios, key=lambda s: abs(s["lot_size"] - best_lot))
+    best_lot = best["lot_size"]
+
+    # Build reasoning from regime + cost math + demand constraint
+    regime_label = r.replace("_", " ")
+    demand_capped = cost_lot > demand_ceiling
+
+    if best_lot == 1:
+        reasoning = f"{regime_label.capitalize()} — lot of 1 (one-piece flow)."
+    elif demand_capped:
+        reasoning = (
+            f"{regime_label.capitalize()} — lot: {best_lot} units "
+            f"({best.get('days_of_supply', 0):.0f} days supply). "
+            f"Cost-optimal is {cost_lot} but capped by demand "
+            f"({max_supply_days}-day supply ceiling)."
+        )
+    else:
+        reasoning = (
+            f"{regime_label.capitalize()} — cost-optimal lot: {best_lot} units "
+            f"({best.get('days_of_supply', 0):.0f} days supply)."
+        )
+    if batch and batch > 1 and best_lot < batch:
+        current = next((s for s in scenarios if s["is_current"]), None)
+        if current:
+            savings = round(current["daily_cost"] - best["daily_cost"], 2)
+            if savings > 0.5:
+                reasoning += f" Current batch of {batch} costs ${savings:.0f}/day more (${savings * 260:.0f}/yr)."
+
+    # Changeover feasibility check
+    best_co_per_day = demand_per_day / best_lot if best_lot > 0 and demand_per_day > 0 else 0
+    prod_min = (demand_per_day * ct) / 60
+    co_min = best_co_per_day * (co / 60)
+    feasible = (prod_min + co_min) <= available_sec / 60
+
+    result["recommendation"] = {
+        "lot_size": best_lot,
+        "reasoning": reasoning,
+        "takt_vs_ct": _build_takt_vs_ct(takt, ct, None, time_unit, time_div),
+        "scenarios": scenarios,
+        "best_scenario": best,
+        "feasible": feasible,
+        "cost_basis": {
+            "holding_cost_per_unit_day": round(holding_cost, 4),
+            "setup_cost_per_changeover": round(setup_cost, 2),
+            "estimated": costs_estimated,
+        },
+    }
+
+    if not feasible:
+        # SMED target: how much must changeover shrink?
+        available_for_co = (available_sec / 60) - prod_min
+        if available_for_co > 0 and best_co_per_day > 0:
+            max_co_min = available_for_co / best_co_per_day
+            result["recommendation"]["smed_target"] = {
+                "current_co_min": round(co / 60, 1),
+                "required_co_min": round(max_co_min, 1),
+                "reduction_pct": round((1 - max_co_min / (co / 60)) * 100, 0) if co > 0 else 0,
             }
 
-    elif r == "capacity_budget":
-        # Budget-first: allocate changeover budget, derive lot size
-        budget_pct = 0.10  # 10% default
-        budget_min = (available_sec / 60) * budget_pct
-        max_co = budget_min / (co / 60) if co > 0 else float("inf")
-        lot = max(1, round(demand_per_day / max_co)) if max_co > 0 else max(1, round(demand_per_day))
-        actual_co = demand_per_day / lot if lot > 0 else 0
-        actual_co_min = actual_co * (co / 60)
-        actual_pct = (actual_co_min / (available_sec / 60)) * 100
-        epei_days = (lot / demand_per_day * mix_count) if demand_per_day > 0 else 0
-        avg_wip = lot / 2
-
-        # SMED impact
-        half_co = co / 2
-        half_max_co = budget_min / (half_co / 60) if half_co > 0 else float("inf")
-        half_lot = max(1, round(demand_per_day / half_max_co)) if half_max_co > 0 else 1
-
-        result["recommendation"] = {
-            "lot_size": lot,
-            "reasoning": f"Capacity-budget regime — {budget_pct * 100:.0f}% changeover budget.",
-            "changeover_budget_pct": budget_pct * 100,
-            "changeovers_per_day": round(actual_co, 1),
-            "changeover_pct_actual": round(actual_pct, 1),
-            "epei_days": round(epei_days, 1),
-            "avg_wip": round(avg_wip),
-            "smed_impact": {
-                "current_co_sec": co,
-                "if_halved": {
-                    "lot_size": half_lot,
-                    "wip_reduction_pct": round((1 - half_lot / lot) * 100) if lot > 0 else 0,
-                },
-            },
-        }
+    if batch and batch > 1 and best_lot == 1:
+        result["recommendation"]["batch_warning"] = (
+            f"Current batch size is {batch}. Cost-optimal lot is 1 — "
+            f"the batch adds {batch - 1} units of WIP without cost benefit."
+        )
 
     # Kanban lot sizing: units in the pull loop between this step and downstream
     if takt and ct and demand_per_day > 0:
@@ -1483,28 +1541,6 @@ def _lot_recommendation(step, vsm):
                 f"At {demand_per_day:.1f}/day, need {kanban_cards} kanban cards "
                 f"({kanban_cards * container_size} units in loop) with {safety_factor:.0%} safety."
             ),
-        }
-
-    # EPQ reference (always include for comparison)
-    if user_holding_cost:
-        holding_cost = float(user_holding_cost)
-    elif user_unit_cost:
-        holding_cost = float(user_unit_cost) * 0.25 / 260
-    else:
-        holding_cost = 0.01
-        if ct > 3600:
-            holding_cost = 10.0
-        elif ct > 60:
-            holding_cost = 0.10
-    if user_setup_cost:
-        setup_cost = float(user_setup_cost)
-    else:
-        setup_cost = (co / 3600) * 50
-    if demand_per_day > 0 and holding_cost > 0 and setup_cost > 0:
-        epq = math.sqrt((2 * demand_per_day * setup_cost) / holding_cost)
-        result["epq_reference"] = {
-            "lot_size": max(1, round(epq)),
-            "note": "Classic EPQ — shown for reference. May not be appropriate for this regime.",
         }
 
     return result
