@@ -1151,6 +1151,9 @@ def _lot_recommendation(step, vsm):
     uptime = (step.get("uptime", 100) or 100) / 100
     shifts = step.get("shifts", 1) or 1
 
+    # Detect display unit from cycle time — all time displays normalized to this
+    time_unit, time_div = _detect_time_unit(ct)
+
     # Step-level demand takes priority over VSM-level
     step_demand = step.get("demand_rate") or 0
     step_demand_unit = (step.get("demand_unit") or "").lower()
@@ -1283,16 +1286,7 @@ def _lot_recommendation(step, vsm):
                     else "Current batch is near-optimal for this cost structure."
                 )
             ),
-            "takt_vs_ct": {
-                "takt_sec": takt,
-                "takt_display": _fmt_time(takt) if takt else "not set",
-                "ct_sec": ct,
-                "ct_display": _fmt_time(ct),
-                "effective_ct_sec": effective_ct,
-                "effective_ct_display": _fmt_time(effective_ct),
-                "ratio": round(effective_ct / takt, 2) if takt and effective_ct else None,
-                "assessment": _takt_ct_assessment(takt, effective_ct),
-            },
+            "takt_vs_ct": _build_takt_vs_ct(takt, ct, effective_ct, time_unit, time_div),
             "scenarios": scenarios,
             "best_scenario": best,
             "current_scenario": current,
@@ -1327,16 +1321,7 @@ def _lot_recommendation(step, vsm):
         result["recommendation"] = {
             "lot_size": 1,
             "reasoning": "Schedule-paced regime — demand is low enough to build one-piece flow or in contract quantities.",
-            "takt_vs_ct": {
-                "takt_sec": takt,
-                "takt_display": _fmt_time(takt) if takt else "not set",
-                "ct_sec": ct,
-                "ct_display": _fmt_time(ct),
-                "effective_ct_sec": ct,
-                "effective_ct_display": _fmt_time(ct),
-                "ratio": round(ct / takt, 2) if takt and ct else None,
-                "assessment": _takt_ct_assessment(takt, ct),
-            },
+            "takt_vs_ct": _build_takt_vs_ct(takt, ct, None, time_unit, time_div),
             "pitch": {
                 "value": round(takt / 60, 1) if takt else None,
                 "unit": "min",
@@ -1472,7 +1457,7 @@ def _lot_recommendation(step, vsm):
 
 
 def _fmt_time(seconds):
-    """Format seconds to human-readable."""
+    """Format seconds to human-readable, auto-detecting unit."""
     if not seconds:
         return "-"
     if seconds < 60:
@@ -1480,6 +1465,46 @@ def _fmt_time(seconds):
     if seconds < 3600:
         return f"{seconds / 60:.1f} min"
     return f"{seconds / 3600:.1f} hrs"
+
+
+def _detect_time_unit(seconds):
+    """Detect the natural display unit for a value in seconds."""
+    if not seconds:
+        return "sec", 1
+    if seconds >= 3600:
+        return "hrs", 3600
+    if seconds >= 60:
+        return "min", 60
+    return "sec", 1
+
+
+def _fmt_time_in(seconds, unit, divisor):
+    """Format seconds into a specific unit."""
+    if not seconds:
+        return "-"
+    val = seconds / divisor
+    if val >= 100:
+        return f"{val:.0f} {unit}"
+    if val >= 10:
+        return f"{val:.1f} {unit}"
+    return f"{val:.2f} {unit}"
+
+
+def _build_takt_vs_ct(takt, ct, effective_ct, time_unit, time_div):
+    """Build takt-vs-CT display dict with all values in the step's time unit."""
+    display_ct = effective_ct or ct
+    ratio = round(display_ct / takt, 4) if takt and display_ct else None
+    return {
+        "takt_sec": takt,
+        "takt_display": _fmt_time_in(takt, time_unit, time_div) if takt else "not set",
+        "ct_sec": ct,
+        "ct_display": _fmt_time_in(ct, time_unit, time_div),
+        "effective_ct_sec": effective_ct,
+        "effective_ct_display": _fmt_time_in(effective_ct, time_unit, time_div) if effective_ct else None,
+        "ratio": ratio,
+        "unit": time_unit,
+        "assessment": _takt_ct_assessment(takt, display_ct),
+    }
 
 
 def _takt_ct_assessment(takt, ct):
