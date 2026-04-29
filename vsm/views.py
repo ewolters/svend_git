@@ -1186,8 +1186,13 @@ def _lot_recommendation(step, vsm):
         except (ValueError, IndexError):
             pass
 
-    takt = vsm.takt_time or 0
     available_sec = 28800 * shifts  # 8hr × shifts
+    # Takt: if step has its own demand rate, compute step-level takt.
+    # Otherwise use the VSM's explicit takt_time (product-level).
+    if step_demand:
+        takt = available_sec / demand_per_day if demand_per_day > 0 else 0
+    else:
+        takt = vsm.takt_time or 0
 
     # Count parts in this value stream as proxy for mix
     steps = vsm.process_steps or []
