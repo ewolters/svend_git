@@ -973,13 +973,53 @@ def register(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    # Check for invite/trial code
+    invite_code_str = request.data.get("code", "").strip()
+    invite_trial_tier = ""
+    invite_trial_days = 14
+    invite_obj = None
+
+    if invite_code_str:
+        from accounts.models import InviteCode
+
+        try:
+            invite_obj = InviteCode.objects.get(code__iexact=invite_code_str)
+            if not invite_obj.is_valid:
+                return Response(
+                    {"error": "This invite code has expired or reached its limit."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            invite_trial_tier = invite_obj.trial_tier
+            invite_trial_days = invite_obj.trial_days
+        except InviteCode.DoesNotExist:
+            return Response(
+                {"error": "Invalid invite code."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
     # Create user (normalize email to lowercase for consistency)
+    starting_tier = invite_trial_tier if invite_trial_tier else User.Tier.FREE
     user = User.objects.create_user(
         username=username,
         email=email.lower() if email else email,
         password=password,
-        tier=User.Tier.FREE,  # New users start on free tier
+        tier=starting_tier,
     )
+
+    # Apply trial if invite code grants one
+    if invite_trial_tier:
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        user.trial_expires_at = timezone.now() + timedelta(days=invite_trial_days)
+        user.trial_original_tier = User.Tier.FREE
+        user.save(update_fields=["trial_expires_at", "trial_original_tier"])
+        logger.info(f"Trial granted: {email} → {invite_trial_tier} for {invite_trial_days} days")
+
+    # Mark invite code as used
+    if invite_obj:
+        invite_obj.use(user)
 
     # Send verification email
     verification_sent = False
@@ -998,17 +1038,25 @@ def register(request):
 
     auth_login(request, user)
 
-    return Response(
-        {
-            "status": "registered",
-            "username": username,
+    resp_data = {
+        "status": "registered",
+        "username": username,
+        "tier": user.tier,
+        "email_verified": False,
+        "verification_sent": verification_sent,
+        "message": "Welcome to SVEND! Please check your email to verify your account.",
+    }
+    if user.is_trial_active:
+        resp_data["trial"] = {
             "tier": user.tier,
-            "email_verified": False,
-            "verification_sent": verification_sent,
-            "message": "Welcome to SVEND! Please check your email to verify your account.",
-        },
-        status=status.HTTP_201_CREATED,
-    )
+            "days_remaining": user.trial_days_remaining,
+            "expires_at": user.trial_expires_at.isoformat(),
+        }
+        resp_data["message"] = (
+            f"Welcome to SVEND! You have a {invite_trial_days}-day {invite_trial_tier.title()} trial. Enjoy full access!"
+        )
+
+    return Response(resp_data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["POST"])

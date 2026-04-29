@@ -15,12 +15,15 @@ from .constants import can_use_ml, has_feature, is_paid_tier
 
 
 def require_auth(view_func):
-    """Require authenticated user."""
+    """Require authenticated user. Also checks trial expiry."""
 
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Authentication required"}, status=401)
+        # Check trial expiry — silently reverts tier if expired
+        if hasattr(request.user, "trial_expires_at") and request.user.trial_expires_at:
+            request.user.check_trial_expiry()
         return view_func(request, *args, **kwargs)
 
     return wrapper

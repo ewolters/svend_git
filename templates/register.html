@@ -162,6 +162,10 @@
                 <span id="planContextText"></span>
             </div>
 
+            <div id="trialBanner" style="display:none; background: rgba(74,159,110,0.12); border: 1px solid rgba(74,159,110,0.3); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.85rem; color: var(--accent);">
+                <strong>14-day Professional trial</strong> — full access to all tools. No credit card required.
+            </div>
+
             <div id="error" class="error"></div>
 
             <form id="registerForm">
@@ -189,6 +193,13 @@
 
         // Get params from URL
         const urlParams = new URLSearchParams(window.location.search);
+
+        // Invite/trial code from URL (e.g., ?code=ILSSI)
+        const inviteCode = urlParams.get('code') || '';
+        if (inviteCode) {
+            document.getElementById('trialBanner').style.display = 'block';
+            document.getElementById('regSubtitle').style.display = 'none';
+        }
 
         // Plan can come directly (?plan=founder) or from next URL
         let plan = urlParams.get('plan') || '';
@@ -285,6 +296,7 @@
                     body: JSON.stringify({
                         email: document.getElementById('email').value,
                         password: document.getElementById('password').value,
+                        code: inviteCode,
                     }),
                     credentials: 'include',
                 });

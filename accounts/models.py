@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 from core.encryption import EncryptedCharField, hash_token
 
@@ -100,6 +101,19 @@ class InviteCode(models.Model):
     # Optional: who created it / notes
     note = models.CharField(max_length=255, blank=True)  # e.g., "For Mom"
     is_active = models.BooleanField(default=True)
+
+    # Trial grant — if set, using this code grants a time-limited tier upgrade
+    trial_tier = models.CharField(
+        max_length=12,
+        choices=Tier.choices,
+        blank=True,
+        default="",
+        help_text="Tier to grant on registration (blank = no trial grant).",
+    )
+    trial_days = models.PositiveIntegerField(
+        default=14,
+        help_text="Number of days the trial lasts.",
+    )
 
     class Meta:
         db_table = "invite_codes"
@@ -227,6 +241,19 @@ class User(AbstractUser):
     is_subscription_active = models.BooleanField(default=False, db_column="subscription_active")
     subscription_ends_at = models.DateTimeField(null=True, blank=True)
 
+    # Trial expiry — set when user registers with a trial invite code
+    trial_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When trial tier access expires. Null = no active trial.",
+    )
+    trial_original_tier = models.CharField(
+        max_length=12,
+        blank=True,
+        default="",
+        help_text="Tier to revert to when trial expires (usually 'free').",
+    )
+
     # === Future features (nullable, no migration needed to enable) ===
 
     # Referrals
@@ -275,6 +302,30 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email or self.username
+
+    def check_trial_expiry(self):
+        """If trial has expired, revert tier and clear trial fields."""
+        if self.trial_expires_at and timezone.now() >= self.trial_expires_at:
+            revert_to = self.trial_original_tier or Tier.FREE
+            self.tier = revert_to
+            self.trial_expires_at = None
+            self.trial_original_tier = ""
+            self.save(update_fields=["tier", "trial_expires_at", "trial_original_tier"])
+            return True
+        return False
+
+    @property
+    def is_trial_active(self) -> bool:
+        """Whether user is on an active trial."""
+        return bool(self.trial_expires_at and timezone.now() < self.trial_expires_at)
+
+    @property
+    def trial_days_remaining(self) -> int:
+        """Days left on trial, or 0."""
+        if not self.trial_expires_at:
+            return 0
+        delta = self.trial_expires_at - timezone.now()
+        return max(0, delta.days)
 
     @property
     def daily_limit(self) -> int:
