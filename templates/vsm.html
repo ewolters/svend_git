@@ -962,13 +962,23 @@
                 <input type="number" id="prop-dos" placeholder="2.5" step="0.1">
             </div>
             <div class="prop-row">
+                <div class="property-group" style="flex:1;">
+                    <label title="Time unit for C/T and C/O values">Time Unit</label>
+                    <select id="prop-time-unit" style="width:100%; padding:8px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
+                        <option value="sec">Seconds</option>
+                        <option value="min">Minutes</option>
+                        <option value="hr">Hours</option>
+                    </select>
+                </div>
+            </div>
+            <div class="prop-row">
                 <div class="property-group">
-                    <label title="Cycle Time — seconds to complete one unit at this step">C/T (sec)</label>
-                    <input type="number" id="prop-cycle-time" placeholder="45">
+                    <label title="Cycle Time to complete one unit at this step" id="prop-ct-label">C/T (sec)</label>
+                    <input type="number" id="prop-cycle-time" placeholder="45" step="any">
                 </div>
                 <div class="property-group">
-                    <label title="Changeover Time — seconds to switch between product types">C/O (sec)</label>
-                    <input type="number" id="prop-changeover" placeholder="600">
+                    <label title="Changeover Time to switch between product types" id="prop-co-label">C/O (sec)</label>
+                    <input type="number" id="prop-changeover" placeholder="600" step="any">
                 </div>
             </div>
             <div class="prop-row">
@@ -985,6 +995,16 @@
                 <div class="property-group">
                     <label title="Number of units processed before a changeover is needed">Batch Size</label>
                     <input type="number" id="prop-batch" placeholder="100">
+                </div>
+                <div class="property-group">
+                    <label title="Pitch interval — material withdrawal rhythm (minutes)">Pitch (min)</label>
+                    <input type="number" id="prop-pitch" placeholder="20" step="0.1">
+                </div>
+            </div>
+            <div class="prop-row">
+                <div class="property-group">
+                    <label title="EPEI — Every Part Every Interval (days)">EPEI (days)</label>
+                    <input type="number" id="prop-epei" placeholder="2" step="0.1">
                 </div>
                 <div class="property-group">
                     <label title="Percentage of units scrapped at this step (yield loss)">Scrap (%)</label>
@@ -1437,6 +1457,7 @@ async function createNewVSM() {
 // =============================================================================
 function renderVSM() {
     if (!currentVSM) return;
+    try {
 
     document.getElementById('vsm-name').textContent = currentVSM.name;
 
@@ -1473,6 +1494,10 @@ function renderVSM() {
 
     // Render lead time ladder
     renderLeadTimeLadder(elementsLayer);
+
+    } catch (err) {
+        console.error('renderVSM FAILED:', err);
+    }
 }
 
 function renderProcessBox(step, layer) {
@@ -1599,11 +1624,8 @@ function renderProcessBox(step, layer) {
             stepMetricsClickTimer = setTimeout(() => showStepMetrics(step), 200);
         }
     });
-    g.addEventListener('dblclick', () => {
-        clearTimeout(stepMetricsClickTimer);
-        closeStepMetrics();
-        showProperties(step);
-    });
+    // Store step ref on the DOM element for canvas-level dblclick dispatch
+    g._vsmStep = step;
 
     layer.appendChild(g);
 }
@@ -1683,7 +1705,7 @@ function renderWorkCenter(wc, layer) {
         if (e.target === handle) return; // handled by resize
         startDragElement(e, wc, 'workcenter');
     });
-    g.addEventListener('dblclick', () => showWorkCenterProperties(wc));
+    g._vsmWC = wc;
 
     layer.appendChild(g);
 }
@@ -1868,7 +1890,7 @@ function renderInventory(inv, layer) {
     }
 
     g.addEventListener('mousedown', (e) => startDragElement(e, inv, 'inventory'));
-    g.addEventListener('dblclick', () => showInventoryProperties(inv));
+    g._vsmInv = inv;
 
     layer.appendChild(g);
 }
@@ -1911,7 +1933,7 @@ function renderSupermarket(inv, layer) {
     g.appendChild(label);
 
     g.addEventListener('mousedown', (e) => startDragElement(e, inv, 'inventory'));
-    g.addEventListener('dblclick', () => showInventoryProperties(inv));
+    g._vsmInv = inv;
 
     layer.appendChild(g);
 }
@@ -1963,7 +1985,7 @@ function renderFIFO(inv, layer) {
     }
 
     g.addEventListener('mousedown', (e) => startDragElement(e, inv, 'inventory'));
-    g.addEventListener('dblclick', () => showInventoryProperties(inv));
+    g._vsmInv = inv;
 
     layer.appendChild(g);
 }
@@ -2048,7 +2070,7 @@ function renderKaizenBurst(burst, layer) {
     }
 
     g.addEventListener('mousedown', (e) => startDragElement(e, burst, 'kaizen'));
-    g.addEventListener('dblclick', () => showKaizenProperties(burst));
+    g._vsmBurst = burst;
 
     layer.appendChild(g);
 }
@@ -2145,8 +2167,9 @@ function renderEntityBox(layer, ent, entityType, icon) {
         document.addEventListener('mouseup', onUp);
     });
 
-    // Double-click to edit
-    g.addEventListener('dblclick', () => showEntityProperties(ent, entityType));
+    // Store ref for canvas-level dblclick dispatch
+    g._vsmEntity = ent;
+    g._vsmEntityType = entityType;
 
     layer.appendChild(g);
 }
@@ -2514,6 +2537,24 @@ function setupEventListeners() {
         }
     });
 
+    // Canvas-level dblclick — bypasses stopPropagation on mousedown
+    canvas.addEventListener('dblclick', (e) => {
+        let el = e.target;
+        while (el && el !== canvas) {
+            if (el._vsmStep) {
+                clearTimeout(stepMetricsClickTimer);
+                closeStepMetrics();
+                showProperties(el._vsmStep);
+                return;
+            }
+            if (el._vsmWC) { showWorkCenterProperties(el._vsmWC); return; }
+            if (el._vsmInv) { showInventoryProperties(el._vsmInv); return; }
+            if (el._vsmBurst) { showKaizenProperties(el._vsmBurst); return; }
+            if (el._vsmEntity) { showEntityProperties(el._vsmEntity, el._vsmEntityType); return; }
+            el = el.parentNode;
+        }
+    });
+
     canvas.addEventListener('mousemove', (e) => {
         if (isPanning) {
             const dx = e.clientX - lastMouseX;
@@ -2716,17 +2757,18 @@ let dragOffsetY = 0;
 let wasDragged = false;
 
 function startDragElement(e, element, elementType = 'process') {
-    e.stopPropagation();
     wasDragged = false;
 
     // Handle flow tool clicks
     if (currentTool === 'flow' && elementType === 'process') {
+        e.stopPropagation();
         handleFlowClick(element);
         return;
     }
 
     if (currentTool !== 'select') return;
 
+    e.stopPropagation();
     dragElement = element;
     selectedElementType = elementType;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -2779,17 +2821,56 @@ function showProperties(element) {
     document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'flex');
 
     document.getElementById('prop-name').value = element.name || '';
-    document.getElementById('prop-cycle-time').value = element.cycle_time || '';
-    document.getElementById('prop-changeover').value = element.changeover_time || '';
+
+    // Detect appropriate time unit from stored seconds value
+    const ctSec = element.cycle_time || 0;
+    let timeUnit = 'sec';
+    if (ctSec >= 3600) timeUnit = 'hr';
+    else if (ctSec >= 120) timeUnit = 'min';
+    const tuEl = document.getElementById('prop-time-unit');
+    if (tuEl) {
+        tuEl.value = timeUnit;
+        updateTimeUnitLabels(timeUnit);
+    }
+
+    // Convert stored seconds to display unit
+    const divisor = timeUnit === 'hr' ? 3600 : timeUnit === 'min' ? 60 : 1;
+    document.getElementById('prop-cycle-time').value = ctSec ? (ctSec / divisor) : '';
+    document.getElementById('prop-changeover').value = element.changeover_time ? (element.changeover_time / divisor) : '';
+
     document.getElementById('prop-uptime').value = element.uptime || '';
     document.getElementById('prop-operators').value = element.operators || '';
     document.getElementById('prop-batch').value = element.batch_size || '';
+    const pitchEl = document.getElementById('prop-pitch');
+    if (pitchEl) pitchEl.value = element.pitch || '';
+    const epeiEl = document.getElementById('prop-epei');
+    if (epeiEl) epeiEl.value = element.epei || '';
     document.getElementById('prop-scrap').value = element.scrap_rate || '';
     document.getElementById('prop-available').value = element.available_time || '';
     document.getElementById('prop-shifts').value = element.shifts || '';
 
     selectedElement = element;
 }
+
+function updateTimeUnitLabels(unit) {
+    const label = unit === 'hr' ? 'hrs' : unit === 'min' ? 'min' : 'sec';
+    const ctLabel = document.getElementById('prop-ct-label');
+    const coLabel = document.getElementById('prop-co-label');
+    if (ctLabel) ctLabel.textContent = `C/T (${label})`;
+    if (coLabel) coLabel.textContent = `C/O (${label})`;
+}
+
+// Hook up the time unit selector
+document.getElementById('prop-time-unit')?.addEventListener('change', function() {
+    const unit = this.value;
+    updateTimeUnitLabels(unit);
+    // Re-display current values in new unit
+    if (selectedElement) {
+        const divisor = unit === 'hr' ? 3600 : unit === 'min' ? 60 : 1;
+        document.getElementById('prop-cycle-time').value = selectedElement.cycle_time ? (selectedElement.cycle_time / divisor) : '';
+        document.getElementById('prop-changeover').value = selectedElement.changeover_time ? (selectedElement.changeover_time / divisor) : '';
+    }
+});
 
 function showInventoryProperties(inv) {
     const panel = document.getElementById('properties-panel');
@@ -2892,13 +2973,23 @@ function saveProperties() {
         selectedElement.is_supermarket = selectedElement.delay_type === 'supermarket';
         selectedElement.is_fifo = selectedElement.delay_type === 'fifo';
     } else {
-        // Save process properties
+        // Save process properties — convert time inputs to seconds (canonical unit)
+        const tuSel = document.getElementById('prop-time-unit');
+        const timeUnit = tuSel ? tuSel.value : 'sec';
+        const multiplier = timeUnit === 'hr' ? 3600 : timeUnit === 'min' ? 60 : 1;
+
         selectedElement.name = document.getElementById('prop-name').value;
-        selectedElement.cycle_time = parseFloat(document.getElementById('prop-cycle-time').value) || null;
-        selectedElement.changeover_time = parseFloat(document.getElementById('prop-changeover').value) || null;
+        const ctVal = parseFloat(document.getElementById('prop-cycle-time').value);
+        selectedElement.cycle_time = ctVal ? Math.round(ctVal * multiplier * 100) / 100 : null;
+        const coVal = parseFloat(document.getElementById('prop-changeover').value);
+        selectedElement.changeover_time = coVal ? Math.round(coVal * multiplier * 100) / 100 : null;
         selectedElement.uptime = parseFloat(document.getElementById('prop-uptime').value) || null;
         selectedElement.operators = parseInt(document.getElementById('prop-operators').value) || null;
         selectedElement.batch_size = parseInt(document.getElementById('prop-batch').value) || null;
+        const pitchSave = document.getElementById('prop-pitch');
+        if (pitchSave) selectedElement.pitch = parseFloat(pitchSave.value) || null;
+        const epeiSave = document.getElementById('prop-epei');
+        if (epeiSave) selectedElement.epei = parseFloat(epeiSave.value) || null;
         selectedElement.scrap_rate = parseFloat(document.getElementById('prop-scrap').value) || null;
         selectedElement.available_time = parseInt(document.getElementById('prop-available').value) || null;
         selectedElement.shifts = parseInt(document.getElementById('prop-shifts').value) || null;

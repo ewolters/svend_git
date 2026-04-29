@@ -22,10 +22,12 @@ function calcTakt() {
     const taktMin = net / demand;
     const taktSec = taktMin * 60;
 
+    const taktHrs = taktMin / 60;
     document.getElementById('takt-result').innerHTML = `${taktMin.toFixed(2)}<span class="calc-result-unit">min</span>`;
     document.getElementById('takt-seconds').innerHTML = `${Math.round(taktSec)}<span class="calc-result-unit">sec</span>`;
+    document.getElementById('takt-hours').innerHTML = `${taktHrs.toFixed(3)}<span class="calc-result-unit">hrs</span>`;
     document.getElementById('takt-net').innerHTML = `${net}<span class="calc-result-unit">min</span>`;
-    document.getElementById('takt-interpret').textContent = `${taktMin.toFixed(1)} min`;
+    document.getElementById('takt-interpret').textContent = taktHrs >= 1 ? `${taktHrs.toFixed(2)} hrs` : `${taktMin.toFixed(1)} min`;
 
     // Publish to shared state
     SvendOps.publish('takt', taktSec, 'sec', 'Takt Time');
@@ -381,6 +383,177 @@ function calcEPEI() {
     renderNextSteps('epei-next-steps', [
         { title: 'Build Heijunka Box', desc: 'Create a level schedule from EPEI', calcId: 'heijunka' },
         { title: 'Run SMED Event', desc: 'Reduce changeover to shorten EPEI', calcId: 'smed' },
+        { title: 'Optimize Lot Size', desc: 'Find optimal batch given changeover constraints', calcId: 'lot-size' },
+    ]);
+}
+
+// ============================================================================
+// Lot Size Optimizer
+// ============================================================================
+
+function calcLotSize() {
+    const demand = parseFloat(document.getElementById('lotsize-demand').value) || 0;
+    const changeoverMin = parseFloat(document.getElementById('lotsize-changeover').value) || 0;
+    const availableHrs = parseFloat(document.getElementById('lotsize-available').value) || 8;
+    const ctRaw = parseFloat(document.getElementById('lotsize-ct').value) || 1;
+    const ctUnit = document.getElementById('lotsize-ct-unit')?.value || 'sec';
+    const coCost = parseFloat(document.getElementById('lotsize-co-cost').value) || 0;
+    const holdCost = parseFloat(document.getElementById('lotsize-hold-cost').value) || 0.01;
+    const parts = parseFloat(document.getElementById('lotsize-parts').value) || 1;
+
+    // Convert cycle time to seconds (canonical unit)
+    const ct = ctUnit === 'hr' ? ctRaw * 3600 : ctUnit === 'min' ? ctRaw * 60 : ctRaw;
+
+    const availableMin = availableHrs * 60;
+    const changeoverSec = changeoverMin * 60;
+
+    // Production EOQ: optimal lot = sqrt(2 * demand * setup_cost / holding_cost_per_unit_per_day)
+    // This is the classic production lot sizing formula (not inventory EOQ)
+    const optimalLot = Math.sqrt((2 * demand * coCost) / holdCost);
+    const lot = Math.max(1, Math.round(optimalLot));
+
+    // How many changeovers per day at this lot size
+    const coPerDay = demand / lot;
+
+    // Daily setup time
+    const dailySetupMin = coPerDay * changeoverMin;
+    const setupPct = (dailySetupMin / availableMin) * 100;
+
+    // EPEI at this lot size: how many days to cycle through all parts
+    const epei = (parts * changeoverMin) / (availableMin * (setupPct / 100 || 0.1));
+    // Better EPEI calc: each part gets lot/demand days of production
+    const epeiDays = lot / demand * parts;
+
+    // Pitch quantity: if takt is known, pitch_qty = pitch_interval / ct
+    // For lot size context: pitch qty = demand / (available_sec / pitch_interval)
+    // Simple: takt = available_sec / demand, pitch = takt * pack
+    const taktSec = (availableHrs * 3600) / demand;
+    const pitchQty = lot; // lot IS the pitch quantity in lot production
+
+    // Average WIP = lot / 2 (sawtooth)
+    const avgWIP = lot / 2;
+
+    // Daily costs
+    const dailySetupCost = coPerDay * coCost;
+    const dailyHoldCost = avgWIP * holdCost;
+    const totalDailyCost = dailySetupCost + dailyHoldCost;
+
+    // Check feasibility: is there enough time to produce + changeover?
+    const productionMin = (demand * ct) / 60;
+    const totalMin = productionMin + dailySetupMin;
+    const feasible = totalMin <= availableMin;
+
+    document.getElementById('lotsize-optimal').innerHTML =
+        `${lot.toLocaleString()}<span class="calc-result-unit">units</span>`;
+    document.getElementById('lotsize-co-per-day').innerHTML =
+        `${coPerDay.toFixed(1)}<span class="calc-result-unit">/day</span>`;
+    document.getElementById('lotsize-epei').innerHTML =
+        `${epeiDays.toFixed(1)}<span class="calc-result-unit">days</span>`;
+    document.getElementById('lotsize-pitch-qty').innerHTML =
+        `${lot.toLocaleString()}<span class="calc-result-unit">units</span>`;
+    document.getElementById('lotsize-setup-time').innerHTML =
+        `${dailySetupMin.toFixed(0)}<span class="calc-result-unit">min</span>`;
+    document.getElementById('lotsize-setup-pct').innerHTML =
+        `${setupPct.toFixed(1)}<span class="calc-result-unit">%</span>`;
+    document.getElementById('lotsize-wip').innerHTML =
+        `${Math.round(avgWIP).toLocaleString()}<span class="calc-result-unit">units</span>`;
+    document.getElementById('lotsize-total-cost').innerHTML =
+        `$${totalDailyCost.toFixed(0)}<span class="calc-result-unit">/day</span>`;
+
+    const interpretEl = document.getElementById('lotsize-interpret');
+    if (!feasible) {
+        interpretEl.innerHTML = `<span style="color:#e74c3c;font-weight:600;">⚠ Not feasible: production (${productionMin.toFixed(0)} min) + setup (${dailySetupMin.toFixed(0)} min) = ${totalMin.toFixed(0)} min exceeds ${availableMin} min available. Reduce changeover via SMED or add capacity.</span>`;
+    } else {
+        const smedTarget = changeoverMin * 0.5;
+        const smedLot = Math.round(Math.sqrt((2 * demand * coCost) / holdCost));
+        interpretEl.innerHTML = `Produce in lots of <strong>${lot.toLocaleString()}</strong>, changing over <strong>${coPerDay.toFixed(1)}×/day</strong>. ` +
+            `Average WIP: ${Math.round(avgWIP).toLocaleString()} units. ` +
+            `Cycle all ${parts} parts every <strong>${epeiDays.toFixed(1)} days</strong>. ` +
+            (setupPct > 15 ? `<span style="color:#e89547;">Setup is ${setupPct.toFixed(0)}% of available time — SMED target: cut changeover to ${smedTarget.toFixed(0)} min to halve lot size.</span>` : '');
+    }
+
+    // Cost curve chart
+    const minLot = Math.max(10, Math.round(lot * 0.15));
+    const maxLot = Math.round(lot * 4);
+    const step = Math.max(1, Math.round((maxLot - minLot) / 60));
+    const quantities = [], setupCosts = [], holdCosts = [], totalCosts = [];
+
+    for (let q = minLot; q <= maxLot; q += step) {
+        quantities.push(q);
+        const sc = (demand / q) * coCost;
+        const hc = (q / 2) * holdCost;
+        setupCosts.push(sc);
+        holdCosts.push(hc);
+        totalCosts.push(sc + hc);
+    }
+
+    ForgeViz.render(document.getElementById('lotsize-chart'), {
+        title: '', chart_type: 'line',
+        traces: [
+            { x: quantities, y: setupCosts, name: 'Setup Cost', trace_type: 'line', color: '#e74c3c', width: 2 },
+            { x: quantities, y: holdCosts, name: 'Holding Cost', trace_type: 'line', color: '#3a7f8f', width: 2 },
+            { x: quantities, y: totalCosts, name: 'Total Cost', trace_type: 'line', color: '#4a9f6e', width: 3 }
+        ],
+        reference_lines: [
+            { value: lot, axis: 'x', color: '#e89547', dash: 'dashed', label: `Optimal: ${lot}` }
+        ],
+        markers: [{ x: lot, y: totalDailyCost, label: `${lot} units — $${totalDailyCost.toFixed(0)}/day`, color: '#e89547' }],
+        zones: [],
+        x_axis: { label: 'Lot Size (units)' },
+        y_axis: { label: 'Daily Cost ($)' }
+    });
+
+    // Derivation
+    document.getElementById('lotsize-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Production Lot Size (Economic Production Quantity)</div>
+            <span class="formula">Q* = √(2 × D × S / H)</span><br>
+            Where D = ${demand} units/day, S = $${coCost}/setup, H = $${holdCost}/unit/day<br>
+            Q* = √(2 × ${demand} × ${coCost} / ${holdCost})<br>
+            Q* = √${Math.round(2 * demand * coCost / holdCost).toLocaleString()} = <strong>${lot.toLocaleString()} units</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Changeover Frequency</div>
+            <span class="formula">C/O per day = Demand / Lot Size</span><br>
+            = ${demand} / ${lot} = <strong>${coPerDay.toFixed(1)} changeovers/day</strong><br>
+            Daily setup time = ${coPerDay.toFixed(1)} × ${changeoverMin} min = <strong>${dailySetupMin.toFixed(0)} min</strong> (${setupPct.toFixed(1)}% of ${availableMin} min)
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: EPEI (Every Part Every Interval)</div>
+            <span class="formula">EPEI = (Lot Size / Demand) × Parts</span><br>
+            = (${lot} / ${demand}) × ${parts} = <strong>${epeiDays.toFixed(1)} days</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 4: Cost Verification</div>
+            <span class="formula">At optimum: Setup Cost ≈ Holding Cost</span><br>
+            Setup = (${demand}/${lot}) × $${coCost} = <strong>$${dailySetupCost.toFixed(0)}/day</strong><br>
+            Holding = (${lot}/2) × $${holdCost} = <strong>$${dailyHoldCost.toFixed(0)}/day</strong><br>
+            Total = <strong>$${totalDailyCost.toFixed(0)}/day</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 5: Capacity Check</div>
+            Production time = ${demand} × ${ct}s / 60 = ${productionMin.toFixed(0)} min<br>
+            Setup time = ${dailySetupMin.toFixed(0)} min<br>
+            Total = ${totalMin.toFixed(0)} min vs ${availableMin} min available ${feasible ? '✓' : '✗ NOT FEASIBLE'}
+        </div>
+        <div class="step">
+            <div class="step-num">SMED Impact Analysis</div>
+            If changeover is halved (${(changeoverMin/2).toFixed(0)} min):<br>
+            - New optimal lot: ${Math.round(Math.sqrt(2 * demand * (coCost/2) / holdCost)).toLocaleString()} units<br>
+            - Setup % drops to: ${((demand / Math.sqrt(2 * demand * (coCost/2) / holdCost)) * (changeoverMin/2) / availableMin * 100).toFixed(1)}%<br>
+            - WIP drops by: ${(100 - Math.sqrt(2 * demand * (coCost/2) / holdCost) / lot * 100).toFixed(0)}%
+        </div>
+    `;
+
+    // Publish to shared state
+    SvendOps.publish('lotSize', lot, 'units', 'Lot Size');
+    SvendOps.publish('lotSizeEPEI', parseFloat(epeiDays.toFixed(1)), 'days', 'Lot Size');
+
+    renderNextSteps('lotsize-next-steps', [
+        { title: 'Run SMED', desc: 'Reduce changeover to enable smaller lots', calcId: 'smed' },
+        { title: 'Size Kanban', desc: 'Calculate kanban cards for this lot size', calcId: 'kanban' },
+        { title: 'Build Heijunka', desc: 'Level the schedule at this EPEI', calcId: 'heijunka' },
+        { title: 'Check EPEI', desc: 'Verify EPEI against this changeover', calcId: 'epei' },
     ]);
 }
 

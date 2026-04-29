@@ -4,6 +4,16 @@
  * MIGRATION: Extracted from templates/vsm.html
  */
 
+/**
+ * Format seconds into appropriate human-readable unit.
+ * <60s → "45s", <3600s → "12.5m", ≥3600s → "4.5h"
+ */
+function formatTimeDisplay(seconds) {
+    if (!seconds && seconds !== 0) return '-';
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${(seconds / 60).toFixed(1)}m`;
+    return `${(seconds / 3600).toFixed(2)}h`;
+}
 
 function calculateTakt() {
     const avail = parseFloat(document.getElementById('takt-avail').value);
@@ -169,19 +179,23 @@ function showStepMetrics(step) {
     }
 
     // KPI grid
-    const ct = step.cycle_time || '-';
-    const co = step.changeover_time || '-';
+    const ct = step.cycle_time ? formatTimeDisplay(step.cycle_time) : '-';
+    const co = step.changeover_time ? formatTimeDisplay(step.changeover_time) : '-';
     const uptime = step.uptime ? step.uptime + '%' : '-';
     const ops = step.operators || '-';
+    const batch = step.batch_size || '-';
+    const pitch = step.pitch ? step.pitch + 'm' : '-';
+    const epei = step.epei ? step.epei + 'd' : '-';
     const taktRatio = flags.takt_ratio || '-';
-    const scrap = step.scrap_rate ? step.scrap_rate + '%' : '-';
     document.getElementById('smp-kpis').innerHTML =
-        `<div class="smp-kpi"><div class="smp-kpi-label">C/T (sec)</div><div class="smp-kpi-value">${ct}</div></div>` +
-        `<div class="smp-kpi"><div class="smp-kpi-label">C/O (sec)</div><div class="smp-kpi-value">${co}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">C/T</div><div class="smp-kpi-value">${ct}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">C/O</div><div class="smp-kpi-value">${co}</div></div>` +
         `<div class="smp-kpi"><div class="smp-kpi-label">Uptime</div><div class="smp-kpi-value">${uptime}</div></div>` +
         `<div class="smp-kpi"><div class="smp-kpi-label">Operators</div><div class="smp-kpi-value">${ops}</div></div>` +
-        `<div class="smp-kpi"><div class="smp-kpi-label">vs Takt</div><div class="smp-kpi-value">${taktRatio}</div></div>` +
-        `<div class="smp-kpi"><div class="smp-kpi-label">Scrap</div><div class="smp-kpi-value">${scrap}</div></div>`;
+        `<div class="smp-kpi"><div class="smp-kpi-label">Batch</div><div class="smp-kpi-value">${batch}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">Pitch</div><div class="smp-kpi-value">${pitch}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">EPEI</div><div class="smp-kpi-value">${epei}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">vs Takt</div><div class="smp-kpi-value">${taktRatio}</div></div>`;
 
     // Annotations
     const annotations = step.annotations || [];

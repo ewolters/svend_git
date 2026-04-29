@@ -760,7 +760,8 @@ function renderProcessBox(step, layer) {
         ['C/O', step.changeover_time ? formatTime(step.changeover_time) : '-'],
         ['Uptime', step.uptime ? `${step.uptime}%` : '-'],
         ['Batch', step.batch_size || '-'],
-        ['Scrap', step.scrap_rate ? `${step.scrap_rate}%` : '-'],
+        ['Pitch', step.pitch ? `${step.pitch}m` : '-'],
+        ['EPEI', step.epei ? `${step.epei}d` : '-'],
         ['Ops', step.operators || '-'],
         ['Shifts', step.shifts || '-'],
     ];

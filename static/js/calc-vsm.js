@@ -156,6 +156,7 @@ function doVSMImport() {
         case 'kanban': loadVSMIntoKanbanSizing(vsm); break;
         case 'capacity-load': loadVSMIntoCapacityLoad(effectiveStations, vsm); break;
         case 'rto': loadVSMIntoRTO(effectiveStations, vsm); break;
+        case 'lot-size': loadVSMIntoLotSize(vsm); break;
         default:
             // Generic: try to load into simulators that have stations
             if (effectiveStations.length > 0) {
@@ -681,9 +682,44 @@ async function exportKanbanSizingToVSM() {
 }
 
 async function exportEPEIToVSM() {
-    const result = document.getElementById('epei-result');
-    if (!result) { showToast('Calculate EPEI first', 'warning'); return; }
-    showToast(`EPEI result noted. Data is informational — no step-level export.`);
+    const epei = SvendOps.get('epei');
+    if (!epei) { showToast('Calculate EPEI first', 'warning'); return; }
+
+    try {
+        const resp = await fetch('/api/vsm/', { credentials: 'same-origin' });
+        const data = await resp.json();
+        const maps = (data.maps || []).filter(m => m.status === 'current');
+        if (maps.length === 0) { showToast('No VSMs found', 'warning'); return; }
+        const vsm = maps[0];
+        const steps = vsm.process_steps || [];
+        if (steps.length === 0) { showToast('VSM has no process steps', 'warning'); return; }
+
+        // If single step, apply directly; otherwise let user pick
+        if (steps.length === 1) {
+            steps[0].epei = epei;
+            await fetch(`/api/vsm/${vsm.id}/update/`, {
+                method: 'PUT', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ process_steps: steps })
+            });
+            showToast(`EPEI (${epei.toFixed(1)} days) → ${steps[0].name}`);
+        } else {
+            const stepName = await selectVSMStep(steps, 'Apply EPEI to which step?');
+            if (!stepName) return;
+            const step = steps.find(s => s.name === stepName);
+            if (step) {
+                step.epei = epei;
+                await fetch(`/api/vsm/${vsm.id}/update/`, {
+                    method: 'PUT', credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ process_steps: steps })
+                });
+                showToast(`EPEI (${epei.toFixed(1)} days) → ${stepName}`);
+            }
+        }
+    } catch (e) {
+        showToast('Export failed: ' + safeStr(e, 'Unknown error'), 'error');
+    }
 }
 
 // Step selector helper for single-step exports
@@ -766,5 +802,104 @@ async function pinSPCResultToVSM(summary, controlStatus) {
         showToast('Pinned SPC result to: ' + stepName);
     } catch (e) {
         showToast('Pin failed: ' + safeStr(e, 'Unknown error'), 'error');
+    }
+}
+
+// --- Export Lot Size Optimizer to VSM (batch_size + pitch + epei on step) ---
+
+async function exportLotSizeToVSM() {
+    const lotSize = SvendOps.get('lotSize');
+    const lotEPEI = SvendOps.get('lotSizeEPEI');
+    if (!lotSize) { showToast('Calculate lot size first', 'warning'); return; }
+
+    try {
+        const resp = await fetch('/api/vsm/', { credentials: 'same-origin' });
+        const data = await resp.json();
+        const maps = (data.maps || []).filter(m => m.status === 'current');
+        if (maps.length === 0) { showToast('No VSMs found', 'warning'); return; }
+        const vsmResp = await fetch(`/api/vsm/${maps[0].id}/`, { credentials: 'same-origin' });
+        const vsmData = await vsmResp.json();
+        const steps = (vsmData.vsm.process_steps || []).filter(s => s.name);
+        if (steps.length === 0) { showToast('VSM has no steps', 'warning'); return; }
+
+        const stepName = await selectVSMStep(steps, 'Apply lot size to which step?');
+        if (!stepName) return;
+
+        const step = steps.find(s => s.name === stepName);
+        if (!step) return;
+
+        // Write batch_size, epei, and pitch fields directly on the step
+        step.batch_size = lotSize;
+        if (lotEPEI) step.epei = lotEPEI;
+
+        // Calculate pitch if takt is available
+        const takt = SvendOps.get('takt');
+        const packSize = step.pack_size || lotSize;
+        if (takt && packSize) {
+            step.pitch = parseFloat(((takt * packSize) / 60).toFixed(1)); // min
+        }
+
+        await fetch(`/api/vsm/${maps[0].id}/update/`, {
+            method: 'PUT', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ process_steps: vsmData.vsm.process_steps })
+        });
+        showToast(`Lot: ${lotSize}, EPEI: ${lotEPEI?.toFixed(1) || '—'}d → ${stepName}`);
+    } catch (e) {
+        showToast('Export failed: ' + safeStr(e, 'Unknown error'), 'error');
+    }
+}
+
+// --- Import VSM step into Lot Size Optimizer ---
+
+function loadVSMIntoLotSize(vsm) {
+    const steps = vsm.process_steps || [];
+    if (steps.length === 0) return;
+
+    // Use bottleneck step or first step with changeover
+    const step = steps.find(s => s.changeover_time > 0) || steps[0];
+    if (step.cycle_time) document.getElementById('lotsize-ct').value = step.cycle_time;
+    if (step.changeover_time) document.getElementById('lotsize-changeover').value = (step.changeover_time / 60).toFixed(1);
+
+    if (vsm.customer_demand) {
+        const num = parseFloat(vsm.customer_demand.replace(/[^\d.]/g, ''));
+        if (num > 0) document.getElementById('lotsize-demand').value = num;
+    }
+    if (typeof calcLotSize === 'function') calcLotSize();
+}
+
+// --- Export Pitch to VSM step ---
+
+async function exportPitchToVSM() {
+    const pitch = SvendOps.get('pitch');
+    if (!pitch) { showToast('Calculate pitch first', 'warning'); return; }
+
+    try {
+        const resp = await fetch('/api/vsm/', { credentials: 'same-origin' });
+        const data = await resp.json();
+        const maps = (data.maps || []).filter(m => m.status === 'current');
+        if (maps.length === 0) { showToast('No VSMs found', 'warning'); return; }
+        const vsmResp = await fetch(`/api/vsm/${maps[0].id}/`, { credentials: 'same-origin' });
+        const vsmData = await vsmResp.json();
+        const steps = (vsmData.vsm.process_steps || []).filter(s => s.name);
+        if (steps.length === 0) { showToast('VSM has no steps', 'warning'); return; }
+
+        const stepName = await selectVSMStep(steps, 'Apply pitch to which step?');
+        if (!stepName) return;
+
+        const step = steps.find(s => s.name === stepName);
+        if (step) {
+            step.pitch = pitch;
+            const packSize = parseFloat(document.getElementById('pitch-pack')?.value) || 0;
+            if (packSize) step.pack_size = packSize;
+            await fetch(`/api/vsm/${maps[0].id}/update/`, {
+                method: 'PUT', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ process_steps: vsmData.vsm.process_steps })
+            });
+            showToast(`Pitch (${pitch} min) → ${stepName}`);
+        }
+    } catch (e) {
+        showToast('Export failed: ' + safeStr(e, 'Unknown error'), 'error');
     }
 }

@@ -20,6 +20,7 @@ const calcMeta = {
     'line-sim': { title: 'Line Simulator', desc: 'Watch WIP flow through stations in real-time. See bottlenecks form. Run line balancing events.' },
     kanban: { title: 'Kanban Sizing', desc: 'Calculate the number of kanban cards needed' },
     epei: { title: 'EPEI (Every Part Every Interval)', desc: 'Determine production interval for part mix' },
+    'lot-size': { title: 'Lot Size Optimizer', desc: 'Find optimal production lot size given changeover cost and holding cost' },
     safety: { title: 'Safety Stock', desc: 'Calculate buffer inventory for demand and lead time variation' },
     eoq: { title: 'Economic Order Quantity', desc: 'Optimize order size to minimize total inventory cost' },
     oee: { title: 'OEE (Overall Equipment Effectiveness)', desc: 'Measure equipment productivity: Availability × Performance × Quality' },
@@ -235,6 +236,28 @@ const calcGuide = {
             { calcId: 'heijunka', label: 'Heijunka (Leveling)' }
         ],
         publishes: ['epei']
+    },
+    'lot-size': {
+        purpose: 'Finds the optimal production lot size that minimizes total cost (setup + holding). Integrates SMED changeover data, calculates resulting EPEI, and shows the SMED impact on lot reduction. Essential for batch-to-flow conversion.',
+        inputs: {
+            'Daily Demand': 'Units required per day.',
+            'Changeover Time': 'Minutes per changeover. Pull from SMED.',
+            'Cycle Time': 'Seconds per unit at this step.',
+            'Changeover Cost': 'Total cost per setup (labor + lost production).',
+            'Holding Cost': 'Cost to hold one unit for one day (capital + space + risk).',
+            'Part Numbers': 'Number of SKUs cycling through this resource.'
+        },
+        formula: 'Q* = √(2DS / H), EPEI = (Q*/D) × Parts',
+        feedsFrom: [
+            { calcId: 'smed', label: 'SMED', key: 'changeoverInternal' },
+            { calcId: 'epei', label: 'EPEI', key: 'epei' }
+        ],
+        feedsInto: [
+            { calcId: 'kanban', label: 'Kanban Sizing' },
+            { calcId: 'heijunka', label: 'Heijunka' },
+            { calcId: 'epei', label: 'EPEI' }
+        ],
+        publishes: ['lotSize', 'lotSizeEPEI']
     },
     kanban: {
         purpose: 'Sizes a pull system. Calculates the number of kanban cards needed to signal replenishment between processes without overproducing.',
@@ -474,6 +497,7 @@ function findPullTarget(calcId, publishKey) {
         'line-sim':       { takt: 'ls-takt', changeoverInternal: 'ls-changeover-time' },
         'kanban':         { eoq: 'kanban-container' },
         'epei':           { changeoverInternal: 'epei-changeover' },
+        'lot-size':       { changeoverInternal: 'lotsize-changeover', cycleTimeTotal: 'lotsize-ct' },
         'oee':            { bottleneckCT: 'oee-ideal' },
         'littles':        { bottleneckThroughput: 'littles-thr' },
         'queue':          { bottleneckThroughput: 'queue-mu' },

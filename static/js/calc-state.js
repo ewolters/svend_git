@@ -529,6 +529,7 @@ function refreshAllDisplays() {
     if (typeof calcOEE === 'function') calcOEE();
     if (typeof calcKanban === 'function') calcKanban();
     if (typeof calcEPEI === 'function') calcEPEI();
+    if (typeof calcLotSize === 'function') calcLotSize();
     if (typeof calcSafety === 'function') calcSafety();
     if (typeof calcEOQ === 'function') calcEOQ();
     if (typeof calcLittles === 'function') calcLittles();

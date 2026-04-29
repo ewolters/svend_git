@@ -96,7 +96,12 @@ class ValueStreamMap(models.Model):
         return f"VSM: {self.name} ({self.status})"
 
     def calculate_metrics(self):
-        """Calculate total lead time, process time, and PCE."""
+        """Calculate total lead time, process time, and PCE.
+
+        When batch_size is present on a step, changeover is amortized:
+        effective_co = changeover_time / batch_size (per-unit changeover cost).
+        This gives a more realistic lead time for batch production.
+        """
         total_ct = 0.0
         total_changeover = 0.0
         total_wait = 0.0
@@ -107,7 +112,12 @@ class ValueStreamMap(models.Model):
         for step in self.process_steps:
             ct = step.get("cycle_time", 0) or 0
             co = step.get("changeover_time", 0) or 0
-            total_changeover += co
+            batch = step.get("batch_size") or 0
+            # Amortize changeover across batch if batch_size is set
+            if batch > 0 and co > 0:
+                total_changeover += co / batch  # per-unit changeover cost
+            else:
+                total_changeover += co
             wc_id = step.get("work_center_id")
             if wc_id:
                 wc_steps.setdefault(wc_id, []).append(ct)

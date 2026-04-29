@@ -68,6 +68,10 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
                     <span>EPEI</span>
                 </div>
+                <div class="ops-nav-item" onclick="showCalc('lot-size')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="6" height="6" rx="1"/><rect x="9" y="6" width="6" height="6" rx="1"/><rect x="16" y="6" width="6" height="6" rx="1"/><rect x="2" y="13" width="6" height="6" rx="1"/><path d="M9 16h12" stroke-dasharray="3,2"/></svg>
+                    <span>Lot Size</span>
+                </div>
                 <div class="ops-nav-item" onclick="showCalc('safety')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                     <span>Safety Stock</span>
@@ -451,6 +455,10 @@
                         <div class="calc-result-card">
                             <div class="calc-result-label">In Seconds</div>
                             <div class="calc-result-value" id="takt-seconds">270<span class="calc-result-unit">sec</span></div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">In Hours</div>
+                            <div class="calc-result-value" id="takt-hours">0.075<span class="calc-result-unit">hrs</span></div>
                         </div>
                         <div class="calc-result-card">
                             <div class="calc-result-label">Net Available</div>
@@ -1189,6 +1197,121 @@
                     </div>
                 </div>
                 <div id="epei-next-steps" class="calc-next-steps" style="display:none"></div>
+            </div>
+
+            <!-- Lot Size Optimizer -->
+            <div class="calc-layout" id="layout-lot-size">
+                <div class="calc-section">
+                    <div class="calc-section-title">Production Parameters</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>Daily demand (units/day)</label>
+                            <input type="number" id="lotsize-demand" value="460" oninput="calcLotSize()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Changeover time (min)
+                                <button class="calc-pull-btn" data-link-from="changeoverInternal" onclick="SvendOps.pull('changeoverInternal', 'lotsize-changeover')" title="Pull from SMED">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                                    ← SMED
+                                </button>
+                            </label>
+                            <input type="number" id="lotsize-changeover" value="30" oninput="calcLotSize()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Available time (hrs/day)</label>
+                            <input type="number" id="lotsize-available" value="8" step="0.5" oninput="calcLotSize()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Cycle time
+                                <select id="lotsize-ct-unit" onchange="calcLotSize()" style="font-size:11px; padding:2px 4px; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-secondary); margin-left:4px;">
+                                    <option value="sec">sec</option>
+                                    <option value="min">min</option>
+                                    <option value="hr">hrs</option>
+                                </select>
+                                <button class="calc-pull-btn" data-link-from="cycleTimeTotal" onclick="SvendOps.pull('cycleTimeTotal', 'lotsize-ct')" title="Pull from Cycle Time Study">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                                    ← CT
+                                </button>
+                            </label>
+                            <input type="number" id="lotsize-ct" value="45" oninput="calcLotSize()">
+                        </div>
+                    </div>
+                </div>
+                <div class="calc-section">
+                    <div class="calc-section-title">Cost Parameters</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>Changeover cost ($/setup)</label>
+                            <input type="number" id="lotsize-co-cost" value="500" oninput="calcLotSize()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Holding cost ($/unit/day)</label>
+                            <input type="number" id="lotsize-hold-cost" value="0.50" step="0.01" oninput="calcLotSize()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Number of part numbers</label>
+                            <input type="number" id="lotsize-parts" value="5" oninput="calcLotSize()">
+                        </div>
+                    </div>
+                </div>
+                <div class="calc-section">
+                    <div class="calc-section-title">Results</div>
+                    <div class="calc-results">
+                        <div class="calc-result">
+                            <div class="calc-result-label">Optimal Lot Size</div>
+                            <div class="calc-result-value" id="lotsize-optimal">—</div>
+                        </div>
+                        <div class="calc-result">
+                            <div class="calc-result-label">Changeovers/Day</div>
+                            <div class="calc-result-value" id="lotsize-co-per-day">—</div>
+                        </div>
+                        <div class="calc-result">
+                            <div class="calc-result-label">EPEI</div>
+                            <div class="calc-result-value" id="lotsize-epei">—</div>
+                        </div>
+                        <div class="calc-result">
+                            <div class="calc-result-label">Pitch Qty</div>
+                            <div class="calc-result-value" id="lotsize-pitch-qty">—</div>
+                        </div>
+                    </div>
+                    <div class="calc-results" style="margin-top:8px;">
+                        <div class="calc-result">
+                            <div class="calc-result-label">Daily Setup Time</div>
+                            <div class="calc-result-value" id="lotsize-setup-time">—</div>
+                        </div>
+                        <div class="calc-result">
+                            <div class="calc-result-label">Setup % of Available</div>
+                            <div class="calc-result-value" id="lotsize-setup-pct">—</div>
+                        </div>
+                        <div class="calc-result">
+                            <div class="calc-result-label">Avg WIP (units)</div>
+                            <div class="calc-result-value" id="lotsize-wip">—</div>
+                        </div>
+                        <div class="calc-result">
+                            <div class="calc-result-label">Total Daily Cost</div>
+                            <div class="calc-result-value" id="lotsize-total-cost">—</div>
+                        </div>
+                    </div>
+                    <div class="calc-interpretation" style="margin-top:8px;">
+                        <span id="lotsize-interpret"></span>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:12px;">
+                        <button onclick="exportLotSizeToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            Export to VSM
+                        </button>
+                    </div>
+                </div>
+                <div id="lotsize-chart" class="calc-chart"></div>
+                <div class="calc-derivation" id="lotsize-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('lotsize-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="lotsize-derivation-body">
+                    </div>
+                </div>
+                <div id="lotsize-next-steps" class="calc-next-steps" style="display:none"></div>
             </div>
 
             <!-- Safety Stock -->
@@ -2345,6 +2468,12 @@
                             <span>Use</span>
                             <span>Water spider pickup interval</span>
                         </div>
+                    </div>
+                    <div style="margin-top:12px;">
+                        <button onclick="exportPitchToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            Export to VSM
+                        </button>
                     </div>
                 </div>
 

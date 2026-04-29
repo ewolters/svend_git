@@ -228,9 +228,15 @@ def _convert_spc(result, analysis_id):
     except Exception:
         logger.debug("ForgeViz SPC chart conversion failed", exc_info=True)
 
+    ooc = getattr(result, "out_of_control", [])
+    violations = getattr(result, "run_violations", [])
+
     stats = {
         "in_control": getattr(result, "in_control", True),
-        "n_ooc": len(getattr(result, "out_of_control", [])),
+        "n_ooc": len(ooc),
+        "n_run_violations": len(violations),
+        "out_of_control": ooc[:20],  # Cap for JSON size
+        "run_violations": violations[:20],
     }
     limits = getattr(result, "limits", None)
     if limits:
@@ -239,10 +245,12 @@ def _convert_spc(result, analysis_id):
             if v is not None:
                 stats[k] = round(float(v), 4)
 
-    ooc = getattr(result, "out_of_control", [])
     summary = (
         getattr(result, "summary", "") or f"SPC: {'In control' if stats['in_control'] else f'{len(ooc)} OOC points'}"
     )
+    if violations:
+        rules_hit = sorted(set(v.get("rule", 0) for v in violations))
+        summary += f" Nelson rules triggered: {rules_hit}."
 
     return {
         "charts": charts,

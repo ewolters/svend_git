@@ -32,6 +32,7 @@
     calcRTO();
     calcKanban();
     calcEPEI();
+    calcLotSize();
     calcSafety();
     calcEOQ();
     calcOEE();
