@@ -404,6 +404,8 @@ def add_process_step(request, vsm_id):
         "shifts": data.get("shifts", 1),
         "batch_size": data.get("batch_size"),
         "batch_process": data.get("batch_process", False),
+        "demand_rate": data.get("demand_rate"),
+        "demand_unit": data.get("demand_unit", ""),
         "pack_size": data.get("pack_size"),
         "pitch": data.get("pitch"),
         "epei": data.get("epei"),
@@ -1152,24 +1154,37 @@ def _lot_recommendation(step, vsm):
     operators = step.get("operators", 1) or 1
     shifts = step.get("shifts", 1) or 1
 
-    # Parse demand from VSM
-    demand_str = vsm.customer_demand or ""
+    # Step-level demand takes priority over VSM-level
+    step_demand = step.get("demand_rate") or 0
+    step_demand_unit = (step.get("demand_unit") or "").lower()
     demand_per_day = 0
-    try:
-        import re
 
-        nums = re.findall(r"[\d.]+", demand_str)
-        if nums:
-            demand_per_day = float(nums[0])
-            low = demand_str.lower()
-            if "/month" in low or "month" in low:
-                demand_per_day /= 22  # working days
-            elif "/week" in low or "week" in low:
-                demand_per_day /= 5
-            elif "/year" in low or "annual" in low:
-                demand_per_day /= 260
-    except (ValueError, IndexError):
-        pass
+    if step_demand:
+        demand_per_day = float(step_demand)
+        if "month" in step_demand_unit:
+            demand_per_day /= 22
+        elif "week" in step_demand_unit:
+            demand_per_day /= 5
+        elif "year" in step_demand_unit or "annual" in step_demand_unit:
+            demand_per_day /= 260
+    else:
+        # Fall back to VSM-level customer demand
+        demand_str = vsm.customer_demand or ""
+        try:
+            import re
+
+            nums = re.findall(r"[\d.]+", demand_str)
+            if nums:
+                demand_per_day = float(nums[0])
+                low = demand_str.lower()
+                if "/month" in low or "month" in low:
+                    demand_per_day /= 22
+                elif "/week" in low or "week" in low:
+                    demand_per_day /= 5
+                elif "/year" in low or "annual" in low:
+                    demand_per_day /= 260
+        except (ValueError, IndexError):
+            pass
 
     takt = vsm.takt_time or 0
     available_sec = 28800 * shifts  # 8hr × shifts
@@ -1194,32 +1209,21 @@ def _lot_recommendation(step, vsm):
 
     r = regime["regime"]
 
-    if r == "schedule_paced":
-        # Determine lot size: 1 for flow, or batch capacity for batch processes
-        if batch_process and batch > 0:
-            recommended_lot = batch
-            # Effective CT for batch process: total time / batch size
-            effective_ct = ct / batch if batch > 0 else ct
-            reasoning = (
-                f"Schedule-paced regime with batch process constraint. "
-                f"Equipment processes {batch} units in {_fmt_time(ct)}. "
-                f"Effective C/T per unit: {_fmt_time(effective_ct)}. "
-                f"Optimize by filling every batch and scheduling to takt."
-            )
-            # How often to run a batch
-            if demand_per_day > 0:
-                days_between_batches = batch / demand_per_day
-                reasoning += f" Run one batch every {days_between_batches:.1f} days."
-        else:
-            recommended_lot = 1
-            effective_ct = ct
-            reasoning = (
-                "Schedule-paced regime — demand is low enough to build one-piece flow or in contract quantities."
-            )
+    # Batch process override — applies to ALL regimes
+    if batch_process and batch > 0:
+        effective_ct = ct / batch if batch > 0 else ct
+        days_of_supply = batch / demand_per_day if demand_per_day > 0 else 0
+        days_between = batch / demand_per_day if demand_per_day > 0 else 0
 
         result["recommendation"] = {
-            "lot_size": recommended_lot,
-            "reasoning": reasoning,
+            "lot_size": batch,
+            "reasoning": (
+                f"Batch process — equipment processes {batch} units in {_fmt_time(ct)}. "
+                f"Effective C/T per unit: {_fmt_time(effective_ct)}. "
+                f"Run one batch every {days_between:.1f} working days."
+                if demand_per_day > 0
+                else f"Batch process — equipment processes {batch} units in {_fmt_time(ct)}."
+            ),
             "takt_vs_ct": {
                 "takt_sec": takt,
                 "takt_display": _fmt_time(takt) if takt else "not set",
@@ -1230,32 +1234,76 @@ def _lot_recommendation(step, vsm):
                 "ratio": round(effective_ct / takt, 2) if takt and effective_ct else None,
                 "assessment": _takt_ct_assessment(takt, effective_ct),
             },
+            "epei": f"Batch process — {batch} units per cycle",
+            "batch_process_note": (
+                f"Batch process: {batch} units = {days_of_supply:.0f} days of supply. "
+                f"This is inherent to the equipment, not discretionary. "
+                f"Reduce WIP by reducing batch capacity (smaller oven/fixture) "
+                f"or increasing demand flow."
+            )
+            if days_of_supply > 0
+            else None,
+        }
+
+        # Kanban for batch process
+        if takt and demand_per_day > 0:
+            replenishment_sec = ct + co
+            replenishment_days = replenishment_sec / available_sec if available_sec > 0 else 0
+            safety_factor = 0.2 if uptime > 0.9 else 0.5
+            kanban_qty = math.ceil(demand_per_day * replenishment_days * (1 + safety_factor))
+            kanban_cards = max(1, math.ceil(kanban_qty / batch))
+            result["kanban"] = {
+                "container_size": batch,
+                "kanban_cards": kanban_cards,
+                "total_units_in_loop": kanban_cards * batch,
+                "replenishment_time": _fmt_time(replenishment_sec),
+                "safety_factor": safety_factor,
+                "reasoning": (
+                    f"Batch of {batch} takes {_fmt_time(replenishment_sec)} to process + changeover. "
+                    f"At {demand_per_day:.1f}/day, need {kanban_cards} batch(es) "
+                    f"({kanban_cards * batch} units in loop)."
+                ),
+            }
+
+        # EPQ reference
+        holding_cost = 10.0 if ct > 3600 else 0.10
+        setup_cost = (co / 3600) * 50
+        if demand_per_day > 0 and holding_cost > 0 and setup_cost > 0:
+            epq = math.sqrt((2 * demand_per_day * setup_cost) / holding_cost)
+            result["epq_reference"] = {
+                "lot_size": max(1, round(epq)),
+                "note": "Classic EPQ for reference — batch process constraint overrides this.",
+            }
+
+        return result
+
+    if r == "schedule_paced":
+        # Lot = 1 for flow processes (batch_process handled by early return above)
+        result["recommendation"] = {
+            "lot_size": 1,
+            "reasoning": "Schedule-paced regime — demand is low enough to build one-piece flow or in contract quantities.",
+            "takt_vs_ct": {
+                "takt_sec": takt,
+                "takt_display": _fmt_time(takt) if takt else "not set",
+                "ct_sec": ct,
+                "ct_display": _fmt_time(ct),
+                "effective_ct_sec": ct,
+                "effective_ct_display": _fmt_time(ct),
+                "ratio": round(ct / takt, 2) if takt and ct else None,
+                "assessment": _takt_ct_assessment(takt, ct),
+            },
             "pitch": {
                 "value": round(takt / 60, 1) if takt else None,
                 "unit": "min",
-                "meaning": "Material withdrawal interval = takt (one piece at a time)"
-                if not batch_process
-                else f"Batch of {batch} every {batch / demand_per_day:.1f} days"
-                if demand_per_day > 0
-                else f"Batch of {batch}",
+                "meaning": "Material withdrawal interval = takt (one piece at a time)",
             },
-            "epei": "N/A — single-piece flow, no batching"
-            if not batch_process
-            else f"Batch process — {batch} units per cycle, schedule-driven",
+            "epei": "N/A — single-piece flow, no batching",
         }
-        if batch and batch > 1 and not batch_process:
+        if batch and batch > 1:
             result["recommendation"]["batch_warning"] = (
                 f"Current batch size is {batch}. In a schedule-paced environment, "
                 f"this adds {batch - 1} units of WIP without value. "
                 f"Target lot size: 1."
-            )
-        if batch_process and demand_per_day > 0 and batch > 0:
-            wip_days = batch / demand_per_day
-            result["recommendation"]["batch_process_note"] = (
-                f"Batch process: {batch} units = {wip_days:.0f} days of supply. "
-                f"This is inherent to the equipment, not discretionary. "
-                f"Reduce WIP by reducing batch capacity (smaller oven/fixture) "
-                f"or increasing demand flow."
             )
 
     elif r == "mix_constrained":

@@ -993,6 +993,18 @@
             </div>
             <div class="prop-row">
                 <div class="property-group">
+                    <label title="Demand at this step (overrides VSM-level demand)">Step Demand</label>
+                    <div style="display:flex; gap:4px;">
+                        <input type="number" id="prop-demand-rate" placeholder="48" step="any" style="flex:1;">
+                        <select id="prop-demand-unit" style="width:80px; padding:8px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); font-size:0.75rem;">
+                            <option value="">/day</option>
+                            <option value="/month">/month</option>
+                            <option value="/week">/week</option>
+                            <option value="/year">/year</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="property-group">
                     <label title="Number of units processed before a changeover is needed">Batch Size</label>
                     <input type="number" id="prop-batch" placeholder="100">
                     <label style="display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.7rem; color:var(--text-dim); cursor:pointer;">
@@ -2845,6 +2857,8 @@ function showProperties(element) {
 
     document.getElementById('prop-uptime').value = element.uptime || '';
     document.getElementById('prop-operators').value = element.operators || '';
+    document.getElementById('prop-demand-rate').value = element.demand_rate || '';
+    document.getElementById('prop-demand-unit').value = element.demand_unit || '';
     document.getElementById('prop-batch').value = element.batch_size || '';
     document.getElementById('prop-batch-process').checked = !!element.batch_process;
     const pitchEl = document.getElementById('prop-pitch');
@@ -2991,6 +3005,8 @@ function saveProperties() {
         selectedElement.changeover_time = coVal ? Math.round(coVal * multiplier * 100) / 100 : null;
         selectedElement.uptime = parseFloat(document.getElementById('prop-uptime').value) || null;
         selectedElement.operators = parseInt(document.getElementById('prop-operators').value) || null;
+        selectedElement.demand_rate = parseFloat(document.getElementById('prop-demand-rate').value) || null;
+        selectedElement.demand_unit = document.getElementById('prop-demand-unit').value || '';
         selectedElement.batch_size = parseInt(document.getElementById('prop-batch').value) || null;
         selectedElement.batch_process = document.getElementById('prop-batch-process').checked;
         const pitchSave = document.getElementById('prop-pitch');
