@@ -642,8 +642,6 @@ def waste_analysis(request, vsm_id):
     for step in steps:
         batch_size = step.get("batch_size") or 0
         name = step.get("name", "Unknown")
-        epei = step.get("epei") or 0
-        pitch = step.get("pitch") or 0
         changeover = step.get("changeover_time", 0) or 0
         ct = step.get("cycle_time", 0) or 0
 
@@ -1151,7 +1149,6 @@ def _lot_recommendation(step, vsm):
     batch = step.get("batch_size") or 0
     batch_process = step.get("batch_process", False)  # oven, furnace, plating tank, etc.
     uptime = (step.get("uptime", 100) or 100) / 100
-    operators = step.get("operators", 1) or 1
     shifts = step.get("shifts", 1) or 1
 
     # Step-level demand takes priority over VSM-level
@@ -1209,20 +1206,82 @@ def _lot_recommendation(step, vsm):
 
     r = regime["regime"]
 
-    # Batch process override — applies to ALL regimes
-    if batch_process and batch > 0:
-        effective_ct = ct / batch if batch > 0 else ct
-        days_of_supply = batch / demand_per_day if demand_per_day > 0 else 0
-        days_between = batch / demand_per_day if demand_per_day > 0 else 0
+    # Batch process analysis — applies to ALL regimes
+    if batch_process and batch > 0 and demand_per_day > 0:
+        effective_ct = ct / batch
+        holding_cost = 10.0 if ct > 3600 else 0.10 if ct > 60 else 0.001
+        setup_cost = (co / 3600) * 50  # changeover hours × $50/hr
+
+        # Analyze scenarios: full batch, partial batches, optimal
+        scenarios = []
+        # Scenario range: from demand-matched small batch up to full capacity
+        # Minimum viable batch: need at least 1 day of demand or 1 unit
+        min_batch = max(1, math.ceil(demand_per_day))
+        test_sizes = sorted(
+            set(
+                [
+                    min_batch,
+                    max(1, round(demand_per_day * 5)),  # ~weekly
+                    max(1, round(demand_per_day * 10)),  # ~biweekly
+                    max(1, round(demand_per_day * 22)),  # ~monthly
+                    batch,  # current/full capacity
+                ]
+            )
+        )
+        # Add EPQ if meaningful
+        if setup_cost > 0 and holding_cost > 0:
+            epq_lot = max(1, round(math.sqrt((2 * demand_per_day * setup_cost) / holding_cost)))
+            test_sizes = sorted(set(test_sizes + [epq_lot]))
+
+        for lot in test_sizes:
+            if lot < 1:
+                continue
+            batches_per_month = (demand_per_day * 22) / lot
+            days_of_supply = lot / demand_per_day
+            avg_wip = lot / 2
+            daily_hold = avg_wip * holding_cost
+            daily_setup = (demand_per_day / lot) * setup_cost
+            daily_total = daily_hold + daily_setup
+            utilization = (batches_per_month * (ct + co)) / (available_sec * 22) * 100
+
+            scenarios.append(
+                {
+                    "lot_size": lot,
+                    "is_current": lot == batch,
+                    "is_epq": lot == epq_lot if setup_cost > 0 else False,
+                    "label": "full capacity"
+                    if lot == batch
+                    else "EPQ optimal"
+                    if setup_cost > 0 and lot == epq_lot
+                    else f"~{days_of_supply:.0f} day supply",
+                    "days_of_supply": round(days_of_supply, 1),
+                    "batches_per_month": round(batches_per_month, 1),
+                    "avg_wip": round(avg_wip),
+                    "daily_cost": round(daily_total, 2),
+                    "daily_holding": round(daily_hold, 2),
+                    "daily_setup": round(daily_setup, 2),
+                    "equipment_utilization_pct": round(utilization, 1),
+                }
+            )
+
+        # Find lowest-cost scenario
+        best = min(scenarios, key=lambda s: s["daily_cost"])
+        current = next((s for s in scenarios if s["is_current"]), scenarios[-1])
+
+        savings_vs_current = round(current["daily_cost"] - best["daily_cost"], 2)
+        wip_reduction = current["avg_wip"] - best["avg_wip"]
 
         result["recommendation"] = {
-            "lot_size": batch,
+            "lot_size": best["lot_size"],
             "reasoning": (
-                f"Batch process — equipment processes {batch} units in {_fmt_time(ct)}. "
-                f"Effective C/T per unit: {_fmt_time(effective_ct)}. "
-                f"Run one batch every {days_between:.1f} working days."
-                if demand_per_day > 0
-                else f"Batch process — equipment processes {batch} units in {_fmt_time(ct)}."
+                f"Optimal batch: {best['lot_size']} units ({best['days_of_supply']:.0f} days supply, "
+                f"{best['batches_per_month']:.1f} runs/month). "
+                f"Current: {batch} units ({current['days_of_supply']:.0f} days supply). "
+                + (
+                    f"Switching saves ${savings_vs_current:.0f}/day and reduces avg WIP by {wip_reduction} units."
+                    if savings_vs_current > 0.5
+                    else "Current batch is near-optimal for this cost structure."
+                )
             ),
             "takt_vs_ct": {
                 "takt_sec": takt,
@@ -1234,46 +1293,32 @@ def _lot_recommendation(step, vsm):
                 "ratio": round(effective_ct / takt, 2) if takt and effective_ct else None,
                 "assessment": _takt_ct_assessment(takt, effective_ct),
             },
-            "epei": f"Batch process — {batch} units per cycle",
-            "batch_process_note": (
-                f"Batch process: {batch} units = {days_of_supply:.0f} days of supply. "
-                f"This is inherent to the equipment, not discretionary. "
-                f"Reduce WIP by reducing batch capacity (smaller oven/fixture) "
-                f"or increasing demand flow."
-            )
-            if days_of_supply > 0
-            else None,
+            "scenarios": scenarios,
+            "best_scenario": best,
+            "current_scenario": current,
+            "savings_per_day": savings_vs_current,
+            "wip_reduction": wip_reduction,
         }
 
-        # Kanban for batch process
-        if takt and demand_per_day > 0:
-            replenishment_sec = ct + co
-            replenishment_days = replenishment_sec / available_sec if available_sec > 0 else 0
-            safety_factor = 0.2 if uptime > 0.9 else 0.5
-            kanban_qty = math.ceil(demand_per_day * replenishment_days * (1 + safety_factor))
-            kanban_cards = max(1, math.ceil(kanban_qty / batch))
-            result["kanban"] = {
-                "container_size": batch,
-                "kanban_cards": kanban_cards,
-                "total_units_in_loop": kanban_cards * batch,
-                "replenishment_time": _fmt_time(replenishment_sec),
-                "safety_factor": safety_factor,
-                "reasoning": (
-                    f"Batch of {batch} takes {_fmt_time(replenishment_sec)} to process + changeover. "
-                    f"At {demand_per_day:.1f}/day, need {kanban_cards} batch(es) "
-                    f"({kanban_cards * batch} units in loop)."
-                ),
-            }
-
-        # EPQ reference
-        holding_cost = 10.0 if ct > 3600 else 0.10
-        setup_cost = (co / 3600) * 50
-        if demand_per_day > 0 and holding_cost > 0 and setup_cost > 0:
-            epq = math.sqrt((2 * demand_per_day * setup_cost) / holding_cost)
-            result["epq_reference"] = {
-                "lot_size": max(1, round(epq)),
-                "note": "Classic EPQ for reference — batch process constraint overrides this.",
-            }
+        # Kanban for recommended lot
+        rec_lot = best["lot_size"]
+        replenishment_sec = ct + co
+        replenishment_days = replenishment_sec / available_sec if available_sec > 0 else 0
+        safety_factor = 0.2 if uptime > 0.9 else 0.5
+        kanban_qty = math.ceil(demand_per_day * replenishment_days * (1 + safety_factor))
+        kanban_cards = max(1, math.ceil(kanban_qty / rec_lot))
+        result["kanban"] = {
+            "container_size": rec_lot,
+            "kanban_cards": kanban_cards,
+            "total_units_in_loop": kanban_cards * rec_lot,
+            "replenishment_time": _fmt_time(replenishment_sec),
+            "safety_factor": safety_factor,
+            "reasoning": (
+                f"Batch of {rec_lot} takes {_fmt_time(replenishment_sec)} to process + changeover. "
+                f"At {demand_per_day:.1f}/day, need {kanban_cards} kanban card(s) "
+                f"({kanban_cards * rec_lot} units in loop)."
+            ),
+        }
 
         return result
 
