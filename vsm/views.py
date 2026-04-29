@@ -1489,12 +1489,12 @@ def _takt_ct_assessment(takt, ct):
     ratio = ct / takt
     if ratio < 0.5:
         return (
-            f"CT is {ratio:.0%} of takt — significant free capacity. Consider multi-machine operation or rebalancing."
+            f"CT is {ratio:.1%} of takt — significant free capacity. Consider multi-machine operation or rebalancing."
         )
     if ratio < 0.85:
-        return f"CT is {ratio:.0%} of takt — healthy margin for variation."
+        return f"CT is {ratio:.1%} of takt — healthy margin for variation."
     if ratio < 1.0:
-        return f"CT is {ratio:.0%} of takt — tight. Monitor for variation-induced misses."
+        return f"CT is {ratio:.1%} of takt — tight. Monitor for variation-induced misses."
     if ratio < 1.2:
         return (
             f"CT exceeds takt by {(ratio - 1) * 100:.0f}% — cannot meet demand without overtime or parallel capacity."
