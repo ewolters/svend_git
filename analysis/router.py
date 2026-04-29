@@ -63,6 +63,7 @@ def dispatch(analysis_type, analysis_id, df, config):
             mod = importlib.import_module(entry)
             handler = mod.run
         raw = handler(df, analysis_id, config)
+        raw["_config"] = config
         return chain.assemble(raw, analysis_type, analysis_id)
     except Exception:
         logger.exception("Handler failed: %s/%s", analysis_type, analysis_id)

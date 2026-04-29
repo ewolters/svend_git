@@ -135,14 +135,6 @@ def _belief(y, prior, hazard_lambda, beta_rob):
             "hazard_lambda": hazard_lambda,
         },
         "summary": f"Process belief: {status}. Current P(shift) = {last_sp:.3f} at observation {len(y)}.",
-        "narrative": {
-            "verdict": f"Process is {status.lower()} — P(shift) = {last_sp:.3f}.",
-            "body": f"The belief chart tracks the posterior probability that the process has shifted. "
-            f"After {len(y)} observations, P(shift) = {last_sp:.3f}. "
-            f"{'Immediate investigation recommended.' if last_sp >= 0.95 else 'Process appears stable.' if last_sp < 0.5 else 'Monitoring recommended.'}",
-            "next_steps": "Run PBS Full Dashboard for complete assessment." if last_sp >= 0.5 else "",
-            "chart_guidance": "Red line = P(shift). Watch at 50%, alarm at 95%.",
-        },
     }
 
 
@@ -188,13 +180,6 @@ def _edetector(y, mu_0, USL, LSL, sigma_cal, config):
             "n_alarms": len(alarms),
         },
         "summary": f"E-Detector: {'ALARM — changepoint detected' if has_alarm else 'No changepoint detected'}. Peak log(E) = {log_Ns[peak_idx]:.1f}.",
-        "narrative": {
-            "verdict": f"{'Changepoint detected' if has_alarm else 'No changepoint detected'} in {len(y)} observations.",
-            "body": f"Distribution-free e-detector (no normality assumption). "
-            f"Peak evidence log(E) = {log_Ns[peak_idx]:.1f} at obs {peak_idx}, threshold = {threshold:.1f}.",
-            "next_steps": "Run Belief Chart for Bayesian shift probability." if has_alarm else "",
-            "chart_guidance": "Green line = cumulative evidence. Red dashed = alarm threshold.",
-        },
     }
 
 
@@ -227,13 +212,6 @@ def _adaptive(y, prior):
             "ooc_rate": round(len(ooc) / len(y), 4) if len(y) else 0,
         },
         "summary": f"Adaptive limits: CL={cls[-1]:.3f}, {len(ooc)} OOC in {len(y)} observations.",
-        "narrative": {
-            "verdict": f"{'Process in control' if not ooc else f'{len(ooc)} out-of-control points detected'}.",
-            "body": f"Bayesian adaptive limits tighten as evidence accumulates. "
-            f"Final: LCL={lcls[-1]:.3f}, CL={cls[-1]:.3f}, UCL={ucls[-1]:.3f}.",
-            "next_steps": "Investigate OOC points." if ooc else "",
-            "chart_guidance": "Limits narrow over time as the posterior becomes more precise.",
-        },
     }
 
 
@@ -266,13 +244,6 @@ def _cpk(y, prior, USL, LSL):
         },
         "summary": f"Bayesian Cpk = {result.mean:.3f} [{result.ci_lower:.3f}, {result.ci_upper:.3f}]. "
         f"P(Cpk ≥ 1.33) = {result.p_above_133:.1%}.",
-        "narrative": {
-            "verdict": f"Bayesian Cpk = {result.mean:.3f} — {'capable' if result.p_above_133 >= 0.95 else 'not demonstrated capable'}.",
-            "body": f"Posterior Cpk with 95% credible interval [{result.ci_lower:.3f}, {result.ci_upper:.3f}]. "
-            f"P(Cpk ≥ 1.33) = {result.p_above_133:.1%}. P(Cpk ≥ 1.0) = {result.p_above_1:.1%}.",
-            "next_steps": "" if result.p_above_133 >= 0.95 else "Collect more data or reduce variation.",
-            "chart_guidance": "Histogram = Cpk posterior. Green dashed = 1.33 target.",
-        },
     }
 
 
@@ -493,12 +464,6 @@ def _full(y, prior, USL, LSL, target, hazard_lambda, beta_rob, sigma_cal, mu_0, 
         "statistics": all_stats,
         "_layout": {"mode": "compose"},
         "summary": f"PBS Full: {status}. P(shift) = {sp:.3f}, {len(y)} observations.",
-        "narrative": {
-            "verdict": f"Process is {status.lower()} — comprehensive PBS assessment.",
-            "body": f"Full PBS dashboard with {len(charts)} charts. Belief P(shift) = {sp:.3f}.",
-            "next_steps": "Address highest-risk stream." if sp >= 0.5 else "Continue monitoring.",
-            "chart_guidance": "Charts composed vertically: belief → e-detector → adaptive → capability → predictive → evidence.",
-        },
     }
 
 
