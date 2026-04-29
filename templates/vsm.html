@@ -995,6 +995,10 @@
                 <div class="property-group">
                     <label title="Number of units processed before a changeover is needed">Batch Size</label>
                     <input type="number" id="prop-batch" placeholder="100">
+                    <label style="display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.7rem; color:var(--text-dim); cursor:pointer;">
+                        <input type="checkbox" id="prop-batch-process" style="margin:0;">
+                        Batch process (oven, furnace, tank)
+                    </label>
                 </div>
                 <div class="property-group">
                     <label title="Pitch interval — material withdrawal rhythm (minutes)">Pitch (min)</label>
@@ -2842,6 +2846,7 @@ function showProperties(element) {
     document.getElementById('prop-uptime').value = element.uptime || '';
     document.getElementById('prop-operators').value = element.operators || '';
     document.getElementById('prop-batch').value = element.batch_size || '';
+    document.getElementById('prop-batch-process').checked = !!element.batch_process;
     const pitchEl = document.getElementById('prop-pitch');
     if (pitchEl) pitchEl.value = element.pitch || '';
     const epeiEl = document.getElementById('prop-epei');
@@ -2987,6 +2992,7 @@ function saveProperties() {
         selectedElement.uptime = parseFloat(document.getElementById('prop-uptime').value) || null;
         selectedElement.operators = parseInt(document.getElementById('prop-operators').value) || null;
         selectedElement.batch_size = parseInt(document.getElementById('prop-batch').value) || null;
+        selectedElement.batch_process = document.getElementById('prop-batch-process').checked;
         const pitchSave = document.getElementById('prop-pitch');
         if (pitchSave) selectedElement.pitch = parseFloat(pitchSave.value) || null;
         const epeiSave = document.getElementById('prop-epei');

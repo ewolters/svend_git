@@ -403,6 +403,7 @@ def add_process_step(request, vsm_id):
         "operators": data.get("operators", 1),
         "shifts": data.get("shifts", 1),
         "batch_size": data.get("batch_size"),
+        "batch_process": data.get("batch_process", False),
         "pack_size": data.get("pack_size"),
         "pitch": data.get("pitch"),
         "epei": data.get("epei"),
@@ -1146,6 +1147,7 @@ def _lot_recommendation(step, vsm):
     ct = step.get("cycle_time", 0) or 0
     co = step.get("changeover_time", 0) or 0
     batch = step.get("batch_size") or 0
+    batch_process = step.get("batch_process", False)  # oven, furnace, plating tank, etc.
     uptime = (step.get("uptime", 100) or 100) / 100
     operators = step.get("operators", 1) or 1
     shifts = step.get("shifts", 1) or 1
@@ -1193,30 +1195,67 @@ def _lot_recommendation(step, vsm):
     r = regime["regime"]
 
     if r == "schedule_paced":
-        # Lot = 1. Build to takt.
+        # Determine lot size: 1 for flow, or batch capacity for batch processes
+        if batch_process and batch > 0:
+            recommended_lot = batch
+            # Effective CT for batch process: total time / batch size
+            effective_ct = ct / batch if batch > 0 else ct
+            reasoning = (
+                f"Schedule-paced regime with batch process constraint. "
+                f"Equipment processes {batch} units in {_fmt_time(ct)}. "
+                f"Effective C/T per unit: {_fmt_time(effective_ct)}. "
+                f"Optimize by filling every batch and scheduling to takt."
+            )
+            # How often to run a batch
+            if demand_per_day > 0:
+                days_between_batches = batch / demand_per_day
+                reasoning += f" Run one batch every {days_between_batches:.1f} days."
+        else:
+            recommended_lot = 1
+            effective_ct = ct
+            reasoning = (
+                "Schedule-paced regime — demand is low enough to build one-piece flow or in contract quantities."
+            )
+
         result["recommendation"] = {
-            "lot_size": 1,
-            "reasoning": "Schedule-paced regime — demand is low enough to build one-piece flow or in contract quantities.",
+            "lot_size": recommended_lot,
+            "reasoning": reasoning,
             "takt_vs_ct": {
                 "takt_sec": takt,
                 "takt_display": _fmt_time(takt) if takt else "not set",
                 "ct_sec": ct,
                 "ct_display": _fmt_time(ct),
-                "ratio": round(ct / takt, 2) if takt and ct else None,
-                "assessment": _takt_ct_assessment(takt, ct),
+                "effective_ct_sec": effective_ct,
+                "effective_ct_display": _fmt_time(effective_ct),
+                "ratio": round(effective_ct / takt, 2) if takt and effective_ct else None,
+                "assessment": _takt_ct_assessment(takt, effective_ct),
             },
             "pitch": {
                 "value": round(takt / 60, 1) if takt else None,
                 "unit": "min",
-                "meaning": "Material withdrawal interval = takt (one piece at a time)",
+                "meaning": "Material withdrawal interval = takt (one piece at a time)"
+                if not batch_process
+                else f"Batch of {batch} every {batch / demand_per_day:.1f} days"
+                if demand_per_day > 0
+                else f"Batch of {batch}",
             },
-            "epei": "N/A — single-piece flow, no batching",
+            "epei": "N/A — single-piece flow, no batching"
+            if not batch_process
+            else f"Batch process — {batch} units per cycle, schedule-driven",
         }
-        if batch and batch > 1:
+        if batch and batch > 1 and not batch_process:
             result["recommendation"]["batch_warning"] = (
                 f"Current batch size is {batch}. In a schedule-paced environment, "
                 f"this adds {batch - 1} units of WIP without value. "
                 f"Target lot size: 1."
+            )
+        if batch_process and demand_per_day > 0 and batch > 0:
+            wip_days = batch / demand_per_day
+            result["recommendation"]["batch_process_note"] = (
+                f"Batch process: {batch} units = {wip_days:.0f} days of supply. "
+                f"This is inherent to the equipment, not discretionary. "
+                f"Reduce WIP by reducing batch capacity (smaller oven/fixture) "
+                f"or increasing demand flow."
             )
 
     elif r == "mix_constrained":
