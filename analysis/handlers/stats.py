@@ -173,7 +173,9 @@ def run(df, analysis_id, config):
         logger.exception("forgestat call failed: %s.%s", module_path, func_name)
         return {"summary": f"Analysis error: {e}", "charts": [], "statistics": {}}
 
-    return _convert_result(result, df, analysis_id, config)
+    out = _convert_result(result, df, analysis_id, config)
+    out["_config"] = config
+    return out
 
 
 def _convert_result(result, df, analysis_id, config):

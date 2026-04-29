@@ -74,7 +74,9 @@ def run(df, analysis_id, config):
         logger.exception("forgespc call failed: %s", analysis_id)
         return {"summary": f"SPC error: {e}", "charts": [], "statistics": {}}
 
-    return _convert_spc(result, analysis_id)
+    out = _convert_spc(result, analysis_id)
+    out["_config"] = config
+    return out
 
 
 def _build_kwargs(df, analysis_id, config, col):
