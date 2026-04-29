@@ -18,7 +18,9 @@ urlpatterns = [
     path("<uuid:vsm_id>/compare/", views.compare_vsm, name="vsm_compare"),
     # Analysis
     path("<uuid:vsm_id>/waste-analysis/", views.waste_analysis, name="vsm_waste"),
-    # Hoshin integration (hanging wires)
+    # Hoshin integration
     path("<uuid:vsm_id>/generate-proposals/", views.generate_proposals, name="vsm_proposals"),
     path("<uuid:vsm_id>/approve-proposal/", views.approve_proposal, name="vsm_approve"),
+    # Lot size recommendation (regime-detecting)
+    path("<uuid:vsm_id>/lot-recommendation/<str:step_id>/", views.lot_recommendation, name="vsm_lot_rec"),
 ]

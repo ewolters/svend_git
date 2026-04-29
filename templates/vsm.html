@@ -1074,6 +1074,7 @@
             </div>
             <div id="smp-banner"></div>
             <div class="smp-kpi-grid" id="smp-kpis"></div>
+            <div id="smp-lot-rec"></div>
             <div id="smp-annotations"></div>
             <button class="smp-open-calcs" onclick="window.open('/app/calculators/','_blank')">Open in Calculators</button>
         </div>
@@ -3182,20 +3183,98 @@ function showStepMetrics(step) {
         bannerEl.innerHTML = '';
     }
 
-    // KPI grid
-    const ct = step.cycle_time || '-';
-    const co = step.changeover_time || '-';
+    // KPI grid — auto-format time values
+    const fmtT = (s) => !s ? '-' : s < 60 ? s + 's' : s < 3600 ? (s/60).toFixed(1) + 'm' : (s/3600).toFixed(2) + 'h';
+    const ct = step.cycle_time ? fmtT(step.cycle_time) : '-';
+    const co = step.changeover_time ? fmtT(step.changeover_time) : '-';
     const uptime = step.uptime ? step.uptime + '%' : '-';
     const ops = step.operators || '-';
+    const batch = step.batch_size || '-';
+    const pitchVal = step.pitch ? step.pitch + 'm' : '-';
+    const epeiVal = step.epei ? step.epei + 'd' : '-';
     const taktRatio = flags.takt_ratio || '-';
-    const scrap = step.scrap_rate ? step.scrap_rate + '%' : '-';
     document.getElementById('smp-kpis').innerHTML =
-        `<div class="smp-kpi"><div class="smp-kpi-label">C/T (sec)</div><div class="smp-kpi-value">${ct}</div></div>` +
-        `<div class="smp-kpi"><div class="smp-kpi-label">C/O (sec)</div><div class="smp-kpi-value">${co}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">C/T</div><div class="smp-kpi-value">${ct}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">C/O</div><div class="smp-kpi-value">${co}</div></div>` +
         `<div class="smp-kpi"><div class="smp-kpi-label">Uptime</div><div class="smp-kpi-value">${uptime}</div></div>` +
         `<div class="smp-kpi"><div class="smp-kpi-label">Operators</div><div class="smp-kpi-value">${ops}</div></div>` +
-        `<div class="smp-kpi"><div class="smp-kpi-label">vs Takt</div><div class="smp-kpi-value">${taktRatio}</div></div>` +
-        `<div class="smp-kpi"><div class="smp-kpi-label">Scrap</div><div class="smp-kpi-value">${scrap}</div></div>`;
+        `<div class="smp-kpi"><div class="smp-kpi-label">Batch</div><div class="smp-kpi-value">${batch}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">Pitch</div><div class="smp-kpi-value">${pitchVal}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">EPEI</div><div class="smp-kpi-value">${epeiVal}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">vs Takt</div><div class="smp-kpi-value">${taktRatio}</div></div>`;
+
+    // Lot size recommendation (async fetch)
+    const lotEl = document.getElementById('smp-lot-rec');
+    if (lotEl && currentVSM && step.id) {
+        lotEl.innerHTML = '<div style="font-size:0.7rem; color:var(--text-dim); padding:4px 0;">Analyzing...</div>';
+        fetch(`/api/vsm/${currentVSM.id}/lot-recommendation/${step.id}/`, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data) { lotEl.innerHTML = ''; return; }
+                const rec = data.recommendation || {};
+                const regime = data.regime || {};
+                const kanban = data.kanban || {};
+                const epqRef = data.epq_reference || {};
+                const regimeLabel = (regime.regime || '').replace(/_/g, ' ');
+                const conf = regime.confidence ? `${Math.round(regime.confidence * 100)}%` : '';
+
+                let html = `<div class="smp-section-title" style="margin-top:8px;">Lot Size Recommendation</div>`;
+                html += `<div style="font-size:0.65rem; color:var(--accent); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">${regimeLabel} (${conf} confidence)</div>`;
+
+                // Takt vs CT assessment (schedule-paced)
+                if (rec.takt_vs_ct) {
+                    const tvc = rec.takt_vs_ct;
+                    html += `<div style="font-size:0.75rem; padding:6px 8px; background:var(--bg-primary); border-radius:4px; margin-bottom:6px;">`;
+                    html += `<div><strong>Takt:</strong> ${tvc.takt_display} | <strong>C/T:</strong> ${tvc.ct_display}`;
+                    if (tvc.ratio) html += ` | <strong>Ratio:</strong> ${tvc.ratio}`;
+                    html += `</div>`;
+                    html += `<div style="margin-top:4px; color:var(--text-secondary);">${tvc.assessment}</div>`;
+                    html += `</div>`;
+                }
+
+                // Lot size
+                html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:6px;">`;
+                html += `<div class="smp-kpi"><div class="smp-kpi-label">Recommended Lot</div><div class="smp-kpi-value">${rec.lot_size ?? '-'}</div></div>`;
+                if (rec.epei_days) {
+                    html += `<div class="smp-kpi"><div class="smp-kpi-label">EPEI</div><div class="smp-kpi-value">${rec.epei_days}d</div></div>`;
+                } else if (rec.epei) {
+                    html += `<div class="smp-kpi"><div class="smp-kpi-label">EPEI</div><div class="smp-kpi-value">${rec.epei}</div></div>`;
+                }
+                html += `</div>`;
+
+                // Kanban sizing
+                if (kanban.kanban_cards) {
+                    html += `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-bottom:6px;">`;
+                    html += `<div class="smp-kpi"><div class="smp-kpi-label">Kanban Cards</div><div class="smp-kpi-value">${kanban.kanban_cards}</div></div>`;
+                    html += `<div class="smp-kpi"><div class="smp-kpi-label">Container</div><div class="smp-kpi-value">${kanban.container_size}</div></div>`;
+                    html += `<div class="smp-kpi"><div class="smp-kpi-label">In Loop</div><div class="smp-kpi-value">${kanban.total_units_in_loop}</div></div>`;
+                    html += `</div>`;
+                    html += `<div style="font-size:0.7rem; color:var(--text-dim); margin-bottom:6px;">${kanban.reasoning}</div>`;
+                }
+
+                // Batch warning
+                if (rec.batch_warning) {
+                    html += `<div style="font-size:0.7rem; color:#e89547; padding:4px 8px; background:rgba(232,149,71,0.1); border-radius:4px; margin-bottom:6px;">${rec.batch_warning}</div>`;
+                }
+
+                // SMED target
+                if (rec.smed_target) {
+                    const st = rec.smed_target;
+                    html += `<div style="font-size:0.7rem; color:var(--accent); padding:4px 8px; background:rgba(74,159,110,0.1); border-radius:4px; margin-bottom:6px;">SMED target: ${st.current_co_min} min → ${st.required_co_min} min (${st.reduction_pct}% reduction needed)</div>`;
+                }
+
+                // EPQ reference
+                if (epqRef.lot_size) {
+                    html += `<div style="font-size:0.65rem; color:var(--text-dim); margin-top:4px;">EPQ reference: ${epqRef.lot_size} units (${epqRef.note})</div>`;
+                }
+
+                // Reasoning
+                html += `<div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px;">${rec.reasoning || ''}</div>`;
+
+                lotEl.innerHTML = html;
+            })
+            .catch(() => { lotEl.innerHTML = ''; });
+    }
 
     // Annotations
     const annotations = step.annotations || [];
@@ -3204,8 +3283,7 @@ function showStepMetrics(step) {
         annEl.innerHTML = '<div class="smp-section-title">Linked Results</div>' +
             annotations.map((a, i) => renderAnnotationCard(a, step, i)).join('');
     } else {
-        annEl.innerHTML = '<div class="smp-section-title">No linked results</div>' +
-            '<div style="font-size:0.75rem; color:var(--text-dim); padding:4px 0;">Run a calculator and export to VSM to see results here.</div>';
+        annEl.innerHTML = '';
     }
 
     panel.classList.add('visible');

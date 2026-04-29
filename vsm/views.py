@@ -1073,3 +1073,313 @@ def approve_proposal(request, vsm_id):
     forwarded.META = request.META.copy()
 
     return create_from_proposals(forwarded)
+
+
+# =============================================================================
+# LOT SIZE RECOMMENDATION (regime-detecting)
+# =============================================================================
+
+
+def _detect_regime(demand_per_day, mix_count, changeover_sec, cycle_time_sec, available_sec):
+    """Detect production regime from step/VSM metrics.
+
+    Returns dict with regime scores (0-1) for each regime.
+    """
+    if available_sec <= 0:
+        available_sec = 28800  # 8hr default
+
+    # Schedule intensity: fraction of capacity consumed by production alone
+    schedule_intensity = (demand_per_day * cycle_time_sec) / available_sec if demand_per_day > 0 else 0
+
+    # Mix pressure: fraction of capacity consumed if every part runs daily
+    mix_pressure = (mix_count * changeover_sec) / available_sec if mix_count > 0 else 0
+
+    # Changeover ratio: how long is changeover vs cycle time
+    co_ratio = changeover_sec / cycle_time_sec if cycle_time_sec > 0 else 0
+
+    scores = {}
+
+    # Schedule-paced: very low demand rate, or CT dominates available time
+    if demand_per_day < 1:
+        scores["schedule_paced"] = 0.9
+    elif demand_per_day < 5 and cycle_time_sec > 3600:
+        scores["schedule_paced"] = 0.7
+    elif schedule_intensity < 0.1:
+        scores["schedule_paced"] = 0.5
+    else:
+        scores["schedule_paced"] = max(0, 0.3 - schedule_intensity)
+
+    # Mix-constrained: changeover burden from mix is the binding constraint
+    if mix_pressure > 0.5:
+        scores["mix_constrained"] = 0.9
+    elif mix_pressure > 0.3:
+        scores["mix_constrained"] = 0.7
+    elif mix_count > 20:
+        scores["mix_constrained"] = 0.6
+    else:
+        scores["mix_constrained"] = min(0.4, mix_pressure * 2)
+
+    # Capacity-budget: running hard, changeovers eat into output
+    if schedule_intensity > 0.5 and mix_pressure < 0.2:
+        scores["capacity_budget"] = 0.8
+    elif schedule_intensity > 0.3:
+        scores["capacity_budget"] = 0.5 + schedule_intensity * 0.3
+    else:
+        scores["capacity_budget"] = max(0, schedule_intensity)
+
+    # Normalize: pick winner
+    best = max(scores, key=scores.get)
+    return {
+        "regime": best,
+        "confidence": round(scores[best], 2),
+        "scores": {k: round(v, 2) for k, v in scores.items()},
+        "indicators": {
+            "schedule_intensity": round(schedule_intensity, 3),
+            "mix_pressure": round(mix_pressure, 3),
+            "changeover_ratio": round(co_ratio, 1),
+        },
+    }
+
+
+def _lot_recommendation(step, vsm):
+    """Compute lot size recommendation for a single process step."""
+    ct = step.get("cycle_time", 0) or 0
+    co = step.get("changeover_time", 0) or 0
+    batch = step.get("batch_size") or 0
+    uptime = (step.get("uptime", 100) or 100) / 100
+    operators = step.get("operators", 1) or 1
+    shifts = step.get("shifts", 1) or 1
+
+    # Parse demand from VSM
+    demand_str = vsm.customer_demand or ""
+    demand_per_day = 0
+    try:
+        import re
+
+        nums = re.findall(r"[\d.]+", demand_str)
+        if nums:
+            demand_per_day = float(nums[0])
+            low = demand_str.lower()
+            if "/month" in low or "month" in low:
+                demand_per_day /= 22  # working days
+            elif "/week" in low or "week" in low:
+                demand_per_day /= 5
+            elif "/year" in low or "annual" in low:
+                demand_per_day /= 260
+    except (ValueError, IndexError):
+        pass
+
+    takt = vsm.takt_time or 0
+    available_sec = 28800 * shifts  # 8hr × shifts
+
+    # Count parts in this value stream as proxy for mix
+    steps = vsm.process_steps or []
+    # Use number of unique batch_size values or default
+    mix_count = max(1, len(steps))
+
+    # Detect regime
+    regime = _detect_regime(demand_per_day, mix_count, co, ct, available_sec)
+
+    result = {
+        "step_name": step.get("name", ""),
+        "regime": regime,
+        "demand_per_day": round(demand_per_day, 2),
+        "takt_time": takt,
+        "cycle_time": ct,
+        "changeover_time": co,
+        "current_batch": batch,
+    }
+
+    r = regime["regime"]
+
+    if r == "schedule_paced":
+        # Lot = 1. Build to takt.
+        result["recommendation"] = {
+            "lot_size": 1,
+            "reasoning": "Schedule-paced regime — demand is low enough to build one-piece flow or in contract quantities.",
+            "takt_vs_ct": {
+                "takt_sec": takt,
+                "takt_display": _fmt_time(takt) if takt else "not set",
+                "ct_sec": ct,
+                "ct_display": _fmt_time(ct),
+                "ratio": round(ct / takt, 2) if takt and ct else None,
+                "assessment": _takt_ct_assessment(takt, ct),
+            },
+            "pitch": {
+                "value": round(takt / 60, 1) if takt else None,
+                "unit": "min",
+                "meaning": "Material withdrawal interval = takt (one piece at a time)",
+            },
+            "epei": "N/A — single-piece flow, no batching",
+        }
+        if batch and batch > 1:
+            result["recommendation"]["batch_warning"] = (
+                f"Current batch size is {batch}. In a schedule-paced environment, "
+                f"this adds {batch - 1} units of WIP without value. "
+                f"Target lot size: 1."
+            )
+
+    elif r == "mix_constrained":
+        # EPEI-first: target EPEI, derive lot size
+        # Default: runners daily, repeaters every 3 days
+        target_epei_days = 1.0 if demand_per_day > 10 else 3.0
+        lot = max(1, round(demand_per_day * target_epei_days))
+        co_per_day = demand_per_day / lot if lot > 0 else 0
+        daily_co_min = co_per_day * (co / 60)
+        co_pct = (daily_co_min / (available_sec / 60)) * 100
+
+        # Feasibility check
+        prod_min = (demand_per_day * ct) / 60
+        total_min = prod_min + daily_co_min
+        feasible = total_min <= available_sec / 60
+
+        result["recommendation"] = {
+            "lot_size": lot,
+            "reasoning": f"Mix-constrained regime — {mix_count} parts cycling. EPEI target: {target_epei_days} days.",
+            "epei_days": target_epei_days,
+            "changeovers_per_day": round(co_per_day, 1),
+            "changeover_pct": round(co_pct, 1),
+            "feasible": feasible,
+        }
+        if not feasible:
+            # Compute SMED target for feasibility
+            available_for_co = (available_sec / 60) - prod_min
+            if available_for_co > 0 and co_per_day > 0:
+                max_co_min = available_for_co / co_per_day
+                result["recommendation"]["smed_target"] = {
+                    "current_co_min": round(co / 60, 1),
+                    "required_co_min": round(max_co_min, 1),
+                    "reduction_pct": round((1 - max_co_min / (co / 60)) * 100, 0) if co > 0 else 0,
+                }
+            # Fallback EPEI
+            fallback_epei = 5.0
+            fallback_lot = max(1, round(demand_per_day * fallback_epei))
+            fb_co_per_day = demand_per_day / fallback_lot
+            fb_co_min = fb_co_per_day * (co / 60)
+            fb_feasible = (prod_min + fb_co_min) <= available_sec / 60
+            result["recommendation"]["fallback"] = {
+                "epei_days": fallback_epei,
+                "lot_size": fallback_lot,
+                "feasible": fb_feasible,
+            }
+
+    elif r == "capacity_budget":
+        # Budget-first: allocate changeover budget, derive lot size
+        budget_pct = 0.10  # 10% default
+        budget_min = (available_sec / 60) * budget_pct
+        max_co = budget_min / (co / 60) if co > 0 else float("inf")
+        lot = max(1, round(demand_per_day / max_co)) if max_co > 0 else max(1, round(demand_per_day))
+        actual_co = demand_per_day / lot if lot > 0 else 0
+        actual_co_min = actual_co * (co / 60)
+        actual_pct = (actual_co_min / (available_sec / 60)) * 100
+        epei_days = (lot / demand_per_day * mix_count) if demand_per_day > 0 else 0
+        avg_wip = lot / 2
+
+        # SMED impact
+        half_co = co / 2
+        half_max_co = budget_min / (half_co / 60) if half_co > 0 else float("inf")
+        half_lot = max(1, round(demand_per_day / half_max_co)) if half_max_co > 0 else 1
+
+        result["recommendation"] = {
+            "lot_size": lot,
+            "reasoning": f"Capacity-budget regime — {budget_pct * 100:.0f}% changeover budget.",
+            "changeover_budget_pct": budget_pct * 100,
+            "changeovers_per_day": round(actual_co, 1),
+            "changeover_pct_actual": round(actual_pct, 1),
+            "epei_days": round(epei_days, 1),
+            "avg_wip": round(avg_wip),
+            "smed_impact": {
+                "current_co_sec": co,
+                "if_halved": {
+                    "lot_size": half_lot,
+                    "wip_reduction_pct": round((1 - half_lot / lot) * 100) if lot > 0 else 0,
+                },
+            },
+        }
+
+    # Kanban lot sizing: units in the pull loop between this step and downstream
+    if takt and ct and demand_per_day > 0:
+        # Replenishment time = time to produce one lot + changeover
+        lot_for_kanban = result.get("recommendation", {}).get("lot_size", 1)
+        replenishment_sec = (lot_for_kanban * ct) + co
+        replenishment_days = replenishment_sec / available_sec if available_sec > 0 else 0
+        safety_factor = 0.2 if uptime > 0.9 else 0.5  # more safety for less reliable
+        # Kanban qty = demand_during_replenishment × (1 + safety)
+        kanban_qty = math.ceil(demand_per_day * replenishment_days * (1 + safety_factor))
+        container_size = lot_for_kanban or 1
+        kanban_cards = math.ceil(kanban_qty / container_size) if container_size > 0 else 1
+
+        result["kanban"] = {
+            "container_size": container_size,
+            "kanban_cards": max(1, kanban_cards),
+            "total_units_in_loop": kanban_cards * container_size,
+            "replenishment_time": _fmt_time(replenishment_sec),
+            "safety_factor": safety_factor,
+            "reasoning": (
+                f"Lot of {container_size} takes {_fmt_time(replenishment_sec)} to replenish. "
+                f"At {demand_per_day:.1f}/day, need {kanban_cards} kanban cards "
+                f"({kanban_cards * container_size} units in loop) with {safety_factor:.0%} safety."
+            ),
+        }
+
+    # EPQ reference (always include for comparison)
+    holding_cost = 0.01  # default $/unit/day — conservative
+    if ct > 3600:
+        holding_cost = 10.0  # aerospace / heavy mfg
+    elif ct > 60:
+        holding_cost = 0.10  # medium
+    setup_cost = (co / 3600) * 50  # rough: changeover hours × $50/hr
+    if demand_per_day > 0 and holding_cost > 0 and setup_cost > 0:
+        epq = math.sqrt((2 * demand_per_day * setup_cost) / holding_cost)
+        result["epq_reference"] = {
+            "lot_size": max(1, round(epq)),
+            "note": "Classic EPQ — shown for reference. May not be appropriate for this regime.",
+        }
+
+    return result
+
+
+def _fmt_time(seconds):
+    """Format seconds to human-readable."""
+    if not seconds:
+        return "-"
+    if seconds < 60:
+        return f"{seconds:.0f}s"
+    if seconds < 3600:
+        return f"{seconds / 60:.1f} min"
+    return f"{seconds / 3600:.1f} hrs"
+
+
+def _takt_ct_assessment(takt, ct):
+    """Assess takt vs cycle time relationship."""
+    if not takt or not ct:
+        return "Set takt time and cycle time to assess."
+    ratio = ct / takt
+    if ratio < 0.5:
+        return (
+            f"CT is {ratio:.0%} of takt — significant free capacity. Consider multi-machine operation or rebalancing."
+        )
+    if ratio < 0.85:
+        return f"CT is {ratio:.0%} of takt — healthy margin for variation."
+    if ratio < 1.0:
+        return f"CT is {ratio:.0%} of takt — tight. Monitor for variation-induced misses."
+    if ratio < 1.2:
+        return (
+            f"CT exceeds takt by {(ratio - 1) * 100:.0f}% — cannot meet demand without overtime or parallel capacity."
+        )
+    return f"CT is {ratio:.1f}× takt — major capacity gap. Need {math.ceil(ratio)} parallel stations or fundamental process redesign."
+
+
+@gated_paid
+@require_http_methods(["GET"])
+def lot_recommendation(request, vsm_id, step_id):
+    """Get lot size recommendation for a specific process step."""
+    vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+
+    steps = vsm.process_steps or []
+    step = next((s for s in steps if s.get("id") == step_id), None)
+    if not step:
+        return JsonResponse({"error": "Step not found"}, status=404)
+
+    result = _lot_recommendation(step, vsm)
+    return JsonResponse(result)
