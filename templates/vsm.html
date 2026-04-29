@@ -1025,9 +1025,25 @@
             </div>
             <div class="prop-row">
                 <div class="property-group">
+                    <label title="Cost per unit at this step ($)">Unit Cost ($)</label>
+                    <input type="number" id="prop-unit-cost" placeholder="estimated" step="0.01">
+                </div>
+                <div class="property-group">
+                    <label title="Cost per changeover event ($) — labor + materials + lost production">Setup Cost ($)</label>
+                    <input type="number" id="prop-setup-cost" placeholder="estimated" step="0.01">
+                </div>
+            </div>
+            <div class="prop-row">
+                <div class="property-group">
+                    <label title="Holding cost per unit per day ($) — storage, capital, obsolescence">Holding $/unit/day</label>
+                    <input type="number" id="prop-holding-cost" placeholder="estimated" step="0.001">
+                </div>
+                <div class="property-group">
                     <label title="Pitch interval — material withdrawal rhythm (minutes)">Pitch (min)</label>
                     <input type="number" id="prop-pitch" placeholder="20" step="0.1">
                 </div>
+            </div>
+            <div class="prop-row">
                 <div class="property-group">
                     <label title="EPEI — Every Part Every Interval (days)">EPEI (days)</label>
                     <input type="number" id="prop-epei" placeholder="2" step="0.1">
@@ -2867,6 +2883,9 @@ function showProperties(element) {
     document.getElementById('prop-demand-unit').value = element.demand_unit || '';
     document.getElementById('prop-batch').value = element.batch_size || '';
     document.getElementById('prop-batch-process').checked = !!element.batch_process;
+    document.getElementById('prop-unit-cost').value = element.unit_cost || '';
+    document.getElementById('prop-setup-cost').value = element.setup_cost || '';
+    document.getElementById('prop-holding-cost').value = element.holding_cost || '';
     const pitchEl = document.getElementById('prop-pitch');
     if (pitchEl) pitchEl.value = element.pitch || '';
     const epeiEl = document.getElementById('prop-epei');
@@ -3015,6 +3034,9 @@ function saveProperties() {
         selectedElement.demand_unit = document.getElementById('prop-demand-unit').value || '';
         selectedElement.batch_size = parseInt(document.getElementById('prop-batch').value) || null;
         selectedElement.batch_process = document.getElementById('prop-batch-process').checked;
+        selectedElement.unit_cost = parseFloat(document.getElementById('prop-unit-cost').value) || null;
+        selectedElement.setup_cost = parseFloat(document.getElementById('prop-setup-cost').value) || null;
+        selectedElement.holding_cost = parseFloat(document.getElementById('prop-holding-cost').value) || null;
         const pitchSave = document.getElementById('prop-pitch');
         if (pitchSave) selectedElement.pitch = parseFloat(pitchSave.value) || null;
         const epeiSave = document.getElementById('prop-epei');
@@ -3294,6 +3316,13 @@ function showStepMetrics(step) {
                 // EPQ reference
                 if (epqRef.lot_size) {
                     html += `<div style="font-size:0.65rem; color:var(--text-dim); margin-top:4px;">EPQ reference: ${epqRef.lot_size} units (${epqRef.note})</div>`;
+                }
+
+                // Cost basis
+                const cb = rec.cost_basis;
+                if (cb) {
+                    const tag = cb.estimated ? ' (estimated — enter costs for precision)' : '';
+                    html += `<div style="font-size:0.65rem; color:var(--text-dim); margin-top:4px;">Cost basis: setup $${cb.setup_cost_per_changeover}/changeover, holding $${cb.holding_cost_per_unit_day}/unit/day${tag}</div>`;
                 }
 
                 // Reasoning

@@ -406,6 +406,9 @@ def add_process_step(request, vsm_id):
         "batch_process": data.get("batch_process", False),
         "demand_rate": data.get("demand_rate"),
         "demand_unit": data.get("demand_unit", ""),
+        "setup_cost": data.get("setup_cost"),
+        "holding_cost": data.get("holding_cost"),
+        "unit_cost": data.get("unit_cost"),
         "pack_size": data.get("pack_size"),
         "pitch": data.get("pitch"),
         "epei": data.get("epei"),
@@ -1151,6 +1154,11 @@ def _lot_recommendation(step, vsm):
     uptime = (step.get("uptime", 100) or 100) / 100
     shifts = step.get("shifts", 1) or 1
 
+    # Costs: use step values if provided, otherwise estimate
+    user_setup_cost = step.get("setup_cost")
+    user_holding_cost = step.get("holding_cost")
+    user_unit_cost = step.get("unit_cost")
+
     # Detect display unit from cycle time — all time displays normalized to this
     time_unit, time_div = _detect_time_unit(ct)
 
@@ -1231,8 +1239,22 @@ def _lot_recommendation(step, vsm):
             return result
 
         # Full scenario analysis with demand data
-        holding_cost = 10.0 if ct > 3600 else 0.10 if ct > 60 else 0.001
-        setup_cost = (co / 3600) * 50  # changeover hours × $50/hr
+        # Holding cost: user value, or derive from unit cost (25% annual / 260 days),
+        # or estimate from cycle time as last resort
+        if user_holding_cost:
+            holding_cost = float(user_holding_cost)
+        elif user_unit_cost:
+            holding_cost = float(user_unit_cost) * 0.25 / 260  # 25% annual carrying rate
+        else:
+            holding_cost = 10.0 if ct > 3600 else 0.10 if ct > 60 else 0.001
+
+        # Setup cost: user value, or estimate from changeover time × labor rate
+        if user_setup_cost:
+            setup_cost = float(user_setup_cost)
+        else:
+            setup_cost = (co / 3600) * 50  # changeover hours × $50/hr
+
+        costs_estimated = not (user_holding_cost or user_unit_cost or user_setup_cost)
 
         # Analyze scenarios: full batch, partial batches, optimal
         scenarios = []
@@ -1311,6 +1333,11 @@ def _lot_recommendation(step, vsm):
             "current_scenario": current,
             "savings_per_day": savings_vs_current,
             "wip_reduction": wip_reduction,
+            "cost_basis": {
+                "holding_cost_per_unit_day": round(holding_cost, 4),
+                "setup_cost_per_changeover": round(setup_cost, 2),
+                "estimated": costs_estimated,
+            },
         }
 
         # Kanban for recommended lot
@@ -1459,12 +1486,20 @@ def _lot_recommendation(step, vsm):
         }
 
     # EPQ reference (always include for comparison)
-    holding_cost = 0.01  # default $/unit/day — conservative
-    if ct > 3600:
-        holding_cost = 10.0  # aerospace / heavy mfg
-    elif ct > 60:
-        holding_cost = 0.10  # medium
-    setup_cost = (co / 3600) * 50  # rough: changeover hours × $50/hr
+    if user_holding_cost:
+        holding_cost = float(user_holding_cost)
+    elif user_unit_cost:
+        holding_cost = float(user_unit_cost) * 0.25 / 260
+    else:
+        holding_cost = 0.01
+        if ct > 3600:
+            holding_cost = 10.0
+        elif ct > 60:
+            holding_cost = 0.10
+    if user_setup_cost:
+        setup_cost = float(user_setup_cost)
+    else:
+        setup_cost = (co / 3600) * 50
     if demand_per_day > 0 and holding_cost > 0 and setup_cost > 0:
         epq = math.sqrt((2 * demand_per_day * setup_cost) / holding_cost)
         result["epq_reference"] = {
