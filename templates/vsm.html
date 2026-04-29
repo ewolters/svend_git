@@ -3328,6 +3328,20 @@ function showStepMetrics(step) {
                 // Reasoning
                 html += `<div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px;">${rec.reasoning || ''}</div>`;
 
+                // Methodology
+                html += `<details style="margin-top:8px; font-size:0.65rem; color:var(--text-dim);">`;
+                html += `<summary style="cursor:pointer; color:var(--text-secondary);">How this is calculated</summary>`;
+                html += `<div style="margin-top:6px; line-height:1.5; padding:6px 8px; background:var(--bg-primary); border-radius:4px;">`;
+                html += `<p style="margin:0 0 6px;"><strong>Priority order:</strong> Customer demand → Cost optimization → Equipment constraints.</p>`;
+                html += `<p style="margin:0 0 6px;"><strong>1. Regime detection</strong> classifies the operating environment — schedule-paced (low demand), mix-constrained (changeover burden from product variety), or capacity-budget (running near capacity). This determines context, not the formula.</p>`;
+                html += `<p style="margin:0 0 6px;"><strong>2. Cost analysis</strong> uses the Economic Production Quantity (EPQ) model: lot size that minimizes the sum of setup cost (per changeover) and holding cost (per unit per day of average WIP). The same formula runs in every regime — no discontinuity at boundaries.</p>`;
+                html += `<p style="margin:0 0 6px;"><strong>3. Demand ceiling</strong> caps the recommendation. The cost-optimal lot may suggest months of inventory, but the recommendation never exceeds a reasonable supply horizon (1–5 days depending on demand rate). The EPQ reference is shown for comparison when demand overrides cost.</p>`;
+                html += `<p style="margin:0 0 6px;"><strong>4. Batch process override.</strong> When a step is marked as a batch process (oven, furnace, tank), the equipment capacity sets the lot size floor. Scenario analysis compares full vs partial batches at different run frequencies.</p>`;
+                if (cb && cb.estimated) {
+                    html += `<p style="margin:0; color:#e89547;"><strong>Cost inputs are estimated</strong> from cycle time and changeover duration. Enter Unit Cost, Setup Cost, or Holding Cost in the step properties for precision — estimated costs can shift the optimal lot by 4× or more.</p>`;
+                }
+                html += `</div></details>`;
+
                 lotEl.innerHTML = html;
             })
             .catch(() => { lotEl.innerHTML = ''; });
