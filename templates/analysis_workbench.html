@@ -1946,7 +1946,7 @@ div:hover > .aw-copy-btn { opacity: 1; }
     </div>
 </div>
 
-<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<!-- ForgeViz loaded via base_app.html -->
 <script>
 // ============================================================================
 // UTILITIES
@@ -9496,22 +9496,26 @@ function analyzeDOEFromMatrix() {
             appendSession('html', optHtml, true);
         }
 
-        // Render Plotly charts for main effects and Pareto
-        var plotlyCharts = [];
+        // Render ForgeViz charts for main effects and Pareto
+        var fvCharts = [];
         if (plots.main_effects && plots.main_effects.length > 0) {
-            var traces = plots.main_effects.map(function(me) {
-                return { x: me.levels.map(String), y: me.means, name: me.factor, type: 'scatter', mode: 'lines+markers' };
+            var meTraces = plots.main_effects.map(function(me, i) {
+                var palette = ['#4a9f6e','#e8c547','#4dc9c0','#a78bfa','#f472b6','#fb923c'];
+                return { x: me.levels.map(String), y: me.means, name: me.factor, trace_type: 'line', color: palette[i % palette.length], width: 2, marker_size: 5, dash: '', marker_symbol: 'circle', fill: '', opacity: 1.0, metadata: {} };
             });
-            plotlyCharts.push({ data: traces, layout: { title: 'Main Effects Plot', margin: { t: 40 }, xaxis: { title: 'Factor Level' }, yaxis: { title: responseName } } });
+            fvCharts.push({ title: 'Main Effects Plot', chart_type: 'line', traces: meTraces, reference_lines: [], zones: [], markers: [], x_axis: { label: 'Factor Level' }, y_axis: { label: responseName }, theme: 'svend_dark' });
         }
         if (plots.pareto && plots.pareto.length > 0) {
             var pdata = plots.pareto.sort(function(a, b) { return Math.abs(b.standardized_effect || b.t_value || 0) - Math.abs(a.standardized_effect || a.t_value || 0); });
-            plotlyCharts.push({
-                data: [{ y: pdata.map(function(p) { return p.term; }), x: pdata.map(function(p) { return Math.abs(p.standardized_effect || p.t_value || 0); }), type: 'bar', orientation: 'h', marker: { color: 'var(--accent)' } }],
-                layout: { title: 'Pareto Chart of Effects', margin: { t: 40, l: 120 }, xaxis: { title: '|Standardized Effect|' }, shapes: plots.pareto_reference ? [{ type: 'line', x0: plots.pareto_reference, x1: plots.pareto_reference, y0: -0.5, y1: pdata.length - 0.5, line: { color: 'red', dash: 'dash' } }] : [] }
+            var refs = plots.pareto_reference ? [{ value: plots.pareto_reference, axis: 'x', color: '#d94a4a', dash: 'dashed', width: 1.5, label: 'Reference', label_position: 'right' }] : [];
+            fvCharts.push({
+                title: 'Pareto Chart of Effects', chart_type: 'bar',
+                traces: [{ x: pdata.map(function(p) { return Math.abs(p.standardized_effect || p.t_value || 0); }), y: pdata.map(function(p) { return p.term; }), name: 'Effects', trace_type: 'bar', color: '#4a9f6e', dash: '', width: 0, marker_size: 0, marker_symbol: 'circle', fill: '', opacity: 0.85, metadata: {} }],
+                reference_lines: refs, zones: [], markers: [],
+                x_axis: { label: '|Standardized Effect|' }, y_axis: { label: 'Term' }, theme: 'svend_dark',
             });
         }
-        if (plotlyCharts.length > 0) displayGraphs(plotlyCharts);
+        if (fvCharts.length > 0) displayGraphs(fvCharts);
 
     }).catch(function(e) {
         appendSession('error', 'Analysis error: ' + safeStr(e, 'Unknown error'));
@@ -9719,8 +9723,8 @@ function displayGraphs(plots) {
         return;
     }
 
-    if (typeof Plotly === 'undefined') {
-        pane.innerHTML = '<div style="padding:20px;color:#d06060;">Error: Plotly not loaded</div>';
+    if (typeof ForgeViz === 'undefined') {
+        pane.innerHTML = '<div style="padding:20px;color:#d06060;">Error: ForgeViz not loaded</div>';
         return;
     }
 
@@ -9979,15 +9983,24 @@ function _addChartActions(el, plot) {
     copyBtn.title = 'Copy chart to clipboard';
     copyBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        Plotly.toImage(el, { format: 'png', height: 800, width: 1200 }).then(dataUrl => {
-            fetch(dataUrl).then(r => r.blob()).then(blob => {
+        const svg = el.querySelector('svg');
+        if (!svg) { copyBtn.textContent = 'No chart'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500); return; }
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement('canvas');
+        canvas.width = 1200; canvas.height = 800;
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.onload = () => {
+            ctx.drawImage(img, 0, 0, 1200, 800);
+            canvas.toBlob(blob => {
                 navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
                     copyBtn.textContent = 'Copied';
                     copyBtn.classList.add('aw-btn-copied');
                     setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('aw-btn-copied'); }, 1500);
                 });
             });
-        }).catch(() => { copyBtn.textContent = 'Failed'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500); });
+        };
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
     });
     actions.appendChild(copyBtn);
 
@@ -9998,12 +10011,15 @@ function _addChartActions(el, plot) {
     svgBtn.title = 'Download as SVG (vector)';
     svgBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        Plotly.toImage(el, { format: 'svg', height: 800, width: 1200 }).then(dataUrl => {
-            const a = document.createElement('a');
-            a.href = dataUrl;
-            a.download = (plot.title || 'chart').replace(/[^a-zA-Z0-9]/g, '_') + '.svg';
-            a.click();
-        });
+        const svg = el.querySelector('svg');
+        if (!svg) return;
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const blob = new Blob([svgData], { type: 'image/svg+xml' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = (plot.title || 'chart').replace(/[^a-zA-Z0-9]/g, '_') + '.svg';
+        a.click();
+        URL.revokeObjectURL(a.href);
     });
     actions.appendChild(svgBtn);
 
@@ -10068,15 +10084,13 @@ function _showChartEditModal(el, plot) {
         if (newX !== currentXLabel) update['xaxis.title'] = { text: newX, font: { color: '#9aaa9a' } };
         if (newY !== currentYLabel) update['yaxis.title'] = { text: newY, font: { color: '#9aaa9a' } };
         if (Object.keys(update).length > 0) {
-            Plotly.relayout(el, update);
-            // Update title bar above chart
+            // Update stored spec and re-render with ForgeViz
+            plot.title = newTitle;
+            if (plot.x_axis) plot.x_axis.label = newX;
+            if (plot.y_axis) plot.y_axis.label = newY;
             const titleBar = el.closest('.aw-output-plot')?.querySelector('div:first-child');
             if (titleBar && newTitle) titleBar.textContent = newTitle;
-            // Update stored plot data
-            plot.title = newTitle;
-            if (!plot.layout) plot.layout = {};
-            plot.layout.xaxis = { ...(plot.layout.xaxis || {}), title: newX };
-            plot.layout.yaxis = { ...(plot.layout.yaxis || {}), title: newY };
+            if (typeof ForgeViz !== 'undefined') ForgeViz.render(el, plot);
         }
         overlay.remove();
     };
@@ -10146,23 +10160,16 @@ function _showColorPicker(el, plot) {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.querySelector('#aw-color-apply').onclick = () => {
         const inputs = overlay.querySelectorAll('input[data-trace]');
-        const updates = {};
         inputs.forEach(inp => {
             const idx = parseInt(inp.dataset.trace);
             const color = inp.value;
-            const trace = traces[idx];
-            if (!trace) return;
-            if (trace.type === 'histogram' || trace.type === 'bar') {
-                updates[idx] = { 'marker.color': color, 'marker.line.color': color };
-            } else if (trace.type === 'box') {
-                updates[idx] = { 'marker.color': color, 'line.color': color, fillcolor: color + '40' };
-            } else {
-                updates[idx] = { 'marker.color': color, 'line.color': color };
+            // Update ForgeViz spec traces
+            if (plot.traces && plot.traces[idx]) {
+                plot.traces[idx].color = color;
             }
         });
-        for (const [idx, upd] of Object.entries(updates)) {
-            Plotly.restyle(el, upd, [parseInt(idx)]);
-        }
+        // Re-render with updated colors
+        if (typeof ForgeViz !== 'undefined') ForgeViz.render(el, plot);
         overlay.remove();
     };
 }
@@ -10177,19 +10184,12 @@ function expandChart(plot) {
     document.body.appendChild(overlay);
 
     const plotEl = overlay.querySelector('#aw-expanded-chart');
-    const plotData = JSON.parse(JSON.stringify(plot.data));
-    const layout = {
-        ...(plot.layout || {}),
-        width: undefined, height: undefined,
-        paper_bgcolor: '#0d120d', plot_bgcolor: '#0a0f0a',
-        font: { color: '#e8efe8', size: 13 },
-        margin: { t: 50, r: 30, b: 60, l: 70 },
-        xaxis: { color: '#9aaa9a', gridcolor: 'rgba(74,159,110,0.2)', linecolor: '#4a9f6e', ...(plot.layout?.xaxis || {}), rangeslider: undefined },
-        yaxis: { color: '#9aaa9a', gridcolor: 'rgba(74,159,110,0.2)', linecolor: '#4a9f6e', ...(plot.layout?.yaxis || {}) },
-    };
-    Plotly.newPlot(plotEl, plotData, layout, { responsive: true, displayModeBar: true });
+    const expandedSpec = JSON.parse(JSON.stringify(plot));
+    expandedSpec.width = Math.floor(window.innerWidth * 0.85);
+    expandedSpec.height = Math.floor(window.innerHeight * 0.75);
+    if (typeof ForgeViz !== 'undefined') ForgeViz.render(plotEl, expandedSpec);
 
-    const close = () => { Plotly.purge(plotEl); overlay.remove(); };
+    const close = () => { overlay.remove(); };
     overlay.querySelector('.aw-chart-overlay-close').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
     document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } });
@@ -10209,101 +10209,29 @@ function getChartColors() {
 
 function renderPlot(plot, elementId, chartWidth, chartHeight) {
     const el = document.getElementById(elementId);
-    if (!el || !plot.data?.[0]) return;
+    if (!el) return;
 
-    const plotData = JSON.parse(JSON.stringify(plot.data)); // Deep clone to avoid mutations
-    const colors = getChartColors();
+    // ForgeViz spec: has 'traces' array
+    // Legacy Plotly: has 'data' array — should not exist in new path
+    const isForgeViz = Array.isArray(plot.traces);
+    const isPlotly = !isForgeViz && Array.isArray(plot.data);
 
-    // Apply chart settings to traces
-    plotData.forEach((trace, i) => {
-        // Skip traces with data-dependent coloring (arrays, colorscales)
-        const hasDataColoring = trace.marker?.colorscale ||
-                               trace.marker?.showscale ||
-                               Array.isArray(trace.marker?.color);
-        if (hasDataColoring) return;
+    if (!isForgeViz && !isPlotly) return;
 
-        // Check if color is a "theme" color (green variants) that should be updated
-        const isThemeColor = (c) => {
-            if (!c || typeof c !== 'string') return true; // No color = apply theme
-            c = c.toLowerCase();
-            return c.includes('74, 159, 110') || c.includes('74,159,110') ||
-                   c === '#4a9f6e' || c === '#3a7f8f' ||
-                   c.includes('71, 165, 232') || c.includes('108, 92, 231') ||
-                   c.includes('232, 149, 71');
-        };
-
-        if (trace.type === 'histogram' || trace.type === 'bar') {
-            if (isThemeColor(trace.marker?.color)) {
-                trace.marker = {
-                    ...trace.marker,
-                    color: colors.fill,
-                    line: { color: colors.border, width: colors.borderWidth }
-                };
-            }
-        } else if (trace.type === 'scatter' && trace.mode?.includes('markers')) {
-            if (isThemeColor(trace.marker?.color)) {
-                trace.marker = {
-                    ...trace.marker,
-                    color: colors.fill,
-                    line: { color: colors.border, width: Math.max(1, colors.borderWidth - 0.5) },
-                    size: trace.marker?.size || colors.markerSize
-                };
-            }
-        } else if (trace.type === 'box') {
-            trace.marker = { ...trace.marker, color: colors.border };
-            trace.line = { color: colors.border };
-            trace.fillcolor = colors.fillLight;
-        }
-    });
-
-    // Use provided dimensions, with reasonable minimums
-    const w = Math.max(chartWidth, 200);
-    const h = Math.max(chartHeight, 150);
-    const isLargeChart = chartWidth > 400;  // Single chart or large display
-
-    const showLegend = plotData.length > 1 && plotData.some(t => t.name);
-
-    // Extract plot.layout but exclude width/height (we control sizing)
-    const { width: _w, height: _h, ...plotLayoutRest } = (plot.layout || {});
-
-    Plotly.newPlot(el, plotData, {
-        ...plotLayoutRest,  // Plot-specific layout FIRST (so we can override)
-        width: w,
-        height: h,
-        paper_bgcolor: '#0d120d',
-        plot_bgcolor: '#0a0f0a',
-        font: { color: '#e8efe8', size: isLargeChart ? 12 : 10 },
-        margin: { t: 15, r: showLegend ? 100 : 20, b: isLargeChart ? 50 : 35, l: isLargeChart ? 60 : 45 },
-        xaxis: {
-            color: '#9aaa9a',
-            gridcolor: 'rgba(74,159,110,0.2)',
-            linecolor: '#4a9f6e',
-            tickfont: { size: isLargeChart ? 11 : 9 },
-            ...(plotLayoutRest.xaxis || {})
-        },
-        yaxis: {
-            color: '#9aaa9a',
-            gridcolor: 'rgba(74,159,110,0.2)',
-            linecolor: '#4a9f6e',
-            tickfont: { size: isLargeChart ? 11 : 9 },
-            ...(plotLayoutRest.yaxis || {})
-        },
-        showlegend: showLegend,
-        legend: {
-            bgcolor: 'rgba(13,18,13,0.8)',
-            bordercolor: '#4a9f6e',
-            borderwidth: 1,
-            font: { color: '#9aaa9a', size: isLargeChart ? 11 : 9 }
-        }
-    }, {
-        responsive: true,
-        displayModeBar: 'hover',
-        modeBarButtonsToRemove: ['select2d', 'lasso2d', 'autoScale2d'],
-        toImageButtonOptions: { format: 'png', height: 800, width: 1200, filename: (plot.title || 'chart').replace(/[^a-zA-Z0-9]/g, '_') }
-    });
-
-    // Attach click-to-inspect interactivity
-    attachChartInteractivity(el, plot);
+    if (isForgeViz && typeof ForgeViz !== 'undefined') {
+        // Set dimensions on the spec so ForgeViz renders at the right size
+        const spec = JSON.parse(JSON.stringify(plot));
+        spec.width = Math.max(chartWidth, 200);
+        spec.height = Math.max(chartHeight, 150);
+        ForgeViz.render(el, spec);
+    } else if (isPlotly) {
+        // Legacy fallback — should only fire for old cached results
+        el.innerHTML = '<div style="padding:12px;color:#d06060;font-size:11px;">Legacy Plotly chart — re-run analysis to render with ForgeViz.</div>';
+        return;
+    } else {
+        el.innerHTML = '<div style="padding:12px;color:#d06060;font-size:11px;">Chart render failed.</div>';
+        return;
+    }
 
     // Attach fullscreen expand button
     _addExpandBtn(el, plot);
@@ -10342,7 +10270,7 @@ function showInspectPanel(el, html) {
 }
 
 function attachSPCInspect(el, plot) {
-    el.on('plotly_click', function(eventData) {
+    el.addEventListener('forgeviz:click', function(eventData) {
         const pt = eventData.points[0];
         if (!pt || !pt.customdata) return;
         const cd = pt.customdata;
@@ -10426,7 +10354,7 @@ async function investigateOOC(btn) {
 }
 
 function attachCorrelationClick(el, plot) {
-    el.on('plotly_click', function(eventData) {
+    el.addEventListener('forgeviz:click', function(eventData) {
         const pt = eventData.points[0];
         if (!pt) return;
         const xVar = pt.x;
@@ -10450,25 +10378,20 @@ function attachCorrelationClick(el, plot) {
         showInspectPanel(el, html);
 
         const scatterEl = document.getElementById(scatterId);
-        if (scatterEl && n > 0) {
-            Plotly.newPlot(scatterEl, [{
-                x: xVals.slice(0, n), y: yVals.slice(0, n),
-                type: 'scatter', mode: 'markers',
-                marker: { color: '#4A9F6E', size: 5, opacity: 0.7 },
-            }], {
-                paper_bgcolor: '#0d120d', plot_bgcolor: '#0a0f0a',
-                font: { color: '#e8efe8', size: 10 },
-                height: 250,
-                margin: { t: 10, r: 10, b: 35, l: 45 },
-                xaxis: { color: '#9aaa9a', gridcolor: 'rgba(74,159,110,0.2)', title: { text: xVar, font: { size: 11, color: '#C0D0C0' } } },
-                yaxis: { color: '#9aaa9a', gridcolor: 'rgba(74,159,110,0.2)', title: { text: yVar, font: { size: 11, color: '#C0D0C0' } } },
-            }, { responsive: true, displayModeBar: false });
+        if (scatterEl && n > 0 && typeof ForgeViz !== 'undefined') {
+            ForgeViz.render(scatterEl, {
+                title: '', chart_type: 'scatter', width: 300, height: 250,
+                traces: [{ x: xVals.slice(0, n), y: yVals.slice(0, n), name: '', trace_type: 'scatter', color: '#4A9F6E', marker_size: 5, opacity: 0.7, dash: '', width: 0, marker_symbol: 'circle', fill: '', metadata: {} }],
+                reference_lines: [], zones: [], markers: [],
+                x_axis: { label: xVar }, y_axis: { label: yVar },
+                theme: 'svend_dark',
+            });
         }
     });
 }
 
 function attachRegressionInspect(el, plot) {
-    el.on('plotly_click', function(eventData) {
+    el.addEventListener('forgeviz:click', function(eventData) {
         const pt = eventData.points[0];
         if (!pt || !pt.customdata) return;
         const cd = pt.customdata;
@@ -10503,7 +10426,7 @@ function attachRegressionInspect(el, plot) {
 }
 
 function attachClusterInspect(el, plot) {
-    el.on('plotly_click', function(eventData) {
+    el.addEventListener('forgeviz:click', function(eventData) {
         const pt = eventData.points[0];
         if (!pt || !pt.customdata) return;
         const cd = pt.customdata;
@@ -10827,9 +10750,21 @@ ID: ${currentData.id}`);
                     const plotDiv = document.createElement('div');
                     plotDiv.style.cssText = 'width:100%;height:300px;margin:8px 0;';
                     document.getElementById('command-history').appendChild(plotDiv);
-                    Plotly.newPlot(plotDiv, [{x: vals, type: 'histogram', marker: {color: '#4a9f6e'}}],
-                        {title: `Histogram: ${colName}`, paper_bgcolor: '#0a0f0a', plot_bgcolor: '#0d120d', font: {color: '#9aaa9a'}, margin: {t:40,b:40,l:50,r:20}},
-                        {responsive: true});
+                    if (typeof ForgeViz !== 'undefined') {
+                        // Build histogram bins manually for ForgeViz
+                        const nBins = Math.min(30, Math.ceil(Math.sqrt(vals.length)));
+                        const vMin = Math.min(...vals), vMax = Math.max(...vals);
+                        const binW = (vMax - vMin) / nBins || 1;
+                        const bins = new Array(nBins).fill(0);
+                        vals.forEach(v => { const idx = Math.min(Math.floor((v - vMin) / binW), nBins - 1); bins[idx]++; });
+                        const binX = bins.map((_, i) => +(vMin + (i + 0.5) * binW).toFixed(4));
+                        ForgeViz.render(plotDiv, {
+                            title: `Histogram: ${colName}`, chart_type: 'bar', width: 600, height: 300,
+                            traces: [{ x: binX, y: bins, name: colName, trace_type: 'bar', color: '#4a9f6e', dash: '', width: 0, marker_size: 0, marker_symbol: 'circle', fill: '', opacity: 0.85, metadata: {} }],
+                            reference_lines: [], zones: [], markers: [],
+                            x_axis: { label: colName }, y_axis: { label: 'Count' }, theme: 'svend_dark',
+                        });
+                    }
                     appendCommand('result', `Histogram for "${colName}" displayed.`);
                 }
             }
@@ -10852,9 +10787,14 @@ ID: ${currentData.id}`);
                     const plotDiv = document.createElement('div');
                     plotDiv.style.cssText = 'width:100%;height:300px;margin:8px 0;';
                     document.getElementById('command-history').appendChild(plotDiv);
-                    Plotly.newPlot(plotDiv, [{x, y, mode: 'markers', type: 'scatter', marker: {color: '#4a9f6e'}}],
-                        {title: `${xCol} vs ${yCol}`, xaxis: {title: xCol}, yaxis: {title: yCol}, paper_bgcolor: '#0a0f0a', plot_bgcolor: '#0d120d', font: {color: '#9aaa9a'}, margin: {t:40,b:40,l:50,r:20}},
-                        {responsive: true});
+                    if (typeof ForgeViz !== 'undefined') {
+                        ForgeViz.render(plotDiv, {
+                            title: `${xCol} vs ${yCol}`, chart_type: 'scatter', width: 600, height: 300,
+                            traces: [{ x, y, name: '', trace_type: 'scatter', color: '#4a9f6e', marker_size: 5, dash: '', width: 0, marker_symbol: 'circle', fill: '', opacity: 0.8, metadata: {} }],
+                            reference_lines: [], zones: [], markers: [],
+                            x_axis: { label: xCol }, y_axis: { label: yCol }, theme: 'svend_dark',
+                        });
+                    }
                     appendCommand('result', `Scatter plot displayed.`);
                 }
             }
