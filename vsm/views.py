@@ -10,6 +10,13 @@ import uuid
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
+from forgesiop.production.lot_sizing import (
+    detect_regime,
+    detect_time_unit,
+    fmt_time,
+    fmt_time_in,
+    takt_ct_assessment,
+)
 
 from accounts.permissions import gated_paid, require_feature
 
@@ -659,8 +666,9 @@ def waste_analysis(request, vsm_id):
             )
 
         # Batch exceeds pitch-optimal quantity
-        if batch_size > 0 and pitch > 0 and ct > 0:
-            pitch_qty = pitch / ct  # units per pitch interval
+        step_pitch = step.get("pitch") or 0
+        if batch_size > 0 and step_pitch > 0 and ct > 0:
+            pitch_qty = step_pitch / ct  # units per pitch interval
             if batch_size > pitch_qty * 3:
                 waste["overproduction"].append(
                     {
@@ -1084,65 +1092,7 @@ def approve_proposal(request, vsm_id):
 # =============================================================================
 
 
-def _detect_regime(demand_per_day, mix_count, changeover_sec, cycle_time_sec, available_sec):
-    """Detect production regime from step/VSM metrics.
-
-    Returns dict with regime scores (0-1) for each regime.
-    """
-    if available_sec <= 0:
-        available_sec = 28800  # 8hr default
-
-    # Schedule intensity: fraction of capacity consumed by production alone
-    schedule_intensity = (demand_per_day * cycle_time_sec) / available_sec if demand_per_day > 0 else 0
-
-    # Mix pressure: fraction of capacity consumed if every part runs daily
-    mix_pressure = (mix_count * changeover_sec) / available_sec if mix_count > 0 else 0
-
-    # Changeover ratio: how long is changeover vs cycle time
-    co_ratio = changeover_sec / cycle_time_sec if cycle_time_sec > 0 else 0
-
-    scores = {}
-
-    # Schedule-paced: very low demand rate, or CT dominates available time
-    if demand_per_day < 1:
-        scores["schedule_paced"] = 0.9
-    elif demand_per_day < 5 and cycle_time_sec > 3600:
-        scores["schedule_paced"] = 0.7
-    elif schedule_intensity < 0.1:
-        scores["schedule_paced"] = 0.5
-    else:
-        scores["schedule_paced"] = max(0, 0.3 - schedule_intensity)
-
-    # Mix-constrained: changeover burden from mix is the binding constraint
-    if mix_pressure > 0.5:
-        scores["mix_constrained"] = 0.9
-    elif mix_pressure > 0.3:
-        scores["mix_constrained"] = 0.7
-    elif mix_count > 20:
-        scores["mix_constrained"] = 0.6
-    else:
-        scores["mix_constrained"] = min(0.4, mix_pressure * 2)
-
-    # Capacity-budget: running hard, changeovers eat into output
-    if schedule_intensity > 0.5 and mix_pressure < 0.2:
-        scores["capacity_budget"] = 0.8
-    elif schedule_intensity > 0.3:
-        scores["capacity_budget"] = 0.5 + schedule_intensity * 0.3
-    else:
-        scores["capacity_budget"] = max(0, schedule_intensity)
-
-    # Normalize: pick winner
-    best = max(scores, key=scores.get)
-    return {
-        "regime": best,
-        "confidence": round(scores[best], 2),
-        "scores": {k: round(v, 2) for k, v in scores.items()},
-        "indicators": {
-            "schedule_intensity": round(schedule_intensity, 3),
-            "mix_pressure": round(mix_pressure, 3),
-            "changeover_ratio": round(co_ratio, 1),
-        },
-    }
+_detect_regime = detect_regime  # alias for internal use
 
 
 def _lot_recommendation(step, vsm):
@@ -1546,85 +1496,31 @@ def _lot_recommendation(step, vsm):
     return result
 
 
-def _fmt_time(seconds):
-    """Format seconds to human-readable, auto-detecting unit."""
-    if not seconds:
-        return "-"
-    if seconds < 60:
-        return f"{seconds:.0f}s"
-    if seconds < 3600:
-        return f"{seconds / 60:.1f} min"
-    return f"{seconds / 3600:.1f} hrs"
-
-
-def _detect_time_unit(seconds):
-    """Detect the natural display unit for a value in seconds."""
-    if not seconds:
-        return "sec", 1
-    if seconds >= 3600:
-        return "hrs", 3600
-    if seconds >= 60:
-        return "min", 60
-    return "sec", 1
-
-
-def _fmt_time_in(seconds, unit, divisor):
-    """Format seconds into a specific unit."""
-    if not seconds:
-        return "-"
-    val = seconds / divisor
-    if val >= 100:
-        return f"{val:.0f} {unit}"
-    if val >= 10:
-        return f"{val:.1f} {unit}"
-    return f"{val:.2f} {unit}"
+_fmt_time = fmt_time
+_detect_time_unit = detect_time_unit
+_fmt_time_in = fmt_time_in
+_takt_ct_assessment = takt_ct_assessment
 
 
 def _build_takt_vs_ct(takt, ct, effective_ct, time_unit, time_div):
-    """Build takt-vs-CT display dict with all values in the step's time unit.
-
-    ct = actual cycle time (e.g. 6 hrs for oven)
-    effective_ct = throughput rate per unit (e.g. 7.5 min/unit for 48 gears in 6 hrs)
-    Ratio uses effective_ct for takt comparison (can this step keep up?)
-    Display shows both: CT as labeled, effective rate separately if different.
-    """
+    """Build takt-vs-CT display dict with all values in the step's time unit."""
     compare_ct = effective_ct if effective_ct and effective_ct != ct else ct
     ratio = round(compare_ct / takt, 4) if takt and compare_ct else None
 
     result = {
         "takt_sec": takt,
-        "takt_display": _fmt_time_in(takt, time_unit, time_div) if takt else "not set",
+        "takt_display": fmt_time_in(takt, time_unit, time_div) if takt else "not set",
         "ct_sec": ct,
-        "ct_display": _fmt_time_in(ct, time_unit, time_div),
+        "ct_display": fmt_time_in(ct, time_unit, time_div),
         "ratio": ratio,
         "unit": time_unit,
-        "assessment": _takt_ct_assessment(takt, compare_ct),
+        "assessment": takt_ct_assessment(takt, compare_ct),
     }
     if effective_ct and effective_ct != ct:
-        eff_unit, eff_div = _detect_time_unit(effective_ct)
+        eff_unit, eff_div = detect_time_unit(effective_ct)
         result["effective_ct_sec"] = effective_ct
-        result["effective_ct_display"] = _fmt_time_in(effective_ct, eff_unit, eff_div) + "/unit"
+        result["effective_ct_display"] = fmt_time_in(effective_ct, eff_unit, eff_div) + "/unit"
     return result
-
-
-def _takt_ct_assessment(takt, ct):
-    """Assess takt vs cycle time relationship."""
-    if not takt or not ct:
-        return "Set takt time and cycle time to assess."
-    ratio = ct / takt
-    if ratio < 0.5:
-        return (
-            f"CT is {ratio:.1%} of takt — significant free capacity. Consider multi-machine operation or rebalancing."
-        )
-    if ratio < 0.85:
-        return f"CT is {ratio:.1%} of takt — healthy margin for variation."
-    if ratio < 1.0:
-        return f"CT is {ratio:.1%} of takt — tight. Monitor for variation-induced misses."
-    if ratio < 1.2:
-        return (
-            f"CT exceeds takt by {(ratio - 1) * 100:.0f}% — cannot meet demand without overtime or parallel capacity."
-        )
-    return f"CT is {ratio:.1f}× takt — major capacity gap. Need {math.ceil(ratio)} parallel stations or fundamental process redesign."
 
 
 @gated_paid
