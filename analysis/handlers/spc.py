@@ -275,7 +275,7 @@ def _capability(df, config):
         from forgeviz.charts.capability import capability_histogram
 
         chart = capability_histogram(
-            data, usl=usl, lsl=lsl, cpk=getattr(result, "cpk", None), ppk=getattr(result, "ppk", None)
+            data, usl=usl, lsl=lsl, cpk=getattr(result, "cpk", None), cp=getattr(result, "cp", None)
         )
 
         stats = {}
