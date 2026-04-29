@@ -1210,8 +1210,22 @@ def _lot_recommendation(step, vsm):
     r = regime["regime"]
 
     # Batch process analysis — applies to ALL regimes
-    if batch_process and batch > 0 and demand_per_day > 0:
-        effective_ct = ct / batch
+    if batch_process and batch > 0:
+        effective_ct = ct / batch if batch > 0 else ct
+        if demand_per_day <= 0:
+            # No demand data — just report the batch as the lot
+            result["recommendation"] = {
+                "lot_size": batch,
+                "reasoning": (
+                    f"Batch process — equipment processes {batch} units in {_fmt_time(ct)}. "
+                    f"Effective throughput: {_fmt_time(effective_ct)}/unit. "
+                    f"Set step demand to enable scenario analysis."
+                ),
+                "takt_vs_ct": _build_takt_vs_ct(takt, ct, effective_ct, time_unit, time_div),
+            }
+            return result
+
+        # Full scenario analysis with demand data
         holding_cost = 10.0 if ct > 3600 else 0.10 if ct > 60 else 0.001
         setup_cost = (co / 3600) * 50  # changeover hours × $50/hr
 
@@ -1491,20 +1505,30 @@ def _fmt_time_in(seconds, unit, divisor):
 
 
 def _build_takt_vs_ct(takt, ct, effective_ct, time_unit, time_div):
-    """Build takt-vs-CT display dict with all values in the step's time unit."""
-    display_ct = effective_ct or ct
-    ratio = round(display_ct / takt, 4) if takt and display_ct else None
-    return {
+    """Build takt-vs-CT display dict with all values in the step's time unit.
+
+    ct = actual cycle time (e.g. 6 hrs for oven)
+    effective_ct = throughput rate per unit (e.g. 7.5 min/unit for 48 gears in 6 hrs)
+    Ratio uses effective_ct for takt comparison (can this step keep up?)
+    Display shows both: CT as labeled, effective rate separately if different.
+    """
+    compare_ct = effective_ct if effective_ct and effective_ct != ct else ct
+    ratio = round(compare_ct / takt, 4) if takt and compare_ct else None
+
+    result = {
         "takt_sec": takt,
         "takt_display": _fmt_time_in(takt, time_unit, time_div) if takt else "not set",
         "ct_sec": ct,
         "ct_display": _fmt_time_in(ct, time_unit, time_div),
-        "effective_ct_sec": effective_ct,
-        "effective_ct_display": _fmt_time_in(effective_ct, time_unit, time_div) if effective_ct else None,
         "ratio": ratio,
         "unit": time_unit,
-        "assessment": _takt_ct_assessment(takt, display_ct),
+        "assessment": _takt_ct_assessment(takt, compare_ct),
     }
+    if effective_ct and effective_ct != ct:
+        eff_unit, eff_div = _detect_time_unit(effective_ct)
+        result["effective_ct_sec"] = effective_ct
+        result["effective_ct_display"] = _fmt_time_in(effective_ct, eff_unit, eff_div) + "/unit"
+    return result
 
 
 def _takt_ct_assessment(takt, ct):
