@@ -1119,6 +1119,24 @@ def _parse_step_context(step, vsm):
         except (TypeError, ValueError):
             return default
 
+    # Resolve PCL bindings (Approach C: binding wins when present)
+    pcl_bindings = step.get("pcl_bindings", {})
+    if pcl_bindings:
+        try:
+            from pcl.service import read as pcl_read
+
+            tenant = getattr(vsm, "tenant", None)
+            tenant_id = tenant.id if tenant else None
+            for field_name, slug in pcl_bindings.items():
+                try:
+                    pcl_val = pcl_read(slug, tenant_id=tenant_id)
+                    if pcl_val is not None:
+                        step = {**step, field_name: pcl_val}
+                except Exception:
+                    pass  # fall back to inline value
+        except ImportError:
+            pass  # PCL not installed — use inline values
+
     ct = _float(step.get("cycle_time"), 0)
     co = _float(step.get("changeover_time"), 0)
     batch = int(_float(step.get("batch_size"), 0))
@@ -1681,3 +1699,63 @@ def size_fifo_endpoint(request, vsm_id, inv_id):
     result["upstream_step"] = upstream.get("name")
     result["downstream_step"] = downstream.get("name")
     return JsonResponse(result)
+
+
+# =============================================================================
+# PCL BINDING (Approach C — explicit, opt-in per field)
+# =============================================================================
+
+
+@gated_paid
+@require_http_methods(["POST"])
+def bind_step_to_pcl(request, vsm_id, step_id):
+    """Bind a step field to a PCL measure."""
+    vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+    data = json.loads(request.body)
+    field = data.get("field")
+    measure_slug = data.get("measure_slug")
+    if not field or not measure_slug:
+        return JsonResponse({"error": "field and measure_slug required"}, status=400)
+
+    steps = vsm.process_steps or []
+    for step in steps:
+        if step.get("id") == step_id:
+            if "pcl_bindings" not in step:
+                step["pcl_bindings"] = {}
+            step["pcl_bindings"][field] = measure_slug
+            vsm.save()
+            return JsonResponse({"status": "success", "bindings": step["pcl_bindings"]})
+
+    return JsonResponse({"error": "Step not found"}, status=404)
+
+
+@gated_paid
+@require_http_methods(["POST"])
+def unbind_step_from_pcl(request, vsm_id, step_id):
+    """Unbind a step field from PCL, snapshot current PCL value into inline."""
+    vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+    data = json.loads(request.body)
+    field = data.get("field")
+    if not field:
+        return JsonResponse({"error": "field required"}, status=400)
+
+    steps = vsm.process_steps or []
+    for step in steps:
+        if step.get("id") == step_id:
+            bindings = step.get("pcl_bindings", {})
+            slug = bindings.pop(field, None)
+            if slug:
+                try:
+                    from pcl.service import read as pcl_read
+
+                    tenant = vsm.tenant
+                    tenant_id = tenant.id if tenant else None
+                    pcl_value = pcl_read(slug, tenant_id=tenant_id)
+                    if pcl_value is not None:
+                        step[field] = pcl_value
+                except Exception:
+                    pass  # Keep existing inline value
+            vsm.save()
+            return JsonResponse({"status": "success", "bindings": bindings})
+
+    return JsonResponse({"error": "Step not found"}, status=404)

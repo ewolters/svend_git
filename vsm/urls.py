@@ -29,4 +29,7 @@ urlpatterns = [
     # Pull system sizing
     path("<uuid:vsm_id>/size-supermarket/<str:inv_id>/", views.size_supermarket_endpoint, name="vsm_size_supermarket"),
     path("<uuid:vsm_id>/size-fifo/<str:inv_id>/", views.size_fifo_endpoint, name="vsm_size_fifo"),
+    # PCL binding
+    path("<uuid:vsm_id>/bind-pcl/<str:step_id>/", views.bind_step_to_pcl, name="vsm_bind_pcl"),
+    path("<uuid:vsm_id>/unbind-pcl/<str:step_id>/", views.unbind_step_from_pcl, name="vsm_unbind_pcl"),
 ]
