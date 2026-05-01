@@ -54,6 +54,7 @@ from api.landing_views import (
     lsw_playbook_view,
     mdi_playbook_view,
     partnerships_view,
+    plugin_spc_view,
     register_view,
     roadmap_view,
     svend_vs_jmp_view,
@@ -378,6 +379,8 @@ urlpatterns = varta_urls + [
     path("5s-operational-excellence/", five_s_playbook_view, name="five_s_playbook"),
     path("leadership-standard-work/", lsw_playbook_view, name="lsw_playbook"),
     path("value-stream-mapping-methodology/", vsm_playbook_view, name="vsm_playbook"),
+    # Plugins (public, no auth — marketplace landing pages)
+    path("plugins/spc-tools/", plugin_spc_view, name="plugin_spc"),
     # Public roadmap
     path("roadmap/", roadmap_view, name="roadmap"),
     # Compliance (public, no auth — trust signal for prospects)
@@ -454,6 +457,7 @@ urlpatterns = varta_urls + [
     path("api/workbench/", include("workbench.urls")),
     path("api/qms/", include("qms.urls")),  # Composable QMS: templates, artifacts, workflow
     path("api/prova/", include("prova.urls")),  # PROVA: problem-solving engine
+    path("api/pcl/", include("pcl.urls")),  # PCL: Process Characteristics Library
     # Pull contract endpoints — Object 271 §2.3
     path("api/pull/fmea/", include("fmea.pull_urls")),
     path("api/pull/rca/", include("rca.pull_urls")),
