@@ -2898,9 +2898,35 @@ def _run_full_pbs(
 
     result["summary"] = "\n".join(lines)
 
+    # Build dynamic verdict from alarm decision + health
+    _sp = bc.points[-1].shift_probability if bc.points else 0.0
+    _oh = health.overall_health if health else 0.5
+    if alarm_dec.recommend_action == "investigate":
+        _full_verdict = f"Investigate — P(shifted) = {_sp:.0%}, Health = {_oh:.0%}"
+    elif _oh < 0.50:
+        _full_verdict = f"Process unhealthy — Health = {_oh:.0%}"
+    elif _oh < 0.75:
+        _full_verdict = f"Process at risk — Health = {_oh:.0%}"
+    elif _sp < 0.20:
+        _full_verdict = f"Process stable — P(shifted) = {_sp:.0%}, Health = {_oh:.0%}"
+    else:
+        _full_verdict = f"Process changing — P(shifted) = {_sp:.0%}, Health = {_oh:.0%}"
+
+    # Build dynamic next_steps from alarm + health driver
+    _primary = health.primary_driver if health else "unknown"
+    if alarm_dec.recommend_action == "investigate":
+        _full_ns = f"Investigate immediately. Primary driver: {_primary}. Review individual PBS streams for detail."
+    elif _oh < 0.50:
+        _full_ns = f"Prioritize root-cause analysis on {_primary}. Run individual PBS analyses (Belief, Cpk, Predictive) for detail."
+    elif _oh < 0.75:
+        _full_ns = f"Investigate the {_primary} stream. Monitor other streams for further degradation."
+    else:
+        _full_ns = "Continue monitoring. Process is healthy."
+
     result["narrative"] = _narrative(
-        "Process Belief System",
+        _full_verdict,
         narrative,
+        next_steps=_full_ns,
         chart_guidance="Charts are grouped by tab: Belief (shift detection), Control (adaptive limits), Prediction (forward projection), Capability (Bayesian Cpk), Health (multi-stream fusion).",
     )
 
@@ -3507,19 +3533,43 @@ def _run_adaptive_only(y, prior, config):
     )
     last = points[-1]
     result["summary"] = f"CL = {last.cl:.4f}, LCL = {last.lcl:.4f}, UCL = {last.ucl:.4f} (n = {last.n_obs})."
+    _ooc_indices = [i for i, p in enumerate(points) if p.observation > p.ucl or p.observation < p.lcl]
     result["statistics"] = {
         "test": "pbs_adaptive",
         "cl": last.cl,
         "ucl": last.ucl,
         "lcl": last.lcl,
+        "n_ooc": len(_ooc_indices),
+        "ooc_indices": _ooc_indices[:20],
     }
     _width = last.ucl - last.lcl
+    # Detect OOC points (observations outside adaptive limits)
+    _ooc = [p for p in points if p.observation > p.ucl or p.observation < p.lcl]
+    _n_ooc = len(_ooc)
+    if _n_ooc == 0:
+        _av = f"In control — {last.n_obs} observations within adaptive limits"
+        _ab = (
+            f"CL = {last.cl:.4f}, UCL = {last.ucl:.4f}, LCL = {last.lcl:.4f} "
+            f"(width = {_width:.4f}). All points fall within limits."
+        )
+        _an = "Continue monitoring. Limits will narrow as more data arrives, increasing sensitivity to smaller shifts."
+    else:
+        _ooc_ts = ", ".join(str(p.t + 1) for p in _ooc[:5])
+        _ooc_suffix = f" and {_n_ooc - 5} more" if _n_ooc > 5 else ""
+        _av = f"{_n_ooc} out-of-control point{'s' if _n_ooc > 1 else ''} detected"
+        _ab = (
+            f"CL = {last.cl:.4f}, UCL = {last.ucl:.4f}, LCL = {last.lcl:.4f} "
+            f"(width = {_width:.4f}). OOC at observation{'s' if _n_ooc > 1 else ''} "
+            f"{_ooc_ts}{_ooc_suffix}."
+        )
+        _an = (
+            "Investigate the out-of-control points. Check for assignable causes "
+            "(material changes, operator shifts, equipment drift)."
+        )
     result["narrative"] = _narrative(
-        f"Adaptive limits: CL = {last.cl:.4f}",
-        f"UCL = {last.ucl:.4f}, LCL = {last.lcl:.4f} (width = {_width:.4f}). "
-        f"Based on {last.n_obs} observations. Limits narrow as posterior precision increases.",
-        next_steps="These limits adapt to your data. Early observations show wider limits reflecting prior uncertainty; "
-        "limits converge toward traditional \u00b13\u03c3 as more data arrives.",
+        _av,
+        _ab,
+        next_steps=_an,
         chart_guidance="The dashed red lines are the adaptive control limits. They narrow over time as the Bayesian posterior gains precision. "
         "Points outside the limits suggest a process change.",
     )

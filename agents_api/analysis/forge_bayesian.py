@@ -17,6 +17,78 @@ from .forge_stats import _col, _col2
 logger = logging.getLogger(__name__)
 
 
+_LEGACY_NARRATIVE_HINTS = {
+    "bayes_ab": {
+        "next_steps": "If BF₁₀ > 3, the treatment variant is likely better. Consider sample size if BF is near 1.",
+        "chart_guidance": "Posterior distributions for each variant. Non-overlapping densities indicate a clear winner.",
+    },
+    "bayes_anova": {
+        "next_steps": "If BF₁₀ > 3, at least one group differs. Follow up with Bayesian pairwise comparisons.",
+        "chart_guidance": "Posterior group means with credible intervals. Non-overlapping intervals suggest real differences.",
+    },
+    "bayes_chi2": {
+        "next_steps": "BF₁₀ > 3 suggests association. Examine which cells contribute most to the Bayes Factor.",
+        "chart_guidance": "Posterior probability of association. Values near 1 indicate strong dependence.",
+    },
+    "bayes_equivalence": {
+        "next_steps": "BF₁₀ > 3 for equivalence means the groups are practically equivalent within the ROPE.",
+        "chart_guidance": "Posterior difference with ROPE boundaries. Density inside ROPE supports equivalence.",
+    },
+    "bayes_poisson": {
+        "next_steps": "BF₁₀ > 3 suggests the rate differs from the null. Examine the posterior rate for planning.",
+        "chart_guidance": "Posterior distribution of the Poisson rate parameter.",
+    },
+    "bayes_regression": {
+        "next_steps": "Examine posterior coefficient distributions. Coefficients whose CrI excludes zero are credibly non-zero.",
+        "chart_guidance": "Posterior coefficient densities. Narrower posteriors indicate more precise estimates.",
+    },
+    "bayes_logistic": {
+        "next_steps": "Examine posterior odds ratios. CrI excluding 1 indicates a credible effect on the outcome.",
+        "chart_guidance": "Posterior log-odds coefficients. Transform to odds ratios for interpretation.",
+    },
+    "bayes_survival": {
+        "next_steps": "Posterior hazard ratio indicates relative risk. CrI excluding 1 suggests a real effect on survival.",
+        "chart_guidance": "Posterior survival curves with credible bands. Separation indicates group differences.",
+    },
+    "bayes_meta": {
+        "next_steps": "Posterior pooled effect summarizes evidence across studies. Check heterogeneity (τ²) for consistency.",
+        "chart_guidance": "Forest plot with posterior effect sizes per study and pooled estimate.",
+    },
+    "bayes_demo": {
+        "next_steps": "This is a demonstration of Bayesian inference with synthetic data.",
+        "chart_guidance": "Prior vs posterior shows how observed data updates the initial belief.",
+    },
+    "bayes_spares": {
+        "next_steps": "Posterior spare parts demand distribution informs stocking decisions. Use the credible interval for safety stock.",
+        "chart_guidance": "Posterior predictive distribution for future demand periods.",
+    },
+    "bayes_system": {
+        "next_steps": "System reliability posterior gives P(system survives to time t). Use for maintenance scheduling.",
+        "chart_guidance": "Posterior system reliability function with credible bands.",
+    },
+    "bayes_warranty": {
+        "next_steps": "Posterior warranty return rate informs reserve planning. CrI width reflects data sufficiency.",
+        "chart_guidance": "Posterior return rate over warranty period with credible bands.",
+    },
+    "bayes_repairable": {
+        "next_steps": "Posterior repair rate trend (NHPP intensity) indicates whether the system is improving or degrading.",
+        "chart_guidance": "Posterior intensity function — increasing means degradation, decreasing means improvement.",
+    },
+    "bayes_rul": {
+        "next_steps": "Posterior remaining useful life distribution informs replacement timing. Median RUL is the planning target.",
+        "chart_guidance": "Posterior RUL density — the mode is the most likely time to failure.",
+    },
+    "bayes_alt": {
+        "next_steps": "Extrapolate posterior life distribution to use conditions. Credible interval reflects accelerated test uncertainty.",
+        "chart_guidance": "Posterior life distribution at use stress with credible bands.",
+    },
+    "bayes_comprisk": {
+        "next_steps": "Posterior cause-specific hazards identify dominant failure modes. Prioritize the mode with highest hazard.",
+        "chart_guidance": "Posterior cumulative incidence functions by failure cause.",
+    },
+}
+
+
 def _wrap_legacy(analysis_id, df, config):
     """Call legacy bayesian handler, normalize output to forge schema."""
     from .bayesian import run_bayesian_analysis
@@ -29,19 +101,47 @@ def _wrap_legacy(analysis_id, df, config):
     result.setdefault("plots", [])
     result.setdefault("statistics", {})
     result.setdefault("summary", "")
-    result.setdefault(
-        "narrative",
-        {
-            "verdict": result.get("guide_observation", ""),
+
+    hints = _LEGACY_NARRATIVE_HINTS.get(analysis_id, {})
+    if "narrative" not in result or not isinstance(result.get("narrative"), dict):
+        result["narrative"] = {
+            "verdict": result.get("guide_observation", "") or result.get("summary", "").split("\n")[0][:120],
             "body": result.get("summary", ""),
-            "next_steps": "",
-            "chart_guidance": "",
-        },
-    )
+            "next_steps": hints.get(
+                "next_steps", "Examine the posterior distribution and Bayes Factor for decision-making."
+            ),
+            "chart_guidance": hints.get(
+                "chart_guidance", "Posterior density shows updated beliefs after observing data."
+            ),
+        }
+    else:
+        # Narrative exists but may have empty fields — fill from hints
+        narr = result["narrative"]
+        if not narr.get("next_steps"):
+            narr["next_steps"] = hints.get(
+                "next_steps", "Examine the posterior distribution and Bayes Factor for decision-making."
+            )
+        if not narr.get("chart_guidance"):
+            narr["chart_guidance"] = hints.get(
+                "chart_guidance", "Posterior density shows updated beliefs after observing data."
+            )
+        if not narr.get("verdict"):
+            narr["verdict"] = result.get("guide_observation", "") or result.get("summary", "").split("\n")[0][:120]
+        if not narr.get("body"):
+            narr["body"] = result.get("summary", "")
+
     result.setdefault("assumptions", {})
     result.setdefault("diagnostics", [])
     result.setdefault("guide_observation", "")
     return result
+
+
+_FORGE_NATIVE_NEXT_STEPS = {
+    "One-Sample t-Test": "BF₁₀ > 10 = strong evidence the mean differs from the test value. Assess the credible interval for practical significance.",
+    "Two-Sample t-Test": "BF₁₀ > 10 = strong evidence the groups differ. The posterior difference gives the likely effect magnitude.",
+    "Correlation": "BF₁₀ > 10 = strong evidence of correlation. The posterior gives the likely strength, not just direction.",
+    "Proportion": "BF₁₀ > 10 = strong evidence the proportion differs from null. Use the posterior for planning.",
+}
 
 
 def _bayes_result(r, test_name):
@@ -74,6 +174,12 @@ def _bayes_result(r, test_name):
     except Exception:
         pass  # Chart is optional — don't block result
 
+    # Analysis-specific next steps
+    next_steps = _FORGE_NATIVE_NEXT_STEPS.get(
+        test_name,
+        "BF₁₀ > 3 = moderate, > 10 = strong, > 30 = very strong evidence.",
+    )
+
     return {
         "plots": plots,
         "statistics": {
@@ -99,8 +205,8 @@ def _bayes_result(r, test_name):
                 f"Bayes Factor = {r.bf10:.2f}: data are {r.bf10:.1f}\u00d7 more likely under H\u2081 than H\u2080 "
                 f"({r.bf_label}). Posterior mean = {r.posterior_mean:.4f}."
             ),
-            "next_steps": "BF > 3 = moderate, > 10 = strong, > 30 = very strong evidence.",
-            "chart_guidance": "Prior vs posterior density shows how data updated beliefs.",
+            "next_steps": next_steps,
+            "chart_guidance": "Prior vs posterior density shows how data updated beliefs. The posterior narrowing relative to the prior reflects information gained.",
         },
         "guide_observation": f"Bayes {test_name}: BF\u2081\u2080={r.bf10:.2f} ({r.bf_label}), post={r.posterior_mean:.4f}.",
         "diagnostics": [],
