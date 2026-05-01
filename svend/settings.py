@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     "hoshin",
     "qms",  # Composable QMS: primitives, templates, configurable workflow
     "prova",  # PROVA: Problem-solving engine (operating/working graphs, trials, conflicts)
+    "pcl",  # PCL: Process Characteristics Library (measures, datapoints, targets)
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"
