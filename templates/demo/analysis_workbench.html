@@ -428,6 +428,23 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 .aw-status-badge.significant { background: rgba(74,159,110,0.12); color: var(--accent-primary); border: 1px solid var(--accent-primary-border); }
 .aw-status-badge.not-significant { background: rgba(255,255,255,0.08); color: var(--text-dim); border: 1px solid var(--border); }
 
+/* Evidence grade badge */
+.aw-evidence-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-family: var(--font-label);
+    letter-spacing: 0.06em;
+    margin: 4px 0;
+}
+.aw-evidence-badge.strong, .aw-evidence-badge.strong_evidence { background: rgba(74,159,110,0.25); color: var(--accent-primary); border: 1px solid var(--accent-primary-border); }
+.aw-evidence-badge.moderate, .aw-evidence-badge.moderate_evidence { background: rgba(232,149,71,0.2); color: #e89547; border: 1px solid rgba(232,149,71,0.35); }
+.aw-evidence-badge.weak, .aw-evidence-badge.weak_evidence { background: rgba(208,96,96,0.2); color: #d06060; border: 1px solid rgba(208,96,96,0.35); }
+.aw-evidence-badge.inconclusive { background: rgba(255,255,255,0.08); color: var(--text-dim); border: 1px solid var(--border); }
+
 /* Assumptions row */
 .aw-assumptions {
     display: flex;
@@ -1285,7 +1302,87 @@ function buildConfig() {
    ============================================================================ */
 
 async function runAnalysis() {
-    if (!currentAnalysis || !currentDataId) return;
+    const noDataTypes = ['simulation', 'bayesian', 'siop', 'doe'];
+    if (!currentAnalysis || (!currentDataId && !noDataTypes.includes(currentAnalysis.type))) {
+        svToast('Please load data first', 'info');
+        return;
+    }
+
+    // ── Client-side validation ──
+    const config = buildConfig();
+    const vErrors = [];
+
+    // USL > LSL check
+    if (config.lsl !== undefined && config.usl !== undefined && config.lsl !== '' && config.usl !== '') {
+        const lsl = parseFloat(config.lsl || config.LSL);
+        const usl = parseFloat(config.usl || config.USL);
+        if (!isNaN(lsl) && !isNaN(usl) && lsl >= usl) vErrors.push('USL must be greater than LSL');
+    }
+    if (config.LSL !== undefined && config.USL !== undefined && config.LSL !== '' && config.USL !== '') {
+        const lsl = parseFloat(config.LSL);
+        const usl = parseFloat(config.USL);
+        if (!isNaN(lsl) && !isNaN(usl) && lsl >= usl) vErrors.push('USL must be greater than LSL');
+    }
+
+    // Required measurement column for chart-based analyses
+    const needsMeasurement = ['imr', 'xbar_r', 'xbar_s', 'cusum', 'ewma', 'p_chart', 'np_chart',
+        'c_chart', 'u_chart', 'laney_p', 'laney_u', 'moving_average', 'zone_chart',
+        'capability', 'capability_sixpack', 'pbs_full', 'pbs_belief', 'pbs_evidence',
+        'pbs_adaptive', 'pbs_cpk', 'pbs_cpk_traj', 'pbs_health', 'degradation_capability',
+        'mewma', 'generalized_variance'];
+    if (needsMeasurement.includes(currentAnalysis.id)) {
+        const m = config.measurement || config.column || config.var;
+        if (!m || m === '') vErrors.push('Select a measurement/variable column');
+    }
+
+    // Required response for stats analyses
+    const needsResponse = ['ttest', 'ttest2', 'paired_t', 'anova', 'anova2', 'mann_whitney',
+        'kruskal', 'wilcoxon', 'friedman'];
+    if (needsResponse.includes(currentAnalysis.id)) {
+        const r = config.response || config.var || config.var1;
+        if (!r || r === '') vErrors.push('Select a response variable');
+    }
+
+    // Numeric range checks
+    if (config.alpha !== undefined && config.alpha !== '') {
+        const a = parseFloat(config.alpha);
+        if (isNaN(a) || a <= 0 || a >= 1) vErrors.push('Alpha must be between 0 and 1');
+    }
+    if (config.confidence !== undefined && config.confidence !== '') {
+        const c = parseFloat(config.confidence);
+        if (isNaN(c) || c <= 0 || c >= 100) vErrors.push('Confidence must be between 0 and 100');
+    }
+
+    // Checkbox groups — at least one variable
+    const needsVars = ['descriptive', 'graphical_summary', 'auto_profile', 'data_profile',
+        'correlation', 'matrix', 'parallel_coordinates'];
+    if (needsVars.includes(currentAnalysis.id)) {
+        const v = config.vars;
+        if (!v || (Array.isArray(v) && v.length === 0)) vErrors.push('Select at least one variable');
+    }
+
+    if (vErrors.length > 0) {
+        svToast('Validation: ' + vErrors.join('; '), 'warning');
+        return;
+    }
+    // ── End validation ──
+
+    // DOE design types dispatch to DOE module
+    const doeDesigns = ['full_factorial', 'fractional_factorial', 'ccd', 'box_behnken',
+        'plackett_burman', 'latin_square', 'taguchi'];
+    if (doeDesigns.includes(currentAnalysis.id)) {
+        executeDOEDesign(currentAnalysis.id, config, currentAnalysis.label);
+        return;
+    }
+    if (currentAnalysis.id === 'doe_power') {
+        executeDOEPower(config, currentAnalysis.label);
+        return;
+    }
+    const doeAnalyses = ['main_effects', 'interaction', 'doe_contour', 'doe_optimize'];
+    if (currentAnalysis.type === 'doe' && doeAnalyses.includes(currentAnalysis.id)) {
+        executeDOEAnalysis(currentAnalysis.id, config, currentAnalysis.label);
+        return;
+    }
 
     const btn = document.getElementById('aw-run-btn');
     btn.disabled = true;
@@ -1302,7 +1399,7 @@ async function runAnalysis() {
                 type: currentAnalysis.type,
                 analysis: currentAnalysis.id,
                 data_id: currentDataId,
-                config: buildConfig(),
+                config: config,
                 session_id: currentSessionId,
                 dataset_id: currentDatasetId,
             }),
@@ -1625,6 +1722,12 @@ function renderResults(result) {
         html += '</div>';
     }
 
+    // Evidence grade badge
+    if (result.evidence_grade) {
+        const grade = (typeof result.evidence_grade === 'string' ? result.evidence_grade : String(result.evidence_grade)).toLowerCase();
+        html += `<div style="margin:4px 0;"><span class="aw-evidence-badge ${grade}">${esc(result.evidence_grade)}</span></div>`;
+    }
+
     // Narrative verdict + body
     const narr = result.narrative;
     if (narr && typeof narr === 'object') {
@@ -1752,6 +1855,16 @@ function renderResults(result) {
         html += '</div>';
     } else {
         if (whatIfBtn) whatIfBtn.style.display = 'none';
+    }
+
+    // ── NEXT STEPS (analysis-aware suggestions) ──
+    const nextSteps = _getNextSteps(currentAnalysis ? currentAnalysis.id : '');
+    if (nextSteps.length > 0) {
+        html += '<div class="aw-section" style="margin-top:8px;"><div class="aw-section-title">Suggested Next</div><div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        nextSteps.forEach(s => {
+            html += `<button class="sv-btn sv-btn-sm" style="font-size:10px;" onclick="selectAnalysisByTypeId('${s.type}','${s.id}')">${esc(s.label)}</button>`;
+        });
+        html += '</div></div>';
     }
 
     // ── ACTION BAR (visible when results exist) ──
@@ -2529,6 +2642,472 @@ async function confirmUpload() {
         svToast(e.message || 'Upload failed', 'error');
     } finally {
         btn.disabled = false; btn.textContent = 'Load Data';
+    }
+}
+
+/* ============================================================================
+   Next-Steps Suggestion Map
+   ============================================================================ */
+
+const _NEXT_STEPS_MAP = {
+    'normality': [
+        { id: 'ttest', type: 'stats', label: '1-Sample t-Test' },
+        { id: 'box_cox', type: 'stats', label: 'Box-Cox Transform' },
+        { id: 'mann_whitney', type: 'stats', label: 'Mann-Whitney U (if non-normal)' },
+    ],
+    'descriptive': [
+        { id: 'normality', type: 'stats', label: 'Normality Test' },
+        { id: 'graphical_summary', type: 'viz', label: 'Graphical Summary' },
+        { id: 'correlation', type: 'stats', label: 'Correlation Matrix' },
+    ],
+    'anova': [
+        { id: 'tukey_hsd', type: 'stats', label: 'Tukey HSD Post-Hoc' },
+        { id: 'main_effects', type: 'stats', label: 'Main Effects Plot' },
+        { id: 'interval_plot', type: 'viz', label: 'Interval Plot' },
+    ],
+    'anova2': [
+        { id: 'tukey_hsd', type: 'stats', label: 'Tukey HSD Post-Hoc' },
+        { id: 'interaction', type: 'stats', label: 'Interaction Plot' },
+    ],
+    'ttest': [
+        { id: 'mann_whitney', type: 'stats', label: 'Mann-Whitney (nonparametric)' },
+        { id: 'equivalence', type: 'stats', label: 'Equivalence Test (TOST)' },
+    ],
+    'ttest2': [
+        { id: 'individual_value_plot', type: 'viz', label: 'Individual Value Plot' },
+        { id: 'f_test', type: 'stats', label: 'F-Test (equal variances?)' },
+        { id: 'mann_whitney', type: 'stats', label: 'Mann-Whitney (nonparametric)' },
+    ],
+    'regression': [
+        { id: 'normality', type: 'stats', label: 'Residual Normality' },
+        { id: 'scatter', type: 'viz', label: 'Residual Plot' },
+    ],
+    'capability': [
+        { id: 'capability_sixpack', type: 'spc', label: 'Capability Sixpack' },
+        { id: 'imr', type: 'spc', label: 'I-MR Chart' },
+        { id: 'normality', type: 'stats', label: 'Normality Test' },
+    ],
+    'imr': [
+        { id: 'capability', type: 'spc', label: 'Capability Analysis' },
+        { id: 'runs_test', type: 'stats', label: 'Runs Test' },
+        { id: 'changepoint', type: 'stats', label: 'Change Point Detection' },
+    ],
+    'gage_rr': [
+        { id: 'capability', type: 'spc', label: 'Capability Analysis' },
+        { id: 'gage_linearity_bias', type: 'stats', label: 'Linearity & Bias' },
+    ],
+    'correlation': [
+        { id: 'regression', type: 'stats', label: 'Regression' },
+        { id: 'scatter', type: 'viz', label: 'Scatterplot' },
+        { id: 'granger', type: 'stats', label: 'Granger Causality' },
+    ],
+    'graphical_summary': [
+        { id: 'normality', type: 'stats', label: 'Normality Test' },
+        { id: 'box_cox', type: 'stats', label: 'Box-Cox Transform' },
+        { id: 'grubbs_test', type: 'stats', label: "Grubbs' Outlier Test" },
+    ],
+    'chi2': [
+        { id: 'fisher_exact', type: 'stats', label: "Fisher's Exact Test" },
+    ],
+    'abc_analysis': [
+        { id: 'safety_stock', type: 'siop', label: 'Safety Stock (Class A)' },
+        { id: 'eoq', type: 'siop', label: 'EOQ (order sizing)' },
+        { id: 'demand_profile', type: 'siop', label: 'Demand Profile' },
+    ],
+    'eoq': [
+        { id: 'safety_stock', type: 'siop', label: 'Safety Stock & ROP' },
+        { id: 'rop_simulation', type: 'siop', label: 'ROP Simulation' },
+        { id: 'abc_analysis', type: 'siop', label: 'ABC Classification' },
+    ],
+    'safety_stock': [
+        { id: 'rop_simulation', type: 'siop', label: 'Monte Carlo ROP Sim' },
+        { id: 'service_level', type: 'siop', label: 'Service Level Trade-off' },
+        { id: 'eoq', type: 'siop', label: 'EOQ (order quantity)' },
+    ],
+    'demand_profile': [
+        { id: 'safety_stock', type: 'siop', label: 'Safety Stock' },
+        { id: 'abc_analysis', type: 'siop', label: 'ABC/XYZ Analysis' },
+        { id: 'arima', type: 'stats', label: 'ARIMA Forecast' },
+    ],
+    'kanban_sizing': [
+        { id: 'demand_profile', type: 'siop', label: 'Demand Profile' },
+        { id: 'safety_stock', type: 'siop', label: 'Statistical Safety Stock' },
+    ],
+};
+
+function _getNextSteps(analysisId) {
+    return _NEXT_STEPS_MAP[analysisId] || [];
+}
+
+function selectAnalysisByTypeId(type, id) {
+    const el = document.querySelector(`.aw-analysis-item[data-type="${type}"][data-id="${id}"]`);
+    if (el) {
+        // Open parent category if collapsed
+        const cat = el.closest('.aw-category');
+        if (cat && !cat.classList.contains('open')) cat.classList.add('open');
+        selectAnalysis(el);
+        el.scrollIntoView({ block: 'nearest' });
+    }
+}
+
+/* ============================================================================
+   DOE Module — Design, Matrix, Analyze, Export
+   ============================================================================ */
+
+let _currentDOEDesign = null;
+
+function addDOEFactor() {
+    var rows = document.getElementById('doe-factor-rows');
+    if (!rows) return;
+    var n = rows.children.length;
+    var letters = 'ABCDEFGHIJKLMNO';
+    var label = n < letters.length ? 'Factor ' + letters[n] : 'Factor ' + (n + 1);
+    var div = document.createElement('div');
+    div.className = 'doe-factor-row';
+    div.style.cssText = 'display:flex;gap:6px;margin-bottom:4px;';
+    div.innerHTML = '<input type="text" class="doe-fname" placeholder="Name" value="' + label + '" style="flex:2;padding:4px 6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:11px;">' +
+        '<input type="text" class="doe-flow" placeholder="Low" value="-1" style="flex:1;padding:4px 6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:11px;">' +
+        '<input type="text" class="doe-fhigh" placeholder="High" value="1" style="flex:1;padding:4px 6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:11px;">';
+    rows.appendChild(div);
+}
+
+function removeDOEFactor() {
+    var rows = document.getElementById('doe-factor-rows');
+    if (rows && rows.children.length > 2) rows.removeChild(rows.lastChild);
+}
+
+function collectDOEFactors() {
+    var factors = [];
+    document.querySelectorAll('#doe-factor-rows .doe-factor-row').forEach(function(row) {
+        var name = row.querySelector('.doe-fname').value.trim() || ('Factor ' + (factors.length + 1));
+        var lo = row.querySelector('.doe-flow').value.trim();
+        var hi = row.querySelector('.doe-fhigh').value.trim();
+        var loNum = parseFloat(lo), hiNum = parseFloat(hi);
+        var levels = (!isNaN(loNum) && !isNaN(hiNum)) ? [loNum, hiNum] : [lo, hi];
+        var isCat = isNaN(loNum) || isNaN(hiNum);
+        factors.push({ name: name, levels: levels, categorical: isCat });
+    });
+    return factors;
+}
+
+async function executeDOEDesign(designType, config, displayName) {
+    try {
+        var factors = collectDOEFactors();
+        if (factors.length < 2) { svToast('At least 2 factors are required', 'warning'); return; }
+        var responseName = (config.response_name || 'Response').trim();
+        var payload = {
+            design_type: designType,
+            factors: factors,
+            replicates: parseInt(config.replicates) || 1,
+            center_points: parseInt(config.center_points) || 0,
+        };
+        if (config.resolution) payload.resolution = config.resolution;
+
+        var result = await apiFetch('/api/experimenter/design/', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+        if (result.design) {
+            _currentDOEDesign = result.design;
+            _currentDOEDesign.response_name = responseName;
+            _currentDOEDesign.factors_spec = factors;
+            renderDOEMatrix(result.design, responseName);
+        }
+        if (result.summary) svToast(result.summary, 'success');
+    } catch (e) {
+        svToast('DOE Design error: ' + (e.message || 'Unknown error'), 'error');
+    }
+}
+
+function renderDOEMatrix(design, responseName) {
+    var runs = design.runs || [];
+    if (runs.length === 0) return;
+    var pane = document.getElementById('results-pane');
+
+    var factorNames = (design.factors || []).map(function(f) { return f.name; });
+    if (factorNames.length === 0 && runs[0] && runs[0].levels) {
+        factorNames = Object.keys(runs[0].levels);
+    }
+
+    var html = '<div style="padding:12px;"><div class="aw-section-title">DOE Design Matrix — ' + runs.length + ' runs</div>';
+    html += '<table class="aw-stats-table"><thead><tr><th>#</th>';
+    factorNames.forEach(function(c) { html += '<th>' + esc(c) + '</th>'; });
+    html += '<th style="color:var(--accent-primary);">' + esc(responseName) + '</th>';
+    html += '<th>Status</th></tr></thead><tbody>';
+    runs.forEach(function(run, i) {
+        var levels = run.levels || {};
+        html += '<tr><td style="color:var(--text-dim);">' + (run.run_order || i + 1) + '</td>';
+        factorNames.forEach(function(f) { html += '<td>' + (levels[f] != null ? levels[f] : '') + '</td>'; });
+        html += '<td><input type="number" class="doe-response-input" data-run="' + i + '" step="any" style="width:80px;padding:3px 6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:11px;"></td>';
+        html += '<td class="doe-run-status" data-run="' + i + '" style="font-size:10px;color:var(--text-dim);">\u2022 pending</td>';
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    html += '<div style="display:flex;gap:8px;margin-top:10px;">';
+    html += '<button class="sv-btn sv-btn-primary sv-btn-sm" onclick="analyzeDOEFromMatrix()">Analyze</button>';
+    html += '<button class="sv-btn sv-btn-sm" onclick="exportDOEMatrixCSV()">Export CSV</button>';
+    html += '<button class="sv-btn sv-btn-sm" onclick="exportDOERunCard()">Run Card PDF</button>';
+    html += '<label class="sv-btn sv-btn-sm" style="cursor:pointer;">Import Results <input type="file" accept=".csv" onchange="importDOEResults(event)" style="display:none;"></label>';
+    html += '</div></div>';
+    pane.innerHTML = html;
+
+    // Mark runs as complete when response entered
+    pane.querySelectorAll('.doe-response-input').forEach(function(inp) {
+        inp.addEventListener('input', function() {
+            var run = this.dataset.run;
+            var status = pane.querySelector('.doe-run-status[data-run="' + run + '"]');
+            if (this.value) {
+                status.textContent = '\u2713 done';
+                status.style.color = 'var(--accent-primary)';
+            } else {
+                status.textContent = '\u2022 pending';
+                status.style.color = 'var(--text-dim)';
+            }
+        });
+    });
+}
+
+function analyzeDOEFromMatrix() {
+    if (!_currentDOEDesign) { svToast('Generate a design first', 'warning'); return; }
+    var responses = [];
+    var allFilled = true;
+    document.querySelectorAll('.doe-response-input').forEach(function(inp) {
+        var val = parseFloat(inp.value);
+        if (isNaN(val)) { allFilled = false; responses.push(null); }
+        else responses.push(val);
+    });
+    if (!allFilled) { svToast('Fill in all response values before analyzing', 'warning'); return; }
+
+    var runs = _currentDOEDesign.runs || [];
+    var responseName = _currentDOEDesign.response_name || 'Response';
+    var results = runs.map(function(run, i) {
+        return { run_id: run.run_id, response: responses[i] };
+    });
+
+    apiFetch('/api/experimenter/analyze/', {
+        method: 'POST',
+        body: JSON.stringify({
+            design: _currentDOEDesign,
+            results: results,
+            response_name: responseName,
+            alpha: 0.05,
+            include_interactions: true,
+            analysis_type: 'main_effects',
+        }),
+    }).then(function(result) {
+        var analysis = result.analysis || {};
+        var plots = result.plots || {};
+        var pane = document.getElementById('results-pane');
+        var html = '<div style="padding:12px;">';
+
+        // Interpretation
+        if (result.interpretation) {
+            html += '<div class="aw-narrative">' + result.interpretation + '</div>';
+        }
+
+        // Model summary
+        var ms = analysis.model_summary || {};
+        if (ms.r_squared != null) {
+            html += '<div class="aw-section"><div class="aw-section-title">Model Summary</div>';
+            html += '<div style="font-size:12px;"><strong>R\u00B2 = ' + ms.r_squared + '%</strong>';
+            if (ms.r_squared_adj != null) html += ' &nbsp; R\u00B2(adj) = ' + ms.r_squared_adj + '%';
+            if (ms.s) html += ' &nbsp; S = ' + ms.s;
+            if (ms.saturated) html += ' &nbsp; <em style="color:var(--sv-amber);">(saturated — no residual DF)</em>';
+            html += '</div></div>';
+        }
+
+        // Model equation
+        if (analysis.model_equation) {
+            html += '<div style="font-family:\'JetBrains Mono\',monospace;font-size:11px;padding:6px 8px;background:var(--bg-secondary);border-radius:var(--radius-sm);margin:8px 0;">' + esc(analysis.model_equation) + '</div>';
+        }
+
+        // ANOVA table
+        var anova = analysis.anova_table;
+        if (anova && anova.length > 0) {
+            html += '<div class="aw-section"><div class="aw-section-title">ANOVA Table</div>';
+            html += '<table class="aw-stats-table"><thead><tr><th>Source</th><th>DF</th><th>Adj SS</th><th>Adj MS</th><th>F</th><th>p</th></tr></thead><tbody>';
+            anova.forEach(function(r) {
+                var style = r.significant ? ' style="color:var(--accent-primary);font-weight:600;"' : '';
+                html += '<tr' + style + '><td>' + esc(r.source || r.term || '') + '</td><td>' + (r.df != null ? r.df : '') + '</td><td>' + (r.ss != null ? r.ss.toFixed(4) : '') + '</td><td>' + (r.ms != null ? r.ms.toFixed(4) : '') + '</td><td>' + (r.f_value != null ? r.f_value.toFixed(3) : r.f != null ? r.f.toFixed(3) : '') + '</td><td>' + (r.p_value != null ? r.p_value.toFixed(4) : r.p != null ? r.p.toFixed(4) : '') + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+        }
+
+        // Coefficients
+        var coeffs = analysis.coefficients;
+        if (coeffs && coeffs.length > 0) {
+            html += '<div class="aw-section"><div class="aw-section-title">Coefficients</div>';
+            html += '<table class="aw-stats-table"><thead><tr><th>Term</th><th>Effect</th><th>Coef</th><th>SE Coef</th><th>T</th><th>p</th></tr></thead><tbody>';
+            coeffs.forEach(function(c) {
+                var style = c.significant ? ' style="color:var(--accent-primary);font-weight:600;"' : '';
+                html += '<tr' + style + '><td>' + esc(c.term) + '</td><td>' + (c.effect != null ? c.effect : '') + '</td><td>' + c.coefficient + '</td><td>' + c.se_coef + '</td><td>' + (c.t_value != null ? c.t_value : '') + '</td><td>' + (c.p_value != null ? c.p_value : '') + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+        }
+
+        // Significant factors
+        if (analysis.significant_factors && analysis.significant_factors.length > 0) {
+            html += '<div style="margin:8px 0;font-size:12px;"><strong>Significant factors:</strong> ' + analysis.significant_factors.join(', ') + '</div>';
+        }
+
+        // Optimization
+        if (result.optimization && result.optimization.maximize) {
+            var opt = result.optimization;
+            html += '<div class="aw-section"><div class="aw-section-title">Optimal Settings</div>';
+            if (opt.maximize) html += '<div style="font-size:12px;">Maximize: ' + esc(JSON.stringify(opt.maximize.settings)) + ' \u2192 ' + (opt.maximize.predicted != null ? opt.maximize.predicted.toFixed(4) : '?') + '</div>';
+            if (opt.minimize) html += '<div style="font-size:12px;">Minimize: ' + esc(JSON.stringify(opt.minimize.settings)) + ' \u2192 ' + (opt.minimize.predicted != null ? opt.minimize.predicted.toFixed(4) : '?') + '</div>';
+            html += '</div>';
+        }
+
+        html += '</div>';
+        pane.innerHTML = html;
+
+        // Render ForgeViz charts
+        var fvCharts = [];
+        if (plots.main_effects && plots.main_effects.length > 0) {
+            var palette = ['#4a9f6e','#e8c547','#4dc9c0','#a78bfa','#f472b6','#fb923c'];
+            var meTraces = plots.main_effects.map(function(me, i) {
+                return { x: me.levels.map(String), y: me.means, name: me.factor, trace_type: 'line', color: palette[i % palette.length], width: 2, marker_size: 5, dash: '', marker_symbol: 'circle', fill: '', opacity: 1.0, metadata: {} };
+            });
+            fvCharts.push({ title: 'Main Effects Plot', chart_type: 'line', traces: meTraces, reference_lines: [], zones: [], markers: [], x_axis: { label: 'Factor Level' }, y_axis: { label: responseName }, theme: 'svend_dark' });
+        }
+        if (plots.pareto && plots.pareto.length > 0) {
+            var pdata = plots.pareto.sort(function(a, b) { return Math.abs(b.standardized_effect || b.t_value || 0) - Math.abs(a.standardized_effect || a.t_value || 0); });
+            var refs = plots.pareto_reference ? [{ value: plots.pareto_reference, axis: 'x', color: '#d94a4a', dash: 'dashed', width: 1.5, label: 'Reference', label_position: 'right' }] : [];
+            fvCharts.push({
+                title: 'Pareto Chart of Effects', chart_type: 'bar',
+                traces: [{ x: pdata.map(function(p) { return Math.abs(p.standardized_effect || p.t_value || 0); }), y: pdata.map(function(p) { return p.term; }), name: 'Effects', trace_type: 'bar', color: '#4a9f6e', dash: '', width: 0, marker_size: 0, marker_symbol: 'circle', fill: '', opacity: 0.85, metadata: {} }],
+                reference_lines: refs, zones: [], markers: [],
+                x_axis: { label: '|Standardized Effect|' }, y_axis: { label: 'Term' }, theme: 'svend_dark',
+            });
+        }
+        if (fvCharts.length > 0) renderCharts({ plots: fvCharts });
+    }).catch(function(e) {
+        svToast('Analysis error: ' + (e.message || 'Unknown error'), 'error');
+    });
+}
+
+function exportDOEMatrixCSV() {
+    if (!_currentDOEDesign) return;
+    var runs = _currentDOEDesign.runs || [];
+    var factorNames = (_currentDOEDesign.factors || []).map(function(f) { return f.name; });
+    if (factorNames.length === 0 && runs[0] && runs[0].levels) factorNames = Object.keys(runs[0].levels);
+    var responseName = _currentDOEDesign.response_name || 'Response';
+    var lines = [['Run'].concat(factorNames).concat([responseName]).join(',')];
+    runs.forEach(function(run, i) {
+        var levels = run.levels || {};
+        var vals = factorNames.map(function(f) { return levels[f] != null ? levels[f] : ''; });
+        var inp = document.querySelector('.doe-response-input[data-run="' + i + '"]');
+        var resp = inp ? inp.value : '';
+        lines.push([(run.run_order || i + 1)].concat(vals).concat([resp]).join(','));
+    });
+    var blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'doe_design.csv';
+    a.click();
+}
+
+function exportDOERunCard() {
+    if (!_currentDOEDesign) return;
+    apiFetch('/api/experimenter/run-card/', {
+        method: 'POST',
+        body: JSON.stringify({
+            design: _currentDOEDesign,
+            response_name: _currentDOEDesign.response_name || 'Response',
+        }),
+    }).then(function(resp) {
+        // apiFetch returns parsed JSON; need raw blob for PDF
+        // Fall back to fetch for binary
+        return fetch('/api/experimenter/run-card/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': svCsrf() },
+            body: JSON.stringify({ design: _currentDOEDesign, response_name: _currentDOEDesign.response_name || 'Response' }),
+        });
+    }).then(function(r) {
+        if (!r.ok) throw new Error('Export failed');
+        return r.blob();
+    }).then(function(blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'doe_run_card.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+    }).catch(function(e) { svToast('Run card export failed: ' + (e.message || ''), 'error'); });
+}
+
+function importDOEResults(event) {
+    var file = event.target.files[0];
+    if (!file || !_currentDOEDesign) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var lines = e.target.result.trim().split('\n');
+        if (lines.length < 2) { svToast('CSV must have header + data rows', 'warning'); return; }
+        var header = lines[0].split(',').map(function(s) { return s.trim(); });
+        var responseName = _currentDOEDesign.response_name || 'Response';
+        var respIdx = header.indexOf(responseName);
+        if (respIdx < 0) respIdx = header.length - 1;
+        var inputs = document.querySelectorAll('.doe-response-input');
+        for (var i = 1; i < lines.length && i - 1 < inputs.length; i++) {
+            var vals = lines[i].split(',');
+            var v = vals[respIdx] ? vals[respIdx].trim() : '';
+            if (v) {
+                inputs[i - 1].value = v;
+                inputs[i - 1].dispatchEvent(new Event('input'));
+            }
+        }
+        svToast('Imported ' + (lines.length - 1) + ' results from CSV', 'success');
+    };
+    reader.readAsText(file);
+}
+
+async function executeDOEPower(config, displayName) {
+    try {
+        var result = await apiFetch('/api/experimenter/power/', {
+            method: 'POST',
+            body: JSON.stringify({
+                factors: parseInt(config.factors) || 2,
+                desired_power: parseFloat(config.power) || 0.8,
+                effect_size: parseFloat(config.effect_size) || 1.0,
+                alpha: parseFloat(config.alpha) || 0.05,
+            }),
+        });
+        if (result.summary) {
+            document.getElementById('results-pane').innerHTML = '<div style="padding:12px;"><div class="aw-narrative">' + result.summary + '</div></div>';
+        }
+        if (result.plots && result.plots.length > 0) renderCharts({ plots: result.plots });
+    } catch (e) {
+        svToast('Power analysis error: ' + (e.message || ''), 'error');
+    }
+}
+
+async function executeDOEAnalysis(analysisId, config, displayName) {
+    try {
+        if (!currentDataId) { svToast('Please load data first', 'warning'); return; }
+        var endpointMap = {
+            'main_effects': '/api/experimenter/analyze/',
+            'interaction': '/api/experimenter/analyze/',
+            'doe_contour': '/api/experimenter/contour/',
+            'doe_optimize': '/api/experimenter/optimize/',
+        };
+        var endpoint = endpointMap[analysisId] || '/api/experimenter/analyze/';
+        var result = await apiFetch(endpoint, {
+            method: 'POST',
+            body: JSON.stringify({
+                data_id: currentDataId,
+                analysis_type: analysisId,
+                response: config.response,
+                factors: config.predictors || config.factors,
+                config: config,
+            }),
+        });
+        if (result.summary) {
+            document.getElementById('results-pane').innerHTML = '<div style="padding:12px;"><div class="aw-narrative">' + result.summary + '</div></div>';
+        }
+        if (result.plots && result.plots.length > 0) renderCharts({ plots: result.plots });
+    } catch (e) {
+        svToast('DOE analysis error: ' + (e.message || ''), 'error');
     }
 }
 
