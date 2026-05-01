@@ -716,8 +716,16 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
             <div class="aw-session-title" id="aw-session-title" contenteditable="true" spellcheck="false" title="Click to rename session">Untitled Session</div>
             <span class="aw-toolbar-title" id="aw-toolbar-title" style="font-size:12px;color:var(--text-secondary);margin-left:8px;font-family:'JetBrains Mono',monospace;"></span>
             <div class="aw-toolbar-spacer"></div>
+            <!-- Notebook selector -->
+            <select id="aw-notebook-select" class="sv-select sv-select-sm" style="max-width:160px;font-size:11px;" onchange="onNotebookChange(this.value)">
+                <option value="">No notebook</option>
+            </select>
+            <select id="aw-trial-select" class="sv-select sv-select-sm" style="max-width:120px;font-size:11px;display:none;" onchange="currentTrial=this.value||null">
+            </select>
             <div class="aw-data-indicator" id="aw-data-indicator">No data loaded</div>
             <button class="sv-btn sv-btn-sm" onclick="showUploadModal()">Upload Data</button>
+            <button class="sv-btn sv-btn-sm" onclick="retrieveDataDialog()" title="Load previous dataset">Retrieve</button>
+            <button class="sv-btn sv-btn-sm" onclick="openModelsDialog()" title="Saved models">Models</button>
             <button class="sv-btn sv-btn-primary sv-btn-sm" id="aw-run-btn" onclick="runAnalysis()" disabled>Run</button>
         </div>
         <!-- Analysis tabs — persistent, clickable to revisit -->
@@ -1393,16 +1401,20 @@ async function runAnalysis() {
     document.getElementById('results-pane').innerHTML = '<div class="aw-loading">Running analysis\u2026</div>';
 
     try {
+        const payload = {
+            type: currentAnalysis.type,
+            analysis: currentAnalysis.id,
+            data_id: currentDataId,
+            config: config,
+            session_id: currentSessionId,
+            dataset_id: currentDatasetId,
+        };
+        if (currentNotebook) { payload.notebook_id = currentNotebook; }
+        if (currentTrial) { payload.trial_id = currentTrial; payload.save_result = true; }
+
         const result = await apiFetch(ANALYSIS_API + 'run/', {
             method: 'POST',
-            body: JSON.stringify({
-                type: currentAnalysis.type,
-                analysis: currentAnalysis.id,
-                data_id: currentDataId,
-                config: config,
-                session_id: currentSessionId,
-                dataset_id: currentDatasetId,
-            }),
+            body: JSON.stringify(payload),
         });
 
         currentResult = result;
@@ -1568,6 +1580,9 @@ function renderCharts(result) {
 
                 // Annotation mode on all charts
                 ForgeViz.enableAnnotation(el, function() {});
+
+                // Chart interactivity — inspect panels on click
+                attachChartInspect(el, plot, i);
             } catch (err) {
                 console.error('ForgeViz render error for chart ' + i + ':', err);
                 el.innerHTML = '<div class="aw-pane-empty">Chart render failed</div>';
@@ -1579,6 +1594,83 @@ function renderCharts(result) {
             ForgeViz.linkCharts('aw-results', chartInstances.map(c => c.el));
         }
     });
+}
+
+function attachChartInspect(el, plot, chartIndex) {
+    var interactive = plot.interactive || {};
+    var type = interactive.type || '';
+
+    el.addEventListener('forgeviz:click', function(evt) {
+        if (!evt || !evt.points || !evt.points.length) return;
+        var pt = evt.points[0];
+        var cd = pt.customdata || {};
+        var panel = document.createElement('div');
+        panel.className = 'aw-inspect-panel';
+        panel.style.cssText = 'position:absolute;top:8px;right:8px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;max-width:260px;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
+
+        var close = document.createElement('button');
+        close.style.cssText = 'position:absolute;top:2px;right:6px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;';
+        close.textContent = '\u00d7';
+        close.onclick = function() { panel.remove(); };
+        panel.appendChild(close);
+
+        var content = document.createElement('div');
+        content.style.fontSize = '11px';
+
+        if (type === 'spc_inspect' || (plot.reference_lines && plot.reference_lines.length)) {
+            var obsIdx = cd.observation || cd[0] || pt.x;
+            var val = pt.y != null ? pt.y.toFixed(4) : '';
+            var rules = cd.rules || cd[1] || [];
+            var ooc = cd.out_of_control || (rules && rules.length > 0);
+            var line1 = document.createElement('strong');
+            line1.textContent = 'Observation ' + obsIdx + ': ' + val;
+            content.appendChild(line1);
+            if (ooc) {
+                var badge = document.createElement('span');
+                badge.style.color = 'var(--error)';
+                badge.textContent = ' \u25cf OOC';
+                content.appendChild(badge);
+            }
+            if (rules && rules.length) {
+                var ruleEl = document.createElement('div');
+                ruleEl.textContent = 'Nelson rules: ' + rules.join(', ');
+                content.appendChild(ruleEl);
+            }
+            if (ooc) {
+                var rcaBtn = document.createElement('button');
+                rcaBtn.className = 'sv-btn sv-btn-sm';
+                rcaBtn.style.cssText = 'margin-top:6px;font-size:10px;';
+                rcaBtn.textContent = 'Investigate \u2192 RCA';
+                rcaBtn.onclick = function() { startRCAFromChart(obsIdx); };
+                panel.appendChild(rcaBtn);
+            }
+        } else {
+            if (pt.x != null) content.textContent = 'x: ' + (typeof pt.x === 'number' ? pt.x.toFixed(4) : pt.x);
+            if (pt.y != null) content.textContent += '  y: ' + (typeof pt.y === 'number' ? pt.y.toFixed(4) : pt.y);
+        }
+
+        panel.insertBefore(content, panel.lastChild || null);
+
+        // Remove existing panel
+        var existing = el.querySelector('.aw-inspect-panel');
+        if (existing) existing.remove();
+        el.style.position = 'relative';
+        el.appendChild(panel);
+    });
+}
+
+function startRCAFromChart(obsIdx) {
+    apiFetch('/api/rca/sessions/create/', {
+        method: 'POST',
+        body: JSON.stringify({
+            title: 'RCA from chart — observation ' + obsIdx,
+            source: 'analysis_workbench',
+            context: { observation: obsIdx, analysis_type: currentAnalysis ? currentAnalysis.type : '', analysis_id: currentAnalysis ? currentAnalysis.id : '' },
+        }),
+    }).then(function(r) {
+        svToast('RCA session created', 'success');
+        window.open('/app/rca/' + r.id + '/', '_blank');
+    }).catch(function(e) { svToast('RCA creation failed: ' + e.message, 'error'); });
 }
 
 function switchChartTab(tab) {
@@ -3112,12 +3204,281 @@ async function executeDOEAnalysis(analysisId, config, displayName) {
 }
 
 /* ============================================================================
+   Data Retrieval (Gap #4)
+   ============================================================================ */
+
+async function retrieveDataDialog() {
+    try {
+        var data = await apiFetch('/api/triage/datasets/');
+        var datasets = data.datasets || [];
+        if (!datasets.length) { svToast('No saved datasets found', 'info'); return; }
+
+        var modal = document.createElement('div');
+        modal.className = 'aw-modal-overlay active';
+        modal.id = 'retrieve-data-modal';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+
+        var box = document.createElement('div');
+        box.className = 'aw-modal';
+        box.style.maxWidth = '480px';
+
+        var title = document.createElement('h3');
+        title.style.cssText = 'margin:0 0 12px;font-size:14px;';
+        title.textContent = 'Load Previous Dataset';
+        box.appendChild(title);
+
+        datasets.forEach(function(ds) {
+            var item = document.createElement('div');
+            item.className = 'sv-list-item';
+            item.style.cssText = 'cursor:pointer;padding:8px 10px;border-bottom:1px solid var(--border);';
+            item.onclick = function() { retrieveData(ds.id, ds.filename || ds.name); modal.remove(); };
+
+            var name = document.createElement('div');
+            name.style.cssText = 'font-size:12px;font-weight:500;color:var(--text-primary);';
+            name.textContent = ds.filename || ds.name || 'Dataset';
+            item.appendChild(name);
+
+            var meta = document.createElement('div');
+            meta.style.cssText = 'font-size:10px;color:var(--text-dim);';
+            meta.textContent = (ds.row_count || '?') + ' rows \u00b7 ' + (ds.column_count || '?') + ' cols \u00b7 ' + new Date(ds.created_at || '').toLocaleDateString();
+            item.appendChild(meta);
+
+            box.appendChild(item);
+        });
+
+        var cancelBtn = document.createElement('button');
+        cancelBtn.className = 'sv-btn sv-btn-sm';
+        cancelBtn.style.marginTop = '10px';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = function() { modal.remove(); };
+        var footer = document.createElement('div');
+        footer.style.textAlign = 'right';
+        footer.appendChild(cancelBtn);
+        box.appendChild(footer);
+
+        modal.appendChild(box);
+        document.body.appendChild(modal);
+    } catch (e) {
+        svToast('Failed to load datasets: ' + e.message, 'error');
+    }
+}
+
+async function retrieveData(dataId, filename) {
+    try {
+        var result = await apiFetch('/api/dsw/retrieve-data/', {
+            method: 'POST',
+            body: JSON.stringify({ data_id: dataId, filename: filename || 'dataset' }),
+        });
+        if (!result.columns) { svToast('No data returned', 'error'); return; }
+
+        currentDataId = result.id || result.data_id || dataId;
+        var rawCols = result.columns || [];
+        currentDataColumns = rawCols.map(function(c) { return typeof c === 'object' ? c.name : c; });
+        currentDataRows = result.rows || result.row_count || 0;
+        currentDataPreview = result.preview || [];
+
+        var ind = document.getElementById('aw-data-indicator');
+        ind.textContent = (filename || 'Dataset') + ' \u2014 ' + currentDataRows + ' \u00d7 ' + currentDataColumns.length;
+        ind.classList.add('loaded');
+
+        if (currentDataPreview.length) renderWorksheet(currentDataColumns, currentDataPreview);
+
+        // Add to dataset tabs
+        var dsEntry = {
+            id: currentDataId,
+            data_id: currentDataId,
+            name: filename || 'Dataset',
+            row_count: currentDataRows,
+            columns_meta: rawCols.map(function(c) { return typeof c === 'object' ? c : { name: c, dtype: 'numeric' }; }),
+            preview: currentDataPreview,
+        };
+        sessionDatasets.push(dsEntry);
+        activeDatasetIndex = sessionDatasets.length - 1;
+        renderDatasetTabs();
+        showDataPipelineButtons(true);
+
+        if (currentAnalysis) document.getElementById('aw-run-btn').disabled = false;
+        svToast('Dataset loaded', 'success');
+    } catch (e) {
+        svToast('Retrieve failed: ' + e.message, 'error');
+    }
+}
+
+/* ============================================================================
+   Saved Models (Gap #8)
+   ============================================================================ */
+
+async function openModelsDialog() {
+    try {
+        var data = await apiFetch('/api/dsw/models/');
+        var models = data.models || [];
+        if (!models.length) { svToast('No saved models', 'info'); return; }
+
+        var modal = document.createElement('div');
+        modal.className = 'aw-modal-overlay active';
+        modal.id = 'models-modal';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+
+        var box = document.createElement('div');
+        box.className = 'aw-modal';
+        box.style.maxWidth = '520px';
+
+        var title = document.createElement('h3');
+        title.style.cssText = 'margin:0 0 12px;font-size:14px;';
+        title.textContent = 'Saved Models';
+        box.appendChild(title);
+
+        models.forEach(function(m) {
+            var item = document.createElement('div');
+            item.className = 'sv-list-item';
+            item.style.cssText = 'padding:8px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;';
+
+            var info = document.createElement('div');
+            var nameEl = document.createElement('div');
+            nameEl.style.cssText = 'font-size:12px;font-weight:500;color:var(--text-primary);';
+            nameEl.textContent = m.name || 'Unnamed Model';
+            info.appendChild(nameEl);
+            var metaEl = document.createElement('div');
+            metaEl.style.cssText = 'font-size:10px;color:var(--text-dim);';
+            metaEl.textContent = (m.model_type || m.analysis_type || '') + ' \u00b7 ' + new Date(m.created_at || '').toLocaleDateString();
+            info.appendChild(metaEl);
+            item.appendChild(info);
+
+            var actions = document.createElement('div');
+            actions.style.display = 'flex';
+            actions.style.gap = '4px';
+
+            var runBtn = document.createElement('button');
+            runBtn.className = 'sv-btn sv-btn-sm sv-btn-primary';
+            runBtn.textContent = 'Run';
+            runBtn.style.fontSize = '10px';
+            runBtn.onclick = function() { runSavedModel(m.id); modal.remove(); };
+            actions.appendChild(runBtn);
+
+            var delBtn = document.createElement('button');
+            delBtn.className = 'sv-btn sv-btn-sm';
+            delBtn.textContent = '\u2715';
+            delBtn.style.fontSize = '10px';
+            delBtn.title = 'Delete model';
+            delBtn.onclick = function() { deleteSavedModel(m.id, m.name, item); };
+            actions.appendChild(delBtn);
+
+            item.appendChild(actions);
+            box.appendChild(item);
+        });
+
+        var cancelBtn = document.createElement('button');
+        cancelBtn.className = 'sv-btn sv-btn-sm';
+        cancelBtn.style.marginTop = '10px';
+        cancelBtn.textContent = 'Close';
+        cancelBtn.onclick = function() { modal.remove(); };
+        var footer = document.createElement('div');
+        footer.style.textAlign = 'right';
+        footer.appendChild(cancelBtn);
+        box.appendChild(footer);
+
+        modal.appendChild(box);
+        document.body.appendChild(modal);
+    } catch (e) {
+        svToast('Failed to load models: ' + e.message, 'error');
+    }
+}
+
+async function runSavedModel(modelId) {
+    if (!currentDataId) { svToast('Load data first', 'warning'); return; }
+    try {
+        var result = await apiFetch('/api/dsw/models/' + modelId + '/run/', {
+            method: 'POST',
+            body: JSON.stringify({ data_id: currentDataId }),
+        });
+        currentResult = result;
+        renderCharts(result);
+        renderResults(result);
+        svToast('Model executed', 'success');
+    } catch (e) {
+        svToast('Model run failed: ' + e.message, 'error');
+    }
+}
+
+async function deleteSavedModel(modelId, name, itemEl) {
+    if (!confirm('Delete model "' + (name || '') + '"?')) return;
+    try {
+        await apiFetch('/api/dsw/models/' + modelId + '/delete/', { method: 'POST' });
+        if (itemEl) itemEl.remove();
+        svToast('Model deleted', 'success');
+    } catch (e) {
+        svToast('Delete failed: ' + e.message, 'error');
+    }
+}
+
+/* ============================================================================
+   Notebooks (Gap #10)
+   ============================================================================ */
+
+var currentNotebook = null;
+var currentTrial = null;
+
+async function loadNotebooks() {
+    try {
+        var data = await apiFetch('/api/notebooks/');
+        var notebooks = data.notebooks || [];
+        var sel = document.getElementById('aw-notebook-select');
+        if (!sel) return;
+        // Preserve first empty option
+        sel.length = 1;
+        notebooks.forEach(function(nb) {
+            var opt = document.createElement('option');
+            opt.value = nb.id;
+            opt.textContent = (nb.title || 'Notebook').slice(0, 30) + (nb.status ? ' (' + nb.status + ')' : '');
+            sel.appendChild(opt);
+        });
+    } catch (e) {
+        // Notebooks endpoint may not exist yet — silent fail
+        console.debug('Notebooks not available:', e.message);
+    }
+}
+
+async function onNotebookChange(notebookId) {
+    currentNotebook = notebookId || null;
+    currentTrial = null;
+    var trialSel = document.getElementById('aw-trial-select');
+    if (!currentNotebook) {
+        trialSel.style.display = 'none';
+        return;
+    }
+    try {
+        var data = await apiFetch('/api/notebooks/' + currentNotebook + '/trials/');
+        var trials = data.trials || [];
+        trialSel.length = 0;
+        var emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = 'Select trial';
+        trialSel.appendChild(emptyOpt);
+        trials.forEach(function(t) {
+            var opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = 'Trial ' + (t.sequence || '') + ': ' + (t.title || '').slice(0, 20) + (t.verdict === 'pending' ? ' \u25cf' : '');
+            trialSel.appendChild(opt);
+            // Auto-select pending trial
+            if (t.verdict === 'pending' && !currentTrial) {
+                currentTrial = t.id;
+                opt.selected = true;
+            }
+        });
+        trialSel.style.display = trials.length ? '' : 'none';
+    } catch (e) {
+        trialSel.style.display = 'none';
+    }
+}
+
+/* ============================================================================
    Init
    ============================================================================ */
 
 document.addEventListener('DOMContentLoaded', () => {
     renderSidebar();
     initSession();
+    loadNotebooks();
 });
 
 let activeAnalysisIndex = -1;
