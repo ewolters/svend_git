@@ -1730,6 +1730,74 @@ function showInventoryProperties(inv) {
     document.getElementById('prop-dos').value = inv.days_of_supply || '';
 
     selectedElement = inv;
+
+    // Auto-size supermarket or FIFO
+    _fetchPullSizing(inv);
+}
+
+function _fetchPullSizing(inv) {
+    const el = document.getElementById('pull-sizing-panel');
+    if (!el) return;
+    const dt = inv.delay_type || 'inventory';
+    if (dt !== 'supermarket' && dt !== 'fifo') {
+        el.innerHTML = '';
+        return;
+    }
+    if (!currentVSM || !inv.id) { el.innerHTML = ''; return; }
+
+    const endpoint = dt === 'supermarket'
+        ? `/api/vsm/${currentVSM.id}/size-supermarket/${inv.id}/`
+        : `/api/vsm/${currentVSM.id}/size-fifo/${inv.id}/`;
+
+    el.innerHTML = '<div style="font-size:0.7rem; color:var(--text-dim); padding:4px 0;">Sizing...</div>';
+    fetch(endpoint, { credentials: 'include' })
+        .then(r => r.ok ? r.json() : r.json().then(e => { throw e; }))
+        .then(data => {
+            let html = '';
+            if (dt === 'supermarket') {
+                html += `<div class="smp-section-title" style="margin-top:8px;">Supermarket Sizing</div>`;
+                if (data.upstream_step || data.downstream_step) {
+                    html += `<div style="font-size:0.65rem; color:var(--text-dim); margin-bottom:4px;">${data.upstream_step || '(supplier)'} → supermarket → ${data.downstream_step || '?'}</div>`;
+                }
+                html += `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-bottom:6px;">`;
+                html += `<div class="smp-kpi"><div class="smp-kpi-label">Kanban Cards</div><div class="smp-kpi-value">${data.kanban_cards || '-'}</div></div>`;
+                html += `<div class="smp-kpi"><div class="smp-kpi-label">Container</div><div class="smp-kpi-value">${data.container_size || '-'}</div></div>`;
+                html += `<div class="smp-kpi"><div class="smp-kpi-label">Total Units</div><div class="smp-kpi-value">${data.total_units || '-'}</div></div>`;
+                html += `</div>`;
+                html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:6px;">`;
+                html += `<div class="smp-kpi"><div class="smp-kpi-label">Cycle Stock</div><div class="smp-kpi-value">${data.cycle_stock || '-'}</div></div>`;
+                html += `<div class="smp-kpi"><div class="smp-kpi-label">Safety Stock</div><div class="smp-kpi-value">${data.safety_stock || '-'}</div></div>`;
+                html += `</div>`;
+                html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:6px;">`;
+                html += `<div class="smp-kpi"><div class="smp-kpi-label">Avg WIP</div><div class="smp-kpi-value">${data.avg_wip_units || '-'}</div></div>`;
+                html += `<div class="smp-kpi"><div class="smp-kpi-label">Shelf Max</div><div class="smp-kpi-value">${data.max_units || '-'}</div></div>`;
+                html += `</div>`;
+                if (data.holding_cost_per_day > 0) {
+                    html += `<div style="font-size:0.65rem; color:var(--text-dim);">Holding: $${(data.holding_cost_per_day || 0).toFixed(2)}/day ($${((data.holding_cost_per_day || 0) * 260).toFixed(0)}/yr)</div>`;
+                }
+                html += `<div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px;">${data.reasoning || ''}</div>`;
+            } else {
+                html += `<div class="smp-section-title" style="margin-top:8px;">FIFO Lane Sizing</div>`;
+                if (data.upstream_step && data.downstream_step) {
+                    html += `<div style="font-size:0.65rem; color:var(--text-dim); margin-bottom:4px;">${data.upstream_step} → FIFO → ${data.downstream_step}</div>`;
+                }
+                html += `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-bottom:6px;">`;
+                html += `<div class="smp-kpi"><div class="smp-kpi-label">Max Units</div><div class="smp-kpi-value">${data.max_units || '-'}</div></div>`;
+                html += `<div class="smp-kpi"><div class="smp-kpi-label">Avg WIP</div><div class="smp-kpi-value">${data.avg_wip || '-'}</div></div>`;
+                html += `<div class="smp-kpi"><div class="smp-kpi-label">Rate Ratio</div><div class="smp-kpi-value">${data.rate_mismatch || '-'}×</div></div>`;
+                html += `</div>`;
+                if (data.blocking_risk && data.blocking_risk !== 'none') {
+                    const riskColor = data.blocking_risk === 'high' ? '#e05252' : data.blocking_risk === 'moderate' ? '#e89547' : 'var(--text-dim)';
+                    html += `<div style="font-size:0.7rem; color:${riskColor}; padding:4px 8px; background:rgba(224,82,82,0.08); border-radius:4px; margin-bottom:6px;">Blocking risk: <strong>${data.blocking_risk}</strong>${data.fill_time_sec ? ` — fills in ${Math.round(data.fill_time_sec)}s if downstream stops` : ''}</div>`;
+                }
+                html += `<div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px;">${data.reasoning || ''}</div>`;
+            }
+            el.innerHTML = html;
+        })
+        .catch(err => {
+            const msg = err.error || err.message || 'Could not auto-size';
+            el.innerHTML = `<div style="font-size:0.7rem; color:var(--text-dim); padding:4px 0;">${msg}</div>`;
+        });
 }
 
 function showKaizenProperties(burst) {
@@ -2045,25 +2113,46 @@ function showStepMetrics(step) {
         `<div class="smp-kpi"><div class="smp-kpi-label">EPEI</div><div class="smp-kpi-value">${epeiVal}</div></div>` +
         `<div class="smp-kpi"><div class="smp-kpi-label">vs Takt</div><div class="smp-kpi-value">${taktRatio}</div></div>`;
 
-    // Lot size recommendation (async fetch)
+    // Lot size recommendation + counterfactual analysis (async fetch)
     const lotEl = document.getElementById('smp-lot-rec');
     if (lotEl && currentVSM && step.id) {
         lotEl.innerHTML = '<div style="font-size:0.7rem; color:var(--text-dim); padding:4px 0;">Analyzing...</div>';
-        fetch(`/api/vsm/${currentVSM.id}/lot-recommendation/${step.id}/`, { credentials: 'include' })
-            .then(r => r.ok ? r.json() : null)
-            .then(data => {
+        const base = `/api/vsm/${currentVSM.id}`;
+        const sid = step.id;
+
+        // Fetch lot rec, SMED impact, and EPEI in parallel
+        Promise.all([
+            fetch(`${base}/lot-recommendation/${sid}/`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+            fetch(`${base}/smed-impact/${sid}/`, { credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch(`${base}/epei/${sid}/`, { credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null),
+        ]).then(([data, smedData, epeiData]) => {
                 if (!data) { lotEl.innerHTML = ''; return; }
                 const rec = data.recommendation || {};
                 const regime = data.regime || {};
                 const kanban = data.kanban || {};
-                const epqRef = data.epq_reference || {};
                 const regimeLabel = (regime.regime || '').replace(/_/g, ' ');
                 const conf = regime.confidence ? `${Math.round(regime.confidence * 100)}%` : '';
 
                 let html = `<div class="smp-section-title" style="margin-top:8px;">Lot Size Recommendation</div>`;
                 html += `<div style="font-size:0.65rem; color:var(--accent); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">${regimeLabel} (${conf} confidence)</div>`;
 
-                // Takt vs CT assessment (schedule-paced)
+                // Feasibility warning
+                const scenarios = rec.scenarios || [];
+                const bestScenario = rec.best_scenario || {};
+                const bestUtil = bestScenario.equipment_utilization_pct || bestScenario.changeover_pct || 0;
+                if (rec.feasible === false || bestUtil > 100) {
+                    html += `<div style="font-size:0.7rem; color:#e05252; padding:6px 8px; background:rgba(224,82,82,0.1); border-radius:4px; margin-bottom:6px; border-left:3px solid #e05252;">`;
+                    html += `<strong>Infeasible at recommended lot.</strong> `;
+                    if (rec.smed_target) {
+                        const st = rec.smed_target;
+                        html += `Changeover must shrink from ${st.current_co_min} min to ${st.required_co_min} min (${st.reduction_pct}% SMED reduction) to make this work.`;
+                    } else {
+                        html += `Utilization exceeds available capacity. Consider parallel stations, overtime, or SMED to reduce changeover burden.`;
+                    }
+                    html += `</div>`;
+                }
+
+                // Takt vs CT assessment
                 if (rec.takt_vs_ct) {
                     const tvc = rec.takt_vs_ct;
                     html += `<div style="font-size:0.75rem; padding:6px 8px; background:var(--bg-primary); border-radius:4px; margin-bottom:6px;">`;
@@ -2074,7 +2163,7 @@ function showStepMetrics(step) {
                     html += `</div>`;
                 }
 
-                // Lot size
+                // Lot size KPIs
                 html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:6px;">`;
                 html += `<div class="smp-kpi"><div class="smp-kpi-label">Recommended Lot</div><div class="smp-kpi-value">${rec.lot_size ?? '-'}</div></div>`;
                 if (rec.epei_days) {
@@ -2099,17 +2188,6 @@ function showStepMetrics(step) {
                     html += `<div style="font-size:0.7rem; color:#e89547; padding:4px 8px; background:rgba(232,149,71,0.1); border-radius:4px; margin-bottom:6px;">${rec.batch_warning}</div>`;
                 }
 
-                // SMED target
-                if (rec.smed_target) {
-                    const st = rec.smed_target;
-                    html += `<div style="font-size:0.7rem; color:var(--accent); padding:4px 8px; background:rgba(74,159,110,0.1); border-radius:4px; margin-bottom:6px;">SMED target: ${st.current_co_min} min → ${st.required_co_min} min (${st.reduction_pct}% reduction needed)</div>`;
-                }
-
-                // EPQ reference
-                if (epqRef.lot_size) {
-                    html += `<div style="font-size:0.65rem; color:var(--text-dim); margin-top:4px;">EPQ reference: ${epqRef.lot_size} units (${epqRef.note})</div>`;
-                }
-
                 // Cost basis
                 const cb = rec.cost_basis;
                 if (cb) {
@@ -2119,6 +2197,126 @@ function showStepMetrics(step) {
 
                 // Reasoning
                 html += `<div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px;">${rec.reasoning || ''}</div>`;
+
+                // ============================================================
+                // COUNTERFACTUAL: SMED What-If Slider
+                // ============================================================
+                if (smedData && smedData.results && smedData.results.length > 1 && smedData.results[0].daily_cost !== undefined) {
+                    const smed = smedData.results;
+                    const baseline = smed[0];
+                    html += `<div style="margin-top:12px; padding:8px; background:var(--bg-primary); border-radius:6px; border-left:3px solid var(--accent);">`;
+                    html += `<div class="smp-section-title" style="margin:0 0 6px;">What if you reduced changeover?</div>`;
+                    html += `<div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">`;
+                    html += `<input type="range" id="smed-slider" min="0" max="${smed.length - 1}" value="0" style="flex:1; accent-color:var(--accent);">`;
+                    html += `<span id="smed-pct" style="font-size:0.75rem; font-weight:600; min-width:32px;">0%</span>`;
+                    html += `</div>`;
+                    html += `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;" id="smed-kpis">`;
+                    html += `<div class="smp-kpi"><div class="smp-kpi-label">Changeover</div><div class="smp-kpi-value" id="smed-co">${baseline.changeover_display}</div></div>`;
+                    html += `<div class="smp-kpi"><div class="smp-kpi-label">Lot Size</div><div class="smp-kpi-value" id="smed-lot">${baseline.lot_size}</div></div>`;
+                    html += `<div class="smp-kpi"><div class="smp-kpi-label">Avg WIP</div><div class="smp-kpi-value" id="smed-wip">${baseline.avg_wip}</div></div>`;
+                    html += `</div>`;
+                    html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:4px;">`;
+                    html += `<div class="smp-kpi"><div class="smp-kpi-label">Daily Cost</div><div class="smp-kpi-value" id="smed-cost">$${(baseline.daily_cost || 0).toFixed(2)}</div></div>`;
+                    html += `<div class="smp-kpi"><div class="smp-kpi-label">Savings/Day</div><div class="smp-kpi-value" id="smed-save" style="color:var(--text-dim);">—</div></div>`;
+                    html += `</div>`;
+                    html += `<div id="smed-annual" style="font-size:0.7rem; color:var(--text-dim); margin-top:4px; text-align:center;"></div>`;
+                    html += `</div>`;
+
+                    // Wire slider after innerHTML is set — deferred
+                    setTimeout(() => {
+                        const slider = document.getElementById('smed-slider');
+                        if (!slider) return;
+                        slider.addEventListener('input', () => {
+                            const i = parseInt(slider.value);
+                            const s = smed[i];
+                            document.getElementById('smed-pct').textContent = `${s.reduction_pct}%`;
+                            document.getElementById('smed-co').textContent = s.changeover_display;
+                            document.getElementById('smed-lot').textContent = s.lot_size;
+                            document.getElementById('smed-wip').textContent = s.avg_wip;
+                            document.getElementById('smed-cost').textContent = `$${s.daily_cost.toFixed(2)}`;
+                            if (s.cost_savings_per_day && s.cost_savings_per_day > 0) {
+                                const annual = (s.cost_savings_per_day * 260);
+                                document.getElementById('smed-save').textContent = `$${s.cost_savings_per_day.toFixed(2)}`;
+                                document.getElementById('smed-save').style.color = 'var(--accent)';
+                                document.getElementById('smed-annual').textContent = `$${annual.toLocaleString('en-US', {maximumFractionDigits:0})}/yr in lot size cost alone`;
+                                document.getElementById('smed-annual').style.color = 'var(--accent)';
+                            } else {
+                                document.getElementById('smed-save').textContent = '—';
+                                document.getElementById('smed-save').style.color = 'var(--text-dim)';
+                                document.getElementById('smed-annual').textContent = '';
+                            }
+                        });
+                    }, 0);
+                }
+
+                // ============================================================
+                // COUNTERFACTUAL: EPEI Cycling Options
+                // ============================================================
+                if (epeiData && epeiData.options && epeiData.options.length > 0) {
+                    const opts = epeiData.options;
+                    html += `<details style="margin-top:8px;">`;
+                    html += `<summary style="cursor:pointer; font-size:0.75rem; font-weight:600; color:var(--text-secondary);">EPEI Cycling Options</summary>`;
+                    html += `<div style="margin-top:6px;">`;
+                    html += `<table style="width:100%; font-size:0.65rem; border-collapse:collapse;">`;
+                    html += `<tr style="color:var(--text-dim); border-bottom:1px solid var(--border);">`;
+                    html += `<th style="text-align:left; padding:3px 4px;">Cycle</th>`;
+                    html += `<th style="text-align:right; padding:3px 4px;">Lot</th>`;
+                    html += `<th style="text-align:right; padding:3px 4px;">CO %</th>`;
+                    html += `<th style="text-align:right; padding:3px 4px;">Util %</th>`;
+                    if (opts[0].daily_cost !== undefined) html += `<th style="text-align:right; padding:3px 4px;">$/day</th>`;
+                    html += `<th style="text-align:center; padding:3px 4px;"></th>`;
+                    html += `</tr>`;
+                    for (const o of opts) {
+                        const rowColor = o.feasible ? 'inherit' : 'rgba(224,82,82,0.15)';
+                        const fIcon = o.feasible ? '<span style="color:var(--accent);">&#10003;</span>' : '<span style="color:#e05252;">&#10007;</span>';
+                        html += `<tr style="background:${rowColor}; border-bottom:1px solid var(--border);">`;
+                        html += `<td style="padding:3px 4px;">${o.label}</td>`;
+                        html += `<td style="text-align:right; padding:3px 4px;">${o.lot_size_per_part}</td>`;
+                        html += `<td style="text-align:right; padding:3px 4px;">${o.changeover_pct}%</td>`;
+                        html += `<td style="text-align:right; padding:3px 4px;">${o.utilization_pct}%</td>`;
+                        if (o.daily_cost !== undefined) html += `<td style="text-align:right; padding:3px 4px;">$${(o.daily_cost || 0).toFixed(2)}</td>`;
+                        html += `<td style="text-align:center; padding:3px 4px;">${fIcon}</td>`;
+                        html += `</tr>`;
+                        if (!o.feasible && o.smed_target_min) {
+                            html += `<tr style="background:rgba(224,82,82,0.08);">`;
+                            const cols = o.daily_cost !== undefined ? 6 : 5;
+                            html += `<td colspan="${cols}" style="padding:2px 4px 4px; font-size:0.6rem; color:#e89547;">SMED target: ${o.smed_target_min} min (${o.smed_reduction_pct}% reduction) to enable ${o.label} cycling</td>`;
+                            html += `</tr>`;
+                        }
+                    }
+                    html += `</table>`;
+                    if (opts.every(o => !o.feasible)) {
+                        html += `<div style="font-size:0.65rem; color:#e05252; padding:4px 8px; margin-top:4px; background:rgba(224,82,82,0.08); border-radius:4px;">No cycling frequency is feasible at current changeover time. SMED is required before implementing any EPEI target.</div>`;
+                    }
+                    html += `</div></details>`;
+                }
+
+                // Scenario table (existing scenarios from lot rec)
+                if (scenarios.length > 1) {
+                    html += `<details style="margin-top:8px;">`;
+                    html += `<summary style="cursor:pointer; font-size:0.75rem; font-weight:600; color:var(--text-secondary);">Cost Scenarios</summary>`;
+                    html += `<div style="margin-top:6px;">`;
+                    html += `<table style="width:100%; font-size:0.65rem; border-collapse:collapse;">`;
+                    html += `<tr style="color:var(--text-dim); border-bottom:1px solid var(--border);">`;
+                    html += `<th style="text-align:left; padding:3px 4px;">Lot</th>`;
+                    html += `<th style="text-align:right; padding:3px 4px;">DOS</th>`;
+                    html += `<th style="text-align:right; padding:3px 4px;">WIP</th>`;
+                    html += `<th style="text-align:right; padding:3px 4px;">$/day</th>`;
+                    html += `</tr>`;
+                    for (const s of scenarios) {
+                        const mark = s.is_epq ? ' (EPQ)' : s.is_current ? ' (now)' : '';
+                        const isBest = rec.best_scenario && s.lot_size === rec.best_scenario.lot_size;
+                        const rowStyle = isBest ? 'font-weight:600; color:var(--accent);' : '';
+                        html += `<tr style="border-bottom:1px solid var(--border); ${rowStyle}">`;
+                        html += `<td style="padding:3px 4px;">${s.lot_size}${mark}</td>`;
+                        html += `<td style="text-align:right; padding:3px 4px;">${s.days_of_supply}d</td>`;
+                        html += `<td style="text-align:right; padding:3px 4px;">${s.avg_wip}</td>`;
+                        html += `<td style="text-align:right; padding:3px 4px;">$${(s.daily_cost || 0).toFixed(2)}</td>`;
+                        html += `</tr>`;
+                    }
+                    html += `</table>`;
+                    html += `</div></details>`;
+                }
 
                 // Methodology
                 html += `<details style="margin-top:8px; font-size:0.65rem; color:var(--text-dim);">`;

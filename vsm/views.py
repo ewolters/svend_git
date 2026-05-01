@@ -11,11 +11,24 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 from forgesiop.production.lot_sizing import (
+    batch_process_scenarios,
     detect_regime,
     detect_time_unit,
+    epei_options,
+    estimate_costs,
+    family_lot_sizing,
     fmt_time,
     fmt_time_in,
+    lot_scenarios,
+    smed_lot_impact,
     takt_ct_assessment,
+)
+from forgesiop.production.lot_sizing import (
+    demand_ceiling as compute_demand_ceiling,
+)
+from forgesiop.production.pull_systems import (
+    size_fifo_lane,
+    size_supermarket,
 )
 
 from accounts.permissions import gated_paid, require_feature
@@ -1088,37 +1101,39 @@ def approve_proposal(request, vsm_id):
 
 
 # =============================================================================
-# LOT SIZE RECOMMENDATION (regime-detecting)
+# LOT SIZE RECOMMENDATION (delegates to forgesiop)
 # =============================================================================
 
 
-_detect_regime = detect_regime  # alias for internal use
+def _parse_step_context(step, vsm):
+    """Extract demand, takt, costs, and regime from a step + its parent VSM.
 
+    Returns a dict with all the derived context that lot sizing needs.
+    Shared by _lot_recommendation and the advanced endpoints.
+    """
+    import re
 
-def _lot_recommendation(step, vsm):
-    """Compute lot size recommendation for a single process step."""
-    ct = step.get("cycle_time", 0) or 0
-    co = step.get("changeover_time", 0) or 0
-    batch = step.get("batch_size") or 0
-    batch_process = step.get("batch_process", False)  # oven, furnace, plating tank, etc.
-    uptime = (step.get("uptime", 100) or 100) / 100
-    shifts = step.get("shifts", 1) or 1
+    def _float(v, default=0):
+        try:
+            return float(v) if v is not None else default
+        except (TypeError, ValueError):
+            return default
 
-    # Costs: use step values if provided, otherwise estimate
-    user_setup_cost = step.get("setup_cost")
-    user_holding_cost = step.get("holding_cost")
-    user_unit_cost = step.get("unit_cost")
+    ct = _float(step.get("cycle_time"), 0)
+    co = _float(step.get("changeover_time"), 0)
+    batch = int(_float(step.get("batch_size"), 0))
+    batch_process = bool(step.get("batch_process", False))
+    uptime = _float(step.get("uptime"), 100) / 100
+    shifts = max(1, int(_float(step.get("shifts"), 1)))
+    available_sec = 28800 * shifts
 
-    # Detect display unit from cycle time — all time displays normalized to this
-    time_unit, time_div = _detect_time_unit(ct)
-
-    # Step-level demand takes priority over VSM-level
-    step_demand = step.get("demand_rate") or 0
+    # Demand: step-level takes priority over VSM-level
+    step_demand = _float(step.get("demand_rate"), 0)
     step_demand_unit = (step.get("demand_unit") or "").lower()
     demand_per_day = 0
 
-    if step_demand:
-        demand_per_day = float(step_demand)
+    if step_demand > 0:
+        demand_per_day = step_demand
         if "month" in step_demand_unit:
             demand_per_day /= 22
         elif "week" in step_demand_unit:
@@ -1126,11 +1141,8 @@ def _lot_recommendation(step, vsm):
         elif "year" in step_demand_unit or "annual" in step_demand_unit:
             demand_per_day /= 260
     else:
-        # Fall back to VSM-level customer demand
         demand_str = vsm.customer_demand or ""
         try:
-            import re
-
             nums = re.findall(r"[\d.]+", demand_str)
             if nums:
                 demand_per_day = float(nums[0])
@@ -1144,21 +1156,86 @@ def _lot_recommendation(step, vsm):
         except (ValueError, IndexError):
             pass
 
-    available_sec = 28800 * shifts  # 8hr × shifts
-    # Takt: if step has its own demand rate, compute step-level takt.
-    # Otherwise use the VSM's explicit takt_time (product-level).
+    # Takt
     if step_demand:
         takt = available_sec / demand_per_day if demand_per_day > 0 else 0
     else:
         takt = vsm.takt_time or 0
 
-    # Count parts in this value stream as proxy for mix
-    steps = vsm.process_steps or []
-    # Use number of unique batch_size values or default
-    mix_count = max(1, len(steps))
+    # Mix count (proxy: number of steps in the value stream)
+    mix_count = max(1, len(vsm.process_steps or []))
 
-    # Detect regime
-    regime = _detect_regime(demand_per_day, mix_count, co, ct, available_sec)
+    # Costs — delegate to forgesiop
+    holding_cost, setup_cost, costs_estimated = estimate_costs(
+        ct,
+        co,
+        user_setup_cost=step.get("setup_cost"),
+        user_holding_cost=step.get("holding_cost"),
+        user_unit_cost=step.get("unit_cost"),
+    )
+
+    # Display unit
+    time_unit, time_div = detect_time_unit(ct)
+
+    # Regime
+    regime = detect_regime(demand_per_day, mix_count, co, ct, available_sec)
+
+    return {
+        "ct": ct,
+        "co": co,
+        "batch": batch,
+        "batch_process": batch_process,
+        "uptime": uptime,
+        "shifts": shifts,
+        "available_sec": available_sec,
+        "demand_per_day": demand_per_day,
+        "takt": takt,
+        "mix_count": mix_count,
+        "holding_cost": holding_cost,
+        "setup_cost": setup_cost,
+        "costs_estimated": costs_estimated,
+        "time_unit": time_unit,
+        "time_div": time_div,
+        "regime": regime,
+    }
+
+
+def _build_kanban(demand_per_day, ct, co, lot_size, uptime, available_sec):
+    """Compute kanban card count for a given lot size."""
+    if not (demand_per_day > 0 and ct > 0 and lot_size > 0):
+        return None
+    replenishment_sec = (lot_size * ct) + co
+    replenishment_days = replenishment_sec / available_sec if available_sec > 0 else 0
+    safety_factor = 0.2 if uptime > 0.9 else 0.5
+    kanban_qty = math.ceil(demand_per_day * replenishment_days * (1 + safety_factor))
+    kanban_cards = max(1, math.ceil(kanban_qty / lot_size))
+    return {
+        "container_size": lot_size,
+        "kanban_cards": kanban_cards,
+        "total_units_in_loop": kanban_cards * lot_size,
+        "replenishment_time": fmt_time(replenishment_sec),
+        "safety_factor": safety_factor,
+        "reasoning": (
+            f"Lot of {lot_size} takes {fmt_time(replenishment_sec)} to replenish. "
+            f"At {demand_per_day:.1f}/day, need {kanban_cards} kanban cards "
+            f"({kanban_cards * lot_size} units in loop) with {safety_factor:.0%} safety."
+        ),
+    }
+
+
+def _lot_recommendation(step, vsm):
+    """Compute lot size recommendation for a single process step.
+
+    Delegates all cost math, scenario generation, and regime detection
+    to forgesiop.production.lot_sizing.
+    """
+    ctx = _parse_step_context(step, vsm)
+    ct, co, batch = ctx["ct"], ctx["co"], ctx["batch"]
+    demand_per_day = ctx["demand_per_day"]
+    holding_cost, setup_cost = ctx["holding_cost"], ctx["setup_cost"]
+    available_sec = ctx["available_sec"]
+    takt, regime = ctx["takt"], ctx["regime"]
+    time_unit, time_div = ctx["time_unit"], ctx["time_div"]
 
     result = {
         "step_name": step.get("name", ""),
@@ -1170,98 +1247,35 @@ def _lot_recommendation(step, vsm):
         "current_batch": batch,
     }
 
-    r = regime["regime"]
-
-    # Batch process analysis — applies to ALL regimes
-    if batch_process and batch > 0:
+    # --- Batch process path ---
+    if ctx["batch_process"] and batch > 0:
         effective_ct = ct / batch if batch > 0 else ct
+
         if demand_per_day <= 0:
-            # No demand data — just report the batch as the lot
             result["recommendation"] = {
                 "lot_size": batch,
                 "reasoning": (
-                    f"Batch process — equipment processes {batch} units in {_fmt_time(ct)}. "
-                    f"Effective throughput: {_fmt_time(effective_ct)}/unit. "
+                    f"Batch process — equipment processes {batch} units in {fmt_time(ct)}. "
+                    f"Effective throughput: {fmt_time(effective_ct)}/unit. "
                     f"Set step demand to enable scenario analysis."
                 ),
                 "takt_vs_ct": _build_takt_vs_ct(takt, ct, effective_ct, time_unit, time_div),
             }
             return result
 
-        # Full scenario analysis with demand data
-        # Holding cost: user value, or derive from unit cost (25% annual / 260 days),
-        # or estimate from cycle time as last resort
-        if user_holding_cost:
-            holding_cost = float(user_holding_cost)
-        elif user_unit_cost:
-            holding_cost = float(user_unit_cost) * 0.25 / 260  # 25% annual carrying rate
-        else:
-            holding_cost = 10.0 if ct > 3600 else 0.10 if ct > 60 else 0.001
-
-        # Setup cost: user value, or estimate from changeover time × labor rate
-        if user_setup_cost:
-            setup_cost = float(user_setup_cost)
-        else:
-            setup_cost = (co / 3600) * 50  # changeover hours × $50/hr
-
-        costs_estimated = not (user_holding_cost or user_unit_cost or user_setup_cost)
-
-        # Analyze scenarios: full batch, partial batches, optimal
-        scenarios = []
-        # Scenario range: from demand-matched small batch up to full capacity
-        # Minimum viable batch: need at least 1 day of demand or 1 unit
-        min_batch = max(1, math.ceil(demand_per_day))
-        test_sizes = sorted(
-            set(
-                [
-                    min_batch,
-                    max(1, round(demand_per_day * 5)),  # ~weekly
-                    max(1, round(demand_per_day * 10)),  # ~biweekly
-                    max(1, round(demand_per_day * 22)),  # ~monthly
-                    batch,  # current/full capacity
-                ]
-            )
+        # Delegate to forgesiop batch_process_scenarios
+        scenarios = batch_process_scenarios(
+            demand_per_day,
+            setup_cost,
+            holding_cost,
+            ct,
+            co,
+            available_sec,
+            batch,
         )
-        # Add EPQ if meaningful
-        if setup_cost > 0 and holding_cost > 0:
-            epq_lot = max(1, round(math.sqrt((2 * demand_per_day * setup_cost) / holding_cost)))
-            test_sizes = sorted(set(test_sizes + [epq_lot]))
 
-        for lot in test_sizes:
-            if lot < 1:
-                continue
-            batches_per_month = (demand_per_day * 22) / lot
-            days_of_supply = lot / demand_per_day
-            avg_wip = lot / 2
-            daily_hold = avg_wip * holding_cost
-            daily_setup = (demand_per_day / lot) * setup_cost
-            daily_total = daily_hold + daily_setup
-            utilization = (batches_per_month * (ct + co)) / (available_sec * 22) * 100
-
-            scenarios.append(
-                {
-                    "lot_size": lot,
-                    "is_current": lot == batch,
-                    "is_epq": lot == epq_lot if setup_cost > 0 else False,
-                    "label": "full capacity"
-                    if lot == batch
-                    else "EPQ optimal"
-                    if setup_cost > 0 and lot == epq_lot
-                    else f"~{days_of_supply:.0f} day supply",
-                    "days_of_supply": round(days_of_supply, 1),
-                    "batches_per_month": round(batches_per_month, 1),
-                    "avg_wip": round(avg_wip),
-                    "daily_cost": round(daily_total, 2),
-                    "daily_holding": round(daily_hold, 2),
-                    "daily_setup": round(daily_setup, 2),
-                    "equipment_utilization_pct": round(utilization, 1),
-                }
-            )
-
-        # Find lowest-cost scenario
         best = min(scenarios, key=lambda s: s["daily_cost"])
         current = next((s for s in scenarios if s["is_current"]), scenarios[-1])
-
         savings_vs_current = round(current["daily_cost"] - best["daily_cost"], 2)
         wip_reduction = current["avg_wip"] - best["avg_wip"]
 
@@ -1286,129 +1300,56 @@ def _lot_recommendation(step, vsm):
             "cost_basis": {
                 "holding_cost_per_unit_day": round(holding_cost, 4),
                 "setup_cost_per_changeover": round(setup_cost, 2),
-                "estimated": costs_estimated,
+                "estimated": ctx["costs_estimated"],
             },
         }
 
-        # Kanban for recommended lot
-        rec_lot = best["lot_size"]
-        replenishment_sec = ct + co
-        replenishment_days = replenishment_sec / available_sec if available_sec > 0 else 0
-        safety_factor = 0.2 if uptime > 0.9 else 0.5
-        kanban_qty = math.ceil(demand_per_day * replenishment_days * (1 + safety_factor))
-        kanban_cards = max(1, math.ceil(kanban_qty / rec_lot))
-        result["kanban"] = {
-            "container_size": rec_lot,
-            "kanban_cards": kanban_cards,
-            "total_units_in_loop": kanban_cards * rec_lot,
-            "replenishment_time": _fmt_time(replenishment_sec),
-            "safety_factor": safety_factor,
-            "reasoning": (
-                f"Batch of {rec_lot} takes {_fmt_time(replenishment_sec)} to process + changeover. "
-                f"At {demand_per_day:.1f}/day, need {kanban_cards} kanban card(s) "
-                f"({kanban_cards * rec_lot} units in loop)."
-            ),
-        }
+        kanban = _build_kanban(demand_per_day, ct, co, best["lot_size"], ctx["uptime"], available_sec)
+        if kanban:
+            result["kanban"] = kanban
 
         return result
 
-    # Cost-based lot sizing — regime is context, not a formula gate.
-    # Always run the same cost math so there's no discontinuity at boundaries.
-    if user_holding_cost:
-        holding_cost = float(user_holding_cost)
-    elif user_unit_cost:
-        holding_cost = float(user_unit_cost) * 0.25 / 260
-    else:
-        holding_cost = 0.01
-        if ct > 3600:
-            holding_cost = 10.0
-        elif ct > 60:
-            holding_cost = 0.10
-
-    if user_setup_cost:
-        setup_cost = float(user_setup_cost)
-    else:
-        setup_cost = (co / 3600) * 50
-
-    costs_estimated = not (user_holding_cost or user_unit_cost or user_setup_cost)
-
-    # EPQ: cost-optimal lot size
-    if demand_per_day > 0 and holding_cost > 0 and setup_cost > 0:
-        epq_lot = max(1, round(math.sqrt((2 * demand_per_day * setup_cost) / holding_cost)))
-    else:
-        epq_lot = 1
-
-    # Scenario analysis: test lot=1 through EPQ and beyond
-    test_sizes = sorted(
-        set(
-            [
-                1,
-                max(1, round(demand_per_day)) if demand_per_day > 0 else 1,
-                max(1, round(demand_per_day * 5)) if demand_per_day > 0 else 1,
-                epq_lot,
-            ]
-        )
+    # --- Standard (non-batch) path ---
+    # Delegate scenario generation to forgesiop
+    scenarios = lot_scenarios(
+        demand_per_day,
+        setup_cost,
+        holding_cost,
+        co,
+        available_sec,
+        current_batch=batch,
     )
-    # Add current batch if set
-    if batch and batch > 1:
-        test_sizes = sorted(set(test_sizes + [batch]))
 
-    scenarios = []
-    for lot in test_sizes:
-        if lot < 1:
-            continue
-        co_per_day = demand_per_day / lot if lot > 0 and demand_per_day > 0 else 0
-        avg_wip = lot / 2
-        daily_hold = avg_wip * holding_cost
-        daily_setup = co_per_day * setup_cost
-        daily_total = daily_hold + daily_setup
-        co_pct = (co_per_day * co / available_sec) * 100 if available_sec > 0 else 0
-        days_supply = lot / demand_per_day if demand_per_day > 0 else 0
+    if not scenarios:
+        # No scenarios possible (zero demand + zero costs)
+        result["recommendation"] = {
+            "lot_size": max(batch, 1),
+            "reasoning": "Insufficient data for cost analysis. Set demand rate and/or costs.",
+            "takt_vs_ct": _build_takt_vs_ct(takt, ct, None, time_unit, time_div),
+            "scenarios": [],
+            "feasible": True,
+        }
+        return result
 
-        scenarios.append(
-            {
-                "lot_size": lot,
-                "is_current": lot == batch,
-                "is_epq": lot == epq_lot,
-                "days_of_supply": round(days_supply, 1),
-                "avg_wip": round(avg_wip),
-                "daily_cost": round(daily_total, 2),
-                "daily_holding": round(daily_hold, 2),
-                "daily_setup": round(daily_setup, 2),
-                "changeover_pct": round(co_pct, 1),
-            }
-        )
-
-    # Customer demand ceiling: lot should not exceed what demand actually requires.
-    # Cost-optimal (EPQ) is a reference, but the recommendation respects demand.
-    # Max lot = demand quantity that makes operational sense for the regime.
-    cost_optimal = min(scenarios, key=lambda s: s["daily_cost"]) if scenarios else {"lot_size": 1}
+    # Cost-optimal from scenarios
+    cost_optimal = min(scenarios, key=lambda s: s["daily_cost"])
     cost_lot = cost_optimal["lot_size"]
 
-    # Demand ceiling: cap at reasonable supply horizon
+    # Demand ceiling from forgesiop
     if demand_per_day > 0:
-        # Low demand (<5/day): cap at ~1 week supply
-        # Medium demand (5-50/day): cap at ~3 days supply
-        # High demand (>50/day): cap at ~1 day supply
-        if demand_per_day < 5:
-            max_supply_days = 5
-        elif demand_per_day < 50:
-            max_supply_days = 3
-        else:
-            max_supply_days = 1
-        demand_ceiling = max(1, round(demand_per_day * max_supply_days))
+        ceiling_units, max_supply_days = compute_demand_ceiling(demand_per_day)
     else:
-        demand_ceiling = cost_lot  # no demand info, trust the cost math
+        ceiling_units, max_supply_days = cost_lot, 0
 
     # Recommendation: cost-optimal but capped by demand
-    best_lot = min(cost_lot, demand_ceiling)
-    # Find the scenario closest to the capped lot
+    best_lot = min(cost_lot, ceiling_units)
     best = min(scenarios, key=lambda s: abs(s["lot_size"] - best_lot))
     best_lot = best["lot_size"]
 
-    # Build reasoning from regime + cost math + demand constraint
-    regime_label = r.replace("_", " ")
-    demand_capped = cost_lot > demand_ceiling
+    # Build reasoning
+    regime_label = regime.get("regime", "unknown").replace("_", " ")
+    demand_capped = cost_lot > ceiling_units
 
     if best_lot == 1:
         reasoning = f"{regime_label.capitalize()} — lot of 1 (one-piece flow)."
@@ -1424,6 +1365,7 @@ def _lot_recommendation(step, vsm):
             f"{regime_label.capitalize()} — cost-optimal lot: {best_lot} units "
             f"({best.get('days_of_supply', 0):.0f} days supply)."
         )
+
     if batch and batch > 1 and best_lot < batch:
         current = next((s for s in scenarios if s["is_current"]), None)
         if current:
@@ -1431,7 +1373,7 @@ def _lot_recommendation(step, vsm):
             if savings > 0.5:
                 reasoning += f" Current batch of {batch} costs ${savings:.0f}/day more (${savings * 260:.0f}/yr)."
 
-    # Changeover feasibility check
+    # Feasibility check
     best_co_per_day = demand_per_day / best_lot if best_lot > 0 and demand_per_day > 0 else 0
     prod_min = (demand_per_day * ct) / 60
     co_min = best_co_per_day * (co / 60)
@@ -1447,20 +1389,22 @@ def _lot_recommendation(step, vsm):
         "cost_basis": {
             "holding_cost_per_unit_day": round(holding_cost, 4),
             "setup_cost_per_changeover": round(setup_cost, 2),
-            "estimated": costs_estimated,
+            "estimated": ctx["costs_estimated"],
         },
     }
 
-    if not feasible:
-        # SMED target: how much must changeover shrink?
-        available_for_co = (available_sec / 60) - prod_min
-        if available_for_co > 0 and best_co_per_day > 0:
-            max_co_min = available_for_co / best_co_per_day
-            result["recommendation"]["smed_target"] = {
-                "current_co_min": round(co / 60, 1),
-                "required_co_min": round(max_co_min, 1),
-                "reduction_pct": round((1 - max_co_min / (co / 60)) * 100, 0) if co > 0 else 0,
-            }
+    if not feasible and co > 0:
+        # SMED target via forgesiop
+        smed_results = smed_lot_impact(demand_per_day, co, setup_cost, holding_cost, [0])
+        if smed_results:
+            available_for_co = (available_sec / 60) - prod_min
+            if available_for_co > 0 and best_co_per_day > 0:
+                max_co_min = available_for_co / best_co_per_day
+                result["recommendation"]["smed_target"] = {
+                    "current_co_min": round(co / 60, 1),
+                    "required_co_min": round(max_co_min, 1),
+                    "reduction_pct": round((1 - max_co_min / (co / 60)) * 100, 0) if co > 0 else 0,
+                }
 
     if batch and batch > 1 and best_lot == 1:
         result["recommendation"]["batch_warning"] = (
@@ -1468,38 +1412,12 @@ def _lot_recommendation(step, vsm):
             f"the batch adds {batch - 1} units of WIP without cost benefit."
         )
 
-    # Kanban lot sizing: units in the pull loop between this step and downstream
-    if takt and ct and demand_per_day > 0:
-        # Replenishment time = time to produce one lot + changeover
-        lot_for_kanban = result.get("recommendation", {}).get("lot_size", 1)
-        replenishment_sec = (lot_for_kanban * ct) + co
-        replenishment_days = replenishment_sec / available_sec if available_sec > 0 else 0
-        safety_factor = 0.2 if uptime > 0.9 else 0.5  # more safety for less reliable
-        # Kanban qty = demand_during_replenishment × (1 + safety)
-        kanban_qty = math.ceil(demand_per_day * replenishment_days * (1 + safety_factor))
-        container_size = lot_for_kanban or 1
-        kanban_cards = math.ceil(kanban_qty / container_size) if container_size > 0 else 1
-
-        result["kanban"] = {
-            "container_size": container_size,
-            "kanban_cards": max(1, kanban_cards),
-            "total_units_in_loop": kanban_cards * container_size,
-            "replenishment_time": _fmt_time(replenishment_sec),
-            "safety_factor": safety_factor,
-            "reasoning": (
-                f"Lot of {container_size} takes {_fmt_time(replenishment_sec)} to replenish. "
-                f"At {demand_per_day:.1f}/day, need {kanban_cards} kanban cards "
-                f"({kanban_cards * container_size} units in loop) with {safety_factor:.0%} safety."
-            ),
-        }
+    # Kanban
+    kanban = _build_kanban(demand_per_day, ct, co, best_lot, ctx["uptime"], available_sec)
+    if kanban:
+        result["kanban"] = kanban
 
     return result
-
-
-_fmt_time = fmt_time
-_detect_time_unit = detect_time_unit
-_fmt_time_in = fmt_time_in
-_takt_ct_assessment = takt_ct_assessment
 
 
 def _build_takt_vs_ct(takt, ct, effective_ct, time_unit, time_div):
@@ -1523,16 +1441,243 @@ def _build_takt_vs_ct(takt, ct, effective_ct, time_unit, time_div):
     return result
 
 
+# =============================================================================
+# LOT SIZE ENDPOINTS
+# =============================================================================
+
+
+def _get_vsm_step(request, vsm_id, step_id):
+    """Shared helper: load VSM + step or return (None, None, error_response)."""
+    vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+    steps = vsm.process_steps or []
+    step = next((s for s in steps if s.get("id") == step_id), None)
+    if not step:
+        return None, None, JsonResponse({"error": "Step not found"}, status=404)
+    return vsm, step, None
+
+
 @gated_paid
 @require_http_methods(["GET"])
 def lot_recommendation(request, vsm_id, step_id):
     """Get lot size recommendation for a specific process step."""
+    vsm, step, err = _get_vsm_step(request, vsm_id, step_id)
+    if err:
+        return err
+    return JsonResponse(_lot_recommendation(step, vsm))
+
+
+@gated_paid
+@require_http_methods(["GET"])
+def step_epei_options(request, vsm_id, step_id):
+    """EPEI feasibility options for a step — daily through monthly cycling."""
+    vsm, step, err = _get_vsm_step(request, vsm_id, step_id)
+    if err:
+        return err
+    ctx = _parse_step_context(step, vsm)
+    if ctx["demand_per_day"] <= 0:
+        return JsonResponse({"error": "Set step or VSM demand to compute EPEI options"}, status=400)
+    options = epei_options(
+        ctx["demand_per_day"],
+        ctx["mix_count"],
+        ctx["co"],
+        ctx["ct"],
+        ctx["available_sec"],
+        ctx["setup_cost"],
+        ctx["holding_cost"],
+    )
+    return JsonResponse(
+        {
+            "step_name": step.get("name", ""),
+            "regime": ctx["regime"],
+            "options": options,
+        }
+    )
+
+
+@gated_paid
+@require_http_methods(["GET"])
+def step_smed_impact(request, vsm_id, step_id):
+    """What-if: how does changeover reduction affect lot size, WIP, and cost?"""
+    vsm, step, err = _get_vsm_step(request, vsm_id, step_id)
+    if err:
+        return err
+    ctx = _parse_step_context(step, vsm)
+    if ctx["co"] <= 0:
+        return JsonResponse({"error": "Step has no changeover time"}, status=400)
+    results = smed_lot_impact(
+        ctx["demand_per_day"],
+        ctx["co"],
+        ctx["setup_cost"],
+        ctx["holding_cost"],
+    )
+    return JsonResponse(
+        {
+            "step_name": step.get("name", ""),
+            "current_changeover": fmt_time(ctx["co"]),
+            "results": results,
+        }
+    )
+
+
+@gated_paid
+@require_http_methods(["POST"])
+def vsm_family_lot_sizing(request, vsm_id):
+    """Family lot sizing across all steps sharing a work center.
+
+    POST body: { "work_center_id": "wc-1" } (optional — omit for all steps)
+    """
     vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        body = {}
 
     steps = vsm.process_steps or []
-    step = next((s for s in steps if s.get("id") == step_id), None)
-    if not step:
-        return JsonResponse({"error": "Step not found"}, status=404)
+    wc_filter = body.get("work_center_id")
+    if wc_filter:
+        steps = [s for s in steps if s.get("work_center_id") == wc_filter]
+    if not steps:
+        return JsonResponse({"error": "No steps found"}, status=400)
 
-    result = _lot_recommendation(step, vsm)
+    # Build product list for forgesiop
+    products = []
+    for s in steps:
+        ctx = _parse_step_context(s, vsm)
+        if ctx["demand_per_day"] <= 0:
+            continue
+        products.append(
+            {
+                "name": s.get("name", "unnamed"),
+                "demand_per_day": ctx["demand_per_day"],
+                "cycle_time_sec": ctx["ct"],
+                "changeover_sec": ctx["co"],
+                "setup_cost": ctx["setup_cost"],
+                "holding_cost": ctx["holding_cost"],
+            }
+        )
+
+    if not products:
+        return JsonResponse({"error": "No steps with demand data"}, status=400)
+
+    result = family_lot_sizing(products, available_sec=_parse_step_context(steps[0], vsm)["available_sec"])
+    result["work_center_id"] = wc_filter
+    return JsonResponse(result)
+
+
+# =============================================================================
+# PULL SYSTEM SIZING (supermarket + FIFO)
+# =============================================================================
+
+
+def _find_adjacent_steps(inv, steps):
+    """Find upstream and downstream steps for an inventory element by x-position."""
+    if not steps:
+        return None, None
+    inv_x = inv.get("x", 0)
+    upstream = None
+    downstream = None
+    for s in steps:
+        sx = s.get("x", 0)
+        if sx < inv_x:
+            if upstream is None or sx > upstream.get("x", 0):
+                upstream = s
+        elif sx > inv_x:
+            if downstream is None or sx < downstream.get("x", 0):
+                downstream = s
+    return upstream, downstream
+
+
+@gated_paid
+@require_http_methods(["GET"])
+def size_supermarket_endpoint(request, vsm_id, inv_id):
+    """Auto-size a supermarket based on surrounding process steps."""
+    vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+    inventories = vsm.inventory or []
+    inv = next((i for i in inventories if i.get("id") == inv_id), None)
+    if not inv:
+        return JsonResponse({"error": "Inventory element not found"}, status=404)
+
+    steps = vsm.process_steps or []
+    upstream, downstream = _find_adjacent_steps(inv, steps)
+
+    if not downstream:
+        return JsonResponse(
+            {"error": "No downstream step found — place the supermarket between two process steps"}, status=400
+        )
+
+    # Get downstream context for demand
+    ds_ctx = _parse_step_context(downstream, vsm)
+    demand = ds_ctx["demand_per_day"]
+    if demand <= 0:
+        return JsonResponse({"error": "Downstream step has no demand. Set demand rate on the step or VSM."}, status=400)
+
+    # Replenishment lead time = upstream CT × lot + changeover (in days)
+    if upstream:
+        us_ctx = _parse_step_context(upstream, vsm)
+        lot = us_ctx["batch"] or max(1, round(demand))
+        replen_sec = (us_ctx["ct"] * lot) + us_ctx["co"]
+        replen_days = replen_sec / us_ctx["available_sec"] if us_ctx["available_sec"] > 0 else 0
+        uptime = us_ctx["uptime"]
+    else:
+        # No upstream = external supply. Use 1 day default replenishment.
+        replen_days = 1.0
+        uptime = 1.0
+
+    # Container size: use downstream batch or lot recommendation
+    container = downstream.get("batch_size") or max(1, round(demand / 10))
+
+    holding_cost = ds_ctx["holding_cost"]
+
+    from dataclasses import asdict
+
+    design = size_supermarket(
+        daily_demand=demand,
+        replenishment_lead_time_days=replen_days,
+        container_size=container,
+        safety_factor=0.2,
+        num_variants=1,  # per-supermarket, not whole VSM
+        uptime=uptime,
+        holding_cost_per_unit_day=holding_cost,
+    )
+
+    result = asdict(design)
+    result["upstream_step"] = upstream.get("name") if upstream else None
+    result["downstream_step"] = downstream.get("name") if downstream else None
+    return JsonResponse(result)
+
+
+@gated_paid
+@require_http_methods(["GET"])
+def size_fifo_endpoint(request, vsm_id, inv_id):
+    """Auto-size a FIFO lane based on surrounding process steps."""
+    vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+    inventories = vsm.inventory or []
+    inv = next((i for i in inventories if i.get("id") == inv_id), None)
+    if not inv:
+        return JsonResponse({"error": "Inventory element not found"}, status=404)
+
+    steps = vsm.process_steps or []
+    upstream, downstream = _find_adjacent_steps(inv, steps)
+
+    if not upstream or not downstream:
+        return JsonResponse({"error": "FIFO lane needs both an upstream and downstream step"}, status=400)
+
+    us_ctx = _parse_step_context(upstream, vsm)
+    ds_ctx = _parse_step_context(downstream, vsm)
+
+    if us_ctx["ct"] <= 0 or ds_ctx["ct"] <= 0:
+        return JsonResponse({"error": "Both steps need cycle times to size the FIFO lane"}, status=400)
+
+    from dataclasses import asdict
+
+    design = size_fifo_lane(
+        upstream_ct_sec=us_ctx["ct"],
+        downstream_ct_sec=ds_ctx["ct"],
+        upstream_co_sec=us_ctx["co"],
+        downstream_co_sec=ds_ctx["co"],
+    )
+
+    result = asdict(design)
+    result["upstream_step"] = upstream.get("name")
+    result["downstream_step"] = downstream.get("name")
     return JsonResponse(result)

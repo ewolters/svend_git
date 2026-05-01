@@ -21,6 +21,12 @@ urlpatterns = [
     # Hoshin integration
     path("<uuid:vsm_id>/generate-proposals/", views.generate_proposals, name="vsm_proposals"),
     path("<uuid:vsm_id>/approve-proposal/", views.approve_proposal, name="vsm_approve"),
-    # Lot size recommendation (regime-detecting)
+    # Lot sizing
     path("<uuid:vsm_id>/lot-recommendation/<str:step_id>/", views.lot_recommendation, name="vsm_lot_rec"),
+    path("<uuid:vsm_id>/epei/<str:step_id>/", views.step_epei_options, name="vsm_epei"),
+    path("<uuid:vsm_id>/smed-impact/<str:step_id>/", views.step_smed_impact, name="vsm_smed"),
+    path("<uuid:vsm_id>/family-lot-sizing/", views.vsm_family_lot_sizing, name="vsm_family_lot"),
+    # Pull system sizing
+    path("<uuid:vsm_id>/size-supermarket/<str:inv_id>/", views.size_supermarket_endpoint, name="vsm_size_supermarket"),
+    path("<uuid:vsm_id>/size-fifo/<str:inv_id>/", views.size_fifo_endpoint, name="vsm_size_fifo"),
 ]
