@@ -990,6 +990,47 @@ function generateConfigForm(type, id, columns) {
                 </div>
             `;
         }
+        if (id === 'conformal_control') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement Column:</label>
+                    <select id="cfg-measurement">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>False Alarm Rate (\u03b1):</label>
+                    <input type="number" id="cfg-alpha" step="0.01" value="0.05" min="0.001" max="0.5">
+                </div>
+                <div class="aw-form-group">
+                    <label>Calibration Fraction (Phase I split):</label>
+                    <input type="number" id="cfg-calibration_fraction" step="0.05" value="0.5" min="0.1" max="0.9">
+                </div>
+                <p style="color:var(--aw-text-muted);font-size:9px;margin-top:4px;">Distribution-free control chart with guaranteed false alarm rate. No normality assumption. <em>Burger et al. (2025)</em></p>
+            `;
+        }
+        if (id === 'conformal_monitor') {
+            return `
+                <div class="aw-form-group">
+                    <label>Variables (select 2+):</label>
+                    <select id="cfg-variables" multiple size="5" style="min-height:100px;">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Anomaly Model:</label>
+                    <select id="cfg-model">
+                        <option value="isolation_forest">Isolation Forest (default)</option>
+                        <option value="mahalanobis">Mahalanobis Distance</option>
+                    </select>
+                </div>
+                <div class="aw-form-group">
+                    <label>False Alarm Rate (\u03b1):</label>
+                    <input type="number" id="cfg-alpha" step="0.01" value="0.05" min="0.001" max="0.5">
+                </div>
+                <div class="aw-form-group">
+                    <label>Calibration Fraction (Phase I split):</label>
+                    <input type="number" id="cfg-calibration_fraction" step="0.05" value="0.5" min="0.1" max="0.9">
+                </div>
+                <p style="color:var(--aw-text-muted);font-size:9px;margin-top:4px;">Multivariate anomaly detection with conformal p-values. Guaranteed false alarm rate. <em>Burger et al. (2025)</em></p>
+            `;
+        }
         return `<p style="color:#9aaa9a;font-size:11px;">Select SPC chart type.</p>`;
     }
 
