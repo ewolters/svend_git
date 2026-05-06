@@ -257,6 +257,63 @@ class DatapointModelTest(TestCase):
         d = dp.to_dict()
         assert d["provenance"] == "observed"
 
+    def test_datapoint_with_source_job(self):
+        from job.models import Job
+
+        job = Job.objects.create(
+            tenant_id=self.tenant.id,
+            status="completed",
+            inputs={},
+            actor=self.user.email,
+            created_by=self.user.email,
+        )
+        dp = Datapoint.objects.create(
+            measure=self.measure,
+            value=1.33,
+            source_type="workbench",
+            provenance="calculated",
+            source_job=job,
+            observation_count=1,
+            actor=self.user.email,
+            tenant_id=self.tenant.id,
+        )
+        assert dp.source_job_id == job.id
+
+    def test_datapoint_source_job_nullable(self):
+        dp = Datapoint.objects.create(
+            measure=self.measure,
+            value=45.0,
+            source_type="manual",
+            provenance="observed",
+            observation_count=1,
+            actor=self.user.email,
+            tenant_id=self.tenant.id,
+        )
+        assert dp.source_job is None
+
+    def test_source_job_in_to_dict(self):
+        from job.models import Job
+
+        job = Job.objects.create(
+            tenant_id=self.tenant.id,
+            status="completed",
+            inputs={},
+            actor=self.user.email,
+            created_by=self.user.email,
+        )
+        dp = Datapoint.objects.create(
+            measure=self.measure,
+            value=1.33,
+            source_type="workbench",
+            provenance="calculated",
+            source_job=job,
+            observation_count=1,
+            actor=self.user.email,
+            tenant_id=self.tenant.id,
+        )
+        d = dp.to_dict()
+        assert d["source_job_id"] == str(job.id)
+
 
 @SECURE_OFF
 class MeasureTargetModelTest(TestCase):

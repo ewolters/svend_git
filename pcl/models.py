@@ -141,6 +141,13 @@ class Datapoint(SynaraImmutableLog):
         default="observed",
         db_index=True,
     )
+    source_job = models.ForeignKey(
+        "job.Job",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="datapoints",
+    )
 
     class Meta:
         db_table = "pcl_datapoint"
@@ -181,6 +188,7 @@ class Datapoint(SynaraImmutableLog):
             "notes": self.notes,
             "confidence": self.confidence,
             "provenance": self.provenance,
+            "source_job_id": str(self.source_job_id) if self.source_job_id else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

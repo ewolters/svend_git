@@ -107,6 +107,7 @@ def write(
     source_ref_id=None,
     notes: str = "",
     provenance: str = "observed",
+    source_job_id=None,
 ) -> dict:
     """Write a new datapoint and update the measure's cached aggregate.
 
@@ -144,6 +145,7 @@ def write(
         actor=actor,
         tenant_id=tenant_id,
         provenance=provenance,
+        source_job_id=source_job_id,
     )
 
     # Only observed/calculated update the operational cache.
