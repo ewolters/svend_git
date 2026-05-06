@@ -106,6 +106,7 @@ def write(
     source_ref_type: str = "",
     source_ref_id=None,
     notes: str = "",
+    provenance: str = "observed",
 ) -> dict:
     """Write a new datapoint and update the measure's cached aggregate.
 
@@ -142,38 +143,41 @@ def write(
         notes=notes,
         actor=actor,
         tenant_id=tenant_id,
+        provenance=provenance,
     )
 
-    # Incremental aggregate update
-    agg = update_aggregate_incremental(
-        cached_value=m.cached_value,
-        cached_variance=m.cached_variance,
-        cached_confidence=m.cached_confidence,
-        cached_n=m.cached_n,
-        cached_effective_n=m.cached_effective_n,
-        new_value=value,
-        new_confidence=dp.confidence,
-        decay_enabled=m.decay_enabled,
-        decay_halflife_days=m.decay_halflife_days,
-    )
+    # Only observed/calculated update the operational cache.
+    # Simulated/projected are stored but don't contaminate aggregate.
+    if provenance in ("observed", "calculated"):
+        agg = update_aggregate_incremental(
+            cached_value=m.cached_value,
+            cached_variance=m.cached_variance,
+            cached_confidence=m.cached_confidence,
+            cached_n=m.cached_n,
+            cached_effective_n=m.cached_effective_n,
+            new_value=value,
+            new_confidence=dp.confidence,
+            decay_enabled=m.decay_enabled,
+            decay_halflife_days=m.decay_halflife_days,
+        )
 
-    m.cached_value = agg["value"]
-    m.cached_variance = agg["variance"]
-    m.cached_confidence = agg["confidence"]
-    m.cached_n = agg["n"]
-    m.cached_effective_n = agg["effective_n"]
-    m.cached_at = ts
-    m.save(
-        update_fields=[
-            "cached_value",
-            "cached_variance",
-            "cached_confidence",
-            "cached_n",
-            "cached_effective_n",
-            "cached_at",
-            "updated_at",
-        ]
-    )
+        m.cached_value = agg["value"]
+        m.cached_variance = agg["variance"]
+        m.cached_confidence = agg["confidence"]
+        m.cached_n = agg["n"]
+        m.cached_effective_n = agg["effective_n"]
+        m.cached_at = ts
+        m.save(
+            update_fields=[
+                "cached_value",
+                "cached_variance",
+                "cached_confidence",
+                "cached_n",
+                "cached_effective_n",
+                "cached_at",
+                "updated_at",
+            ]
+        )
 
     result = dp.to_dict()
     if alarm:

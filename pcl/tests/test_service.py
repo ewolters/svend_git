@@ -215,6 +215,125 @@ class SetTargetTest(TestCase):
 
 
 @SECURE_OFF
+class ProvenanceAggregationTest(TestCase):
+    def setUp(self):
+        self.user = make_user("prov@test.com", tier="team")
+        self.tenant = make_tenant("Prov Org", slug="prov-org", plan="team")
+        make_membership(self.tenant, self.user)
+        self.measure = Measure.objects.create(
+            tenant_id=self.tenant.id,
+            name="CT",
+            slug="ct-prov",
+            unit="sec",
+            measure_type="process",
+            value_type="continuous",
+            created_by=self.user.email,
+        )
+
+    def test_observed_updates_cache(self):
+        service.write(
+            "ct-prov",
+            45.0,
+            "manual",
+            self.user.email,
+            self.tenant.id,
+            observation_count=5,
+            provenance="observed",
+        )
+        self.measure.refresh_from_db()
+        assert self.measure.cached_value == 45.0
+        assert self.measure.cached_n == 1
+
+    def test_calculated_updates_cache(self):
+        service.write(
+            "ct-prov",
+            1.33,
+            "workbench",
+            self.user.email,
+            self.tenant.id,
+            observation_count=1,
+            provenance="calculated",
+        )
+        self.measure.refresh_from_db()
+        assert self.measure.cached_value == 1.33
+        assert self.measure.cached_n == 1
+
+    def test_simulated_skips_cache(self):
+        service.write(
+            "ct-prov",
+            45.0,
+            "manual",
+            self.user.email,
+            self.tenant.id,
+            observation_count=5,
+            provenance="observed",
+        )
+        service.write(
+            "ct-prov",
+            999.0,
+            "workbench",
+            self.user.email,
+            self.tenant.id,
+            observation_count=1,
+            provenance="simulated",
+        )
+        self.measure.refresh_from_db()
+        assert self.measure.cached_value == 45.0
+        assert self.measure.cached_n == 1
+
+    def test_projected_skips_cache(self):
+        service.write(
+            "ct-prov",
+            45.0,
+            "manual",
+            self.user.email,
+            self.tenant.id,
+            observation_count=5,
+            provenance="observed",
+        )
+        service.write(
+            "ct-prov",
+            30.0,
+            "workbench",
+            self.user.email,
+            self.tenant.id,
+            observation_count=1,
+            provenance="projected",
+        )
+        self.measure.refresh_from_db()
+        assert self.measure.cached_value == 45.0
+        assert self.measure.cached_n == 1
+
+    def test_simulated_datapoint_still_stored(self):
+        result = service.write(
+            "ct-prov",
+            999.0,
+            "workbench",
+            self.user.email,
+            self.tenant.id,
+            observation_count=1,
+            provenance="simulated",
+        )
+        assert result["value"] == 999.0
+        assert result["provenance"] == "simulated"
+        from pcl.models import Datapoint
+
+        assert Datapoint.objects.filter(measure=self.measure).count() == 1
+
+    def test_default_provenance_is_observed(self):
+        service.write(
+            "ct-prov",
+            45.0,
+            "manual",
+            self.user.email,
+            self.tenant.id,
+            observation_count=5,
+        )
+        self.measure.refresh_from_db()
+        assert self.measure.cached_n == 1  # observed updates cache
+
+
+@SECURE_OFF
 class HistoricalReadTest(TestCase):
     def setUp(self):
         self.user = make_user("hist@test.com", tier="team")
