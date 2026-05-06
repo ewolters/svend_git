@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     "qms",  # Composable QMS: primitives, templates, configurable workflow
     "prova",  # PROVA: Problem-solving engine (operating/working graphs, trials, conflicts)
     "pcl",  # PCL: Process Characteristics Library (measures, datapoints, targets)
+    "job",  # Job: Silent canvas run records (audit trail, outputs, session history)
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"
