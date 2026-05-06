@@ -77,8 +77,13 @@ INSTALLED_APPS = [
     "syn.audit.apps.AuditConfig",  # label="audit"
     "syn.log.apps.LogConfig",  # label="syn_log"
     "syn.sched.apps.SchedConfig",  # label="sched"
+    # ---- SVEND 2.0 Platform Layer ----
+    "syn.governance.apps.GovernanceConfig",  # label="governance"
+    "syn.events.apps.EventsConfig",  # label="events" (was in synara_qms)
+    "syn.schema.apps.SchemaConfig",  # label="schema" (was in synara_qms)
     # NOTE: syn.api and syn.synara are NOT registered (no models).
     # syn.err is pure Python, not a Django app.
+    # syn.schemas and syn.io are pure Python, no Django models.
 ]
 
 MIDDLEWARE = [
