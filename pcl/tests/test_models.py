@@ -222,6 +222,41 @@ class DatapointModelTest(TestCase):
         assert d["source_type"] == "doe"
         assert "confidence" in d
 
+    def test_datapoint_default_provenance(self):
+        dp = Datapoint.objects.create(
+            measure=self.measure,
+            value=45.0,
+            source_type="manual",
+            observation_count=1,
+            actor=self.user.email,
+            tenant_id=self.tenant.id,
+        )
+        assert dp.provenance == "observed"
+
+    def test_datapoint_explicit_provenance(self):
+        dp = Datapoint.objects.create(
+            measure=self.measure,
+            value=1.33,
+            source_type="workbench",
+            provenance="calculated",
+            observation_count=1,
+            actor=self.user.email,
+            tenant_id=self.tenant.id,
+        )
+        assert dp.provenance == "calculated"
+
+    def test_datapoint_provenance_in_to_dict(self):
+        dp = Datapoint.objects.create(
+            measure=self.measure,
+            value=45.0,
+            source_type="manual",
+            observation_count=1,
+            actor=self.user.email,
+            tenant_id=self.tenant.id,
+        )
+        d = dp.to_dict()
+        assert d["provenance"] == "observed"
+
 
 @SECURE_OFF
 class MeasureTargetModelTest(TestCase):

@@ -113,6 +113,13 @@ class Datapoint(SynaraImmutableLog):
     Confidence auto-computed from source_type x observation_count.
     """
 
+    PROVENANCE_TYPES = [
+        ("observed", "Observed"),
+        ("calculated", "Calculated"),
+        ("simulated", "Simulated"),
+        ("projected", "Projected"),
+    ]
+
     measure = models.ForeignKey(
         Measure,
         on_delete=models.CASCADE,
@@ -128,6 +135,12 @@ class Datapoint(SynaraImmutableLog):
     observation_count = models.IntegerField(default=1)
     notes = models.TextField(blank=True, default="")
     confidence = models.FloatField(default=0.0)
+    provenance = models.CharField(
+        max_length=20,
+        choices=PROVENANCE_TYPES,
+        default="observed",
+        db_index=True,
+    )
 
     class Meta:
         db_table = "pcl_datapoint"
@@ -167,6 +180,7 @@ class Datapoint(SynaraImmutableLog):
             "observation_count": self.observation_count,
             "notes": self.notes,
             "confidence": self.confidence,
+            "provenance": self.provenance,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
