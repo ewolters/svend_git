@@ -365,3 +365,128 @@ class HistoricalReadTest(TestCase):
         long_ago = timezone.now() - timedelta(days=365)
         val = service.read("ct-hist", tenant_id=self.tenant.id, at=long_ago)
         assert val is None
+
+
+@SECURE_OFF
+class JobIntegrationTest(TestCase):
+    """End-to-end: Job creates outputs, bound output writes to PCL."""
+
+    def setUp(self):
+        self.user = make_user("integ@test.com", tier="team")
+        self.tenant = make_tenant("Integ Org", slug="integ-org", plan="team")
+        make_membership(self.tenant, self.user)
+        self.measure = Measure.objects.create(
+            tenant_id=self.tenant.id,
+            name="Bore Cpk",
+            slug="bore-cpk",
+            unit="",
+            measure_type="product",
+            value_type="continuous",
+            created_by=self.user.email,
+        )
+
+    def test_job_output_writes_to_pcl(self):
+        from job.models import Job, JobOutput
+
+        # 1. Create job (silent, no modals)
+        job = Job.objects.create(
+            tenant_id=self.tenant.id,
+            canvas_id=None,
+            status="completed",
+            inputs={"data": [10.1, 10.2, 9.9], "usl": 10.5, "lsl": 9.5},
+            outputs_summary={"cpk": 1.33},
+            actor=self.user.email,
+            created_by=self.user.email,
+        )
+
+        # 2. Create job output (always recorded)
+        out = JobOutput.objects.create(
+            job=job,
+            output_key="cpk",
+            output_type="metric",
+            value_numeric=1.33,
+            value_json={"cpk": 1.33, "cpl": 1.45, "cpu": 1.21},
+            provenance="calculated",
+            measure_slug="bore-cpk",
+            actor=self.user.email,
+            tenant_id=self.tenant.id,
+        )
+
+        # 3. Explicit write to PCL (canvas binding would do this)
+        result = service.write(
+            measure_slug="bore-cpk",
+            value=out.value_numeric,
+            source_type="workbench",
+            actor=self.user.email,
+            tenant_id=self.tenant.id,
+            provenance="calculated",
+            source_job_id=job.id,
+        )
+
+        # 4. Verify PCL has the value
+        assert result["provenance"] == "calculated"
+        val = service.read("bore-cpk", tenant_id=self.tenant.id)
+        assert val == 1.33
+
+        # 5. Verify Datapoint links back to Job
+        from pcl.models import Datapoint
+
+        dp = Datapoint.objects.get(measure=self.measure)
+        assert dp.source_job_id == job.id
+        assert dp.provenance == "calculated"
+
+    def test_scratch_job_simulated_skips_cache(self):
+        from job.models import Job, JobOutput
+
+        # Write a real observed value
+        service.write(
+            "bore-cpk",
+            1.33,
+            "manual",
+            self.user.email,
+            self.tenant.id,
+            provenance="observed",
+            observation_count=5,
+        )
+
+        # Scratch job with simulated output
+        job = Job.objects.create(
+            tenant_id=self.tenant.id,
+            status="completed",
+            inputs={"data": [10.1, 10.2, 9.9], "usl": 11.0, "lsl": 9.0},
+            actor=self.user.email,
+            is_scratch=True,
+            created_by=self.user.email,
+        )
+        JobOutput.objects.create(
+            job=job,
+            output_key="cpk",
+            output_type="metric",
+            value_numeric=2.50,
+            value_json={"cpk": 2.50},
+            provenance="simulated",
+            measure_slug="bore-cpk",
+            actor=self.user.email,
+            tenant_id=self.tenant.id,
+        )
+
+        # Write simulated value to PCL
+        service.write(
+            "bore-cpk",
+            2.50,
+            "workbench",
+            self.user.email,
+            self.tenant.id,
+            provenance="simulated",
+            source_job_id=job.id,
+        )
+
+        # Cache should still show the observed value
+        self.measure.refresh_from_db()
+        assert self.measure.cached_value == 1.33
+        assert self.measure.cached_n == 1
+
+        # But both datapoints exist
+        from pcl.models import Datapoint
+
+        assert Datapoint.objects.filter(measure=self.measure).count() == 2
