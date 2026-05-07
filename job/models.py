@@ -29,6 +29,13 @@ class Job(SynaraEntity):
         db_index=True,
         help_text="Which canvas layout was used. Null for API/CLI runs.",
     )
+    plugin_name = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Which plugin produced this job. Null for legacy/API runs.",
+    )
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
@@ -72,6 +79,7 @@ class Job(SynaraEntity):
             "id": str(self.id),
             "tenant_id": str(self.tenant_id) if self.tenant_id else None,
             "canvas_id": str(self.canvas_id) if self.canvas_id else None,
+            "plugin_name": self.plugin_name,
             "status": self.status,
             "inputs": self.inputs,
             "outputs_summary": self.outputs_summary,
