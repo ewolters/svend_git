@@ -5,9 +5,10 @@ Synara Plugin Framework
 Uniform execution contract for all SVEND analysis engines.
 
 Usage:
-    from syn.plugins import Plugin, PluginOutput
+    from syn.plugins import Plugin, PluginOutput, get_registry
 """
 
 from syn.plugins.base import Plugin, PluginOutput
+from syn.plugins.registry import PluginRegistry, get_registry
 
-__all__ = ["Plugin", "PluginOutput"]
+__all__ = ["Plugin", "PluginOutput", "PluginRegistry", "get_registry"]
