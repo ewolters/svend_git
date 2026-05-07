@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "prova",  # PROVA: Problem-solving engine (operating/working graphs, trials, conflicts)
     "pcl",  # PCL: Process Characteristics Library (measures, datapoints, targets)
     "job",  # Job: Silent canvas run records (audit trail, outputs, session history)
+    "plugins",  # SVEND Plugins: analysis engines registered as plugins
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"
