@@ -52,11 +52,6 @@ urlpatterns = [
         name="fmea_promote_action",
     ),
     path(
-        "<uuid:fmea_id>/rows/<uuid:row_id>/promote-capa/",
-        views.promote_fmea_capa,
-        name="fmea_promote_capa",
-    ),
-    path(
         "<uuid:fmea_id>/rows/<uuid:row_id>/promote-risk/",
         views.promote_fmea_risk,
         name="fmea_promote_risk",

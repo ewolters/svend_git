@@ -270,6 +270,10 @@ urlpatterns = varta_urls + [
     ),
     path("app/demo/kjerne/", _app_view("demo/kjerne.html"), name="demo_kjerne"),
     path("app/demo/analysis/", _app_view("demo/analysis_workbench.html"), name="demo_analysis"),
+    path("app/demo/canvas/", _app_view("demo/canvas.html"), name="demo_canvas"),
+    path(
+        "api/demo/canvas/run/", __import__("plugins.views", fromlist=["canvas_run"]).canvas_run, name="demo_canvas_run"
+    ),
     # QMS surface removed — iso/, iso-docs/ routes deleted
     # Whitepapers (public, no auth — SEO + PDF download)
     path("whitepapers/", whitepaper_list, name="whitepapers"),
@@ -447,7 +451,6 @@ urlpatterns = varta_urls + [
     path("api/graph/", include("graph.urls")),  # GRAPH-001 §11: Graph API
     path("api/safety/", include("safety.urls")),  # HIRARC Safety (Enterprise)
     path("api/privacy/", include("accounts.privacy_urls")),  # PRIV-001 (SOC 2 P1.8)
-    path("api/capa/", include("capa.urls")),  # CAPA standalone (ISO 10.2, FEAT-004)
     # ISO Document Creator deleted — QMS offline
     path("api/actions/", include("agents_api.action_urls")),  # Shared action item update/delete
     path("api/investigations/", include("investigation.urls")),  # Investigation lifecycle (CANON-002) — deprecated

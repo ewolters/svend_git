@@ -19,7 +19,6 @@ from django.test import TestCase, override_settings
 from accounts.constants import Tier
 from agents_api.models import (
     FMEA,
-    CAPAReport,
     ControlledDocument,
     ElectronicSignature,
     InternalAudit,
@@ -356,15 +355,6 @@ class ESignatureDocumentTypesTest(TestCase):
     def test_sign_ncr(self):
         ncr = _create_ncr(self.user)
         resp = _sign(self.client, "ncr", ncr.id, "approved")
-        self.assertEqual(resp.status_code, 201)
-
-    def test_sign_capa(self):
-        capa = CAPAReport.objects.create(
-            owner=self.user,
-            title="Test CAPA",
-            priority="medium",
-        )
-        resp = _sign(self.client, "capa", capa.id, "approved")
         self.assertEqual(resp.status_code, 201)
 
     def test_sign_document(self):

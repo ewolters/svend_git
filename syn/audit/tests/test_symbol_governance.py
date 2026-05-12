@@ -1015,7 +1015,6 @@ QMS_EXTENDED_MODELS = [
     "StrategicObjective",
     "AnnualObjective",
     "NCRStatusChange",
-    "CAPAStatusChange",
     "AuditFinding",
     "TrainingRecordChange",
     "DocumentStatusChange",

@@ -675,11 +675,3 @@ class LandingPageAccuracyTest(TestCase):
         self.assertEqual(len(states), 5)
         self.assertNotIn("containment", states)
         self.assertEqual(states, ["open", "investigation", "capa", "verification", "closed"])
-
-    def test_capa_has_six_states_with_containment(self):
-        """CAPA model has 6 states including containment."""
-        from agents_api.models import CAPAReport
-
-        states = [c[0] for c in CAPAReport.Status.choices]
-        self.assertEqual(len(states), 6)
-        self.assertIn("containment", states)

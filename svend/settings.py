@@ -57,7 +57,6 @@ INSTALLED_APPS = [
     "harada",
     "guide",
     "plantsim",
-    "capa",
     "action_token",
     "notebook",
     "investigation",
@@ -74,6 +73,7 @@ INSTALLED_APPS = [
     "pcl",  # PCL: Process Characteristics Library (measures, datapoints, targets)
     "job",  # Job: Silent canvas run records (audit trail, outputs, session history)
     "plugins",  # SVEND Plugins: analysis engines registered as plugins
+    "flowchart",  # Flowchart: device connections, templates, execution engine
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"

@@ -12,8 +12,7 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_enterprise
-from agents_api.evidence_bridge import create_tool_evidence
-from agents_api.models import ActionItem, CAPAReport
+from agents_api.models import ActionItem
 from llm.service import llm_service
 from qms_core.permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
@@ -810,33 +809,6 @@ def update_session(request, session_id):
                 )
         except Exception as e:
             logger.debug("PROVA RCA integration skipped: %s", e)
-
-    # FEAT-006: RCA → CAPA backflow — when root_cause is set, update linked CAPA
-    if "root_cause" in data and data["root_cause"]:
-        linked_capas = qms_queryset(CAPAReport, request.user)[0].filter(
-            rca_session=session,
-        )
-        for capa in linked_capas:
-            if not capa.root_cause:
-                capa.root_cause = data["root_cause"]
-                capa.save(update_fields=["root_cause"])
-                logger.info(
-                    "RCA %s → CAPA %s: root cause backflow",
-                    session.id,
-                    capa.id,
-                )
-                # Create evidence on CAPA's project
-                if capa.project:
-                    create_tool_evidence(
-                        project=capa.project,
-                        user=request.user,
-                        summary=f"Root cause from RCA: {data['root_cause'][:200]}",
-                        source_tool="rca",
-                        source_id=str(session.id),
-                        source_field="root_cause_backflow",
-                        details=data["root_cause"],
-                        source_type="analysis",
-                    )
 
     from tools.events import tool_events
 
