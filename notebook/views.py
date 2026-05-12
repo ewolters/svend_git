@@ -761,9 +761,10 @@ def pull_tool(request, notebook_id):
 
 def _list_pullable(source_type, nb, user):
     """List tool outputs available to pull into a notebook."""
-    from agents_api.models import FMEA, Board, CEMatrix, DSWResult, IshikawaDiagram, RCASession
+    from agents_api.models import FMEA, CEMatrix, DSWResult, IshikawaDiagram, RCASession
     from core.models import ExperimentDesign
     from qms_core.permissions import qms_queryset
+    from whiteboard.models import Board
 
     if source_type == "whiteboard":
         boards = Board.objects.filter(Q(project=nb.project) | Q(owner=user, project__isnull=True)).order_by(
@@ -884,7 +885,7 @@ def _list_pullable(source_type, nb, user):
 
 def _pull_whiteboard(nb, source_id, role, trial, user):
     """Snapshot a whiteboard into a notebook page."""
-    from agents_api.models import Board
+    from whiteboard.models import Board
     from whiteboard.views import _generate_svg
 
     try:

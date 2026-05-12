@@ -12,9 +12,10 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
 from agents_api.evidence_bridge import create_tool_evidence
-from agents_api.models import Board, DSWResult, RCASession
+from agents_api.models import DSWResult, RCASession
 from agents_api.report_types import REPORT_TYPES
 from core.models import Hypothesis
+from whiteboard.models import Board
 
 from .models import Report
 

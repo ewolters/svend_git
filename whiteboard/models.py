@@ -63,7 +63,6 @@ class Board(models.Model):
 
     class Meta:
         db_table = "agents_api_board"
-        managed = False
         ordering = ["-updated_at"]
 
     def __str__(self):
@@ -95,7 +94,6 @@ class BoardParticipant(models.Model):
 
     class Meta:
         db_table = "agents_api_boardparticipant"
-        managed = False
         unique_together = ("board", "user")
 
     def __str__(self):
@@ -125,7 +123,6 @@ class BoardVote(models.Model):
 
     class Meta:
         db_table = "agents_api_boardvote"
-        managed = False
         constraints = [
             models.UniqueConstraint(
                 fields=["board", "user", "element_id"],
@@ -172,7 +169,6 @@ class BoardGuestInvite(models.Model):
 
     class Meta:
         db_table = "agents_api_boardguestinvite"
-        managed = False
         indexes = [
             models.Index(fields=["board", "is_active"], name="wb_guest_board_active_idx"),
         ]

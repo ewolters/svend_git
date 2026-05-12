@@ -12,11 +12,12 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
-from agents_api.models import ActionItem, Board, DSWResult, RCASession
+from agents_api.models import ActionItem, DSWResult, RCASession
 from core.models import Hypothesis
 from core.models.notebook import Notebook, Trial
 from qms_core.permissions import qms_can_edit, qms_queryset, qms_set_ownership
 from tools.events import tool_events
+from whiteboard.models import Board
 
 from .models import A3Report
 

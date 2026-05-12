@@ -198,9 +198,9 @@ def summarize_project(request):
     include = body.get("include", {})
 
     # Load project data
-    from agents_api.models import Board
     from core.models import Hypothesis
     from qms_core.permissions import resolve_project
+    from whiteboard.models import Board
 
     project, err = resolve_project(request.user, project_id)
     if err:

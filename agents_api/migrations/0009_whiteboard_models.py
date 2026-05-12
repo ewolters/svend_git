@@ -6,7 +6,7 @@ import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
 
-import agents_api.models
+import whiteboard.models
 
 
 class Migration(migrations.Migration):
@@ -33,7 +33,7 @@ class Migration(migrations.Migration):
                     "room_code",
                     models.CharField(
                         db_index=True,
-                        default=agents_api.models.generate_room_code,
+                        default=whiteboard.models.generate_room_code,
                         max_length=10,
                         unique=True,
                     ),
