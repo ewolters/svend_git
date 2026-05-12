@@ -35,7 +35,7 @@ def _make_llm_fn(user):
     """Create an LLM callable bound to a specific user for forgesia."""
 
     def _call(prompt, system, max_tokens):
-        from agents_api.llm_service import llm_service
+        from llm.service import llm_service
 
         result = llm_service.chat(
             user,

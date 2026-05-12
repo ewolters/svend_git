@@ -410,7 +410,7 @@ class A3ReportScenarioTest(TestCase):
         resp = self.client.delete(f"/api/a3/{report_id}/delete/")
         self.assertEqual(resp.status_code, 200)
 
-    @patch("agents_api.llm_manager.LLMManager")
+    @patch("llm.manager.LLMManager")
     def test_auto_populate_a3(self, mock_manager):
         """Auto-populate with mocked LLM."""
         mock_manager.chat.return_value = {

@@ -965,7 +965,7 @@ Do NOT just list warnings — explain what they mean for this specific use case.
 
 def _claude_generate_schema(user, intent, domain, n_records):
     """Ask Claude to design a dataset schema from natural language intent."""
-    from agents_api.llm_service import llm_service
+    from llm.service import llm_service
 
     prompt = f"Intent: {intent}"
     if domain:
@@ -2334,7 +2334,7 @@ def _auto_train(X, y, task=None):
 
 def _claude_interpret_results(user, context, metrics, importances, task=None, warnings=None):
     """Ask Claude to interpret ML results in plain English."""
-    from agents_api.llm_service import llm_service
+    from llm.service import llm_service
 
     top_features = importances[:5] if importances else []
     prompt = f"""Context: {context}

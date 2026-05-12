@@ -467,8 +467,8 @@ Rules:
 
 Available libraries: numpy (np), pandas (pd), scipy, matplotlib (plt), random, math, statistics"""
 
-            from agents_api.llm_manager import CLAUDE_MODELS
-            from agents_api.llm_service import llm_service
+            from llm.manager import CLAUDE_MODELS
+            from llm.service import llm_service
 
             model_id = CLAUDE_MODELS.get(model, "claude-sonnet-4-20250514")
 
@@ -612,7 +612,7 @@ def generate_anthropic_response(model, message, df, columns, session_history=Non
     """Generate analyst response using Anthropic API (Opus/Sonnet/Haiku)."""
     import numpy as np
 
-    from agents_api.llm_manager import CLAUDE_MODELS
+    from llm.manager import CLAUDE_MODELS
 
     # Build data context
     if df is None:
@@ -640,7 +640,7 @@ Current data context:
 
 Be concise but thorough. Use markdown formatting for clarity."""
 
-    from agents_api.llm_service import llm_service
+    from llm.service import llm_service
 
     model_id = CLAUDE_MODELS.get(model, "claude-sonnet-4-20250514")
     result = llm_service.chat(

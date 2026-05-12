@@ -201,7 +201,7 @@ class ExplainSelectionTest(TestCase):
             }
         )
 
-        with patch("agents_api.llm_manager.LLMManager.chat") as mock_chat:  # llm_manager still in agents_api
+        with patch("llm.manager.LLMManager.chat") as mock_chat:
             mock_chat.return_value = "Selected points are all from machine A."
             resp = self._post(
                 {
