@@ -1134,7 +1134,7 @@ class QMSUtilitySymbolsTest(SimpleTestCase):
 
     def test_generate_room_code_exists(self):
         """generate_room_code produces unique non-empty string codes."""
-        from agents_api.models import generate_room_code
+        from whiteboard.models import generate_room_code
 
         code1 = generate_room_code()
         code2 = generate_room_code()
@@ -1145,7 +1145,7 @@ class QMSUtilitySymbolsTest(SimpleTestCase):
 
     def test_generate_room_code_produces_string(self):
         """generate_room_code produces a non-empty string code."""
-        from agents_api.models import generate_room_code
+        from whiteboard.models import generate_room_code
 
         code = generate_room_code()
         self.assertIsInstance(code, str)
