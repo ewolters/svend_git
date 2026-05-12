@@ -2400,19 +2400,6 @@ def _query_clause_data(query_type, user):
             }
         }
 
-    elif query_type == "complaints":
-        from agents_api.models import CustomerComplaint
-
-        complaints = CustomerComplaint.objects.filter(created_by=user)
-        return {
-            "complaints": {
-                "total": complaints.count(),
-                "open": complaints.filter(status__in=["open", "acknowledged", "investigating"]).count(),
-                "resolved": complaints.filter(status__in=["resolved", "closed"]).count(),
-                "critical": complaints.filter(severity="critical").count(),
-            }
-        }
-
     elif query_type == "process_confirmations":
         pcs = ProcessConfirmation.objects.filter(created_by=user)
         total = pcs.count()

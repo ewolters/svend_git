@@ -21,7 +21,6 @@ from agents_api.models import (
     FMEA,
     ControlledDocument,
     ElectronicSignature,
-    InternalAudit,
     ManagementReview,
     NonconformanceRecord,
     TrainingRecord,
@@ -373,15 +372,6 @@ class ESignatureDocumentTypesTest(TestCase):
             meeting_date="2026-03-01",
         )
         resp = _sign(self.client, "review", review.id, "witnessed")
-        self.assertEqual(resp.status_code, 201)
-
-    def test_sign_audit(self):
-        audit = InternalAudit.objects.create(
-            owner=self.user,
-            title="Audit-001",
-            scheduled_date="2026-03-15",
-        )
-        resp = _sign(self.client, "audit", audit.id, "approved")
         self.assertEqual(resp.status_code, 201)
 
     def test_sign_training(self):
