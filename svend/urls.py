@@ -285,6 +285,11 @@ urlpatterns = varta_urls + [
         __import__("flowchart.views", fromlist=["flowchart_templates"]).flowchart_templates,
         name="flowchart_templates",
     ),
+    path(
+        "api/flowchart/devices/",
+        __import__("flowchart.views", fromlist=["flowchart_devices"]).flowchart_devices,
+        name="flowchart_devices",
+    ),
     # QMS surface removed — iso/, iso-docs/ routes deleted
     # Whitepapers (public, no auth — SEO + PDF download)
     path("whitepapers/", whitepaper_list, name="whitepapers"),

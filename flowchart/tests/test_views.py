@@ -92,3 +92,26 @@ class TestTemplateListEndpoint(TestCase):
         names = [t["name"] for t in body["templates"]]
         assert "Quick Cpk" in names
         assert "PPAP" in names
+
+
+@SECURE_OFF
+class TestDeviceListEndpoint(TestCase):
+    def setUp(self):
+        self.user = make_user("flow@test.com")
+        self.client.login(username="flow", password="testpass123!")
+
+    def test_list_devices(self):
+        resp = self.client.get("/api/flowchart/devices/")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        assert "devices" in body
+        # capability_study is always registered via plugins/apps.py
+        names = [d["name"] for d in body["devices"]]
+        assert "capability_study" in names
+
+    def test_device_has_schema(self):
+        resp = self.client.get("/api/flowchart/devices/")
+        body = resp.json()
+        cap = next(d for d in body["devices"] if d["name"] == "capability_study")
+        assert "input_schema" in cap
+        assert cap["input_schema"] is not None

@@ -2,6 +2,7 @@
 
 POST /api/flowchart/run/       — execute a flowchart definition
 GET  /api/flowchart/templates/ — list available templates
+GET  /api/flowchart/devices/   — list registered plugin devices + schemas
 """
 
 import json
@@ -14,6 +15,7 @@ from django.views.decorators.http import require_GET, require_POST
 from accounts.permissions import require_auth
 from flowchart.engine import execute_flowchart
 from flowchart.models import FlowchartTemplate
+from syn.plugins.registry import get_registry
 
 logger = logging.getLogger(__name__)
 
@@ -83,3 +85,12 @@ def flowchart_templates(request):
         )
 
     return JsonResponse({"templates": result})
+
+
+@csrf_exempt
+@require_auth
+@require_GET
+def flowchart_devices(request):
+    """List all registered plugin devices with their schemas."""
+    registry = get_registry()
+    return JsonResponse({"devices": registry.list_plugins()})
