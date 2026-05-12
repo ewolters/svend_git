@@ -16,12 +16,30 @@ class PluginsConfig(AppConfig):
     verbose_name = "SVEND Plugins"
 
     def ready(self):
-        from plugins.capability import CapabilityStudyPlugin
         from syn.plugins import get_registry
 
         registry = get_registry()
-        if not registry.has("capability_study"):
-            registry.register(CapabilityStudyPlugin)
+
+        # Register all device plugins
+        from plugins.capability import CapabilityStudyPlugin
+        from plugins.control_chart import ControlChartPlugin
+        from plugins.fmea_device import FMEAPlugin
+        from plugins.queue_device import QueuePlugin
+        from plugins.simulation_device import SimulationPlugin
+        from plugins.triage_device import TriagePlugin
+        from plugins.vsm_device import VSMPlugin
+
+        for plugin_cls in [
+            CapabilityStudyPlugin,
+            ControlChartPlugin,
+            TriagePlugin,
+            VSMPlugin,
+            FMEAPlugin,
+            SimulationPlugin,
+            QueuePlugin,
+        ]:
+            if not registry.has(plugin_cls.name):
+                registry.register(plugin_cls)
 
         # Register event schemas
         self._register_event_schemas()
