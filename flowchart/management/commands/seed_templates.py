@@ -123,10 +123,9 @@ FISHBONE_PORTS = {
     ],
 }
 
-# @ftb:todo [P0] — report_builder plugin does not exist. This is the most
-#   complex device — multi-ports collect N inputs into lists. Needs:
-#   1. Multi-port aggregation (engine.py doesn't handle multi yet)
-#   2. Output format selection (PDF, HTML, PPTX — Dana needs customer-ready)
+# @ftb:done — report_builder plugin EXISTS (plugins/report_builder.py).
+#   Multi-port aggregation DONE (engine.py _build_multi_port_lookup).
+# @ftb:todo [P2] — Output format selection (PDF, HTML, PPTX — Dana needs customer-ready)
 #   3. Template/layout system for different report styles (PPAP vs DMAIC)
 # @ftb:spec — All report_builder input ports use wildcard types (chart:*, metric:*).
 #   This means ANY chart subtype connects to the charts port. Validated by

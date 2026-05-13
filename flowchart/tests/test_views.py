@@ -95,6 +95,32 @@ class TestTemplateListEndpoint(TestCase):
 
 
 @SECURE_OFF
+class TestTemplateDetailEndpoint(TestCase):
+    def setUp(self):
+        self.user = make_user("flow@test.com")
+        self.client.login(username="flow", password="testpass123!")
+        self.tpl = FlowchartTemplate.objects.create(
+            name="Test Detail",
+            definition={"devices": [{"id": "d1", "plugin": "x"}], "connections": []},
+            devices_used=["x"],
+        )
+
+    def test_returns_full_definition(self):
+        resp = self.client.get(f"/api/flowchart/templates/{self.tpl.id}/")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        assert body["name"] == "Test Detail"
+        assert "definition" in body
+        assert len(body["definition"]["devices"]) == 1
+
+    def test_404_on_missing(self):
+        import uuid
+
+        resp = self.client.get(f"/api/flowchart/templates/{uuid.uuid4()}/")
+        self.assertEqual(resp.status_code, 404)
+
+
+@SECURE_OFF
 class TestDeviceListEndpoint(TestCase):
     def setUp(self):
         self.user = make_user("flow@test.com")

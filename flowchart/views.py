@@ -1,8 +1,9 @@
 """Flowchart API endpoints.
 
-POST /api/flowchart/run/       — execute a flowchart definition
-GET  /api/flowchart/templates/ — list available templates
-GET  /api/flowchart/devices/   — list registered plugin devices + schemas
+POST /api/flowchart/run/             — execute a flowchart definition
+GET  /api/flowchart/templates/       — list available templates
+GET  /api/flowchart/templates/<id>/  — get template with full definition
+GET  /api/flowchart/devices/         — list registered plugin devices + schemas
 """
 
 import json
@@ -85,6 +86,29 @@ def flowchart_templates(request):
         )
 
     return JsonResponse({"templates": result})
+
+
+@csrf_exempt
+@require_auth
+@require_GET
+def flowchart_template_detail(request, template_id):
+    """Get a single template with full definition (for rendering)."""
+    try:
+        tpl = FlowchartTemplate.objects.get(id=template_id, is_deleted=False)
+    except FlowchartTemplate.DoesNotExist:
+        return JsonResponse({"error": "Template not found"}, status=404)
+
+    return JsonResponse(
+        {
+            "id": str(tpl.id),
+            "name": tpl.name,
+            "description": tpl.description,
+            "definition": tpl.definition,
+            "devices_used": tpl.devices_used,
+            "is_shared": tpl.is_shared,
+            "created_at": tpl.created_at.isoformat() if tpl.created_at else None,
+        }
+    )
 
 
 @csrf_exempt

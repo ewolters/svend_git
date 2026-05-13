@@ -4,14 +4,10 @@ Inputs: charts (list), metrics (list), text (list), lists (list).
 Outputs: assembled report document.
 
 This is a multi-port device — each input accepts multiple connections.
-The engine routes all connected values to the same input key. Since
-engine.py overwrites input_data[tgt_port] per connection, multi-port
-aggregation is handled here: inputs arrive as last-wins for now,
-but the template definition declares ports as multi=True so the
-renderer knows to allow multiple cables.
-
-TODO: Engine needs multi-port support (collect into list instead of overwrite).
-For now, we accept whatever arrives and wrap scalars into lists.
+Template definition declares ports as multi=True. The engine collects
+all connections to multi-ports into lists (engine.py _build_multi_port_lookup).
+We still normalize inputs via to_list() for resilience (config-only runs,
+single connections, etc.).
 """
 
 from typing import Any, Dict, List, Optional, Union

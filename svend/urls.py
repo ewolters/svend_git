@@ -286,10 +286,17 @@ urlpatterns = varta_urls + [
         name="flowchart_templates",
     ),
     path(
+        "api/flowchart/templates/<uuid:template_id>/",
+        __import__("flowchart.views", fromlist=["flowchart_template_detail"]).flowchart_template_detail,
+        name="flowchart_template_detail",
+    ),
+    path(
         "api/flowchart/devices/",
         __import__("flowchart.views", fromlist=["flowchart_devices"]).flowchart_devices,
         name="flowchart_devices",
     ),
+    # Flowchart renderer (demo — parallel build, atomic cutover)
+    path("app/demo/flowchart/", _app_view("demo/flowchart.html"), name="demo_flowchart"),
     # QMS surface removed — iso/, iso-docs/ routes deleted
     # Whitepapers (public, no auth — SEO + PDF download)
     path("whitepapers/", whitepaper_list, name="whitepapers"),

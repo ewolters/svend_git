@@ -13,6 +13,21 @@ from syn.plugins.runner import run_plugin
 logger = logging.getLogger(__name__)
 
 
+def _build_multi_port_lookup(devices: List[Dict]) -> set:
+    """Scan device port schemas for multi=True input ports.
+
+    Returns a set of (device_id, port_name) tuples for ports that should
+    collect connections into a list instead of overwriting.
+    """
+    multi = set()
+    for dev in devices:
+        ports = dev.get("ports", {})
+        for port in ports.get("inputs", []):
+            if port.get("multi"):
+                multi.add((dev["id"], port["name"]))
+    return multi
+
+
 def execute_flowchart(
     definition: Dict,
     actor: str,
@@ -75,6 +90,9 @@ def execute_flowchart(
         cycled = [d for d in device_plugins if in_deg.get(d, 0) > 0]
         raise ValueError(f"Cycle detected in flowchart involving: {cycled}")
 
+    # Build multi-port lookup from device port schemas in definition
+    multi_ports = _build_multi_port_lookup(devices)
+
     # Execute in topological order
     results: Dict[str, Dict] = {}
     port_values: Dict[str, Dict[str, Any]] = {}
@@ -90,7 +108,13 @@ def execute_flowchart(
             if tgt_dev == device_id and src_dev in port_values:
                 routed_value = port_values[src_dev].get(src_port)
                 if routed_value is not None:
-                    input_data[tgt_port] = routed_value
+                    if (device_id, tgt_port) in multi_ports:
+                        # Multi-port: collect into list
+                        if tgt_port not in input_data or not isinstance(input_data[tgt_port], list):
+                            input_data[tgt_port] = []
+                        input_data[tgt_port].append(routed_value)
+                    else:
+                        input_data[tgt_port] = routed_value
 
         # Run the plugin
         job = run_plugin(
