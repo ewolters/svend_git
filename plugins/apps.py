@@ -23,6 +23,7 @@ class PluginsConfig(AppConfig):
         # Register all device plugins
         from plugins.capability import CapabilityStudyPlugin
         from plugins.control_chart import ControlChartPlugin
+        from plugins.data_source import DataSourcePlugin
         from plugins.fmea_device import FMEAPlugin
         from plugins.queue_device import QueuePlugin
         from plugins.simulation_device import SimulationPlugin
@@ -30,6 +31,7 @@ class PluginsConfig(AppConfig):
         from plugins.vsm_device import VSMPlugin
 
         for plugin_cls in [
+            DataSourcePlugin,
             CapabilityStudyPlugin,
             ControlChartPlugin,
             TriagePlugin,
