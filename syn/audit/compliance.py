@@ -3820,7 +3820,7 @@ _ARCH_FILE_SIZE_FAIL = 3000
 _ARCH_KNOWN_LARGE_FILES = {
     "agents_api/models.py",
     "agents_api/learn_content.py",
-    "agents_api/hoshin_deep_tests.py",
+    "hoshin/tests/test_hoshin_deep.py",
     "agents_api/learn_content/_datasets.py",
     "agents_api/analysis/common.py",
     "agents_api/analysis/pbs/__init__.py",
@@ -4901,7 +4901,7 @@ _COMPLEXITY_EXEMPTIONS = {
     # Files >3000 lines — tracked in .kjerne/DEBT.md and CAL-001 §8.1
     "agents_api/learn_content.py": "P3",
     "agents_api/models.py": "P3",
-    "agents_api/hoshin_deep_tests.py": "P3",
+    "hoshin/tests/test_hoshin_deep.py": "P3",
     "agents_api/learn_content/_datasets.py": "P3",
     "agents_api/analysis/common.py": "P3",
     "agents_api/analysis/pbs/__init__.py": "P3",

@@ -1811,7 +1811,7 @@ class MonteCarloSavingsTest(TestCase):
 
     def test_deterministic_baseline_matches(self):
         """Monte Carlo deterministic field matches estimate_savings_from_vsm_delta."""
-        from agents_api.hoshin_calculations import (
+        from hoshin.hoshin_calculations import (
             estimate_savings_from_vsm_delta,
             estimate_savings_monte_carlo,
         )
@@ -1840,7 +1840,7 @@ class MonteCarloSavingsTest(TestCase):
 
     def test_confidence_intervals_bracket_median(self):
         """5th percentile < median < 95th percentile."""
-        from agents_api.hoshin_calculations import estimate_savings_monte_carlo
+        from hoshin.hoshin_calculations import estimate_savings_monte_carlo
 
         current = {
             "cycle_time": 60,
@@ -1865,7 +1865,7 @@ class MonteCarloSavingsTest(TestCase):
 
     def test_mean_less_than_deterministic(self):
         """Realization risk (Beta(4,2) mean ~0.67) pulls mean below deterministic."""
-        from agents_api.hoshin_calculations import estimate_savings_monte_carlo
+        from hoshin.hoshin_calculations import estimate_savings_monte_carlo
 
         current = {
             "cycle_time": 100,
@@ -1894,7 +1894,7 @@ class MonteCarloSavingsTest(TestCase):
 
     def test_p_positive_high_for_large_improvement(self):
         """Large improvement should have p_positive near 1.0."""
-        from agents_api.hoshin_calculations import estimate_savings_monte_carlo
+        from hoshin.hoshin_calculations import estimate_savings_monte_carlo
 
         current = {
             "cycle_time": 120,
@@ -1922,7 +1922,7 @@ class MonteCarloSavingsTest(TestCase):
 
     def test_zero_improvement_low_p_positive(self):
         """No improvement should have low p_positive."""
-        from agents_api.hoshin_calculations import estimate_savings_monte_carlo
+        from hoshin.hoshin_calculations import estimate_savings_monte_carlo
 
         current = {
             "cycle_time": 60,
@@ -1945,7 +1945,7 @@ class MonteCarloSavingsTest(TestCase):
 
     def test_headcount_method_auto_detected(self):
         """When operators decrease but CT doesn't, method switches to headcount."""
-        from agents_api.hoshin_calculations import estimate_savings_monte_carlo
+        from hoshin.hoshin_calculations import estimate_savings_monte_carlo
 
         current = {
             "cycle_time": 60,
@@ -1968,7 +1968,7 @@ class MonteCarloSavingsTest(TestCase):
 
     def test_uptime_improvement_scaled_by_realization(self):
         """Uptime is scaled differently (higher = better) vs CT (lower = better)."""
-        from agents_api.hoshin_calculations import estimate_savings_monte_carlo
+        from hoshin.hoshin_calculations import estimate_savings_monte_carlo
 
         current = {
             "cycle_time": 60,
@@ -2085,7 +2085,7 @@ class MonteCarloSavingsTest(TestCase):
 
     def test_monte_carlo_returns_statistics(self):
         """MC result contains all required statistical fields."""
-        from agents_api.hoshin_calculations import estimate_savings_monte_carlo
+        from hoshin.hoshin_calculations import estimate_savings_monte_carlo
 
         current = {
             "cycle_time": 60,
@@ -2117,7 +2117,7 @@ class MonteCarloSavingsTest(TestCase):
 
     def test_realization_risk_computed(self):
         """Realization risk pulls mean below deterministic for any real improvement."""
-        from agents_api.hoshin_calculations import estimate_savings_monte_carlo
+        from hoshin.hoshin_calculations import estimate_savings_monte_carlo
 
         current = {
             "cycle_time": 100,
