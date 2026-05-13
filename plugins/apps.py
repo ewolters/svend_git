@@ -24,8 +24,10 @@ class PluginsConfig(AppConfig):
         from plugins.capability import CapabilityStudyPlugin
         from plugins.control_chart import ControlChartPlugin
         from plugins.data_source import DataSourcePlugin
+        from plugins.fishbone_device import FishbonePlugin
         from plugins.fmea_device import FMEAPlugin
         from plugins.queue_device import QueuePlugin
+        from plugins.report_builder import ReportBuilderPlugin
         from plugins.simulation_device import SimulationPlugin
         from plugins.triage_device import TriagePlugin
         from plugins.vsm_device import VSMPlugin
@@ -37,8 +39,10 @@ class PluginsConfig(AppConfig):
             TriagePlugin,
             VSMPlugin,
             FMEAPlugin,
+            FishbonePlugin,
             SimulationPlugin,
             QueuePlugin,
+            ReportBuilderPlugin,
         ]:
             if not registry.has(plugin_cls.name):
                 registry.register(plugin_cls)

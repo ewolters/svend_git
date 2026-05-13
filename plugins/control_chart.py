@@ -42,26 +42,31 @@ class ControlChartPlugin(Plugin):
 
         outputs = []
 
-        # Metrics
+        # Metrics — ControlLimits uses .cl (not .center_line)
         if hasattr(result, "limits") and result.limits:
-            outputs.append(PluginOutput("mean", "metric", result.limits.center_line))
+            outputs.append(PluginOutput("mean", "metric", result.limits.cl))
             outputs.append(PluginOutput("ucl", "metric", result.limits.ucl))
             outputs.append(PluginOutput("lcl", "metric", result.limits.lcl))
 
-        if hasattr(result, "summary") and result.summary:
-            ooc = result.summary.ooc_count if hasattr(result.summary, "ooc_count") else 0
-            outputs.append(PluginOutput("ooc_count", "metric", ooc))
+        if hasattr(result, "out_of_control") and result.out_of_control:
+            outputs.append(PluginOutput("ooc_count", "metric", len(result.out_of_control)))
+        else:
+            outputs.append(PluginOutput("ooc_count", "metric", 0))
 
         # Chart
-        if hasattr(result, "to_dict"):
-            outputs.append(PluginOutput("chart", "chart", result.to_dict()))
-        else:
-            outputs.append(PluginOutput("chart", "chart", {"type": "control_chart"}))
+        outputs.append(PluginOutput("chart", "chart", result.to_dict()))
 
-        # Violations
-        violations = []
-        if hasattr(result, "violations") and result.violations:
-            violations = [str(v) for v in result.violations]
-        outputs.append(PluginOutput("violations", "text", {"violations": violations}))
+        # Summary text
+        outputs.append(
+            PluginOutput(
+                "summary",
+                "text",
+                {
+                    "in_control": result.in_control,
+                    "ooc_points": [str(v) for v in (result.out_of_control or [])],
+                    "run_violations": [str(v) for v in (result.run_violations or [])],
+                },
+            )
+        )
 
         return outputs
