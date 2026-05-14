@@ -297,6 +297,47 @@ urlpatterns = varta_urls + [
     ),
     # Flowchart renderer (demo — parallel build, atomic cutover)
     path("app/demo/flowchart/", _app_view("demo/flowchart.html"), name="demo_flowchart"),
+    # Flowchart instances
+    path(
+        "api/flowchart/instances/",
+        __import__("flowchart.views", fromlist=["instance_create"]).instance_create,
+        name="flowchart_instance_create",
+    ),
+    path(
+        "api/flowchart/instances/<uuid:instance_id>/",
+        __import__("flowchart.views", fromlist=["instance_detail"]).instance_detail,
+        name="flowchart_instance_detail",
+    ),
+    path(
+        "api/flowchart/instances/<uuid:instance_id>/devices/",
+        __import__("flowchart.views", fromlist=["instance_add_device"]).instance_add_device,
+        name="flowchart_instance_add_device",
+    ),
+    path(
+        "api/flowchart/instances/<uuid:instance_id>/devices/<str:device_id>/",
+        __import__("flowchart.views", fromlist=["instance_remove_device"]).instance_remove_device,
+        name="flowchart_instance_remove_device",
+    ),
+    path(
+        "api/flowchart/instances/<uuid:instance_id>/connections/",
+        __import__("flowchart.views", fromlist=["instance_add_connection"]).instance_add_connection,
+        name="flowchart_instance_add_connection",
+    ),
+    path(
+        "api/flowchart/instances/<uuid:instance_id>/connections/remove/",
+        __import__("flowchart.views", fromlist=["instance_remove_connection"]).instance_remove_connection,
+        name="flowchart_instance_remove_connection",
+    ),
+    path(
+        "api/flowchart/instances/<uuid:instance_id>/connections/validate/",
+        __import__("flowchart.views", fromlist=["instance_validate_connection"]).instance_validate_connection,
+        name="flowchart_instance_validate_connection",
+    ),
+    path(
+        "api/flowchart/instances/<uuid:instance_id>/run/",
+        __import__("flowchart.views", fromlist=["instance_run"]).instance_run,
+        name="flowchart_instance_run",
+    ),
     # QMS surface removed — iso/, iso-docs/ routes deleted
     # Whitepapers (public, no auth — SEO + PDF download)
     path("whitepapers/", whitepaper_list, name="whitepapers"),

@@ -22,20 +22,25 @@ class PluginsConfig(AppConfig):
 
         # Register all device plugins
         from plugins.capability import CapabilityStudyPlugin
+        from plugins.conditional import ConditionalPlugin
         from plugins.control_chart import ControlChartPlugin
         from plugins.data_source import DataSourcePlugin
         from plugins.fishbone_device import FishbonePlugin
         from plugins.fmea_device import FMEAPlugin
+        from plugins.pcl_source import PCLSourcePlugin
         from plugins.queue_device import QueuePlugin
         from plugins.report_builder import ReportBuilderPlugin
         from plugins.simulation_device import SimulationPlugin
+        from plugins.text_input import TextInputPlugin
         from plugins.triage_device import TriagePlugin
         from plugins.vsm_device import VSMPlugin
 
         for plugin_cls in [
             DataSourcePlugin,
             CapabilityStudyPlugin,
+            ConditionalPlugin,
             ControlChartPlugin,
+            PCLSourcePlugin,
             TriagePlugin,
             VSMPlugin,
             FMEAPlugin,
@@ -43,6 +48,7 @@ class PluginsConfig(AppConfig):
             SimulationPlugin,
             QueuePlugin,
             ReportBuilderPlugin,
+            TextInputPlugin,
         ]:
             if not registry.has(plugin_cls.name):
                 registry.register(plugin_cls)
@@ -76,3 +82,32 @@ class PluginsConfig(AppConfig):
             )
         except Exception as exc:
             logger.warning(f"[PLUGINS] Could not register event schema: {exc}")
+
+        # Flowchart instance lifecycle events
+        instance_schema = {
+            "type": "object",
+            "properties": {
+                "instance_id": {"type": "string", "format": "uuid"},
+            },
+            "required": ["instance_id"],
+        }
+        for event_name in [
+            "flowchart.instance.created",
+            "flowchart.instance.deleted",
+            "flowchart.instance.device_added",
+            "flowchart.instance.device_removed",
+            "flowchart.instance.connection_added",
+            "flowchart.instance.connection_removed",
+        ]:
+            try:
+                EventSchemaRegistry.objects.update_or_create(
+                    event_name=event_name,
+                    defaults={
+                        "version": "1.0.0",
+                        "schema": instance_schema,
+                        "tenant_id": SYSTEM_TENANT_ID,
+                        "is_active": True,
+                    },
+                )
+            except Exception as exc:
+                logger.warning(f"[PLUGINS] Could not register event schema {event_name}: {exc}")

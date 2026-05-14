@@ -6,6 +6,7 @@ Templates are pre-wired flowcharts (JSON blob).
 Instances are user's working copies of templates.
 """
 
+from django.conf import settings
 from django.db import models
 
 from syn.core.base_models import SynaraEntity
@@ -50,10 +51,20 @@ class FlowchartInstance(SynaraEntity):
     )
     definition = models.JSONField(default=dict)
     is_scratch = models.BooleanField(default=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="flowchart_instances",
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         db_table = "flowchart_instance"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+        ]
 
     class SynaraMeta:
         event_domain = "flowchart"

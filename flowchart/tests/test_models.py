@@ -1,5 +1,6 @@
 from django.test import TestCase
 
+from conftest import make_user
 from flowchart.models import FlowchartInstance, FlowchartTemplate
 
 
@@ -83,3 +84,33 @@ class TestFlowchartInstance(TestCase):
         )
         assert inst.is_scratch is True
         assert inst.template is None
+
+
+class TestFlowchartInstanceModel(TestCase):
+    def setUp(self):
+        self.user = make_user("inst@test.com")
+
+    def test_create_instance_from_template(self):
+        tpl = FlowchartTemplate.objects.create(
+            name="Test",
+            definition={"devices": [], "connections": [], "config": {}},
+            devices_used=["capability_study"],
+        )
+        inst = FlowchartInstance.objects.create(
+            name="My Cpk Study",
+            template=tpl,
+            definition=tpl.definition.copy(),
+            user=self.user,
+        )
+        assert inst.user == self.user
+        assert inst.template == tpl
+        assert inst.definition == tpl.definition
+
+    def test_create_blank_instance(self):
+        inst = FlowchartInstance.objects.create(
+            name="Scratch",
+            definition={"devices": [], "connections": [], "config": {}},
+            user=self.user,
+        )
+        assert inst.template is None
+        assert inst.user == self.user
