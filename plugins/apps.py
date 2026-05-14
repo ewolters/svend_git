@@ -25,11 +25,18 @@ class PluginsConfig(AppConfig):
         from plugins.conditional import ConditionalPlugin
         from plugins.control_chart import ControlChartPlugin
         from plugins.data_source import DataSourcePlugin
+        from plugins.doe_design import DOEDesignPlugin
         from plugins.fishbone_device import FishbonePlugin
         from plugins.fmea_device import FMEAPlugin
+        from plugins.hypothesis_test import HypothesisTestPlugin
+        from plugins.narrative_device import NarrativePlugin
         from plugins.pcl_source import PCLSourcePlugin
+        from plugins.process_behavior_device import ProcessBehaviorPlugin
         from plugins.queue_device import QueuePlugin
+        from plugins.regression_device import RegressionPlugin
+        from plugins.reliability_device import ReliabilityPlugin
         from plugins.report_builder import ReportBuilderPlugin
+        from plugins.savings_device import SavingsPlugin
         from plugins.simulation_device import SimulationPlugin
         from plugins.text_input import TextInputPlugin
         from plugins.triage_device import TriagePlugin
@@ -40,7 +47,13 @@ class PluginsConfig(AppConfig):
             CapabilityStudyPlugin,
             ConditionalPlugin,
             ControlChartPlugin,
+            DOEDesignPlugin,
+            HypothesisTestPlugin,
+            NarrativePlugin,
             PCLSourcePlugin,
+            ProcessBehaviorPlugin,
+            RegressionPlugin,
+            ReliabilityPlugin,
             TriagePlugin,
             VSMPlugin,
             FMEAPlugin,
@@ -48,6 +61,7 @@ class PluginsConfig(AppConfig):
             SimulationPlugin,
             QueuePlugin,
             ReportBuilderPlugin,
+            SavingsPlugin,
             TextInputPlugin,
         ]:
             if not registry.has(plugin_cls.name):
