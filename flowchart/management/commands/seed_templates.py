@@ -160,6 +160,146 @@ REPORT_BUILDER_PORTS = {
 # @ftb:todo [P2] — Template categories/tags for the picker UI. Quick Cpk = "getting
 #   started", PPAP = "automotive", DMAIC = "training". Not needed until UI exists.
 
+# ── New device port schemas ─────────────────────────────────────────
+
+VSM_ANALYSIS_PORTS = {
+    "inputs": [
+        {"name": "operations", "type": "data:vsm_operations"},
+    ],
+    "outputs": [
+        {"name": "lead_time", "type": "metric:lead_time"},
+        {"name": "wip", "type": "metric:wip"},
+        {"name": "cycle_time", "type": "metric:cycle_time"},
+        {"name": "summary", "type": "text:vsm_summary"},
+    ],
+}
+
+SAVINGS_ANALYSIS_PORTS = {
+    "inputs": [
+        {"name": "baseline", "type": "metric:lead_time"},
+        {"name": "actual", "type": "metric:lead_time"},
+    ],
+    "outputs": [
+        {"name": "savings", "type": "metric:dollar_value"},
+        {"name": "improvement_pct", "type": "metric:percentage"},
+        {"name": "result", "type": "text:savings_summary"},
+    ],
+}
+
+CONTRACT_ENVELOPE_PORTS = {
+    "inputs": [
+        {"name": "problem", "type": "text:problem"},
+        {"name": "metric_baseline", "type": "metric:lead_time"},
+        {"name": "metric_target", "type": "metric:lead_time"},
+        {"name": "savings_estimate", "type": "metric:dollar_value"},
+    ],
+    "outputs": [
+        {"name": "contract", "type": "document:improvement_contract"},
+        {"name": "action_items", "type": "list:action_items"},
+        {"name": "savings_estimate", "type": "metric:dollar_value"},
+        {"name": "gap_pct", "type": "metric:percentage"},
+    ],
+}
+
+CONTRACT_ROUTER_PORTS = {
+    "inputs": [
+        {"name": "contract", "type": "document:improvement_contract"},
+    ],
+    "outputs": [
+        {"name": "strategic", "type": "list:hoshin_projects"},
+        {"name": "tactical", "type": "list:tactical_projects"},
+        {"name": "quick_wins", "type": "list:quick_wins"},
+        {"name": "total_savings", "type": "metric:dollar_value"},
+    ],
+}
+
+STRATEGIC_CASCADE_PORTS = {
+    "inputs": [
+        {"name": "objective", "type": "text:strategic_objective"},
+        {"name": "contracts", "type": "list:hoshin_projects", "multi": True},
+    ],
+    "outputs": [
+        {"name": "cascade", "type": "document:hoshin_cascade"},
+        {"name": "projects", "type": "list:breakthrough_projects"},
+        {"name": "total_savings", "type": "metric:dollar_value"},
+    ],
+}
+
+FMEA_ANALYSIS_PORTS = {
+    "inputs": [
+        {"name": "process_name", "type": "text:process_name"},
+    ],
+    "outputs": [
+        {"name": "risk_matrix", "type": "chart:risk_matrix"},
+        {"name": "high_rpn_items", "type": "list:high_rpn"},
+        {"name": "summary", "type": "text:fmea_summary"},
+    ],
+}
+
+TEXT_INPUT_PORTS = {
+    "inputs": [],
+    "outputs": [
+        {"name": "problem_statement", "type": "text:problem_statement"},
+    ],
+}
+
+PCL_SOURCE_PORTS = {
+    "inputs": [],
+    "outputs": [
+        {"name": "measure_value", "type": "metric:process_metric"},
+    ],
+}
+
+CONDITIONAL_PORTS = {
+    "inputs": [
+        {"name": "value", "type": "metric:process_metric"},
+    ],
+    "outputs": [
+        {"name": "result", "type": "metric:bool"},
+        {"name": "pass_value", "type": "metric:process_metric"},
+        {"name": "fail_value", "type": "metric:process_metric"},
+        {"name": "summary", "type": "text:summary"},
+    ],
+}
+
+DESCRIPTIVE_STATS_PORTS = {
+    "inputs": [
+        {"name": "data", "type": "data:column"},
+    ],
+    "outputs": [
+        {"name": "mean", "type": "metric:mean"},
+        {"name": "std", "type": "metric:std"},
+        {"name": "median", "type": "metric:median"},
+        {"name": "n", "type": "metric:count"},
+        {"name": "result", "type": "text:summary"},
+    ],
+}
+
+CORRELATION_PORTS = {
+    "inputs": [
+        {"name": "data", "type": "data:multivariate"},
+    ],
+    "outputs": [
+        {"name": "r", "type": "metric:correlation"},
+        {"name": "p_value", "type": "metric:p_value"},
+        {"name": "result", "type": "text:summary"},
+    ],
+}
+
+HYPOTHESIS_TEST_PORTS = {
+    "inputs": [
+        {"name": "data", "type": "data:column"},
+    ],
+    "outputs": [
+        {"name": "p_value", "type": "metric:p_value"},
+        {"name": "statistic", "type": "metric:test_statistic"},
+        {"name": "result", "type": "text:summary"},
+    ],
+}
+
+
+# ── Template declarations ────────────────────────────────────────────
+
 TEMPLATES = [
     {
         "name": "Quick Cpk",
@@ -310,6 +450,232 @@ TEMPLATES = [
                 "cc1": {"x": 400, "y": 250},
                 "fb1": {"x": 400, "y": 420},
                 "rpt1": {"x": 700, "y": 250},
+            },
+        },
+    },
+    # ── VSM Improvement Cycle ───────────────────────────────────────
+    # VSM current/future → savings → contract → route → Hoshin cascade.
+    # The full methodology loop from value stream analysis to strategic deployment.
+    {
+        "name": "VSM Improvement Cycle",
+        "description": (
+            "Value stream current/future state analysis through to Hoshin "
+            "breakthrough projects. Maps the gap, calculates savings, packages "
+            "as improvement contracts, routes strategic items to Hoshin cascade."
+        ),
+        "devices_used": [
+            "text_input",
+            "vsm_analysis",
+            "savings_analysis",
+            "contract_envelope",
+            "contract_router",
+            "strategic_cascade",
+        ],
+        "definition": {
+            "port_colors": PORT_COLORS,
+            "devices": [
+                {"plugin": "text_input", "id": "obj", "label": "Strategic Objective", "ports": TEXT_INPUT_PORTS},
+                {"plugin": "vsm_analysis", "id": "vsm_cur", "label": "VSM Current State", "ports": VSM_ANALYSIS_PORTS},
+                {"plugin": "vsm_analysis", "id": "vsm_fut", "label": "VSM Future State", "ports": VSM_ANALYSIS_PORTS},
+                {
+                    "plugin": "savings_analysis",
+                    "id": "fpa",
+                    "label": "Savings Analysis",
+                    "ports": SAVINGS_ANALYSIS_PORTS,
+                },
+                {
+                    "plugin": "contract_envelope",
+                    "id": "contract",
+                    "label": "Improvement Contract",
+                    "ports": CONTRACT_ENVELOPE_PORTS,
+                },
+                {
+                    "plugin": "contract_router",
+                    "id": "router",
+                    "label": "Route to Tracker",
+                    "ports": CONTRACT_ROUTER_PORTS,
+                },
+                {
+                    "plugin": "strategic_cascade",
+                    "id": "cascade",
+                    "label": "Hoshin Cascade",
+                    "ports": STRATEGIC_CASCADE_PORTS,
+                },
+            ],
+            "connections": [
+                {"source": "vsm_cur.lead_time", "target": "fpa.baseline", "type": "metric:lead_time"},
+                {"source": "vsm_fut.lead_time", "target": "fpa.actual", "type": "metric:lead_time"},
+                {"source": "vsm_cur.lead_time", "target": "contract.metric_baseline", "type": "metric:lead_time"},
+                {"source": "vsm_fut.lead_time", "target": "contract.metric_target", "type": "metric:lead_time"},
+                {"source": "fpa.savings", "target": "contract.savings_estimate", "type": "metric:dollar_value"},
+                {"source": "contract.contract", "target": "router.contract", "type": "document:improvement_contract"},
+                {"source": "obj.problem_statement", "target": "cascade.objective", "type": "text:strategic_objective"},
+                {"source": "router.strategic", "target": "cascade.contracts", "type": "list:hoshin_projects"},
+            ],
+            "config": {
+                "obj": {"content": "Reduce manufacturing lead time 40% by Q4", "subtype": "strategic_objective"},
+                "vsm_cur": {},
+                "vsm_fut": {},
+                "fpa": {"analysis_type": "savings", "method": "time_reduction", "volume": 1, "cost_per_unit": 1},
+                "contract": {
+                    "metric_name": "lead_time_days",
+                    "priority": "strategic",
+                    "source_type": "vsm",
+                    "timeline_months": 12,
+                },
+                "router": {},
+                "cascade": {
+                    "objective": "",
+                    "target_metric": "lead_time_days",
+                    "baseline_value": 85,
+                    "target_value": 51,
+                    "timeline_months": 12,
+                },
+            },
+            "positions": {
+                "obj": {"x": 50, "y": 50},
+                "vsm_cur": {"x": 50, "y": 200},
+                "vsm_fut": {"x": 50, "y": 350},
+                "fpa": {"x": 300, "y": 275},
+                "contract": {"x": 500, "y": 275},
+                "router": {"x": 700, "y": 275},
+                "cascade": {"x": 700, "y": 50},
+            },
+        },
+    },
+    # ── FMEA Risk Assessment ────────────────────────────────────────
+    # FMEA analysis → high-risk items packaged as contracts → routed by priority.
+    {
+        "name": "FMEA Risk Assessment",
+        "description": (
+            "Failure Mode and Effects Analysis with automatic risk-based "
+            "routing. High-RPN items become strategic contracts for Hoshin. "
+            "Medium items go to project tracker. Low items to quick-win Kanban."
+        ),
+        "devices_used": ["text_input", "fmea_analysis", "contract_envelope", "contract_router"],
+        "definition": {
+            "port_colors": PORT_COLORS,
+            "devices": [
+                {"plugin": "text_input", "id": "proc", "label": "Process Description", "ports": TEXT_INPUT_PORTS},
+                {"plugin": "fmea_analysis", "id": "fmea", "label": "FMEA Analysis", "ports": FMEA_ANALYSIS_PORTS},
+                {
+                    "plugin": "contract_envelope",
+                    "id": "contract",
+                    "label": "Risk Contract",
+                    "ports": CONTRACT_ENVELOPE_PORTS,
+                },
+                {"plugin": "contract_router", "id": "router", "label": "Route by Risk", "ports": CONTRACT_ROUTER_PORTS},
+            ],
+            "connections": [
+                {"source": "proc.problem_statement", "target": "fmea.process_name", "type": "text:process_name"},
+                {"source": "fmea.summary", "target": "contract.problem", "type": "text:fmea_summary"},
+                {"source": "contract.contract", "target": "router.contract", "type": "document:improvement_contract"},
+            ],
+            "config": {
+                "proc": {"content": "CNC machining process for rotor hub", "subtype": "process_name"},
+                "fmea": {},
+                "contract": {"metric_name": "rpn", "source_type": "fmea", "priority": "tactical"},
+                "router": {},
+            },
+            "positions": {
+                "proc": {"x": 50, "y": 150},
+                "fmea": {"x": 300, "y": 150},
+                "contract": {"x": 550, "y": 150},
+                "router": {"x": 800, "y": 150},
+            },
+        },
+    },
+    # ── Process Monitoring ──────────────────────────────────────────
+    # PCL → control chart → conditional gate → contract if out of spec.
+    # The "always running" template for continuous monitoring.
+    {
+        "name": "Process Monitoring",
+        "description": (
+            "Continuous process monitoring. Pulls live measures from PCL, "
+            "runs control chart, gates on specification. Out-of-spec conditions "
+            "automatically generate improvement contracts."
+        ),
+        "devices_used": ["pcl_source", "control_chart", "conditional", "contract_envelope"],
+        "definition": {
+            "port_colors": PORT_COLORS,
+            "devices": [
+                {"plugin": "pcl_source", "id": "pcl", "label": "Process Measures", "ports": PCL_SOURCE_PORTS},
+                {"plugin": "control_chart", "id": "cc", "label": "Control Chart", "ports": CONTROL_CHART_PORTS},
+                {"plugin": "conditional", "id": "gate", "label": "In Spec?", "ports": CONDITIONAL_PORTS},
+                {
+                    "plugin": "contract_envelope",
+                    "id": "contract",
+                    "label": "Out-of-Spec Contract",
+                    "ports": CONTRACT_ENVELOPE_PORTS,
+                },
+            ],
+            "connections": [
+                {"source": "pcl.measure_value", "target": "cc.data", "type": "data:column"},
+                {"source": "pcl.measure_value", "target": "gate.value", "type": "metric:process_metric"},
+                {"source": "gate.fail_value", "target": "contract.metric_baseline", "type": "metric:process_metric"},
+            ],
+            "config": {
+                "pcl": {"measure_slugs": ["critical_dimension_1"]},
+                "cc": {"subgroup_size": 1},
+                "gate": {"operator": ">=", "threshold": 1.33, "label": "Cpk threshold"},
+                "contract": {
+                    "metric_name": "cpk",
+                    "source_type": "capability",
+                    "priority": "tactical",
+                    "timeline_months": 3,
+                },
+            },
+            "positions": {
+                "pcl": {"x": 50, "y": 150},
+                "cc": {"x": 300, "y": 80},
+                "gate": {"x": 300, "y": 250},
+                "contract": {"x": 550, "y": 250},
+            },
+        },
+    },
+    # ── Data Exploration ────────────────────────────────────────────
+    # The "what does my data look like?" template. EDA first, then decide.
+    {
+        "name": "Data Exploration",
+        "description": (
+            "Exploratory data analysis: descriptive statistics, correlation, "
+            "and hypothesis testing in parallel. The 'explore before you decide' "
+            "template for any new dataset."
+        ),
+        "devices_used": ["data_source", "descriptive_stats", "correlation", "hypothesis_test", "report_builder"],
+        "definition": {
+            "port_colors": PORT_COLORS,
+            "devices": [
+                {"plugin": "data_source", "id": "ds", "label": "Data Source", "ports": DATA_SOURCE_PORTS},
+                {
+                    "plugin": "descriptive_stats",
+                    "id": "desc",
+                    "label": "Descriptive Stats",
+                    "ports": DESCRIPTIVE_STATS_PORTS,
+                },
+                {"plugin": "hypothesis_test", "id": "hyp", "label": "Hypothesis Test", "ports": HYPOTHESIS_TEST_PORTS},
+                {"plugin": "report_builder", "id": "rpt", "label": "EDA Report", "ports": REPORT_BUILDER_PORTS},
+            ],
+            "connections": [
+                {"source": "ds.measurements", "target": "desc.data", "type": "data:column"},
+                {"source": "ds.measurements", "target": "hyp.data", "type": "data:column"},
+                {"source": "desc.mean", "target": "rpt.metrics", "type": "metric:mean"},
+                {"source": "desc.std", "target": "rpt.metrics", "type": "metric:std"},
+                {"source": "desc.result", "target": "rpt.text", "type": "text:summary"},
+                {"source": "hyp.p_value", "target": "rpt.metrics", "type": "metric:p_value"},
+                {"source": "hyp.result", "target": "rpt.text", "type": "text:summary"},
+            ],
+            "config": {
+                "ds": {},
+                "desc": {},
+                "hyp": {"test_type": "one_sample_t", "mu": 0.0},
+                "rpt": {"title": "Exploratory Data Analysis"},
+            },
+            "positions": {
+                "ds": {"x": 50, "y": 200},
+                "desc": {"x": 350, "y": 100},
+                "hyp": {"x": 350, "y": 300},
+                "rpt": {"x": 650, "y": 200},
             },
         },
     },
