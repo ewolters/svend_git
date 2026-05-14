@@ -297,10 +297,10 @@ urlpatterns = varta_urls + [
     ),
     # Flowchart renderer (demo — parallel build, atomic cutover)
     path("app/demo/flowchart/", _app_view("demo/flowchart.html"), name="demo_flowchart"),
-    # Flowchart instances
+    # Flowchart instances (GET=list, POST=create)
     path(
         "api/flowchart/instances/",
-        __import__("flowchart.views", fromlist=["instance_create"]).instance_create,
+        __import__("flowchart.views", fromlist=["instance_list_or_create"]).instance_list_or_create,
         name="flowchart_instance_create",
     ),
     path(
@@ -337,6 +337,11 @@ urlpatterns = varta_urls + [
         "api/flowchart/instances/<uuid:instance_id>/run/",
         __import__("flowchart.views", fromlist=["instance_run"]).instance_run,
         name="flowchart_instance_run",
+    ),
+    path(
+        "api/flowchart/instances/<uuid:instance_id>/promote/",
+        __import__("flowchart.views", fromlist=["instance_promote"]).instance_promote,
+        name="flowchart_instance_promote",
     ),
     # QMS surface removed — iso/, iso-docs/ routes deleted
     # Whitepapers (public, no auth — SEO + PDF download)

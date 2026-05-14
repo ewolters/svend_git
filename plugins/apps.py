@@ -26,10 +26,13 @@ class PluginsConfig(AppConfig):
         from plugins.contract_envelope import ContractEnvelopePlugin
         from plugins.contract_router import ContractRouterPlugin
         from plugins.control_chart import ControlChartPlugin
+        from plugins.correlation_device import CorrelationPlugin
         from plugins.data_source import DataSourcePlugin
+        from plugins.descriptive_stats import DescriptiveStatsPlugin
         from plugins.doe_design import DOEDesignPlugin
         from plugins.fishbone_device import FishbonePlugin
         from plugins.fmea_device import FMEAPlugin
+        from plugins.gage_rr_device import GageRRPlugin
         from plugins.hypothesis_test import HypothesisTestPlugin
         from plugins.narrative_device import NarrativePlugin
         from plugins.pcl_source import PCLSourcePlugin
@@ -52,8 +55,11 @@ class PluginsConfig(AppConfig):
             ConditionalPlugin,
             ContractEnvelopePlugin,
             ContractRouterPlugin,
+            CorrelationPlugin,
             ControlChartPlugin,
+            DescriptiveStatsPlugin,
             DOEDesignPlugin,
+            GageRRPlugin,
             HypothesisTestPlugin,
             NarrativePlugin,
             PCLSourcePlugin,

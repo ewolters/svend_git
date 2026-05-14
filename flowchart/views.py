@@ -1,9 +1,30 @@
-"""Flowchart API endpoints.
+"""Flowchart API endpoints — COMPLETE (2026-05-14).
 
-POST /api/flowchart/run/             — execute a flowchart definition
-GET  /api/flowchart/templates/       — list available templates
-GET  /api/flowchart/templates/<id>/  — get template with full definition
-GET  /api/flowchart/devices/         — list registered plugin devices + schemas
+All 13 endpoints wired in svend/urls.py. All go through flowchart/service.py
+which emits bus events for Synara heuristics. 13 devices in plugin registry.
+
+Template operations (pre-wired flowcharts):
+  POST /api/flowchart/run/             — execute inline definition
+  GET  /api/flowchart/templates/       — list templates (no definition)
+  GET  /api/flowchart/templates/<id>/  — get template with full definition
+  GET  /api/flowchart/devices/         — list registered plugins + schemas
+
+Instance operations (user's working documents):
+  POST   /api/flowchart/instances/                   — create (from template or blank)
+  GET    /api/flowchart/instances/<id>/              — get with definition
+  DELETE /api/flowchart/instances/<id>/              — soft delete
+  POST   /api/flowchart/instances/<id>/run/          — execute instance
+  POST   /api/flowchart/instances/<id>/devices/      — add device (validates plugin exists)
+  DELETE /api/flowchart/instances/<id>/devices/<did>/ — remove device + its connections
+  POST   /api/flowchart/instances/<id>/connections/          — add (type-checked, cycle-detected)
+  POST   /api/flowchart/instances/<id>/connections/remove/   — remove
+  POST   /api/flowchart/instances/<id>/connections/validate/ — dry-run validation
+
+NOT YET BUILT:
+  - Instance list endpoint (GET /api/flowchart/instances/)
+  - Instance update/rename (PATCH)
+  - Instance clone/fork
+  - Template creation from instance (promote working doc to template)
 """
 
 import json
@@ -131,10 +152,40 @@ def flowchart_devices(request):
 
 @csrf_exempt
 @require_auth
-def instance_create(request):
-    """POST /api/flowchart/instances/ — create from template or blank."""
+@require_GET
+def instance_list(request):
+    """GET /api/flowchart/instances/ — list user's flowchart instances."""
+    instances = FlowchartInstance.objects.filter(
+        is_deleted=False,
+        user=request.user,
+    ).order_by("-created_at")
+
+    result = []
+    for inst in instances:
+        devices = inst.definition.get("devices", [])
+        result.append(
+            {
+                "id": str(inst.id),
+                "name": inst.name,
+                "template_id": str(inst.template_id) if inst.template_id else None,
+                "device_count": len(devices),
+                "is_scratch": inst.is_scratch,
+                "created_at": inst.created_at.isoformat() if inst.created_at else None,
+                "updated_at": inst.updated_at.isoformat() if inst.updated_at else None,
+            }
+        )
+
+    return JsonResponse({"instances": result})
+
+
+@csrf_exempt
+@require_auth
+def instance_list_or_create(request):
+    """GET /api/flowchart/instances/ — list; POST — create."""
+    if request.method == "GET":
+        return instance_list(request)
     if request.method != "POST":
-        return JsonResponse({"error": "POST required"}, status=405)
+        return JsonResponse({"error": "GET or POST required"}, status=405)
 
     try:
         body = json.loads(request.body)
@@ -365,3 +416,45 @@ def instance_run(request, instance_id):
         }
 
     return JsonResponse(response)
+
+
+@csrf_exempt
+@require_auth
+@require_POST
+def instance_promote(request, instance_id):
+    """POST /api/flowchart/instances/<id>/promote/ — save instance as a reusable template."""
+    try:
+        inst = FlowchartInstance.objects.get(id=instance_id, is_deleted=False, user=request.user)
+    except FlowchartInstance.DoesNotExist:
+        return JsonResponse({"error": "Instance not found"}, status=404)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        body = {}
+
+    name = body.get("name", f"{inst.name} (template)")
+    description = body.get("description", "")
+    is_shared = body.get("is_shared", False)
+
+    from flowchart.service import promote_to_template
+
+    tpl = promote_to_template(
+        instance=inst,
+        name=name,
+        description=description,
+        is_shared=is_shared,
+        actor=request.user.email,
+    )
+
+    return JsonResponse(
+        {
+            "id": str(tpl.id),
+            "name": tpl.name,
+            "description": tpl.description,
+            "devices_used": tpl.devices_used,
+            "is_shared": tpl.is_shared,
+            "created_at": tpl.created_at.isoformat(),
+        },
+        status=201,
+    )

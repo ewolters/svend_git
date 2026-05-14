@@ -4,6 +4,25 @@ Every structural change emits a bus event so Synara can:
 - Track for heuristics (which templates get used, which connections fail)
 - Feed Claude context assembly
 - Inform governance rules
+
+Functions:
+  create_instance(template, name, user, actor) → FlowchartInstance
+  delete_instance(instance, actor) → None (soft delete)
+  add_device(instance, device_id, plugin_name, label, position, actor) → None
+  remove_device(instance, device_id, actor) → None (cascades connections)
+  add_connection(instance, source, target, actor) → None (type-checked + cycle-detected)
+  remove_connection(instance, source, target, actor) → None
+  validate_connection_request(definition, source, target) → dict (dry-run, no mutation)
+
+Bus events emitted:
+  flowchart.instance.created / deleted / device_added / device_removed /
+  connection_added / connection_removed
+
+Adding a new device type:
+  1. Create plugins/<name>.py (Plugin subclass + Pydantic input schema)
+  2. Register in plugins/apps.py ready()
+  3. Optionally add port_schema to seed_templates.py for template-mode
+  4. That's it — the device is immediately available via add_device()
 """
 
 import copy
@@ -220,3 +239,37 @@ def remove_connection(
         actor=actor,
         tenant_id=str(instance.tenant_id) if instance.tenant_id else None,
     )
+
+
+def promote_to_template(
+    *,
+    instance: FlowchartInstance,
+    name: str,
+    description: str = "",
+    is_shared: bool = False,
+    actor: str,
+) -> FlowchartTemplate:
+    """Promote a FlowchartInstance to a reusable FlowchartTemplate."""
+    devices_used = [d["plugin"] for d in instance.definition.get("devices", [])]
+
+    tpl = FlowchartTemplate.objects.create(
+        name=name,
+        description=description,
+        definition=copy.deepcopy(instance.definition),
+        devices_used=devices_used,
+        is_shared=is_shared,
+        tenant_id=instance.tenant_id,
+    )
+
+    emit(
+        "flowchart.template.promoted",
+        {
+            "template_id": str(tpl.id),
+            "instance_id": str(instance.id),
+            "name": name,
+        },
+        actor=actor,
+        tenant_id=str(instance.tenant_id) if instance.tenant_id else None,
+    )
+
+    return tpl

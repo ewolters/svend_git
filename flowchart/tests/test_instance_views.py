@@ -250,3 +250,67 @@ class TestExecuteInstanceEndpoint(TestCase):
         resp = self.client.post(f"/api/flowchart/instances/{self.inst.id}/run/")
         body = resp.json()
         assert "job_id" in body["results"]["d1"]
+
+
+@SECURE_OFF
+class TestInstanceListEndpoint(TestCase):
+    def setUp(self):
+        self.user = make_user("list@test.com")
+        self.client.login(username="list", password="testpass123!")
+        FlowchartInstance.objects.create(
+            name="Flow A",
+            user=self.user,
+            definition={"devices": [{"id": "d1", "plugin": "x"}], "connections": [], "config": {}},
+        )
+        FlowchartInstance.objects.create(
+            name="Flow B",
+            user=self.user,
+            definition={"devices": [], "connections": [], "config": {}},
+        )
+
+    def test_list_instances(self):
+        resp = self.client.get("/api/flowchart/instances/")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        assert len(body["instances"]) == 2
+        names = [i["name"] for i in body["instances"]]
+        assert "Flow A" in names
+        assert "Flow B" in names
+
+    def test_list_includes_device_count(self):
+        resp = self.client.get("/api/flowchart/instances/")
+        body = resp.json()
+        a = next(i for i in body["instances"] if i["name"] == "Flow A")
+        assert a["device_count"] == 1
+
+
+@SECURE_OFF
+class TestPromoteEndpoint(TestCase):
+    def setUp(self):
+        self.user = make_user("promo@test.com")
+        self.client.login(username="promo", password="testpass123!")
+        self.inst = FlowchartInstance.objects.create(
+            name="My Custom Flow",
+            user=self.user,
+            definition={
+                "devices": [
+                    {"id": "ds", "plugin": "data_source"},
+                    {"id": "cap", "plugin": "capability_study"},
+                ],
+                "connections": [{"source": "ds.measurements", "target": "cap.data", "type": "data:column"}],
+                "config": {},
+            },
+        )
+
+    def test_promote_to_template(self):
+        resp = self.client.post(
+            f"/api/flowchart/instances/{self.inst.id}/promote/",
+            data=json.dumps({"name": "Shared Cpk Flow", "description": "Custom flow", "is_shared": True}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        body = resp.json()
+        assert body["name"] == "Shared Cpk Flow"
+        assert body["is_shared"] is True
+        assert "data_source" in body["devices_used"]
+        assert "capability_study" in body["devices_used"]
