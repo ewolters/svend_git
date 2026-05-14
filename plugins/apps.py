@@ -23,6 +23,8 @@ class PluginsConfig(AppConfig):
         # Register all device plugins
         from plugins.capability import CapabilityStudyPlugin
         from plugins.conditional import ConditionalPlugin
+        from plugins.contract_envelope import ContractEnvelopePlugin
+        from plugins.contract_router import ContractRouterPlugin
         from plugins.control_chart import ControlChartPlugin
         from plugins.data_source import DataSourcePlugin
         from plugins.doe_design import DOEDesignPlugin
@@ -38,14 +40,18 @@ class PluginsConfig(AppConfig):
         from plugins.report_builder import ReportBuilderPlugin
         from plugins.savings_device import SavingsPlugin
         from plugins.simulation_device import SimulationPlugin
+        from plugins.strategic_cascade import StrategicCascadePlugin
         from plugins.text_input import TextInputPlugin
         from plugins.triage_device import TriagePlugin
         from plugins.vsm_device import VSMPlugin
+        from plugins.x_matrix import XMatrixPlugin
 
         for plugin_cls in [
             DataSourcePlugin,
             CapabilityStudyPlugin,
             ConditionalPlugin,
+            ContractEnvelopePlugin,
+            ContractRouterPlugin,
             ControlChartPlugin,
             DOEDesignPlugin,
             HypothesisTestPlugin,
@@ -54,6 +60,7 @@ class PluginsConfig(AppConfig):
             ProcessBehaviorPlugin,
             RegressionPlugin,
             ReliabilityPlugin,
+            StrategicCascadePlugin,
             TriagePlugin,
             VSMPlugin,
             FMEAPlugin,
@@ -63,6 +70,7 @@ class PluginsConfig(AppConfig):
             ReportBuilderPlugin,
             SavingsPlugin,
             TextInputPlugin,
+            XMatrixPlugin,
         ]:
             if not registry.has(plugin_cls.name):
                 registry.register(plugin_cls)
