@@ -490,3 +490,114 @@ class JobIntegrationTest(TestCase):
         from pcl.models import Datapoint
 
         assert Datapoint.objects.filter(measure=self.measure).count() == 2
+
+
+@SECURE_OFF
+class EnsureAndWriteTest(TestCase):
+    """Test ensure_and_write — auto-creates measures on first write."""
+
+    def setUp(self):
+        self.user = make_user("ensure@test.com", tier="team")
+        self.tenant = make_tenant("Ensure Org", slug="ensure-org", plan="team")
+        make_membership(self.tenant, self.user)
+
+    def test_auto_creates_measure(self):
+        result = service.ensure_and_write(
+            slug="wb/spc/diameter/cpk",
+            value=1.45,
+            source_type="workbench",
+            actor=self.user.email,
+            tenant_id=self.tenant.id,
+            unit="",
+            notes="spc/capability",
+        )
+        assert result["value"] == 1.45
+        m = Measure.objects.get(slug="wb/spc/diameter/cpk", tenant_id=self.tenant.id)
+        assert m.cached_value == 1.45
+        assert m.measure_type == "process"
+
+    def test_reuses_existing_measure(self):
+        Measure.objects.create(
+            tenant_id=self.tenant.id,
+            name="Existing",
+            slug="wb/spc/diameter/cpk",
+            unit="",
+            measure_type="product",
+            value_type="continuous",
+            created_by=self.user.email,
+        )
+        service.ensure_and_write(
+            slug="wb/spc/diameter/cpk",
+            value=1.45,
+            source_type="workbench",
+            actor=self.user.email,
+            tenant_id=self.tenant.id,
+        )
+        assert Measure.objects.filter(slug="wb/spc/diameter/cpk", tenant_id=self.tenant.id).count() == 1
+        m = Measure.objects.get(slug="wb/spc/diameter/cpk", tenant_id=self.tenant.id)
+        assert m.measure_type == "product"  # didn't overwrite
+
+    def test_auto_name_from_slug(self):
+        service.ensure_and_write(
+            slug="wb/stats/yield/p-value",
+            value=0.03,
+            source_type="workbench",
+            actor=self.user.email,
+            tenant_id=self.tenant.id,
+        )
+        m = Measure.objects.get(slug="wb/stats/yield/p-value", tenant_id=self.tenant.id)
+        assert "Wb" in m.name  # auto-generated from slug
+
+
+@SECURE_OFF
+class ChainPCLWritebackTest(TestCase):
+    """Test that analysis chain writes statistics to PCL."""
+
+    def setUp(self):
+        self.user = make_user("chain@test.com", tier="team")
+        self.tenant = make_tenant("Chain Org", slug="chain-org", plan="team")
+        make_membership(self.tenant, self.user)
+
+    def test_assemble_writes_cpk_to_pcl(self):
+        from analysis.chain import assemble
+
+        raw = {
+            "statistics": {"cpk": 1.33, "ppk": 1.21, "sigma_level": 4.0},
+            "charts": [],
+            "_config": {"measurement": "diameter"},
+        }
+        result = assemble(raw, "spc", "capability")
+        assert result["statistics"]["cpk"] == 1.33
+
+        # Verify PCL has the values (no tenant — chain doesn't know tenant)
+        m = Measure.objects.filter(slug="wb/spc/diameter/cpk").first()
+        assert m is not None
+        assert m.cached_value == 1.33
+
+        m2 = Measure.objects.filter(slug="wb/spc/diameter/ppk").first()
+        assert m2 is not None
+        assert m2.cached_value == 1.21
+
+    def test_assemble_ignores_non_numeric(self):
+        from analysis.chain import assemble
+
+        raw = {
+            "statistics": {"cpk": 1.33, "method": "xbar_r", "details": {"foo": "bar"}},
+            "charts": [],
+            "_config": {"measurement": "width"},
+        }
+        assemble(raw, "spc", "capability")
+        assert not Measure.objects.filter(slug="wb/spc/width/method").exists()
+        assert not Measure.objects.filter(slug="wb/spc/width/details").exists()
+
+    def test_assemble_skips_nan(self):
+        from analysis.chain import assemble
+
+        raw = {
+            "statistics": {"cpk": float("nan"), "ppk": 1.21},
+            "charts": [],
+            "_config": {"measurement": "x"},
+        }
+        assemble(raw, "spc", "capability")
+        assert not Measure.objects.filter(slug="wb/spc/x/cpk").exists()
+        assert Measure.objects.filter(slug="wb/spc/x/ppk").exists()

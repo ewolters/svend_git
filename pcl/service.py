@@ -187,6 +187,55 @@ def write(
     return result
 
 
+def ensure_and_write(
+    slug: str,
+    value: float,
+    source_type: str,
+    actor: str,
+    tenant_id=None,
+    name: str = "",
+    unit: str = "",
+    measure_type: str = "process",
+    value_type: str = "continuous",
+    provenance: str = "calculated",
+    source_ref_type: str = "",
+    source_ref_id=None,
+    notes: str = "",
+) -> dict:
+    """Write to a measure, auto-creating it if it doesn't exist.
+
+    This is the entry point for tools that produce metrics (workbench,
+    VSM, FMEA, etc.) — they shouldn't need to pre-create measures.
+    """
+    from pcl.models import Measure
+
+    m, created = Measure.objects.get_or_create(
+        slug=slug,
+        tenant_id=tenant_id,
+        defaults={
+            "name": name or slug.replace("-", " ").replace("/", " — ").title(),
+            "unit": unit,
+            "measure_type": measure_type,
+            "value_type": value_type,
+            "created_by": actor,
+        },
+    )
+    if created:
+        logger.info("PCL auto-created measure: %s (tenant=%s)", slug, tenant_id)
+
+    return write(
+        measure_slug=slug,
+        value=value,
+        source_type=source_type,
+        actor=actor,
+        tenant_id=tenant_id,
+        provenance=provenance,
+        source_ref_type=source_ref_type,
+        source_ref_id=source_ref_id,
+        notes=notes,
+    )
+
+
 def set_target(
     measure_slug: str,
     target_value: float,

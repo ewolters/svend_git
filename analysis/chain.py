@@ -45,6 +45,9 @@ def assemble(raw, analysis_type, analysis_id):
     if raw.get("_layout"):
         result["_layout"] = raw["_layout"]
 
+    # Write numeric statistics to PCL
+    _write_statistics_to_pcl(result, raw.get("_config", {}))
+
     return result
 
 
@@ -152,3 +155,122 @@ def _build_guide_observation(raw):
     summary = raw.get("summary", "")
     clean = re.sub(r"<<COLOR:\w+>>|<<COLOR>>", "", summary)
     return clean[:300] if clean else ""
+
+
+# ---------------------------------------------------------------------------
+# PCL write-back — workbench results become addressable measures
+# ---------------------------------------------------------------------------
+
+# Statistics keys worth writing to PCL (numeric, meaningful to downstream tools)
+_PCL_WORTHY_KEYS = {
+    "cpk",
+    "ppk",
+    "cp",
+    "pp",
+    "sigma_level",
+    "dpmo",
+    "yield_pct",
+    "p_value",
+    "test_statistic",
+    "effect_size",
+    "r_squared",
+    "mean",
+    "std",
+    "median",
+    "n",
+    "grr_pct",
+    "ndc",
+    "repeatability_pct",
+    "reproducibility_pct",
+    "center_line",
+    "ucl",
+    "lcl",
+    "bf10",
+    "posterior_mean",
+    "credible_lower",
+    "credible_upper",
+    "mttf",
+    "failure_rate",
+    "availability",
+    "oee",
+    "throughput",
+}
+
+
+def _write_statistics_to_pcl(result, config):
+    """Write numeric statistics from a workbench analysis to PCL.
+
+    Slug convention: wb/{analysis_type}/{analysis_id}/{stat_key}
+    If config has a 'measurement' or 'column' key, it's included in the slug
+    for disambiguation: wb/{analysis_type}/{column}/{stat_key}
+
+    Non-fatal — failures are logged, never raised.
+    """
+    stats = result.get("statistics")
+    if not stats or not isinstance(stats, dict):
+        return
+
+    analysis_type = result.get("_analysis_type", "")
+    analysis_id = result.get("_analysis_id", "")
+    if not analysis_type:
+        return
+
+    # Build slug prefix from analysis context
+    column = config.get("measurement") or config.get("column") or config.get("var") or ""
+    if column:
+        prefix = f"wb/{analysis_type}/{column}"
+    else:
+        prefix = f"wb/{analysis_type}/{analysis_id}"
+
+    try:
+        from pcl.service import ensure_and_write
+    except ImportError:
+        return
+
+    # Determine unit hints for known keys
+    _UNITS = {
+        "cpk": "",
+        "ppk": "",
+        "cp": "",
+        "pp": "",
+        "sigma_level": "σ",
+        "dpmo": "ppm",
+        "yield_pct": "%",
+        "p_value": "",
+        "r_squared": "",
+        "effect_size": "",
+        "mean": "",
+        "std": "",
+        "median": "",
+        "n": "count",
+        "grr_pct": "%",
+        "ndc": "",
+        "oee": "%",
+    }
+
+    written = 0
+    for key, value in stats.items():
+        if key not in _PCL_WORTHY_KEYS:
+            continue
+        if not isinstance(value, (int, float)):
+            continue
+        if value != value:  # NaN check
+            continue
+
+        slug = f"{prefix}/{key}"
+        try:
+            ensure_and_write(
+                slug=slug,
+                value=float(value),
+                source_type="workbench",
+                actor="system",
+                unit=_UNITS.get(key, ""),
+                provenance="calculated",
+                notes=f"{analysis_type}/{analysis_id}",
+            )
+            written += 1
+        except Exception:
+            logger.debug("PCL write failed for %s", slug, exc_info=True)
+
+    if written:
+        logger.info("PCL: wrote %d statistics from %s/%s", written, analysis_type, analysis_id)

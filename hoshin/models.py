@@ -570,6 +570,12 @@ class StrategicObjective(models.Model):
     target_metric = models.CharField(max_length=255, blank=True)
     target_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     target_unit = models.CharField(max_length=50, blank=True)
+    pcl_slug = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text="PCL measure slug for live tracking of this objective's target metric.",
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     sort_order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -582,6 +588,18 @@ class StrategicObjective(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.start_year}-{self.end_year})"
+
+    @property
+    def actual_value(self):
+        """Read current value from PCL if slug is set."""
+        if self.pcl_slug:
+            try:
+                from pcl.service import read as pcl_read
+
+                return pcl_read(self.pcl_slug, tenant_id=self.tenant_id)
+            except Exception:
+                pass
+        return None
 
     def to_dict(self):
         from agents_api.models import HoshinKPI
@@ -601,6 +619,8 @@ class StrategicObjective(models.Model):
             "metric_aggregation": meta.get("aggregation", "sum"),
             "metric_direction": meta.get("direction", "up"),
             "target_value": float(self.target_value) if self.target_value else None,
+            "actual_value": self.actual_value,
+            "pcl_slug": self.pcl_slug,
             "target_unit": self.target_unit,
             "status": self.status,
             "sort_order": self.sort_order,
@@ -701,6 +721,12 @@ class HoshinKPI(models.Model):
     derived_field = models.CharField(max_length=30, blank=True, default="ytd_savings")
     calculator_result_type = models.CharField(max_length=60, blank=True, default="")
     calculator_field = models.CharField(max_length=60, blank=True, default="")
+    pcl_slug = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text="PCL measure slug. When set, actual_value reads from PCL instead of local storage.",
+    )
     sort_order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -712,7 +738,19 @@ class HoshinKPI(models.Model):
 
     @property
     def effective_actual(self):
-        """Return the KPI's actual value based on its aggregation mode."""
+        """Return the KPI's actual value — PCL first, then legacy fallbacks."""
+        # PCL path: one read, done
+        if self.pcl_slug:
+            try:
+                from pcl.service import read as pcl_read
+
+                val = pcl_read(self.pcl_slug, tenant_id=self.tenant_id)
+                if val is not None:
+                    return float(val)
+            except Exception:
+                pass
+            # Fall through to legacy if PCL read fails
+
         if self.aggregation == "manual" or (not self.derived_from_id):
             return float(self.actual_value) if self.actual_value is not None else None
         proj = self.derived_from
@@ -789,6 +827,7 @@ class HoshinKPI(models.Model):
             "derived_field": self.derived_field,
             "calculator_result_type": self.calculator_result_type,
             "calculator_field": self.calculator_field,
+            "pcl_slug": self.pcl_slug,
             "sort_order": self.sort_order,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
