@@ -164,12 +164,14 @@ REPORT_BUILDER_PORTS = {
 
 VSM_ANALYSIS_PORTS = {
     "inputs": [
-        {"name": "operations", "type": "data:vsm_operations"},
+        {"name": "steps", "type": "data:vsm_steps"},
     ],
     "outputs": [
         {"name": "lead_time", "type": "metric:lead_time"},
-        {"name": "wip", "type": "metric:wip"},
-        {"name": "cycle_time", "type": "metric:cycle_time"},
+        {"name": "process_time", "type": "metric:process_time"},
+        {"name": "pce", "type": "metric:pce"},
+        {"name": "total_wip", "type": "metric:wip"},
+        {"name": "takt_time", "type": "metric:takt_time"},
         {"name": "summary", "type": "text:vsm_summary"},
     ],
 }
@@ -225,30 +227,44 @@ STRATEGIC_CASCADE_PORTS = {
     ],
 }
 
+# FMEA requires structured rows (process_step, failure_mode, S, O, D).
+# This is an entry-point device — user fills in the FMEA table, plugin scores it.
+# No input ports: data comes from user at execution time, like data_source.
 FMEA_ANALYSIS_PORTS = {
-    "inputs": [
-        {"name": "process_name", "type": "text:process_name"},
-    ],
+    "inputs": [],
     "outputs": [
-        {"name": "risk_matrix", "type": "chart:risk_matrix"},
-        {"name": "high_rpn_items", "type": "list:high_rpn"},
+        {"name": "rpn_table", "type": "text:rpn_table"},
+        {"name": "max_rpn", "type": "metric:rpn"},
+        {"name": "high_risk_count", "type": "metric:count"},
         {"name": "summary", "type": "text:fmea_summary"},
     ],
 }
 
-TEXT_INPUT_PORTS = {
-    "inputs": [],
-    "outputs": [
-        {"name": "problem_statement", "type": "text:problem_statement"},
-    ],
-}
 
-PCL_SOURCE_PORTS = {
-    "inputs": [],
-    "outputs": [
-        {"name": "measure_value", "type": "metric:process_metric"},
-    ],
-}
+# NOTE: text_input output key is DYNAMIC — it equals the configured `subtype`.
+# Each template instance using text_input must set the output port name to
+# match its subtype config. Use _text_input_ports(subtype) helper below.
+def _text_input_ports(subtype: str = "note") -> dict:
+    return {
+        "inputs": [],
+        "outputs": [
+            {"name": subtype, "type": f"text:{subtype}"},
+        ],
+    }
+
+
+# pcl_source outputs depend on config:
+# - history_count=0: outputs {slug} as metric (latest value)
+# - history_count>0: outputs {slug}_series as data (list of floats) + {slug} as metric
+# Port schemas must match the configured slug names.
+def _pcl_source_ports(slugs: list, history: bool = False) -> dict:
+    outputs = []
+    for slug in slugs:
+        if history:
+            outputs.append({"name": f"{slug}_series", "type": "data:column"})
+        outputs.append({"name": slug, "type": "metric:process_metric"})
+    return {"inputs": [], "outputs": outputs}
+
 
 CONDITIONAL_PORTS = {
     "inputs": [
@@ -474,7 +490,12 @@ TEMPLATES = [
         "definition": {
             "port_colors": PORT_COLORS,
             "devices": [
-                {"plugin": "text_input", "id": "obj", "label": "Strategic Objective", "ports": TEXT_INPUT_PORTS},
+                {
+                    "plugin": "text_input",
+                    "id": "obj",
+                    "label": "Strategic Objective",
+                    "ports": _text_input_ports("strategic_objective"),
+                },
                 {"plugin": "vsm_analysis", "id": "vsm_cur", "label": "VSM Current State", "ports": VSM_ANALYSIS_PORTS},
                 {"plugin": "vsm_analysis", "id": "vsm_fut", "label": "VSM Future State", "ports": VSM_ANALYSIS_PORTS},
                 {
@@ -509,7 +530,11 @@ TEMPLATES = [
                 {"source": "vsm_fut.lead_time", "target": "contract.metric_target", "type": "metric:lead_time"},
                 {"source": "fpa.savings", "target": "contract.savings_estimate", "type": "metric:dollar_value"},
                 {"source": "contract.contract", "target": "router.contract", "type": "document:improvement_contract"},
-                {"source": "obj.problem_statement", "target": "cascade.objective", "type": "text:strategic_objective"},
+                {
+                    "source": "obj.strategic_objective",
+                    "target": "cascade.objective",
+                    "type": "text:strategic_objective",
+                },
                 {"source": "router.strategic", "target": "cascade.contracts", "type": "list:hoshin_projects"},
             ],
             "config": {
@@ -544,19 +569,20 @@ TEMPLATES = [
         },
     },
     # ── FMEA Risk Assessment ────────────────────────────────────────
-    # FMEA analysis → high-risk items packaged as contracts → routed by priority.
+    # FMEA is an entry point (user fills S/O/D table). Summary + max RPN
+    # flow into contract envelope, which routes by priority.
     {
         "name": "FMEA Risk Assessment",
         "description": (
             "Failure Mode and Effects Analysis with automatic risk-based "
-            "routing. High-RPN items become strategic contracts for Hoshin. "
-            "Medium items go to project tracker. Low items to quick-win Kanban."
+            "routing. Fill in the FMEA table — high-RPN items become contracts "
+            "routed to Hoshin (strategic), project tracker (tactical), or "
+            "quick-win Kanban."
         ),
-        "devices_used": ["text_input", "fmea_analysis", "contract_envelope", "contract_router"],
+        "devices_used": ["fmea_analysis", "contract_envelope", "contract_router"],
         "definition": {
             "port_colors": PORT_COLORS,
             "devices": [
-                {"plugin": "text_input", "id": "proc", "label": "Process Description", "ports": TEXT_INPUT_PORTS},
                 {"plugin": "fmea_analysis", "id": "fmea", "label": "FMEA Analysis", "ports": FMEA_ANALYSIS_PORTS},
                 {
                     "plugin": "contract_envelope",
@@ -567,39 +593,43 @@ TEMPLATES = [
                 {"plugin": "contract_router", "id": "router", "label": "Route by Risk", "ports": CONTRACT_ROUTER_PORTS},
             ],
             "connections": [
-                {"source": "proc.problem_statement", "target": "fmea.process_name", "type": "text:process_name"},
                 {"source": "fmea.summary", "target": "contract.problem", "type": "text:fmea_summary"},
+                {"source": "fmea.max_rpn", "target": "contract.metric_baseline", "type": "metric:rpn"},
                 {"source": "contract.contract", "target": "router.contract", "type": "document:improvement_contract"},
             ],
             "config": {
-                "proc": {"content": "CNC machining process for rotor hub", "subtype": "process_name"},
                 "fmea": {},
                 "contract": {"metric_name": "rpn", "source_type": "fmea", "priority": "tactical"},
                 "router": {},
             },
             "positions": {
-                "proc": {"x": 50, "y": 150},
-                "fmea": {"x": 300, "y": 150},
-                "contract": {"x": 550, "y": 150},
-                "router": {"x": 800, "y": 150},
+                "fmea": {"x": 50, "y": 150},
+                "contract": {"x": 350, "y": 150},
+                "router": {"x": 650, "y": 150},
             },
         },
     },
     # ── Process Monitoring ──────────────────────────────────────────
-    # PCL → control chart → conditional gate → contract if out of spec.
-    # The "always running" template for continuous monitoring.
+    # PCL (history mode) → control chart + conditional gate → contract if out of spec.
+    # pcl_source with history_count=50 outputs {slug}_series (List[float]) for cc
+    # and {slug} (latest metric) for the conditional gate.
     {
         "name": "Process Monitoring",
         "description": (
-            "Continuous process monitoring. Pulls live measures from PCL, "
-            "runs control chart, gates on specification. Out-of-spec conditions "
-            "automatically generate improvement contracts."
+            "Continuous process monitoring. Pulls historical measures from PCL, "
+            "runs control chart on the series, gates latest value on specification. "
+            "Out-of-spec conditions automatically generate improvement contracts."
         ),
         "devices_used": ["pcl_source", "control_chart", "conditional", "contract_envelope"],
         "definition": {
             "port_colors": PORT_COLORS,
             "devices": [
-                {"plugin": "pcl_source", "id": "pcl", "label": "Process Measures", "ports": PCL_SOURCE_PORTS},
+                {
+                    "plugin": "pcl_source",
+                    "id": "pcl",
+                    "label": "Process Measures",
+                    "ports": _pcl_source_ports(["critical_dimension_1"], history=True),
+                },
                 {"plugin": "control_chart", "id": "cc", "label": "Control Chart", "ports": CONTROL_CHART_PORTS},
                 {"plugin": "conditional", "id": "gate", "label": "In Spec?", "ports": CONDITIONAL_PORTS},
                 {
@@ -610,12 +640,13 @@ TEMPLATES = [
                 },
             ],
             "connections": [
-                {"source": "pcl.measure_value", "target": "cc.data", "type": "data:column"},
-                {"source": "pcl.measure_value", "target": "gate.value", "type": "metric:process_metric"},
+                # Series (list) → control chart; latest value → conditional gate
+                {"source": "pcl.critical_dimension_1_series", "target": "cc.data", "type": "data:column"},
+                {"source": "pcl.critical_dimension_1", "target": "gate.value", "type": "metric:process_metric"},
                 {"source": "gate.fail_value", "target": "contract.metric_baseline", "type": "metric:process_metric"},
             ],
             "config": {
-                "pcl": {"measure_slugs": ["critical_dimension_1"]},
+                "pcl": {"measure_slugs": ["critical_dimension_1"], "history_count": 50},
                 "cc": {"subgroup_size": 1},
                 "gate": {"operator": ">=", "threshold": 1.33, "label": "Cpk threshold"},
                 "contract": {

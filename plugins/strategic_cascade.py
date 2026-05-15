@@ -20,10 +20,13 @@ class StrategicCascadeInput(BaseModel):
     # Contracts arrive from contract_router's strategic output
     contracts: Optional[Union[Dict, List]] = None
 
-    @field_validator("objective")
+    @field_validator("objective", mode="before")
     @classmethod
-    def not_empty(cls, v):
-        if not v.strip():
+    def unwrap_objective(cls, v):
+        """Unwrap text PluginOutput dicts — upstream text devices emit {"text": "..."}."""
+        if isinstance(v, dict) and "text" in v:
+            v = v["text"]
+        if not isinstance(v, str) or not v.strip():
             raise ValueError("Strategic objective cannot be empty")
         return v.strip()
 

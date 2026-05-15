@@ -12,14 +12,23 @@ from syn.plugins.base import Plugin, PluginOutput
 
 
 class ProcessStepInput(BaseModel):
+    """Input schema for a VSM process step.
+
+    Matches forgevsm.ProcessStep fields. See forgevsm for full documentation.
+    """
+
     name: str
     cycle_time: float
-    setup_time: float = 0.0
-    batch_size: int = 1
-    wip: int = 0
+    changeover_time: float = 0.0
+    batch_size: int = 0
     uptime: float = 1.0
     operators: int = 1
+    shifts: int = 1
     scrap_rate: float = 0.0
+
+
+# Fields that map directly from ProcessStepInput → forgevsm.ProcessStep
+_STEP_FIELDS = {"name", "cycle_time", "changeover_time", "batch_size", "uptime", "operators", "shifts", "scrap_rate"}
 
 
 class VSMInput(BaseModel):
@@ -37,7 +46,12 @@ class VSMPlugin(Plugin):
     def execute(self, validated_input: Dict[str, Any], context: Dict[str, Any]) -> List[PluginOutput]:
         from forgevsm import ProcessStep, analyze_vsm
 
-        steps = [ProcessStep(**s) if isinstance(s, dict) else ProcessStep(**s.dict()) for s in validated_input["steps"]]
+        raw_steps = validated_input["steps"]
+        steps = []
+        for s in raw_steps:
+            d = s if isinstance(s, dict) else s.dict()
+            # Only pass fields that forgevsm.ProcessStep accepts
+            steps.append(ProcessStep(**{k: v for k, v in d.items() if k in _STEP_FIELDS}))
 
         result = analyze_vsm(
             steps=steps,
@@ -47,21 +61,21 @@ class VSMPlugin(Plugin):
 
         outputs = [
             PluginOutput("lead_time", "metric", result.lead_time_days, measure_slug="lead_time"),
-            PluginOutput("process_time", "metric", result.total_processing_time),
+            PluginOutput("process_time", "metric", result.process_time_sec),
             PluginOutput("pce", "metric", result.pce, measure_slug="pce"),
             PluginOutput("total_wip", "metric", result.total_wip),
             PluginOutput("takt_time", "metric", result.takt_time),
         ]
 
         # Bottleneck
-        if result.bottleneck:
+        if result.bottleneck_name:
             outputs.append(
                 PluginOutput(
                     "bottleneck",
                     "text",
                     {
-                        "name": result.bottleneck.name,
-                        "cycle_time": result.bottleneck.cycle_time,
+                        "name": result.bottleneck_name,
+                        "cycle_time": result.bottleneck_ct,
                     },
                 )
             )
