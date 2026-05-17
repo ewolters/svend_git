@@ -171,6 +171,98 @@ class ValueStreamMap(models.Model):
                 snapshots = snapshots[-100:]
             self.metric_snapshots = snapshots
 
+        # Write metrics to PCL
+        self._write_metrics_to_pcl()
+
+    def _write_metrics_to_pcl(self):
+        """Write VSM metrics to PCL — map-level and per-step.
+
+        Slug convention:
+          vsm/{vsm_id}/lead-time
+          vsm/{vsm_id}/process-time
+          vsm/{vsm_id}/pce
+          vsm/{vsm_id}/takt-time
+          vsm/{vsm_id}/step/{step_id}/cycle-time
+          vsm/{vsm_id}/step/{step_id}/changeover-time
+          etc.
+
+        Non-fatal — logs errors, never raises.
+        """
+        try:
+            from pcl.service import ensure_and_write
+        except ImportError:
+            return
+
+        vsm_id = str(self.id)[:8]  # Short ID for readable slugs
+        tenant_id = self.tenant_id
+        actor = "vsm"
+
+        # Map-level metrics
+        map_metrics = {
+            "lead-time": (self.total_lead_time, "days"),
+            "process-time": (self.total_process_time, "sec"),
+            "pce": (self.pce, "%"),
+        }
+        if self.takt_time:
+            map_metrics["takt-time"] = (self.takt_time, "sec")
+
+        for key, (value, unit) in map_metrics.items():
+            if value is None:
+                continue
+            try:
+                ensure_and_write(
+                    slug=f"vsm/{vsm_id}/{key}",
+                    value=float(value),
+                    source_type="vsm",
+                    actor=actor,
+                    tenant_id=tenant_id,
+                    unit=unit,
+                    measure_type="process",
+                    provenance="calculated",
+                    notes=f"VSM: {self.name}",
+                )
+            except Exception:
+                pass
+
+        # Per-step metrics
+        for step in self.process_steps or []:
+            step_id = step.get("id", "")
+            if not step_id:
+                continue
+
+            step_metrics = {}
+            ct = step.get("cycle_time")
+            if ct and ct > 0:
+                step_metrics["cycle-time"] = (ct, "sec")
+            co = step.get("changeover_time")
+            if co and co > 0:
+                step_metrics["changeover-time"] = (co, "sec")
+            ut = step.get("uptime")
+            if ut is not None:
+                step_metrics["uptime"] = (ut, "%")
+            ops = step.get("operators")
+            if ops is not None:
+                step_metrics["operators"] = (ops, "count")
+            batch = step.get("batch_size")
+            if batch and batch > 0:
+                step_metrics["batch-size"] = (batch, "units")
+
+            for key, (value, unit) in step_metrics.items():
+                try:
+                    ensure_and_write(
+                        slug=f"vsm/{vsm_id}/step/{step_id}/{key}",
+                        value=float(value),
+                        source_type="vsm",
+                        actor=actor,
+                        tenant_id=tenant_id,
+                        unit=unit,
+                        measure_type="process",
+                        provenance="observed",
+                        notes=f"VSM step: {step.get('name', step_id)}",
+                    )
+                except Exception:
+                    pass
+
     def _compute_inventory_wip(self):
         """Auto-compute days of supply for inventory triangles.
 

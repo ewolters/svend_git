@@ -376,6 +376,26 @@ def update_vsm(request, vsm_id):
     bottleneck_info = detect_bottleneck(vsm)
     vsm.save()
 
+    # Write bottleneck throughput to PCL
+    if bottleneck_info and bottleneck_info.get("theoretical_throughput"):
+        try:
+            from pcl.service import ensure_and_write
+
+            vsm_slug = str(vsm.id)[:8]
+            ensure_and_write(
+                slug=f"vsm/{vsm_slug}/bottleneck-throughput",
+                value=float(bottleneck_info["theoretical_throughput"]),
+                source_type="vsm",
+                actor="vsm",
+                tenant_id=vsm.tenant_id,
+                unit="units/hr",
+                measure_type="process",
+                provenance="calculated",
+                notes=f"Bottleneck: {bottleneck_info.get('bottleneck_step_name', '')}",
+            )
+        except Exception:
+            pass
+
     _emit_event("vsm.updated", vsm, user=request.user)
 
     return JsonResponse({"success": True, "vsm": vsm.to_dict(), "bottleneck": bottleneck_info})
@@ -1481,7 +1501,31 @@ def lot_recommendation(request, vsm_id, step_id):
     vsm, step, err = _get_vsm_step(request, vsm_id, step_id)
     if err:
         return err
-    return JsonResponse(_lot_recommendation(step, vsm))
+    result = _lot_recommendation(step, vsm)
+
+    # Write recommended lot size to PCL
+    rec = result.get("recommendation", {})
+    lot_size = rec.get("lot_size")
+    if lot_size and isinstance(lot_size, (int, float)) and lot_size > 0:
+        try:
+            from pcl.service import ensure_and_write
+
+            vsm_slug = str(vsm_id)[:8]
+            ensure_and_write(
+                slug=f"vsm/{vsm_slug}/step/{step_id}/lot-size",
+                value=float(lot_size),
+                source_type="vsm",
+                actor="vsm",
+                tenant_id=vsm.tenant_id,
+                unit="units",
+                measure_type="process",
+                provenance="calculated",
+                notes=f"Lot recommendation: {step.get('name', step_id)}",
+            )
+        except Exception:
+            pass
+
+    return JsonResponse(result)
 
 
 @gated_paid
