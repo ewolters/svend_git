@@ -231,6 +231,54 @@ class FMEARow(models.Model):
         else:
             self.revised_rpn = None
         super().save(*args, **kwargs)
+        self._write_to_pcl()
+
+    def _write_to_pcl(self):
+        """Write S/O/D/RPN to PCL after save.
+
+        Slug convention: fmea/{fmea_id}/{row_id}/{metric}
+        Non-fatal — logs errors, never raises.
+        """
+        try:
+            from pcl.service import ensure_and_write
+        except ImportError:
+            return
+
+        fmea_id = str(self.fmea_id)[:8]
+        row_id = str(self.id)[:8]
+        tenant_id = self.fmea.tenant_id if hasattr(self, "fmea") and self.fmea else None
+        step_name = self.process_step or self.failure_mode
+
+        metrics = {
+            "severity": (self.severity, "score"),
+            "occurrence": (self.occurrence, "score"),
+            "detection": (self.detection, "score"),
+            "rpn": (self.rpn, "index"),
+        }
+
+        if self.revised_rpn is not None:
+            metrics["revised-severity"] = (self.revised_severity, "score")
+            metrics["revised-occurrence"] = (self.revised_occurrence, "score")
+            metrics["revised-detection"] = (self.revised_detection, "score")
+            metrics["revised-rpn"] = (self.revised_rpn, "index")
+
+        for key, (value, unit) in metrics.items():
+            if value is None:
+                continue
+            try:
+                ensure_and_write(
+                    slug=f"fmea/{fmea_id}/{row_id}/{key}",
+                    value=float(value),
+                    source_type="fmea",
+                    actor="fmea",
+                    tenant_id=tenant_id,
+                    unit=unit,
+                    measure_type="product",
+                    provenance="observed",
+                    notes=f"FMEA: {step_name} — {self.failure_mode}",
+                )
+            except Exception:
+                pass
 
     @staticmethod
     def compute_action_priority(severity, occurrence, detection):
