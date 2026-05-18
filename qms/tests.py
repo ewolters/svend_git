@@ -65,10 +65,12 @@ class QMSPCLWriteTest(TestCase):
                 ],
             },
         )
-        slug = f"qms/{str(self.artifact.id)[:8]}/failure_modes/rpn"
-        val = service.read(slug, tenant_id=self.tenant.id)
-        # row1 RPN=192, row2 RPN=105, avg=148.5
-        assert val == 148.5
+        prefix = f"qms/{str(self.artifact.id)[:8]}/failure_modes/rpn"
+        # row1 RPN=192, row2 RPN=105
+        avg = service.read(prefix, tenant_id=self.tenant.id)
+        assert avg == 148.5
+        mx = service.read(f"{prefix}_max", tenant_id=self.tenant.id)
+        assert mx == 192.0
 
     def test_grid_no_computed_cols_skips_pcl(self):
         schema = {
@@ -135,6 +137,18 @@ class QMSPCLWriteTest(TestCase):
             data={"rows": []},
         )
         assert Measure.objects.filter(slug__startswith="qms/").count() == 0
+
+    def test_single_row_mean_equals_max(self):
+        ArtifactSection.objects.create(
+            artifact=self.artifact,
+            section_key="failure_modes",
+            primitive_type="grid",
+            data={"rows": [{"mode": "crack", "severity": 8, "occurrence": 4, "detection": 6}]},
+        )
+        prefix = f"qms/{str(self.artifact.id)[:8]}/failure_modes/rpn"
+        avg = service.read(prefix, tenant_id=self.tenant.id)
+        mx = service.read(f"{prefix}_max", tenant_id=self.tenant.id)
+        assert avg == mx == 192.0
 
     def test_update_writes_new_datapoint(self):
         section = ArtifactSection.objects.create(

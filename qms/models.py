@@ -300,17 +300,23 @@ class ArtifactSection(models.Model):
                 continue
 
             avg = sum(values) / len(values)
-            try:
-                ensure_and_write(
-                    slug=f"qms/{artifact_id}/{self.section_key}/{col_key}",
-                    value=avg,
-                    source_type="qms",
-                    actor="qms",
-                    tenant_id=tenant_id,
-                    unit=col.get("unit", ""),
-                    measure_type="product",
-                    provenance="calculated",
-                    notes=f"QMS artifact: {self.artifact.title} — {self.section_key}/{col_key} (n={len(values)})",
-                )
-            except Exception:
-                logger.exception("PCL write failed for QMS %s/%s/%s", artifact_id, self.section_key, col_key)
+            max_val = max(values)
+            writes = [
+                (f"qms/{artifact_id}/{self.section_key}/{col_key}", avg, f"mean (n={len(values)})"),
+                (f"qms/{artifact_id}/{self.section_key}/{col_key}_max", max_val, "max"),
+            ]
+            for slug, value, label in writes:
+                try:
+                    ensure_and_write(
+                        slug=slug,
+                        value=value,
+                        source_type="qms",
+                        actor="qms",
+                        tenant_id=tenant_id,
+                        unit=col.get("unit", ""),
+                        measure_type="product",
+                        provenance="calculated",
+                        notes=f"QMS: {self.artifact.title} — {self.section_key}/{col_key} {label}",
+                    )
+                except Exception:
+                    logger.exception("PCL write failed for QMS %s", slug)
