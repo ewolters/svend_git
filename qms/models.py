@@ -9,12 +9,15 @@ Five primitives: text, grid, tree, checklist, action_list.
 Architecture: plan spec — Composable QMS Primitives + Templates
 """
 
+import logging
 import uuid
 
 from django.conf import settings
 from django.db import models
 
 from .schema import evaluate_computed_fields
+
+logger = logging.getLogger(__name__)
 
 
 class ToolTemplate(models.Model):
@@ -246,3 +249,68 @@ class ArtifactSection(models.Model):
 
     def __str__(self):
         return f"{self.artifact.title} / {self.section_key} ({self.primitive_type})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.primitive_type == "grid":
+            self._write_computed_to_pcl()
+
+    def _write_computed_to_pcl(self):
+        """Write computed grid column values to PCL.
+
+        Slug convention: qms/{artifact_id}/{section_key}/{column_key}
+        Non-fatal — logs errors, never raises.
+        """
+        try:
+            from pcl.service import ensure_and_write
+        except ImportError:
+            return
+
+        section_def = self.artifact._get_section_def(self.section_key)
+        if not section_def:
+            return
+
+        config = section_def.get("config", {})
+        columns = config.get("columns", [])
+        computed_cols = [c for c in columns if c.get("type") == "computed"]
+        if not computed_cols:
+            return
+
+        data = evaluate_computed_fields(self.data, config)
+        rows = data.get("rows", [])
+        if not rows:
+            return
+
+        artifact_id = str(self.artifact_id)[:8]
+        tenant_id = self.artifact.tenant_id
+
+        for col in computed_cols:
+            col_key = col["key"]
+            # Aggregate: write the mean of all row values for this column
+            values = []
+            for row in rows:
+                v = row.get(col_key)
+                if v is not None:
+                    try:
+                        values.append(float(v))
+                    except (TypeError, ValueError):
+                        continue
+
+            if not values:
+                continue
+
+            avg = sum(values) / len(values)
+            try:
+                ensure_and_write(
+                    slug=f"qms/{artifact_id}/{self.section_key}/{col_key}",
+                    value=avg,
+                    source_type="qms",
+                    actor="qms",
+                    tenant_id=tenant_id,
+                    unit=col.get("unit", ""),
+                    measure_type="product",
+                    provenance="calculated",
+                    notes=f"QMS artifact: {self.artifact.title} — {self.section_key}/{col_key} (n={len(values)})",
+                )
+            except Exception:
+                logger.exception("PCL write failed for QMS %s/%s/%s", artifact_id, self.section_key, col_key)
