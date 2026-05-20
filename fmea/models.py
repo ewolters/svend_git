@@ -186,7 +186,12 @@ class FMEARow(models.Model):
     revised_detection = models.IntegerField(null=True, blank=True)
     revised_rpn = models.IntegerField(null=True, blank=True)
 
-    spc_measurement = models.CharField(max_length=255, blank=True, default="")
+    pcl_slug = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Optional PCL measure slug — binds this row to a live measurement (e.g. wb/capability/diameter/cpk)",
+    )
 
     hypothesis_link = models.ForeignKey(
         "core.Hypothesis",
@@ -280,6 +285,21 @@ class FMEARow(models.Model):
             except Exception:
                 pass
 
+    def read_pcl(self) -> dict:
+        """Read the bound PCL measure, if any.
+
+        Returns dict with value + metadata, or None if no slug set.
+        """
+        if not self.pcl_slug:
+            return None
+        try:
+            from pcl.service import read_with_meta
+
+            tenant_id = self.fmea.tenant_id if hasattr(self, "fmea") and self.fmea else None
+            return read_with_meta(self.pcl_slug, tenant_id=tenant_id)
+        except Exception:
+            return None
+
     @staticmethod
     def compute_action_priority(severity, occurrence, detection):
         """Compute AIAG/VDA Action Priority (H/M/L) from S, O, D scores."""
@@ -345,6 +365,8 @@ class FMEARow(models.Model):
             "revised_occurrence": self.revised_occurrence,
             "revised_detection": self.revised_detection,
             "revised_rpn": self.revised_rpn,
+            "pcl_slug": self.pcl_slug or None,
+            "pcl_value": self.read_pcl(),
             "hypothesis_id": (str(self.hypothesis_link_id) if self.hypothesis_link_id else None),
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),

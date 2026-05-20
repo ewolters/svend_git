@@ -317,6 +317,7 @@ def add_row(request, fmea_id):
         detection=detection,
         recommended_action=data.get("recommended_action", ""),
         action_owner=data.get("action_owner", ""),
+        pcl_slug=data.get("pcl_slug", ""),
         hypothesis_link=hypothesis,
     )
 
@@ -357,6 +358,7 @@ def update_row(request, fmea_id, row_id):
         "control_type",
         "recommended_action",
         "action_owner",
+        "pcl_slug",
     ):
         if field in data:
             setattr(row, field, data[field])
