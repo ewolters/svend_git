@@ -92,7 +92,7 @@ MIDDLEWARE = [
     # Django security
     "django.middleware.security.SecurityMiddleware",
     # Shared IP blocklist — persistent bans across all sites (before Varta)
-    "svend_platform.middleware.SecurityGateMiddleware",
+    "kjerne_platform.middleware.SecurityGateMiddleware",
     # Варта active defense (scoring, tar-pit, Cloudflare API ban)
     "syn.varta.middleware.VartaMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
