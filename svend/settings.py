@@ -91,7 +91,9 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     # Django security
     "django.middleware.security.SecurityMiddleware",
-    # Варта active defense (before everything else — block threats early)
+    # Shared IP blocklist — persistent bans across all sites (before Varta)
+    "svend_platform.middleware.SecurityGateMiddleware",
+    # Варта active defense (scoring, tar-pit, Cloudflare API ban)
     "syn.varta.middleware.VartaMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     # HTTP telemetry (early — captures full middleware chain timing)
