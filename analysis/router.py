@@ -21,6 +21,7 @@ _HANDLER_REGISTRY = {
     "stats": "analysis.handlers.stats",
     "spc": "analysis.handlers.spc",
     "bayesian": "analysis.handlers.bayesian",
+    "ml": "analysis.handlers.ml",
     "viz": "analysis.handlers.viz",
     "causal": "analysis.handlers.causal",
     "reliability": ("analysis.handlers.misc", "run_reliability"),

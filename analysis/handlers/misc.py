@@ -76,11 +76,147 @@ def run_reliability(df, analysis_id, config):
             )
             return {"charts": [], "statistics": stats, "summary": f"{analysis_id.title()} fit complete."}
 
+        elif analysis_id == "distribution_id":
+            from forgestat.reliability.distributions import weibull_fit
+            from scipy.stats import expon, lognorm
+
+            data_list = data.tolist()
+            best = None
+            best_aic = float("inf")
+            fits = {}
+            # Weibull via forgestat
+            try:
+                r = weibull_fit(data_list)
+                aic = getattr(r, "aic", 2 * 2 + len(data))  # approximate
+                fits["weibull"] = {"shape": round(r.shape, 4), "scale": round(r.scale, 4), "aic": round(aic, 1)}
+                if aic < best_aic:
+                    best_aic = aic
+                    best = "weibull"
+            except Exception:
+                pass
+            # Lognormal via scipy
+            try:
+                s, loc, scale = lognorm.fit(data, floc=0)
+                ll = float(lognorm.logpdf(data, s, loc, scale).sum())
+                aic = -2 * ll + 2 * 2
+                fits["lognormal"] = {"s": round(s, 4), "scale": round(scale, 4), "aic": round(aic, 1)}
+                if aic < best_aic:
+                    best_aic = aic
+                    best = "lognormal"
+            except Exception:
+                pass
+            # Exponential via scipy
+            try:
+                loc, scale = expon.fit(data, floc=0)
+                ll = float(expon.logpdf(data, loc, scale).sum())
+                aic = -2 * ll + 2 * 1
+                fits["exponential"] = {"scale": round(scale, 4), "aic": round(aic, 1)}
+                if aic < best_aic:
+                    best_aic = aic
+                    best = "exponential"
+            except Exception:
+                pass
+
+            return {
+                "charts": [],
+                "statistics": {"best_distribution": best, "fits": fits},
+                "summary": f"Best fit: {best} (AIC={best_aic:.1f})" if best else "Distribution ID: no fit converged.",
+            }
+
+        elif analysis_id == "accelerated_life":
+            from forgerel.weibull import weibull_analysis
+
+            result = weibull_analysis(data.tolist())
+            stats = {"shape": round(result.beta, 4), "scale": round(result.eta, 4)}
+            if result.mean_life:
+                stats["mttf"] = round(result.mean_life, 2)
+            return {
+                "charts": [],
+                "statistics": stats,
+                "summary": f"ALT Weibull: β={stats['shape']}, η={stats['scale']}",
+            }
+
+        elif analysis_id == "repairable_systems":
+            from forgerel.growth import amsaa_crow
+
+            total_time = float(config.get("total_test_time", np.max(data)))
+            result = amsaa_crow(data.tolist(), total_test_time=total_time)
+            stats = {
+                k: round(v, 4) if isinstance(v, float) else v
+                for k, v in result.__dict__.items()
+                if not k.startswith("_")
+            }
+            return {"charts": [], "statistics": stats, "summary": f"AMSAA-Crow repairable systems: {stats}"}
+
+        elif analysis_id == "warranty":
+            from forgerel.weibull import weibull_analysis
+
+            result = weibull_analysis(data.tolist())
+            warranty_time = float(config.get("warranty_period", float(np.max(data))))
+            from scipy.stats import weibull_min
+
+            warranty_fail_prob = float(weibull_min.cdf(warranty_time, result.beta, scale=result.eta))
+            stats = {
+                "shape": round(result.beta, 4),
+                "scale": round(result.eta, 4),
+                "warranty_period": warranty_time,
+                "warranty_failure_probability": round(warranty_fail_prob, 4),
+                "warranty_reliability": round(1 - warranty_fail_prob, 4),
+            }
+            return {
+                "charts": [],
+                "statistics": stats,
+                "summary": f"Warranty: {warranty_fail_prob * 100:.1f}% failure probability at t={warranty_time}",
+            }
+
+        elif analysis_id == "competing_risks":
+            from forgerel.weibull import weibull_analysis
+
+            mode_col = config.get("mode") or config.get("failure_mode")
+            if mode_col and mode_col in df.columns:
+                modes = df[mode_col].loc[pd.to_numeric(df[col], errors="coerce").dropna().index]
+                results_by_mode = {}
+                for mode_name in modes.unique():
+                    mask = modes == mode_name
+                    mode_data = data[mask.values[: len(data)]] if len(mask) >= len(data) else data
+                    if len(mode_data) >= 3:
+                        r = weibull_analysis(mode_data.tolist())
+                        results_by_mode[str(mode_name)] = {"shape": round(r.beta, 4), "scale": round(r.eta, 4)}
+                return {
+                    "charts": [],
+                    "statistics": {"modes": results_by_mode, "n_modes": len(results_by_mode)},
+                    "summary": f"Competing risks: {len(results_by_mode)} failure modes analyzed.",
+                }
+            else:
+                result = weibull_analysis(data.tolist())
+                return {
+                    "charts": [],
+                    "statistics": {"shape": round(result.beta, 4), "scale": round(result.eta, 4)},
+                    "summary": "Competing risks: single mode (no failure_mode column provided).",
+                }
+
+        elif analysis_id == "reliability_test_plan":
+            confidence = float(config.get("confidence", 0.9))
+            target_reliability = float(config.get("target_reliability", 0.95))
+            test_duration = float(config.get("test_duration", float(np.max(data))))
+            # Zero-failure test plan: n = ln(1-C) / ln(R)
+            import math
+
+            n_required = math.ceil(math.log(1 - confidence) / math.log(target_reliability))
+            return {
+                "charts": [],
+                "statistics": {
+                    "n_required": n_required,
+                    "confidence": confidence,
+                    "target_reliability": target_reliability,
+                    "test_duration": test_duration,
+                },
+                "summary": f"Reliability test plan: {n_required} units needed (C={confidence}, R={target_reliability})",
+            }
+
     except Exception as e:
         logger.exception("Reliability error: %s", analysis_id)
         return {"summary": f"Reliability error: {e}", "charts": [], "statistics": {}}
-
-    return {"summary": f"Reliability '{analysis_id}' not yet migrated.", "charts": [], "statistics": {}}
 
 
 # ── Quality Economics ────────────────────────────────────────────────────
