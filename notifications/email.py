@@ -3,6 +3,7 @@
 Builds single and digest notification emails using the shared EMAIL_TEMPLATE.
 """
 
+import html
 import logging
 
 # send_mail moved to email_service.py — all email routes through EmailService
@@ -37,12 +38,14 @@ def build_notification_email(notification, token):
     action_url = _notification_action_url(token.token)
     type_unsub_url = _notification_type_unsub_url(token.user, notification.notification_type)
 
+    safe_title = html.escape(notification.title)
     body_parts = [
-        f"<h2 style='margin:0 0 16px;font-size:18px;color:#1a2a1a;'>{notification.title}</h2>",
+        f"<h2 style='margin:0 0 16px;font-size:18px;color:#1a2a1a;'>{safe_title}</h2>",
     ]
 
     if notification.message:
-        body_parts.append(f"<p style='margin:8px 0;color:#333;'>{notification.message}</p>")
+        safe_msg = html.escape(notification.message)
+        body_parts.append(f"<p style='margin:8px 0;color:#333;'>{safe_msg}</p>")
 
     # Action button
     body_parts.append(
@@ -84,12 +87,14 @@ def build_digest_email(user, notifications_with_tokens, period):
 
     for notif, token in notifications_with_tokens[:20]:  # Cap at 20 in digest
         action_url = _notification_action_url(token.token)
+        safe_t = html.escape(notif.title)
         body_parts.append(
             f"<div style='padding:12px 0;border-bottom:1px solid #e8efe8;'>"
-            f"<strong style='color:#1a2a1a;'>{notif.title}</strong>"
+            f"<strong style='color:#1a2a1a;'>{safe_t}</strong>"
         )
         if notif.message:
-            body_parts.append(f"<br><span style='color:#555;font-size:13px;'>{notif.message}</span>")
+            safe_m = html.escape(notif.message)
+            body_parts.append(f"<br><span style='color:#555;font-size:13px;'>{safe_m}</span>")
         body_parts.append(f'<br><a href="{action_url}" style="color:#4a9f6e;font-size:13px;">Acknowledge</a></div>')
 
     body_parts.append(

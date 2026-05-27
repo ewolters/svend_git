@@ -6,6 +6,8 @@ Token IS the credential — mirrors agents_api/token_views.py pattern.
 Renders HTML pages (not JSON) because recipients arrive from email links.
 """
 
+import html as html_mod
+
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
@@ -40,8 +42,9 @@ _CARD_TAIL = "</div></body></html>"
 
 
 def _card(title, body, status=200):
-    html = _CARD_HEAD.format(title=title) + body + _CARD_TAIL
-    return HttpResponse(html, content_type="text/html", status=status)
+    safe_title = html_mod.escape(title)
+    markup = _CARD_HEAD.format(title=safe_title) + body + _CARD_TAIL
+    return HttpResponse(markup, content_type="text/html", status=status)
 
 
 # ── Entity URL routing (NTF-001 §4.3) ────────────────────────────────────
@@ -101,12 +104,13 @@ def notification_token_view(request, token):
         type_label = notif.get_notification_type_display()
         message_block = ""
         if notif.message:
-            message_block = f'<div class="msg">{notif.message}</div>'
+            message_block = f'<div class="msg">{html_mod.escape(notif.message)}</div>'
 
+        safe_title = html_mod.escape(notif.title)
         return _card(
             notif.title,
             (
-                f"<h2>{notif.title}</h2>"
+                f"<h2>{safe_title}</h2>"
                 f'<p class="meta">{type_label}</p>'
                 f"{message_block}"
                 f"{_entity_link(notif)}"
@@ -128,7 +132,7 @@ def notification_token_view(request, token):
         "Done",
         (
             "<h2>Acknowledged</h2>"
-            f"<p>Notification &ldquo;{notif.title}&rdquo; has been marked as read.</p>"
+            f"<p>Notification &ldquo;{html_mod.escape(notif.title)}&rdquo; has been marked as read.</p>"
             f"{_entity_link(notif)}"
             '<p><a href="https://svend.ai/app/">Back to Svend</a></p>'
         ),

@@ -6,8 +6,11 @@ All delivery runs async via syn.sched — never blocks request processing.
 Compliance: SOC 2 CC6.1 (Logical Access Security)
 """
 
+import ipaddress
 import logging
+import socket
 from datetime import timedelta
+from urllib.parse import urlparse
 
 import requests
 from django.utils import timezone
@@ -25,6 +28,22 @@ _DELIVERY_TIMEOUT = 10
 
 # User-Agent for webhook requests
 _USER_AGENT = "Svend-Webhooks/1.0"
+
+
+def _is_safe_url(url):
+    """Reject URLs that resolve to internal/private IPs (SSRF prevention)."""
+    try:
+        hostname = urlparse(url).hostname
+        if not hostname:
+            return False
+        for info in socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM):
+            addr = info[4][0]
+            ip = ipaddress.ip_address(addr)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                return False
+        return True
+    except (socket.gaierror, ValueError):
+        return False
 
 
 def dispatch_event(event_name, payload, *, tenant_id=None):
@@ -79,6 +98,14 @@ def deliver(delivery_id):
     if not endpoint.is_active:
         delivery.status = WebhookDelivery.Status.EXHAUSTED
         delivery.save(update_fields=["status"])
+        return
+
+    # SSRF check — reject internal/private IPs
+    if not _is_safe_url(endpoint.url):
+        logger.warning("Webhook blocked (SSRF): %s resolves to private IP", endpoint.url)
+        delivery.status = WebhookDelivery.Status.EXHAUSTED
+        delivery.response_body = "Blocked: URL resolves to private/internal IP"
+        delivery.save(update_fields=["status", "response_body"])
         return
 
     # Sign the payload
