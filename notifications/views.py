@@ -26,8 +26,9 @@ _VALID_TYPES = frozenset(t.value for t in NotificationType)
 
 
 # ── SSE connection tracking (NTF-001 §9.3) ──────────────────────────────
-_active_streams = {}  # user_id → count
+_active_streams = {}  # user_id → (count, last_seen_monotonic)
 _MAX_STREAMS_PER_USER = 2
+_STREAM_STALE_SECONDS = 180  # Auto-clear entries older than 3 minutes
 
 
 # ── List ─────────────────────────────────────────────────────────────────
@@ -83,7 +84,13 @@ def notification_stream(request):
     uid = user.id
 
     # Rate limit SSE connections per user (NTF-001 §9.3)
-    current = _active_streams.get(uid, 0)
+    # Evict stale entries (leaked by crashed connections)
+    now_mono = time.monotonic()
+    entry = _active_streams.get(uid)
+    if entry and now_mono - entry[1] > _STREAM_STALE_SECONDS:
+        del _active_streams[uid]
+        entry = None
+    current = entry[0] if entry else 0
     if current >= _MAX_STREAMS_PER_USER:
         return JsonResponse(
             {"error": "Too many active streams. Close existing tabs."},
@@ -91,7 +98,8 @@ def notification_stream(request):
         )
 
     def event_stream():
-        _active_streams[uid] = _active_streams.get(uid, 0) + 1
+        prev = _active_streams.get(uid)
+        _active_streams[uid] = ((prev[0] if prev else 0) + 1, time.monotonic())
         try:
             from django.utils import timezone
 
@@ -141,7 +149,12 @@ def notification_stream(request):
                 time.sleep(poll_interval)
 
         finally:
-            _active_streams[uid] = max(_active_streams.get(uid, 1) - 1, 0)
+            prev = _active_streams.get(uid)
+            new_count = max((prev[0] if prev else 1) - 1, 0)
+            if new_count == 0:
+                _active_streams.pop(uid, None)
+            else:
+                _active_streams[uid] = (new_count, time.monotonic())
 
     response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
     response["Cache-Control"] = "no-cache"

@@ -4,10 +4,15 @@ All notification creation MUST go through notify().
 """
 
 import logging
+import time
 
 from .models import Notification, NotificationType
 
 logger = logging.getLogger(__name__)
+
+# Per-user email cooldown to prevent burst flooding
+_email_cooldown = {}  # user_id → last_sent_monotonic
+_EMAIL_COOLDOWN_SECONDS = 10  # Min seconds between emails per user
 
 # Valid type values for fast lookup
 _VALID_TYPES = frozenset(t.value for t in NotificationType)
@@ -74,6 +79,14 @@ def _maybe_schedule_email(recipient, notification):
         if email_mode in ("daily", "weekly"):
             # Cron handles digest modes
             return
+
+        # Per-user cooldown — skip if we sent too recently
+        uid = recipient.id
+        now = time.monotonic()
+        last_sent = _email_cooldown.get(uid, 0)
+        if now - last_sent < _EMAIL_COOLDOWN_SECONDS:
+            return
+        _email_cooldown[uid] = now
 
         # Immediate mode — create token and schedule task
         from syn.sched.scheduler import schedule_task

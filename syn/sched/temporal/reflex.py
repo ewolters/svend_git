@@ -175,6 +175,7 @@ class ReflexState:
 
     # Active outcomes (with expiration tracking)
     active_outcomes: dict[str, ReflexOutcome] = field(default_factory=dict)  # outcome_id -> outcome
+    max_active_outcomes: int = 200
 
     # History
     outcome_history: list[ReflexOutcome] = field(default_factory=list)
@@ -183,6 +184,12 @@ class ReflexState:
     def add_outcome(self, outcome: ReflexOutcome) -> None:
         """Add an outcome to tracking."""
         if outcome.expires_at:
+            # Evict oldest if at capacity
+            if len(self.active_outcomes) >= self.max_active_outcomes:
+                oldest_id = min(
+                    self.active_outcomes, key=lambda k: self.active_outcomes[k].started_at or timezone.now()
+                )
+                self.active_outcomes.pop(oldest_id, None)
             self.active_outcomes[outcome.outcome_id] = outcome
         self.outcome_history.append(outcome)
 
