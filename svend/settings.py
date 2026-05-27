@@ -91,10 +91,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     # Django security
     "django.middleware.security.SecurityMiddleware",
-    # Shared IP blocklist — persistent bans across all sites (before Varta)
-    "kjerne_platform.middleware.SecurityGateMiddleware",
-    # Варта active defense (scoring, tar-pit, Cloudflare API ban)
-    "syn.varta.middleware.VartaMiddleware",
+    # Варта active defense — unified security (blocklist + scoring + maze)
+    "kjerne_platform.varta.middleware.VartaMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     # HTTP telemetry (early — captures full middleware chain timing)
     "syn.log.middleware.PerformanceMiddleware",
@@ -344,10 +342,8 @@ LOGGING = {
             "formatter": "verbose",
         },
         "varta": {
-            "class": "logging.handlers.RotatingFileHandler",
+            "class": "logging.handlers.WatchedFileHandler",
             "filename": "/var/log/svend/varta.log",
-            "maxBytes": 10 * 1024 * 1024,
-            "backupCount": 10,
             "formatter": "verbose",
         },
     },
@@ -383,13 +379,13 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
-        # Варта active defense
-        "syn.varta": {
+        # Варта active defense (kjerne_platform.varta)
+        "kjerne_platform.varta": {
             "handlers": ["console", "security"],
             "level": "INFO",
             "propagate": False,
         },
-        "syn.varta.actions": {
+        "kjerne_platform.varta.actions": {
             "handlers": ["varta"],
             "level": "WARNING",
             "propagate": False,

@@ -40,6 +40,8 @@ def _forgerack_unit_view(request, unit_name):
     return HttpResponse(unit_path.read_text(), content_type="text/html")
 
 
+from kjerne_platform.varta.urls import get_urlpatterns as varta_urls
+
 from api.blog_views import blog_detail, blog_list
 from api.internal_views import dashboard_view, rack_designer_view, rack_layout_api
 from api.landing_views import (
@@ -65,7 +67,6 @@ from api.models import BlogPost, WhitePaper
 from api.views import compliance_data, compliance_page
 from api.whitepaper_views import whitepaper_detail, whitepaper_list, whitepaper_pdf
 from loop.views import auditor_portal_view
-from syn.varta.urls import urlpatterns as varta_urls
 from whiteboard.views import guest_board_view
 
 # ---------------------------------------------------------------------------
@@ -187,7 +188,7 @@ sitemaps = {
 
 
 # Варта honeypot URLs (must be before real routes to catch scanner paths)
-urlpatterns = varta_urls + [
+urlpatterns = varta_urls() + [
     path("", landing_view, name="home"),
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
     path("register/", register_view, name="register"),
