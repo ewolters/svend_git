@@ -27,7 +27,10 @@
     async function request(url, method, body) {
         const opts = {
             method: method,
-            headers: { 'X-CSRFToken': typeof svCsrf === 'function' ? svCsrf() : '' },
+            headers: {
+                'X-CSRFToken': typeof svCsrf === 'function' ? svCsrf() : '',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
         };
         if (body !== undefined) {
             opts.headers['Content-Type'] = 'application/json';

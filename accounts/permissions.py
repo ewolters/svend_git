@@ -13,14 +13,29 @@ from django.http import JsonResponse
 
 from .constants import can_use_ml, has_feature, is_paid_tier
 
+# Methods that mutate state and are vulnerable to CSRF
+_MUTATION_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def _check_xhr(request):
+    """Reject session-authed mutation requests without X-Requested-With header (CSRF defense)."""
+    if request.method not in _MUTATION_METHODS:
+        return None
+    if request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
+        return None
+    return JsonResponse({"error": "Missing X-Requested-With header"}, status=403)
+
 
 def require_auth(view_func):
-    """Require authenticated user. Also checks trial expiry."""
+    """Require authenticated user. Also checks trial expiry and CSRF via X-Requested-With."""
 
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Authentication required"}, status=401)
+        xhr_err = _check_xhr(request)
+        if xhr_err:
+            return xhr_err
         # Check trial expiry — silently reverts tier if expired
         if hasattr(request.user, "trial_expires_at") and request.user.trial_expires_at:
             request.user.check_trial_expiry()
@@ -53,6 +68,9 @@ def rate_limited(view_func):
         # Auth check
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Authentication required"}, status=401)
+        xhr_err = _check_xhr(request)
+        if xhr_err:
+            return xhr_err
 
         user = request.user
 
@@ -225,6 +243,9 @@ def gated_paid(view_func):
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Authentication required"}, status=401)
+        xhr_err = _check_xhr(request)
+        if xhr_err:
+            return xhr_err
 
         user = request.user
 
@@ -308,6 +329,9 @@ def allow_guest(view_func):
 
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Authentication required"}, status=401)
+        xhr_err = _check_xhr(request)
+        if xhr_err:
+            return xhr_err
 
         user = request.user
 
