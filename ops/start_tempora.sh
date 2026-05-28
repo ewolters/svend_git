@@ -1,5 +1,9 @@
 #!/bin/bash
 # Tempora scheduler startup script
+#
+# DEPRECATED (pending sunset, 2026-05-28): superseded by ~/tempora-service/
+# (`manage.py run_scheduler`). This script targets the old in-repo scheduler in
+# the sunset ~/kjerne tree and is no longer used. See syn/sched/DEPRECATED.md.
 
 set -e
 

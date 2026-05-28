@@ -1,4 +1,12 @@
 """
+DEPRECATED (pending sunset, 2026-05-28): This is the original in-repo Tempora
+scheduler. It is superseded by the standalone service at ~/tempora-service/
+(run via `manage.py run_scheduler`, the active production drainer for
+email_queue and task_queue). This package lives in the sunset ~/kjerne tree and
+has no importers in the active services (~/svend, ~/tempora-service,
+~/kjerne-services). Do NOT extend it — add scheduling/worker changes to
+~/tempora-service/ instead. Retained only as reference until ~/kjerne is removed.
+
 Synara Cognitive Scheduler Module (SCH-001/002)
 ===============================================
 Codename: TEMPORA

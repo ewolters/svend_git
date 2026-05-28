@@ -1,4 +1,9 @@
 """
+DEPRECATED (pending sunset, 2026-05-28): superseded by ~/tempora-service/
+(`manage.py run_scheduler`). The `tempora_server` command no longer has a live
+systemd unit — the only reference (svend-tempora.service) is disabled and inert.
+Do not use; see ~/kjerne/syn/sched/DEPRECATED.md.
+
 Tempora Scheduler Server Management Command
 =============================================
 

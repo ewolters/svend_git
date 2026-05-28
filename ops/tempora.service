@@ -1,5 +1,9 @@
+# DEPRECATED (pending sunset, 2026-05-28): superseded by ~/tempora-service/
+# (active unit: tempora.service running `manage.py run_scheduler`). This unit
+# targets the old in-repo scheduler in the sunset ~/kjerne tree. Do not install.
+# See ~/kjerne/syn/sched/DEPRECATED.md.
 [Unit]
-Description=Tempora Distributed Task Scheduler
+Description=Tempora Distributed Task Scheduler (DEPRECATED — see syn/sched/DEPRECATED.md)
 Documentation=https://github.com/ewolters/tempora
 After=network.target postgresql.service
 Wants=postgresql.service
