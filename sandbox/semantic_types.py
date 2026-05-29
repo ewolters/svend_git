@@ -42,7 +42,6 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # 1. Semantic Type System
 # ---------------------------------------------------------------------------
@@ -56,7 +55,7 @@ from typing import Any, Dict, List, Optional
 # meters into a slot expecting PSI." Same principle — spec:usl is not
 # metric:usl. They flow into different port types on a device for a reason.
 
-_TYPE_PATTERN = re.compile(r'^([a-z_]+):([a-z_*]+(?:\[\])?)$')
+_TYPE_PATTERN = re.compile(r"^([a-z_]+):([a-z_*]+(?:\[\])?)$")
 
 
 @dataclass(frozen=True)
@@ -77,12 +76,13 @@ class SemanticType:
       list     — structured sequences (violations, actions, goals)
       document — output artifacts (pdf, html) — always terminal
     """
+
     category: str
     subtype: str
     is_array: bool = False
 
     @classmethod
-    def parse(cls, type_str: str) -> 'SemanticType':
+    def parse(cls, type_str: str) -> "SemanticType":
         """Parse 'category:subtype' or 'category:subtype[]'.
 
         Raises ValueError on malformed input. Enforces lowercase.
@@ -90,20 +90,19 @@ class SemanticType:
         m = _TYPE_PATTERN.match(type_str)
         if not m:
             raise ValueError(
-                f"Invalid semantic type '{type_str}'. "
-                f"Expected 'category:subtype' (e.g. 'metric:cpk', 'data:column[]')"
+                f"Invalid semantic type '{type_str}'. Expected 'category:subtype' (e.g. 'metric:cpk', 'data:column[]')"
             )
         category, subtype = m.group(1), m.group(2)
-        is_array = subtype.endswith('[]')
+        is_array = subtype.endswith("[]")
         if is_array:
             subtype = subtype[:-2]
         return cls(category=category, subtype=subtype, is_array=is_array)
 
     @property
     def is_wildcard(self) -> bool:
-        return self.subtype == '*'
+        return self.subtype == "*"
 
-    def accepts(self, other: 'SemanticType') -> bool:
+    def accepts(self, other: "SemanticType") -> bool:
         """Can this type (as an INPUT port) accept `other` (an OUTPUT port)?
 
         Rules:
@@ -121,7 +120,7 @@ class SemanticType:
         return self.subtype == other.subtype
 
     def __str__(self) -> str:
-        arr = '[]' if self.is_array else ''
+        arr = "[]" if self.is_array else ""
         return f"{self.category}:{self.subtype}{arr}"
 
 
@@ -151,6 +150,7 @@ class SemanticType:
 # This also solves shared config: one process config device fans out to
 # N analysis devices. "Same version of every number" = just another cable.
 
+
 @dataclass
 class Port:
     """A typed input or output port on a device.
@@ -164,6 +164,7 @@ class Port:
         default: Value to use when input port is not connected.
         description: Human-readable purpose.
     """
+
     name: str
     semantic_type: SemanticType
     multi: bool = False
@@ -172,7 +173,7 @@ class Port:
     description: str = ""
 
     @classmethod
-    def from_str(cls, name: str, type_str: str, **kwargs) -> 'Port':
+    def from_str(cls, name: str, type_str: str, **kwargs) -> "Port":
         return cls(name=name, semantic_type=SemanticType.parse(type_str), **kwargs)
 
 
@@ -184,6 +185,7 @@ class DeviceSchema:
     this maps to what Plugin.get_metadata() returns, extended with
     port declarations.
     """
+
     name: str
     description: str
     inputs: List[Port] = field(default_factory=list)
@@ -210,9 +212,11 @@ class DeviceSchema:
 # 3. Connection + Flowchart Validation
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Connection:
     """An edge in the flowchart: source output -> target input."""
+
     source_device: str
     source_port: str
     target_device: str
@@ -222,6 +226,7 @@ class Connection:
 @dataclass
 class ValidationResult:
     """Result of validating a single connection."""
+
     valid: bool
     connection: Connection
     source_type: Optional[SemanticType] = None
@@ -232,6 +237,7 @@ class ValidationResult:
 @dataclass
 class FlowchartValidation:
     """Result of validating an entire flowchart (all connections + completeness)."""
+
     valid: bool = True
     connection_errors: List[str] = field(default_factory=list)
     missing_inputs: List[str] = field(default_factory=list)
@@ -331,8 +337,7 @@ def validate_flowchart(
             result.valid = False
             sources = [f"{c.source_device}.{c.source_port}" for c in conns]
             result.multiplicity_errors.append(
-                f"'{dev_name}.{port_name}' is single-connection but has "
-                f"{len(conns)} connections from: {sources}"
+                f"'{dev_name}.{port_name}' is single-connection but has {len(conns)} connections from: {sources}"
             )
 
     # 3. Check required inputs are connected (or have defaults)
@@ -342,8 +347,7 @@ def validate_flowchart(
             if (dev_name, port.name) not in connected_inputs:
                 result.valid = False
                 result.missing_inputs.append(
-                    f"'{dev_name}.{port.name}' ({port.semantic_type}) "
-                    f"is required but not connected"
+                    f"'{dev_name}.{port.name}' ({port.semantic_type}) is required but not connected"
                 )
 
     # 4. Cycle detection (Kahn's algorithm — topological sort)
@@ -378,8 +382,7 @@ def validate_flowchart(
             device = devices[dev_name]
             if device.outputs:
                 result.warnings.append(
-                    f"'{dev_name}' has outputs but nothing is connected to them "
-                    f"(terminal device or incomplete wiring)"
+                    f"'{dev_name}' has outputs but nothing is connected to them (terminal device or incomplete wiring)"
                 )
 
     return result
@@ -396,6 +399,7 @@ def validate_flowchart(
 # LEARNED: Report builder needs list:* input in addition to text:*.
 # Control chart outputs list:violations, which is structured (not narrative).
 # Report builder renders lists as bullet points, text as paragraphs.
+
 
 def make_data_source() -> DeviceSchema:
     """Data source device — the entry point for every flowchart.
@@ -420,12 +424,9 @@ def make_data_source() -> DeviceSchema:
             # Config (column names, types) comes from the UI, not from ports.
         ],
         outputs=[
-            Port.from_str("measurements", "data:column",
-                          description="Primary measurement column"),
-            Port.from_str("usl", "spec:usl",
-                          description="Upper spec limit (from data or entered)"),
-            Port.from_str("lsl", "spec:lsl",
-                          description="Lower spec limit (from data or entered)"),
+            Port.from_str("measurements", "data:column", description="Primary measurement column"),
+            Port.from_str("usl", "spec:usl", description="Upper spec limit (from data or entered)"),
+            Port.from_str("lsl", "spec:lsl", description="Lower spec limit (from data or entered)"),
         ],
     )
 
@@ -438,8 +439,7 @@ def make_capability_study() -> DeviceSchema:
             Port.from_str("data", "data:column", description="Measurement data"),
             Port.from_str("usl", "spec:usl", description="Upper spec limit"),
             Port.from_str("lsl", "spec:lsl", description="Lower spec limit"),
-            Port.from_str("subgroup_size", "config:subgroup_size",
-                          required=False, default=1),
+            Port.from_str("subgroup_size", "config:subgroup_size", required=False, default=1),
         ],
         outputs=[
             Port.from_str("cpk", "metric:cpk"),
@@ -458,10 +458,8 @@ def make_control_chart() -> DeviceSchema:
         description="SPC control chart — I-MR, Xbar-R, Xbar-S, p, c, u, np",
         inputs=[
             Port.from_str("data", "data:column", description="Measurement data"),
-            Port.from_str("chart_type", "config:chart_type", required=False,
-                          default="i_mr"),
-            Port.from_str("subgroup_size", "config:subgroup_size",
-                          required=False, default=1),
+            Port.from_str("chart_type", "config:chart_type", required=False, default="i_mr"),
+            Port.from_str("subgroup_size", "config:subgroup_size", required=False, default=1),
         ],
         outputs=[
             Port.from_str("chart", "chart:control_chart"),
@@ -489,12 +487,9 @@ def make_gage_rr() -> DeviceSchema:
         name="gage_rr",
         description="Gage R&R measurement system analysis",
         inputs=[
-            Port.from_str("measurements", "data:column",
-                          description="Measurement values"),
-            Port.from_str("parts", "data:categorical",
-                          description="Part identifiers"),
-            Port.from_str("operators", "data:categorical",
-                          description="Operator identifiers"),
+            Port.from_str("measurements", "data:column", description="Measurement values"),
+            Port.from_str("parts", "data:categorical", description="Part identifiers"),
+            Port.from_str("operators", "data:categorical", description="Operator identifiers"),
         ],
         outputs=[
             Port.from_str("grr_percent", "metric:grr_percent"),
@@ -514,8 +509,9 @@ def make_monte_carlo() -> DeviceSchema:
         inputs=[
             # Accepts ANY metric — this is the wildcard case.
             # multi=True because you feed it N parameters from N devices.
-            Port.from_str("parameters", "metric:*", multi=True,
-                          description="Any metric values as simulation parameters"),
+            Port.from_str(
+                "parameters", "metric:*", multi=True, description="Any metric values as simulation parameters"
+            ),
         ],
         outputs=[
             Port.from_str("percentiles", "metric:percentiles"),
@@ -538,14 +534,10 @@ def make_report_builder() -> DeviceSchema:
         name="report_builder",
         description="Document assembly — accepts charts, metrics, text, lists",
         inputs=[
-            Port.from_str("charts", "chart:*", multi=True,
-                          description="Any charts (rendered as figures)"),
-            Port.from_str("metrics", "metric:*", multi=True,
-                          description="Any metrics (rendered as summary table)"),
-            Port.from_str("narrative", "text:*", multi=True,
-                          description="Narrative text (rendered as paragraphs)"),
-            Port.from_str("lists", "list:*", multi=True,
-                          description="Structured lists (rendered as bullet points)"),
+            Port.from_str("charts", "chart:*", multi=True, description="Any charts (rendered as figures)"),
+            Port.from_str("metrics", "metric:*", multi=True, description="Any metrics (rendered as summary table)"),
+            Port.from_str("narrative", "text:*", multi=True, description="Narrative text (rendered as paragraphs)"),
+            Port.from_str("lists", "list:*", multi=True, description="Structured lists (rendered as bullet points)"),
         ],
         outputs=[
             Port.from_str("pdf", "document:pdf"),
@@ -589,12 +581,9 @@ def make_process_config() -> DeviceSchema:
         description="Shared process configuration — subgroup size, alpha, chart type",
         inputs=[],  # Root device — user enters values directly
         outputs=[
-            Port.from_str("subgroup_size", "config:subgroup_size",
-                          description="Subgroup size for SPC calculations"),
-            Port.from_str("chart_type", "config:chart_type",
-                          description="Control chart type (i_mr, xbar_r, etc.)"),
-            Port.from_str("alpha", "config:alpha",
-                          description="Significance level for hypothesis tests"),
+            Port.from_str("subgroup_size", "config:subgroup_size", description="Subgroup size for SPC calculations"),
+            Port.from_str("chart_type", "config:chart_type", description="Control chart type (i_mr, xbar_r, etc.)"),
+            Port.from_str("alpha", "config:alpha", description="Significance level for hypothesis tests"),
         ],
     )
 
@@ -614,8 +603,9 @@ def make_fishbone() -> DeviceSchema:
         name="fishbone",
         description="Ishikawa / cause-and-effect diagram",
         inputs=[
-            Port.from_str("problem", "text:summary", required=False,
-                          description="Problem statement (or enter directly)"),
+            Port.from_str(
+                "problem", "text:summary", required=False, description="Problem statement (or enter directly)"
+            ),
         ],
         outputs=[
             Port.from_str("causes", "list:causes"),
@@ -627,6 +617,7 @@ def make_fishbone() -> DeviceSchema:
 # ---------------------------------------------------------------------------
 # 5. Test Runner
 # ---------------------------------------------------------------------------
+
 
 class TestRunner:
     def __init__(self):
@@ -647,25 +638,26 @@ class TestRunner:
             self.errors.append(name)
 
     def section(self, title: str):
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"  {title}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
     def summary(self):
         total = self.passed + self.failed
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"  RESULTS: {self.passed}/{total} passed, {self.failed} failed")
         if self.errors:
-            print(f"  FAILURES:")
+            print("  FAILURES:")
             for e in self.errors:
                 print(f"    - {e}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         return self.failed == 0
 
 
 # ---------------------------------------------------------------------------
 # 6. Tests
 # ---------------------------------------------------------------------------
+
 
 def run_tests():
     t = TestRunner()
@@ -719,26 +711,21 @@ def run_tests():
     t.test("RAJ: metric:cpk REJECTS metric:p_value", not cpk.accepts(p_value))
 
     # Cross-category must fail
-    t.test("cross-category: data:column rejects metric:cpk",
-           not data_col.accepts(cpk))
-    t.test("cross-category: chart:* rejects metric:cpk",
-           not any_chart.accepts(cpk))
+    t.test("cross-category: data:column rejects metric:cpk", not data_col.accepts(cpk))
+    t.test("cross-category: chart:* rejects metric:cpk", not any_chart.accepts(cpk))
 
     # spec is NOT metric
     spec_usl = SemanticType.parse("spec:usl")
-    t.test("DECISION: metric:* rejects spec:usl (spec != metric)",
-           not any_metric.accepts(spec_usl))
+    t.test("DECISION: metric:* rejects spec:usl (spec != metric)", not any_metric.accepts(spec_usl))
 
     # config is NOT metric
     config_sg = SemanticType.parse("config:subgroup_size")
-    t.test("DECISION: metric:* rejects config:subgroup_size",
-           not any_metric.accepts(config_sg))
+    t.test("DECISION: metric:* rejects config:subgroup_size", not any_metric.accepts(config_sg))
 
     # list is NOT text
     list_v = SemanticType.parse("list:violations")
     text_wild = SemanticType.parse("text:*")
-    t.test("DECISION: text:* rejects list:violations (list != text)",
-           not text_wild.accepts(list_v))
+    t.test("DECISION: text:* rejects list:violations (list != text)", not text_wild.accepts(list_v))
 
     # Array compatibility
     arr_in = SemanticType.parse("metric:cycle_time[]")
@@ -761,26 +748,20 @@ def run_tests():
     t.test("report_builder.lists is multi", rb.get_input("lists").multi)
 
     cap = make_capability_study()
-    t.test("capability.data is NOT multi (single data source)",
-           not cap.get_input("data").multi)
+    t.test("capability.data is NOT multi (single data source)", not cap.get_input("data").multi)
 
     mc = make_monte_carlo()
-    t.test("monte_carlo.parameters is multi (N params from N devices)",
-           mc.get_input("parameters").multi)
+    t.test("monte_carlo.parameters is multi (N params from N devices)", mc.get_input("parameters").multi)
 
     # ---------------------------------------------------------------
     t.section("Data Source Device")
     # ---------------------------------------------------------------
 
     ds = make_data_source()
-    t.test("data_source has no required inputs (root device)",
-           len(ds.required_inputs()) == 0)
-    t.test("data_source outputs data:column",
-           str(ds.get_output("measurements").semantic_type) == "data:column")
-    t.test("data_source outputs spec:usl",
-           str(ds.get_output("usl").semantic_type) == "spec:usl")
-    t.test("data_source outputs spec:lsl",
-           str(ds.get_output("lsl").semantic_type) == "spec:lsl")
+    t.test("data_source has no required inputs (root device)", len(ds.required_inputs()) == 0)
+    t.test("data_source outputs data:column", str(ds.get_output("measurements").semantic_type) == "data:column")
+    t.test("data_source outputs spec:usl", str(ds.get_output("usl").semantic_type) == "spec:usl")
+    t.test("data_source outputs spec:lsl", str(ds.get_output("lsl").semantic_type) == "spec:lsl")
 
     # ---------------------------------------------------------------
     t.section("Template: Quick Cpk (Tomasz's 30-second test)")
@@ -827,7 +808,6 @@ def run_tests():
         Connection("ds", "usl", "cap", "usl"),
         Connection("ds", "lsl", "cap", "lsl"),
         Connection("ds", "measurements", "cc", "data"),
-
         # Capability -> report
         Connection("cap", "histogram", "rb", "charts"),
         Connection("cap", "qq_plot", "rb", "charts"),
@@ -835,7 +815,6 @@ def run_tests():
         Connection("cap", "ppk", "rb", "metrics"),
         Connection("cap", "sigma_level", "rb", "metrics"),
         Connection("cap", "summary", "rb", "narrative"),
-
         # Control chart -> report
         Connection("cc", "chart", "rb", "charts"),
         Connection("cc", "mean", "rb", "metrics"),
@@ -880,10 +859,8 @@ def run_tests():
         Connection("ds", "usl", "cap", "usl"),
         Connection("ds", "lsl", "cap", "lsl"),
         Connection("ds", "measurements", "cc", "data"),
-
         # Capability summary feeds fishbone problem statement
         Connection("cap", "summary", "fish", "problem"),
-
         # Everything -> report
         Connection("cap", "histogram", "rb", "charts"),
         Connection("cap", "cpk", "rb", "metrics"),
@@ -922,8 +899,7 @@ def run_tests():
     ]
 
     fv = validate_flowchart(devices, connections)
-    t.test("REJECT two connections to single port cap.data",
-           len(fv.multiplicity_errors) > 0)
+    t.test("REJECT two connections to single port cap.data", len(fv.multiplicity_errors) > 0)
     if fv.multiplicity_errors:
         print(f"    Caught: {fv.multiplicity_errors[0]}")
 
@@ -942,12 +918,9 @@ def run_tests():
     ]
 
     fv = validate_flowchart(devices, connections)
-    t.test("REJECT capability without spec limits",
-           len(fv.missing_inputs) > 0)
-    t.test("identifies usl as missing",
-           any("usl" in m for m in fv.missing_inputs))
-    t.test("identifies lsl as missing",
-           any("lsl" in m for m in fv.missing_inputs))
+    t.test("REJECT capability without spec limits", len(fv.missing_inputs) > 0)
+    t.test("identifies usl as missing", any("usl" in m for m in fv.missing_inputs))
+    t.test("identifies lsl as missing", any("lsl" in m for m in fv.missing_inputs))
     for m in fv.missing_inputs:
         print(f"    Missing: {m}")
 
@@ -1070,21 +1043,36 @@ def run_tests():
     # ---------------------------------------------------------------
     # GOTCHA #3 resolved: ported from JS sandbox.
 
-    loop_a = DeviceSchema("loop_a", "test", [
-        Port.from_str("in", "metric:*"),
-    ], [
-        Port.from_str("out", "metric:cpk"),
-    ])
-    loop_b = DeviceSchema("loop_b", "test", [
-        Port.from_str("in", "metric:*"),
-    ], [
-        Port.from_str("out", "metric:ppk"),
-    ])
-    loop_c = DeviceSchema("loop_c", "test", [
-        Port.from_str("in", "metric:*"),
-    ], [
-        Port.from_str("out", "metric:mean"),
-    ])
+    loop_a = DeviceSchema(
+        "loop_a",
+        "test",
+        [
+            Port.from_str("in", "metric:*"),
+        ],
+        [
+            Port.from_str("out", "metric:cpk"),
+        ],
+    )
+    loop_b = DeviceSchema(
+        "loop_b",
+        "test",
+        [
+            Port.from_str("in", "metric:*"),
+        ],
+        [
+            Port.from_str("out", "metric:ppk"),
+        ],
+    )
+    loop_c = DeviceSchema(
+        "loop_c",
+        "test",
+        [
+            Port.from_str("in", "metric:*"),
+        ],
+        [
+            Port.from_str("out", "metric:mean"),
+        ],
+    )
 
     cycle_devices = {"a": loop_a, "b": loop_b, "c": loop_c}
     cycle_conns = [
@@ -1111,9 +1099,9 @@ def run_tests():
     # -- Summary --
     ok = t.summary()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("  DECISIONS CONFIRMED (round 2)")
-    print("="*60)
+    print("=" * 60)
     print("""
   1. 8 categories, not 4. All load-bearing. No merging.
   2. Port.multi solves report builder aggregation.

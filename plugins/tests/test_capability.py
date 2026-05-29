@@ -1,14 +1,11 @@
 """Tests for the Capability Study plugin."""
 
-import pytest
 import numpy as np
 from django.test import TestCase
 
-from syn.plugins.base import PluginOutput
+from plugins.capability import CapabilityStudyPlugin
 from syn.plugins.registry import PluginRegistry
 from syn.plugins.runner import run_plugin
-from plugins.capability import CapabilityStudyPlugin
-from job.models import Job, JobOutput
 
 
 class TestCapabilityStudyPlugin:

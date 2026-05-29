@@ -1,13 +1,14 @@
 """Tests for canvas demo endpoint."""
 
 import json
+
 import numpy as np
 from django.test import TestCase
 
 from conftest import SECURE_OFF, make_user
 from job.models import Job
-from syn.plugins.registry import get_registry
 from plugins.capability import CapabilityStudyPlugin
+from syn.plugins.registry import get_registry
 
 
 @SECURE_OFF
@@ -25,14 +26,16 @@ class TestCanvasDemoEndpoint(TestCase):
     def test_successful_run(self):
         resp = self.client.post(
             "/api/demo/canvas/run/",
-            data=json.dumps({
-                "plugin_name": "capability_study",
-                "input_data": {
-                    "data": self.good_data,
-                    "usl": 56.0,
-                    "lsl": 44.0,
-                },
-            }),
+            data=json.dumps(
+                {
+                    "plugin_name": "capability_study",
+                    "input_data": {
+                        "data": self.good_data,
+                        "usl": 56.0,
+                        "lsl": 44.0,
+                    },
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
@@ -51,14 +54,16 @@ class TestCanvasDemoEndpoint(TestCase):
         initial_count = Job.objects.count()
         self.client.post(
             "/api/demo/canvas/run/",
-            data=json.dumps({
-                "plugin_name": "capability_study",
-                "input_data": {
-                    "data": self.good_data,
-                    "usl": 56.0,
-                    "lsl": 44.0,
-                },
-            }),
+            data=json.dumps(
+                {
+                    "plugin_name": "capability_study",
+                    "input_data": {
+                        "data": self.good_data,
+                        "usl": 56.0,
+                        "lsl": 44.0,
+                    },
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(Job.objects.count(), initial_count + 1)
@@ -70,15 +75,17 @@ class TestCanvasDemoEndpoint(TestCase):
     def test_scratch_flag(self):
         self.client.post(
             "/api/demo/canvas/run/",
-            data=json.dumps({
-                "plugin_name": "capability_study",
-                "input_data": {
-                    "data": self.good_data,
-                    "usl": 56.0,
-                    "lsl": 44.0,
-                },
-                "is_scratch": True,
-            }),
+            data=json.dumps(
+                {
+                    "plugin_name": "capability_study",
+                    "input_data": {
+                        "data": self.good_data,
+                        "usl": 56.0,
+                        "lsl": 44.0,
+                    },
+                    "is_scratch": True,
+                }
+            ),
             content_type="application/json",
         )
         job = Job.objects.order_by("-created_at").first()
@@ -87,10 +94,12 @@ class TestCanvasDemoEndpoint(TestCase):
     def test_validation_error(self):
         resp = self.client.post(
             "/api/demo/canvas/run/",
-            data=json.dumps({
-                "plugin_name": "capability_study",
-                "input_data": {"data": [1.0]},
-            }),
+            data=json.dumps(
+                {
+                    "plugin_name": "capability_study",
+                    "input_data": {"data": [1.0]},
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 400)
@@ -100,10 +109,12 @@ class TestCanvasDemoEndpoint(TestCase):
     def test_unknown_plugin(self):
         resp = self.client.post(
             "/api/demo/canvas/run/",
-            data=json.dumps({
-                "plugin_name": "nonexistent",
-                "input_data": {},
-            }),
+            data=json.dumps(
+                {
+                    "plugin_name": "nonexistent",
+                    "input_data": {},
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 400)
@@ -112,10 +123,12 @@ class TestCanvasDemoEndpoint(TestCase):
         self.client.logout()
         resp = self.client.post(
             "/api/demo/canvas/run/",
-            data=json.dumps({
-                "plugin_name": "capability_study",
-                "input_data": {"data": self.good_data, "usl": 56.0, "lsl": 44.0},
-            }),
+            data=json.dumps(
+                {
+                    "plugin_name": "capability_study",
+                    "input_data": {"data": self.good_data, "usl": 56.0, "lsl": 44.0},
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 401)

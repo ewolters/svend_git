@@ -35,7 +35,6 @@ GOTCHAS found during testing (added as we go):
 
 import os
 import sys
-import time
 import traceback
 
 # Django setup — must happen before any model imports
@@ -45,21 +44,21 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "svend.settings")
 sys.path.insert(0, os.path.expanduser("~/kjerne"))
 
 import django
+
 django.setup()
 
 # Now we can import Django models and syn/ code
-from django.utils import timezone
 
-from syn.bus import get_bus, emit, subscribe, Event
+from job.models import Job, JobOutput
+from syn.bus import emit, get_bus
 from syn.plugins.base import Plugin, PluginOutput
 from syn.plugins.registry import PluginRegistry
 from syn.plugins.runner import run_plugin
-from job.models import Job, JobOutput
-
 
 # ---------------------------------------------------------------------------
 # Test Runner (same pattern as semantic_types.py)
 # ---------------------------------------------------------------------------
+
 
 class TestRunner:
     def __init__(self):
@@ -81,9 +80,9 @@ class TestRunner:
             self.errors.append(name)
 
     def section(self, title):
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"  {title}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
     def gotcha(self, text):
         """Record a gotcha discovered during testing."""
@@ -92,17 +91,17 @@ class TestRunner:
 
     def summary(self):
         total = self.passed + self.failed
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"  RESULTS: {self.passed}/{total} passed, {self.failed} failed")
         if self.errors:
-            print(f"  FAILURES:")
+            print("  FAILURES:")
             for e in self.errors:
                 print(f"    - {e}")
         if self.gotchas:
             print(f"\n  GOTCHAS DISCOVERED ({len(self.gotchas)}):")
             for i, g in enumerate(self.gotchas, 1):
                 print(f"    {i}. {g}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         return self.failed == 0
 
 
@@ -112,11 +111,14 @@ class TestRunner:
 
 from pydantic import BaseModel
 
+
 class SandboxInput(BaseModel):
     """Minimal input for sandbox testing."""
+
     values: list[float]
     usl: float = 10.0
     lsl: float = 0.0
+
 
 class SandboxPlugin(Plugin):
     """Minimal plugin that computes mean + range.
@@ -124,6 +126,7 @@ class SandboxPlugin(Plugin):
     Not a real analysis — just enough to exercise the full lifecycle:
     input validation → Job creation → execute → JobOutput → bus event.
     """
+
     name = "sandbox_test"
     version = "0.0.1"
     description = "Sandbox test plugin — mean + range calculation"
@@ -161,6 +164,7 @@ class SandboxPlugin(Plugin):
 
 class FailingPlugin(Plugin):
     """Plugin that always fails — tests error handling in runner."""
+
     name = "sandbox_failing"
     version = "0.0.1"
     description = "Always fails — tests Job failure lifecycle"
@@ -173,6 +177,7 @@ class FailingPlugin(Plugin):
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def run_tests():
     t = TestRunner()
@@ -191,6 +196,7 @@ def run_tests():
 
     # Track emitted events
     captured_events = []
+
     def capture_handler(event):
         captured_events.append(event)
 
@@ -223,11 +229,10 @@ def run_tests():
     t.test("Job has completed_at", job.completed_at is not None)
     t.test("Job has duration_ms", job.duration_ms is not None and job.duration_ms >= 0)
     t.test("Job is NOT scratch", not job.is_scratch)
-    t.test("Job inputs frozen", job.inputs == {
-        "values": [5.1, 4.9, 5.0, 5.2, 4.8], "usl": 10.0, "lsl": 0.0
-    })
-    t.test("Job outputs_summary populated",
-           job.outputs_summary == {"mean": "metric", "range": "metric", "summary": "text"})
+    t.test("Job inputs frozen", job.inputs == {"values": [5.1, 4.9, 5.0, 5.2, 4.8], "usl": 10.0, "lsl": 0.0})
+    t.test(
+        "Job outputs_summary populated", job.outputs_summary == {"mean": "metric", "range": "metric", "summary": "text"}
+    )
 
     # ---------------------------------------------------------------
     t.section("2. JobOutput — Addressability + Provenance")
@@ -335,8 +340,7 @@ def run_tests():
 
     if captured_events:
         evt = captured_events[0]
-        t.test("Event name is plugin.execution.completed",
-               evt.name == "plugin.execution.completed")
+        t.test("Event name is plugin.execution.completed", evt.name == "plugin.execution.completed")
         t.test("Event payload has job_id", "job_id" in evt.payload)
         t.test("Event payload has plugin_name", "plugin_name" in evt.payload)
         t.test("Event payload has outputs list", "outputs" in evt.payload)
@@ -344,8 +348,7 @@ def run_tests():
 
     # Count: we ran sandbox_test twice (persistent + scratch).
     # sandbox_failing failed, so runner doesn't emit completion event.
-    completed_events = [e for e in captured_events
-                        if e.name == "plugin.execution.completed"]
+    completed_events = [e for e in captured_events if e.name == "plugin.execution.completed"]
     t.test("2 completion events (persistent + scratch)", len(completed_events) == 2)
 
     t.gotcha(
@@ -388,8 +391,7 @@ def run_tests():
     # Test introspection (FLOW-3: contracts visible)
     subs = bus.list_subscriptions()
     t.test("Subscriptions are inspectable", len(subs) >= 2)
-    t.test("Subscriptions have patterns",
-           all("pattern" in s for s in subs))
+    t.test("Subscriptions have patterns", all("pattern" in s for s in subs))
 
     # Bus stats
     stats = bus.stats
@@ -417,8 +419,7 @@ def run_tests():
 
     # "What were the results of the last run?"
     last_job = plugin_jobs.first()
-    last_outputs = {o.output_key: o.value_numeric for o in last_job.outputs.all()
-                    if o.output_type == "metric"}
+    last_outputs = {o.output_key: o.value_numeric for o in last_job.outputs.all() if o.output_type == "metric"}
     t.test("Can reconstruct last run's metrics", "mean" in last_outputs)
 
     # "Show me the history for this characteristic" (Dana's use case)
@@ -427,18 +428,19 @@ def run_tests():
     slug_outputs = JobOutput.objects.filter(
         measure_slug="sandbox-mean",
     ).order_by("-created_at")
-    t.test("Can query by measure_slug (Dana's 'last 3 for same characteristic')",
-           slug_outputs.count() >= 1)
+    t.test("Can query by measure_slug (Dana's 'last 3 for same characteristic')", slug_outputs.count() >= 1)
 
     # Build a history series from JobOutputs
     history = []
     for out in slug_outputs[:10]:
-        history.append({
-            "job_id": str(out.job_id),
-            "value": out.value_numeric,
-            "timestamp": out.created_at.isoformat() if out.created_at else None,
-            "provenance": out.provenance,
-        })
+        history.append(
+            {
+                "job_id": str(out.job_id),
+                "value": out.value_numeric,
+                "timestamp": out.created_at.isoformat() if out.created_at else None,
+                "provenance": out.provenance,
+            }
+        )
     t.test("History series is buildable", len(history) >= 1)
     if history:
         print(f"    Sample: measure_slug='sandbox-mean', value={history[0]['value']}")
@@ -468,12 +470,16 @@ def run_tests():
     # Heuristic: find prior runs of same plugin by same actor.
     # NOTE: exclude scratch jobs — they're exploratory, not a reliable baseline.
     # Also exclude failed jobs — no useful outputs.
-    prior_runs = Job.objects.filter(
-        plugin_name="sandbox_test",
-        actor="sandbox@test",
-        status="completed",
-        is_scratch=False,
-    ).exclude(id=job2.id).order_by("-created_at")
+    prior_runs = (
+        Job.objects.filter(
+            plugin_name="sandbox_test",
+            actor="sandbox@test",
+            status="completed",
+            is_scratch=False,
+        )
+        .exclude(id=job2.id)
+        .order_by("-created_at")
+    )
 
     t.test("Can find prior runs for heuristic", prior_runs.count() >= 1)
 
@@ -485,9 +491,8 @@ def run_tests():
     for prior in prior_runs:
         prior_values = prior.inputs.get("values", [])
         same_length = len(prior_values) == len(current_values)
-        same_specs = (
-            prior.inputs.get("usl") == job2.inputs.get("usl") and
-            prior.inputs.get("lsl") == job2.inputs.get("lsl")
+        same_specs = prior.inputs.get("usl") == job2.inputs.get("usl") and prior.inputs.get("lsl") == job2.inputs.get(
+            "lsl"
         )
         if same_length and same_specs:
             best_match = prior
@@ -506,8 +511,7 @@ def run_tests():
 
         if prior_mean is not None and current_mean is not None:
             delta = current_mean - prior_mean
-            print(f"    Heuristic: prior mean={prior_mean:.3f}, "
-                  f"current={current_mean:.3f}, delta={delta:+.3f}")
+            print(f"    Heuristic: prior mean={prior_mean:.3f}, current={current_mean:.3f}, delta={delta:+.3f}")
             t.test("Can compute delta between runs", True)
 
     t.gotcha(
@@ -558,21 +562,20 @@ def run_tests():
         claude_context["recent_jobs"].append(job_ctx)
 
     t.test("Claude context has recent jobs", len(claude_context["recent_jobs"]) >= 2)
-    t.test("Context includes metrics with values",
-           any(
-               "mean" in j["outputs"] and "value" in j["outputs"]["mean"]
-               for j in claude_context["recent_jobs"]
-           ))
-    t.test("Context includes provenance",
-           any(
-               any("provenance" in v for v in j["outputs"].values())
-               for j in claude_context["recent_jobs"]
-           ))
+    t.test(
+        "Context includes metrics with values",
+        any("mean" in j["outputs"] and "value" in j["outputs"]["mean"] for j in claude_context["recent_jobs"]),
+    )
+    t.test(
+        "Context includes provenance",
+        any(any("provenance" in v for v in j["outputs"].values()) for j in claude_context["recent_jobs"]),
+    )
 
     # Print sample context (what Claude would see)
     import json
+
     sample = claude_context["recent_jobs"][0] if claude_context["recent_jobs"] else {}
-    print(f"\n  Sample Claude context (1 job):")
+    print("\n  Sample Claude context (1 job):")
     print(f"    {json.dumps(sample, indent=4, default=str)[:500]}")
 
     t.gotcha(

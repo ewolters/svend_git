@@ -46,6 +46,7 @@ class CapabilityStudyPlugin(Plugin):
 
     def execute(self, validated_input: Dict[str, Any], context: Dict[str, Any]) -> List[PluginOutput]:
         import pandas as pd
+
         from agents_api.analysis.spc.capability import run_capability
 
         # Build DataFrame in format expected by run_capability

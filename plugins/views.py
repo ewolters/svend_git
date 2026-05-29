@@ -43,25 +43,27 @@ def canvas_run(request):
             is_scratch=is_scratch,
         )
     except KeyError:
-        return JsonResponse(
-            {"error": f"Unknown plugin: {plugin_name}"}, status=400
-        )
+        return JsonResponse({"error": f"Unknown plugin: {plugin_name}"}, status=400)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
 
     outputs = []
     for out in job.outputs.all().order_by("created_at"):
-        outputs.append({
-            "key": out.output_key,
-            "type": out.output_type,
-            "value": out.value_numeric if out.output_type == "metric" else out.value_json,
-            "provenance": out.provenance,
-            "measure_slug": out.measure_slug,
-        })
+        outputs.append(
+            {
+                "key": out.output_key,
+                "type": out.output_type,
+                "value": out.value_numeric if out.output_type == "metric" else out.value_json,
+                "provenance": out.provenance,
+                "measure_slug": out.measure_slug,
+            }
+        )
 
-    return JsonResponse({
-        "job_id": str(job.id),
-        "status": job.status,
-        "duration_ms": job.duration_ms,
-        "outputs": outputs,
-    })
+    return JsonResponse(
+        {
+            "job_id": str(job.id),
+            "status": job.status,
+            "duration_ms": job.duration_ms,
+            "outputs": outputs,
+        }
+    )

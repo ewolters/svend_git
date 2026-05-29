@@ -28,20 +28,19 @@ between devices through typed ports.
 
 from __future__ import annotations
 
-import json
 import math
 import random
-import sys
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-
 
 # ---------------------------------------------------------------------------
 # Reuse the type system from semantic_types.py (inline, no import needed)
 # ---------------------------------------------------------------------------
-
 import re
-_TYPE_PATTERN = re.compile(r'^([a-z_]+):([a-z_*]+(?:\[\])?)$')
+import sys
+from dataclasses import dataclass, field
+from typing import Any, Dict, List
+
+_TYPE_PATTERN = re.compile(r"^([a-z_]+):([a-z_*]+(?:\[\])?)$")
+
 
 @dataclass(frozen=True)
 class SemanticType:
@@ -55,21 +54,27 @@ class SemanticType:
         if not m:
             raise ValueError(f"Invalid type '{s}'")
         cat, sub = m.group(1), m.group(2)
-        arr = sub.endswith('[]')
-        if arr: sub = sub[:-2]
+        arr = sub.endswith("[]")
+        if arr:
+            sub = sub[:-2]
         return cls(cat, sub, arr)
 
     @property
-    def is_wildcard(self): return self.subtype == '*'
+    def is_wildcard(self):
+        return self.subtype == "*"
 
     def accepts(self, other):
-        if self.category != other.category: return False
-        if self.is_array != other.is_array: return False
-        if self.is_wildcard: return True
+        if self.category != other.category:
+            return False
+        if self.is_array != other.is_array:
+            return False
+        if self.is_wildcard:
+            return True
         return self.subtype == other.subtype
 
     def __str__(self):
         return f"{self.category}:{self.subtype}{'[]' if self.is_array else ''}"
+
 
 @dataclass
 class Port:
@@ -83,6 +88,7 @@ class Port:
     def from_str(cls, name, type_str, **kw):
         return cls(name=name, semantic_type=SemanticType.parse(type_str), **kw)
 
+
 @dataclass
 class DeviceSchema:
     name: str
@@ -90,8 +96,12 @@ class DeviceSchema:
     inputs: List[Port] = field(default_factory=list)
     outputs: List[Port] = field(default_factory=list)
 
-    def get_input(self, n): return next((p for p in self.inputs if p.name == n), None)
-    def get_output(self, n): return next((p for p in self.outputs if p.name == n), None)
+    def get_input(self, n):
+        return next((p for p in self.inputs if p.name == n), None)
+
+    def get_output(self, n):
+        return next((p for p in self.outputs if p.name == n), None)
+
 
 @dataclass
 class Connection:
@@ -104,6 +114,7 @@ class Connection:
 # ---------------------------------------------------------------------------
 # Device Execution Engine (minimal — proves data flows through ports)
 # ---------------------------------------------------------------------------
+
 
 class DeviceInstance:
     """A live device with schema + execute function + stored outputs."""
@@ -179,6 +190,7 @@ def run_flowchart(devices: Dict[str, DeviceInstance], connections: List[Connecti
 # VSM Operation Data — 24 operations, realistic manufacturing flow
 # ---------------------------------------------------------------------------
 
+
 def make_vsm_operations() -> List[Dict]:
     """24-operation value stream for a machined component.
 
@@ -186,36 +198,254 @@ def make_vsm_operations() -> List[Dict]:
     batch_size, wip, uptime %, operators, scrap_rate %
     """
     return [
-        {"name": "Raw Material Receiving", "cycle_time": 30, "setup_time": 0, "batch_size": 500, "wip": 2000, "uptime": 0.99, "operators": 1, "scrap_rate": 0.0},
-        {"name": "Incoming Inspection", "cycle_time": 45, "setup_time": 5, "batch_size": 500, "wip": 500, "uptime": 0.95, "operators": 1, "scrap_rate": 0.5},
-        {"name": "Bar Cut (Saw)", "cycle_time": 18, "setup_time": 15, "batch_size": 200, "wip": 400, "uptime": 0.90, "operators": 1, "scrap_rate": 1.0},
-        {"name": "Deburr (Manual)", "cycle_time": 25, "setup_time": 0, "batch_size": 200, "wip": 200, "uptime": 1.0, "operators": 1, "scrap_rate": 0.0},
-        {"name": "CNC Turn Op 10", "cycle_time": 62, "setup_time": 45, "batch_size": 100, "wip": 300, "uptime": 0.85, "operators": 1, "scrap_rate": 2.0},
-        {"name": "CNC Turn Op 20", "cycle_time": 58, "setup_time": 40, "batch_size": 100, "wip": 250, "uptime": 0.87, "operators": 1, "scrap_rate": 1.5},
-        {"name": "CNC Mill Op 30", "cycle_time": 75, "setup_time": 60, "batch_size": 100, "wip": 350, "uptime": 0.82, "operators": 1, "scrap_rate": 2.5},
-        {"name": "Wash", "cycle_time": 120, "setup_time": 10, "batch_size": 50, "wip": 100, "uptime": 0.95, "operators": 0, "scrap_rate": 0.0},
-        {"name": "CMM Inspection", "cycle_time": 180, "setup_time": 20, "batch_size": 50, "wip": 150, "uptime": 0.90, "operators": 1, "scrap_rate": 0.0},
-        {"name": "Heat Treat (External)", "cycle_time": 0, "setup_time": 0, "batch_size": 500, "wip": 1500, "uptime": 1.0, "operators": 0, "scrap_rate": 0.5, "lead_time_days": 5},
-        {"name": "Receiving (Heat Treat)", "cycle_time": 30, "setup_time": 0, "batch_size": 500, "wip": 500, "uptime": 0.99, "operators": 1, "scrap_rate": 0.0},
-        {"name": "Hardness Test", "cycle_time": 60, "setup_time": 5, "batch_size": 50, "wip": 100, "uptime": 0.95, "operators": 1, "scrap_rate": 0.0},
-        {"name": "CNC Grind OD", "cycle_time": 90, "setup_time": 30, "batch_size": 50, "wip": 200, "uptime": 0.80, "operators": 1, "scrap_rate": 3.0},
-        {"name": "CNC Grind ID", "cycle_time": 85, "setup_time": 35, "batch_size": 50, "wip": 200, "uptime": 0.82, "operators": 1, "scrap_rate": 2.5},
-        {"name": "Hone", "cycle_time": 45, "setup_time": 25, "batch_size": 50, "wip": 100, "uptime": 0.88, "operators": 1, "scrap_rate": 1.0},
-        {"name": "Wash (Post-Grind)", "cycle_time": 120, "setup_time": 10, "batch_size": 50, "wip": 50, "uptime": 0.95, "operators": 0, "scrap_rate": 0.0},
-        {"name": "Surface Treatment", "cycle_time": 300, "setup_time": 15, "batch_size": 100, "wip": 200, "uptime": 0.90, "operators": 1, "scrap_rate": 0.5},
-        {"name": "Final Inspection", "cycle_time": 120, "setup_time": 10, "batch_size": 25, "wip": 75, "uptime": 0.95, "operators": 1, "scrap_rate": 0.0},
-        {"name": "Marking/Etch", "cycle_time": 15, "setup_time": 5, "batch_size": 100, "wip": 100, "uptime": 0.98, "operators": 1, "scrap_rate": 0.0},
-        {"name": "Packaging", "cycle_time": 20, "setup_time": 5, "batch_size": 100, "wip": 100, "uptime": 0.99, "operators": 1, "scrap_rate": 0.0},
-        {"name": "Final Wash/Clean", "cycle_time": 90, "setup_time": 5, "batch_size": 50, "wip": 50, "uptime": 0.95, "operators": 0, "scrap_rate": 0.0},
-        {"name": "Visual Inspection", "cycle_time": 30, "setup_time": 0, "batch_size": 50, "wip": 50, "uptime": 1.0, "operators": 1, "scrap_rate": 0.0},
-        {"name": "Cert & Documentation", "cycle_time": 300, "setup_time": 0, "batch_size": 25, "wip": 25, "uptime": 0.99, "operators": 1, "scrap_rate": 0.0},
-        {"name": "Ship", "cycle_time": 60, "setup_time": 0, "batch_size": 500, "wip": 500, "uptime": 0.99, "operators": 1, "scrap_rate": 0.0},
+        {
+            "name": "Raw Material Receiving",
+            "cycle_time": 30,
+            "setup_time": 0,
+            "batch_size": 500,
+            "wip": 2000,
+            "uptime": 0.99,
+            "operators": 1,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "Incoming Inspection",
+            "cycle_time": 45,
+            "setup_time": 5,
+            "batch_size": 500,
+            "wip": 500,
+            "uptime": 0.95,
+            "operators": 1,
+            "scrap_rate": 0.5,
+        },
+        {
+            "name": "Bar Cut (Saw)",
+            "cycle_time": 18,
+            "setup_time": 15,
+            "batch_size": 200,
+            "wip": 400,
+            "uptime": 0.90,
+            "operators": 1,
+            "scrap_rate": 1.0,
+        },
+        {
+            "name": "Deburr (Manual)",
+            "cycle_time": 25,
+            "setup_time": 0,
+            "batch_size": 200,
+            "wip": 200,
+            "uptime": 1.0,
+            "operators": 1,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "CNC Turn Op 10",
+            "cycle_time": 62,
+            "setup_time": 45,
+            "batch_size": 100,
+            "wip": 300,
+            "uptime": 0.85,
+            "operators": 1,
+            "scrap_rate": 2.0,
+        },
+        {
+            "name": "CNC Turn Op 20",
+            "cycle_time": 58,
+            "setup_time": 40,
+            "batch_size": 100,
+            "wip": 250,
+            "uptime": 0.87,
+            "operators": 1,
+            "scrap_rate": 1.5,
+        },
+        {
+            "name": "CNC Mill Op 30",
+            "cycle_time": 75,
+            "setup_time": 60,
+            "batch_size": 100,
+            "wip": 350,
+            "uptime": 0.82,
+            "operators": 1,
+            "scrap_rate": 2.5,
+        },
+        {
+            "name": "Wash",
+            "cycle_time": 120,
+            "setup_time": 10,
+            "batch_size": 50,
+            "wip": 100,
+            "uptime": 0.95,
+            "operators": 0,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "CMM Inspection",
+            "cycle_time": 180,
+            "setup_time": 20,
+            "batch_size": 50,
+            "wip": 150,
+            "uptime": 0.90,
+            "operators": 1,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "Heat Treat (External)",
+            "cycle_time": 0,
+            "setup_time": 0,
+            "batch_size": 500,
+            "wip": 1500,
+            "uptime": 1.0,
+            "operators": 0,
+            "scrap_rate": 0.5,
+            "lead_time_days": 5,
+        },
+        {
+            "name": "Receiving (Heat Treat)",
+            "cycle_time": 30,
+            "setup_time": 0,
+            "batch_size": 500,
+            "wip": 500,
+            "uptime": 0.99,
+            "operators": 1,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "Hardness Test",
+            "cycle_time": 60,
+            "setup_time": 5,
+            "batch_size": 50,
+            "wip": 100,
+            "uptime": 0.95,
+            "operators": 1,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "CNC Grind OD",
+            "cycle_time": 90,
+            "setup_time": 30,
+            "batch_size": 50,
+            "wip": 200,
+            "uptime": 0.80,
+            "operators": 1,
+            "scrap_rate": 3.0,
+        },
+        {
+            "name": "CNC Grind ID",
+            "cycle_time": 85,
+            "setup_time": 35,
+            "batch_size": 50,
+            "wip": 200,
+            "uptime": 0.82,
+            "operators": 1,
+            "scrap_rate": 2.5,
+        },
+        {
+            "name": "Hone",
+            "cycle_time": 45,
+            "setup_time": 25,
+            "batch_size": 50,
+            "wip": 100,
+            "uptime": 0.88,
+            "operators": 1,
+            "scrap_rate": 1.0,
+        },
+        {
+            "name": "Wash (Post-Grind)",
+            "cycle_time": 120,
+            "setup_time": 10,
+            "batch_size": 50,
+            "wip": 50,
+            "uptime": 0.95,
+            "operators": 0,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "Surface Treatment",
+            "cycle_time": 300,
+            "setup_time": 15,
+            "batch_size": 100,
+            "wip": 200,
+            "uptime": 0.90,
+            "operators": 1,
+            "scrap_rate": 0.5,
+        },
+        {
+            "name": "Final Inspection",
+            "cycle_time": 120,
+            "setup_time": 10,
+            "batch_size": 25,
+            "wip": 75,
+            "uptime": 0.95,
+            "operators": 1,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "Marking/Etch",
+            "cycle_time": 15,
+            "setup_time": 5,
+            "batch_size": 100,
+            "wip": 100,
+            "uptime": 0.98,
+            "operators": 1,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "Packaging",
+            "cycle_time": 20,
+            "setup_time": 5,
+            "batch_size": 100,
+            "wip": 100,
+            "uptime": 0.99,
+            "operators": 1,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "Final Wash/Clean",
+            "cycle_time": 90,
+            "setup_time": 5,
+            "batch_size": 50,
+            "wip": 50,
+            "uptime": 0.95,
+            "operators": 0,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "Visual Inspection",
+            "cycle_time": 30,
+            "setup_time": 0,
+            "batch_size": 50,
+            "wip": 50,
+            "uptime": 1.0,
+            "operators": 1,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "Cert & Documentation",
+            "cycle_time": 300,
+            "setup_time": 0,
+            "batch_size": 25,
+            "wip": 25,
+            "uptime": 0.99,
+            "operators": 1,
+            "scrap_rate": 0.0,
+        },
+        {
+            "name": "Ship",
+            "cycle_time": 60,
+            "setup_time": 0,
+            "batch_size": 500,
+            "wip": 500,
+            "uptime": 0.99,
+            "operators": 1,
+            "scrap_rate": 0.0,
+        },
     ]
 
 
 # ---------------------------------------------------------------------------
 # Device Execute Functions — each takes input_values dict, returns output dict
 # ---------------------------------------------------------------------------
+
 
 def execute_vsm_current(inputs: Dict) -> Dict:
     """Current state VSM device.
@@ -251,18 +481,19 @@ def execute_vsm_current(inputs: Dict) -> Dict:
             bottleneck_ct = effective_ct
             bottleneck_name = op["name"]
 
-        analyzed.append({
-            **op,
-            "effective_ct": round(effective_ct, 1),
-            "wip_days": round(wip_days, 1),
-            "setup_per_part": round(setup_per_part, 1),
-            "va_ratio": round(ct / effective_ct, 3) if effective_ct > 0 else 0,
-            "exceeds_takt": effective_ct > takt_time,
-        })
+        analyzed.append(
+            {
+                **op,
+                "effective_ct": round(effective_ct, 1),
+                "wip_days": round(wip_days, 1),
+                "setup_per_part": round(setup_per_part, 1),
+                "va_ratio": round(ct / effective_ct, 3) if effective_ct > 0 else 0,
+                "exceeds_takt": effective_ct > takt_time,
+            }
+        )
 
     # Lead time = sum of WIP days + external lead times
-    lead_time_days = sum(a["wip_days"] for a in analyzed) + \
-                     sum(op.get("lead_time_days", 0) for op in ops)
+    lead_time_days = sum(a["wip_days"] for a in analyzed) + sum(op.get("lead_time_days", 0) for op in ops)
     process_time_sec = total_ct
     process_time_days = process_time_sec / available_seconds
     pce = (process_time_days / lead_time_days * 100) if lead_time_days > 0 else 0
@@ -329,22 +560,21 @@ def execute_lot_size_optimizer(inputs: Dict) -> Dict:
         total_current_setup += current_setups_per_year * setup_time_hrs
         total_optimal_setup += optimal_setups_per_year * setup_time_hrs
 
-        optimized.append({
-            "name": op["name"],
-            "current_batch": op["batch_size"],
-            "optimal_batch": int(eoq),
-            "setup_time_min": op["setup_time"],
-            "current_setups_yr": round(current_setups_per_year, 1),
-            "optimal_setups_yr": round(optimal_setups_per_year, 1),
-            "setup_reduction_pct": round(
-                (1 - optimal_setups_per_year / current_setups_per_year) * 100, 1
-            ) if current_setups_per_year > 0 else 0,
-        })
+        optimized.append(
+            {
+                "name": op["name"],
+                "current_batch": op["batch_size"],
+                "optimal_batch": int(eoq),
+                "setup_time_min": op["setup_time"],
+                "current_setups_yr": round(current_setups_per_year, 1),
+                "optimal_setups_yr": round(optimal_setups_per_year, 1),
+                "setup_reduction_pct": round((1 - optimal_setups_per_year / current_setups_per_year) * 100, 1)
+                if current_setups_per_year > 0
+                else 0,
+            }
+        )
 
-    setup_reduction = (
-        (1 - total_optimal_setup / total_current_setup) * 100
-        if total_current_setup > 0 else 0
-    )
+    setup_reduction = (1 - total_optimal_setup / total_current_setup) * 100 if total_current_setup > 0 else 0
 
     return {
         "optimized_batches": optimized,
@@ -432,29 +662,35 @@ def execute_simulation(inputs: Dict) -> Dict:
         simulated_ops.append(sim_op)
 
         if smed_candidate:
-            improvements.append({
-                "type": "SMED",
-                "operation": op["name"],
-                "current_setup": op["setup_time"],
-                "target_setup": round(sim_setup, 1),
-                "reduction_pct": 50,
-            })
+            improvements.append(
+                {
+                    "type": "SMED",
+                    "operation": op["name"],
+                    "current_setup": op["setup_time"],
+                    "target_setup": round(sim_setup, 1),
+                    "reduction_pct": 50,
+                }
+            )
 
         if op["uptime"] < 0.85:
-            improvements.append({
-                "type": "TPM",
-                "operation": op["name"],
-                "current_uptime": op["uptime"],
-                "target_uptime": round(sim_uptime, 3),
-            })
+            improvements.append(
+                {
+                    "type": "TPM",
+                    "operation": op["name"],
+                    "current_uptime": op["uptime"],
+                    "target_uptime": round(sim_uptime, 3),
+                }
+            )
 
         if op["scrap_rate"] > 2.0:
-            improvements.append({
-                "type": "Quality",
-                "operation": op["name"],
-                "current_scrap": op["scrap_rate"],
-                "target_scrap": round(op["scrap_rate"] * 0.5, 1),
-            })
+            improvements.append(
+                {
+                    "type": "Quality",
+                    "operation": op["name"],
+                    "current_scrap": op["scrap_rate"],
+                    "target_scrap": round(op["scrap_rate"] * 0.5, 1),
+                }
+            )
 
     return {
         "simulated_operations": simulated_ops,
@@ -518,59 +754,65 @@ def execute_vsm_diff(inputs: Dict) -> Dict:
     charters = []
     for imp in improvements:
         if imp["type"] == "SMED":
-            charters.append({
-                "project_type": "SMED",
-                "title": f"SMED — {imp['operation']}",
-                "scope": f"Reduce setup time from {imp['current_setup']} min to {imp['target_setup']} min",
-                "target": f"{imp['reduction_pct']}% setup reduction",
-                "operation": imp["operation"],
-                "estimated_weeks": 6,
-                "team": ["Process Engineer", "Setup Technician", "Operator"],
-                "phases": [
-                    "Video current setup",
-                    "Separate internal/external",
-                    "Convert internal to external",
-                    "Streamline remaining",
-                    "Standardize & document",
-                ],
-                "status": "draft",
-            })
+            charters.append(
+                {
+                    "project_type": "SMED",
+                    "title": f"SMED — {imp['operation']}",
+                    "scope": f"Reduce setup time from {imp['current_setup']} min to {imp['target_setup']} min",
+                    "target": f"{imp['reduction_pct']}% setup reduction",
+                    "operation": imp["operation"],
+                    "estimated_weeks": 6,
+                    "team": ["Process Engineer", "Setup Technician", "Operator"],
+                    "phases": [
+                        "Video current setup",
+                        "Separate internal/external",
+                        "Convert internal to external",
+                        "Streamline remaining",
+                        "Standardize & document",
+                    ],
+                    "status": "draft",
+                }
+            )
         elif imp["type"] == "TPM":
-            charters.append({
-                "project_type": "TPM",
-                "title": f"TPM — {imp['operation']}",
-                "scope": f"Increase uptime from {imp['current_uptime']*100:.0f}% to {imp['target_uptime']*100:.0f}%",
-                "target": f"{(imp['target_uptime'] - imp['current_uptime'])*100:.0f}pp uptime improvement",
-                "operation": imp["operation"],
-                "estimated_weeks": 8,
-                "team": ["Maintenance Tech", "Operator", "Process Engineer"],
-                "phases": [
-                    "Baseline OEE measurement",
-                    "PM task analysis",
-                    "Operator basic care training",
-                    "Implement AM/PM schedule",
-                    "Monitor & adjust",
-                ],
-                "status": "draft",
-            })
+            charters.append(
+                {
+                    "project_type": "TPM",
+                    "title": f"TPM — {imp['operation']}",
+                    "scope": f"Increase uptime from {imp['current_uptime'] * 100:.0f}% to {imp['target_uptime'] * 100:.0f}%",
+                    "target": f"{(imp['target_uptime'] - imp['current_uptime']) * 100:.0f}pp uptime improvement",
+                    "operation": imp["operation"],
+                    "estimated_weeks": 8,
+                    "team": ["Maintenance Tech", "Operator", "Process Engineer"],
+                    "phases": [
+                        "Baseline OEE measurement",
+                        "PM task analysis",
+                        "Operator basic care training",
+                        "Implement AM/PM schedule",
+                        "Monitor & adjust",
+                    ],
+                    "status": "draft",
+                }
+            )
         elif imp["type"] == "Quality":
-            charters.append({
-                "project_type": "Quality Improvement",
-                "title": f"Scrap Reduction — {imp['operation']}",
-                "scope": f"Reduce scrap from {imp['current_scrap']}% to {imp['target_scrap']}%",
-                "target": f"50% scrap reduction",
-                "operation": imp["operation"],
-                "estimated_weeks": 12,
-                "team": ["Quality Engineer", "Operator", "Process Engineer"],
-                "phases": [
-                    "Pareto of defect modes",
-                    "Root cause analysis (5-Why / Fishbone)",
-                    "Countermeasure implementation",
-                    "Process capability validation",
-                    "Control plan update",
-                ],
-                "status": "draft",
-            })
+            charters.append(
+                {
+                    "project_type": "Quality Improvement",
+                    "title": f"Scrap Reduction — {imp['operation']}",
+                    "scope": f"Reduce scrap from {imp['current_scrap']}% to {imp['target_scrap']}%",
+                    "target": "50% scrap reduction",
+                    "operation": imp["operation"],
+                    "estimated_weeks": 12,
+                    "team": ["Quality Engineer", "Operator", "Process Engineer"],
+                    "phases": [
+                        "Pareto of defect modes",
+                        "Root cause analysis (5-Why / Fishbone)",
+                        "Countermeasure implementation",
+                        "Process capability validation",
+                        "Control plan update",
+                    ],
+                    "status": "draft",
+                }
+            )
 
     return {
         "charters": charters,
@@ -600,7 +842,8 @@ def execute_vsm_diff(inputs: Dict) -> Dict:
 # This is exactly how it should work: devices define the types they need.
 
 VSM_CURRENT_SCHEMA = DeviceSchema(
-    "vsm_current_state", "Current state value stream map",
+    "vsm_current_state",
+    "Current state value stream map",
     inputs=[
         Port.from_str("operations", "vsm:operations[]"),
         Port.from_str("demand_rate", "config:demand_rate", required=False, default=100),
@@ -618,7 +861,8 @@ VSM_CURRENT_SCHEMA = DeviceSchema(
 )
 
 LOT_SIZE_SCHEMA = DeviceSchema(
-    "lot_size_optimizer", "EPQ/EOQ lot size optimization",
+    "lot_size_optimizer",
+    "EPQ/EOQ lot size optimization",
     inputs=[
         Port.from_str("operations_analyzed", "vsm:operations[]"),
         Port.from_str("demand_rate", "config:demand_rate", required=False, default=100),
@@ -633,7 +877,8 @@ LOT_SIZE_SCHEMA = DeviceSchema(
 )
 
 SIMULATION_SCHEMA = DeviceSchema(
-    "simulation", "Monte Carlo simulation on value stream",
+    "simulation",
+    "Monte Carlo simulation on value stream",
     inputs=[
         Port.from_str("operations_analyzed", "vsm:operations[]"),
         Port.from_str("optimized_batches", "vsm:batches[]"),
@@ -650,7 +895,8 @@ SIMULATION_SCHEMA = DeviceSchema(
 )
 
 VSM_FUTURE_SCHEMA = DeviceSchema(
-    "vsm_future_state", "Future state value stream map (from simulation)",
+    "vsm_future_state",
+    "Future state value stream map (from simulation)",
     inputs=[
         Port.from_str("simulated_operations", "vsm:operations[]"),
         Port.from_str("demand_rate", "config:demand_rate", required=False, default=100),
@@ -668,7 +914,8 @@ VSM_FUTURE_SCHEMA = DeviceSchema(
 )
 
 DIFF_SCHEMA = DeviceSchema(
-    "vsm_diff", "Current vs future state diff + charter generation",
+    "vsm_diff",
+    "Current vs future state diff + charter generation",
     inputs=[
         Port.from_str("current_state", "vsm:state"),
         Port.from_str("future_state", "vsm:state"),
@@ -687,6 +934,7 @@ DIFF_SCHEMA = DeviceSchema(
 # ---------------------------------------------------------------------------
 # Run the full loop
 # ---------------------------------------------------------------------------
+
 
 def run_full_loop():
     print("=" * 70)
@@ -713,16 +961,12 @@ def run_full_loop():
     connections = [
         # Current state → lot size optimizer
         Connection("vsm_current", "operations_analyzed", "lot_size", "operations_analyzed"),
-
         # Current state → simulation
         Connection("vsm_current", "operations_analyzed", "sim", "operations_analyzed"),
-
         # Lot size → simulation (optimized batches inform sim)
         Connection("lot_size", "optimized_batches", "sim", "optimized_batches"),
-
         # Simulation → future state VSM (THIS IS THE FEEDBACK)
         Connection("sim", "simulated_operations", "vsm_future", "simulated_operations"),
-
         # NOTE: diff device needs FULL VSM state, not individual ports.
         # This surfaces GOTCHA #1: composite ports. The diff device
         # receives the full output dict as vsm:state, not individual
@@ -739,8 +983,7 @@ def run_full_loop():
     # For now, pass the full output dicts directly.
     devices["diff"].input_values["current_state"] = results["vsm_current"]
     devices["diff"].input_values["future_state"] = results["vsm_future"]
-    devices["diff"].input_values["improvement_opportunities"] = \
-        results["sim"].get("improvement_opportunities", [])
+    devices["diff"].input_values["improvement_opportunities"] = results["sim"].get("improvement_opportunities", [])
     devices["diff"].execute()
     results["diff"] = devices["diff"].port_values
 
@@ -757,36 +1000,40 @@ def run_full_loop():
             print(f"    ! {op['name']}: {op['effective_ct']}s (takt={results['vsm_current']['takt_time']}s)")
 
     print(f"\n{'=' * 70}")
-    print(f"  2. LOT SIZE OPTIMIZATION")
+    print("  2. LOT SIZE OPTIMIZATION")
     print(f"{'=' * 70}")
     print(results["lot_size"]["summary"])
-    print(f"\n  Top changes:")
+    print("\n  Top changes:")
     for batch in results["lot_size"]["optimized_batches"]:
         if batch["current_batch"] != batch["optimal_batch"]:
-            print(f"    {batch['name']}: {batch['current_batch']} → {batch['optimal_batch']} "
-                  f"({batch['setup_reduction_pct']:+.0f}% setups)")
+            print(
+                f"    {batch['name']}: {batch['current_batch']} → {batch['optimal_batch']} "
+                f"({batch['setup_reduction_pct']:+.0f}% setups)"
+            )
 
     print(f"\n{'=' * 70}")
-    print(f"  3. SIMULATION")
+    print("  3. SIMULATION")
     print(f"{'=' * 70}")
     print(results["sim"]["summary"])
 
-    print(f"\n  Improvement opportunities:")
+    print("\n  Improvement opportunities:")
     for imp in results["sim"]["improvement_opportunities"]:
         if imp["type"] == "SMED":
             print(f"    SMED: {imp['operation']} — setup {imp['current_setup']}→{imp['target_setup']} min")
         elif imp["type"] == "TPM":
-            print(f"    TPM:  {imp['operation']} — uptime {imp['current_uptime']*100:.0f}→{imp['target_uptime']*100:.0f}%")
+            print(
+                f"    TPM:  {imp['operation']} — uptime {imp['current_uptime'] * 100:.0f}→{imp['target_uptime'] * 100:.0f}%"
+            )
         elif imp["type"] == "Quality":
             print(f"    QUAL: {imp['operation']} — scrap {imp['current_scrap']}→{imp['target_scrap']}%")
 
     print(f"\n{'=' * 70}")
-    print(f"  4. FUTURE STATE VSM")
+    print("  4. FUTURE STATE VSM")
     print(f"{'=' * 70}")
     print(results["vsm_future"]["summary"])
 
     print(f"\n{'=' * 70}")
-    print(f"  5. DIFF: CURRENT → FUTURE")
+    print("  5. DIFF: CURRENT → FUTURE")
     print(f"{'=' * 70}")
     print(results["diff"]["summary"])
 
@@ -800,13 +1047,13 @@ def run_full_loop():
         print(f"      Target: {charter['target']}")
         print(f"      Duration: {charter['estimated_weeks']} weeks")
         print(f"      Team: {', '.join(charter['team'])}")
-        print(f"      Phases:")
-        for j, phase in enumerate(charter['phases'], 1):
+        print("      Phases:")
+        for j, phase in enumerate(charter["phases"], 1):
             print(f"        {j}. {phase}")
 
     # --- Validation ---
     print(f"\n{'=' * 70}")
-    print(f"  VALIDATION")
+    print("  VALIDATION")
     print(f"{'=' * 70}")
 
     passed = 0
@@ -821,51 +1068,49 @@ def run_full_loop():
             failed += 1
             print(f"  FAIL  {name} -- {detail}")
 
-    check("24 operations processed",
-          len(results["vsm_current"]["operations_analyzed"]) == 24)
-    check("Lead time > 0",
-          results["vsm_current"]["lead_time"] > 0)
-    check("PCE calculated",
-          results["vsm_current"]["pce"] > 0)
-    check("Bottleneck identified",
-          results["vsm_current"]["bottleneck_name"] != "")
-    check("Lot sizes optimized",
-          len(results["lot_size"]["optimized_batches"]) == 24)
-    check("Simulation produced operations",
-          len(results["sim"]["simulated_operations"]) == 24)
-    check("Future state has lower lead time",
-          results["vsm_future"]["lead_time"] < results["vsm_current"]["lead_time"],
-          f"future={results['vsm_future']['lead_time']}, current={results['vsm_current']['lead_time']}")
-    check("Future state has lower WIP",
-          results["vsm_future"]["total_wip"] < results["vsm_current"]["total_wip"])
-    check("Future state has higher PCE",
-          results["vsm_future"]["pce"] > results["vsm_current"]["pce"])
-    check("Diff produced charters",
-          len(results["diff"]["charters"]) > 0)
-    check("SMED charters for high-setup operations",
-          any(c["project_type"] == "SMED" for c in results["diff"]["charters"]))
-    check("TPM charters for low-uptime operations",
-          any(c["project_type"] == "TPM" for c in results["diff"]["charters"]))
-    check("Quality charters for high-scrap operations",
-          any(c["project_type"] == "Quality Improvement" for c in results["diff"]["charters"]))
-    check("Lead time reduction is positive",
-          results["diff"]["lead_time_reduction_pct"] > 0)
-    check("Charters have phases",
-          all(len(c["phases"]) > 0 for c in results["diff"]["charters"]))
+    check("24 operations processed", len(results["vsm_current"]["operations_analyzed"]) == 24)
+    check("Lead time > 0", results["vsm_current"]["lead_time"] > 0)
+    check("PCE calculated", results["vsm_current"]["pce"] > 0)
+    check("Bottleneck identified", results["vsm_current"]["bottleneck_name"] != "")
+    check("Lot sizes optimized", len(results["lot_size"]["optimized_batches"]) == 24)
+    check("Simulation produced operations", len(results["sim"]["simulated_operations"]) == 24)
+    check(
+        "Future state has lower lead time",
+        results["vsm_future"]["lead_time"] < results["vsm_current"]["lead_time"],
+        f"future={results['vsm_future']['lead_time']}, current={results['vsm_current']['lead_time']}",
+    )
+    check("Future state has lower WIP", results["vsm_future"]["total_wip"] < results["vsm_current"]["total_wip"])
+    check("Future state has higher PCE", results["vsm_future"]["pce"] > results["vsm_current"]["pce"])
+    check("Diff produced charters", len(results["diff"]["charters"]) > 0)
+    check(
+        "SMED charters for high-setup operations", any(c["project_type"] == "SMED" for c in results["diff"]["charters"])
+    )
+    check(
+        "TPM charters for low-uptime operations", any(c["project_type"] == "TPM" for c in results["diff"]["charters"])
+    )
+    check(
+        "Quality charters for high-scrap operations",
+        any(c["project_type"] == "Quality Improvement" for c in results["diff"]["charters"]),
+    )
+    check("Lead time reduction is positive", results["diff"]["lead_time_reduction_pct"] > 0)
+    check("Charters have phases", all(len(c["phases"]) > 0 for c in results["diff"]["charters"]))
 
     # Data flow validation — did ports actually route correctly?
-    check("Current VSM output fed lot size optimizer",
-          len(devices["lot_size"].input_values.get("operations_analyzed", [])) == 24)
-    check("Lot size output fed simulation",
-          len(devices["sim"].input_values.get("optimized_batches", [])) > 0)
-    check("Simulation output fed future state VSM",
-          len(devices["vsm_future"].input_values.get("simulated_operations", [])) == 24)
+    check(
+        "Current VSM output fed lot size optimizer",
+        len(devices["lot_size"].input_values.get("operations_analyzed", [])) == 24,
+    )
+    check("Lot size output fed simulation", len(devices["sim"].input_values.get("optimized_batches", [])) > 0)
+    check(
+        "Simulation output fed future state VSM",
+        len(devices["vsm_future"].input_values.get("simulated_operations", [])) == 24,
+    )
 
-    print(f"\n  RESULTS: {passed}/{passed+failed} passed, {failed} failed")
+    print(f"\n  RESULTS: {passed}/{passed + failed} passed, {failed} failed")
 
     # --- Gotchas discovered ---
     print(f"\n{'=' * 70}")
-    print(f"  GOTCHAS FROM VSM FULL LOOP")
+    print("  GOTCHAS FROM VSM FULL LOOP")
     print(f"{'=' * 70}")
     print("""
   1. COMPOSITE PORTS: The diff device needs the FULL output of both
