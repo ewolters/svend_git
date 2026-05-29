@@ -1,0 +1,349 @@
+{% extends "base_app.html" %}
+{% block title %}Canvas Demo — SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+body > main { padding: 0 !important; }
+body > main > .container { max-width: none !important; padding: 0 !important; }
+
+.canvas-demo {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 24px;
+}
+
+.canvas-demo h1 {
+    font-size: 18px;
+    font-weight: 600;
+    font-family: var(--font-label);
+    color: var(--text-primary);
+    margin: 0 0 24px;
+}
+
+/* --- Input form --- */
+.cd-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.cd-form .cd-data-col {
+    grid-column: 1 / -1;
+}
+
+.cd-form label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+}
+
+.cd-form textarea,
+.cd-form input[type="number"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: var(--font-mono, monospace);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+}
+
+.cd-form textarea {
+    height: 120px;
+    resize: vertical;
+}
+
+.cd-form textarea:focus,
+.cd-form input:focus {
+    outline: none;
+    border-color: var(--accent-primary-border);
+}
+
+.cd-run-btn {
+    grid-column: 1 / -1;
+    padding: 10px 24px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-label);
+    background: var(--accent-primary);
+    color: var(--accent-primary-text, #fff);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.cd-run-btn:hover { opacity: 0.9; }
+.cd-run-btn:disabled { opacity: 0.5; cursor: wait; }
+
+/* --- Output zones --- */
+.cd-output { display: none; }
+.cd-output.visible { display: block; }
+
+.cd-metrics {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.cd-metric-card {
+    flex: 1;
+    min-width: 120px;
+    padding: 14px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.cd-metric-card .label {
+    font-size: 10px;
+    font-weight: 600;
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+}
+
+.cd-metric-card .value {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: var(--font-mono, monospace);
+    color: var(--text-primary);
+}
+
+.cd-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.cd-chart-slot {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    min-height: 280px;
+}
+
+.cd-job-id {
+    font-size: 11px;
+    font-family: var(--font-mono, monospace);
+    color: var(--text-dim);
+    margin-top: 12px;
+}
+
+.cd-error {
+    padding: 12px 16px;
+    background: var(--status-fail-bg, #2a1515);
+    border: 1px solid var(--status-fail-border, #6b2020);
+    border-radius: 4px;
+    color: var(--status-fail-text, #ff6b6b);
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+}
+
+.cd-summary {
+    padding: 14px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="canvas-demo">
+    <h1>Canvas Demo — Capability Study</h1>
+
+    <div class="cd-form" id="canvasForm">
+        <div class="cd-data-col">
+            <label for="dataInput">Paste data (one value per line, or comma-separated)</label>
+            <textarea id="dataInput" placeholder="50.1&#10;49.8&#10;50.3&#10;..."></textarea>
+        </div>
+        <div>
+            <label for="lslInput">Lower Spec Limit (LSL)</label>
+            <input type="number" id="lslInput" step="any" placeholder="e.g. 44.0">
+        </div>
+        <div>
+            <label for="uslInput">Upper Spec Limit (USL)</label>
+            <input type="number" id="uslInput" step="any" placeholder="e.g. 56.0">
+        </div>
+        <button class="cd-run-btn" id="runBtn" type="button">Run Capability Study</button>
+    </div>
+
+    <div class="cd-error" id="errorBox"></div>
+
+    <div class="cd-output" id="outputZone">
+        <div class="cd-metrics" id="metricsZone"></div>
+        <div class="cd-charts" id="chartsZone"></div>
+        <div class="cd-summary" id="summaryZone"></div>
+        <div class="cd-job-id" id="jobIdZone"></div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const runBtn = document.getElementById('runBtn');
+    const dataInput = document.getElementById('dataInput');
+    const lslInput = document.getElementById('lslInput');
+    const uslInput = document.getElementById('uslInput');
+    const errorBox = document.getElementById('errorBox');
+    const outputZone = document.getElementById('outputZone');
+    const metricsZone = document.getElementById('metricsZone');
+    const chartsZone = document.getElementById('chartsZone');
+    const summaryZone = document.getElementById('summaryZone');
+    const jobIdZone = document.getElementById('jobIdZone');
+
+    function parseData(raw) {
+        return raw.trim()
+            .split(/[\n,]+/)
+            .map(function(s) { return s.trim(); })
+            .filter(function(s) { return s.length > 0; })
+            .map(Number)
+            .filter(function(n) { return !isNaN(n); });
+    }
+
+    function showError(msg) {
+        errorBox.textContent = msg;
+        errorBox.style.display = 'block';
+        outputZone.classList.remove('visible');
+    }
+
+    function clearError() {
+        errorBox.style.display = 'none';
+        errorBox.textContent = '';
+    }
+
+    function clearZone(zone) {
+        while (zone.firstChild) zone.removeChild(zone.firstChild);
+    }
+
+    function getCookie(name) {
+        var match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        return match ? decodeURIComponent(match[2]) : null;
+    }
+
+    runBtn.addEventListener('click', async function() {
+        clearError();
+
+        var data = parseData(dataInput.value);
+        if (data.length < 2) {
+            showError('Need at least 2 numeric data points.');
+            return;
+        }
+
+        var lsl = lslInput.value ? parseFloat(lslInput.value) : null;
+        var usl = uslInput.value ? parseFloat(uslInput.value) : null;
+
+        if (lsl !== null && usl !== null && usl <= lsl) {
+            showError('USL must be greater than LSL.');
+            return;
+        }
+
+        var payload = {
+            plugin_name: 'capability_study',
+            input_data: { data: data },
+            is_scratch: true
+        };
+        if (lsl !== null) payload.input_data.lsl = lsl;
+        if (usl !== null) payload.input_data.usl = usl;
+
+        runBtn.disabled = true;
+        runBtn.textContent = 'Running...';
+
+        try {
+            var resp = await fetch('/api/demo/canvas/run/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(payload)
+            });
+
+            var result = await resp.json();
+
+            if (!resp.ok) {
+                showError(result.error || 'Request failed');
+                return;
+            }
+
+            renderOutput(result);
+        } catch (err) {
+            showError('Network error: ' + err.message);
+        } finally {
+            runBtn.disabled = false;
+            runBtn.textContent = 'Run Capability Study';
+        }
+    });
+
+    function renderOutput(result) {
+        clearZone(metricsZone);
+        clearZone(chartsZone);
+        summaryZone.textContent = '';
+        jobIdZone.textContent = '';
+
+        var metrics = result.outputs.filter(function(o) { return o.type === 'metric'; });
+        var charts = result.outputs.filter(function(o) { return o.type === 'chart'; });
+        var texts = result.outputs.filter(function(o) { return o.type === 'text'; });
+
+        // Metric cards
+        metrics.forEach(function(m) {
+            var card = document.createElement('div');
+            card.className = 'cd-metric-card';
+
+            var label = document.createElement('div');
+            label.className = 'label';
+            label.textContent = m.key.toUpperCase().replace(/_/g, ' ');
+            card.appendChild(label);
+
+            var val = document.createElement('div');
+            val.className = 'value';
+            val.textContent = typeof m.value === 'number' ? m.value.toFixed(3) : m.value;
+            card.appendChild(val);
+
+            metricsZone.appendChild(card);
+        });
+
+        // Charts via ForgeViz
+        charts.forEach(function(c) {
+            var slot = document.createElement('div');
+            slot.className = 'cd-chart-slot';
+            chartsZone.appendChild(slot);
+
+            if (typeof ForgeViz !== 'undefined' && ForgeViz.render) {
+                ForgeViz.render(slot, c.value, { theme: 'svend_dark' });
+            } else {
+                slot.textContent = 'ForgeViz not loaded';
+            }
+        });
+
+        // Summary text
+        var summaryOut = texts.find(function(t) { return t.key === 'summary'; });
+        if (summaryOut && summaryOut.value && summaryOut.value.text) {
+            summaryZone.textContent = summaryOut.value.text;
+        }
+
+        // Job ID
+        jobIdZone.textContent = 'Job: ' + result.job_id + ' (' + result.duration_ms + 'ms)';
+
+        outputZone.classList.add('visible');
+    }
+})();
+</script>
+{% endblock %}

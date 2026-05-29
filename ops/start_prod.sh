@@ -3,10 +3,8 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Always cd to the web root (one level up from ops/)
-WEB_ROOT="${SCRIPT_DIR%/ops}"
-cd "$WEB_ROOT"
+# SVEND lives at ~/svend/ — NOT in kjerne
+cd "$HOME/svend"
 
 export PATH="$HOME/.local/bin:$PATH"
 

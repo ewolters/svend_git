@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SVEND Flowchart Simulator — Type System + Connection Validation</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --border: #0f3460;
+    --text: #e0e0e0;
+    --pass: #4ecca3;
+    --fail: #e74c3c;
+    --warn: #f39c12;
+    --metric: #4ecca3;
+    --data: #3498db;
+    --chart: #e67e22;
+    --text-port: #9b59b6;
+    --spec: #1abc9c;
+    --config: #95a5a6;
+    --list: #8e44ad;
+    --document: #c0392b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  h1 { font-size: 16px; margin-bottom: 4px; }
+  h2 {
+    font-size: 13px;
+    color: var(--warn);
+    margin: 16px 0 8px;
+    padding: 4px 8px;
+    background: var(--surface);
+    border-left: 3px solid var(--warn);
+  }
+  .subtitle { color: #888; font-size: 11px; margin-bottom: 16px; }
+  #results { white-space: pre-wrap; }
+  .pass { color: var(--pass); }
+  .fail { color: var(--fail); font-weight: bold; }
+  .note { color: #888; }
+  .section { color: var(--warn); font-weight: bold; }
+  #device-viz {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin: 16px 0;
+  }
+  .device-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    min-width: 200px;
+  }
+  .device-card h3 {
+    font-size: 12px;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .port-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 3px 0;
+    font-size: 11px;
+  }
+  .port-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .port-label { flex: 1; }
+  .port-type { color: #888; font-size: 10px; }
+  .port-multi { font-size: 9px; color: var(--warn); }
+  .inputs-label, .outputs-label {
+    font-size: 10px;
+    color: #666;
+    margin: 6px 0 2px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  #summary-box {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+</style>
+</head>
+<body>
+
+<h1>SVEND Flowchart Simulator</h1>
+<div class="subtitle">
+  Type system + connection validation + device rendering — standalone JS, no server.
+  <br>Parity test against sandbox/semantic_types.py (48/48 Python tests).
+</div>
+
+<h2>Device Visualization</h2>
+<div id="device-viz"></div>
+
+<h2>Test Results</h2>
+<pre id="results"></pre>
+<div id="summary-box"></div>
+
+<script>
+// ===================================================================
+// SEMANTIC TYPE SYSTEM — JS port of sandbox/semantic_types.py
+// ===================================================================
+//
+// PORTED 2026-05-12. Must stay in sync with Python version.
+// Any divergence = frontend/backend type mismatch = bugs.
+//
+// DECISIONS (from Python sandbox, round 1+2):
+//   - 8 categories, not 4. All load-bearing.
+//   - spec/config are NOT metric. list is NOT text.
+//   - Port.multi for aggregation (report builder).
+//   - Config ports are form fields, not cable endpoints.
+
+const TYPE_PATTERN = /^([a-z_]+):([a-z_*]+(?:\[\])?)$/;
+
+const PORT_COLORS = {
+  metric:   '#4ecca3',
+  spec:     '#1abc9c',
+  config:   '#95a5a6',
+  data:     '#3498db',
+  chart:    '#e67e22',
+  text:     '#9b59b6',
+  list:     '#8e44ad',
+  document: '#c0392b',
+};
+
+class SemanticType {
+  constructor(category, subtype, isArray) {
+    this.category = category;
+    this.subtype = subtype;
+    this.isArray = isArray || false;
+  }
+
+  static parse(typeStr) {
+    const m = TYPE_PATTERN.exec(typeStr);
+    if (!m) {
+      throw new Error(
+        "Invalid semantic type '" + typeStr + "'. " +
+        "Expected 'category:subtype' (e.g. 'metric:cpk', 'data:column[]')"
+      );
+    }
+    var category = m[1];
+    var subtype = m[2];
+    var isArray = subtype.endsWith('[]');
+    if (isArray) subtype = subtype.slice(0, -2);
+    return new SemanticType(category, subtype, isArray);
+  }
+
+  get isWildcard() { return this.subtype === '*'; }
+  get color() { return PORT_COLORS[this.category] || '#666'; }
+
+  accepts(other) {
+    if (this.category !== other.category) return false;
+    if (this.isArray !== other.isArray) return false;
+    if (this.isWildcard) return true;
+    return this.subtype === other.subtype;
+  }
+
+  toString() {
+    var arr = this.isArray ? '[]' : '';
+    return this.category + ':' + this.subtype + arr;
+  }
+}
+
+
+class Port {
+  constructor(opts) {
+    this.name = opts.name;
+    this.semanticType = opts.semanticType;
+    this.multi = opts.multi || false;
+    this.required = opts.required !== undefined ? opts.required : true;
+    this.defaultVal = opts.defaultVal || null;
+    this.description = opts.description || '';
+  }
+
+  static fromStr(name, typeStr, opts) {
+    opts = opts || {};
+    return new Port(Object.assign({ name: name, semanticType: SemanticType.parse(typeStr) }, opts));
+  }
+
+  // DECIDED (round 3): Config ports ARE regular ports. No connectable flag.
+  // A process config device outputs config:subgroup_size and analysis devices
+  // receive it via cable. When NOT connected, device panel shows editable form
+  // field. When connected, form field locks to incoming value.
+}
+
+
+class DeviceSchema {
+  constructor(name, description, inputs, outputs) {
+    this.name = name;
+    this.description = description;
+    this.inputs = inputs || [];
+    this.outputs = outputs || [];
+  }
+
+  getInput(name)  { return this.inputs.find(function(p) { return p.name === name; }); }
+  getOutput(name) { return this.outputs.find(function(p) { return p.name === name; }); }
+  inputNames()    { return this.inputs.map(function(p) { return p.name; }); }
+  outputNames()   { return this.outputs.map(function(p) { return p.name; }); }
+
+  requiredInputs() {
+    return this.inputs.filter(function(p) { return p.required && p.defaultVal === null; });
+  }
+  // All ports are connectable — config ports are regular ports (decided round 3)
+}
+
+
+// -------------------------------------------------------------------
+// Connection + Flowchart Validation
+// -------------------------------------------------------------------
+
+function validateConnection(conn, devices) {
+  var result = { valid: false, connection: conn, error: '' };
+
+  var source = devices[conn.sourceDevice];
+  if (!source) { result.error = "Source device '" + conn.sourceDevice + "' not found"; return result; }
+
+  var target = devices[conn.targetDevice];
+  if (!target) { result.error = "Target device '" + conn.targetDevice + "' not found"; return result; }
+
+  var sourcePort = source.getOutput(conn.sourcePort);
+  if (!sourcePort) {
+    result.error = "Output port '" + conn.sourcePort + "' not found on '" + conn.sourceDevice + "'. Available: [" + source.outputNames() + "]";
+    return result;
+  }
+
+  var targetPort = target.getInput(conn.targetPort);
+  if (!targetPort) {
+    result.error = "Input port '" + conn.targetPort + "' not found on '" + conn.targetDevice + "'. Available: [" + target.inputNames() + "]";
+    return result;
+  }
+
+  result.sourceType = sourcePort.semanticType;
+  result.targetType = targetPort.semanticType;
+
+  if (!targetPort.semanticType.accepts(sourcePort.semanticType)) {
+    result.error = "Type mismatch: " + sourcePort.semanticType + " -> " + targetPort.semanticType;
+    return result;
+  }
+
+  if (conn.sourceDevice === conn.targetDevice) {
+    result.error = 'Cannot connect a device to itself';
+    return result;
+  }
+
+  result.valid = true;
+  return result;
+}
+
+
+function validateFlowchart(devices, connections) {
+  var result = {
+    valid: true,
+    connectionErrors: [],
+    missingInputs: [],
+    multiplicityErrors: [],
+    warnings: [],
+    cycles: [],
+  };
+
+  var portConns = {};
+
+  // 1. Validate each connection
+  connections.forEach(function(conn) {
+    var r = validateConnection(conn, devices);
+    if (!r.valid) {
+      result.valid = false;
+      result.connectionErrors.push(r.error);
+    } else {
+      var key = conn.targetDevice + '.' + conn.targetPort;
+      if (!portConns[key]) portConns[key] = [];
+      portConns[key].push(conn);
+    }
+  });
+
+  // 2. Multiplicity check
+  Object.keys(portConns).forEach(function(key) {
+    var conns = portConns[key];
+    var parts = key.split('.');
+    var devName = parts[0], portName = parts[1];
+    var device = devices[devName];
+    var port = device && device.getInput(portName);
+    if (port && !port.multi && conns.length > 1) {
+      result.valid = false;
+      var sources = conns.map(function(c) { return c.sourceDevice + '.' + c.sourcePort; });
+      result.multiplicityErrors.push(
+        "'" + key + "' is single-connection but has " + conns.length + " from: [" + sources + "]"
+      );
+    }
+  });
+
+  // 3. Required inputs
+  var connected = {};
+  Object.keys(portConns).forEach(function(k) { connected[k] = true; });
+  Object.keys(devices).forEach(function(devName) {
+    var device = devices[devName];
+    device.requiredInputs().forEach(function(port) {
+      if (!connected[devName + '.' + port.name]) {
+        result.valid = false;
+        result.missingInputs.push(
+          "'" + devName + "." + port.name + "' (" + port.semanticType + ") required but not connected"
+        );
+      }
+    });
+  });
+
+  // 4. Cycle detection (Kahn's algorithm — topological sort)
+  // GOTCHA #3: individual validation won't catch A->B->C->A
+  var adj = {};
+  var inDeg = {};
+  Object.keys(devices).forEach(function(name) {
+    adj[name] = {};
+    inDeg[name] = 0;
+  });
+  connections.forEach(function(conn) {
+    if (!adj[conn.sourceDevice][conn.targetDevice]) {
+      adj[conn.sourceDevice][conn.targetDevice] = true;
+      inDeg[conn.targetDevice]++;
+    }
+  });
+  var queue = Object.keys(devices).filter(function(d) { return inDeg[d] === 0; });
+  var sorted = 0;
+  while (queue.length > 0) {
+    var node = queue.shift();
+    sorted++;
+    Object.keys(adj[node]).forEach(function(neighbor) {
+      inDeg[neighbor]--;
+      if (inDeg[neighbor] === 0) queue.push(neighbor);
+    });
+  }
+  if (sorted !== Object.keys(devices).length) {
+    result.valid = false;
+    var cycled = Object.keys(devices).filter(function(d) { return inDeg[d] > 0; });
+    result.cycles.push("Cycle detected involving: [" + cycled + "]");
+  }
+
+  // 5. Warnings
+  var sourcesUsed = {};
+  connections.forEach(function(c) { sourcesUsed[c.sourceDevice] = true; });
+  Object.keys(devices).forEach(function(devName) {
+    if (!sourcesUsed[devName] && devices[devName].outputs.length > 0) {
+      result.warnings.push("'" + devName + "' has outputs but nothing connected");
+    }
+  });
+
+  return result;
+}
+
+
+// -------------------------------------------------------------------
+// Device Definitions (must match Python sandbox/semantic_types.py)
+// -------------------------------------------------------------------
+
+function makeDataSource() {
+  return new DeviceSchema('data_source', 'Data ingestion', [], [
+    Port.fromStr('measurements', 'data:column', { description: 'Primary measurement column' }),
+    Port.fromStr('usl', 'spec:usl', { description: 'Upper spec limit' }),
+    Port.fromStr('lsl', 'spec:lsl', { description: 'Lower spec limit' }),
+  ]);
+}
+
+function makeCapabilityStudy() {
+  return new DeviceSchema('capability_study', 'Process capability — Cp, Cpk, Pp, Ppk', [
+    Port.fromStr('data', 'data:column', { description: 'Measurement data' }),
+    Port.fromStr('usl', 'spec:usl', { description: 'Upper spec limit' }),
+    Port.fromStr('lsl', 'spec:lsl', { description: 'Lower spec limit' }),
+    Port.fromStr('subgroup_size', 'config:subgroup_size', { required: false, defaultVal: 1 }),
+  ], [
+    Port.fromStr('cpk', 'metric:cpk'),
+    Port.fromStr('ppk', 'metric:ppk'),
+    Port.fromStr('sigma_level', 'metric:sigma_level'),
+    Port.fromStr('histogram', 'chart:histogram'),
+    Port.fromStr('qq_plot', 'chart:qq_plot'),
+    Port.fromStr('summary', 'text:summary'),
+  ]);
+}
+
+function makeControlChart() {
+  return new DeviceSchema('control_chart', 'SPC control chart', [
+    Port.fromStr('data', 'data:column', { description: 'Measurement data' }),
+    Port.fromStr('chart_type', 'config:chart_type', { required: false, defaultVal: 'i_mr' }),
+    Port.fromStr('subgroup_size', 'config:subgroup_size', { required: false, defaultVal: 1 }),
+  ], [
+    Port.fromStr('chart', 'chart:control_chart'),
+    Port.fromStr('mean', 'metric:mean'),
+    Port.fromStr('ucl', 'metric:ucl'),
+    Port.fromStr('lcl', 'metric:lcl'),
+    Port.fromStr('violations', 'list:violations'),
+  ]);
+}
+
+function makeReportBuilder() {
+  return new DeviceSchema('report_builder', 'Document assembly', [
+    Port.fromStr('charts', 'chart:*', { multi: true, description: 'Any charts' }),
+    Port.fromStr('metrics', 'metric:*', { multi: true, description: 'Any metrics' }),
+    Port.fromStr('narrative', 'text:*', { multi: true, description: 'Narrative text' }),
+    Port.fromStr('lists', 'list:*', { multi: true, description: 'Structured lists' }),
+  ], [
+    Port.fromStr('pdf', 'document:pdf'),
+    Port.fromStr('html', 'document:html'),
+  ]);
+}
+
+function makeFishbone() {
+  return new DeviceSchema('fishbone', 'Ishikawa / cause-and-effect diagram', [
+    Port.fromStr('problem', 'text:summary', { required: false, description: 'Problem statement' }),
+  ], [
+    Port.fromStr('causes', 'list:causes'),
+    Port.fromStr('diagram', 'chart:fishbone'),
+  ]);
+}
+
+
+// -------------------------------------------------------------------
+// Device Visualization
+// -------------------------------------------------------------------
+
+function renderDevice(device) {
+  var card = document.createElement('div');
+  card.className = 'device-card';
+  var html = '<h3>' + device.name + '</h3>';
+
+  if (device.inputs.length > 0) {
+    html += '<div class="inputs-label">Inputs</div>';
+    device.inputs.forEach(function(p) {
+      var color = p.semanticType.color;
+      var multi = p.multi ? ' [multi]' : '';
+      html += '<div class="port-row">' +
+        '<div class="port-dot" style="background:' + color + '"></div>' +
+        '<span class="port-label">' + p.name + '</span>' +
+        '<span class="port-type">' + p.semanticType + '</span>' +
+        (multi ? '<span class="port-multi">' + multi + '</span>' : '') +
+      '</div>';
+    });
+  }
+
+  if (device.outputs.length > 0) {
+    html += '<div class="outputs-label">Outputs</div>';
+    device.outputs.forEach(function(p) {
+      var color = p.semanticType.color;
+      html += '<div class="port-row">' +
+        '<div class="port-dot" style="background:' + color + '"></div>' +
+        '<span class="port-label">' + p.name + '</span>' +
+        '<span class="port-type">' + p.semanticType + '</span>' +
+      '</div>';
+    });
+  }
+
+  card.innerHTML = html;
+  return card;
+}
+
+
+// -------------------------------------------------------------------
+// Test Runner
+// -------------------------------------------------------------------
+
+function TestRunner() {
+  this.passed = 0;
+  this.failed = 0;
+  this.lines = [];
+}
+
+TestRunner.prototype.test = function(name, condition, detail) {
+  if (condition) {
+    this.passed++;
+    this.lines.push('<span class="pass">  PASS</span>  ' + name);
+  } else {
+    this.failed++;
+    var d = detail ? ' -- ' + detail : '';
+    this.lines.push('<span class="fail">  FAIL</span>  ' + name + d);
+  }
+};
+
+TestRunner.prototype.section = function(title) {
+  this.lines.push('\n<span class="section">' + '='.repeat(60) + '</span>');
+  this.lines.push('<span class="section">  ' + title + '</span>');
+  this.lines.push('<span class="section">' + '='.repeat(60) + '</span>');
+};
+
+TestRunner.prototype.note = function(text) {
+  this.lines.push('<span class="note">  ' + text + '</span>');
+};
+
+TestRunner.prototype.render = function() {
+  return this.lines.join('\n');
+};
+
+
+// -------------------------------------------------------------------
+// Tests — mirrors Python sandbox/semantic_types.py
+// -------------------------------------------------------------------
+
+function runTests() {
+  var t = new TestRunner();
+
+  // -- Type Parsing --
+  t.section('Type Parsing (parity with Python)');
+
+  var st = SemanticType.parse('metric:cpk');
+  t.test('parse metric:cpk', st.category === 'metric' && st.subtype === 'cpk');
+
+  st = SemanticType.parse('data:column');
+  t.test('parse data:column', st.category === 'data' && st.subtype === 'column');
+
+  st = SemanticType.parse('metric:cycle_time[]');
+  t.test('parse array type', st.isArray && st.subtype === 'cycle_time');
+
+  st = SemanticType.parse('chart:*');
+  t.test('parse wildcard', st.isWildcard && st.category === 'chart');
+
+  var badCases = [
+    ['cpk', 'bare name'], ['metric:cpk:extra', 'triple-colon'],
+    ['', 'empty string'], ['Metric:Cpk', 'uppercase']
+  ];
+  badCases.forEach(function(pair) {
+    var bad = pair[0], label = pair[1];
+    try {
+      SemanticType.parse(bad);
+      t.test('reject ' + label, false, "'" + bad + "' should throw");
+    } catch (e) {
+      t.test('reject ' + label, true);
+    }
+  });
+
+  // -- Raj Tests --
+  t.section('Type Compatibility — The Raj Tests');
+
+  var cpk = SemanticType.parse('metric:cpk');
+  var ppk = SemanticType.parse('metric:ppk');
+  var pval = SemanticType.parse('metric:p_value');
+  var anyMetric = SemanticType.parse('metric:*');
+  var dataCol = SemanticType.parse('data:column');
+  var anyChart = SemanticType.parse('chart:*');
+
+  t.test('exact: metric:cpk -> metric:cpk', cpk.accepts(cpk));
+  t.test('wildcard: metric:* accepts metric:cpk', anyMetric.accepts(cpk));
+  t.test('wildcard: metric:* accepts metric:ppk', anyMetric.accepts(ppk));
+  t.test('RAJ: metric:cpk REJECTS metric:p_value', !cpk.accepts(pval));
+  t.test('cross-category: data:column rejects metric:cpk', !dataCol.accepts(cpk));
+  t.test('cross-category: chart:* rejects metric:cpk', !anyChart.accepts(cpk));
+
+  var specUsl = SemanticType.parse('spec:usl');
+  t.test('DECISION: metric:* rejects spec:usl', !anyMetric.accepts(specUsl));
+
+  var configSg = SemanticType.parse('config:subgroup_size');
+  t.test('DECISION: metric:* rejects config:subgroup_size', !anyMetric.accepts(configSg));
+
+  var listV = SemanticType.parse('list:violations');
+  var textWild = SemanticType.parse('text:*');
+  t.test('DECISION: text:* rejects list:violations', !textWild.accepts(listV));
+
+  var arrIn = SemanticType.parse('metric:cycle_time[]');
+  var arrOut = SemanticType.parse('metric:cycle_time[]');
+  var scalar = SemanticType.parse('metric:cycle_time');
+  t.test('array: cycle_time[] -> cycle_time[]', arrIn.accepts(arrOut));
+  t.test('array rejects scalar', !arrIn.accepts(scalar));
+  t.test('scalar rejects array', !scalar.accepts(arrOut));
+
+  // -- Port features --
+  t.section('Port Multiplicity + Connectability');
+
+  var rb = makeReportBuilder();
+  t.test('report_builder.charts is multi', rb.getInput('charts').multi);
+  t.test('report_builder.metrics is multi', rb.getInput('metrics').multi);
+
+  var cap = makeCapabilityStudy();
+  t.test('capability.data is NOT multi', !cap.getInput('data').multi);
+  // DECIDED (round 3): config ports are regular connectable ports.
+  // No connectable flag. Process config device fans out to analysis devices.
+  t.test('capability.subgroup_size IS a port (config = regular port)',
+         cap.getInput('subgroup_size') !== undefined);
+  t.test('capability has 4 inputs (including config)',
+         cap.inputs.length === 4);
+
+  // -- Data Source --
+  t.section('Data Source Device');
+  var ds = makeDataSource();
+  t.test('data_source has no required inputs', ds.requiredInputs().length === 0);
+  t.test('data_source outputs data:column',
+         ds.getOutput('measurements').semanticType.toString() === 'data:column');
+
+  // -- Quick Cpk --
+  t.section('Template: Quick Cpk');
+  (function() {
+    var devices = { ds: makeDataSource(), cap: makeCapabilityStudy() };
+    var conns = [
+      { sourceDevice: 'ds', sourcePort: 'measurements', targetDevice: 'cap', targetPort: 'data' },
+      { sourceDevice: 'ds', sourcePort: 'usl', targetDevice: 'cap', targetPort: 'usl' },
+      { sourceDevice: 'ds', sourcePort: 'lsl', targetDevice: 'cap', targetPort: 'lsl' },
+    ];
+    var fv = validateFlowchart(devices, conns);
+    t.test('Quick Cpk: valid', fv.valid);
+    t.test('Quick Cpk: no connection errors', fv.connectionErrors.length === 0);
+    t.test('Quick Cpk: no cycles', fv.cycles.length === 0);
+  })();
+
+  // -- PPAP --
+  t.section('Template: PPAP Package');
+  (function() {
+    var devices = {
+      ds: makeDataSource(), cap: makeCapabilityStudy(),
+      cc: makeControlChart(), rb: makeReportBuilder(),
+    };
+    var conns = [
+      { sourceDevice: 'ds', sourcePort: 'measurements', targetDevice: 'cap', targetPort: 'data' },
+      { sourceDevice: 'ds', sourcePort: 'usl', targetDevice: 'cap', targetPort: 'usl' },
+      { sourceDevice: 'ds', sourcePort: 'lsl', targetDevice: 'cap', targetPort: 'lsl' },
+      { sourceDevice: 'ds', sourcePort: 'measurements', targetDevice: 'cc', targetPort: 'data' },
+      { sourceDevice: 'cap', sourcePort: 'histogram', targetDevice: 'rb', targetPort: 'charts' },
+      { sourceDevice: 'cap', sourcePort: 'qq_plot', targetDevice: 'rb', targetPort: 'charts' },
+      { sourceDevice: 'cap', sourcePort: 'cpk', targetDevice: 'rb', targetPort: 'metrics' },
+      { sourceDevice: 'cap', sourcePort: 'ppk', targetDevice: 'rb', targetPort: 'metrics' },
+      { sourceDevice: 'cap', sourcePort: 'summary', targetDevice: 'rb', targetPort: 'narrative' },
+      { sourceDevice: 'cc', sourcePort: 'chart', targetDevice: 'rb', targetPort: 'charts' },
+      { sourceDevice: 'cc', sourcePort: 'mean', targetDevice: 'rb', targetPort: 'metrics' },
+      { sourceDevice: 'cc', sourcePort: 'violations', targetDevice: 'rb', targetPort: 'lists' },
+    ];
+    var fv = validateFlowchart(devices, conns);
+    t.test('PPAP: valid', fv.valid);
+    t.test('PPAP: no multiplicity errors', fv.multiplicityErrors.length === 0);
+    t.test('PPAP: no missing inputs', fv.missingInputs.length === 0);
+    t.test('PPAP: no cycles', fv.cycles.length === 0);
+  })();
+
+  // -- DMAIC --
+  t.section('Template: Green Belt DMAIC');
+  (function() {
+    var devices = {
+      ds: makeDataSource(), cap: makeCapabilityStudy(),
+      cc: makeControlChart(), fish: makeFishbone(), rb: makeReportBuilder(),
+    };
+    var conns = [
+      { sourceDevice: 'ds', sourcePort: 'measurements', targetDevice: 'cap', targetPort: 'data' },
+      { sourceDevice: 'ds', sourcePort: 'usl', targetDevice: 'cap', targetPort: 'usl' },
+      { sourceDevice: 'ds', sourcePort: 'lsl', targetDevice: 'cap', targetPort: 'lsl' },
+      { sourceDevice: 'ds', sourcePort: 'measurements', targetDevice: 'cc', targetPort: 'data' },
+      { sourceDevice: 'cap', sourcePort: 'summary', targetDevice: 'fish', targetPort: 'problem' },
+      { sourceDevice: 'cap', sourcePort: 'histogram', targetDevice: 'rb', targetPort: 'charts' },
+      { sourceDevice: 'cap', sourcePort: 'cpk', targetDevice: 'rb', targetPort: 'metrics' },
+      { sourceDevice: 'cap', sourcePort: 'summary', targetDevice: 'rb', targetPort: 'narrative' },
+      { sourceDevice: 'cc', sourcePort: 'chart', targetDevice: 'rb', targetPort: 'charts' },
+      { sourceDevice: 'cc', sourcePort: 'violations', targetDevice: 'rb', targetPort: 'lists' },
+      { sourceDevice: 'fish', sourcePort: 'diagram', targetDevice: 'rb', targetPort: 'charts' },
+      { sourceDevice: 'fish', sourcePort: 'causes', targetDevice: 'rb', targetPort: 'lists' },
+    ];
+    var fv = validateFlowchart(devices, conns);
+    t.test('DMAIC: valid', fv.valid);
+    t.test('DMAIC: no cycles', fv.cycles.length === 0);
+  })();
+
+  // -- Multiplicity Enforcement --
+  t.section('Multiplicity Enforcement');
+  (function() {
+    var devices = {
+      ds1: makeDataSource(), ds2: makeDataSource(), cap: makeCapabilityStudy(),
+    };
+    var conns = [
+      { sourceDevice: 'ds1', sourcePort: 'measurements', targetDevice: 'cap', targetPort: 'data' },
+      { sourceDevice: 'ds2', sourcePort: 'measurements', targetDevice: 'cap', targetPort: 'data' },
+      { sourceDevice: 'ds1', sourcePort: 'usl', targetDevice: 'cap', targetPort: 'usl' },
+      { sourceDevice: 'ds1', sourcePort: 'lsl', targetDevice: 'cap', targetPort: 'lsl' },
+    ];
+    var fv = validateFlowchart(devices, conns);
+    t.test('REJECT two connections to single port', fv.multiplicityErrors.length > 0);
+    if (fv.multiplicityErrors.length > 0) {
+      t.note('Caught: ' + fv.multiplicityErrors[0]);
+    }
+  })();
+
+  // -- Missing Required Inputs --
+  t.section('Missing Required Inputs');
+  (function() {
+    var devices = { ds: makeDataSource(), cap: makeCapabilityStudy() };
+    var conns = [
+      { sourceDevice: 'ds', sourcePort: 'measurements', targetDevice: 'cap', targetPort: 'data' },
+    ];
+    var fv = validateFlowchart(devices, conns);
+    t.test('REJECT cap without spec limits', fv.missingInputs.length > 0);
+    t.test('identifies usl missing', fv.missingInputs.some(function(m) { return m.indexOf('usl') >= 0; }));
+    t.test('identifies lsl missing', fv.missingInputs.some(function(m) { return m.indexOf('lsl') >= 0; }));
+  })();
+
+  // -- Cycle Detection --
+  t.section('Cycle Detection (GOTCHA #3)');
+  (function() {
+    var loopA = new DeviceSchema('loop_a', 'test', [
+      Port.fromStr('in', 'metric:*'),
+    ], [
+      Port.fromStr('out', 'metric:cpk'),
+    ]);
+    var loopB = new DeviceSchema('loop_b', 'test', [
+      Port.fromStr('in', 'metric:*'),
+    ], [
+      Port.fromStr('out', 'metric:ppk'),
+    ]);
+    var loopC = new DeviceSchema('loop_c', 'test', [
+      Port.fromStr('in', 'metric:*'),
+    ], [
+      Port.fromStr('out', 'metric:mean'),
+    ]);
+
+    var devices = { a: loopA, b: loopB, c: loopC };
+    var conns = [
+      { sourceDevice: 'a', sourcePort: 'out', targetDevice: 'b', targetPort: 'in' },
+      { sourceDevice: 'b', sourcePort: 'out', targetDevice: 'c', targetPort: 'in' },
+      { sourceDevice: 'c', sourcePort: 'out', targetDevice: 'a', targetPort: 'in' },
+    ];
+    var fv = validateFlowchart(devices, conns);
+    t.test('REJECT circular connection A->B->C->A', fv.cycles.length > 0);
+    if (fv.cycles.length > 0) {
+      t.note('Caught: ' + fv.cycles[0]);
+    }
+    t.test('cycle makes flowchart invalid', !fv.valid);
+  })();
+
+  // -- Type Enforcement --
+  t.section('Type Enforcement (Invalid Connections)');
+  (function() {
+    var devices = {
+      cap: makeCapabilityStudy(), cc: makeControlChart(), rb: makeReportBuilder(),
+    };
+    var fv = validateFlowchart(devices, [
+      { sourceDevice: 'cap', sourcePort: 'cpk', targetDevice: 'cc', targetPort: 'data' },
+    ]);
+    t.test('REJECT metric:cpk -> data:column', fv.connectionErrors.length > 0);
+
+    fv = validateFlowchart(devices, [
+      { sourceDevice: 'cc', sourcePort: 'violations', targetDevice: 'rb', targetPort: 'charts' },
+    ]);
+    t.test('REJECT list:violations -> chart:*', fv.connectionErrors.length > 0);
+  })();
+
+  // -- Parity --
+  t.section('Python Parity');
+  t.note('JS tests: ' + (t.passed + t.failed) + ' total');
+  t.note('Python sandbox: 48 tests');
+  t.note('JS adds: cycle detection (2), config connectability (3) = ~53 expected');
+
+  return t;
+}
+
+
+// -------------------------------------------------------------------
+// Run
+// -------------------------------------------------------------------
+
+var t = runTests();
+
+var vizEl = document.getElementById('device-viz');
+[makeDataSource, makeCapabilityStudy, makeControlChart, makeFishbone, makeReportBuilder]
+  .forEach(function(fn) { vizEl.appendChild(renderDevice(fn())); });
+
+document.getElementById('results').innerHTML = t.render();
+
+var total = t.passed + t.failed;
+var summaryEl = document.getElementById('summary-box');
+var statusColor = t.failed === 0 ? 'var(--pass)' : 'var(--fail)';
+summaryEl.innerHTML =
+  '<span style="color:' + statusColor + ';font-weight:bold">' +
+    t.passed + '/' + total + ' passed, ' + t.failed + ' failed' +
+  '</span>' +
+  '<br><span class="note">' +
+    'JS type system parity with Python sandbox/semantic_types.py.' +
+    '<br>Extras in JS: cycle detection, config connectability.' +
+  '</span>';
+</script>
+</body>
+</html>

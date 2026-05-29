@@ -374,3 +374,8 @@ def education_view(request):
     ctx["alumni_pro"] = half(pricing["pro"])
     ctx["alumni_team"] = half(pricing["team"])
     return render(request, "education_partnerships.html", ctx)
+
+
+def plugin_spc_view(request):
+    """SPC Tools plugin landing page for Claude Code marketplace."""
+    return render(request, "plugin_spc.html")

@@ -616,7 +616,12 @@ function displayDesign(result) {
             aliasHtml += '<details style="margin-top:0.5rem;"><summary style="cursor:pointer;font-size:0.8rem;color:var(--text-secondary);">Show alias pairs</summary>';
             aliasHtml += '<table class="data-table" style="margin-top:0.5rem;font-size:0.8rem;"><tbody>';
             result.alias_structure.aliases.forEach(a => {
-                aliasHtml += `<tr><td>${a}</td></tr>`;
+                if (typeof a === 'object' && a.effect) {
+                    const aliased = Array.isArray(a.aliased_with) ? a.aliased_with.join(', ') : (a.aliased_with || '');
+                    aliasHtml += `<tr><td>${a.effect}</td><td style="color:var(--text-secondary);">${aliased}</td></tr>`;
+                } else {
+                    aliasHtml += `<tr><td>${a}</td></tr>`;
+                }
             });
             aliasHtml += '</tbody></table></details>';
         }
@@ -741,7 +746,8 @@ function updateLivePreview(k, levelCounts, total, baseRuns, reps, cp) {
     if (factors.length === 0) return;
 
     // Build approximate design points (full factorial of first 2-3 factors)
-    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim();
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#1a1a1a';
+    const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-primary').trim() || '#2a5f8f';
 
     if (factors.length === 1) {
         // 1D: dot plot on a number line
@@ -751,7 +757,7 @@ function updateLivePreview(k, levelCounts, total, baseRuns, reps, cp) {
             y: pts.map(() => 0),
             type: 'scatter',
             mode: 'markers',
-            marker: { size: 12, color: 'var(--accent-primary)' },
+            marker: { size: 12, color: accentColor },
         }], {
             xaxis: { title: factors[0].name },
             yaxis: { visible: false, range: [-0.5, 0.5] },
@@ -769,7 +775,7 @@ function updateLivePreview(k, levelCounts, total, baseRuns, reps, cp) {
             y: pts.map(p => p[1]),
             type: 'scatter',
             mode: 'markers',
-            marker: { size: 10, color: 'var(--accent-primary)' },
+            marker: { size: 10, color: accentColor },
         }], {
             xaxis: { title: factors[0].name },
             yaxis: { title: factors[1].name },
@@ -788,7 +794,7 @@ function updateLivePreview(k, levelCounts, total, baseRuns, reps, cp) {
             z: pts.map(p => p[2]),
             type: 'scatter3d',
             mode: 'markers',
-            marker: { size: 5, color: 'var(--accent-primary)' },
+            marker: { size: 5, color: accentColor },
         }], {
             scene: {
                 xaxis: { title: factors[0].name },

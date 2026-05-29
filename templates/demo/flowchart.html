@@ -2,438 +2,669 @@
 {% block title %}Flowchart — SVEND{% endblock %}
 
 {% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
+/* ═══════════════════════════════════════════════════════════
+   FLOWCHART RENDERER — NEEDS REDESIGN (2026-05-14)
+
+   BRAND SHIFT: This file predates the Precision Document
+   aesthetic (project_svend_brand_language.md). Current dark
+   theme with DM Sans + green accents is WRONG. Needs:
+
+   - Ground: warm buff paper (#f5f0e8), not dark bg
+   - Grid: visible graticule, not subtle dots
+   - Fonts: IBM Plex Mono (data) + IBM Plex Sans (headers)
+   - Colors: five-ink palette (buff, near-black, systematic
+     blue, magenta/vermillion, muted green) — NOT PORT_COLORS
+   - Borders: neat line with tick marks, registration crosshairs
+   - Devices: ink-on-paper instrument blocks, not glowing cards
+   - Status: printed symbols (● ◐ ○), not color glow
+
+   BACKEND IS DONE — all JS fetch() calls and API contract are
+   correct. Only CSS/SVG rendering needs to change. The JS
+   logic (boot, loadTemplate, renderFlowchart, renderPanel,
+   execution flow) is stable.
+
+   API endpoints (all working):
+     GET  /api/flowchart/templates/         — list templates
+     GET  /api/flowchart/templates/<id>/    — full definition
+     GET  /api/flowchart/devices/           — registered plugins
+     POST /api/flowchart/run/               — execute inline def
+     POST /api/flowchart/instances/         — create instance
+     GET  /api/flowchart/instances/<id>/    — get instance
+     DELETE /api/flowchart/instances/<id>/  — soft delete
+     POST /api/flowchart/instances/<id>/devices/        — add device
+     DELETE /api/flowchart/instances/<id>/devices/<did>/ — remove
+     POST /api/flowchart/instances/<id>/connections/          — add
+     POST /api/flowchart/instances/<id>/connections/remove/   — remove
+     POST /api/flowchart/instances/<id>/connections/validate/ — check
+     POST /api/flowchart/instances/<id>/run/                  — execute
+
+   See flowchart/service.py for the mutation layer.
+   See flowchart/types.py for connection validation + cycle detection.
+   See plugins/ for all 13 registered devices.
+   ═══════════════════════════════════════════════════════════ */
+
 body > main { padding: 0 !important; }
 body > main > .container { max-width: none !important; padding: 0 !important; }
 
-/* ── Layout ───────────────────────────────────────────── */
-.fc-app {
-    display: grid;
-    grid-template-columns: 240px 1fr 300px;
-    grid-template-rows: auto 1fr;
-    height: calc(100vh - 56px);
-    overflow: hidden;
+/* ── Type scale ────────────────────────────────────────── */
+.fc * { box-sizing: border-box; }
+.fc {
+    --fc-font: 'DM Sans', var(--font-label), sans-serif;
+    --fc-mono: 'IBM Plex Mono', var(--font-mono, monospace);
+    --fc-canvas-bg: var(--bg-primary);
+    --fc-dot: rgba(74,159,110,0.07);
+    --fc-sidebar-w: 220px;
+    --fc-panel-w: 320px;
+    --fc-port-r: 5;
 }
 
-.fc-toolbar {
+/* ── Layout ────────────────────────────────────────────── */
+.fc {
+    display: grid;
+    grid-template-columns: var(--fc-sidebar-w) 1fr var(--fc-panel-w);
+    grid-template-rows: 44px 1fr;
+    height: calc(100vh - 56px);
+    overflow: hidden;
+    font-family: var(--fc-font);
+}
+
+/* ── Toolbar ───────────────────────────────────────────── */
+.fc-bar {
     grid-column: 1 / -1;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 8px 16px;
+    gap: 14px;
+    padding: 0 16px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
-    min-height: 40px;
 }
 
-.fc-toolbar h1 {
-    font-size: 14px;
+.fc-bar-title {
+    font-size: 11px;
     font-weight: 600;
-    font-family: var(--font-label);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding-right: 14px;
+    border-right: 1px solid var(--border);
+}
+
+.fc-bar-name {
+    font-size: 13px;
+    font-weight: 500;
     color: var(--text-primary);
-    margin: 0;
+}
+
+.fc-bar-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-style: italic;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.fc-toolbar .fc-template-name {
-    font-size: 13px;
-    color: var(--text-dim);
-    font-family: var(--font-label);
-}
-
-.fc-toolbar .fc-spacer { flex: 1; }
-
-.fc-btn {
-    padding: 6px 14px;
-    font-size: 12px;
+.fc-bar-run {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 16px;
+    font-size: 11px;
     font-weight: 600;
-    font-family: var(--font-label);
-    border: 1px solid var(--border);
-    border-radius: 4px;
+    font-family: var(--fc-mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid var(--accent-primary-border);
+    border-radius: var(--radius-sm);
+    color: var(--accent-primary);
     cursor: pointer;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
+    transition: all 0.2s;
 }
-.fc-btn:hover { border-color: var(--text-dim); }
-.fc-btn:disabled { opacity: 0.5; cursor: wait; }
-
-.fc-btn-primary {
-    background: var(--accent-primary);
-    color: var(--accent-primary-text, #fff);
-    border-color: transparent;
+.fc-bar-run:hover {
+    background: var(--accent-primary-dim);
+    border-color: var(--accent-primary);
 }
-.fc-btn-primary:hover { opacity: 0.9; }
+.fc-bar-run:disabled { opacity: 0.35; cursor: default; }
+.fc-bar-run:disabled:hover { background: transparent; border-color: var(--accent-primary-border); }
 
-/* ── Template Picker (left sidebar) ──────────────────── */
-.fc-sidebar {
+.fc-bar-run.executing {
+    color: var(--sv-blue);
+    border-color: rgba(96,165,250,0.4);
+    animation: fc-pulse-border 1.2s ease infinite;
+}
+@keyframes fc-pulse-border {
+    0%, 100% { border-color: rgba(96,165,250,0.2); }
+    50% { border-color: rgba(96,165,250,0.6); }
+}
+
+.fc-bar-run .fc-run-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+/* ── Sidebar — Template Picker ─────────────────────────── */
+.fc-side {
     background: var(--bg-secondary);
     border-right: 1px solid var(--border);
     overflow-y: auto;
-    padding: 12px;
+    padding: 14px 12px;
 }
 
-.fc-sidebar h2 {
-    font-size: 11px;
+.fc-side::-webkit-scrollbar { width: 3px; }
+.fc-side::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.fc-side-label {
+    font-size: 9px;
     font-weight: 600;
-    font-family: var(--font-label);
+    font-family: var(--fc-mono);
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--text-dim);
-    margin: 0 0 10px;
+    margin-bottom: 10px;
+    padding-left: 2px;
 }
 
-.fc-tpl-card {
-    padding: 10px 12px;
-    background: var(--bg-primary, #1a1a1a);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    margin-bottom: 8px;
+.fc-tpl {
+    padding: 10px 11px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    margin-bottom: 6px;
     cursor: pointer;
-    transition: border-color 0.15s;
+    transition: all 0.15s;
+    position: relative;
 }
-.fc-tpl-card:hover { border-color: var(--accent-primary-border); }
-.fc-tpl-card.active { border-color: var(--accent-primary); }
+.fc-tpl:hover { background: var(--bg-hover); }
+.fc-tpl.active {
+    background: var(--accent-primary-dim);
+    border-color: var(--accent-primary-border);
+}
+.fc-tpl.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 8px; bottom: 8px;
+    width: 2px;
+    background: var(--accent-primary);
+    border-radius: 1px;
+}
 
-.fc-tpl-card .name {
+.fc-tpl-name {
     font-size: 13px;
-    font-weight: 600;
-    font-family: var(--font-label);
+    font-weight: 500;
     color: var(--text-primary);
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
-.fc-tpl-card .desc {
-    font-size: 11px;
-    color: var(--text-dim);
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.fc-tpl-card .devices {
-    margin-top: 6px;
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
-.fc-tpl-card .device-tag {
+.fc-tpl-meta {
     font-size: 10px;
-    font-family: var(--font-mono, monospace);
-    padding: 2px 6px;
-    background: var(--bg-secondary);
-    border-radius: 3px;
+    font-family: var(--fc-mono);
     color: var(--text-dim);
 }
 
-/* ── SVG Canvas ──────────────────────────────────────── */
-.fc-canvas-wrap {
+.fc-tpl-tags {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+.fc-tpl-tag {
+    font-size: 9px;
+    font-family: var(--fc-mono);
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-dim);
+}
+
+/* ── Canvas ────────────────────────────────────────────── */
+.fc-canvas {
     position: relative;
     overflow: hidden;
-    background: var(--bg-primary, #111);
+    background: var(--fc-canvas-bg);
 }
 
-.fc-canvas-wrap svg {
+.fc-canvas svg {
     width: 100%;
     height: 100%;
     display: block;
 }
 
-/* Grid pattern */
-.fc-grid-pattern line {
-    stroke: var(--border);
-    stroke-width: 0.5;
-    opacity: 0.3;
-}
+/* Dot grid */
+.fc-dot-pattern { fill: var(--fc-dot); }
 
-/* Device shapes */
-.fc-device {
-    cursor: pointer;
-}
-
-.fc-device rect.body {
-    rx: 8;
-    ry: 8;
-    fill: var(--bg-secondary);
-    stroke: var(--border);
+/* Connections — the cables */
+.fc-cable {
+    fill: none;
     stroke-width: 1.5;
-    transition: stroke 0.15s;
+    opacity: 0.55;
+    transition: opacity 0.2s, stroke-width 0.2s;
+}
+.fc-cable:hover { opacity: 1; stroke-width: 2.5; }
+.fc-cable.routed { opacity: 0.85; } /* after execution — signal is flowing */
+
+/* Animated flow particles along cables */
+.fc-flow-dot {
+    r: 2;
+    opacity: 0;
+}
+.fc-flow-dot.active {
+    opacity: 0.9;
 }
 
-.fc-device:hover rect.body { stroke: var(--text-dim); }
-.fc-device.selected rect.body { stroke: var(--accent-primary); stroke-width: 2; }
-.fc-device.completed rect.body { stroke: #22c55e; stroke-width: 2; }
-.fc-device.failed rect.body { stroke: #ef4444; stroke-width: 2; }
-.fc-device.running rect.body {
+/* Devices — the instruments */
+.fc-dev {
+    cursor: pointer;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.3));
+}
+
+.fc-dev rect.body {
+    fill: var(--bg-secondary);
+    stroke: var(--border-heavy);
+    stroke-width: 1;
+    rx: 3; ry: 3;
+    transition: stroke 0.2s, filter 0.3s;
+}
+
+.fc-dev:hover rect.body { stroke: var(--text-dim); }
+
+.fc-dev.selected rect.body {
     stroke: var(--accent-primary);
-    stroke-width: 2;
-    stroke-dasharray: 6 3;
-    animation: fc-dash 0.8s linear infinite;
+    stroke-width: 1.5;
 }
-@keyframes fc-dash { to { stroke-dashoffset: -9; } }
 
-.fc-device text.label {
-    font-size: 12px;
-    font-weight: 600;
-    font-family: var(--font-label);
+.fc-dev.completed rect.body {
+    stroke-width: 1.5;
+    /* glow color set per-device via style attr */
+}
+
+.fc-dev.failed rect.body {
+    stroke: var(--error);
+    stroke-width: 1.5;
+}
+
+.fc-dev.running rect.body {
+    stroke: var(--sv-blue);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+    animation: fc-dash 0.6s linear infinite;
+}
+@keyframes fc-dash { to { stroke-dashoffset: -7; } }
+
+/* Device header band — colored strip at top */
+.fc-dev rect.header {
+    rx: 3; ry: 3;
+    opacity: 0.12;
+}
+
+.fc-dev text.label {
+    font-size: 11px;
+    font-weight: 500;
+    font-family: var(--fc-font);
     fill: var(--text-primary);
     text-anchor: middle;
     dominant-baseline: middle;
     pointer-events: none;
 }
 
-.fc-device text.plugin-name {
-    font-size: 9px;
-    font-family: var(--font-mono, monospace);
+.fc-dev text.id-tag {
+    font-size: 8px;
+    font-family: var(--fc-mono);
     fill: var(--text-dim);
     text-anchor: middle;
     dominant-baseline: middle;
     pointer-events: none;
+    opacity: 0.6;
 }
 
-/* Ports */
-.fc-port {
+/* Ports — small typed connectors */
+.fc-port circle {
+    stroke-width: 1.5;
+    transition: r 0.15s;
     cursor: default;
 }
-
-.fc-port circle {
-    stroke: var(--bg-primary, #111);
-    stroke-width: 2;
-    r: 5;
-}
+.fc-port:hover circle { r: 7; }
 
 .fc-port text {
-    font-size: 8px;
-    font-family: var(--font-mono, monospace);
+    font-size: 7.5px;
+    font-family: var(--fc-mono);
     fill: var(--text-dim);
     pointer-events: none;
-}
-
-/* Connections */
-.fc-connection {
-    fill: none;
-    stroke-width: 2;
     opacity: 0.7;
 }
-.fc-connection:hover { opacity: 1; stroke-width: 2.5; }
 
-/* ── Detail Panel (right sidebar) ────────────────────── */
+/* ── Right Panel — Device Detail ───────────────────────── */
 .fc-panel {
     background: var(--bg-secondary);
     border-left: 1px solid var(--border);
     overflow-y: auto;
-    padding: 16px;
+    display: flex;
+    flex-direction: column;
 }
 
-.fc-panel.empty {
+.fc-panel::-webkit-scrollbar { width: 3px; }
+.fc-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.fc-panel-empty {
+    flex: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-}
-
-.fc-panel .empty-msg {
-    font-size: 12px;
-    color: var(--text-dim);
-    text-align: center;
-    font-family: var(--font-label);
-}
-
-.fc-panel h2 {
-    font-size: 14px;
-    font-weight: 600;
-    font-family: var(--font-label);
-    color: var(--text-primary);
-    margin: 0 0 4px;
-}
-
-.fc-panel .device-plugin {
-    font-size: 11px;
-    font-family: var(--font-mono, monospace);
-    color: var(--text-dim);
-    margin-bottom: 16px;
-}
-
-.fc-panel h3 {
-    font-size: 10px;
-    font-weight: 600;
-    font-family: var(--font-label);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-dim);
-    margin: 16px 0 8px;
-}
-
-.fc-panel h3:first-of-type { margin-top: 0; }
-
-/* Config form */
-.fc-config-field {
-    margin-bottom: 10px;
-}
-
-.fc-config-field label {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    font-family: var(--font-label);
-    color: var(--text-dim);
-    margin-bottom: 4px;
-}
-
-.fc-config-field input,
-.fc-config-field textarea {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 6px 10px;
-    font-size: 12px;
-    font-family: var(--font-mono, monospace);
-    background: var(--bg-primary, #111);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-primary);
-}
-
-.fc-config-field textarea {
-    height: 80px;
-    resize: vertical;
-}
-
-.fc-config-field input:focus,
-.fc-config-field textarea:focus {
-    outline: none;
-    border-color: var(--accent-primary-border);
-}
-
-/* Port list in panel */
-.fc-port-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.fc-port-list li {
-    display: flex;
-    align-items: center;
     gap: 8px;
-    padding: 4px 0;
-    font-size: 12px;
-    font-family: var(--font-mono, monospace);
-    color: var(--text-secondary, #ccc);
+    opacity: 0.4;
 }
 
-.fc-port-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
+.fc-panel-empty svg { width: 32px; height: 32px; stroke: var(--text-dim); fill: none; stroke-width: 1; }
 
-.fc-port-type {
-    font-size: 10px;
+.fc-panel-empty span {
+    font-size: 11px;
+    font-family: var(--fc-mono);
     color: var(--text-dim);
 }
 
-/* Output results */
-.fc-result-card {
-    padding: 10px 12px;
-    background: var(--bg-primary, #111);
-    border: 1px solid var(--border);
-    border-radius: 6px;
+/* Panel header */
+.fc-ph {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.fc-ph-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.fc-ph-plugin {
+    font-size: 10px;
+    font-family: var(--fc-mono);
+    color: var(--text-dim);
+}
+
+.fc-ph-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-family: var(--fc-mono);
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 2px;
+    margin-top: 8px;
+}
+.fc-ph-status.completed { background: var(--sv-green-bg); color: var(--sv-green); }
+.fc-ph-status.failed { background: var(--sv-red-bg); color: var(--sv-red); }
+.fc-ph-status.running { background: var(--sv-blue-bg); color: var(--sv-blue); }
+
+.fc-ph-status .status-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+/* Panel sections */
+.fc-ps {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+}
+.fc-ps:last-child { border-bottom: none; }
+
+.fc-ps-title {
+    font-size: 9px;
+    font-weight: 600;
+    font-family: var(--fc-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
     margin-bottom: 8px;
 }
 
-.fc-result-card .key {
+/* Data source form */
+.fc-ds-form { display: flex; flex-direction: column; gap: 8px; }
+
+.fc-ds-form label {
     font-size: 10px;
-    font-weight: 600;
-    font-family: var(--font-label);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+    display: block;
+}
+
+.fc-ds-form textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 8px 10px;
+    font-size: 11px;
+    font-family: var(--fc-mono);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    resize: vertical;
+    line-height: 1.6;
+}
+.fc-ds-form textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary-border);
+}
+.fc-ds-form textarea::placeholder {
+    color: var(--text-dim);
+    opacity: 0.5;
+}
+
+.fc-ds-specs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.fc-ds-specs input {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-family: var(--fc-mono);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+}
+.fc-ds-specs input:focus { outline: none; border-color: var(--accent-primary-border); }
+.fc-ds-specs input::placeholder { color: var(--text-dim); opacity: 0.5; }
+
+.fc-ds-count {
+    font-size: 10px;
+    font-family: var(--fc-mono);
+    color: var(--text-dim);
+    text-align: right;
+}
+
+/* Config fields (non-data-source) */
+.fc-cfg {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fc-cfg-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fc-cfg-key {
+    font-size: 10px;
+    font-family: var(--fc-mono);
+    color: var(--text-dim);
+    min-width: 90px;
+    flex-shrink: 0;
+}
+
+.fc-cfg-val {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-family: var(--fc-mono);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+}
+.fc-cfg-val:focus { outline: none; border-color: var(--accent-primary-border); }
+
+/* Port list */
+.fc-ports { display: flex; flex-direction: column; gap: 3px; }
+
+.fc-port-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+}
+
+.fc-port-pip {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 4px currentColor;
+}
+
+.fc-port-name {
+    font-size: 11px;
+    font-family: var(--fc-mono);
+    color: var(--text-secondary, #ccc);
+}
+
+.fc-port-type {
+    font-size: 9px;
+    font-family: var(--fc-mono);
+    color: var(--text-dim);
+    margin-left: auto;
+    opacity: 0.7;
+}
+
+.fc-port-multi {
+    font-size: 8px;
+    font-family: var(--fc-mono);
+    color: var(--accent-primary);
+    border: 1px solid var(--accent-primary-border);
+    padding: 0 3px;
+    border-radius: 2px;
+}
+
+/* Results */
+.fc-result {
+    padding: 8px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+}
+
+.fc-result-key {
+    font-size: 9px;
+    font-weight: 500;
+    font-family: var(--fc-mono);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--text-dim);
     margin-bottom: 4px;
 }
 
-.fc-result-card .value {
-    font-size: 18px;
-    font-weight: 700;
-    font-family: var(--font-mono, monospace);
+.fc-result-metric {
+    font-size: 22px;
+    font-weight: 300;
+    font-family: var(--fc-mono);
     color: var(--text-primary);
+    letter-spacing: -0.02em;
 }
 
-.fc-result-card .chart-slot {
-    min-height: 180px;
-}
+.fc-result-chart { min-height: 200px; }
 
-.fc-result-card .text-value {
-    font-size: 12px;
-    color: var(--text-secondary, #ccc);
-    line-height: 1.5;
-    white-space: pre-wrap;
-}
-
-/* Status indicators */
-.fc-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+.fc-result-text {
     font-size: 11px;
-    font-family: var(--font-label);
-    padding: 3px 8px;
-    border-radius: 3px;
-    margin-bottom: 12px;
+    font-family: var(--fc-mono);
+    color: var(--text-secondary, #ccc);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
 }
 
-.fc-status.completed {
-    background: rgba(34, 197, 94, 0.1);
-    color: #22c55e;
+/* ── Entry animation ───────────────────────────────────── */
+@keyframes fc-fade-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
-.fc-status.failed {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-}
+.fc-tpl { animation: fc-fade-up 0.3s ease both; }
+.fc-tpl:nth-child(2) { animation-delay: 0.05s; }
+.fc-tpl:nth-child(3) { animation-delay: 0.1s; }
 
-.fc-status.running {
-    background: rgba(59, 130, 246, 0.1);
-    color: #3b82f6;
-}
+.fc-ps { animation: fc-fade-up 0.25s ease both; }
+.fc-ps:nth-child(2) { animation-delay: 0.06s; }
+.fc-ps:nth-child(3) { animation-delay: 0.12s; }
+.fc-ps:nth-child(4) { animation-delay: 0.18s; }
 </style>
 {% endblock %}
 
+{% block container_class %}sv-full{% endblock %}
+
 {% block content %}
-<div class="fc-app" id="fcApp">
+<div class="fc" id="fcApp">
     <!-- Toolbar -->
-    <div class="fc-toolbar">
-        <h1>Flowchart</h1>
-        <span class="fc-template-name" id="fcTemplateName">Select a template</span>
-        <span class="fc-spacer"></span>
-        <button class="fc-btn fc-btn-primary" id="fcRunBtn" disabled>Run</button>
+    <div class="fc-bar">
+        <span class="fc-bar-title">Flowchart</span>
+        <span class="fc-bar-name" id="fcBarName"></span>
+        <span class="fc-bar-desc" id="fcBarDesc">Select a template to begin</span>
+        <button class="fc-bar-run" id="fcRunBtn" disabled>
+            <span class="fc-run-dot"></span>
+            Execute
+        </button>
     </div>
 
     <!-- Left: Template picker -->
-    <div class="fc-sidebar" id="fcSidebar">
-        <h2>Templates</h2>
+    <div class="fc-side" id="fcSidebar">
+        <div class="fc-side-label">Templates</div>
         <div id="fcTemplateList"></div>
     </div>
 
     <!-- Center: SVG canvas -->
-    <div class="fc-canvas-wrap" id="fcCanvasWrap">
+    <div class="fc-canvas" id="fcCanvasWrap">
         <svg id="fcSvg" xmlns="http://www.w3.org/2000/svg">
             <defs>
-                <pattern id="fcGrid" width="20" height="20" patternUnits="userSpaceOnUse">
-                    <line x1="20" y1="0" x2="20" y2="20" class="fc-grid-pattern"/>
-                    <line x1="0" y1="20" x2="20" y2="20" class="fc-grid-pattern"/>
+                <pattern id="fcDots" width="16" height="16" patternUnits="userSpaceOnUse">
+                    <circle cx="8" cy="8" r="0.7" class="fc-dot-pattern"/>
                 </pattern>
+                <!-- Glow filter for completed devices -->
+                <filter id="fcGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur"/>
+                    <feFlood flood-opacity="0.2" result="color"/>
+                    <feComposite in="color" in2="blur" operator="in" result="glow"/>
+                    <feMerge>
+                        <feMergeNode in="glow"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
             </defs>
-            <rect width="100%" height="100%" fill="url(#fcGrid)" opacity="0.3"/>
-            <g id="fcConnectionsLayer"></g>
+            <rect width="100%" height="100%" fill="url(#fcDots)"/>
+            <g id="fcCablesLayer"></g>
             <g id="fcDevicesLayer"></g>
         </svg>
     </div>
 
     <!-- Right: Detail panel -->
-    <div class="fc-panel empty" id="fcPanel">
-        <div class="empty-msg">Select a device to see details</div>
+    <div class="fc-panel" id="fcPanel">
+        <div class="fc-panel-empty">
+            <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke-linejoin="round" stroke-linecap="round"/></svg>
+            <span>Select a device</span>
+        </div>
     </div>
 </div>
 
@@ -442,476 +673,551 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     'use strict';
 
     // ── Constants ─────────────────────────────────────────
-    var DEVICE_W = 180;
-    var DEVICE_H = 80;
-    var PORT_R = 5;
-    var PORT_SPACING = 20;
-    var PORT_LABEL_OFFSET = 14;
+    var DEV_W = 170;
+    var DEV_H = 72;
+    var HEADER_H = 5; /* thin color band at top of device */
+    var PORT_SPACING = 18;
+
+    // Port color palette — semantic type categories
+    var PORT_COLORS = {
+        metric:   '#4ade80',
+        data:     '#60a5fa',
+        chart:    '#a78bfa',
+        text:     '#9ca3af',
+        spec:     '#facc15',
+        config:   '#fb923c',
+        list:     '#2dd4bf',
+        document: '#f87171',
+    };
 
     // ── State ─────────────────────────────────────────────
-    var state = {
+    var S = {
         templates: [],
-        activeTemplate: null,
-        definition: null,
-        selectedDevice: null,
+        active: null,
+        def: null,
+        selected: null,
         results: null,
         running: false,
     };
 
-    // ── DOM refs ──────────────────────────────────────────
-    var templateList = document.getElementById('fcTemplateList');
-    var templateName = document.getElementById('fcTemplateName');
-    var runBtn = document.getElementById('fcRunBtn');
-    var svg = document.getElementById('fcSvg');
-    var connectionsLayer = document.getElementById('fcConnectionsLayer');
-    var devicesLayer = document.getElementById('fcDevicesLayer');
-    var panel = document.getElementById('fcPanel');
+    // ── DOM ───────────────────────────────────────────────
+    var $list   = document.getElementById('fcTemplateList');
+    var $name   = document.getElementById('fcBarName');
+    var $desc   = document.getElementById('fcBarDesc');
+    var $run    = document.getElementById('fcRunBtn');
+    var $svg    = document.getElementById('fcSvg');
+    var $cables = document.getElementById('fcCablesLayer');
+    var $devs   = document.getElementById('fcDevicesLayer');
+    var $panel  = document.getElementById('fcPanel');
 
     // ── Helpers ───────────────────────────────────────────
-    function getCookie(name) {
-        var m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-        return m ? decodeURIComponent(m[2]) : null;
+    function portColor(typeStr) {
+        if (!typeStr) return '#555';
+        return PORT_COLORS[typeStr.split(':')[0]] || '#555';
     }
 
-    async function api(method, url, body) {
-        var opts = {
-            method: method,
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-        };
-        if (body) opts.body = JSON.stringify(body);
-        var resp = await fetch(url, opts);
-        var data = await resp.json();
-        if (!resp.ok) throw new Error(data.error || 'Request failed');
-        return data;
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
     }
 
-    function portColor(typeStr, portColors) {
-        if (!typeStr || !portColors) return '#666';
-        var cat = typeStr.split(':')[0];
-        return portColors[cat] || '#666';
+    function fmt(n) {
+        if (n == null) return '\u2014';
+        if (Number.isInteger(n)) return String(n);
+        return n.toFixed(4).replace(/\.?0+$/, '');
+    }
+
+    function svgEl(tag, attrs) {
+        var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        if (attrs) Object.keys(attrs).forEach(function(k) { el.setAttribute(k, attrs[k]); });
+        return el;
+    }
+
+    // Dominant port color for a device (most common category in outputs)
+    function dominantColor(dev) {
+        var outs = (dev.ports || {}).outputs || [];
+        if (!outs.length) return PORT_COLORS.metric;
+        var counts = {};
+        outs.forEach(function(p) {
+            var cat = (p.type || '').split(':')[0];
+            counts[cat] = (counts[cat] || 0) + 1;
+        });
+        var best = Object.keys(counts).sort(function(a,b) { return counts[b] - counts[a]; })[0];
+        return PORT_COLORS[best] || PORT_COLORS.metric;
     }
 
     // ── Template Picker ───────────────────────────────────
-    async function loadTemplates() {
-        var data = await api('GET', '/api/flowchart/templates/');
-        state.templates = data.templates;
-        renderTemplateList();
+    async function boot() {
+        var resp = await fetch('/api/flowchart/templates/', { headers: { 'Content-Type': 'application/json' } });
+        var data = await resp.json();
+        S.templates = data.templates;
+        renderList();
     }
 
-    function renderTemplateList() {
-        templateList.innerHTML = '';
-        state.templates.forEach(function(tpl) {
-            var card = document.createElement('div');
-            card.className = 'fc-tpl-card';
-            card.dataset.id = tpl.id;
-
-            var name = document.createElement('div');
-            name.className = 'name';
-            name.textContent = tpl.name;
-            card.appendChild(name);
-
-            var desc = document.createElement('div');
-            desc.className = 'desc';
-            desc.textContent = tpl.description;
-            card.appendChild(desc);
-
-            var devices = document.createElement('div');
-            devices.className = 'devices';
-            (tpl.devices_used || []).forEach(function(d) {
-                var tag = document.createElement('span');
-                tag.className = 'device-tag';
-                tag.textContent = d;
-                devices.appendChild(tag);
-            });
-            card.appendChild(devices);
-
-            card.addEventListener('click', function() { selectTemplate(tpl.id); });
-            templateList.appendChild(card);
+    function renderList() {
+        $list.innerHTML = '';
+        S.templates.forEach(function(t) {
+            var el = document.createElement('div');
+            el.className = 'fc-tpl';
+            el.dataset.id = t.id;
+            el.innerHTML =
+                '<div class="fc-tpl-name">' + esc(t.name) + '</div>' +
+                '<div class="fc-tpl-meta">' + (t.devices_used || []).length + ' devices</div>' +
+                '<div class="fc-tpl-tags">' + (t.devices_used || []).map(function(d) {
+                    return '<span class="fc-tpl-tag">' + esc(d) + '</span>';
+                }).join('') + '</div>';
+            el.addEventListener('click', function() { loadTemplate(t.id); });
+            $list.appendChild(el);
         });
     }
 
-    async function selectTemplate(id) {
-        // Fetch full definition
-        var data = await api('GET', '/api/flowchart/templates/' + id + '/');
-        state.activeTemplate = data;
-        state.definition = data.definition;
-        state.results = null;
-        state.selectedDevice = null;
+    async function loadTemplate(id) {
+        var resp = await fetch('/api/flowchart/templates/' + id + '/', { headers: { 'Content-Type': 'application/json' } });
+        var data = await resp.json();
+        S.active = data;
+        S.def = data.definition;
+        S.results = null;
+        S.selected = null;
 
-        // Update UI
-        templateName.textContent = data.name;
-        runBtn.disabled = false;
-        document.querySelectorAll('.fc-tpl-card').forEach(function(c) {
-            c.classList.toggle('active', c.dataset.id === id);
+        // Ensure data_source devices have data/usl/lsl in config
+        (S.def.devices || []).forEach(function(dev) {
+            if (dev.plugin === 'data_source') {
+                if (!S.def.config[dev.id]) S.def.config[dev.id] = {};
+                var c = S.def.config[dev.id];
+                if (!c.measurements) c.measurements = [];
+                if (c.usl === undefined) c.usl = null;
+                if (c.lsl === undefined) c.lsl = null;
+            }
+        });
+
+        $name.textContent = data.name;
+        $desc.textContent = data.description || '';
+        $run.disabled = false;
+
+        document.querySelectorAll('.fc-tpl').forEach(function(el) {
+            el.classList.toggle('active', el.dataset.id === id);
         });
 
         renderFlowchart();
         renderPanel();
     }
 
-    // ── SVG Rendering ─────────────────────────────────────
+    // ── SVG: Flowchart Rendering ──────────────────────────
     function renderFlowchart() {
-        var def = state.definition;
-        if (!def) return;
+        if (!S.def) return;
+        $cables.innerHTML = '';
+        $devs.innerHTML = '';
 
-        // Clear layers
-        connectionsLayer.innerHTML = '';
-        devicesLayer.innerHTML = '';
+        var devices = S.def.devices || [];
+        var connections = S.def.connections || [];
+        var positions = S.def.positions || {};
+        var portPos = {}; /* "dev.port" -> {x, y} */
 
-        var devices = def.devices || [];
-        var connections = def.connections || [];
-        var positions = def.positions || {};
-        var portColors = def.port_colors || {};
-
-        // Compute port positions for each device
-        var portPositions = {};
-
+        // Draw devices
         devices.forEach(function(dev) {
             var pos = positions[dev.id] || { x: 100, y: 100 };
             var ports = dev.ports || { inputs: [], outputs: [] };
-            var inputs = ports.inputs || [];
-            var outputs = ports.outputs || [];
+            var ins = ports.inputs || [];
+            var outs = ports.outputs || [];
+            var maxPorts = Math.max(ins.length, outs.length, 1);
+            var h = Math.max(DEV_H, maxPorts * PORT_SPACING + 24);
+            var color = dominantColor(dev);
 
-            // Calculate port y-offsets (centered vertically)
-            var maxPorts = Math.max(inputs.length, outputs.length, 1);
-            var deviceH = Math.max(DEVICE_H, maxPorts * PORT_SPACING + 20);
+            var g = svgEl('g', {
+                'class': 'fc-dev',
+                'data-id': dev.id,
+                transform: 'translate(' + pos.x + ',' + pos.y + ')',
+            });
 
-            // Render device group
-            var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            g.setAttribute('class', 'fc-device');
-            g.setAttribute('data-id', dev.id);
-            g.setAttribute('transform', 'translate(' + pos.x + ',' + pos.y + ')');
+            // Body
+            g.appendChild(svgEl('rect', {
+                'class': 'body', x: 0, y: 0,
+                width: DEV_W, height: h,
+            }));
 
-            // Body rect
-            var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            rect.setAttribute('class', 'body');
-            rect.setAttribute('x', 0);
-            rect.setAttribute('y', 0);
-            rect.setAttribute('width', DEVICE_W);
-            rect.setAttribute('height', deviceH);
-            g.appendChild(rect);
+            // Header color band
+            g.appendChild(svgEl('rect', {
+                'class': 'header', x: 0, y: 0,
+                width: DEV_W, height: HEADER_H,
+                fill: color,
+            }));
 
             // Label
-            var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            label.setAttribute('class', 'label');
-            label.setAttribute('x', DEVICE_W / 2);
-            label.setAttribute('y', deviceH / 2 - 6);
-            label.textContent = dev.label || dev.plugin;
-            g.appendChild(label);
+            var lbl = svgEl('text', {
+                'class': 'label',
+                x: DEV_W / 2, y: h / 2 - 4,
+            });
+            lbl.textContent = dev.label || dev.plugin;
+            g.appendChild(lbl);
 
-            // Plugin name (small)
-            var pname = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            pname.setAttribute('class', 'plugin-name');
-            pname.setAttribute('x', DEVICE_W / 2);
-            pname.setAttribute('y', deviceH / 2 + 10);
-            pname.textContent = dev.plugin;
-            g.appendChild(pname);
+            // ID tag
+            var tag = svgEl('text', {
+                'class': 'id-tag',
+                x: DEV_W / 2, y: h / 2 + 10,
+            });
+            tag.textContent = dev.id;
+            g.appendChild(tag);
 
-            // Input ports (left side)
-            inputs.forEach(function(port, i) {
-                var py = computePortY(i, inputs.length, deviceH);
-                var color = portColor(port.type, portColors);
-                var pg = renderPort(0, py, port.name, color, 'input');
-                g.appendChild(pg);
-                portPositions[dev.id + '.' + port.name] = {
-                    x: pos.x, y: pos.y + py
-                };
+            // Input ports
+            ins.forEach(function(p, i) {
+                var py = portY(i, ins.length, h);
+                var c = portColor(p.type);
+                drawPort(g, 0, py, p.name, c, 'in');
+                portPos[dev.id + '.' + p.name] = { x: pos.x, y: pos.y + py };
             });
 
-            // Output ports (right side)
-            outputs.forEach(function(port, i) {
-                var py = computePortY(i, outputs.length, deviceH);
-                var color = portColor(port.type, portColors);
-                var pg = renderPort(DEVICE_W, py, port.name, color, 'output');
-                g.appendChild(pg);
-                portPositions[dev.id + '.' + port.name] = {
-                    x: pos.x + DEVICE_W, y: pos.y + py
-                };
+            // Output ports
+            outs.forEach(function(p, i) {
+                var py = portY(i, outs.length, h);
+                var c = portColor(p.type);
+                drawPort(g, DEV_W, py, p.name, c, 'out');
+                portPos[dev.id + '.' + p.name] = { x: pos.x + DEV_W, y: pos.y + py };
             });
 
-            // Click handler
             g.addEventListener('click', function(e) {
                 e.stopPropagation();
-                state.selectedDevice = dev.id;
-                renderDeviceSelection();
+                S.selected = dev.id;
+                refreshSelection();
                 renderPanel();
             });
 
-            devicesLayer.appendChild(g);
+            $devs.appendChild(g);
         });
 
-        // Render connections
+        // Draw cables
         connections.forEach(function(conn) {
-            var srcPos = portPositions[conn.source];
-            var tgtPos = portPositions[conn.target];
-            if (!srcPos || !tgtPos) return;
-
-            var color = portColor(conn.type, portColors);
-            var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            path.setAttribute('class', 'fc-connection');
-            path.setAttribute('stroke', color);
-            path.setAttribute('d', cubicBezier(srcPos, tgtPos));
-
-            // Tooltip
-            var title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-            title.textContent = conn.source + ' \u2192 ' + conn.target + ' (' + conn.type + ')';
+            var s = portPos[conn.source];
+            var t = portPos[conn.target];
+            if (!s || !t) return;
+            var c = portColor(conn.type);
+            var dx = Math.abs(t.x - s.x) * 0.45;
+            var d = 'M' + s.x + ' ' + s.y +
+                    ' C' + (s.x + dx) + ' ' + s.y +
+                    ',' + (t.x - dx) + ' ' + t.y +
+                    ',' + t.x + ' ' + t.y;
+            var path = svgEl('path', {
+                'class': 'fc-cable',
+                d: d, stroke: c,
+            });
+            var title = svgEl('title');
+            title.textContent = conn.source + ' \u2192 ' + conn.target + ' (' + (conn.type || '') + ')';
             path.appendChild(title);
-
-            connectionsLayer.appendChild(path);
+            $cables.appendChild(path);
         });
 
         // Click canvas to deselect
-        svg.addEventListener('click', function() {
-            state.selectedDevice = null;
-            renderDeviceSelection();
-            renderPanel();
+        $svg.onclick = function(e) {
+            if (e.target === $svg || e.target.parentNode === $svg) {
+                S.selected = null;
+                refreshSelection();
+                renderPanel();
+            }
+        };
+    }
+
+    function portY(i, total, devH) {
+        if (total <= 1) return devH / 2;
+        var usable = devH - 28;
+        return 14 + i * (usable / (total - 1));
+    }
+
+    function drawPort(parent, x, y, name, color, side) {
+        var g = svgEl('g', { 'class': 'fc-port' });
+
+        g.appendChild(svgEl('circle', {
+            cx: x, cy: y, r: 5,
+            fill: color,
+            stroke: 'var(--fc-canvas-bg)',
+            'stroke-width': 1.5,
+        }));
+
+        var t = svgEl('text', {
+            y: y,
+            'dominant-baseline': 'middle',
+            x: side === 'in' ? x + 12 : x - 12,
+            'text-anchor': side === 'in' ? 'start' : 'end',
         });
+        t.textContent = name;
+        g.appendChild(t);
+
+        parent.appendChild(g);
     }
 
-    function computePortY(index, total, deviceH) {
-        if (total <= 1) return deviceH / 2;
-        var usable = deviceH - 30;
-        var step = usable / (total - 1);
-        return 15 + index * step;
-    }
-
-    function renderPort(x, y, name, color, side) {
-        var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        g.setAttribute('class', 'fc-port');
-
-        var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('cx', x);
-        circle.setAttribute('cy', y);
-        circle.setAttribute('fill', color);
-        g.appendChild(circle);
-
-        var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('y', y);
-        text.setAttribute('dominant-baseline', 'middle');
-        if (side === 'input') {
-            text.setAttribute('x', x + PORT_LABEL_OFFSET);
-            text.setAttribute('text-anchor', 'start');
-        } else {
-            text.setAttribute('x', x - PORT_LABEL_OFFSET);
-            text.setAttribute('text-anchor', 'end');
-        }
-        text.textContent = name;
-        g.appendChild(text);
-
-        return g;
-    }
-
-    function cubicBezier(src, tgt) {
-        var dx = Math.abs(tgt.x - src.x) * 0.5;
-        return 'M ' + src.x + ' ' + src.y +
-               ' C ' + (src.x + dx) + ' ' + src.y +
-               ', ' + (tgt.x - dx) + ' ' + tgt.y +
-               ', ' + tgt.x + ' ' + tgt.y;
-    }
-
-    function renderDeviceSelection() {
-        document.querySelectorAll('.fc-device').forEach(function(g) {
-            var id = g.getAttribute('data-id');
-            g.classList.toggle('selected', id === state.selectedDevice);
-
-            // Apply result status
-            if (state.results && state.results[id]) {
-                var status = state.results[id].status;
-                g.classList.toggle('completed', status === 'completed');
-                g.classList.toggle('failed', status === 'failed');
-                g.classList.toggle('running', status === 'running');
+    function refreshSelection() {
+        document.querySelectorAll('.fc-dev').forEach(function(g) {
+            var id = g.dataset.id;
+            g.classList.toggle('selected', id === S.selected);
+            g.classList.remove('completed', 'failed', 'running');
+            if (S.results && S.results[id]) {
+                g.classList.add(S.results[id].status);
+                if (S.results[id].status === 'completed') {
+                    // Apply glow with device's dominant color
+                    var dev = S.def.devices.find(function(d) { return d.id === id; });
+                    if (dev) {
+                        var c = dominantColor(dev);
+                        g.querySelector('rect.body').style.stroke = c;
+                        g.style.filter = 'drop-shadow(0 0 8px ' + c + '40)';
+                    }
+                } else {
+                    g.querySelector('rect.body').style.stroke = '';
+                    g.style.filter = '';
+                }
+            } else {
+                g.querySelector('rect.body').style.stroke = '';
+                g.style.filter = '';
             }
         });
     }
 
     // ── Detail Panel ──────────────────────────────────────
     function renderPanel() {
-        if (!state.selectedDevice || !state.definition) {
-            panel.className = 'fc-panel empty';
-            panel.innerHTML = '<div class="empty-msg">Select a device to see details</div>';
+        if (!S.selected || !S.def) {
+            $panel.innerHTML =
+                '<div class="fc-panel-empty">' +
+                '<svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke-linejoin="round" stroke-linecap="round"/></svg>' +
+                '<span>Select a device</span></div>';
             return;
         }
 
-        panel.className = 'fc-panel';
-        var dev = state.definition.devices.find(function(d) { return d.id === state.selectedDevice; });
+        var dev = S.def.devices.find(function(d) { return d.id === S.selected; });
         if (!dev) return;
 
-        var config = (state.definition.config || {})[dev.id] || {};
-        var portColors = state.definition.port_colors || {};
-        var result = state.results ? state.results[dev.id] : null;
-
+        var config = (S.def.config || {})[dev.id] || {};
+        var result = S.results ? S.results[dev.id] : null;
+        var ports = dev.ports || { inputs: [], outputs: [] };
         var html = '';
-        html += '<h2>' + escHtml(dev.label || dev.plugin) + '</h2>';
-        html += '<div class="device-plugin">' + escHtml(dev.plugin) + '</div>';
 
-        // Status
+        // Header
+        html += '<div class="fc-ph">';
+        html += '<div class="fc-ph-name">' + esc(dev.label || dev.plugin) + '</div>';
+        html += '<div class="fc-ph-plugin">' + esc(dev.plugin) + ' / ' + esc(dev.id) + '</div>';
         if (result) {
-            html += '<div class="fc-status ' + result.status + '">';
+            html += '<div class="fc-ph-status ' + result.status + '">';
+            html += '<span class="status-dot"></span>';
             html += result.status;
-            if (result.duration_ms != null) html += ' \u2014 ' + result.duration_ms + 'ms';
+            if (result.duration_ms != null) html += ' \u00b7 ' + result.duration_ms + 'ms';
             html += '</div>';
         }
+        html += '</div>';
 
-        // Config
-        var configKeys = Object.keys(config);
-        if (configKeys.length > 0 || !result) {
-            html += '<h3>Configuration</h3>';
-            html += '<div id="fcConfigForm">';
-            configKeys.forEach(function(key) {
-                var val = config[key];
-                html += '<div class="fc-config-field">';
-                html += '<label>' + escHtml(key) + '</label>';
-                if (typeof val === 'string' && val.length > 50) {
-                    html += '<textarea data-key="' + escHtml(key) + '">' + escHtml(val) + '</textarea>';
-                } else {
-                    html += '<input data-key="' + escHtml(key) + '" value="' + escHtml(String(val === null ? '' : val)) + '">';
-                }
-                html += '</div>';
-            });
-            if (configKeys.length === 0) {
-                html += '<div style="font-size:11px;color:var(--text-dim)">No configuration needed</div>';
+        // Data source: special form
+        if (dev.plugin === 'data_source') {
+            html += renderDataSourceForm(dev, config);
+        } else {
+            // Generic config
+            var keys = Object.keys(config);
+            if (keys.length) {
+                html += '<div class="fc-ps"><div class="fc-ps-title">Configuration</div><div class="fc-cfg">';
+                keys.forEach(function(k) {
+                    html += '<div class="fc-cfg-row">';
+                    html += '<span class="fc-cfg-key">' + esc(k) + '</span>';
+                    html += '<input class="fc-cfg-val" data-dev="' + esc(dev.id) + '" data-key="' + esc(k) + '" value="' + esc(String(config[k] === null ? '' : config[k])) + '">';
+                    html += '</div>';
+                });
+                html += '</div></div>';
             }
-            html += '</div>';
         }
 
         // Ports
-        var ports = dev.ports || { inputs: [], outputs: [] };
-        if (ports.inputs && ports.inputs.length) {
-            html += '<h3>Inputs</h3>';
-            html += '<ul class="fc-port-list">';
-            ports.inputs.forEach(function(p) {
-                var color = portColor(p.type, portColors);
-                html += '<li>';
-                html += '<span class="fc-port-dot" style="background:' + color + '"></span>';
-                html += '<span>' + escHtml(p.name) + '</span>';
-                html += '<span class="fc-port-type">' + escHtml(p.type) + (p.multi ? ' (multi)' : '') + '</span>';
-                html += '</li>';
+        if ((ports.inputs && ports.inputs.length) || (ports.outputs && ports.outputs.length)) {
+            html += '<div class="fc-ps"><div class="fc-ps-title">Ports</div><div class="fc-ports">';
+            (ports.inputs || []).forEach(function(p) {
+                html += portRowHtml(p, 'in');
             });
-            html += '</ul>';
-        }
-        if (ports.outputs && ports.outputs.length) {
-            html += '<h3>Outputs</h3>';
-            html += '<ul class="fc-port-list">';
-            ports.outputs.forEach(function(p) {
-                var color = portColor(p.type, portColors);
-                html += '<li>';
-                html += '<span class="fc-port-dot" style="background:' + color + '"></span>';
-                html += '<span>' + escHtml(p.name) + '</span>';
-                html += '<span class="fc-port-type">' + escHtml(p.type) + '</span>';
-                html += '</li>';
+            (ports.outputs || []).forEach(function(p) {
+                html += portRowHtml(p, 'out');
             });
-            html += '</ul>';
+            html += '</div></div>';
         }
 
         // Results
         if (result && result.outputs) {
-            html += '<h3>Results</h3>';
-            var outputs = result.outputs;
-            Object.keys(outputs).forEach(function(key) {
-                var val = outputs[key];
-                html += '<div class="fc-result-card">';
-                html += '<div class="key">' + escHtml(key) + '</div>';
+            html += '<div class="fc-ps"><div class="fc-ps-title">Results</div>';
+            Object.keys(result.outputs).forEach(function(key) {
+                var val = result.outputs[key];
+                html += '<div class="fc-result">';
+                html += '<div class="fc-result-key">' + esc(key) + '</div>';
                 if (typeof val === 'number') {
-                    html += '<div class="value">' + formatNum(val) + '</div>';
+                    html += '<div class="fc-result-metric">' + fmt(val) + '</div>';
                 } else if (val && typeof val === 'object' && val.chart_type) {
-                    // ForgeViz chart
-                    html += '<div class="chart-slot" data-chart="' + escHtml(JSON.stringify(val)) + '"></div>';
+                    html += '<div class="fc-result-chart" data-chart="' + esc(JSON.stringify(val)) + '"></div>';
                 } else if (val && typeof val === 'object' && val.text) {
-                    html += '<div class="text-value">' + escHtml(val.text) + '</div>';
+                    html += '<div class="fc-result-text">' + esc(val.text) + '</div>';
                 } else if (val && typeof val === 'object') {
-                    html += '<div class="text-value">' + escHtml(JSON.stringify(val, null, 2)) + '</div>';
+                    html += '<div class="fc-result-text">' + esc(JSON.stringify(val, null, 2)) + '</div>';
                 } else {
-                    html += '<div class="text-value">' + escHtml(String(val)) + '</div>';
+                    html += '<div class="fc-result-text">' + esc(String(val)) + '</div>';
                 }
                 html += '</div>';
             });
+            html += '</div>';
         }
 
-        panel.innerHTML = html;
+        $panel.innerHTML = html;
+        bindPanelEvents(dev);
+    }
 
-        // Bind config change handlers
-        panel.querySelectorAll('#fcConfigForm input, #fcConfigForm textarea').forEach(function(el) {
-            el.addEventListener('change', function() {
-                var key = el.dataset.key;
-                var val = el.value;
-                // Try to parse as number
+    function renderDataSourceForm(dev, config) {
+        var dataStr = '';
+        if (Array.isArray(config.measurements) && config.measurements.length) {
+            dataStr = config.measurements.join('\n');
+        } else if (typeof config.measurements === 'string') {
+            dataStr = config.measurements;
+        }
+        var count = parseData(dataStr).length;
+
+        var html = '<div class="fc-ps"><div class="fc-ps-title">Data Input</div>';
+        html += '<div class="fc-ds-form">';
+        html += '<div>';
+        html += '<label>Measurements</label>';
+        html += '<textarea id="fcDsData" placeholder="Paste values\u2026\n50.1\n49.8\n50.3\n\u2026or comma-separated">' + esc(dataStr) + '</textarea>';
+        html += '<div class="fc-ds-count" id="fcDsCount">' + count + ' values</div>';
+        html += '</div>';
+        html += '<div class="fc-ds-specs">';
+        html += '<div><label>LSL</label><input id="fcDsLsl" type="number" step="any" placeholder="\u2014" value="' + (config.lsl != null ? config.lsl : '') + '"></div>';
+        html += '<div><label>USL</label><input id="fcDsUsl" type="number" step="any" placeholder="\u2014" value="' + (config.usl != null ? config.usl : '') + '"></div>';
+        html += '</div>';
+        // Problem statement (for DMAIC)
+        html += '<div><label>Problem Statement</label>';
+        html += '<input id="fcDsPs" type="text" style="width:100%;padding:6px 8px;font-size:11px;font-family:var(--fc-mono);background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary)" placeholder="Optional \u2014 connects to fishbone" value="' + esc(config.problem_statement || '') + '">';
+        html += '</div>';
+        html += '</div></div>';
+        return html;
+    }
+
+    function parseData(raw) {
+        if (!raw) return [];
+        return raw.toString().trim()
+            .split(/[\n,]+/)
+            .map(function(s) { return s.trim(); })
+            .filter(function(s) { return s.length > 0; })
+            .map(Number)
+            .filter(function(n) { return !isNaN(n); });
+    }
+
+    function portRowHtml(p, dir) {
+        var c = portColor(p.type);
+        var arrow = dir === 'in' ? '\u25B8' : '\u25C2';
+        var html = '<div class="fc-port-row">';
+        html += '<span class="fc-port-pip" style="color:' + c + ';background:' + c + '"></span>';
+        html += '<span class="fc-port-name">' + esc(p.name) + '</span>';
+        if (p.multi) html += '<span class="fc-port-multi">multi</span>';
+        html += '<span class="fc-port-type">' + esc(p.type) + '</span>';
+        html += '</div>';
+        return html;
+    }
+
+    function bindPanelEvents(dev) {
+        // Data source bindings
+        if (dev.plugin === 'data_source') {
+            var $data = document.getElementById('fcDsData');
+            var $lsl = document.getElementById('fcDsLsl');
+            var $usl = document.getElementById('fcDsUsl');
+            var $ps = document.getElementById('fcDsPs');
+            var $cnt = document.getElementById('fcDsCount');
+
+            if ($data) {
+                $data.addEventListener('input', function() {
+                    var vals = parseData($data.value);
+                    $cnt.textContent = vals.length + ' value' + (vals.length !== 1 ? 's' : '');
+                    S.def.config[dev.id].measurements = vals;
+                });
+            }
+            if ($lsl) {
+                $lsl.addEventListener('change', function() {
+                    S.def.config[dev.id].lsl = $lsl.value ? parseFloat($lsl.value) : null;
+                });
+            }
+            if ($usl) {
+                $usl.addEventListener('change', function() {
+                    S.def.config[dev.id].usl = $usl.value ? parseFloat($usl.value) : null;
+                });
+            }
+            if ($ps) {
+                $ps.addEventListener('change', function() {
+                    S.def.config[dev.id].problem_statement = $ps.value || '';
+                });
+            }
+        }
+
+        // Generic config bindings
+        $panel.querySelectorAll('.fc-cfg-val').forEach(function(inp) {
+            inp.addEventListener('change', function() {
+                var dId = inp.dataset.dev;
+                var key = inp.dataset.key;
+                var val = inp.value;
                 var num = parseFloat(val);
                 if (!isNaN(num) && String(num) === val.trim()) val = num;
-                if (!state.definition.config[dev.id]) state.definition.config[dev.id] = {};
-                state.definition.config[dev.id][key] = val;
+                if (!S.def.config[dId]) S.def.config[dId] = {};
+                S.def.config[dId][key] = val;
             });
         });
 
         // Render ForgeViz charts
-        panel.querySelectorAll('.chart-slot[data-chart]').forEach(function(slot) {
+        $panel.querySelectorAll('.fc-result-chart[data-chart]').forEach(function(slot) {
             try {
-                var chartData = JSON.parse(slot.dataset.chart);
+                var cd = JSON.parse(slot.dataset.chart);
                 if (typeof ForgeViz !== 'undefined' && ForgeViz.render) {
-                    ForgeViz.render(slot, chartData, { theme: 'svend_dark' });
+                    ForgeViz.render(slot, cd, { theme: 'svend_dark' });
                 }
             } catch (e) { /* skip */ }
         });
     }
 
-    function escHtml(s) {
-        var div = document.createElement('div');
-        div.textContent = s;
-        return div.innerHTML;
-    }
-
-    function formatNum(n) {
-        if (n === null || n === undefined) return '-';
-        if (Number.isInteger(n)) return String(n);
-        return n.toFixed(4).replace(/\.?0+$/, '');
-    }
-
     // ── Execution ─────────────────────────────────────────
-    runBtn.addEventListener('click', async function() {
-        if (!state.definition || state.running) return;
-        state.running = true;
-        state.results = null;
-        runBtn.disabled = true;
-        runBtn.textContent = 'Running\u2026';
+    $run.addEventListener('click', async function() {
+        if (!S.def || S.running) return;
+        S.running = true;
+        S.results = null;
+        $run.disabled = true;
+        $run.classList.add('executing');
+        $run.querySelector('.fc-run-dot').style.display = 'inline-block';
 
-        // Clear device states
-        document.querySelectorAll('.fc-device').forEach(function(g) {
-            g.classList.remove('completed', 'failed', 'running');
+        document.querySelectorAll('.fc-dev').forEach(function(g) {
+            g.classList.remove('completed', 'failed', 'selected');
             g.classList.add('running');
+            g.querySelector('rect.body').style.stroke = '';
+            g.style.filter = '';
         });
 
         try {
-            var data = await api('POST', '/api/flowchart/run/', {
-                definition: state.definition,
-                is_scratch: true,
+            var resp = await fetch('/api/flowchart/run/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ definition: S.def, is_scratch: true }),
             });
-            state.results = data.results;
+            var data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'Execution failed');
 
-            // Update device states
-            renderDeviceSelection();
-
-            // If a device is selected, refresh panel with results
-            if (state.selectedDevice) renderPanel();
-
+            S.results = data.results;
+            refreshSelection();
+            // Mark cables as routed
+            document.querySelectorAll('.fc-cable').forEach(function(c) { c.classList.add('routed'); });
+            if (S.selected) renderPanel();
         } catch (err) {
-            // Mark all as failed on error
-            document.querySelectorAll('.fc-device').forEach(function(g) {
+            document.querySelectorAll('.fc-dev').forEach(function(g) {
                 g.classList.remove('running');
                 g.classList.add('failed');
             });
-            alert('Execution failed: ' + err.message);
+            // Use sv-toast if available, else alert
+            if (typeof svToast === 'function') {
+                svToast(err.message, 'error');
+            } else {
+                alert('Execution failed: ' + err.message);
+            }
         } finally {
-            state.running = false;
-            runBtn.disabled = false;
-            runBtn.textContent = 'Run';
-            // Remove running class
-            document.querySelectorAll('.fc-device.running').forEach(function(g) {
+            S.running = false;
+            $run.disabled = false;
+            $run.classList.remove('executing');
+            document.querySelectorAll('.fc-dev.running').forEach(function(g) {
                 g.classList.remove('running');
             });
         }
     });
 
     // ── Boot ──────────────────────────────────────────────
-    loadTemplates();
+    boot();
 })();
 </script>
 {% endblock %}

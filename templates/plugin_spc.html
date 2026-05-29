@@ -1,0 +1,290 @@
+{% extends "tool_base.html" %}
+
+{% block title %}SPC Tools for Claude Code{% endblock %}
+{% block meta_description %}Statistical Process Control plugin for Claude Code. Control charts, capability analysis, and Gage R&R powered by the Forge engine. Free and open source from Svend.{% endblock %}
+{% block meta_keywords %}spc, statistical process control, claude code plugin, control charts, capability analysis, gage r&r, cpk, six sigma, quality engineering{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/plugins/spc-tools/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/plugins/spc-tools/">
+<meta property="og:title" content="SPC Tools for Claude Code | Svend">
+<meta property="og:description" content="Control charts, capability analysis, and Gage R&R inside Claude Code. Powered by the Forge engine.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "SPC Tools for Claude Code",
+    "description": "Statistical Process Control plugin for Claude Code. Control charts, capability analysis, and Gage R&R.",
+    "url": "https://svend.ai/plugins/spc-tools/",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Any",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" },
+    "softwareRequirements": "Claude Code CLI",
+    "license": "https://opensource.org/licenses/MIT"
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .plugin-hero {
+        text-align: center;
+        padding: 80px 20px 60px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .plugin-hero h1 {
+        font-size: 2.4rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+    }
+    .plugin-hero .subtitle {
+        font-size: 1.15rem;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        margin-bottom: 32px;
+    }
+    .install-box {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--accent-primary-border);
+        border-radius: 8px;
+        padding: 20px 28px;
+        display: inline-block;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.95rem;
+        color: var(--accent-primary);
+        margin-bottom: 12px;
+        user-select: all;
+    }
+    .install-hint {
+        font-size: 0.85rem;
+        color: var(--text-dim);
+    }
+    .skills-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 0 20px 60px;
+    }
+    .skill-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 28px;
+    }
+    .skill-card h3 {
+        font-size: 1.1rem;
+        color: var(--accent-primary);
+        margin-bottom: 8px;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .skill-card p {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+    .skill-card ul {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.8;
+        padding-left: 20px;
+        margin-top: 12px;
+    }
+    .section-title {
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 32px;
+        padding-top: 20px;
+    }
+    .packages-table {
+        max-width: 800px;
+        margin: 0 auto 60px;
+        padding: 0 20px;
+    }
+    .packages-table table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .packages-table th,
+    .packages-table td {
+        text-align: left;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.9rem;
+    }
+    .packages-table th {
+        color: var(--text-dim);
+        font-weight: 500;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+    }
+    .packages-table td {
+        color: var(--text-secondary);
+    }
+    .packages-table td:first-child {
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--accent-primary);
+    }
+    .packages-table a {
+        color: var(--accent-blue);
+        text-decoration: none;
+    }
+    .packages-table a:hover {
+        text-decoration: underline;
+    }
+    .cta-section {
+        text-align: center;
+        padding: 40px 20px 80px;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    .cta-section p {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        line-height: 1.6;
+        margin-bottom: 24px;
+    }
+    .cta-section a {
+        display: inline-block;
+        background: var(--accent-primary);
+        color: #fff;
+        padding: 12px 32px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: opacity 0.2s;
+    }
+    .cta-section a:hover {
+        opacity: 0.9;
+    }
+    .divider {
+        border: none;
+        border-top: 1px solid var(--border);
+        max-width: 800px;
+        margin: 0 auto 40px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="plugin-hero">
+    <h1>SPC Tools for Claude Code</h1>
+    <p class="subtitle">
+        Control charts, process capability, and Gage R&R — directly in your terminal.
+        Powered by the Forge quality engineering engine. Free and open source.
+    </p>
+    <div class="install-box">/plugin install spc-tools</div>
+    <p class="install-hint">or from the Plugin tab in Claude Code</p>
+</div>
+
+<h2 class="section-title">Skills</h2>
+
+<div class="skills-grid">
+    <div class="skill-card">
+        <h3>/spc-tools:control-chart</h3>
+        <p>Create SPC control charts from your data with automatic out-of-control detection.</p>
+        <ul>
+            <li>I-MR, X-bar/R, X-bar/S (variables)</li>
+            <li>p, c, u, np (attributes)</li>
+            <li>CUSUM, EWMA (small shift detection)</li>
+            <li>Nelson rules &amp; Western Electric rules</li>
+        </ul>
+    </div>
+
+    <div class="skill-card">
+        <h3>/spc-tools:capability</h3>
+        <p>Assess whether your process meets specification limits.</p>
+        <ul>
+            <li>Cp, Cpk, Pp, Ppk indices</li>
+            <li>Sigma level, DPMO, yield</li>
+            <li>Bayesian capability with credible intervals</li>
+            <li>Capability histogram with spec overlay</li>
+        </ul>
+    </div>
+
+    <div class="skill-card">
+        <h3>/spc-tools:gage-rr</h3>
+        <p>Validate your measurement system before making process decisions.</p>
+        <ul>
+            <li>Crossed and nested study designs</li>
+            <li>Repeatability &amp; reproducibility breakdown</li>
+            <li>Number of distinct categories (ndc)</li>
+            <li>AIAG acceptance criteria</li>
+        </ul>
+    </div>
+</div>
+
+<hr class="divider">
+
+<h2 class="section-title">Packages</h2>
+
+<div class="packages-table">
+    <table>
+        <thead>
+            <tr>
+                <th>Package</th>
+                <th>Purpose</th>
+                <th>Source</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>forgespc</td>
+                <td>Control charts, capability, gage R&R, Bayesian SPC</td>
+                <td><a href="https://github.com/ewolters/forgespc">GitHub</a></td>
+            </tr>
+            <tr>
+                <td>forgestat</td>
+                <td>Statistical tests, regression, power analysis, reliability</td>
+                <td><a href="https://github.com/ewolters/forgestat">GitHub</a></td>
+            </tr>
+            <tr>
+                <td>forgeviz</td>
+                <td>Zero-dependency chart rendering (ChartSpec)</td>
+                <td><a href="https://github.com/ewolters/forgeviz">GitHub</a></td>
+            </tr>
+            <tr>
+                <td>forgedoe</td>
+                <td>Design of experiments (factorial, CCD, DSD)</td>
+                <td><a href="https://github.com/ewolters/forgedoe">GitHub</a></td>
+            </tr>
+            <tr>
+                <td>forgepbs</td>
+                <td>Process belief system (advanced monitoring)</td>
+                <td><a href="https://github.com/ewolters/forgepbs">GitHub</a></td>
+            </tr>
+            <tr>
+                <td>forgesia</td>
+                <td>Causal inference and belief propagation</td>
+                <td><a href="https://github.com/ewolters/forgesia">GitHub</a></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<hr class="divider">
+
+<div class="cta-section">
+    <p>
+        SPC Tools is sponsored by Svend — a hypothesis-driven decision science
+        platform for manufacturing and quality professionals. The same Forge engine
+        powers both this plugin and the full Svend platform.
+    </p>
+    <a href="/">Learn more about Svend</a>
+</div>
+{% endblock %}
